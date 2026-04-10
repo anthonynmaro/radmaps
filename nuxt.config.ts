@@ -73,7 +73,7 @@ export default defineNuxtConfig({
   // App head
   app: {
     head: {
-      title: 'TrailMaps — Beautiful Maps from Your Trails',
+      title: 'RadMaps — Beautiful Maps from Your Trails',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

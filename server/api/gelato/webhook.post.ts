@@ -12,7 +12,7 @@
  *       printed | shipped | draft | pending_approval | not_connected | partially_shipped
  */
 import { createClient } from '@supabase/supabase-js'
-import { createHmac, timingSafeEqual } from 'crypto'
+import { timingSafeEqual } from 'crypto'
 import { Resend } from 'resend'
 
 // Gelato webhook payload shape (simplified)
@@ -54,20 +54,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Missing request body' })
   }
 
-  // Gelato signs webhooks with HMAC-SHA256 of the raw body using the webhook secret.
-  // The signature is sent as a Bearer token in the Authorization header.
-  if (authHeader && config.gelatoWebhookSecret) {
-    const token = authHeader.replace(/^Bearer\s+/i, '')
-    const expectedSig = createHmac('sha256', config.gelatoWebhookSecret)
-      .update(rawBody)
-      .digest('hex')
-
+  // Gelato sends a static secret in the Authorization header (HTTP Header auth type).
+  // The Header Name is "Authorization" and the value is the raw secret — no Bearer prefix.
+  if (config.gelatoWebhookSecret) {
+    if (!authHeader) {
+      throw createError({ statusCode: 401, message: 'Missing Authorization header' })
+    }
     try {
-      if (!timingSafeEqual(Buffer.from(token), Buffer.from(expectedSig))) {
-        throw new Error('Signature mismatch')
+      const incoming = Buffer.from(authHeader)
+      const expected = Buffer.from(config.gelatoWebhookSecret as string)
+      if (incoming.length !== expected.length || !timingSafeEqual(incoming, expected)) {
+        throw new Error('Mismatch')
       }
     } catch {
-      throw createError({ statusCode: 401, message: 'Invalid Gelato webhook signature' })
+      throw createError({ statusCode: 401, message: 'Invalid Gelato webhook secret' })
     }
   }
 
@@ -120,13 +120,13 @@ export default defineEventHandler(async (event) => {
     const trackingUrl = firstShipment?.trackingUrl
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? 'orders@trailmaps.com',
+      from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
       to: address.email,
-      subject: 'Your TrailMaps print is on its way! 📦',
+      subject: 'Your RadMaps print is on its way! 📦',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #2D6A4F;">Your map is on its way! 🗺️</h1>
-          <p>Great news — your TrailMaps print has shipped and is heading to you.</p>
+          <p>Great news — your RadMaps print has shipped and is heading to you.</p>
           ${trackingUrl
             ? `<p><a href="${trackingUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Track Your Shipment</a></p>`
             : firstShipment?.trackingCode
@@ -145,15 +145,15 @@ export default defineEventHandler(async (event) => {
   if (order.fulfillmentStatus === 'delivered') {
     const address = dbOrder.shipping_address as Record<string, string>
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? 'orders@trailmaps.com',
+      from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
       to: address.email,
-      subject: 'Your TrailMaps print has been delivered! 📬',
+      subject: 'Your RadMaps print has been delivered! 📬',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #2D6A4F;">Your map has arrived! 🗺️</h1>
-          <p>Your TrailMaps print has been delivered. We hope you love it on the wall!</p>
+          <p>Your RadMaps print has been delivered. We hope you love it on the wall!</p>
           <p>Want to order another size or share a map with someone?
-             <a href="https://trailmaps.com/dashboard">Visit your dashboard</a>.</p>
+             <a href="https://radmaps.studio/dashboard">Visit your dashboard</a>.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
           <p style="font-size:12px;color:#999;">Order ID: <code>${dbOrder.id}</code></p>
         </div>

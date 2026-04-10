@@ -67,8 +67,8 @@ export default defineEventHandler(async (event) => {
   const totalCents = unitPrice * quantity
   const stripe = new Stripe(config.stripeSecretKey)
   const baseUrl = process.env.NODE_ENV === 'production'
-    ? 'https://yourdomain.com'
-    : 'http://localhost:3000'
+    ? 'https://radmaps.studio'
+    : 'http://localhost:3001'
 
   // Create Stripe Checkout session
   const session = await stripe.checkout.sessions.create({

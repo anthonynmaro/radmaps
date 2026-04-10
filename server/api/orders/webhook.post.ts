@@ -106,9 +106,9 @@ export default defineEventHandler(async (event) => {
 
     // Send confirmation email
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? 'orders@trailmaps.com',
+      from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
       to: shippingAddress.email,
-      subject: `Your TrailMaps order is confirmed! 🗺️`,
+      subject: `Your RadMaps order is confirmed! 🗺️`,
       html: buildConfirmationEmail({ order, map, digitalUrl, isDigital }),
     })
   }
@@ -219,7 +219,7 @@ function buildConfirmationEmail({
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <h1 style="color: #2D6A4F;">Your order is confirmed! 🗺️</h1>
-      <p>Thanks for ordering from TrailMaps.</p>
+      <p>Thanks for ordering from RadMaps.</p>
       ${isDigital
         ? `<p>Your <strong>digital download</strong> is ready:</p>
            <p><a href="${digitalUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Download Your Map</a></p>
@@ -229,7 +229,7 @@ function buildConfirmationEmail({
            ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${digitalUrl}">Download</a></p>` : ''}`
       }
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
-      <p style="font-size:12px;color:#999;">Order ID: <code>${order.id}</code> &nbsp;|&nbsp; TrailMaps &mdash; Beautiful maps from your trails.</p>
+      <p style="font-size:12px;color:#999;">Order ID: <code>${order.id}</code> &nbsp;|&nbsp; RadMaps &mdash; Beautiful maps from your trails.</p>
     </div>
   `
 }
