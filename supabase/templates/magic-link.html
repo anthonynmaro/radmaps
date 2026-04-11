@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in to RadMaps</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#2D6A4F 0%,#1b4332 100%);padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">RadMaps</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:13px;">Turn your trails into art</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              <h2 style="margin:0 0 12px;color:#111111;font-size:20px;font-weight:600;">Sign in to your account</h2>
+              <p style="margin:0 0 28px;color:#555555;font-size:15px;line-height:1.6;">
+                Click the button below to securely sign in to RadMaps. This link expires in 1 hour and can only be used once.
+              </p>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}"
+                       style="display:inline-block;background:#2D6A4F;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;letter-spacing:0.2px;">
+                      Sign in to RadMaps
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fallback URL -->
+              <p style="margin:28px 0 0;color:#888888;font-size:13px;line-height:1.6;">
+                Or copy and paste this URL into your browser:
+              </p>
+              <p style="margin:6px 0 0;word-break:break-all;">
+                <a href="{{ .ConfirmationURL }}" style="color:#2D6A4F;font-size:12px;text-decoration:none;">
+                  {{ .ConfirmationURL }}
+                </a>
+              </p>
+
+              <p style="margin:28px 0 0;color:#aaaaaa;font-size:13px;line-height:1.5;">
+                If you didn't request this link, you can safely ignore this email. Your account won't be affected.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f9f9f9;border-top:1px solid #eeeeee;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#aaaaaa;font-size:12px;line-height:1.5;">
+                &copy; 2025 RadMaps &nbsp;&middot;&nbsp;
+                <a href="https://radmaps.studio" style="color:#2D6A4F;text-decoration:none;">radmaps.studio</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

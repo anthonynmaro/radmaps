@@ -42,6 +42,7 @@ export default defineNuxtConfig({
     renderWorkerSecret: process.env.RENDER_WORKER_SECRET,
     public: {
       // Client-accessible vars
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://radmaps.studio',
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,

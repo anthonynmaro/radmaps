@@ -106,8 +106,11 @@ CREATE TABLE IF NOT EXISTS public.strava_tokens (
   access_token    TEXT NOT NULL,
   refresh_token   TEXT NOT NULL,
   expires_at      BIGINT NOT NULL,  -- Unix timestamp
-  athlete_id      BIGINT NOT NULL
+  athlete_id      BIGINT NOT NULL UNIQUE  -- one Strava account per Supabase user
 );
+
+-- Index used by the Strava sign-in flow to look up a user by their Strava athlete ID
+CREATE UNIQUE INDEX IF NOT EXISTS strava_tokens_athlete_id_idx ON public.strava_tokens (athlete_id);
 
 -- ─── Row Level Security ───────────────────────────────────────────────────────
 
