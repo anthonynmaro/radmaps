@@ -73,7 +73,7 @@
               <!-- Actions -->
               <div class="flex gap-2 pt-2">
                 <UButton
-                  to="`/create/${map.id}/style`"
+                  :to="`/create/${map.id}/style`"
                   size="sm"
                   variant="ghost"
                   class="flex-1"
@@ -82,7 +82,7 @@
                 </UButton>
                 <UButton
                   v-if="map.status === 'rendered'"
-                  to="`/create/${map.id}/checkout`"
+                  :to="`/create/${map.id}/checkout`"
                   size="sm"
                   color="green"
                   class="flex-1"

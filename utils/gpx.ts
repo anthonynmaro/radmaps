@@ -91,8 +91,8 @@ function toRad(deg: number): number {
  * Use in server API routes. Client should call parseGpx() above.
  */
 export function parseGpxServer(gpxString: string) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { DOMParser } = require('xmldom') as typeof import('xmldom')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+  const { DOMParser } = require('xmldom') as any
   const parser = new DOMParser()
   const dom = parser.parseFromString(gpxString, 'text/xml')
   const geojson = gpx(dom as unknown as Document)

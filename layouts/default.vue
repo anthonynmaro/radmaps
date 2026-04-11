@@ -1,80 +1,63 @@
 <template>
   <div class="min-h-screen bg-white flex flex-col">
-    <!-- Top Navigation -->
-    <nav class="border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex items-center justify-between">
-          <!-- Logo -->
-          <NuxtLink to="/" class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-[#2D6A4F] rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
-              </svg>
-            </div>
-            <span class="text-xl font-bold text-gray-900">TrailMaps</span>
-          </NuxtLink>
+    <nav class="border-b border-stone-200 bg-white/95 backdrop-blur-sm sticky top-0 z-30">
+      <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        <NuxtLink to="/" class="flex items-center gap-2.5 group">
+          <svg class="w-7 h-7 text-[#2D6A4F]" viewBox="0 0 32 32" fill="none">
+            <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.12"/>
+            <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+            <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.5"/>
+            <path d="M8 18 Q13 16 16 17 Q19.5 18 23 16.5" stroke="currentColor" stroke-width="0.7" fill="none" opacity="0.35"/>
+            <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
+          </svg>
+          <span class="text-[15px] font-bold tracking-tight text-stone-900 group-hover:text-[#2D6A4F] transition-colors" style="font-family:'Space Grotesk',sans-serif">
+            Rad Maps
+          </span>
+        </NuxtLink>
 
-          <!-- Center Nav Links (logged in users) -->
-          <div v-if="user" class="hidden md:flex items-center gap-8">
-            <NuxtLink to="/dashboard" class="text-gray-700 hover:text-[#2D6A4F] font-medium transition-colors">
-              Dashboard
-            </NuxtLink>
-            <NuxtLink to="/how-it-works" class="text-gray-700 hover:text-[#2D6A4F] font-medium transition-colors">
-              How it Works
-            </NuxtLink>
-          </div>
+        <div v-if="user" class="hidden md:flex items-center gap-6">
+          <NuxtLink to="/dashboard" class="text-sm font-medium text-stone-600 hover:text-[#2D6A4F] transition-colors">My Maps</NuxtLink>
+          <NuxtLink to="/create" class="text-sm font-medium text-stone-600 hover:text-[#2D6A4F] transition-colors">Create</NuxtLink>
+        </div>
 
-          <!-- Right Side Auth/User Menu -->
-          <div class="flex items-center gap-4">
-            <template v-if="user">
-              <!-- User Menu Dropdown -->
-              <UDropdown :items="userMenuItems" :popper="{ placement: 'bottom-end' }">
-                <UButton color="gray" variant="ghost" icon="i-heroicons-ellipsis-vertical-20-solid" />
-              </UDropdown>
-            </template>
-            <template v-else>
-              <NuxtLink to="/auth/login">
-                <UButton color="gray" variant="ghost">
-                  Log in
-                </UButton>
-              </NuxtLink>
-              <NuxtLink to="/auth/login">
-                <UButton color="green" class="bg-[#2D6A4F] hover:bg-[#1b4332]">
-                  Get started
-                </UButton>
-              </NuxtLink>
-            </template>
-          </div>
+        <div class="flex items-center gap-3">
+          <template v-if="user">
+            <UDropdown :items="userMenuItems" :popper="{ placement: 'bottom-end' }">
+              <button class="flex items-center gap-2 text-sm font-medium text-stone-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition-colors">
+                <div class="w-6 h-6 rounded-full bg-[#2D6A4F] flex items-center justify-center">
+                  <span class="text-[10px] font-bold text-white">{{ userInitial }}</span>
+                </div>
+                <UIcon name="i-heroicons-chevron-down" class="w-3.5 h-3.5 text-stone-400" />
+              </button>
+            </UDropdown>
+          </template>
+          <template v-else>
+            <NuxtLink to="/auth/login" class="text-sm font-medium text-stone-600 hover:text-stone-900 px-3 py-1.5 transition-colors">Log in</NuxtLink>
+            <NuxtLink to="/create">
+              <button class="text-sm font-semibold bg-[#2D6A4F] hover:bg-[#235840] text-white px-4 py-1.5 rounded-lg transition-colors">
+                Get started
+              </button>
+            </NuxtLink>
+          </template>
         </div>
       </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <slot />
-      </div>
-    </main>
+    <main class="flex-1"><slot /></main>
   </div>
 </template>
 
 <script setup lang="ts">
 const user = useSupabaseUser()
-const client = useSupabaseClient()
-
-const userMenuItems = computed(() => [
-  [{
-    label: 'Dashboard',
-    icon: 'i-heroicons-squares-2x2-20-solid',
-    to: '/dashboard'
-  }],
-  [{
-    label: 'Sign out',
-    icon: 'i-heroicons-arrow-left-on-rectangle-20-solid',
-    click: async () => {
-      await client.auth.signOut()
-      await navigateTo('/')
-    }
-  }]
-])
+const supabase = useSupabaseClient()
+const userInitial = computed(() => (user.value?.email ?? 'U').charAt(0).toUpperCase())
+const userMenuItems = computed(() => [[
+  { label: user.value?.email ?? '', disabled: true },
+], [
+  { label: 'My Maps', icon: 'i-heroicons-map', to: '/dashboard' },
+  { label: 'Create new map', icon: 'i-heroicons-plus', to: '/create' },
+], [
+  { label: 'Sign out', icon: 'i-heroicons-arrow-right-on-rectangle',
+    click: async () => { await supabase.auth.signOut(); await navigateTo('/') } },
+]])
 </script>

@@ -90,9 +90,49 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { buildMapStyle } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { PRINT_SIZES } from '~/types'
 import type { StyleConfig, TrailMap } from '~/types'
+
+// ── maplibre-contour setup ────────────────────────────────────────────────────
+// Dynamic import — maplibre-contour uses Web Workers and must never be evaluated
+// during SSR (it would crash the Vite Node process with "IPC connection closed").
+// The singleton is initialised lazily on first browser call and cached thereafter.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _demSource: any | null = null
+
+async function getDemSource() {
+  if (!import.meta.client) return null
+  if (!_demSource) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mlContour = await import('maplibre-contour') as any
+    const DemSource = mlContour.default?.DemSource ?? mlContour.DemSource
+    _demSource = new DemSource({
+      url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+      encoding: 'terrarium',
+      maxzoom: 13,
+      worker: true,
+      cacheSize: 200,
+    })
+    _demSource.setupMaplibre(maplibregl)
+  }
+  return _demSource
+}
+
+async function getContourTileUrl(styleConfig: StyleConfig): Promise<string | undefined> {
+  if (!styleConfig.show_contours) return undefined
+  const detail = Math.max(0, Math.min(4, Math.round(styleConfig.contour_detail ?? 3)))
+  const thresholds = CONTOUR_THRESHOLDS[detail]
+  const demSource = await getDemSource()
+  if (!demSource) return undefined
+  return demSource.contourProtocol({
+    thresholds,
+    elevationKey: 'ele',
+    levelKey: 'level',
+    contourLayer: 'contours',
+    overzoom: 1,
+  })
+}
 
 const props = defineProps<{
   map: TrailMap
@@ -152,9 +192,9 @@ const borderFrameStyle = computed(() => {
   const w = props.styleConfig.border_style === 'thick' ? '3px' : '1px'
   return {
     border: `${w} solid ${props.styleConfig.label_text_color}`,
-    opacity: '0.25',
+    opacity: 0.25,
     margin: '8px',
-    pointerEvents: 'none',
+    pointerEvents: 'none' as const,
   }
 })
 
@@ -181,7 +221,7 @@ const formattedDate = computed(() => {
 const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'preset', 'base_tile_style',
   'show_contours', 'show_hillshade', 'show_elevation_labels',
-  'contour_color', 'contour_major_color', 'contour_opacity',
+  'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
 ]
 
@@ -191,7 +231,12 @@ onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
 
-  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken) as maplibregl.StyleSpecification
+  const style = buildMapStyle(
+    props.styleConfig,
+    config.public.mapboxToken,
+    config.public.maptilerToken,
+    await getContourTileUrl(props.styleConfig),
+  ) as maplibregl.StyleSpecification
 
   mapInstance = new maplibregl.Map({
     container: mapContainer.value,
@@ -241,7 +286,7 @@ function setPaintBackground() {
 
 watch(
   () => props.styleConfig,
-  (newConfig, oldConfig) => {
+  async (newConfig, oldConfig) => {
     if (!mapInstance || !mapReady.value) return
 
     const needsFullReload = FULL_RELOAD_KEYS.some(
@@ -250,7 +295,12 @@ watch(
 
     if (needsFullReload) {
       mapReady.value = false
-      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken) as maplibregl.StyleSpecification
+      const newStyle = buildMapStyle(
+        newConfig,
+        config.public.mapboxToken,
+        config.public.maptilerToken,
+        await getContourTileUrl(newConfig),
+      ) as maplibregl.StyleSpecification
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => {
         populateRouteSource()

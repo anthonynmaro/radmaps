@@ -59,33 +59,49 @@
 
       <!-- ── Base Map ── -->
       <Section label="Base Map" icon="i-heroicons-map">
-        <div class="grid grid-cols-2 gap-2">
-          <PresetButton
-            label="Minimalist"
-            :active="local.preset === 'minimalist'"
-            @click="set('preset', 'minimalist')"
-          >
-            <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
-              <rect width="48" height="32" fill="#f0ece4"/>
-              <path d="M4 24 Q12 20 24 22 Q36 24 44 18" stroke="#c8b8a2" stroke-width="1" fill="none"/>
-              <path d="M8 16 Q18 10 28 14 Q38 18 44 12" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            </svg>
-            Minimalist
-          </PresetButton>
-          <PresetButton
-            label="Topographic"
-            :active="local.preset === 'topographic'"
-            @click="set('preset', 'topographic')"
-          >
-            <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
-              <rect width="48" height="32" fill="#e8dfd0"/>
-              <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#b8a888" stroke-width="0.8" fill="none"/>
-              <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#a09070" stroke-width="0.8" fill="none"/>
-              <ellipse cx="24" cy="18" rx="6" ry="4" stroke="#887850" stroke-width="0.8" fill="none"/>
-              <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            </svg>
-            Topographic
-          </PresetButton>
+        <div class="space-y-3">
+          <!-- Preset row -->
+          <div class="grid grid-cols-2 gap-2">
+            <PresetButton
+              label="Minimalist"
+              :active="local.preset === 'minimalist'"
+              @click="set('preset', 'minimalist')"
+            >
+              <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
+                <rect width="48" height="32" fill="#f0ece4"/>
+                <path d="M4 24 Q12 20 24 22 Q36 24 44 18" stroke="#c8b8a2" stroke-width="1" fill="none"/>
+                <path d="M8 16 Q18 10 28 14 Q38 18 44 12" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+              Minimalist
+            </PresetButton>
+            <PresetButton
+              label="Topographic"
+              :active="local.preset === 'topographic'"
+              @click="set('preset', 'topographic')"
+            >
+              <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
+                <rect width="48" height="32" fill="#e8dfd0"/>
+                <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#b8a888" stroke-width="0.8" fill="none"/>
+                <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#a09070" stroke-width="0.8" fill="none"/>
+                <ellipse cx="24" cy="18" rx="6" ry="4" stroke="#887850" stroke-width="0.8" fill="none"/>
+                <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+              Topographic
+            </PresetButton>
+          </div>
+          <!-- Tile style (minimalist only) -->
+          <template v-if="local.preset === 'minimalist'">
+            <p class="text-[10px] text-gray-400 -mb-1">Tile style</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button v-for="ts in TILE_STYLES" :key="ts.value"
+                class="rounded border text-[10px] py-1 px-1.5 text-center transition-colors"
+                :class="(local.base_tile_style ?? 'carto-light') === ts.value
+                  ? 'border-green-500 bg-green-50 text-green-700 font-medium'
+                  : 'border-gray-200 text-gray-500 hover:border-gray-300'"
+                @click="set('base_tile_style', ts.value)"
+              >{{ ts.label }}</button>
+            </div>
+          </template>
         </div>
       </Section>
 
@@ -132,6 +148,9 @@
             </div>
             <SliderRow label="Opacity" :value="local.contour_opacity" :min="0" :max="1" :step="0.05"
               :display="v => Math.round(v * 100) + '%'" @change="set('contour_opacity', $event)" />
+            <SliderRow label="Detail" :value="local.contour_detail ?? 2" :min="0" :max="4" :step="1"
+              :display="v => (['~200m','~100m','~50m','~20m','~10m'] as const)[Math.round(v)]"
+              @change="set('contour_detail', $event)" />
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
           </template>
@@ -211,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, ThemeDefinition } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
 
 const props = defineProps<{
@@ -258,16 +277,24 @@ function applyTheme(theme: ThemeDefinition) {
   emit('update:modelValue', { ...local })
 }
 
-const fontGroups = [
+const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
   { label: 'SANS', fonts: ['DM Sans', 'Space Grotesk', 'Montserrat', 'Oswald', 'Raleway'] },
   { label: 'SERIF', fonts: ['Playfair Display', 'Lora', 'Cormorant Garamond'] },
   { label: 'DISPLAY', fonts: ['Bebas Neue', 'Anton'] },
 ]
 
-const BORDERS = [
+const BORDERS: Array<{ label: string; value: BorderStyle }> = [
   { label: 'None', value: 'none' },
   { label: 'Thin', value: 'thin' },
   { label: 'Thick', value: 'thick' },
+]
+
+const TILE_STYLES: Array<{ label: string; value: BaseTileStyle }> = [
+  { label: 'Light', value: 'carto-light' },
+  { label: 'Dark', value: 'carto-dark' },
+  { label: 'Outdoor', value: 'maptiler-outdoor' },
+  { label: 'Topo', value: 'maptiler-topo' },
+  { label: 'Winter', value: 'maptiler-winter' },
 ]
 </script>
 
@@ -318,13 +345,20 @@ export const ToggleRow = defineComponent({
 })
 
 export const SliderRow = defineComponent({
-  props: { label: String, value: Number, min: Number, max: Number, step: Number, display: Function },
+  props: {
+    label: String,
+    value: Number,
+    min: Number,
+    max: Number,
+    step: Number,
+    display: { type: Function as PropType<(v: number) => string | number>, default: null },
+  },
   emits: ['change'],
   setup(props, { emit }) {
     return () => h('div', { class: 'space-y-1' }, [
       h('div', { class: 'flex items-center justify-between' }, [
         h('span', { class: 'text-xs text-gray-600' }, props.label),
-        h('span', { class: 'text-xs text-gray-400 tabular-nums' }, props.display?.(props.value) ?? props.value),
+        h('span', { class: 'text-xs text-gray-400 tabular-nums' }, props.display?.(props.value ?? 0) ?? props.value),
       ]),
       h('input', {
         type: 'range', min: props.min, max: props.max, step: props.step, value: props.value,

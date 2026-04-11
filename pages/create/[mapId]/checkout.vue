@@ -51,7 +51,7 @@
           <label class="block text-sm font-medium text-gray-900">Product Type</label>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
-              v-for="type in ['poster', 'framed', 'canvas', 'digital']"
+              v-for="type in (['poster', 'framed', 'canvas', 'digital'] as const)"
               :key="type"
               @click="selectedType = type"
               :class="[
@@ -184,14 +184,14 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-900 mb-2">
-                State
+                State / Province (2-letter)
               </label>
               <input
-                v-model="shippingAddress.state"
+                v-model="shippingAddress.state_code"
                 type="text"
                 placeholder="WA"
                 maxlength="2"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent uppercase"
               />
             </div>
 
@@ -213,12 +213,20 @@
               <label class="block text-sm font-medium text-gray-900 mb-2">
                 Country
               </label>
-              <input
-                v-model="shippingAddress.country"
-                type="text"
-                placeholder="United States"
+              <select
+                v-model="shippingAddress.country_code"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
-              />
+              >
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="NL">Netherlands</option>
+                <option value="SE">Sweden</option>
+                <option value="NO">Norway</option>
+              </select>
             </div>
 
             <div>
@@ -318,7 +326,8 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
 
 const mapId = route.params.mapId as string
@@ -335,9 +344,9 @@ const shippingAddress = ref({
   address1: '',
   address2: '',
   city: '',
-  state: '',
+  state_code: '',
   zip: '',
-  country: 'United States',
+  country_code: 'US',
   phone: '',
 })
 
@@ -353,8 +362,8 @@ const handleTypeChange = () => {
 }
 
 const isFormValid = () => {
-  const { name, email, address1, city, state, zip, phone } = shippingAddress.value
-  return !!(name && email && address1 && city && state && zip && phone)
+  const { name, email, address1, city, state_code, zip, phone } = shippingAddress.value
+  return !!(name && email && address1 && city && state_code && zip && phone)
 }
 
 const fetchMap = async () => {

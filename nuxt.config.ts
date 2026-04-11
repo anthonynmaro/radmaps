@@ -9,9 +9,7 @@ export default defineNuxtConfig({
   ],
 
   // Tailwind / Nuxt UI
-  ui: {
-    icons: ['heroicons', 'lucide'],
-  },
+  ui: {},
 
   // Supabase Auth
   supabase: {
@@ -48,6 +46,7 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       mapboxToken: process.env.MAPBOX_TOKEN,
+      maptilerToken: process.env.MAPTILER_TOKEN,
     },
   },
 

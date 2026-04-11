@@ -150,7 +150,30 @@
 
     <!-- Tab 2: Strava Import -->
     <div v-show="activeTab === 'strava'" class="space-y-5">
-      <div class="flex flex-col items-center gap-4 rounded-xl border border-gray-100 bg-gray-50 px-6 py-12 text-center">
+
+      <!-- Loading spinner -->
+      <div v-if="stravaLoading" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+        <svg class="h-4 w-4 animate-spin text-green-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span class="text-sm text-gray-600">Loading Strava activities…</span>
+      </div>
+
+      <!-- Error -->
+      <UAlert
+        v-else-if="stravaError"
+        color="red"
+        icon="i-heroicons-exclamation-triangle-20-solid"
+        :title="stravaError"
+        variant="subtle"
+      />
+
+      <!-- Not connected -->
+      <div
+        v-else-if="!stravaConnected"
+        class="flex flex-col items-center gap-4 rounded-xl border border-gray-100 bg-gray-50 px-6 py-12 text-center"
+      >
         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100">
           <UIcon name="i-heroicons-link" class="h-5 w-5 text-gray-500" />
         </div>
@@ -167,14 +190,55 @@
           Connect Strava Account
         </UButton>
       </div>
+
+      <!-- Connected: activity list -->
+      <div v-else class="space-y-3">
+        <p class="text-xs text-gray-500">Select an activity to import as a new map.</p>
+        <div
+          v-for="activity in stravaActivities"
+          :key="activity.id"
+          class="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 gap-3"
+        >
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="text-sm font-semibold text-gray-900 truncate">{{ activity.name }}</p>
+              <span class="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 shrink-0">
+                {{ activity.sport_type }}
+              </span>
+            </div>
+            <p class="mt-0.5 text-xs text-gray-500">
+              {{ (activity.distance / 1609.34).toFixed(1) }} mi
+              · {{ Math.round(activity.total_elevation_gain * 3.28084) }} ft gain
+            </p>
+            <p class="mt-0.5 text-xs text-gray-400">
+              {{ new Date(activity.start_date).toLocaleDateString() }}
+            </p>
+          </div>
+          <UButton
+            size="sm"
+            color="green"
+            variant="soft"
+            :loading="importingId === activity.id"
+            :disabled="importingId !== null"
+            @click="importActivity(activity)"
+          >
+            Import
+          </UButton>
+        </div>
+
+        <div v-if="stravaActivities.length === 0" class="text-center py-8 text-sm text-gray-500">
+          No recent activities found.
+        </div>
+      </div>
+
     </div>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import * as toGeoJSON from '@tmcw/togeojson'
 import type { RouteStats } from '~/types'
@@ -185,6 +249,7 @@ definePageMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 const user = useSupabaseUser()
 
 const activeTab = ref<'upload' | 'strava'>('upload')
@@ -198,6 +263,13 @@ const parsedGeojson = ref<GeoJSON.FeatureCollection | null>(null)
 const parsedStats = ref<RouteStats | null>(null)
 const parsedBbox = ref<[number, number, number, number] | null>(null)
 const parsedPointCount = ref(0)
+
+// Strava
+const stravaConnected = ref(false)
+const stravaActivities = ref<any[]>([])
+const stravaLoading = ref(false)
+const stravaError = ref<string | null>(null)
+const importingId = ref<number | null>(null)
 
 // Compute route stats + bbox from GeoJSON
 const computeRouteData = (geojson: GeoJSON.FeatureCollection) => {
@@ -361,4 +433,62 @@ const createMap = async () => {
     isCreating.value = false
   }
 }
+
+const loadStravaActivities = async () => {
+  stravaLoading.value = true
+  stravaError.value = null
+
+  try {
+    const response = await fetch('/api/strava/activities')
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch Strava activities')
+    }
+
+    const data = await response.json()
+
+    if (data.connected) {
+      stravaConnected.value = true
+      stravaActivities.value = data.activities ?? []
+    } else {
+      stravaConnected.value = false
+      stravaActivities.value = []
+    }
+  } catch (err) {
+    stravaError.value = err instanceof Error ? err.message : 'Failed to load Strava activities'
+  } finally {
+    stravaLoading.value = false
+  }
+}
+
+const importActivity = async (activity: any) => {
+  importingId.value = activity.id
+
+  try {
+    const response = await fetch(`/api/strava/activities/${activity.id}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: activity.name }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message ?? 'Failed to import activity')
+    }
+
+    const data = await response.json()
+    router.push(`/create/${data.id}/style`)
+  } catch (err) {
+    stravaError.value = err instanceof Error ? err.message : 'Failed to import activity'
+    importingId.value = null
+  }
+}
+
+onMounted(async () => {
+  // Auto-switch to Strava tab if returning from OAuth
+  if (route.query.strava_connected === '1') {
+    activeTab.value = 'strava'
+  }
+  await loadStravaActivities()
+})
 </script>

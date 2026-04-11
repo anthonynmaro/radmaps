@@ -72,7 +72,7 @@
       <div v-if="hasDigitalUrl" class="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <p class="font-semibold text-blue-900 mb-4">Download Your Digital Copy</p>
         <UButton
-          :href="digitalUrl"
+          :href="digitalUrl ?? ''"
           color="blue"
           icon="i-heroicons-arrow-down-tray-20-solid"
           size="lg"
@@ -114,7 +114,8 @@ definePageMeta({
 })
 
 const route = useRoute()
-const supabase = useSupabaseClient()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = useSupabaseClient() as any
 
 const sessionId = ref<string | null>(null)
 const mapTitle = ref<string | null>(null)

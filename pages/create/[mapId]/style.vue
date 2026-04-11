@@ -15,6 +15,30 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <!-- Share button -->
+        <UButton
+          icon="i-heroicons-link"
+          color="gray"
+          variant="ghost"
+          size="sm"
+          @click="copyShareLink"
+        >
+          {{ shareLabel }}
+        </UButton>
+
+        <!-- Save version button -->
+        <UButton
+          icon="i-heroicons-bookmark"
+          color="gray"
+          variant="ghost"
+          size="sm"
+          @click="showVersionModal = true"
+        >
+          Save version
+        </UButton>
+
+        <div class="w-px h-5 bg-gray-200" />
+
         <UButton
           :loading="isRendering"
           :disabled="isRendering"
@@ -48,13 +72,15 @@
       <!-- Map preview -->
       <main class="flex-1 flex flex-col overflow-hidden">
         <div class="flex-1 flex items-center justify-center p-6 overflow-hidden">
-          <MapPreview
-            v-if="mapData"
-            :map="mapData"
-            :style-config="styleConfig"
-            class="w-full h-full"
-          />
-          <div v-else class="w-full h-full rounded-xl bg-gray-200 animate-pulse flex items-center justify-center">
+          <ClientOnly>
+            <MapPreview
+              v-if="mapData"
+              :map="mapData"
+              :style-config="styleConfig"
+              class="w-full h-full"
+            />
+          </ClientOnly>
+          <div v-if="!mapData" class="w-full h-full rounded-xl bg-gray-200 animate-pulse flex items-center justify-center">
             <UIcon name="i-heroicons-map" class="w-10 h-10 text-gray-400" />
           </div>
         </div>
@@ -76,6 +102,63 @@
       </aside>
 
     </div>
+
+    <!-- Save version modal -->
+    <UModal v-model="showVersionModal">
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-gray-900">Save a version</h3>
+            <UButton icon="i-heroicons-x-mark" color="gray" variant="ghost" size="xs" @click="showVersionModal = false" />
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500">
+            Snapshot your current style so you can come back to it later. Your map auto-saves continuously — this is an optional named checkpoint.
+          </p>
+          <UFormGroup label="Label (optional)">
+            <UInput
+              v-model="versionLabel"
+              placeholder="e.g. Dark navy with gold route"
+              @keydown.enter="saveVersion"
+            />
+          </UFormGroup>
+
+          <!-- Previous versions -->
+          <div v-if="versions.length > 0">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Previous snapshots</p>
+            <ul class="space-y-1">
+              <li
+                v-for="v in versions"
+                :key="v.id"
+                class="flex items-center justify-between text-sm rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer group"
+                @click="restoreVersion(v)"
+              >
+                <span class="text-gray-700">{{ v.label || 'Untitled snapshot' }}</span>
+                <span class="text-xs text-gray-400 group-hover:text-green-600 transition-colors">
+                  {{ new Date(v.created_at).toLocaleDateString() }} — Restore
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" variant="ghost" @click="showVersionModal = false">Cancel</UButton>
+            <UButton
+              color="green"
+              :loading="savingVersion"
+              @click="saveVersion"
+            >
+              Save snapshot
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+
   </div>
 </template>
 
@@ -95,7 +178,6 @@ const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
 
 watch(mapData, (m) => {
   if (m?.style_config) {
-    // Merge with current defaults so any new fields (or stale DB records) get sensible values
     styleConfig.value = { ...DEFAULT_STYLE_CONFIG, ...m.style_config }
   }
 }, { immediate: true })
@@ -109,5 +191,57 @@ watch(styleConfig, (newConfig) => {
 
 function resetStyle() {
   styleConfig.value = { ...DEFAULT_STYLE_CONFIG }
+}
+
+// ─── Share link ───────────────────────────────────────────────────────────────
+
+const shareLabel = ref('Share')
+
+async function copyShareLink() {
+  const shareUrl = `${window.location.origin}/map/${mapId.value}`
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    shareLabel.value = 'Copied!'
+    setTimeout(() => { shareLabel.value = 'Share' }, 2500)
+  } catch {
+    // Fallback: prompt
+    window.prompt('Copy this link:', shareUrl)
+  }
+}
+
+// ─── Save version ─────────────────────────────────────────────────────────────
+
+const showVersionModal = ref(false)
+const versionLabel = ref('')
+const savingVersion = ref(false)
+const versions = ref<Array<{ id: string; label: string | null; style_config: StyleConfig; created_at: string }>>([])
+
+// Load versions when modal opens
+watch(showVersionModal, async (open) => {
+  if (!open) return
+  try {
+    const data = await $fetch<typeof versions.value>(`/api/maps/${mapId.value}/versions`)
+    versions.value = data
+  } catch { /* ignore */ }
+})
+
+async function saveVersion() {
+  savingVersion.value = true
+  try {
+    const v = await $fetch<{ id: string; label: string | null; created_at: string }>(
+      `/api/maps/${mapId.value}/versions`,
+      { method: 'POST', body: { label: versionLabel.value || null } },
+    )
+    versions.value.unshift({ ...v, style_config: { ...styleConfig.value } })
+    versionLabel.value = ''
+    showVersionModal.value = false
+  } catch { /* ignore */ } finally {
+    savingVersion.value = false
+  }
+}
+
+function restoreVersion(v: { style_config: StyleConfig }) {
+  styleConfig.value = { ...DEFAULT_STYLE_CONFIG, ...v.style_config }
+  showVersionModal.value = false
 }
 </script>

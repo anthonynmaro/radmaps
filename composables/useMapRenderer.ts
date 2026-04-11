@@ -1,79 +1,86 @@
 /**
- * useMapRenderer — trigger and poll a high-resolution render job.
+ * useMapRenderer — trigger a 300 DPI render job and poll for completion.
+ *
+ * Flow:
+ *   1. POST /api/maps/:id/render  → fires render worker (fire-and-forget)
+ *   2. Poll the map record in Supabase every 3s until status → 'rendered'
+ *   3. Expose isRendering / isComplete / renderUrl / error for the UI
  */
-import type { RenderJobStatus } from '~/types'
-
 export function useMapRenderer(mapId: Ref<string> | string) {
   const id = isRef(mapId) ? mapId : ref(mapId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = useSupabaseClient() as any
 
-  const jobId = ref<string | null>(null)
-  const status = ref<RenderJobStatus | null>(null)
-  const renderUrl = ref<string | null>(null)
-  const pdfUrl = ref<string | null>(null)
-  const error = ref<string | null>(null)
-  const loading = ref(false)
+  const isRendering = ref(false)
+  const isComplete  = ref(false)
+  const renderUrl   = ref<string | null>(null)
+  const pdfUrl      = ref<string | null>(null)
+  const error       = ref<string | null>(null)
 
-  let pollInterval: ReturnType<typeof setInterval>
+  let pollInterval: ReturnType<typeof setInterval> | null = null
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+
+  // ── Trigger ──────────────────────────────────────────────────────────────────
 
   async function triggerRender() {
-    loading.value = true
-    error.value = null
+    if (isRendering.value) return
+    isRendering.value = true
+    isComplete.value  = false
+    error.value       = null
 
     try {
-      const result = await $fetch<{ job_id: string; status: string }>(
-        `/api/maps/${id.value}/render`,
-        { method: 'POST' },
-      )
-      jobId.value = result.job_id
-      status.value = 'queued'
+      await $fetch(`/api/maps/${id.value}/render`, { method: 'POST' })
       startPolling()
     } catch (e) {
-      error.value = (e as Error).message
-    } finally {
-      loading.value = false
+      error.value = (e as Error).message ?? 'Failed to start render'
+      isRendering.value = false
     }
   }
 
+  // ── Poll Supabase map record every 3s ─────────────────────────────────────────
+
   function startPolling() {
-    pollInterval = setInterval(async () => {
-      if (!jobId.value) return
-      try {
-        const result = await $fetch<{
-          status: RenderJobStatus
-          render_url?: string
-          pdf_url?: string
-          error?: string
-        }>(`/api/maps/${id.value}/render/status?job_id=${jobId.value}`)
-
-        status.value = result.status
-
-        if (result.status === 'complete') {
-          renderUrl.value = result.render_url ?? null
-          pdfUrl.value = result.pdf_url ?? null
-          stopPolling()
-        }
-
-        if (result.status === 'failed') {
-          error.value = result.error ?? 'Render failed'
-          stopPolling()
-        }
-      } catch (e) {
-        console.error('Poll error:', e)
+    stopPolling()
+    pollInterval = setInterval(checkStatus, 3000)
+    // Safety timeout: stop polling after 5 minutes
+    timeoutHandle = setTimeout(() => {
+      if (isRendering.value) {
+        error.value = 'Render timed out after 5 minutes. Please try again.'
+        isRendering.value = false
+        stopPolling()
       }
-    }, 2000) // Poll every 2 seconds
+    }, 5 * 60 * 1000)
+  }
+
+  async function checkStatus() {
+    try {
+      const { data: map } = await supabase
+        .from('maps')
+        .select('status, render_url, pdf_url')
+        .eq('id', id.value)
+        .single()
+
+      if (!map) return
+
+      if (map.status === 'rendered') {
+        renderUrl.value   = map.render_url ?? null
+        pdfUrl.value      = map.pdf_url ?? null
+        isRendering.value = false
+        isComplete.value  = true
+        stopPolling()
+      }
+      // 'draft' = still rendering or not started; keep polling
+    } catch (e) {
+      console.error('Render status poll error:', e)
+    }
   }
 
   function stopPolling() {
-    clearInterval(pollInterval)
+    if (pollInterval !== null) { clearInterval(pollInterval); pollInterval = null }
+    if (timeoutHandle !== null) { clearTimeout(timeoutHandle); timeoutHandle = null }
   }
 
   onUnmounted(stopPolling)
 
-  const isRendering = computed(() =>
-    status.value === 'queued' || status.value === 'rendering',
-  )
-
-  const isComplete = computed(() => status.value === 'complete')
-
-  return { triggerRender, status, isRendering, isComplete, renderUrl, pdfUrl, error, loading }
+  return { triggerRender, isRendering, isComplete, renderUrl, pdfUrl, error }
 }

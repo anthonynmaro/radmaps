@@ -86,7 +86,8 @@ export default defineEventHandler(async (event) => {
     return { received: true }
   }
 
-  const supabase = createClient(config.public.supabaseUrl, config.supabaseServiceKey)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createClient(config.public.supabaseUrl as string, config.supabaseServiceKey as string) as any
   const resend = new Resend(config.resendApiKey)
 
   // Look up our order by Gelato's order ID

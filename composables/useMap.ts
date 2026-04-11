@@ -6,7 +6,8 @@ import type { TrailMap, StyleConfig } from '~/types'
 
 export function useMap(mapId: Ref<string> | string) {
   const id = isRef(mapId) ? mapId : ref(mapId)
-  const supabase = useSupabaseClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = useSupabaseClient() as any
 
   const map = ref<TrailMap | null>(null)
   const loading = ref(true)

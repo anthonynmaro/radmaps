@@ -136,6 +136,24 @@ CREATE POLICY "Users insert own orders" ON public.orders
 CREATE POLICY "Users CRUD own strava tokens" ON public.strava_tokens
   FOR ALL USING (auth.uid() = user_id);
 
+-- ─── map_versions ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.map_versions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  map_id        UUID NOT NULL REFERENCES public.maps(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  label         TEXT,
+  style_config  JSONB NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS map_versions_map_id_idx ON public.map_versions (map_id);
+CREATE INDEX IF NOT EXISTS map_versions_user_id_idx ON public.map_versions (user_id);
+
+ALTER TABLE public.map_versions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users CRUD own map versions" ON public.map_versions
+  FOR ALL USING (auth.uid() = user_id);
+
 -- ─── Storage Buckets ──────────────────────────────────────────────────────────
 -- Create these via Supabase dashboard or CLI:
 -- supabase storage buckets create maps --public=false

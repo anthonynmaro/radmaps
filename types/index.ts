@@ -17,7 +17,12 @@ export type FontFamily =
   | 'Anton'
 export type ColorTheme = 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
 export type PrintSize = '18x24' | '24x36' | '16x20' | '11x14' | '8x10'
-export type BaseTileStyle = 'carto-light' | 'carto-dark'
+export type BaseTileStyle =
+  | 'carto-light'
+  | 'carto-dark'
+  | 'maptiler-outdoor'
+  | 'maptiler-topo'
+  | 'maptiler-winter'
 
 export interface StyleLabels {
   show_title: boolean
@@ -38,6 +43,7 @@ export interface StyleConfig {
   contour_color: string
   contour_major_color: string
   contour_opacity: number
+  contour_detail: number   // 0–4 → maplibre-contour threshold level; higher = finer intervals
   show_elevation_labels: boolean
   // Hillshade (requires Mapbox Terrain DEM v1)
   show_hillshade: boolean
@@ -75,6 +81,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   contour_color: '#C8BDB0',
   contour_major_color: '#9E9082',
   contour_opacity: 0.75,
+  contour_detail: 3,
   show_elevation_labels: false,
   show_hillshade: false,
   hillshade_intensity: 0.5,
@@ -177,8 +184,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     water_color: '#1A3A4A',
     land_color: '#1E1E1E',
     base_tile_style: 'carto-dark',
-    contour_color: '#585858',    // light enough to read on near-black
-    contour_major_color: '#888888',
+    contour_color: '#8A8A8A',
+    contour_major_color: '#BABABA',
   },
   {
     id: 'forest',
@@ -191,8 +198,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     water_color: '#0D2B35',
     land_color: '#142A1C',
     base_tile_style: 'carto-dark',
-    contour_color: '#3A7050',    // medium-light green, readable on dark forest bg
-    contour_major_color: '#5AA070',
+    contour_color: '#4A9065',
+    contour_major_color: '#78C490',
   },
   {
     id: 'midnight',
@@ -205,8 +212,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     water_color: '#0A1F35',
     land_color: '#111A25',
     base_tile_style: 'carto-dark',
-    contour_color: '#2E5070',    // medium blue, legible on dark navy
-    contour_major_color: '#4A7898',
+    contour_color: '#4A80A8',
+    contour_major_color: '#72B0D8',
   },
 ]
 

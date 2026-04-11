@@ -33,11 +33,12 @@ export default defineEventHandler(async (event) => {
   }
 
   // Use service key to bypass RLS for webhook operations
-  const supabase = createClient(config.public.supabaseUrl, config.supabaseServiceKey)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createClient(config.public.supabaseUrl as string, config.supabaseServiceKey as string) as any
   const resend = new Resend(config.resendApiKey)
 
   if (stripeEvent.type === 'checkout.session.completed') {
-    const session = stripeEvent.data.object as Stripe.CheckoutSession
+    const session = stripeEvent.data.object as Stripe.Checkout.Session
     const meta = session.metadata!
     const shippingAddress = JSON.parse(meta.shipping_address)
     const productUid = meta.product_uid       // Gelato productUid (or 'digital')
@@ -135,7 +136,8 @@ async function placeGelatoOrder({
   shippingAddress: Record<string, string>
   mapId: string
   productUid: string
-  supabase: ReturnType<typeof createClient>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
   gelatoApiKey: string
 }): Promise<string> {
   const { data: map } = await supabase

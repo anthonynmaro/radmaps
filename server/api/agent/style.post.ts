@@ -107,11 +107,11 @@ ${JSON.stringify(style_config, null, 2)}`
   const finalMessage = await stream.finalMessage()
 
   // Extract any tool calls from the final message
-  const toolCalls = finalMessage.content
-    .filter(block => block.type === 'tool_use')
+  const toolCalls = (finalMessage.content as Anthropic.ContentBlock[])
+    .filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use')
     .map(block => ({
-      name: (block as Anthropic.ToolUseBlock).name,
-      input: (block as Anthropic.ToolUseBlock).input,
+      name: block.name,
+      input: block.input,
     }))
 
   response.write(`data: ${JSON.stringify({ type: 'done', tool_calls: toolCalls })}\n\n`)

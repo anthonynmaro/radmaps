@@ -17,11 +17,13 @@
     "@stripe/stripe-js": "^4.9.0",
     "@tmcw/togeojson": "^5.8.1",
     "ai": "^4.1.5",
+    "maplibre-contour": "^0.1.0",
     "maplibre-gl": "^4.7.1",
     "nuxt": "^3.14.0",
     "resend": "^4.0.1",
     "stripe": "^17.4.0",
     "vue": "^3.5.12",
+    "xmldom": "^0.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
