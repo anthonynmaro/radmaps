@@ -28,6 +28,10 @@ interface StravaActivity {
   start_latlng: [number, number] | []
   map: { summary_polyline: string }
   moving_time: number
+  elapsed_time: number
+  achievement_count: number
+  pr_count: number
+  total_photo_count: number
 }
 
 export default defineEventHandler(async (event) => {
@@ -106,6 +110,10 @@ export default defineEventHandler(async (event) => {
     start_latlng: a.start_latlng,
     map: { summary_polyline: a.map?.summary_polyline ?? '' },
     moving_time: a.moving_time,
+    elapsed_time: a.elapsed_time ?? 0,
+    achievement_count: a.achievement_count ?? 0,
+    pr_count: a.pr_count ?? 0,
+    total_photo_count: a.total_photo_count ?? 0,
   }))
 
   return { connected: true, activities: mapped }

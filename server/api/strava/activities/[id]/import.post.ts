@@ -25,10 +25,12 @@ interface StravaRefreshResponse {
 
 interface StravaActivity {
   name: string
+  sport_type: string
   distance: number
   total_elevation_gain: number
   elapsed_time: number
   start_date: string
+  start_latlng: [number, number] | []
 }
 
 interface StravaStreams {
@@ -181,6 +183,27 @@ export default defineEventHandler(async (event) => {
     min_elevation_m: elevations.length ? Math.round(Math.min(...elevations)) : 0,
     duration_seconds: activity.elapsed_time,
     date: activity.start_date,
+    activity_type: activity.sport_type,
+  }
+
+  // Reverse geocode start position → human-readable location for the poster
+  if (Array.isArray(activity.start_latlng) && activity.start_latlng.length === 2) {
+    const [lat, lng] = activity.start_latlng as [number, number]
+    try {
+      const geo = await $fetch<{
+        address?: { city?: string; town?: string; village?: string; state?: string; country?: string }
+      }>('https://nominatim.openstreetmap.org/reverse', {
+        query: { lat, lon: lng, format: 'json', zoom: 10 },
+        headers: { 'User-Agent': 'RadMaps/1.0 (radmaps.studio)' },
+      })
+      const city = geo.address?.city ?? geo.address?.town ?? geo.address?.village
+      const state = geo.address?.state
+      if (city && state) stats.location = `${city}, ${state}`
+      else if (city) stats.location = city
+      else if (state) stats.location = state
+    } catch {
+      // non-critical — poster will just omit the location line
+    }
   }
 
   // 6. Insert map record using service-key client (bypasses RLS for server-side inserts)

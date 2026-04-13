@@ -202,7 +202,9 @@
       <!-- Connected: activity list -->
       <div v-else class="space-y-3">
         <div class="flex items-center justify-between py-1">
-          <p class="text-xs text-stone-500">Select an activity to import.</p>
+          <p class="text-xs text-stone-500">
+            {{ stravaActivities.length }} activit{{ stravaActivities.length === 1 ? 'y' : 'ies' }} loaded
+          </p>
           <button
             @click="disconnectStrava"
             :disabled="isDisconnecting"
@@ -212,42 +214,123 @@
           </button>
         </div>
 
+        <!-- Activity cards -->
         <div
           v-for="activity in stravaActivities"
           :key="activity.id"
-          class="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50 px-4 py-3.5 gap-3 hover:border-stone-200 transition-colors"
+          :class="[
+            'rounded-xl border px-4 py-3.5 transition-colors',
+            activity.achievement_count > 0
+              ? 'border-amber-200 bg-amber-50/40'
+              : 'border-stone-100 bg-stone-50 hover:border-stone-200',
+          ]"
         >
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <p class="text-sm font-semibold text-stone-900 truncate">{{ activity.name }}</p>
-              <span class="inline-flex items-center rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-600 shrink-0">
-                {{ activity.sport_type }}
-              </span>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+
+              <!-- Name + sport type + achievement badges -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <p class="text-sm font-semibold text-stone-900 truncate">{{ activity.name }}</p>
+                <span class="inline-flex items-center rounded-full bg-stone-200 px-1.5 py-0.5 text-[9px] font-medium text-stone-600 shrink-0">
+                  {{ activity.sport_type }}
+                </span>
+                <span v-if="activity.achievement_count > 0"
+                  class="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 shrink-0">
+                  🏆 {{ activity.achievement_count }}
+                </span>
+                <span v-if="activity.pr_count > 0"
+                  class="inline-flex items-center rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-800 shrink-0">
+                  PR ×{{ activity.pr_count }}
+                </span>
+              </div>
+
+              <!-- Stats -->
+              <p class="mt-0.5 text-xs text-stone-500">
+                {{ (activity.distance / 1609.34).toFixed(1) }} mi
+                · {{ Math.round(activity.total_elevation_gain * 3.28084).toLocaleString() }} ft gain
+                <template v-if="activity.elapsed_time"> · {{ formatDuration(activity.elapsed_time) }}</template>
+              </p>
+
+              <!-- Date + photos toggle -->
+              <div class="flex items-center gap-2.5 mt-0.5 flex-wrap">
+                <p class="text-xs text-stone-400">{{ new Date(activity.start_date).toLocaleDateString() }}</p>
+                <button
+                  v-if="activity.total_photo_count > 0"
+                  @click="togglePhotos(activity.id)"
+                  class="inline-flex items-center gap-1 text-[10px] text-stone-400 hover:text-[#2D6A4F] transition-colors"
+                >
+                  <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                  </svg>
+                  {{ activity.total_photo_count }} photo{{ activity.total_photo_count > 1 ? 's' : '' }}
+                </button>
+              </div>
+
+              <!-- KOM / segment achievement entice -->
+              <p
+                v-if="activity.achievement_count > 0 && activity.achievement_count > activity.pr_count"
+                class="mt-1.5 text-[10px] font-medium text-amber-700"
+              >
+                Segment achievement — make it a poster →
+              </p>
             </div>
-            <p class="mt-0.5 text-xs text-stone-500">
-              {{ (activity.distance / 1609.34).toFixed(1) }} mi
-              · {{ Math.round(activity.total_elevation_gain * 3.28084) }} ft gain
-            </p>
-            <p class="mt-0.5 text-xs text-stone-400">
-              {{ new Date(activity.start_date).toLocaleDateString() }}
-            </p>
+
+            <!-- Import button -->
+            <button
+              class="shrink-0 text-sm font-semibold text-[#2D6A4F] bg-[#2D6A4F]/10 hover:bg-[#2D6A4F]/20 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors min-h-[40px]"
+              :disabled="importingId !== null"
+              @click="importActivity(activity)"
+            >
+              <svg v-if="importingId === activity.id" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span v-else>Import</span>
+            </button>
           </div>
-          <button
-            class="shrink-0 text-sm font-semibold text-[#2D6A4F] bg-[#2D6A4F]/10 hover:bg-[#2D6A4F]/20 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors min-h-[40px]"
-            :disabled="importingId !== null"
-            @click="importActivity(activity)"
-          >
-            <svg v-if="importingId === activity.id" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <span v-else>Import</span>
-          </button>
+
+          <!-- Photo strip (lazy-loaded on toggle) -->
+          <div v-if="expandedPhotos[activity.id]" class="mt-3 pt-3 border-t border-stone-100">
+            <div v-if="loadingPhotosId === activity.id" class="flex items-center gap-2">
+              <svg class="h-3 w-3 animate-spin text-stone-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span class="text-xs text-stone-400">Loading photos…</span>
+            </div>
+            <div v-else-if="activityPhotos[activity.id]?.length" class="flex gap-2 overflow-x-auto pb-1">
+              <img
+                v-for="(url, idx) in activityPhotos[activity.id]"
+                :key="idx"
+                :src="url"
+                class="h-20 w-20 rounded-lg object-cover shrink-0"
+                loading="lazy"
+              />
+            </div>
+            <p v-else class="text-xs text-stone-400">No photos available for this activity.</p>
+          </div>
         </div>
 
         <div v-if="stravaActivities.length === 0" class="text-center py-10 text-sm text-stone-500">
           No recent activities found.
         </div>
+
+        <!-- Load more -->
+        <button
+          v-if="stravaHasMore"
+          @click="loadMore"
+          :disabled="stravaLoadingMore"
+          class="w-full py-3 text-sm font-medium text-stone-600 hover:text-stone-900 border border-stone-200 rounded-xl hover:border-stone-300 disabled:opacity-50 transition-colors min-h-[48px]"
+        >
+          <span v-if="stravaLoadingMore" class="flex items-center justify-center gap-2">
+            <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Loading more…
+          </span>
+          <span v-else>Load more activities</span>
+        </button>
       </div>
 
     </div>
@@ -284,12 +367,44 @@ const parsedBbox = ref<[number, number, number, number] | null>(null)
 const parsedPointCount = ref(0)
 
 // Strava
+const ACTIVITIES_PER_PAGE = 20
 const stravaConnected = ref(false)
 const stravaActivities = ref<any[]>([])
 const stravaLoading = ref(false)
+const stravaLoadingMore = ref(false)
+const stravaHasMore = ref(false)
+const stravaPage = ref(1)
 const stravaError = ref<string | null>(null)
 const importingId = ref<number | null>(null)
 const isDisconnecting = ref(false)
+const expandedPhotos = ref<Record<number, boolean>>({})
+const activityPhotos = ref<Record<number, string[]>>({})
+const loadingPhotosId = ref<number | null>(null)
+
+const formatDuration = (seconds: number) => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+const togglePhotos = async (id: number) => {
+  if (expandedPhotos.value[id]) {
+    expandedPhotos.value[id] = false
+    return
+  }
+  expandedPhotos.value[id] = true
+  if (activityPhotos.value[id]) return
+  loadingPhotosId.value = id
+  try {
+    const res = await fetch(`/api/strava/activities/${id}/photos`)
+    const data = await res.json()
+    activityPhotos.value[id] = (data.photos ?? []).map((p: any) => p.url).filter(Boolean)
+  } catch {
+    activityPhotos.value[id] = []
+  } finally {
+    loadingPhotosId.value = null
+  }
+}
 
 // Compute route stats + bbox from GeoJSON
 const computeRouteData = (geojson: GeoJSON.FeatureCollection) => {
@@ -434,25 +549,46 @@ const createMap = async () => {
   }
 }
 
-const loadStravaActivities = async () => {
-  stravaLoading.value = true
+const loadStravaActivities = async (append = false) => {
+  if (append) {
+    stravaLoadingMore.value = true
+  } else {
+    stravaLoading.value = true
+    stravaActivities.value = []
+    stravaPage.value = 1
+    expandedPhotos.value = {}
+    activityPhotos.value = {}
+  }
   stravaError.value = null
   try {
-    const response = await fetch('/api/strava/activities')
+    const response = await fetch(`/api/strava/activities?page=${stravaPage.value}&per_page=${ACTIVITIES_PER_PAGE}`)
     if (!response.ok) throw new Error('Failed to fetch Strava activities')
     const data = await response.json()
     if (data.connected) {
       stravaConnected.value = true
-      stravaActivities.value = data.activities ?? []
+      const batch = data.activities ?? []
+      if (append) {
+        stravaActivities.value.push(...batch)
+      } else {
+        stravaActivities.value = batch
+      }
+      stravaHasMore.value = batch.length === ACTIVITIES_PER_PAGE
     } else {
       stravaConnected.value = false
       stravaActivities.value = []
+      stravaHasMore.value = false
     }
   } catch (err) {
     stravaError.value = err instanceof Error ? err.message : 'Failed to load Strava activities'
   } finally {
     stravaLoading.value = false
+    stravaLoadingMore.value = false
   }
+}
+
+const loadMore = async () => {
+  stravaPage.value++
+  await loadStravaActivities(true)
 }
 
 const importActivity = async (activity: any) => {
