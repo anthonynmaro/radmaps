@@ -162,19 +162,23 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         filter: ['==', ['get', 'level'], 1],
         layout: {
           'symbol-placement': 'line',
-          'symbol-spacing': 400,
+          'symbol-spacing': 500,
           'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
           'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 8, 14, 11],
-          'text-letter-spacing': 0.05,
-          'text-padding': 2,
+          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
+          'text-letter-spacing': 0.06,
+          'text-padding': 4,
           'text-pitch-alignment': 'viewport',
-          'text-rotation-alignment': 'map',
+          // viewport keeps labels horizontal — far more legible than map-aligned
+          // which tilts text to follow the contour curve
+          'text-rotation-alignment': 'viewport',
         },
         paint: {
           'text-color': config.contour_major_color,
-          'text-halo-color': 'rgba(255,255,255,0.9)',
-          'text-halo-width': 1.5,
+          // Use the poster background colour as the halo so it reads on both
+          // light (chalk/topaz) and dark (obsidian/midnight) themes
+          'text-halo-color': config.background_color,
+          'text-halo-width': 2,
           'text-opacity': config.contour_opacity,
         },
       })
@@ -246,19 +250,19 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
       filter: ['==', ['get', 'index'], 10],
       layout: {
         'symbol-placement': 'line',
-        'symbol-spacing': 400,
+        'symbol-spacing': 500,
         'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
         'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 8, 14, 11],
-        'text-letter-spacing': 0.05,
-        'text-padding': 2,
+        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
+        'text-letter-spacing': 0.06,
+        'text-padding': 4,
         'text-pitch-alignment': 'viewport',
-        'text-rotation-alignment': 'map',
+        'text-rotation-alignment': 'viewport',
       },
       paint: {
         'text-color': config.contour_major_color,
-        'text-halo-color': 'rgba(255,255,255,0.9)',
-        'text-halo-width': 1.5,
+        'text-halo-color': config.background_color,
+        'text-halo-width': 2,
         'text-opacity': config.contour_opacity,
       },
     })

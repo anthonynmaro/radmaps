@@ -247,9 +247,10 @@ async function ensureContourProtocol() {
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     encoding: 'terrarium',
     maxzoom: 15,
-    // worker: false avoids the Vite production blob-URL worker issue where
-    // CONFIG.workerUrl may not be initialised when the module is pre-bundled.
-    worker: false,
+    // worker: true — DEM decoding runs in its own thread; the ArrayBuffer it
+    // returns to MapLibre is always clean (never double-transferred), which
+    // fixes the DataCloneError / blank tile that worker:false caused.
+    worker: true,
   })
   mlDemSource.setupMaplibre(maplibregl)
 }
@@ -779,35 +780,60 @@ onMounted(async () => {
   resizeObserver.observe(mapContainer.value)
 })
 
-// ── Chaikin corner-cutting smoothing ─────────────────────────────────────────
+// ── Route smoothing (moving-window average) ───────────────────────────────────
+// Chaikin corner-cutting is ineffective on dense GPS tracks because individual
+// corner cuts are sub-pixel. A moving window average instead drags each point
+// toward the mean of its neighborhood — this visibly rounds GPS jitter at any
+// point density.
 
-function chaikinSmooth(coords: number[][], iterations: number): number[][] {
-  if (iterations === 0 || coords.length < 2) return coords
-  let pts = coords
-  for (let i = 0; i < iterations; i++) {
-    const out: number[][] = [pts[0]]
-    for (let j = 0; j < pts.length - 1; j++) {
-      const p0 = pts[j], p1 = pts[j + 1]
-      out.push(p0.map((v, k) => 0.75 * v + 0.25 * p1[k]))
-      out.push(p0.map((v, k) => 0.25 * v + 0.75 * p1[k]))
+const SMOOTH_PRESETS = [
+  null,                        // 0 — Off
+  { radius: 3,  passes: 2 },  // 1 — Light
+  { radius: 6,  passes: 3 },  // 2 — Gentle
+  { radius: 10, passes: 4 },  // 3 — Medium
+  { radius: 16, passes: 5 },  // 4 — Strong
+  { radius: 25, passes: 6 },  // 5 — Max
+]
+
+function smoothLine(coords: number[][], strength: number): number[][] {
+  const preset = SMOOTH_PRESETS[strength]
+  if (!preset || coords.length < 3) return coords
+
+  const { radius, passes } = preset
+  let pts = coords.map(c => c.slice())
+
+  for (let p = 0; p < passes; p++) {
+    const out = pts.map(c => c.slice())
+    for (let i = 1; i < pts.length - 1; i++) {
+      const lo = Math.max(0, i - radius)
+      const hi = Math.min(pts.length - 1, i + radius)
+      const n = hi - lo + 1
+      out[i] = pts[i].map((_, dim) => {
+        let sum = 0
+        for (let j = lo; j <= hi; j++) sum += pts[j][dim]
+        return sum / n
+      })
     }
-    out.push(pts[pts.length - 1])
     pts = out
+    // Always keep the start and finish points anchored
+    pts[0] = coords[0].slice()
+    pts[pts.length - 1] = coords[coords.length - 1].slice()
   }
+
   return pts
 }
 
-function smoothGeojson(geojson: GeoJSON.FeatureCollection, iterations: number): GeoJSON.FeatureCollection {
-  if (iterations === 0) return geojson
+function smoothGeojson(geojson: GeoJSON.FeatureCollection, strength: number): GeoJSON.FeatureCollection {
+  if (strength === 0) return geojson
   return {
     ...geojson,
     features: geojson.features.map(feature => {
       const g = feature.geometry
       if (g.type === 'LineString') {
-        return { ...feature, geometry: { ...g, coordinates: chaikinSmooth(g.coordinates, iterations) } }
+        return { ...feature, geometry: { ...g, coordinates: smoothLine(g.coordinates, strength) } }
       }
       if (g.type === 'MultiLineString') {
-        return { ...feature, geometry: { ...g, coordinates: g.coordinates.map(line => chaikinSmooth(line, iterations)) } }
+        return { ...feature, geometry: { ...g, coordinates: g.coordinates.map(line => smoothLine(line, strength)) } }
       }
       return feature
     }),
