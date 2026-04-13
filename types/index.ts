@@ -134,7 +134,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   route_width: 3,
   route_opacity: 0.9,
   route_smooth: 0,
-  show_contours: false,
+  show_contours: true,
   contour_color: '#C8BDB0',
   contour_major_color: '#9E9082',
   contour_opacity: 0.75,
