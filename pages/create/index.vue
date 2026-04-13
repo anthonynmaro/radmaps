@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+  <div class="max-w-xl mx-auto px-4 sm:px-6 pt-12 pb-10 sm:pt-16 sm:pb-14">
 
     <!-- Header -->
     <div class="mb-7">
