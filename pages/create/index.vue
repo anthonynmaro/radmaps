@@ -1,40 +1,38 @@
 <template>
-  <div class="max-w-xl mx-auto space-y-8">
+  <div class="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
 
     <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Create New Map</h1>
-      <p class="mt-1 text-sm text-gray-500">
+    <div class="mb-7">
+      <h1 class="text-2xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">Create New Map</h1>
+      <p class="mt-1 text-sm text-stone-500">
         Upload a GPX file or import from Strava to get started
       </p>
     </div>
 
     <!-- Tabs -->
-    <div class="border-b border-gray-200">
-      <div class="flex gap-6">
-        <button
-          @click="activeTab = 'strava'"
-          :class="[
-            'pb-3 px-1 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'strava'
-              ? 'border-green-600 text-green-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-          ]"
-        >
-          Import from Strava
-        </button>
-        <button
-          @click="activeTab = 'upload'"
-          :class="[
-            'pb-3 px-1 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'upload'
-              ? 'border-green-600 text-green-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-          ]"
-        >
-          Upload GPX
-        </button>
-      </div>
+    <div class="flex gap-1 bg-stone-100 rounded-xl p-1 mb-6">
+      <button
+        @click="activeTab = 'strava'"
+        :class="[
+          'flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all min-h-[44px]',
+          activeTab === 'strava'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-500 hover:text-stone-700',
+        ]"
+      >
+        Import from Strava
+      </button>
+      <button
+        @click="activeTab = 'upload'"
+        :class="[
+          'flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all min-h-[44px]',
+          activeTab === 'upload'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-500 hover:text-stone-700',
+        ]"
+      >
+        Upload GPX
+      </button>
     </div>
 
     <!-- Tab 1: Upload GPX -->
@@ -48,10 +46,10 @@
         @dragleave="isDragging = false"
         @click="($refs.fileInput as HTMLInputElement).click()"
         :class="[
-          'relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-14 px-6 text-center cursor-pointer transition-colors',
+          'relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-14 px-6 text-center cursor-pointer transition-colors',
           isDragging
-            ? 'border-green-500 bg-green-50'
-            : 'border-gray-200 bg-gray-50 hover:border-green-400 hover:bg-green-50',
+            ? 'border-[#2D6A4F] bg-[#2D6A4F]/5'
+            : 'border-stone-200 bg-stone-50 hover:border-[#2D6A4F]/50 hover:bg-[#2D6A4F]/5',
         ]"
       >
         <input
@@ -61,47 +59,50 @@
           class="hidden"
           @change="handleFileSelect"
         />
-        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100">
-          <UIcon name="i-heroicons-arrow-up-tray" class="h-5 w-5 text-gray-500" />
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-stone-100">
+          <svg class="h-5 w-5 text-stone-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+          </svg>
         </div>
         <div>
-          <p class="text-sm font-medium text-gray-700">
-            Drop your file here, or <span class="text-green-600 underline underline-offset-2">browse</span>
+          <p class="text-sm font-medium text-stone-700">
+            Drop your file here, or <span class="text-[#2D6A4F] underline underline-offset-2">browse</span>
           </p>
-          <p class="mt-1 text-xs text-gray-400">GPX or GeoJSON · up to 50 MB</p>
+          <p class="mt-1 text-xs text-stone-400">GPX or GeoJSON · up to 50 MB</p>
         </div>
       </div>
 
       <!-- Parsing spinner -->
-      <div v-if="isParsing" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-        <svg class="h-4 w-4 animate-spin text-green-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div v-if="isParsing" class="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50 px-4 py-3.5">
+        <svg class="h-4 w-4 animate-spin text-[#2D6A4F] shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <span class="text-sm text-gray-600">Parsing file…</span>
+        <span class="text-sm text-stone-600">Parsing file…</span>
       </div>
 
       <!-- Error -->
-      <UAlert
-        v-if="parseError"
-        color="red"
-        icon="i-heroicons-exclamation-triangle-20-solid"
-        :title="parseError"
-        variant="subtle"
-      />
+      <div v-if="parseError" class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
+        <svg class="h-4 w-4 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        </svg>
+        <span class="text-sm text-red-700">{{ parseError }}</span>
+      </div>
 
       <!-- Parsed result -->
       <div v-if="parsedGeojson && parsedStats" class="space-y-5">
 
         <!-- Success banner + change file -->
-        <div class="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+        <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
           <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-check-circle" class="h-4 w-4 text-green-600 shrink-0" />
-            <span class="text-sm font-medium text-green-800">File parsed successfully</span>
+            <svg class="h-4 w-4 text-emerald-600 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-emerald-800">File parsed successfully</span>
           </div>
           <button
             @click="resetFile"
-            class="text-xs text-green-700 underline underline-offset-2 hover:text-green-900"
+            class="text-xs text-emerald-700 underline underline-offset-2 hover:text-emerald-900 min-h-[32px] px-1"
           >
             Change
           </button>
@@ -109,42 +110,49 @@
 
         <!-- Stats row -->
         <div class="grid grid-cols-3 gap-3">
-          <div class="rounded-lg bg-gray-50 px-4 py-3 text-center">
-            <p class="text-lg font-bold text-gray-900">{{ (parsedStats.distance_km * 0.621371).toFixed(1) }}</p>
-            <p class="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">Miles</p>
+          <div class="rounded-xl bg-stone-50 px-4 py-3 text-center">
+            <p class="text-xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">
+              {{ (parsedStats.distance_km * 0.621371).toFixed(1) }}
+            </p>
+            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-stone-400">Miles</p>
           </div>
-          <div class="rounded-lg bg-gray-50 px-4 py-3 text-center">
-            <p class="text-lg font-bold text-gray-900">{{ (parsedStats.elevation_gain_m * 3.28084).toFixed(0) }}</p>
-            <p class="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">Elev gain (ft)</p>
+          <div class="rounded-xl bg-stone-50 px-4 py-3 text-center">
+            <p class="text-xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">
+              {{ (parsedStats.elevation_gain_m * 3.28084).toFixed(0) }}
+            </p>
+            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-stone-400">Elev gain ft</p>
           </div>
-          <div class="rounded-lg bg-gray-50 px-4 py-3 text-center">
-            <p class="text-lg font-bold text-gray-900">{{ parsedPointCount.toLocaleString() }}</p>
-            <p class="mt-0.5 text-[11px] uppercase tracking-wide text-gray-400">Points</p>
+          <div class="rounded-xl bg-stone-50 px-4 py-3 text-center">
+            <p class="text-xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">
+              {{ parsedPointCount.toLocaleString() }}
+            </p>
+            <p class="mt-0.5 text-[10px] uppercase tracking-wider text-stone-400">Points</p>
           </div>
         </div>
 
         <!-- Map name -->
         <div class="space-y-1.5">
-          <label class="block text-sm font-medium text-gray-700">Map name</label>
+          <label class="block text-sm font-medium text-stone-700">Map name</label>
           <input
             v-model="mapTitle"
             type="text"
             placeholder="e.g., Mount Rainier Loop"
-            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            class="w-full rounded-xl border border-stone-200 px-4 py-3 text-base text-stone-900 placeholder-stone-400 focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 min-h-[48px]"
           />
         </div>
 
         <!-- Create button -->
-        <UButton
+        <button
           @click="createMap"
-          :loading="isCreating"
           :disabled="!mapTitle.trim() || isCreating"
-          color="green"
-          size="md"
-          class="w-full justify-center"
+          class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-3.5 transition-colors min-h-[48px]"
         >
-          Create Map
-        </UButton>
+          <svg v-if="isCreating" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          {{ isCreating ? 'Creating…' : 'Create Map' }}
+        </button>
       </div>
     </div>
 
@@ -152,90 +160,92 @@
     <div v-show="activeTab === 'strava'" class="space-y-5">
 
       <!-- Loading spinner -->
-      <div v-if="stravaLoading" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-        <svg class="h-4 w-4 animate-spin text-green-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div v-if="stravaLoading" class="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50 px-4 py-4">
+        <svg class="h-4 w-4 animate-spin text-[#2D6A4F] shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <span class="text-sm text-gray-600">Loading Strava activities…</span>
+        <span class="text-sm text-stone-600">Loading Strava activities…</span>
       </div>
 
       <!-- Error -->
-      <UAlert
-        v-else-if="stravaError"
-        color="red"
-        icon="i-heroicons-exclamation-triangle-20-solid"
-        :title="stravaError"
-        variant="subtle"
-      />
+      <div v-else-if="stravaError" class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
+        <svg class="h-4 w-4 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        </svg>
+        <span class="text-sm text-red-700">{{ stravaError }}</span>
+      </div>
 
       <!-- Not connected -->
       <div
         v-else-if="!stravaConnected"
-        class="flex flex-col items-center gap-4 rounded-xl border border-gray-100 bg-gray-50 px-6 py-12 text-center"
+        class="flex flex-col items-center gap-4 rounded-2xl border border-stone-100 bg-stone-50 px-6 py-12 text-center"
       >
-        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100">
-          <UIcon name="i-heroicons-link" class="h-5 w-5 text-gray-500" />
+        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-stone-100">
+          <svg class="h-6 w-6 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+          </svg>
         </div>
         <div>
-          <h3 class="text-sm font-semibold text-gray-900">Connect Strava</h3>
-          <p class="mt-1 text-xs text-gray-500">Import your activities directly from your Strava account</p>
+          <h3 class="text-sm font-semibold text-stone-900">Connect Strava</h3>
+          <p class="mt-1 text-xs text-stone-500 max-w-xs">Import your activities directly from your Strava account</p>
         </div>
-        <UButton
+        <a
           href="/api/strava/connect"
-          color="red"
-          size="sm"
-          external
+          class="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-3 rounded-xl transition-colors min-h-[48px]"
+          style="background:#FC4C02"
         >
           Connect Strava Account
-        </UButton>
+        </a>
       </div>
 
       <!-- Connected: activity list -->
       <div v-else class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-xs text-gray-500">Select an activity to import as a new map.</p>
+        <div class="flex items-center justify-between py-1">
+          <p class="text-xs text-stone-500">Select an activity to import.</p>
           <button
             @click="disconnectStrava"
             :disabled="isDisconnecting"
-            class="text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+            class="text-xs text-stone-400 hover:text-red-500 transition-colors disabled:opacity-50 min-h-[32px] px-1"
           >
             {{ isDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
           </button>
         </div>
+
         <div
           v-for="activity in stravaActivities"
           :key="activity.id"
-          class="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 gap-3"
+          class="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50 px-4 py-3.5 gap-3 hover:border-stone-200 transition-colors"
         >
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2 flex-wrap">
-              <p class="text-sm font-semibold text-gray-900 truncate">{{ activity.name }}</p>
-              <span class="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-600 shrink-0">
+              <p class="text-sm font-semibold text-stone-900 truncate">{{ activity.name }}</p>
+              <span class="inline-flex items-center rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-600 shrink-0">
                 {{ activity.sport_type }}
               </span>
             </div>
-            <p class="mt-0.5 text-xs text-gray-500">
+            <p class="mt-0.5 text-xs text-stone-500">
               {{ (activity.distance / 1609.34).toFixed(1) }} mi
               · {{ Math.round(activity.total_elevation_gain * 3.28084) }} ft gain
             </p>
-            <p class="mt-0.5 text-xs text-gray-400">
+            <p class="mt-0.5 text-xs text-stone-400">
               {{ new Date(activity.start_date).toLocaleDateString() }}
             </p>
           </div>
-          <UButton
-            size="sm"
-            color="green"
-            variant="soft"
-            :loading="importingId === activity.id"
+          <button
+            class="shrink-0 text-sm font-semibold text-[#2D6A4F] bg-[#2D6A4F]/10 hover:bg-[#2D6A4F]/20 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition-colors min-h-[40px]"
             :disabled="importingId !== null"
             @click="importActivity(activity)"
           >
-            Import
-          </UButton>
+            <svg v-if="importingId === activity.id" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span v-else>Import</span>
+          </button>
         </div>
 
-        <div v-if="stravaActivities.length === 0" class="text-center py-8 text-sm text-gray-500">
+        <div v-if="stravaActivities.length === 0" class="text-center py-10 text-sm text-stone-500">
           No recent activities found.
         </div>
       </div>
@@ -339,37 +349,27 @@ const computeRouteData = (geojson: GeoJSON.FeatureCollection) => {
   }
 }
 
-// Parse file
 const parseFile = async (file: File) => {
   isParsing.value = true
   parseError.value = null
 
   try {
     const text = await file.text()
-
     let geojson: GeoJSON.FeatureCollection
 
     if (file.name.endsWith('.gpx')) {
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(text, 'text/xml')
-
-      if (xmlDoc.documentElement.tagName === 'parseerror') {
-        throw new Error('Invalid GPX file format')
-      }
-
+      if (xmlDoc.documentElement.tagName === 'parseerror') throw new Error('Invalid GPX file format')
       geojson = toGeoJSON.gpx(xmlDoc)
     } else if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
       geojson = JSON.parse(text) as GeoJSON.FeatureCollection
-      if (!geojson.features) {
-        throw new Error('Invalid GeoJSON format')
-      }
+      if (!geojson.features) throw new Error('Invalid GeoJSON format')
     } else {
       throw new Error('Unsupported file format. Please use GPX or GeoJSON.')
     }
 
-    if (!geojson.features || geojson.features.length === 0) {
-      throw new Error('No features found in file')
-    }
+    if (!geojson.features || geojson.features.length === 0) throw new Error('No features found in file')
 
     parsedGeojson.value = geojson
     const { bbox, stats, pointCount } = computeRouteData(geojson)
@@ -389,16 +389,12 @@ const parseFile = async (file: File) => {
 
 const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    parseFile(input.files[0])
-  }
+  if (input.files && input.files[0]) parseFile(input.files[0])
 }
 
 const handleDrop = (event: DragEvent) => {
   isDragging.value = false
-  if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-    parseFile(event.dataTransfer.files[0])
-  }
+  if (event.dataTransfer?.files && event.dataTransfer.files[0]) parseFile(event.dataTransfer.files[0])
 }
 
 const resetFile = () => {
@@ -412,12 +408,8 @@ const resetFile = () => {
 }
 
 const createMap = async () => {
-  if (!user.value?.id || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) {
-    return
-  }
-
+  if (!user.value?.id || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) return
   isCreating.value = true
-
   try {
     const response = await fetch('/api/maps', {
       method: 'POST',
@@ -429,12 +421,10 @@ const createMap = async () => {
         stats: parsedStats.value,
       }),
     })
-
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
       throw new Error(err.message ?? 'Failed to create map')
     }
-
     const data = await response.json()
     router.push(`/create/${data.id}/style`)
   } catch (err) {
@@ -447,16 +437,10 @@ const createMap = async () => {
 const loadStravaActivities = async () => {
   stravaLoading.value = true
   stravaError.value = null
-
   try {
     const response = await fetch('/api/strava/activities')
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch Strava activities')
-    }
-
+    if (!response.ok) throw new Error('Failed to fetch Strava activities')
     const data = await response.json()
-
     if (data.connected) {
       stravaConnected.value = true
       stravaActivities.value = data.activities ?? []
@@ -473,19 +457,16 @@ const loadStravaActivities = async () => {
 
 const importActivity = async (activity: any) => {
   importingId.value = activity.id
-
   try {
     const response = await fetch(`/api/strava/activities/${activity.id}/import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: activity.name }),
     })
-
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
       throw new Error(err.message ?? 'Failed to import activity')
     }
-
     const data = await response.json()
     router.push(`/create/${data.id}/style`)
   } catch (err) {
@@ -508,22 +489,14 @@ const disconnectStrava = async () => {
 }
 
 onMounted(async () => {
-  // Auto-switch to Strava tab if returning from OAuth
-  if (route.query.strava_connected === '1') {
-    activeTab.value = 'strava'
-  }
-
-  // Show error if user denied access on Strava
+  if (route.query.strava_connected === '1') activeTab.value = 'strava'
   if (route.query.strava_error === 'access_denied') {
     activeTab.value = 'strava'
     stravaError.value = 'Strava access was denied. Connect your account to import activities.'
   }
-
-  // Clean OAuth query params from URL without re-triggering navigation
   if (route.query.strava_connected || route.query.strava_error) {
     router.replace({ query: {} })
   }
-
   await loadStravaActivities()
 })
 </script>

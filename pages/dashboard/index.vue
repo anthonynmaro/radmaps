@@ -1,179 +1,159 @@
 <template>
-  <div class="space-y-8">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <h1 class="text-3xl font-bold text-gray-900">Your Maps</h1>
-      <UButton to="/create" icon="i-heroicons-plus-20-solid" color="green">
-        New Map
-      </UButton>
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">Your Maps</h1>
+        <p v-if="maps.length > 0" class="mt-1 text-sm text-stone-400">{{ maps.length }} map{{ maps.length === 1 ? '' : 's' }}</p>
+      </div>
+      <NuxtLink to="/create">
+        <button class="flex items-center gap-2 text-sm font-semibold bg-[#2D6A4F] hover:bg-[#235840] text-white px-4 py-2.5 rounded-lg transition-colors min-h-[44px]">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          <span class="hidden sm:inline">New Map</span>
+          <span class="sm:hidden">New</span>
+        </button>
+      </NuxtLink>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div v-for="i in 3" :key="i" class="rounded-2xl border border-stone-200 overflow-hidden animate-pulse">
+        <div class="aspect-[3/4] bg-stone-100" />
+        <div class="p-4 space-y-2">
+          <div class="h-4 bg-stone-100 rounded w-3/4" />
+          <div class="h-3 bg-stone-100 rounded w-1/2" />
+        </div>
+      </div>
     </div>
 
     <!-- Maps Grid -->
-    <div v-if="maps.length > 0" class="space-y-6">
-      <div>
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">All Maps</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div
-            v-for="map in maps"
-            :key="map.id"
-            class="group rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-lg transition-all"
-          >
-            <!-- Thumbnail -->
-            <div class="relative h-40 bg-gradient-to-br from-green-50 to-green-100 overflow-hidden">
-              <img
-                v-if="map.thumbnail_url"
-                :src="map.thumbnail_url"
-                :alt="map.title"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              <div
-                v-else
-                class="w-full h-full flex items-center justify-center"
-                :style="{ backgroundColor: '#2D6A4F' }"
-              >
-                <svg
-                  class="w-12 h-12 text-white opacity-50"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 20l-5.447-2.724A1 1 0 003 16.382V5.618a1 1 0 011.553-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.553-.894L15 11"
-                  />
-                </svg>
-              </div>
-            </div>
+    <div v-else-if="maps.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div
+        v-for="map in maps"
+        :key="map.id"
+        class="group rounded-2xl border border-stone-200 overflow-hidden hover:border-stone-300 hover:shadow-md transition-all bg-white"
+      >
+        <!-- Poster-ratio thumbnail -->
+        <div class="relative aspect-[3/4] bg-stone-100 overflow-hidden">
+          <img
+            v-if="map.thumbnail_url"
+            :src="map.thumbnail_url"
+            :alt="map.title"
+            class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+          />
+          <div v-else class="w-full h-full flex flex-col items-center justify-center gap-3"
+            :style="{ backgroundColor: map.style_config?.background_color ?? '#F7F4EF' }">
+            <svg class="w-10 h-10 opacity-20" viewBox="0 0 32 32" fill="none"
+              :style="{ color: map.style_config?.route_color ?? '#C1121F' }">
+              <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.25"/>
+              <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+              <circle cx="11" cy="8" r="1.8" fill="currentColor"/>
+            </svg>
+            <span class="text-[10px] font-bold uppercase tracking-widest opacity-25"
+              :style="{ color: map.style_config?.route_color ?? '#C1121F' }">
+              No preview
+            </span>
+          </div>
 
-            <!-- Content -->
-            <div class="p-4 space-y-3">
-              <div>
-                <h3 class="font-semibold text-gray-900 truncate">{{ map.title }}</h3>
-                <p v-if="map.subtitle" class="text-sm text-gray-600 truncate">
-                  {{ map.subtitle }}
-                </p>
-              </div>
+          <!-- Status chip overlay -->
+          <div class="absolute top-3 left-3">
+            <span :class="[
+              'inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide backdrop-blur-sm',
+              map.status === 'rendered' ? 'bg-emerald-500/90 text-white' :
+              map.status === 'ordered' ? 'bg-sky-500/90 text-white' :
+              'bg-black/30 text-white'
+            ]">
+              <span :class="['w-1.5 h-1.5 rounded-full', map.status === 'rendered' ? 'bg-white' : map.status === 'ordered' ? 'bg-white' : 'bg-white/60']" />
+              {{ map.status }}
+            </span>
+          </div>
+        </div>
 
-              <!-- Status Badge -->
-              <div class="flex items-center gap-2">
-                <UBadge
-                  :color="getStatusColor(map.status)"
-                  variant="subtle"
-                  class="capitalize"
-                >
-                  {{ map.status }}
-                </UBadge>
-                <span class="text-xs text-gray-500">
-                  {{ formatDate(map.created_at) }}
-                </span>
-              </div>
+        <!-- Card footer -->
+        <div class="p-4">
+          <div class="mb-3">
+            <h3 class="font-semibold text-stone-900 truncate" style="font-family:'Space Grotesk',sans-serif">{{ map.title }}</h3>
+            <p class="text-xs text-stone-400 mt-0.5">{{ formatDate(map.created_at) }}</p>
+          </div>
 
-              <!-- Actions -->
-              <div class="flex gap-2 pt-2">
-                <UButton
-                  :to="`/create/${map.id}/style`"
-                  size="sm"
-                  variant="ghost"
-                  class="flex-1"
-                >
-                  Style
-                </UButton>
-                <UButton
-                  v-if="map.status === 'rendered'"
-                  :to="`/create/${map.id}/checkout`"
-                  size="sm"
-                  color="green"
-                  class="flex-1"
-                >
-                  Order
-                </UButton>
-                <UButton
-                  v-else
-                  size="sm"
-                  variant="ghost"
-                  disabled
-                  class="flex-1"
-                >
-                  Order
-                </UButton>
-              </div>
-            </div>
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <NuxtLink :to="`/create/${map.id}/style`" class="flex-1">
+              <button class="w-full text-sm font-medium text-stone-700 border border-stone-200 rounded-lg px-3 py-2.5 hover:bg-stone-50 transition-colors min-h-[40px]">
+                Style
+              </button>
+            </NuxtLink>
+            <NuxtLink v-if="map.status === 'rendered'" :to="`/create/${map.id}/checkout`" class="flex-1">
+              <button class="w-full text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] rounded-lg px-3 py-2.5 transition-colors min-h-[40px]">
+                Order
+              </button>
+            </NuxtLink>
+            <button v-else class="flex-1 text-sm font-medium text-stone-300 border border-stone-100 rounded-lg px-3 py-2.5 cursor-not-allowed min-h-[40px]" disabled>
+              Order
+            </button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="text-center py-12">
-      <svg
-        class="mx-auto h-12 w-12 text-gray-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.553-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.553-.894L15 11"
-        />
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No maps yet</h3>
-      <p class="mt-1 text-sm text-gray-500">
-        Create your first trail map by uploading a GPX file.
-      </p>
-      <div class="mt-6">
-        <UButton to="/create" color="green">
-          Create Your First Map
-        </UButton>
+    <div v-else class="text-center py-20">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-stone-100 mb-5">
+        <svg class="w-8 h-8 text-stone-400" viewBox="0 0 32 32" fill="none">
+          <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.12"/>
+          <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+          <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
+        </svg>
       </div>
+      <h3 class="text-lg font-semibold text-stone-900 mb-1" style="font-family:'Space Grotesk',sans-serif">No maps yet</h3>
+      <p class="text-sm text-stone-500 mb-6 max-w-xs mx-auto">
+        Upload a GPX file or import from Strava to create your first poster.
+      </p>
+      <NuxtLink to="/create">
+        <button class="inline-flex items-center gap-2 text-sm font-semibold bg-[#2D6A4F] hover:bg-[#235840] text-white px-5 py-3 rounded-xl transition-colors">
+          Create Your First Map
+        </button>
+      </NuxtLink>
     </div>
 
     <!-- Recent Orders Section -->
-    <div v-if="orders.length > 0" class="space-y-4">
-      <h2 class="text-lg font-semibold text-gray-900">Recent Orders</h2>
-      <UTable
-        :rows="orders"
-        :columns="[
-          { key: 'map_title', label: 'Map' },
-          { key: 'print_size', label: 'Size' },
-          { key: 'status', label: 'Status' },
-          { key: 'total_cents', label: 'Total' },
-          { key: 'created_at', label: 'Date' },
-        ]"
-        :ui="{ th: { base: 'text-left text-xs font-medium text-gray-500 uppercase' } }"
-      >
-        <template #map_title-data="{ row }">
-          <span class="text-sm font-medium text-gray-900">
-            {{ row.maps?.title || 'Unknown' }}
-          </span>
-        </template>
+    <div v-if="orders.length > 0" class="mt-12">
+      <h2 class="text-lg font-semibold text-stone-900 mb-4" style="font-family:'Space Grotesk',sans-serif">Recent Orders</h2>
 
-        <template #status-data="{ row }">
-          <UBadge
-            :color="getOrderStatusColor(row.status)"
-            variant="subtle"
-            class="capitalize"
-          >
-            {{ row.status }}
-          </UBadge>
-        </template>
+      <!-- Mobile/Desktop card list -->
+      <div class="space-y-3">
+        <div
+          v-for="order in orders"
+          :key="order.id"
+          class="flex items-center gap-4 bg-white rounded-xl border border-stone-200 px-4 py-3.5"
+        >
+          <!-- Status dot -->
+          <div :class="[
+            'w-2 h-2 rounded-full shrink-0',
+            order.status === 'delivered' || order.status === 'shipped' ? 'bg-emerald-500' :
+            order.status === 'paid' || order.status === 'in_production' ? 'bg-sky-500' :
+            order.status === 'cancelled' || order.status === 'failed' ? 'bg-red-400' :
+            'bg-amber-400'
+          ]" />
 
-        <template #total_cents-data="{ row }">
-          <span class="text-sm text-gray-900">
-            {{ formatPrice(row.total_cents) }}
-          </span>
-        </template>
+          <!-- Map title -->
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-stone-900 truncate">{{ (order as any).maps?.title || 'Unknown Map' }}</p>
+            <p class="text-xs text-stone-400">{{ order.print_size }} · {{ formatDate(order.created_at) }}</p>
+          </div>
 
-        <template #created_at-data="{ row }">
-          <span class="text-sm text-gray-600">
-            {{ formatDate(row.created_at) }}
-          </span>
-        </template>
-      </UTable>
+          <!-- Status + price -->
+          <div class="text-right shrink-0">
+            <p class="text-sm font-semibold text-stone-900">{{ formatPrice(order.total_cents) }}</p>
+            <p class="text-xs text-stone-400 capitalize">{{ order.status.replace('_', ' ') }}</p>
+          </div>
+        </div>
+      </div>
     </div>
+
   </div>
 </template>
 
@@ -195,54 +175,22 @@ const maps = ref<TrailMap[]>([])
 const orders = ref<Order[]>([])
 const loading = ref(true)
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'rendered':
-      return 'blue'
-    case 'ordered':
-      return 'green'
-    default:
-      return 'gray'
-  }
-}
-
-const getOrderStatusColor = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return 'yellow'
-    case 'processing':
-      return 'blue'
-    case 'shipped':
-      return 'green'
-    case 'delivered':
-      return 'green'
-    case 'cancelled':
-      return 'red'
-    default:
-      return 'gray'
-  }
-}
-
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
   })
 }
 
 const fetchMaps = async () => {
   if (!user.value?.id) return
-
   try {
     const { data, error } = await supabase
       .from('maps')
       .select('*')
       .eq('user_id', user.value.id)
       .order('created_at', { ascending: false })
-
     if (error) throw error
     maps.value = data || []
   } catch (err) {
@@ -252,7 +200,6 @@ const fetchMaps = async () => {
 
 const fetchOrders = async () => {
   if (!user.value?.id) return
-
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -260,7 +207,6 @@ const fetchOrders = async () => {
       .eq('user_id', user.value.id)
       .order('created_at', { ascending: false })
       .limit(10)
-
     if (error) throw error
     orders.value = data || []
   } catch (err) {

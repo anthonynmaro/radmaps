@@ -1,77 +1,133 @@
 <template>
-  <div class="h-screen bg-gray-50 flex flex-col overflow-hidden">
+  <div class="h-[100dvh] bg-stone-100 flex flex-col overflow-hidden">
 
-    <!-- Top bar -->
-    <header class="bg-white border-b px-5 py-3 flex items-center justify-between sticky top-0 z-20">
-      <div class="flex items-center gap-3">
-        <NuxtLink to="/dashboard" class="text-gray-400 hover:text-gray-600 transition-colors">
-          <UIcon name="i-heroicons-arrow-left" class="w-5 h-5" />
+    <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
+    <header class="bg-white border-b border-stone-200 px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 shrink-0 z-20">
+
+      <!-- Left: back + title -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <NuxtLink to="/dashboard"
+          class="flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+          </svg>
         </NuxtLink>
-        <div>
-          <p class="text-sm font-semibold text-gray-800 leading-none">{{ mapData?.title ?? 'Loading…' }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">Style your map</p>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-stone-800 leading-none truncate max-w-[120px] sm:max-w-none">
+            {{ mapData?.title ?? 'Loading…' }}
+          </p>
+          <p class="text-[11px] text-stone-400 mt-0.5 hidden sm:block">Style your map</p>
         </div>
-        <UBadge v-if="saving" color="gray" size="xs" variant="subtle">Saving…</UBadge>
+        <span v-if="saving" class="hidden sm:inline-flex items-center text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">
+          Saving…
+        </span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <!-- Share button -->
-        <UButton
-          icon="i-heroicons-link"
-          color="gray"
-          variant="ghost"
-          size="sm"
-          @click="copyShareLink"
-        >
-          {{ shareLabel }}
-        </UButton>
+      <!-- Right: actions -->
+      <div class="flex items-center gap-1.5 shrink-0">
 
-        <!-- Save version button -->
-        <UButton
-          icon="i-heroicons-bookmark"
-          color="gray"
-          variant="ghost"
-          size="sm"
+        <!-- Share — icon only on mobile -->
+        <button
+          class="flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 px-2 py-2 sm:px-2.5 rounded-lg hover:bg-stone-100 transition-colors min-h-[36px]"
+          @click="copyShareLink"
+          title="Copy share link"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"/>
+          </svg>
+          <span class="hidden sm:inline">{{ shareLabel }}</span>
+        </button>
+
+        <!-- Save version — icon only on mobile -->
+        <button
+          class="hidden sm:flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 px-2.5 py-2 rounded-lg hover:bg-stone-100 transition-colors min-h-[36px]"
           @click="showVersionModal = true"
         >
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
+          </svg>
           Save version
-        </UButton>
+        </button>
 
-        <div class="w-px h-5 bg-gray-200" />
+        <div class="hidden sm:block w-px h-5 bg-stone-200" />
 
-        <UButton
-          :loading="isRendering"
+        <!-- Generate DPI -->
+        <button
           :disabled="isRendering"
-          color="gray"
-          variant="outline"
-          size="sm"
-          icon="i-heroicons-photo"
+          class="flex items-center gap-1.5 text-xs font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 disabled:opacity-60 disabled:cursor-not-allowed px-2 sm:px-3 py-2 rounded-lg transition-colors min-h-[36px]"
           @click="triggerRender"
+          :title="isRendering ? 'Rendering…' : 'Generate 300 DPI'"
         >
-          {{ isRendering ? 'Rendering…' : 'Generate 300 DPI' }}
-        </UButton>
+          <svg class="w-4 h-4 shrink-0" :class="{ 'animate-spin': isRendering }" viewBox="0 0 20 20" fill="currentColor">
+            <path v-if="!isRendering" fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+            <path v-else fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+          </svg>
+          <span class="hidden sm:inline">{{ isRendering ? 'Rendering…' : 'Generate' }}</span>
+        </button>
 
-        <UBadge v-if="renderComplete" color="green" size="sm">
-          <UIcon name="i-heroicons-check" class="w-3 h-3 mr-1" /> Print file ready
-        </UBadge>
+        <!-- Ready badge -->
+        <span v-if="renderComplete" class="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
+          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          Ready
+        </span>
 
-        <UButton
-          :disabled="!renderComplete"
-          color="primary"
-          size="sm"
-          trailing-icon="i-heroicons-arrow-right"
+        <!-- Continue/Order -->
+        <NuxtLink
+          v-if="renderComplete"
           :to="`/create/${mapId}/checkout`"
+          class="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-3 py-2 rounded-lg transition-colors min-h-[36px]"
         >
-          Choose product
-        </UButton>
+          <span>Order</span>
+          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+          </svg>
+        </NuxtLink>
+        <button v-else disabled
+          class="flex items-center gap-1.5 text-xs font-semibold text-stone-400 bg-stone-100 px-3 py-2 rounded-lg min-h-[36px] cursor-not-allowed">
+          Order
+        </button>
       </div>
     </header>
 
+    <!-- ── Mobile tab switcher ────────────────────────────────────────────── -->
+    <div class="md:hidden flex bg-white border-b border-stone-200 shrink-0">
+      <button
+        @click="mobileTab = 'preview'"
+        :class="[
+          'flex-1 py-2.5 text-sm font-medium transition-colors border-b-2',
+          mobileTab === 'preview'
+            ? 'border-[#2D6A4F] text-[#2D6A4F]'
+            : 'border-transparent text-stone-500 hover:text-stone-700',
+        ]"
+      >
+        Preview
+      </button>
+      <button
+        @click="mobileTab = 'style'"
+        :class="[
+          'flex-1 py-2.5 text-sm font-medium transition-colors border-b-2',
+          mobileTab === 'style'
+            ? 'border-[#2D6A4F] text-[#2D6A4F]'
+            : 'border-transparent text-stone-500 hover:text-stone-700',
+        ]"
+      >
+        Style
+      </button>
+    </div>
+
+    <!-- ── Main split layout ──────────────────────────────────────────────── -->
     <div class="flex flex-1 overflow-hidden">
 
-      <!-- Map preview -->
-      <main class="flex-1 flex flex-col overflow-hidden">
-        <div class="flex-1 flex items-center justify-center p-6 overflow-hidden">
+      <!-- Map preview — full width on mobile when mobileTab==='preview', hidden when 'style' -->
+      <main
+        :class="[
+          'flex-1 flex flex-col overflow-hidden',
+          mobileTab === 'style' ? 'hidden md:flex' : 'flex',
+        ]"
+      >
+        <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
           <ClientOnly>
             <MapPreview
               v-if="mapData"
@@ -80,18 +136,34 @@
               class="w-full h-full"
             />
           </ClientOnly>
-          <div v-if="!mapData" class="w-full h-full rounded-xl bg-gray-200 animate-pulse flex items-center justify-center">
-            <UIcon name="i-heroicons-map" class="w-10 h-10 text-gray-400" />
+          <div v-if="!mapData" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
+            <svg class="w-10 h-10 text-stone-400" viewBox="0 0 32 32" fill="none">
+              <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.12"/>
+              <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+            </svg>
           </div>
         </div>
 
-        <div v-if="renderError" class="px-6 pb-4 shrink-0">
-          <UAlert color="red" :description="renderError" icon="i-heroicons-exclamation-triangle" />
+        <!-- Render error -->
+        <div v-if="renderError" class="px-4 sm:px-6 pb-4 shrink-0">
+          <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <svg class="h-4 w-4 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm text-red-700">{{ renderError }}</span>
+          </div>
         </div>
       </main>
 
-      <!-- Style controls panel -->
-      <aside class="w-[320px] border-l shrink-0 overflow-hidden flex flex-col">
+      <!-- Style controls panel — full screen on mobile when mobileTab==='style' -->
+      <aside
+        :class="[
+          'shrink-0 overflow-hidden flex flex-col bg-white',
+          mobileTab === 'style'
+            ? 'flex w-full md:w-[320px] md:border-l md:border-stone-200'
+            : 'hidden md:flex w-[320px] border-l border-stone-200',
+        ]"
+      >
         <MapStylePanel
           v-if="mapData"
           v-model="styleConfig"
@@ -103,18 +175,25 @@
 
     </div>
 
-    <!-- Save version modal -->
+    <!-- ── Save version modal ─────────────────────────────────────────────── -->
     <UModal v-model="showVersionModal">
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold text-gray-900">Save a version</h3>
-            <UButton icon="i-heroicons-x-mark" color="gray" variant="ghost" size="xs" @click="showVersionModal = false" />
+            <h3 class="text-base font-semibold text-stone-900">Save a version</h3>
+            <button
+              class="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 transition-colors"
+              @click="showVersionModal = false"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </button>
           </div>
         </template>
 
         <div class="space-y-4">
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-stone-500">
             Snapshot your current style so you can come back to it later. Your map auto-saves continuously — this is an optional named checkpoint.
           </p>
           <UFormGroup label="Label (optional)">
@@ -125,18 +204,17 @@
             />
           </UFormGroup>
 
-          <!-- Previous versions -->
           <div v-if="versions.length > 0">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Previous snapshots</p>
+            <p class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Previous snapshots</p>
             <ul class="space-y-1">
               <li
                 v-for="v in versions"
                 :key="v.id"
-                class="flex items-center justify-between text-sm rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer group"
+                class="flex items-center justify-between text-sm rounded-xl px-3 py-2.5 bg-stone-50 hover:bg-stone-100 cursor-pointer group"
                 @click="restoreVersion(v)"
               >
-                <span class="text-gray-700">{{ v.label || 'Untitled snapshot' }}</span>
-                <span class="text-xs text-gray-400 group-hover:text-green-600 transition-colors">
+                <span class="text-stone-700">{{ v.label || 'Untitled snapshot' }}</span>
+                <span class="text-xs text-stone-400 group-hover:text-[#2D6A4F] transition-colors">
                   {{ new Date(v.created_at).toLocaleDateString() }} — Restore
                 </span>
               </li>
@@ -146,14 +224,17 @@
 
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton color="gray" variant="ghost" @click="showVersionModal = false">Cancel</UButton>
-            <UButton
-              color="green"
-              :loading="savingVersion"
+            <button
+              class="text-sm text-stone-600 px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
+              @click="showVersionModal = false"
+            >Cancel</button>
+            <button
+              class="text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              :disabled="savingVersion"
               @click="saveVersion"
             >
-              Save snapshot
-            </UButton>
+              {{ savingVersion ? 'Saving…' : 'Save snapshot' }}
+            </button>
           </div>
         </template>
       </UCard>
@@ -175,6 +256,7 @@ const { map: mapData, saving, updateStyle } = useMap(mapId)
 const { triggerRender, isRendering, isComplete: renderComplete, error: renderError } = useMapRenderer(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
+const mobileTab = ref<'preview' | 'style'>('preview')
 
 watch(mapData, (m) => {
   if (m?.style_config) {
@@ -204,7 +286,6 @@ async function copyShareLink() {
     shareLabel.value = 'Copied!'
     setTimeout(() => { shareLabel.value = 'Share' }, 2500)
   } catch {
-    // Fallback: prompt
     window.prompt('Copy this link:', shareUrl)
   }
 }
@@ -216,7 +297,6 @@ const versionLabel = ref('')
 const savingVersion = ref(false)
 const versions = ref<Array<{ id: string; label: string | null; style_config: StyleConfig; created_at: string }>>([])
 
-// Load versions when modal opens
 watch(showVersionModal, async (open) => {
   if (!open) return
   try {
