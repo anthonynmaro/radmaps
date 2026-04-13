@@ -109,21 +109,12 @@
         </div>
 
         <!-- Strava OAuth -->
-        <a href="/api/strava/connect" class="block">
-          <UButton
-            size="lg"
-            color="gray"
-            variant="outline"
-            block
-            :disabled="isLoading"
-          >
-            <template #leading>
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.387 17.944c-2.267-1.621-4.641-3.4-6.979-5.1.526 1.773 2.6 5.694 6.979 5.1zm.623-4.887c-1.522-2.139-3.6-4.877-6.623-5.779 1.364 2.217 3.912 4.779 6.623 5.779zm7.219-11.141c2.543 2.549 4.487 6.055 4.488 9.995 0 .104-.002.208-.006.311a9.995 9.995 0 01-9.995 9.995c-4.735 0-8.843-3.364-9.756-7.788 4.017 1.466 8.056-1.671 11.036-4.077l-5.362-7.436z" />
-              </svg>
-            </template>
-            Continue with Strava
-          </UButton>
+        <a href="/api/strava/connect" class="strava-btn flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg font-semibold text-white transition-colors duration-150">
+          <!-- Strava chevron logo mark -->
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0 5 13.828h4.172"/>
+          </svg>
+          Continue with Strava
         </a>
 
         <!-- Sign Up Link -->
@@ -201,5 +192,12 @@ const handleLogin = async () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.strava-btn {
+  background-color: #FC4C02;
+}
+.strava-btn:hover {
+  background-color: #e04200;
 }
 </style>
