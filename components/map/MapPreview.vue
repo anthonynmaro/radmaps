@@ -241,7 +241,9 @@ let mlDemSource: any = null
 async function ensureContourProtocol() {
   if (mlDemSource) return
   const mlContour = await import('maplibre-contour') as any
-  mlDemSource = new mlContour.DemSource({
+  // UMD module: DemSource lives on .default under ESM interop, fall back to root
+  const { DemSource } = mlContour.default ?? mlContour
+  mlDemSource = new DemSource({
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     encoding: 'terrarium',
     maxzoom: 15,
