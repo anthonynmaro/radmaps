@@ -204,7 +204,7 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { buildMapStyle } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { sliceRouteByPercent, trailSourceId } from '~/utils/trail'
 import { PRINT_SIZES } from '~/types'
 import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
@@ -230,6 +230,32 @@ const mapReady = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
+
+// ── maplibre-contour protocol ─────────────────────────────────────────────────
+// Set up once per component mount. The DemSource registers a custom
+// "dem-contour://" tile protocol with MapLibre that generates vector contour
+// tiles on-the-fly from free AWS terrarium DEM tiles at any elevation interval.
+
+let mlDemSource: any = null
+
+async function ensureContourProtocol() {
+  if (mlDemSource) return
+  const mlContour = await import('maplibre-contour') as any
+  mlDemSource = new mlContour.DemSource({
+    url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+    encoding: 'terrarium',
+    maxzoom: 15,
+    worker: true,
+  })
+  mlDemSource.setupMaplibre(maplibregl)
+}
+
+function getContourTileUrl(cfg: StyleConfig): string | undefined {
+  if (!cfg.show_contours || !mlDemSource) return undefined
+  const detail = Math.round(cfg.contour_detail ?? 3)
+  const thresholds = CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
+  return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 1 })
+}
 
 // Detect mobile for conditional contenteditable behavior
 const isMobile = ref(false)
@@ -720,7 +746,8 @@ onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
 
-  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken) as maplibregl.StyleSpecification
+  if (props.styleConfig.show_contours) await ensureContourProtocol()
+  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
 
   mapInstance = new maplibregl.Map({
     container: mapContainer.value,
@@ -854,7 +881,7 @@ let prevSegmentCount = 0
 
 watch(
   () => props.styleConfig,
-  (newConfig, oldConfig) => {
+  async (newConfig, oldConfig) => {
     if (!mapInstance || !mapReady.value) return
 
     const needsFullReload = FULL_RELOAD_KEYS.some(
@@ -905,7 +932,8 @@ watch(
       mapReady.value = false
       prevSegmentIds = (newConfig.trail_segments ?? []).map(s => s.id)
       prevSegmentCount = newConfig.trail_segments?.length ?? 0
-      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken) as maplibregl.StyleSpecification
+      if (newConfig.show_contours) await ensureContourProtocol()
+      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(newConfig)) as maplibregl.StyleSpecification
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => {
         populateRouteSource()
