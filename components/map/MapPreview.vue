@@ -125,7 +125,7 @@ async function getContourTileUrl(styleConfig: StyleConfig): Promise<string | und
   const thresholds = CONTOUR_THRESHOLDS[detail]
   const demSource = await getDemSource()
   if (!demSource) return undefined
-  return demSource.contourProtocol({
+  return demSource.contourProtocolUrl({
     thresholds,
     elevationKey: 'ele',
     levelKey: 'level',
