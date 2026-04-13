@@ -193,7 +193,16 @@
 
       <!-- Connected: activity list -->
       <div v-else class="space-y-3">
-        <p class="text-xs text-gray-500">Select an activity to import as a new map.</p>
+        <div class="flex items-center justify-between">
+          <p class="text-xs text-gray-500">Select an activity to import as a new map.</p>
+          <button
+            @click="disconnectStrava"
+            :disabled="isDisconnecting"
+            class="text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+          >
+            {{ isDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+          </button>
+        </div>
         <div
           v-for="activity in stravaActivities"
           :key="activity.id"
@@ -270,6 +279,7 @@ const stravaActivities = ref<any[]>([])
 const stravaLoading = ref(false)
 const stravaError = ref<string | null>(null)
 const importingId = ref<number | null>(null)
+const isDisconnecting = ref(false)
 
 // Compute route stats + bbox from GeoJSON
 const computeRouteData = (geojson: GeoJSON.FeatureCollection) => {
@@ -484,11 +494,36 @@ const importActivity = async (activity: any) => {
   }
 }
 
+const disconnectStrava = async () => {
+  isDisconnecting.value = true
+  try {
+    await fetch('/api/strava/disconnect', { method: 'DELETE' })
+    stravaConnected.value = false
+    stravaActivities.value = []
+  } catch {
+    stravaError.value = 'Failed to disconnect Strava. Please try again.'
+  } finally {
+    isDisconnecting.value = false
+  }
+}
+
 onMounted(async () => {
   // Auto-switch to Strava tab if returning from OAuth
   if (route.query.strava_connected === '1') {
     activeTab.value = 'strava'
   }
+
+  // Show error if user denied access on Strava
+  if (route.query.strava_error === 'access_denied') {
+    activeTab.value = 'strava'
+    stravaError.value = 'Strava access was denied. Connect your account to import activities.'
+  }
+
+  // Clean OAuth query params from URL without re-triggering navigation
+  if (route.query.strava_connected || route.query.strava_error) {
+    router.replace({ query: {} })
+  }
+
   await loadStravaActivities()
 })
 </script>

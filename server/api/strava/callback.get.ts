@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const error = query.error as string | undefined
 
   if (error) {
-    return sendRedirect(event, '/dashboard?strava_error=access_denied')
+    return sendRedirect(event, '/create?strava_error=access_denied')
   }
 
   if (!code) {

@@ -78,13 +78,23 @@ export default defineEventHandler(async (event) => {
   const per_page = Number(query.per_page) || 20
   const page = Number(query.page) || 1
 
-  const activities = await $fetch<StravaActivity[]>(
-    'https://www.strava.com/api/v3/athlete/activities',
-    {
-      headers: { Authorization: `Bearer ${access_token}` },
-      query: { per_page, page },
-    },
-  )
+  let activities: StravaActivity[]
+  try {
+    activities = await $fetch<StravaActivity[]>(
+      'https://www.strava.com/api/v3/athlete/activities',
+      {
+        headers: { Authorization: `Bearer ${access_token}` },
+        query: { per_page, page },
+      },
+    )
+  } catch (err: unknown) {
+    // 401 means user revoked access in Strava — treat as disconnected
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      return { connected: false }
+    }
+    throw createError({ statusCode: 502, message: 'Failed to fetch activities from Strava' })
+  }
 
   const mapped = activities.map((a) => ({
     id: a.id,
