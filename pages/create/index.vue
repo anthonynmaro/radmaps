@@ -225,7 +225,20 @@
               : 'border-stone-100 bg-stone-50 hover:border-stone-200',
           ]"
         >
-          <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-3">
+
+            <!-- Thumbnail or sport icon -->
+            <div class="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-stone-200 flex items-center justify-center">
+              <img
+                v-if="activity.thumbnail_url"
+                :src="activity.thumbnail_url"
+                class="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <span v-else class="text-2xl leading-none">{{ sportEmoji(activity.sport_type) }}</span>
+            </div>
+
+            <!-- Text content -->
             <div class="min-w-0 flex-1">
 
               <!-- Name + sport type + achievement badges -->
@@ -251,8 +264,10 @@
                 <template v-if="activity.elapsed_time"> · {{ formatDuration(activity.elapsed_time) }}</template>
               </p>
 
-              <!-- Date + photos toggle -->
-              <div class="flex items-center gap-2.5 mt-0.5 flex-wrap">
+              <!-- Location + date + photos toggle -->
+              <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                <p v-if="activity.location" class="text-xs text-stone-500 font-medium">{{ activity.location }}</p>
+                <span v-if="activity.location" class="text-stone-300 text-xs">·</span>
                 <p class="text-xs text-stone-400">{{ new Date(activity.start_date).toLocaleDateString() }}</p>
                 <button
                   v-if="activity.total_photo_count > 0"
@@ -380,6 +395,20 @@ const isDisconnecting = ref(false)
 const expandedPhotos = ref<Record<number, boolean>>({})
 const activityPhotos = ref<Record<number, string[]>>({})
 const loadingPhotosId = ref<number | null>(null)
+
+const sportEmoji = (sport: string): string => {
+  const map: Record<string, string> = {
+    Run: '🏃', VirtualRun: '🏃', TrailRun: '🏃',
+    Ride: '🚴', VirtualRide: '🚴', MountainBikeRide: '🚵', GravelRide: '🚵',
+    Hike: '🥾', Walk: '🚶',
+    Swim: '🏊', OpenWaterSwim: '🏊',
+    Ski: '⛷️', AlpineSki: '⛷️', BackcountrySki: '⛷️', NordicSki: '⛷️',
+    Snowboard: '🏂',
+    Kayaking: '🛶', Canoeing: '🛶', Rowing: '🚣',
+    Yoga: '🧘', Workout: '💪', WeightTraining: '🏋️',
+  }
+  return map[sport] ?? '🗺️'
+}
 
 const formatDuration = (seconds: number) => {
   const h = Math.floor(seconds / 3600)

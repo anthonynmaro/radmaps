@@ -37,6 +37,43 @@ export interface StyleLabels {
   show_location: boolean
 }
 
+// ─── Text Overlays ────────────────────────────────────────────────────────────
+
+export type TextOverlayAlignment = 'left' | 'center' | 'right'
+
+export interface TextOverlay {
+  id: string
+  content: string
+  x: number                       // 0–100, % from left of map container
+  y: number                       // 0–100, % from top of map container
+  font_size: number               // in cqh units (0.5–6)
+  color: string
+  font_family: FontFamily
+  alignment: TextOverlayAlignment
+  opacity: number
+  bold: boolean
+  bg_color?: string               // optional frosted pill background
+}
+
+// ─── Trail Segments ───────────────────────────────────────────────────────────
+
+export interface TrailSegment {
+  id: string
+  name: string
+  color: string
+  visible: boolean
+  section_start: number           // 0–100, % of primary route coordinate array
+  section_end: number             // 0–100
+  width?: number                  // line width in px, defaults to route_width
+  opacity?: number                // default: 0.9
+  dash?: boolean                  // dashed line style
+}
+
+export interface TrailLegend {
+  show: boolean
+  position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
+}
+
 export interface StyleConfig {
   preset: StylePreset
   background_color: string
@@ -80,6 +117,18 @@ export interface StyleConfig {
   body_font_family?: FontFamily
   // Contour detail level (0–4, maps to interval multipliers)
   contour_detail?: number
+  // Branding
+  show_branding?: boolean         // show "radmaps.studio" credit in footer (default: true)
+  // Logo
+  show_logo?: boolean
+  logo_url?: string
+  logo_position?: 'map-top-right' | 'header-right' | 'footer-left'
+  logo_size?: number              // 5–20 cqh units, default: 8
+  // Text overlays (floating text on map)
+  text_overlays?: TextOverlay[]
+  // Trail segments (named slices of the primary route)
+  trail_segments?: TrailSegment[]
+  trail_legend?: TrailLegend
 }
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
@@ -122,6 +171,13 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   location_text: '',
   label_text_color: '#1C1917',
   label_bg_color: '#F7F4EF',
+  show_branding: true,
+  show_logo: false,
+  logo_position: 'map-top-right',
+  logo_size: 8,
+  text_overlays: [],
+  trail_segments: [],
+  trail_legend: { show: true, position: 'bottom-left' },
 }
 
 // ─── Themes ──────────────────────────────────────────────────────────────────

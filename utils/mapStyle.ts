@@ -1,4 +1,4 @@
-import type { StyleConfig } from '~/types'
+import type { StyleConfig, TrailSegment } from '~/types'
 
 /**
  * Build a MapLibre GL Style JSON object from a StyleConfig.
@@ -261,6 +261,60 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
   return layers
 }
 
+// ─── Trail segment sources/layers ────────────────────────────────────────────
+
+export function trailSegmentSources(segments: TrailSegment[] = []): Record<string, object> {
+  const sources: Record<string, object> = {}
+  for (const seg of segments) {
+    if (!seg.visible) continue
+    sources[`trail-seg-${seg.id}`] = {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    }
+  }
+  return sources
+}
+
+export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleConfig): object[] {
+  const layers: object[] = []
+  for (const seg of segments) {
+    if (!seg.visible) continue
+    const width = seg.width ?? config.route_width ?? 2
+    const opacity = seg.opacity ?? 0.9
+    const dashArray = seg.dash ? [4, 3] : undefined
+
+    layers.push({
+      id: `trail-seg-casing-${seg.id}`,
+      type: 'line',
+      source: `trail-seg-${seg.id}`,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#FFFFFF',
+        'line-width': width + 3,
+        'line-opacity': opacity,
+      },
+    })
+
+    const lineLayer: Record<string, unknown> = {
+      id: `trail-seg-line-${seg.id}`,
+      type: 'line',
+      source: `trail-seg-${seg.id}`,
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+        ...(dashArray ? { 'line-dasharray': dashArray } : {}),
+      },
+      paint: {
+        'line-color': seg.color,
+        'line-width': width,
+        'line-opacity': opacity,
+      },
+    }
+    layers.push(lineLayer)
+  }
+  return layers
+}
+
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
@@ -345,12 +399,14 @@ function buildMinimalistStyle(
       ...(config.show_hillshade ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      ...trailSegmentSources(config.trail_segments),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
       { id: 'base-tiles', type: 'raster', source: 'base-tiles', paint: { 'raster-opacity': baseTileOpacity } },
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
+      ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
     ],
   }
@@ -380,6 +436,7 @@ function buildTopographicStyle(
       ...(config.show_hillshade ? demSource(token) : {}),
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      ...trailSegmentSources(config.trail_segments),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
@@ -394,6 +451,7 @@ function buildTopographicStyle(
       },
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
+      ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
     ],
   }

@@ -2,6 +2,8 @@
  * GET /api/strava/activities?page=1&per_page=20
  * Returns the authenticated user's recent Strava activities.
  * Automatically refreshes the access token if it is within 5 minutes of expiry.
+ * Enriches each activity with a thumbnail_url (from Strava's primary photo)
+ * and a location string (reverse-geocoded from start_latlng via BigDataCloud).
  */
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
@@ -32,6 +34,37 @@ interface StravaActivity {
   achievement_count: number
   pr_count: number
   total_photo_count: number
+  photos?: {
+    primary?: {
+      urls?: Record<string, string>
+    }
+  }
+}
+
+interface BigDataCloudResponse {
+  city?: string
+  locality?: string
+  principalSubdivision?: string
+  countryCode?: string
+  countryName?: string
+}
+
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const geo = await $fetch<BigDataCloudResponse>(
+      'https://api.bigdatacloud.net/data/reverse-geocode-client',
+      { query: { latitude: lat, longitude: lng, localityLanguage: 'en' } },
+    )
+    const city = geo.city || geo.locality
+    const region = geo.principalSubdivision
+    if (city && region && city !== region) return `${city}, ${region}`
+    if (city) return city
+    if (region) return region
+    if (geo.countryName) return geo.countryName
+    return null
+  } catch {
+    return null
+  }
 }
 
 export default defineEventHandler(async (event) => {
@@ -100,21 +133,43 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, message: 'Failed to fetch activities from Strava' })
   }
 
-  const mapped = activities.map((a) => ({
-    id: a.id,
-    name: a.name,
-    sport_type: a.sport_type,
-    distance: a.distance,
-    total_elevation_gain: a.total_elevation_gain,
-    start_date: a.start_date,
-    start_latlng: a.start_latlng,
-    map: { summary_polyline: a.map?.summary_polyline ?? '' },
-    moving_time: a.moving_time,
-    elapsed_time: a.elapsed_time ?? 0,
-    achievement_count: a.achievement_count ?? 0,
-    pr_count: a.pr_count ?? 0,
-    total_photo_count: a.total_photo_count ?? 0,
-  }))
+  // Reverse-geocode all activities that have coordinates — run in parallel
+  const locationResults = await Promise.allSettled(
+    activities.map((a) => {
+      const ll = a.start_latlng
+      if (Array.isArray(ll) && ll.length === 2) {
+        return reverseGeocode(ll[0], ll[1])
+      }
+      return Promise.resolve(null)
+    }),
+  )
+
+  const mapped = activities.map((a, i) => {
+    const primaryUrls = a.photos?.primary?.urls ?? {}
+    const thumbnail_url =
+      primaryUrls['100'] ?? primaryUrls['600'] ?? primaryUrls[Object.keys(primaryUrls)[0]] ?? null
+
+    const locationResult = locationResults[i]
+    const location = locationResult.status === 'fulfilled' ? locationResult.value : null
+
+    return {
+      id: a.id,
+      name: a.name,
+      sport_type: a.sport_type,
+      distance: a.distance,
+      total_elevation_gain: a.total_elevation_gain,
+      start_date: a.start_date,
+      start_latlng: a.start_latlng,
+      map: { summary_polyline: a.map?.summary_polyline ?? '' },
+      moving_time: a.moving_time,
+      elapsed_time: a.elapsed_time ?? 0,
+      achievement_count: a.achievement_count ?? 0,
+      pr_count: a.pr_count ?? 0,
+      total_photo_count: a.total_photo_count ?? 0,
+      thumbnail_url,
+      location,
+    }
+  })
 
   return { connected: true, activities: mapped }
 })
