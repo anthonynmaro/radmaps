@@ -32,16 +32,17 @@ export function buildMapStyle(
 // These are used in MapPreview.vue to generate the contourTileUrl.
 // Exported so MapPreview can build the URL without duplicating the table.
 //
-// IMPORTANT: thresholds must cover low zoom levels. Trail posters zoom out to
-// fit the full route (often zoom 8–11). maplibre-contour's getOptionsForZoom
-// picks the highest key ≤ current zoom — if no key qualifies, levels=[] and
-// nothing is drawn. Start at zoom 7 to cover every realistic poster zoom.
+// maplibre-contour's getOptionsForZoom picks the HIGHEST key ≤ current map
+// zoom. If no key qualifies, levels=[] and nothing is drawn. Start at zoom 1
+// as a universal fallback — the library fetches DEM tiles at zoom+overzoom
+// (overzooming from higher-res tiles) so contours are accurate even when the
+// map is zoomed out. Key 1 covers any poster zoom below the first named key.
 export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>> = {
-  0: { 7: [500, 2000], 8: [500, 2000], 9: [300, 1500], 10: [200, 1000], 11: [200, 1000], 12: [200, 1000], 13: [100, 500],  14: [50,  200] },
-  1: { 7: [300, 1500], 8: [200, 1000], 9: [100, 500],  10: [100, 500],  11: [100, 500],  12: [100, 500],  13: [50,  200],  14: [20,  100] },
-  2: { 7: [200, 1000], 8: [100, 500],  9: [50,  250],  10: [50,  200],  11: [50,  200],  12: [50,  200],  13: [20,  100],  14: [10,  50]  },
-  3: { 7: [100, 500],  8: [50,  250],  9: [30,  150],  10: [20,  100],  11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
-  4: { 7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
+  0: { 1: [1000, 5000], 7: [500, 2000], 8: [500, 2000], 9: [300, 1500], 10: [200, 1000], 11: [200, 1000], 12: [200, 1000], 13: [100, 500],  14: [50,  200] },
+  1: { 1: [500,  2000], 7: [300, 1500], 8: [200, 1000], 9: [100, 500],  10: [100, 500],  11: [100, 500],  12: [100, 500],  13: [50,  200],  14: [20,  100] },
+  2: { 1: [200,  1000], 7: [200, 1000], 8: [100, 500],  9: [50,  250],  10: [50,  200],  11: [50,  200],  12: [50,  200],  13: [20,  100],  14: [10,  50]  },
+  3: { 1: [100,  500],  7: [100, 500],  8: [50,  250],  9: [30,  150],  10: [20,  100],  11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
+  4: { 1: [50,   250],  7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
 }
 
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
@@ -320,6 +321,75 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
   return layers
 }
 
+// ─── Pin source + layers ──────────────────────────────────────────────────────
+
+export function pinSource(): object {
+  return {
+    'route-pins': {
+      type: 'geojson' as const,
+      data: { type: 'FeatureCollection', features: [] },
+    },
+  }
+}
+
+export function pinLayers(config: StyleConfig): object[] {
+  const startVis = config.show_start_pin !== false ? 'visible' : 'none'
+  const finishVis = config.show_finish_pin !== false ? 'visible' : 'none'
+
+  return [
+    // ── Start pin: white halo → route_color disk → white center (open ring look) ──
+    {
+      id: 'route-pin-start-halo',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'start'],
+      layout: { visibility: startVis },
+      paint: { 'circle-radius': 13, 'circle-color': '#FFFFFF', 'circle-opacity': 0.88, 'circle-blur': 0.18 },
+    },
+    {
+      id: 'route-pin-start-ring',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'start'],
+      layout: { visibility: startVis },
+      paint: { 'circle-radius': 9, 'circle-color': config.route_color, 'circle-opacity': 1 },
+    },
+    {
+      id: 'route-pin-start-center',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'start'],
+      layout: { visibility: startVis },
+      paint: { 'circle-radius': 4, 'circle-color': '#FFFFFF', 'circle-opacity': 1 },
+    },
+    // ── Finish pin: white halo → route_color solid disk (closed look) ────────────
+    {
+      id: 'route-pin-finish-halo',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'finish'],
+      layout: { visibility: finishVis },
+      paint: { 'circle-radius': 13, 'circle-color': '#FFFFFF', 'circle-opacity': 0.88, 'circle-blur': 0.18 },
+    },
+    {
+      id: 'route-pin-finish',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'finish'],
+      layout: { visibility: finishVis },
+      paint: { 'circle-radius': 10, 'circle-color': config.route_color, 'circle-opacity': 1 },
+    },
+    {
+      id: 'route-pin-finish-dot',
+      type: 'circle',
+      source: 'route-pins',
+      filter: ['==', ['get', 'type'], 'finish'],
+      layout: { visibility: finishVis },
+      paint: { 'circle-radius': 3.5, 'circle-color': '#FFFFFF', 'circle-opacity': 1 },
+    },
+  ]
+}
+
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
@@ -405,6 +475,7 @@ function buildMinimalistStyle(
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       ...trailSegmentSources(config.trail_segments),
+      ...pinSource(),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
@@ -413,6 +484,7 @@ function buildMinimalistStyle(
       ...contourLayers(config, usingMlContour),
       ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
+      ...pinLayers(config),
     ],
   }
 }
@@ -442,6 +514,7 @@ function buildTopographicStyle(
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       ...trailSegmentSources(config.trail_segments),
+      ...pinSource(),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
@@ -458,6 +531,7 @@ function buildTopographicStyle(
       ...contourLayers(config, usingMlContour),
       ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
+      ...pinLayers(config),
     ],
   }
 }

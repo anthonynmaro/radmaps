@@ -258,7 +258,9 @@ function getContourTileUrl(cfg: StyleConfig): string | undefined {
   if (!cfg.show_contours || !mlDemSource) return undefined
   const detail = Math.round(cfg.contour_detail ?? 3)
   const thresholds = CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
-  return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 1 })
+  // overzoom: 2 — fetch DEM tiles 2 zoom levels higher than the map zoom,
+  // giving accurate contours even when the poster is zoomed out to fit a long route.
+  return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 2 })
 }
 
 // Detect mobile for conditional contenteditable behavior
@@ -767,6 +769,7 @@ onMounted(async () => {
   mapInstance.on('load', () => {
     populateRouteSource()
     populateSegmentSources()
+    populatePinSource()
     setPaintBackground()
     mapReady.value = true
     if (props.editable) initOverlayDrag()
@@ -829,6 +832,40 @@ function populateSegmentSources() {
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
     if (src) src.setData(sliced)
   }
+}
+
+function populatePinSource() {
+  if (!mapInstance) return
+  const features = (props.map.geojson as GeoJSON.FeatureCollection).features
+
+  let startCoord: number[] | null = null
+  let endCoord: number[] | null = null
+
+  for (const feature of features) {
+    const g = feature.geometry
+    if (g.type === 'LineString' && g.coordinates.length > 0) {
+      if (!startCoord) startCoord = g.coordinates[0]
+      endCoord = g.coordinates[g.coordinates.length - 1]
+    } else if (g.type === 'MultiLineString') {
+      for (const line of g.coordinates) {
+        if (line.length > 0) {
+          if (!startCoord) startCoord = line[0]
+          endCoord = line[line.length - 1]
+        }
+      }
+    }
+  }
+
+  const pinFeatures: GeoJSON.Feature[] = []
+  if (startCoord) {
+    pinFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: startCoord }, properties: { type: 'start' } })
+  }
+  if (endCoord) {
+    pinFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: endCoord }, properties: { type: 'finish' } })
+  }
+
+  const src = mapInstance.getSource('route-pins') as maplibregl.GeoJSONSource | undefined
+  if (src) src.setData({ type: 'FeatureCollection', features: pinFeatures })
 }
 
 function setPaintBackground() {
@@ -942,6 +979,7 @@ watch(
       mapInstance.once('styledata', () => {
         populateRouteSource()
         populateSegmentSources()
+        populatePinSource()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
       })
@@ -956,6 +994,29 @@ watch(
       mapInstance.setPaintProperty('route-line', 'line-opacity', newConfig.route_opacity)
       mapInstance.setPaintProperty('route-line-casing', 'line-width', newConfig.route_width + 4)
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
+    }
+
+    // Update pin colors when route_color changes (paint-only)
+    if (newConfig.route_color !== oldConfig?.route_color) {
+      for (const id of ['route-pin-start-ring', 'route-pin-finish']) {
+        if (mapInstance.getLayer(id)) {
+          mapInstance.setPaintProperty(id, 'circle-color', newConfig.route_color)
+        }
+      }
+    }
+
+    // Toggle pin visibility without a full reload
+    if (newConfig.show_start_pin !== oldConfig?.show_start_pin) {
+      const vis = newConfig.show_start_pin !== false ? 'visible' : 'none'
+      for (const id of ['route-pin-start-halo', 'route-pin-start-ring', 'route-pin-start-center']) {
+        if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', vis)
+      }
+    }
+    if (newConfig.show_finish_pin !== oldConfig?.show_finish_pin) {
+      const vis = newConfig.show_finish_pin !== false ? 'visible' : 'none'
+      for (const id of ['route-pin-finish-halo', 'route-pin-finish', 'route-pin-finish-dot']) {
+        if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', vis)
+      }
     }
   },
   { deep: true },
