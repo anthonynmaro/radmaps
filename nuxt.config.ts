@@ -59,6 +59,16 @@ export default defineNuxtConfig({
     },
   },
 
+  // Vite config
+  vite: {
+    optimizeDeps: {
+      // maplibre-contour uses an internal triple-define pattern to create a
+      // worker blob URL at module load time. Vite's pre-bundler can mangle this;
+      // exclude it so it's served as-is and initialises correctly in the browser.
+      exclude: ['maplibre-contour'],
+    },
+  },
+
   // TypeScript — typeCheck disabled in dev (vite-plugin-checker incompatible with Node 22)
   // Run `npm run typecheck` manually to validate types
   typescript: {

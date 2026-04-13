@@ -247,7 +247,9 @@ async function ensureContourProtocol() {
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     encoding: 'terrarium',
     maxzoom: 15,
-    worker: true,
+    // worker: false avoids the Vite production blob-URL worker issue where
+    // CONFIG.workerUrl may not be initialised when the module is pre-bundled.
+    worker: false,
   })
   mlDemSource.setupMaplibre(maplibregl)
 }

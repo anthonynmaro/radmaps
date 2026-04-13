@@ -31,12 +31,17 @@ export function buildMapStyle(
 // Per-detail-level thresholds: { mapZoom: [minorIntervalMeters, majorIntervalMeters] }
 // These are used in MapPreview.vue to generate the contourTileUrl.
 // Exported so MapPreview can build the URL without duplicating the table.
+//
+// IMPORTANT: thresholds must cover low zoom levels. Trail posters zoom out to
+// fit the full route (often zoom 8–11). maplibre-contour's getOptionsForZoom
+// picks the highest key ≤ current zoom — if no key qualifies, levels=[] and
+// nothing is drawn. Start at zoom 7 to cover every realistic poster zoom.
 export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>> = {
-  0: { 11: [200, 1000], 12: [200, 1000], 13: [100, 500],  14: [50,  200] },
-  1: { 11: [100, 500],  12: [100, 500],  13: [50,  200],  14: [20,  100] },
-  2: { 11: [50,  200],  12: [50,  200],  13: [20,  100],  14: [10,  50]  },
-  3: { 11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
-  4: { 11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
+  0: { 7: [500, 2000], 8: [500, 2000], 9: [300, 1500], 10: [200, 1000], 11: [200, 1000], 12: [200, 1000], 13: [100, 500],  14: [50,  200] },
+  1: { 7: [300, 1500], 8: [200, 1000], 9: [100, 500],  10: [100, 500],  11: [100, 500],  12: [100, 500],  13: [50,  200],  14: [20,  100] },
+  2: { 7: [200, 1000], 8: [100, 500],  9: [50,  250],  10: [50,  200],  11: [50,  200],  12: [50,  200],  13: [20,  100],  14: [10,  50]  },
+  3: { 7: [100, 500],  8: [50,  250],  9: [30,  150],  10: [20,  100],  11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
+  4: { 7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
 }
 
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
