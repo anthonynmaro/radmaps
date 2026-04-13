@@ -75,22 +75,50 @@ definePageMeta({
   layout: false
 })
 
-const user = useSupabaseUser()
+const supabase = useSupabaseClient()
 const router = useRouter()
 
 const isLoading = ref(true)
 const hasError = ref(false)
 
 onMounted(async () => {
-  // Wait a moment for the session to be established
-  await new Promise(resolve => setTimeout(resolve, 1500))
+  // The Supabase client picks up #access_token from the URL hash and fires
+  // SIGNED_IN asynchronously. We listen for that event rather than using a
+  // fixed delay, which was a race condition.
+  let settled = false
 
-  // Check if user is now authenticated
-  if (user.value) {
-    // User is logged in, redirect to dashboard
+  await new Promise<void>((resolve) => {
+    // 1. Check if the session is already available (e.g. returning user)
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && !settled) {
+        settled = true
+        resolve()
+      }
+    })
+
+    // 2. Listen for the SIGNED_IN event fired when the hash is processed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !settled) {
+        settled = true
+        subscription.unsubscribe()
+        resolve()
+      }
+    })
+
+    // 3. Give up after 6 seconds and show the error state
+    setTimeout(() => {
+      if (!settled) {
+        settled = true
+        subscription.unsubscribe()
+        resolve()
+      }
+    }, 6000)
+  })
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
     await router.push('/dashboard')
   } else {
-    // No session found after waiting, show error
     hasError.value = true
     isLoading.value = false
   }
