@@ -82,39 +82,32 @@ const isLoading = ref(true)
 const hasError = ref(false)
 
 onMounted(async () => {
-  // The Supabase client picks up #access_token from the URL hash and fires
-  // SIGNED_IN asynchronously. We listen for that event rather than using a
-  // fixed delay, which was a race condition.
-  let settled = false
+  // Extract tokens directly from the URL hash — the most reliable approach
+  // in an SSR context where auto-detection timing is unpredictable.
+  const hash = window.location.hash.slice(1)
+  const params = new URLSearchParams(hash)
+  const accessToken = params.get('access_token')
+  const refreshToken = params.get('refresh_token')
 
-  await new Promise<void>((resolve) => {
-    // 1. Check if the session is already available (e.g. returning user)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !settled) {
-        settled = true
-        resolve()
-      }
+  if (accessToken && refreshToken) {
+    // Explicitly set the session from the hash tokens
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
     })
 
-    // 2. Listen for the SIGNED_IN event fired when the hash is processed
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !settled) {
-        settled = true
-        subscription.unsubscribe()
-        resolve()
-      }
-    })
+    if (error) {
+      console.error('Strava confirm setSession error:', error.message)
+      hasError.value = true
+      isLoading.value = false
+      return
+    }
 
-    // 3. Give up after 6 seconds and show the error state
-    setTimeout(() => {
-      if (!settled) {
-        settled = true
-        subscription.unsubscribe()
-        resolve()
-      }
-    }, 6000)
-  })
+    await router.push('/dashboard')
+    return
+  }
 
+  // No hash tokens — check if there's already an active session (e.g. PKCE flow)
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
     await router.push('/dashboard')
