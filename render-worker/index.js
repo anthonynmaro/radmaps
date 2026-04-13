@@ -41,9 +41,21 @@ app.post('/render', async (request, reply) => {
 
   // Kick off async render (don't await)
   renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token })
-    .catch(err => {
+    .catch(async err => {
       app.log.error(err)
       jobs.set(jobId, { status: 'failed', error: err.message, map_id })
+
+      // Write error sentinel to Supabase so the client can detect failure fast
+      // instead of waiting for the 5-minute client-side poll timeout.
+      try {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+        await supabase
+          .from('maps')
+          .update({ render_url: `error:${err.message.slice(0, 200)}` })
+          .eq('id', map_id)
+      } catch (supabaseErr) {
+        app.log.error('Failed to write error sentinel to Supabase:', supabaseErr)
+      }
     })
 
   return reply.status(202).send({ job_id: jobId, status: 'queued' })

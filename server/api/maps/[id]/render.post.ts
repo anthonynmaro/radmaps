@@ -75,10 +75,11 @@ export default defineEventHandler(async (event) => {
   }).catch((err) => {
     // Log errors but don't throw — the request already returned to the client
     console.error(`[render ${jobId}] Worker request failed:`, err.message)
-    // Mark map render as failed so the UI can show an error state
+    // Write error sentinel so the client's poll loop detects failure immediately
+    // instead of waiting for the 2-minute client-side timeout.
     supabase
       .from('maps')
-      .update({ status: 'draft' })
+      .update({ render_url: `error:${String(err.message).slice(0, 200)}` })
       .eq('id', mapId)
       .then(() => {})
   })

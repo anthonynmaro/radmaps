@@ -155,8 +155,36 @@
             :display="v => v + 'px'" @change="set('route_width', $event)" />
           <SliderRow label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
             :display="v => Math.round(v * 100) + '%'" @change="set('route_opacity', $event)" />
-          <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="3" :step="1"
-            :display="v => v === 0 ? 'Off' : v + '×'" @change="set('route_smooth', $event)" />
+          <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="5" :step="1"
+            :display="v => (['Off','Light','Gentle','Medium','Strong','Max'] as const)[Math.round(v)]"
+            @change="set('route_smooth', $event)" />
+          <!-- Start / Finish pins -->
+          <div class="pt-1 border-t border-gray-100" />
+          <p class="text-[10px] text-gray-400 -mb-1">Pins</p>
+          <div class="flex items-center gap-3">
+            <!-- Start pin preview -->
+            <div class="flex flex-col items-center gap-1 shrink-0">
+              <svg viewBox="0 0 28 28" width="28" height="28" class="overflow-visible">
+                <circle cx="14" cy="14" r="11" fill="white" opacity="0.88"/>
+                <circle cx="14" cy="14" r="8" :fill="local.route_color"/>
+                <circle cx="14" cy="14" r="3.5" fill="white"/>
+              </svg>
+              <span class="text-[9px] text-gray-400 leading-none">Start</span>
+            </div>
+            <div class="flex-1 space-y-2">
+              <ToggleRow label="Show start" :value="local.show_start_pin ?? true" @change="set('show_start_pin', $event)" />
+              <ToggleRow label="Show finish" :value="local.show_finish_pin ?? true" @change="set('show_finish_pin', $event)" />
+            </div>
+            <!-- Finish pin preview -->
+            <div class="flex flex-col items-center gap-1 shrink-0">
+              <svg viewBox="0 0 28 28" width="28" height="28" class="overflow-visible">
+                <circle cx="14" cy="14" r="11" fill="white" opacity="0.88"/>
+                <circle cx="14" cy="14" r="9" :fill="local.route_color"/>
+                <circle cx="14" cy="14" r="3" fill="white"/>
+              </svg>
+              <span class="text-[9px] text-gray-400 leading-none">Finish</span>
+            </div>
+          </div>
         </div>
       </Section>
 
@@ -407,9 +435,9 @@
                     @click="setSegment(seg.id, { color: c })"
                   />
                   <!-- Custom color -->
-                  <label class="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-green-400 transition-colors" title="Custom color">
-                    <svg class="w-3 h-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                    <input type="color" :value="seg.color" class="sr-only" @input="setSegment(seg.id, { color: ($event.target as HTMLInputElement).value })" />
+                  <label class="relative w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-green-400 transition-colors overflow-hidden" title="Custom color">
+                    <svg class="w-3 h-3 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                    <input type="color" :value="seg.color" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer" @input="setSegment(seg.id, { color: ($event.target as HTMLInputElement).value })" />
                   </label>
                 </div>
               </div>
@@ -812,13 +840,14 @@ export const ColorSwatch = defineComponent({
   props: { value: String, title: String },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('label', { class: 'cursor-pointer', title: props.title }, [
+    return () => h('label', { class: 'relative cursor-pointer block w-6 h-6', title: props.title }, [
       h('div', {
         class: 'w-6 h-6 rounded border-2 border-white ring-1 ring-gray-200 shadow-sm',
         style: { backgroundColor: props.value },
       }),
       h('input', {
-        type: 'color', value: props.value, class: 'sr-only',
+        type: 'color', value: props.value,
+        class: 'absolute inset-0 opacity-0 w-full h-full cursor-pointer',
         onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
       }),
     ])

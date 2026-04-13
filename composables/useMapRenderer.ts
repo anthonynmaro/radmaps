@@ -42,14 +42,14 @@ export function useMapRenderer(mapId: Ref<string> | string) {
   function startPolling() {
     stopPolling()
     pollInterval = setInterval(checkStatus, 3000)
-    // Safety timeout: stop polling after 5 minutes
+    // Safety timeout: stop polling after 2 minutes
     timeoutHandle = setTimeout(() => {
       if (isRendering.value) {
-        error.value = 'Render timed out after 5 minutes. Please try again.'
+        error.value = 'Render timed out. Please try again.'
         isRendering.value = false
         stopPolling()
       }
-    }, 5 * 60 * 1000)
+    }, 2 * 60 * 1000)
   }
 
   async function checkStatus() {
@@ -61,6 +61,16 @@ export function useMapRenderer(mapId: Ref<string> | string) {
         .single()
 
       if (!map) return
+
+      // Detect worker error sentinel written on failure
+      if (typeof map.render_url === 'string' && map.render_url.startsWith('error:')) {
+        error.value = map.render_url.slice(6) || 'Render failed. Please try again.'
+        isRendering.value = false
+        stopPolling()
+        // Clear the sentinel so a retry starts fresh
+        await supabase.from('maps').update({ render_url: null }).eq('id', id.value)
+        return
+      }
 
       if (map.status === 'rendered') {
         renderUrl.value   = map.render_url ?? null
