@@ -36,6 +36,16 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const jobId = crypto.randomUUID()
 
+  // Validate render worker is configured
+  const workerUrl = config.renderWorkerUrl
+  if (!workerUrl || workerUrl.includes('localhost')) {
+    throw createError({
+      statusCode: 503,
+      message: 'Render service is not configured. Set RENDER_WORKER_URL to your deployed worker URL.',
+    })
+  }
+  const workerSecret = config.renderWorkerSecret || 'dev-secret'
+
   // Mark map as rendering (optimistic, lets the UI know we've started)
   // The worker will update status → 'rendered' when done.
   await supabase
@@ -45,8 +55,6 @@ export default defineEventHandler(async (event) => {
 
   // Fire the render job without awaiting — Puppeteer can take 60-90s
   // which would exceed the Vercel serverless function timeout.
-  const workerUrl = config.renderWorkerUrl || 'http://localhost:3002'
-  const workerSecret = config.renderWorkerSecret || 'dev-secret'
 
   // Use event.node.req.socket to prevent the Node.js process from blocking
   // We deliberately don't await this — fire-and-forget
