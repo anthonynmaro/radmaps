@@ -43,6 +43,7 @@ export interface StyleConfig {
   route_color: string
   route_width: number
   route_opacity: number
+  route_smooth: number
   // Contours (requires Mapbox Terrain v2 vector tiles)
   show_contours: boolean
   contour_color: string
@@ -75,6 +76,10 @@ export interface StyleConfig {
   location_text: string     // overrides stats.location
   label_text_color: string  // poster label band text colour
   label_bg_color: string    // poster label band background colour
+  // Typography override (optional — theme sets defaults)
+  body_font_family?: FontFamily
+  // Contour detail level (0–4, maps to interval multipliers)
+  contour_detail?: number
 }
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
@@ -83,6 +88,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   route_color: '#C1121F',
   route_width: 3,
   route_opacity: 0.9,
+  route_smooth: 0,
   show_contours: false,
   contour_color: '#C8BDB0',
   contour_major_color: '#9E9082',

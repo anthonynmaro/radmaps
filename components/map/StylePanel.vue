@@ -18,24 +18,54 @@
             :key="theme.id"
             @click="applyTheme(theme)"
             :class="[
-              'relative flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 text-xs font-medium transition-all',
+              'relative flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-all overflow-hidden',
               local.color_theme === theme.id
-                ? 'border-green-600 bg-green-50 text-green-700'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300',
+                ? 'border-green-600'
+                : 'border-gray-200 hover:border-gray-300',
             ]"
           >
-            <!-- Swatch preview -->
-            <div class="w-full rounded overflow-hidden" style="aspect-ratio: 3/2; position: relative;">
+            <!-- Poster mini-preview -->
+            <div class="w-full rounded overflow-hidden" style="aspect-ratio: 18/24; position: relative;">
+              <!-- Paper background -->
               <div class="absolute inset-0" :style="{ backgroundColor: theme.background_color }" />
-              <!-- Route squiggle -->
-              <svg viewBox="0 0 48 32" class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="none">
-                <path d="M4 24 Q12 18 20 20 Q28 22 36 14 Q40 10 44 12"
-                  :stroke="theme.route_color" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-              </svg>
-              <!-- Dark indicator -->
-              <div v-if="theme.dark" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-white opacity-60" />
+              <!-- Title text (shows theme font personality) -->
+              <div
+                class="absolute inset-0 flex flex-col items-center justify-start pt-[8%] px-[6%] gap-[3%]"
+              >
+                <span
+                  :style="{
+                    fontFamily: THEME_FONT_PREVIEW[theme.id],
+                    color: theme.label_text_color,
+                    fontSize: '6px',
+                    fontWeight: THEME_FONT_WEIGHT[theme.id],
+                    letterSpacing: THEME_FONT_TRACKING[theme.id],
+                    textTransform: 'uppercase',
+                    lineHeight: '1.1',
+                    textAlign: 'center',
+                    display: 'block',
+                    width: '100%',
+                  }"
+                >SUMMIT<br/>TRAIL</span>
+                <!-- Divider -->
+                <div class="w-full" :style="{ height: '0.5px', backgroundColor: theme.label_text_color, opacity: '0.2' }" />
+                <!-- Map area (route squiggle) -->
+                <div class="relative flex-1 w-full rounded-sm overflow-hidden" style="height: 55%">
+                  <svg viewBox="0 0 48 32" class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="xMidYMid slice">
+                    <!-- Topo rings -->
+                    <ellipse cx="24" cy="18" rx="18" ry="10" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.12"/>
+                    <ellipse cx="24" cy="18" rx="12" ry="7" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.1"/>
+                    <ellipse cx="24" cy="18" rx="6" ry="4" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.08"/>
+                    <!-- Route -->
+                    <path d="M6 26 Q14 20 20 22 Q28 24 36 14 Q40 10 44 12"
+                      :stroke="theme.route_color" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+              </div>
             </div>
-            <span class="text-[10px] leading-none">{{ theme.label }}</span>
+            <span
+              class="text-[9px] leading-none font-medium"
+              :class="local.color_theme === theme.id ? 'text-green-700' : 'text-gray-500'"
+            >{{ theme.label }}</span>
           </button>
         </div>
       </Section>
@@ -125,6 +155,8 @@
             :display="v => v + 'px'" @change="set('route_width', $event)" />
           <SliderRow label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
             :display="v => Math.round(v * 100) + '%'" @change="set('route_opacity', $event)" />
+          <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="3" :step="1"
+            :display="v => v === 0 ? 'Off' : v + '×'" @change="set('route_smooth', $event)" />
         </div>
       </Section>
 
@@ -170,6 +202,14 @@
 
       <!-- ── Typography ── -->
       <Section label="Typography" icon="i-heroicons-bars-3-bottom-left">
+        <!-- Theme typography hint -->
+        <div class="flex items-center gap-2 mb-3 px-2.5 py-2 bg-gray-50 rounded-lg border border-gray-100">
+          <div class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+          <p class="text-[10px] text-gray-500 leading-snug">
+            <span class="font-semibold text-gray-700">{{ activeThemeTypography }}</span> is set by your theme.
+            Pick below to override.
+          </p>
+        </div>
         <template v-for="group in fontGroups" :key="group.label">
           <p :class="['text-[9px] font-semibold tracking-widest uppercase text-gray-400 mb-1.5 mt-3', group === fontGroups[0] ? 'mt-0' : '']">{{ group.label }}</p>
           <div class="grid grid-cols-2 gap-1.5">
@@ -307,6 +347,34 @@ const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
   { label: 'MODERN', fonts: ['DM Sans', 'Space Grotesk', 'Outfit', 'Work Sans'] },
   { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
+
+// Theme font preview data — mirrors the THEME_TYPOGRAPHY in MapPreview.vue
+const THEME_FONT_PREVIEW: Record<string, string> = {
+  chalk: "'Work Sans', sans-serif",
+  topaz: "'Space Grotesk', sans-serif",
+  dusk: "'DM Serif Display', serif",
+  obsidian: "'Big Shoulders Display', sans-serif",
+  forest: "'Oswald', sans-serif",
+  midnight: "'Fjalla One', sans-serif",
+}
+const THEME_FONT_WEIGHT: Record<string, string> = {
+  chalk: '300', topaz: '700', dusk: '400', obsidian: '800', forest: '600', midnight: '400',
+}
+const THEME_FONT_TRACKING: Record<string, string> = {
+  chalk: '0.3em', topaz: '0.06em', dusk: '0.02em', obsidian: '-0.01em', forest: '0.08em', midnight: '0.12em',
+}
+const THEME_FONT_NAME: Record<string, string> = {
+  chalk: 'Work Sans Light',
+  topaz: 'Space Grotesk Bold',
+  dusk: 'DM Serif Display',
+  obsidian: 'Big Shoulders Display',
+  forest: 'Oswald SemiBold',
+  midnight: 'Fjalla One',
+}
+
+const activeThemeTypography = computed(() =>
+  THEME_FONT_NAME[local.color_theme ?? 'chalk'] ?? 'Work Sans',
+)
 
 const BORDERS: Array<{ label: string; value: BorderStyle }> = [
   { label: 'None', value: 'none' },
