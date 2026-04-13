@@ -241,6 +241,235 @@
             @change="setLabel('show_date', $event)" />
           <ToggleRow label="Location" :value="local.labels.show_location"
             @change="setLabel('show_location', $event)" />
+          <div class="pt-1 border-t border-gray-100" />
+          <ToggleRow label="RadMaps credit" :value="local.show_branding ?? true"
+            @change="set('show_branding', $event)" />
+        </div>
+      </Section>
+
+      <!-- ── Logo ── -->
+      <Section label="Logo" icon="i-heroicons-photo">
+        <div class="space-y-3">
+          <!-- Upload area -->
+          <div v-if="!local.logo_url" class="relative">
+            <label class="flex flex-col items-center justify-center gap-2 w-full min-h-[60px] border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-green-400 transition-colors bg-gray-50">
+              <svg class="w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+              <span class="text-xs text-gray-500">Tap to upload logo</span>
+              <input ref="logoInputRef" type="file" accept="image/*" class="sr-only" @change="handleLogoUpload" />
+            </label>
+          </div>
+          <!-- Preview + remove -->
+          <div v-else class="flex items-center gap-3">
+            <img :src="local.logo_url" alt="Logo" class="h-10 w-auto rounded border border-gray-200 object-contain bg-white p-0.5" />
+            <div class="flex-1 min-w-0">
+              <ToggleRow label="Show logo" :value="local.show_logo ?? false" @change="set('show_logo', $event)" />
+            </div>
+            <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="set('logo_url', undefined); set('show_logo', false)">Remove</button>
+          </div>
+          <template v-if="local.logo_url && local.show_logo">
+            <div>
+              <p class="text-xs text-gray-500 mb-2">Position</p>
+              <div class="grid grid-cols-3 gap-1.5">
+                <SegmentButton label="Map" :active="(local.logo_position ?? 'map-top-right') === 'map-top-right'" @click="set('logo_position', 'map-top-right')" />
+                <SegmentButton label="Header" :active="local.logo_position === 'header-right'" @click="set('logo_position', 'header-right')" />
+                <SegmentButton label="Footer" :active="local.logo_position === 'footer-left'" @click="set('logo_position', 'footer-left')" />
+              </div>
+            </div>
+            <SliderRow label="Size" :value="local.logo_size ?? 8" :min="4" :max="18" :step="1"
+              :display="v => v + 'u'" @change="set('logo_size', $event)" />
+          </template>
+        </div>
+      </Section>
+
+      <!-- ── Text Overlays ── -->
+      <Section label="Text" icon="i-heroicons-cursor-arrow-rays">
+        <div class="space-y-2">
+          <div
+            v-for="overlay in (local.text_overlays ?? [])"
+            :key="overlay.id"
+            class="border border-gray-100 rounded-xl overflow-hidden"
+          >
+            <!-- Row header -->
+            <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50">
+              <div class="w-3 h-3 rounded-full shrink-0 border border-white ring-1 ring-gray-200" :style="{ backgroundColor: overlay.color }" />
+              <span class="flex-1 text-xs text-gray-700 truncate min-w-0">{{ overlay.content || 'Empty text' }}</span>
+              <button class="text-gray-300 hover:text-gray-500 transition-colors ml-1 shrink-0" @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path v-if="expandedOverlayId === overlay.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                  <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+              <button class="text-gray-300 hover:text-red-400 transition-colors shrink-0" @click="removeOverlay(overlay.id)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <!-- Expanded controls -->
+            <div v-if="expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3 border-t border-gray-100">
+              <div class="space-y-1">
+                <span class="text-xs text-gray-600">Content</span>
+                <textarea
+                  :value="overlay.content"
+                  rows="2"
+                  class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
+                  @input="setOverlay(overlay.id, { content: ($event.target as HTMLTextAreaElement).value })"
+                />
+              </div>
+              <ColorRow label="Colour" :value="overlay.color" @change="setOverlay(overlay.id, { color: $event })" />
+              <SliderRow label="Size" :value="overlay.font_size" :min="0.5" :max="8" :step="0.25"
+                :display="v => v + 'u'" @change="setOverlay(overlay.id, { font_size: $event })" />
+              <SliderRow label="Opacity" :value="overlay.opacity" :min="0.1" :max="1" :step="0.05"
+                :display="v => Math.round(v * 100) + '%'" @change="setOverlay(overlay.id, { opacity: $event })" />
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-600">Bold</span>
+                <button
+                  class="px-2 py-1 rounded border text-xs font-medium transition-all"
+                  :class="overlay.bold ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'"
+                  @click="setOverlay(overlay.id, { bold: !overlay.bold })"
+                >B</button>
+              </div>
+              <!-- Position grid (mobile-friendly) -->
+              <div>
+                <p class="text-xs text-gray-500 mb-2">Position <span class="text-gray-400">(or drag on desktop)</span></p>
+                <div class="grid grid-cols-3 gap-1">
+                  <button
+                    v-for="pos in OVERLAY_POSITIONS"
+                    :key="pos.label"
+                    class="py-2 rounded border text-sm font-medium transition-all border-gray-200 text-gray-500 hover:border-green-400 active:bg-green-50"
+                    @click="setOverlay(overlay.id, { x: pos.x, y: pos.y })"
+                  >{{ pos.label }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 hover:border-green-400 hover:text-green-600 transition-all font-medium"
+            @click="addOverlay"
+          >+ Add text</button>
+        </div>
+      </Section>
+
+      <!-- ── Trails ── -->
+      <Section label="Trails" icon="i-heroicons-map-pin">
+        <div class="space-y-2">
+          <p class="text-[10px] text-gray-400 -mt-1 mb-2">Name segments of your route to build a map legend</p>
+
+          <div
+            v-for="seg in (local.trail_segments ?? [])"
+            :key="seg.id"
+            class="border border-gray-100 rounded-xl overflow-hidden"
+          >
+            <!-- Row header -->
+            <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50">
+              <div class="w-3 h-3 rounded-full shrink-0 border border-white ring-1 ring-gray-200" :style="{ backgroundColor: seg.color }" />
+              <input
+                :value="seg.name"
+                class="flex-1 text-xs text-gray-700 bg-transparent border-none outline-none min-w-0 placeholder-gray-400"
+                placeholder="Trail name…"
+                @input="setSegment(seg.id, { name: ($event.target as HTMLInputElement).value })"
+              />
+              <!-- Visibility toggle -->
+              <button
+                class="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                :title="seg.visible ? 'Hide' : 'Show'"
+                @click="setSegment(seg.id, { visible: !seg.visible })"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path v-if="seg.visible" d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                  <path v-if="seg.visible" fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                  <path v-else fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+              <!-- Expand toggle -->
+              <button class="text-gray-300 hover:text-gray-500 transition-colors shrink-0" @click="expandedSegmentId = expandedSegmentId === seg.id ? null : seg.id">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path v-if="expandedSegmentId === seg.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                  <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+              <!-- Delete -->
+              <button class="text-gray-300 hover:text-red-400 transition-colors shrink-0" @click="removeSegment(seg.id)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <!-- Expanded controls -->
+            <div v-if="expandedSegmentId === seg.id" class="px-3 py-3 space-y-3 border-t border-gray-100">
+              <!-- Color palette -->
+              <div>
+                <p class="text-xs text-gray-600 mb-2">Colour</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="c in SEGMENT_COLORS"
+                    :key="c"
+                    class="w-6 h-6 rounded-full border-2 transition-all"
+                    :style="{ backgroundColor: c }"
+                    :class="seg.color === c ? 'border-green-600 scale-110' : 'border-white ring-1 ring-gray-200'"
+                    @click="setSegment(seg.id, { color: c })"
+                  />
+                  <!-- Custom color -->
+                  <label class="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-green-400 transition-colors" title="Custom color">
+                    <svg class="w-3 h-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                    <input type="color" :value="seg.color" class="sr-only" @input="setSegment(seg.id, { color: ($event.target as HTMLInputElement).value })" />
+                  </label>
+                </div>
+              </div>
+              <!-- Section range -->
+              <div class="space-y-2">
+                <p class="text-xs text-gray-600">Route section</p>
+                <SliderRow
+                  label="Start"
+                  :value="seg.section_start"
+                  :min="0"
+                  :max="Math.max(0, seg.section_end - 2)"
+                  :step="1"
+                  :display="v => Math.round(v) + '%'"
+                  @change="setSegment(seg.id, { section_start: $event })"
+                />
+                <SliderRow
+                  label="End"
+                  :value="seg.section_end"
+                  :min="Math.min(100, seg.section_start + 2)"
+                  :max="100"
+                  :step="1"
+                  :display="v => Math.round(v) + '%'"
+                  @change="setSegment(seg.id, { section_end: $event })"
+                />
+              </div>
+              <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5"
+                :display="v => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-600">Dashed</span>
+                <button
+                  class="px-2 py-1 rounded border text-xs font-medium transition-all"
+                  :class="seg.dash ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'"
+                  @click="setSegment(seg.id, { dash: !seg.dash })"
+                >- - -</button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 hover:border-green-400 hover:text-green-600 transition-all font-medium"
+            @click="addSegment"
+          >+ Add segment</button>
+
+          <!-- Legend controls (show when there are segments) -->
+          <template v-if="(local.trail_segments ?? []).length > 0">
+            <div class="pt-2 border-t border-gray-100 space-y-2.5">
+              <ToggleRow label="Show legend" :value="local.trail_legend?.show ?? true" @change="setLegend({ show: $event })" />
+              <template v-if="local.trail_legend?.show !== false">
+                <div>
+                  <p class="text-xs text-gray-500 mb-2">Legend position</p>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <SegmentButton label="↙ Bottom left" :active="(local.trail_legend?.position ?? 'bottom-left') === 'bottom-left'" @click="setLegend({ position: 'bottom-left' })" />
+                    <SegmentButton label="↘ Bottom right" :active="local.trail_legend?.position === 'bottom-right'" @click="setLegend({ position: 'bottom-right' })" />
+                    <SegmentButton label="↖ Top left" :active="local.trail_legend?.position === 'top-left'" @click="setLegend({ position: 'top-left' })" />
+                    <SegmentButton label="↗ Top right" :active="local.trail_legend?.position === 'top-right'" @click="setLegend({ position: 'top-right' })" />
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
         </div>
       </Section>
 
@@ -273,7 +502,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TextOverlayAlignment, TrailSegment } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
 
 const props = defineProps<{
@@ -284,6 +513,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
   'reset': []
+  'logo-upload': [file: File]
 }>()
 
 const local = reactive<StyleConfig>({ ...props.modelValue })
@@ -302,6 +532,104 @@ function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
 function setLabel(key: keyof StyleLabels, value: boolean) {
   local.labels = { ...local.labels, [key]: value }
   emit('update:modelValue', { ...local })
+}
+
+// ── Text overlay helpers ───────────────────────────────────────────────────────
+
+const OUTDOOR_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#4A4A4A', '#F7F4EF']
+
+function addOverlay() {
+  const overlay: TextOverlay = {
+    id: crypto.randomUUID(),
+    content: 'Your text',
+    x: 50,
+    y: 50,
+    font_size: 2,
+    color: local.label_text_color,
+    font_family: local.font_family,
+    alignment: 'center',
+    opacity: 1,
+    bold: false,
+  }
+  set('text_overlays', [...(local.text_overlays ?? []), overlay])
+  expandedOverlayId.value = overlay.id
+}
+
+function setOverlay(id: string, patch: Partial<TextOverlay>) {
+  set('text_overlays', (local.text_overlays ?? []).map(o => o.id === id ? { ...o, ...patch } : o))
+}
+
+function removeOverlay(id: string) {
+  set('text_overlays', (local.text_overlays ?? []).filter(o => o.id !== id))
+  if (expandedOverlayId.value === id) expandedOverlayId.value = null
+}
+
+const expandedOverlayId = ref<string | null>(null)
+
+const OVERLAY_POSITIONS = [
+  { label: '↖', x: 10, y: 10 }, { label: '↑', x: 50, y: 10 }, { label: '↗', x: 90, y: 10 },
+  { label: '←', x: 10, y: 50 }, { label: '·', x: 50, y: 50 }, { label: '→', x: 90, y: 50 },
+  { label: '↙', x: 10, y: 85 }, { label: '↓', x: 50, y: 85 }, { label: '↘', x: 90, y: 85 },
+]
+
+// ── Trail segment helpers ──────────────────────────────────────────────────────
+
+const SEGMENT_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
+
+function addSegment() {
+  const usedColors = (local.trail_segments ?? []).map(s => s.color)
+  const nextColor = SEGMENT_COLORS.find(c => !usedColors.includes(c)) ?? SEGMENT_COLORS[0]
+  const seg: TrailSegment = {
+    id: crypto.randomUUID(),
+    name: `Trail ${(local.trail_segments?.length ?? 0) + 1}`,
+    color: nextColor,
+    visible: true,
+    section_start: 0,
+    section_end: 100,
+    width: 3,
+    opacity: 0.9,
+    dash: false,
+  }
+  set('trail_segments', [...(local.trail_segments ?? []), seg])
+  expandedSegmentId.value = seg.id
+}
+
+function setSegment(id: string, patch: Partial<TrailSegment>) {
+  set('trail_segments', (local.trail_segments ?? []).map(s => s.id === id ? { ...s, ...patch } : s))
+}
+
+function removeSegment(id: string) {
+  set('trail_segments', (local.trail_segments ?? []).filter(s => s.id !== id))
+  if (expandedSegmentId.value === id) expandedSegmentId.value = null
+}
+
+function setLegend(patch: Partial<{ show: boolean; position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' }>) {
+  const current = local.trail_legend ?? { show: true, position: 'bottom-left' as const }
+  set('trail_legend', {
+    show: patch.show !== undefined ? patch.show : current.show,
+    position: patch.position ?? current.position ?? 'bottom-left',
+  })
+}
+
+const expandedSegmentId = ref<string | null>(null)
+
+// Logo upload
+const logoInputRef = ref<HTMLInputElement | null>(null)
+const logoUploading = ref(false)
+
+async function handleLogoUpload(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  logoUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+    // We need the mapId but StylePanel doesn't have it — emit up instead
+    emit('logo-upload', file)
+  } finally {
+    logoUploading.value = false
+    if (logoInputRef.value) logoInputRef.value.value = ''
+  }
 }
 
 function applyTheme(theme: ThemeDefinition) {

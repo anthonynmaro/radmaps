@@ -113,10 +113,6 @@ export interface StyleConfig {
   location_text: string     // overrides stats.location
   label_text_color: string  // poster label band text colour
   label_bg_color: string    // poster label band background colour
-  // Typography override (optional — theme sets defaults)
-  body_font_family?: FontFamily
-  // Contour detail level (0–4, maps to interval multipliers)
-  contour_detail?: number
   // Branding
   show_branding?: boolean         // show "radmaps.studio" credit in footer (default: true)
   // Logo

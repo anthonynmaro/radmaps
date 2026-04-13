@@ -2,6 +2,15 @@
   <!-- Outer: fills parent, centers the poster canvas -->
   <div class="w-full h-full flex items-center justify-center overflow-hidden" style="background:#e8e5e0">
 
+    <!-- Inline text edit sheet (mobile only) -->
+    <InlineEditSheet
+      v-if="activeEditField"
+      :field="activeEditField.field"
+      :value="activeEditField.value"
+      @update:value="applyInlineEdit"
+      @close="activeEditField = null"
+    />
+
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
       class="poster-canvas relative flex flex-col shadow-[0_32px_80px_rgba(0,0,0,0.35)]"
@@ -15,18 +24,49 @@
         :style="frameStyle"
       />
 
+      <!-- ── Logo: header-right position ──────────────────────────────────── -->
+      <img
+        v-if="styleConfig.show_logo && styleConfig.logo_url && styleConfig.logo_position === 'header-right'"
+        :src="styleConfig.logo_url"
+        alt=""
+        class="logo-header-right"
+        :style="logoHeaderStyle"
+      />
+
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
       <div class="poster-header shrink-0" :style="headerBandStyle">
 
-        <!-- Trail name — the typographic centrepiece -->
-        <h1 class="poster-trail-name" :style="trailNameStyle">
-          {{ trailName }}
-        </h1>
+        <!-- Trail name — static or editable -->
+        <h1
+          v-if="!editable"
+          class="poster-trail-name"
+          :style="trailNameStyle"
+        >{{ trailName }}</h1>
+        <h1
+          v-else
+          class="poster-trail-name editable-text"
+          :style="trailNameStyle"
+          :contenteditable="!isMobile"
+          :suppressContentEditableWarning="true"
+          @blur="onTrailNameBlur"
+          @click="onTextClick('trail_name', trailName)"
+        >{{ trailName }}</h1>
 
         <!-- Location / elevation line -->
-        <p v-if="locationLine" class="poster-location-line" :style="locationLineStyle">
-          {{ locationLine }}
-        </p>
+        <p
+          v-if="locationLine && !editable"
+          class="poster-location-line"
+          :style="locationLineStyle"
+        >{{ locationLine }}</p>
+        <p
+          v-else-if="locationLine && editable"
+          class="poster-location-line editable-text"
+          :style="locationLineStyle"
+          :contenteditable="!isMobile"
+          :suppressContentEditableWarning="true"
+          @blur="onLocationBlur"
+          @click="onTextClick('location_text', styleConfig.location_text)"
+        >{{ locationLine }}</p>
 
         <!-- Thin rule -->
         <div class="poster-rule" :style="ruleStyle" />
@@ -46,10 +86,59 @@
             <path d="M10 28 Q18 25 24 27 Q30 29 38 26" stroke-width="0.7" opacity="0.4"/>
           </svg>
         </div>
+
+        <!-- ── Logo: map-top-right position ─────────────────────────────── -->
+        <img
+          v-if="styleConfig.show_logo && styleConfig.logo_url && (styleConfig.logo_position === 'map-top-right' || !styleConfig.logo_position)"
+          :src="styleConfig.logo_url"
+          alt=""
+          class="logo-map"
+          :style="logoMapStyle"
+        />
+
+        <!-- ── Trail Legend ───────────────────────────────────────────────── -->
+        <div
+          v-if="showTrailLegend"
+          class="trail-legend"
+          :style="trailLegendStyle"
+        >
+          <div
+            v-for="seg in visibleNamedSegments"
+            :key="seg.id"
+            class="legend-item"
+          >
+            <div class="legend-swatch" :style="{ backgroundColor: seg.color }" />
+            <span class="legend-label" :style="legendLabelStyle">{{ seg.name }}</span>
+          </div>
+        </div>
+
+        <!-- ── Text overlays ─────────────────────────────────────────────── -->
+        <div
+          v-if="(styleConfig.text_overlays ?? []).length > 0"
+          class="overlay-layer"
+        >
+          <div
+            v-for="overlay in styleConfig.text_overlays"
+            :key="overlay.id"
+            :data-overlay-id="overlay.id"
+            class="text-overlay"
+            :class="{ 'is-editable': editable }"
+            :style="overlayStyle(overlay)"
+            @click="editable ? onOverlayClick(overlay.id) : undefined"
+          >{{ overlay.content }}</div>
+        </div>
       </div>
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div class="poster-footer shrink-0" :style="footerBandStyle">
+
+        <!-- Logo: footer-left position -->
+        <img
+          v-if="styleConfig.show_logo && styleConfig.logo_url && styleConfig.logo_position === 'footer-left'"
+          :src="styleConfig.logo_url"
+          alt=""
+          :style="logoFooterStyle"
+        />
 
         <!-- Stat blocks (left) -->
         <div class="poster-stats">
@@ -78,9 +167,20 @@
         </div>
 
         <!-- Occasion / subtitle (centre, optional) -->
-        <p v-if="occasionText" class="poster-occasion" :style="occasionStyle">
-          {{ occasionText }}
-        </p>
+        <p
+          v-if="occasionText && !editable"
+          class="poster-occasion"
+          :style="occasionStyle"
+        >{{ occasionText }}</p>
+        <p
+          v-else-if="editable"
+          class="poster-occasion editable-text"
+          :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
+          :contenteditable="!isMobile"
+          :suppressContentEditableWarning="true"
+          @blur="onOccasionBlur"
+          @click="onTextClick('occasion_text', styleConfig.occasion_text)"
+        >{{ occasionText }}</p>
 
         <!-- Rad Maps mark (right) -->
         <div class="poster-mark">
@@ -92,6 +192,7 @@
             <circle cx="11" cy="8" r="1.1" fill="currentColor"/>
           </svg>
           <span class="mark-label" :style="markLabelStyle">RAD MAPS</span>
+          <span v-if="styleConfig.show_branding !== false" class="branding-note" :style="brandingNoteStyle">radmaps.studio</span>
         </div>
 
       </div>
@@ -104,12 +205,23 @@
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildMapStyle } from '~/utils/mapStyle'
+import { sliceRouteByPercent, trailSourceId } from '~/utils/trail'
 import { PRINT_SIZES } from '~/types'
-import type { StyleConfig, TrailMap } from '~/types'
+import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
 
 const props = defineProps<{
   map: TrailMap
   styleConfig: StyleConfig
+  editable?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:trailName': [value: string]
+  'update:occasionText': [value: string]
+  'update:locationText': [value: string]
+  'overlay-moved': [payload: { id: string; x: number; y: number }]
+  'overlay-selected': [id: string]
+  'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
 }>()
 
 const config = useRuntimeConfig()
@@ -117,6 +229,47 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 const mapReady = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
+let interactInstances: Array<{ unset: () => void }> = []
+
+// Detect mobile for conditional contenteditable behavior
+const isMobile = ref(false)
+onMounted(() => {
+  isMobile.value = window.matchMedia('(max-width: 767px)').matches
+  const mq = window.matchMedia('(max-width: 767px)')
+  mq.addEventListener('change', (e) => { isMobile.value = e.matches })
+})
+
+// Mobile text editing sheet state
+const activeEditField = ref<{ field: 'trail_name' | 'occasion_text' | 'location_text'; value: string } | null>(null)
+
+function onTextClick(field: 'trail_name' | 'occasion_text' | 'location_text', value: string) {
+  if (!isMobile.value) return // desktop uses contenteditable directly
+  activeEditField.value = { field, value }
+  emit('edit-requested', { field, value })
+}
+
+function applyInlineEdit(value: string) {
+  if (!activeEditField.value) return
+  const field = activeEditField.value.field
+  if (field === 'trail_name') emit('update:trailName', value)
+  else if (field === 'occasion_text') emit('update:occasionText', value)
+  else if (field === 'location_text') emit('update:locationText', value)
+  activeEditField.value = null
+}
+
+function onTrailNameBlur(e: FocusEvent) {
+  emit('update:trailName', (e.target as HTMLElement).innerText.trim())
+}
+function onLocationBlur(e: FocusEvent) {
+  emit('update:locationText', (e.target as HTMLElement).innerText.trim())
+}
+function onOccasionBlur(e: FocusEvent) {
+  emit('update:occasionText', (e.target as HTMLElement).innerText.trim())
+}
+
+function onOverlayClick(id: string) {
+  emit('overlay-selected', id)
+}
 
 // ── Print canvas ─────────────────────────────────────────────────────────────
 
@@ -133,8 +286,6 @@ const posterCanvasStyle = computed(() => ({
 }))
 
 // ── Theme typography personalities ────────────────────────────────────────────
-// Each color theme has its own typographic voice.
-// The user-selected font_family will override the theme default when set.
 
 interface TypographyProfile {
   titleFont: string
@@ -152,7 +303,6 @@ interface TypographyProfile {
 }
 
 const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
-  // Swiss-editorial minimalism — clean, light, very wide tracking
   chalk: {
     titleFont: "'Work Sans', sans-serif",
     titleWeight: '300',
@@ -167,7 +317,6 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'Work Sans', sans-serif",
     statsWeight: '500',
   },
-  // Modern outdoor brand — geometric, confident, energetic
   topaz: {
     titleFont: "'Space Grotesk', sans-serif",
     titleWeight: '700',
@@ -182,7 +331,6 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'Space Grotesk', sans-serif",
     statsWeight: '600',
   },
-  // Heritage expedition — serif elegance, warm, literary
   dusk: {
     titleFont: "'DM Serif Display', serif",
     titleWeight: '400',
@@ -197,7 +345,6 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'DM Sans', sans-serif",
     statsWeight: '500',
   },
-  // Dark luxury — monumental scale, high contrast, bold
   obsidian: {
     titleFont: "'Big Shoulders Display', sans-serif",
     titleWeight: '800',
@@ -212,7 +359,6 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'Big Shoulders Display', sans-serif",
     statsWeight: '700',
   },
-  // Field guide, tactical — structured, condensed, precise
   forest: {
     titleFont: "'Oswald', sans-serif",
     titleWeight: '600',
@@ -227,7 +373,6 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'Oswald', sans-serif",
     statsWeight: '500',
   },
-  // Nautical expedition — tall condensed letterforms, cold authority
   midnight: {
     titleFont: "'Fjalla One', sans-serif",
     titleWeight: '400',
@@ -249,7 +394,6 @@ const THEME_DEFAULT_FONTS = ['Work Sans', 'Space Grotesk', 'DM Serif Display', '
 const typography = computed((): TypographyProfile => {
   const base = THEME_TYPOGRAPHY[props.styleConfig.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
   const override = props.styleConfig.font_family
-  // Only override if user has explicitly picked something other than theme defaults
   if (override && !THEME_DEFAULT_FONTS.includes(override as string)) {
     const f = `'${override}', sans-serif`
     return { ...base, titleFont: f, subFont: f, statsFont: f }
@@ -274,7 +418,6 @@ const locationLine = computed(() => {
 
 const occasionText = computed(() => props.styleConfig.occasion_text || '')
 
-// Formatted centre-point coordinates from bbox — adds cartographic authenticity
 const coords = computed(() => {
   const b = props.map.bbox
   if (!b) return null
@@ -316,6 +459,7 @@ const headerBandStyle = computed(() => ({
   alignItems: 'center',
   justifyContent: 'flex-end',
   gap: '1.1cqh',
+  position: 'relative' as const,
 }))
 
 const trailNameStyle = computed(() => ({
@@ -329,6 +473,7 @@ const trailNameStyle = computed(() => ({
   textAlign: 'center' as const,
   margin: '0',
   padding: '0',
+  outline: 'none',
 }))
 
 const locationLineStyle = computed(() => ({
@@ -342,6 +487,7 @@ const locationLineStyle = computed(() => ({
   textAlign: 'center' as const,
   margin: '0',
   padding: '0',
+  outline: 'none',
 }))
 
 const ruleStyle = computed(() => ({
@@ -419,6 +565,7 @@ const occasionStyle = computed(() => ({
   left: '50%',
   transform: 'translateX(-50%)',
   whiteSpace: 'nowrap' as const,
+  outline: 'none',
 }))
 
 const markLabelStyle = computed(() => ({
@@ -431,10 +578,132 @@ const markLabelStyle = computed(() => ({
   textTransform: 'uppercase' as const,
 }))
 
+const brandingNoteStyle = computed(() => ({
+  fontFamily: typography.value.statsFont,
+  fontWeight: '400',
+  fontSize: '0.42cqh',
+  letterSpacing: '0.14em',
+  color: fg.value,
+  opacity: '0.28',
+  textTransform: 'lowercase' as const,
+}))
+
 const frameStyle = computed(() => ({
   inset: '14px',
   border: `${borderW.value !== '0' ? borderW.value : '1px'} solid ${fg.value}`,
   opacity: '0.18',
+}))
+
+// ── Logo styles ───────────────────────────────────────────────────────────────
+
+const logoSize = computed(() => `${props.styleConfig.logo_size ?? 8}cqh`)
+
+const logoMapStyle = computed(() => ({
+  position: 'absolute' as const,
+  top: '2%',
+  right: '2%',
+  maxHeight: logoSize.value,
+  maxWidth: '15%',
+  zIndex: 10,
+  objectFit: 'contain' as const,
+  pointerEvents: 'none' as const,
+}))
+
+const logoHeaderStyle = computed(() => ({
+  position: 'absolute' as const,
+  top: '50%',
+  right: '7cqw',
+  transform: 'translateY(-50%)',
+  maxHeight: logoSize.value,
+  maxWidth: '12%',
+  objectFit: 'contain' as const,
+  pointerEvents: 'none' as const,
+  zIndex: 5,
+}))
+
+const logoFooterStyle = computed(() => ({
+  maxHeight: '4cqh',
+  maxWidth: '10%',
+  objectFit: 'contain' as const,
+  pointerEvents: 'none' as const,
+  flexShrink: '0',
+}))
+
+// ── Text overlay styles ────────────────────────────────────────────────────────
+
+function overlayStyle(o: TextOverlay): Record<string, string> {
+  const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
+  return {
+    position: 'absolute',
+    left: `${o.x}%`,
+    top: `${o.y}%`,
+    fontFamily: `'${o.font_family}', sans-serif`,
+    fontSize: `${o.font_size}cqh`,
+    color: o.color,
+    textAlign: o.alignment,
+    opacity: String(o.opacity),
+    fontWeight: o.bold ? '700' : '400',
+    transform: `translateX(${xOffset})`,
+    whiteSpace: 'pre-wrap',
+    pointerEvents: props.editable ? 'auto' : 'none',
+    cursor: props.editable ? 'move' : 'default',
+    userSelect: 'none',
+    zIndex: '8',
+    ...(o.bg_color ? {
+      backgroundColor: o.bg_color,
+      padding: '0.3cqh 0.8cqh',
+      borderRadius: '0.4cqh',
+    } : {}),
+  }
+}
+
+// ── Trail legend ──────────────────────────────────────────────────────────────
+
+const visibleNamedSegments = computed(() =>
+  (props.styleConfig.trail_segments ?? []).filter(s => s.visible && s.name),
+)
+
+const showTrailLegend = computed(() =>
+  props.styleConfig.trail_legend?.show !== false &&
+  visibleNamedSegments.value.length > 0,
+)
+
+const trailLegendStyle = computed(() => {
+  const pos = props.styleConfig.trail_legend?.position ?? 'bottom-left'
+  const posStyles: Record<string, string> = {
+    'bottom-left': 'bottom: 2%; left: 2%;',
+    'bottom-right': 'bottom: 2%; right: 2%;',
+    'top-left': 'top: 2%; left: 2%;',
+    'top-right': 'top: 2%; right: 2%;',
+  }
+  const parts = posStyles[pos]?.split(';').filter(Boolean) ?? []
+  const style: Record<string, string> = {
+    position: 'absolute',
+    zIndex: '9',
+    background: 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    borderRadius: '0.6cqh',
+    padding: '0.8cqh 1.2cqw',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5cqh',
+    pointerEvents: 'none',
+  }
+  for (const part of parts) {
+    const [k, v] = part.split(':').map(s => s.trim())
+    if (k && v) style[k] = v
+  }
+  return style
+})
+
+const legendLabelStyle = computed(() => ({
+  fontFamily: typography.value.statsFont,
+  fontWeight: '500',
+  fontSize: '0.75cqh',
+  letterSpacing: '0.06em',
+  color: fg.value,
+  opacity: '0.85',
 }))
 
 // ── Map lifecycle ─────────────────────────────────────────────────────────────
@@ -444,6 +713,7 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'show_contours', 'show_hillshade', 'show_elevation_labels',
   'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
+  'trail_segments',
 ]
 
 onMounted(async () => {
@@ -465,8 +735,10 @@ onMounted(async () => {
 
   mapInstance.on('load', () => {
     populateRouteSource()
+    populateSegmentSources()
     setPaintBackground()
     mapReady.value = true
+    if (props.editable) initOverlayDrag()
   })
 
   resizeObserver = new ResizeObserver(() => mapInstance?.resize())
@@ -518,12 +790,67 @@ function populateRouteSource() {
   else mapInstance.addSource('route', { type: 'geojson', data: geojson })
 }
 
+function populateSegmentSources() {
+  if (!mapInstance) return
+  for (const seg of (props.styleConfig.trail_segments ?? [])) {
+    if (!seg.visible) continue
+    const sliced = sliceRouteByPercent(props.map.geojson as GeoJSON.FeatureCollection, seg.section_start, seg.section_end)
+    const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
+    if (src) src.setData(sliced)
+  }
+}
+
 function setPaintBackground() {
   if (!mapInstance) return
   if (mapInstance.getLayer('background')) {
     mapInstance.setPaintProperty('background', 'background-color', props.styleConfig.background_color)
   }
 }
+
+// ── interactjs drag for text overlays ────────────────────────────────────────
+
+async function initOverlayDrag() {
+  if (!props.editable || !mapContainer.value) return
+  // Clean up previous instances
+  for (const inst of interactInstances) inst.unset()
+  interactInstances = []
+
+  const { default: interact } = await import('interactjs')
+
+  const container = mapContainer.value
+  const overlays = container.querySelectorAll<HTMLElement>('.text-overlay.is-editable')
+  overlays.forEach(el => {
+    const inst = interact(el).draggable({
+      listeners: {
+        move(event: { dx: number; dy: number; target: HTMLElement }) {
+          const containerRect = container.getBoundingClientRect()
+          const currentLeft = parseFloat(el.style.left) || 0
+          const currentTop = parseFloat(el.style.top) || 0
+          const newLeft = currentLeft + (event.dx / containerRect.width) * 100
+          const newTop = currentTop + (event.dy / containerRect.height) * 100
+          el.style.left = `${Math.max(0, Math.min(100, newLeft))}%`
+          el.style.top = `${Math.max(0, Math.min(100, newTop))}%`
+        },
+        end(event: { target: HTMLElement }) {
+          const id = event.target.dataset.overlayId
+          if (!id) return
+          const containerRect = container.getBoundingClientRect()
+          const rect = event.target.getBoundingClientRect()
+          const x = Math.round(((rect.left - containerRect.left) / containerRect.width) * 100)
+          const y = Math.round(((rect.top - containerRect.top) / containerRect.height) * 100)
+          emit('overlay-moved', { id, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
+        },
+      },
+    })
+    interactInstances.push(inst)
+  })
+}
+
+// ── Style config watcher ──────────────────────────────────────────────────────
+
+// Track previous trail_segments for smart diffing
+let prevSegmentIds: string[] = []
+let prevSegmentCount = 0
 
 watch(
   () => props.styleConfig,
@@ -535,10 +862,57 @@ watch(
     )
 
     if (needsFullReload) {
+      // Check if only segment geometry/paint changed (same IDs, same count)
+      const newSegs = newConfig.trail_segments ?? []
+      const oldSegs = oldConfig?.trail_segments ?? []
+      const newIds = newSegs.map(s => s.id).join(',')
+      const oldIds = oldSegs.map(s => s.id).join(',')
+
+      if (
+        newIds === prevSegmentIds.join(',') &&
+        newSegs.length === prevSegmentCount &&
+        newIds === oldIds &&
+        newConfig.preset === oldConfig?.preset &&
+        newConfig.base_tile_style === oldConfig?.base_tile_style &&
+        newConfig.show_contours === oldConfig?.show_contours &&
+        newConfig.show_hillshade === oldConfig?.show_hillshade &&
+        newConfig.show_elevation_labels === oldConfig?.show_elevation_labels &&
+        newConfig.contour_color === oldConfig?.contour_color &&
+        newConfig.contour_major_color === oldConfig?.contour_major_color &&
+        newConfig.contour_opacity === oldConfig?.contour_opacity &&
+        newConfig.contour_detail === oldConfig?.contour_detail &&
+        newConfig.hillshade_intensity === oldConfig?.hillshade_intensity &&
+        newConfig.hillshade_highlight === oldConfig?.hillshade_highlight
+      ) {
+        // Only segment data changed — update sources + paint properties without full reload
+        populateSegmentSources()
+        for (const seg of newSegs) {
+          if (!seg.visible) continue
+          const lineId = `trail-seg-line-${seg.id}`
+          const casingId = `trail-seg-casing-${seg.id}`
+          const width = seg.width ?? newConfig.route_width ?? 2
+          if (mapInstance.getLayer(lineId)) {
+            mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
+            mapInstance.setPaintProperty(lineId, 'line-width', width)
+            mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
+            mapInstance.setPaintProperty(casingId, 'line-width', width + 3)
+          }
+        }
+        return
+      }
+
+      // Full reload needed
       mapReady.value = false
+      prevSegmentIds = (newConfig.trail_segments ?? []).map(s => s.id)
+      prevSegmentCount = newConfig.trail_segments?.length ?? 0
       const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken) as maplibregl.StyleSpecification
       mapInstance.setStyle(newStyle)
-      mapInstance.once('styledata', () => { populateRouteSource(); mapReady.value = true })
+      mapInstance.once('styledata', () => {
+        populateRouteSource()
+        populateSegmentSources()
+        mapReady.value = true
+        if (props.editable) nextTick(() => initOverlayDrag())
+      })
       return
     }
 
@@ -555,14 +929,11 @@ watch(
   { deep: true },
 )
 
-// Dedicated watcher for route_smooth — watches a primitive directly, avoiding
-// the old/new reference aliasing issue that can affect deep object watchers.
 watch(
   () => props.styleConfig.route_smooth,
   () => { if (mapInstance && mapReady.value) populateRouteSource() },
 )
 
-// Refit bounds when padding changes so the route zoom updates live.
 watch(
   () => props.styleConfig.padding_factor,
   (val) => {
@@ -573,7 +944,16 @@ watch(
   },
 )
 
+// Re-init drag when text_overlays change (new overlays added)
+watch(
+  () => (props.styleConfig.text_overlays ?? []).length,
+  () => {
+    if (props.editable && mapReady.value) nextTick(() => initOverlayDrag())
+  },
+)
+
 onUnmounted(() => {
+  for (const inst of interactInstances) inst.unset()
   resizeObserver?.disconnect()
   mapInstance?.remove()
   mapInstance = null
@@ -605,12 +985,63 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5cqh;
+  gap: 0.4cqh;
   flex-shrink: 0;
 }
 
 .mark-svg {
   width: 4cqh;
   height: 4cqh;
+}
+
+/* Editable text: subtle hover indicator */
+.editable-text:hover {
+  outline: 1.5px dashed rgba(45, 106, 79, 0.35);
+  border-radius: 2px;
+  cursor: text;
+}
+.editable-text:focus {
+  outline: 1.5px dashed rgba(45, 106, 79, 0.6);
+  border-radius: 2px;
+}
+
+/* Text overlay layer */
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.text-overlay.is-editable {
+  pointer-events: auto !important;
+  cursor: move !important;
+}
+
+.text-overlay.is-editable:hover {
+  outline: 1.5px dashed rgba(45, 106, 79, 0.4);
+  border-radius: 2px;
+}
+
+/* Trail legend */
+.trail-legend {
+  pointer-events: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8cqw;
+}
+
+.legend-swatch {
+  width: 2.2cqw;
+  height: 0.35cqh;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.logo-map {
+  pointer-events: none;
 }
 </style>

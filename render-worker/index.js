@@ -125,25 +125,275 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
 }
 
 // ─── HTML template for server-side MapLibre render ───────────────────────────
+// Uses vh units throughout (1vh = height/100 in Puppeteer's fixed viewport)
+// matching cqh units in MapPreview.vue (1cqh = 1% of poster canvas height).
 function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width, height }) {
   const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token))
   const geojsonStr = JSON.stringify(geojson)
-  const padding = Math.round(Math.min(width, height) * style_config.padding_factor)
+  const padding = Math.round(Math.min(width, height) * (style_config.padding_factor ?? 0.15))
+
+  const fg = style_config.label_text_color || '#1C1917'
+  const bg = style_config.label_bg_color || style_config.background_color || '#F7F4EF'
+  const trailName = style_config.trail_name || title || 'Your Trail'
+  const occasionText = style_config.occasion_text || ''
+  const locationText = style_config.location_text || stats?.location || ''
+  const maxElev = stats?.max_elevation_m ? `${Math.round(stats.max_elevation_m).toLocaleString()} M ELEV.` : ''
+  const locationLine = [locationText ? locationText.toUpperCase() : '', maxElev].filter(Boolean).join('  ·  ')
+  const distanceMi = stats?.distance_km ? (stats.distance_km * 0.621371).toFixed(1) : ''
+  const elevGainFt = stats?.elevation_gain_m ? Math.round(stats.elevation_gain_m * 3.28084).toLocaleString() : ''
+
+  // Typography per theme (mirrors THEME_TYPOGRAPHY in MapPreview.vue)
+  const THEME_TYPOGRAPHY = {
+    chalk:    { titleFont: "'Work Sans'",          titleWeight: '300', titleTracking: '0.38em', titleSize: '3.4vh', subFont: "'Work Sans'",          subWeight: '400', subTracking: '0.28em', statsFont: "'Work Sans'" },
+    topaz:    { titleFont: "'Space Grotesk'",      titleWeight: '700', titleTracking: '0.06em', titleSize: '4.4vh', subFont: "'Space Grotesk'",      subWeight: '400', subTracking: '0.22em', statsFont: "'Space Grotesk'" },
+    dusk:     { titleFont: "'DM Serif Display'",   titleWeight: '400', titleTracking: '0.03em', titleSize: '4.8vh', subFont: "'DM Sans'",            subWeight: '400', subTracking: '0.22em', statsFont: "'DM Sans'" },
+    obsidian: { titleFont: "'Big Shoulders Display'", titleWeight: '800', titleTracking: '-0.01em', titleSize: '5.8vh', subFont: "'DM Sans'",        subWeight: '400', subTracking: '0.35em', statsFont: "'Big Shoulders Display'" },
+    forest:   { titleFont: "'Oswald'",             titleWeight: '600', titleTracking: '0.08em', titleSize: '4.6vh', subFont: "'Oswald'",             subWeight: '300', subTracking: '0.22em', statsFont: "'Oswald'" },
+    midnight: { titleFont: "'Fjalla One'",         titleWeight: '400', titleTracking: '0.12em', titleSize: '4.8vh', subFont: "'DM Sans'",            subWeight: '300', subTracking: '0.32em', statsFont: "'Fjalla One'" },
+  }
+  const typo = THEME_TYPOGRAPHY[style_config.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
+
+  const borderW = style_config.border_style === 'thick' ? '2px' : style_config.border_style === 'thin' ? '1px' : '0'
+
+  // Build coordinate strings from bbox center
+  function fmtCoord(v, pos, neg) {
+    const d = Math.abs(Math.floor(v))
+    const m = Math.round((Math.abs(v) - d) * 60)
+    return `${d}°${m.toString().padStart(2, '0')}'${v >= 0 ? pos : neg}`
+  }
+  let coordHtml = ''
+  if (bbox) {
+    const lat = (bbox[1] + bbox[3]) / 2
+    const lng = (bbox[0] + bbox[2]) / 2
+    coordHtml = `<span style="display:block;font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lat,'N','S')}</span>
+                 <span style="display:block;font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lng,'E','W')}</span>`
+  }
+
+  // Build stat blocks HTML
+  const statsHtml = [
+    distanceMi ? `<div style="display:flex;flex-direction:column;align-items:flex-start;">
+      <span style="font-family:${typo.statsFont},sans-serif;font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${distanceMi}</span>
+      <span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">miles</span>
+    </div>` : '',
+    distanceMi && elevGainFt ? `<div style="width:1px;height:3vh;background:${fg};opacity:0.15;align-self:center;flex-shrink:0;"></div>` : '',
+    elevGainFt ? `<div style="display:flex;flex-direction:column;align-items:flex-start;">
+      <span style="font-family:${typo.statsFont},sans-serif;font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${elevGainFt}</span>
+      <span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">ft gain</span>
+    </div>` : '',
+    coordHtml ? `<div style="width:1px;height:3vh;background:${fg};opacity:0.15;align-self:center;flex-shrink:0;"></div><div>${coordHtml}</div>` : '',
+  ].filter(Boolean).join('')
+
+  // Logo HTML (when positioned over map)
+  function logoHtml() {
+    if (!style_config.show_logo || !style_config.logo_url) return ''
+    const size = (style_config.logo_size ?? 8) * height / 100
+    const pos = style_config.logo_position ?? 'map-top-right'
+    if (pos === 'map-top-right') {
+      return `<img src="${style_config.logo_url}" alt="" style="position:absolute;top:2%;right:2%;max-height:${size}px;max-width:15%;object-fit:contain;z-index:10;pointer-events:none;" />`
+    }
+    return ''
+  }
+
+  // Logo in footer-left
+  function logoFooterHtml() {
+    if (!style_config.show_logo || !style_config.logo_url || style_config.logo_position !== 'footer-left') return ''
+    return `<img src="${style_config.logo_url}" alt="" style="max-height:4vh;max-width:10%;object-fit:contain;flex-shrink:0;" />`
+  }
+
+  // Logo in header-right
+  function logoHeaderHtml() {
+    if (!style_config.show_logo || !style_config.logo_url || style_config.logo_position !== 'header-right') return ''
+    const size = (style_config.logo_size ?? 8) * height / 100
+    return `<img src="${style_config.logo_url}" alt="" style="position:absolute;top:50%;right:7vw;transform:translateY(-50%);max-height:${size}px;max-width:12%;object-fit:contain;" />`
+  }
+
+  // Text overlays HTML
+  function textOverlaysHtml() {
+    const overlays = style_config.text_overlays ?? []
+    if (!overlays.length) return ''
+    return overlays.map(o => {
+      const fs = (o.font_size / 100) * height
+      const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
+      const bgStyle = o.bg_color ? `background:${o.bg_color};padding:${height*0.003}px ${height*0.008}px;border-radius:${height*0.004}px;` : ''
+      return `<div style="position:absolute;left:${o.x}%;top:${o.y}%;font-family:'${o.font_family}',sans-serif;font-size:${fs}px;color:${o.color};text-align:${o.alignment};opacity:${o.opacity};font-weight:${o.bold?700:400};white-space:pre-wrap;transform:translateX(${xOffset});pointer-events:none;z-index:8;${bgStyle}">${escapeHtml(o.content)}</div>`
+    }).join('')
+  }
+
+  // Trail legend HTML
+  function trailLegendHtml() {
+    const segments = (style_config.trail_segments ?? []).filter(s => s.visible && s.name)
+    if (!style_config.trail_legend?.show || !segments.length) return ''
+    const pos = style_config.trail_legend?.position ?? 'bottom-left'
+    const posMap = {
+      'bottom-left': 'bottom:2%;left:2%',
+      'bottom-right': 'bottom:2%;right:2%',
+      'top-left': 'top:2%;left:2%',
+      'top-right': 'top:2%;right:2%',
+    }
+    const posStyle = posMap[pos] ?? posMap['bottom-left']
+    const swatchW = Math.round(width * 0.022)
+    const swatchH = Math.round(height * 0.0035)
+    const fontSize = Math.round(height * 0.0075)
+    const padding = Math.round(height * 0.008)
+    const gap = Math.round(height * 0.005)
+    const items = segments.map(s =>
+      `<div style="display:flex;align-items:center;gap:${Math.round(width*0.008)}px;margin-bottom:${gap}px;">
+        <div style="width:${swatchW}px;height:${swatchH}px;background:${s.color};border-radius:2px;flex-shrink:0;"></div>
+        <span style="font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:${fontSize}px;color:${fg};opacity:0.85;">${escapeHtml(s.name)}</span>
+      </div>`
+    ).join('')
+    return `<div style="position:absolute;${posStyle};z-index:9;background:rgba(255,255,255,0.88);border-radius:${Math.round(height*0.006)}px;padding:${padding}px ${Math.round(width*0.012)}px;pointer-events:none;">
+      ${items}
+    </div>`
+  }
+
+  // Trail segment JS (run inside map.on('load'))
+  function trailSegmentsJs() {
+    const segments = (style_config.trail_segments ?? []).filter(s => s.visible)
+    if (!segments.length) return ''
+    return segments.map(s => {
+      const sliced = sliceRouteByPct(geojson, s.section_start, s.section_end)
+      const slicedStr = JSON.stringify(sliced)
+      const w = s.width ?? style_config.route_width ?? 3
+      const op = s.opacity ?? 0.9
+      const dashArray = s.dash ? '[4,3]' : 'undefined'
+      return `
+      map.addSource('trail-seg-${s.id}', { type: 'geojson', data: ${slicedStr} });
+      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#FFFFFF', 'line-width': ${w + 3}, 'line-opacity': ${op} } });
+      map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round'${s.dash ? ", 'line-dasharray': [4,3]" : ''} }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op} } });`
+    }).join('')
+  }
+
+  // Font families needed for Google Fonts
+  const fontsNeeded = new Set([
+    typo.titleFont.replace(/'/g, '').split(',')[0],
+    typo.statsFont.replace(/'/g, '').split(',')[0],
+  ])
+  if (style_config.font_family) fontsNeeded.add(style_config.font_family)
+  if (style_config.body_font_family) fontsNeeded.add(style_config.body_font_family)
+  ;(style_config.text_overlays ?? []).forEach(o => fontsNeeded.add(o.font_family))
+  const googleFontsUrl = `https://fonts.googleapis.com/css2?${[...fontsNeeded].map(f => `family=${encodeURIComponent(f)}:wght@300;400;500;600;700;800`).join('&')}&display=swap`
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="${googleFontsUrl}" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: ${width}px; height: ${height}px; overflow: hidden; }
+    body {
+      width: ${width}px; height: ${height}px; overflow: hidden;
+      display: flex; flex-direction: column;
+      background: ${style_config.background_color || '#F7F4EF'};
+      font-family: sans-serif;
+    }
+    #poster-header {
+      flex-shrink: 0;
+      background: ${style_config.background_color || '#F7F4EF'};
+      padding: 3vh 7vw 2.2vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-end;
+      gap: 1.1vh;
+      position: relative;
+    }
+    #poster-header h1 {
+      font-family: ${typo.titleFont}, sans-serif;
+      font-weight: ${typo.titleWeight};
+      letter-spacing: ${typo.titleTracking};
+      font-size: ${typo.titleSize};
+      line-height: 1.1;
+      color: ${fg};
+      text-align: center;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    #poster-header p {
+      font-family: ${typo.subFont}, sans-serif;
+      font-weight: ${typo.subWeight};
+      letter-spacing: ${typo.subTracking};
+      font-size: 1.0vh;
+      color: ${fg};
+      opacity: 0.5;
+      text-transform: uppercase;
+      text-align: center;
+      margin: 0;
+    }
+    #poster-rule {
+      width: 100%; height: 1px;
+      background: ${fg}; opacity: 0.12;
+      margin-top: 0.4vh; flex-shrink: 0;
+    }
+    #map-container {
+      flex: 1; position: relative; overflow: hidden;
+    }
     #map { width: 100%; height: 100%; }
+    #poster-footer {
+      flex-shrink: 0;
+      background: ${bg};
+      padding: 1.8vh 7vw;
+      display: flex; align-items: center; justify-content: space-between;
+      position: relative;
+      border-top: ${borderW !== '0' ? borderW + ' solid ' + fg + '1a' : '1px solid ' + fg + '0d'};
+    }
+    #poster-stats {
+      display: flex; align-items: flex-start; gap: 2.4vw;
+    }
+    #poster-mark {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0.4vh; flex-shrink: 0;
+    }
+    ${borderW !== '0' ? `
+    #poster-frame {
+      position: absolute; inset: 14px;
+      border: ${borderW} solid ${fg}; opacity: 0.18;
+      z-index: 20; pointer-events: none;
+    }` : ''}
   </style>
 </head>
 <body>
-  <div id="map"></div>
+
+  ${borderW !== '0' ? '<div id="poster-frame"></div>' : ''}
+
+  <!-- HEADER -->
+  <div id="poster-header">
+    <h1>${escapeHtml(trailName)}</h1>
+    ${locationLine ? `<p>${escapeHtml(locationLine)}</p>` : ''}
+    <div id="poster-rule"></div>
+    ${logoHeaderHtml()}
+  </div>
+
+  <!-- MAP -->
+  <div id="map-container">
+    <div id="map"></div>
+    ${logoHtml()}
+    ${trailLegendHtml()}
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:8;">${textOverlaysHtml()}</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div id="poster-footer">
+    ${logoFooterHtml()}
+    <div id="poster-stats">${statsHtml}</div>
+
+    ${occasionText ? `<p style="font-family:${typo.subFont},sans-serif;font-weight:${typo.subWeight};font-size:0.95vh;letter-spacing:0.22em;text-transform:uppercase;color:${fg};opacity:0.5;text-align:center;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;">${escapeHtml(occasionText)}</p>` : ''}
+
+    <div id="poster-mark">
+      <svg viewBox="0 0 32 32" fill="none" style="width:4vh;height:4vh;color:${fg};opacity:0.4;">
+        <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
+        <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+        <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="0.9" fill="none"/>
+        <path d="M8 18 Q13 16 16 17 Q19.5 18 23 16.5" stroke="currentColor" stroke-width="0.65" fill="none" opacity="0.6"/>
+        <circle cx="11" cy="8" r="1.1" fill="currentColor"/>
+      </svg>
+      <span style="font-family:${typo.statsFont},sans-serif;font-weight:700;font-size:0.55vh;letter-spacing:0.22em;color:${fg};opacity:0.4;text-transform:uppercase;">RAD MAPS</span>
+      ${style_config.show_branding !== false ? `<span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.42vh;letter-spacing:0.14em;color:${fg};opacity:0.28;">radmaps.studio</span>` : ''}
+    </div>
+  </div>
+
   <script>
     const map = new maplibregl.Map({
       container: 'map',
@@ -167,11 +417,37 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: { 'line-color': '${style_config.route_color}', 'line-width': ${style_config.route_width}, 'line-opacity': ${style_config.route_opacity} }
       });
+      ${trailSegmentsJs()}
       map.once('idle', () => { window.__mapReady = true; });
     });
   </script>
 </body>
 </html>`
+}
+
+function escapeHtml(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Slice route GeoJSON by percentage (mirrors utils/trail.ts)
+function sliceRouteByPct(geojson, startPct, endPct) {
+  const allCoords = []
+  for (const f of geojson.features) {
+    const g = f.geometry
+    if (g.type === 'LineString') allCoords.push(...g.coordinates)
+    else if (g.type === 'MultiLineString') for (const line of g.coordinates) allCoords.push(...line)
+  }
+  if (!allCoords.length) return { type: 'FeatureCollection', features: [] }
+  const start = Math.floor(allCoords.length * Math.max(0, startPct) / 100)
+  const end = Math.ceil(allCoords.length * Math.min(100, endPct) / 100)
+  const sliced = allCoords.slice(start, Math.max(end, start + 2))
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: sliced } }] }
 }
 
 // ─── Style builder for the worker (mirrors utils/mapStyle.ts) ────────────────

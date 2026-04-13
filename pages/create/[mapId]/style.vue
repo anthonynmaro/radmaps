@@ -133,7 +133,13 @@
               v-if="mapData"
               :map="mapData"
               :style-config="styleConfig"
+              :editable="true"
               class="w-full h-full"
+              @update:trail-name="styleConfig.trail_name = $event"
+              @update:occasion-text="styleConfig.occasion_text = $event"
+              @update:location-text="styleConfig.location_text = $event"
+              @overlay-moved="onOverlayMoved"
+              @overlay-selected="onOverlaySelected"
             />
           </ClientOnly>
           <div v-if="!mapData" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -169,6 +175,7 @@
           v-model="styleConfig"
           :saving="saving"
           @reset="resetStyle"
+          @logo-upload="handleLogoUpload"
         />
         <div v-else class="flex-1 bg-white animate-pulse" />
       </aside>
@@ -260,7 +267,15 @@ const mobileTab = ref<'preview' | 'style'>('preview')
 
 watch(mapData, (m) => {
   if (m?.style_config) {
-    styleConfig.value = { ...DEFAULT_STYLE_CONFIG, ...m.style_config }
+    styleConfig.value = {
+      ...DEFAULT_STYLE_CONFIG,
+      ...m.style_config,
+      // Deep merge nested objects so new defaults are applied to existing maps
+      trail_legend: {
+        show: m.style_config.trail_legend?.show ?? DEFAULT_STYLE_CONFIG.trail_legend!.show,
+        position: m.style_config.trail_legend?.position ?? DEFAULT_STYLE_CONFIG.trail_legend!.position,
+      },
+    }
   }
 }, { immediate: true })
 
@@ -323,5 +338,36 @@ async function saveVersion() {
 function restoreVersion(v: { style_config: StyleConfig }) {
   styleConfig.value = { ...DEFAULT_STYLE_CONFIG, ...v.style_config }
   showVersionModal.value = false
+}
+
+// ─── Overlay events ────────────────────────────────────────────────────────────
+
+function onOverlayMoved(payload: { id: string; x: number; y: number }) {
+  const overlays = styleConfig.value.text_overlays ?? []
+  styleConfig.value = {
+    ...styleConfig.value,
+    text_overlays: overlays.map(o => o.id === payload.id ? { ...o, x: payload.x, y: payload.y } : o),
+  }
+}
+
+function onOverlaySelected(id: string) {
+  // Switch to Style tab on mobile so panel is visible
+  if (mobileTab.value === 'preview') mobileTab.value = 'style'
+}
+
+// ─── Logo upload ───────────────────────────────────────────────────────────────
+
+async function handleLogoUpload(file: File) {
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+    const result = await $fetch<{ url: string }>(`/api/maps/${mapId.value}/logo`, {
+      method: 'POST',
+      body: formData,
+    })
+    styleConfig.value = { ...styleConfig.value, logo_url: result.url, show_logo: true }
+  } catch (err) {
+    console.error('Logo upload failed', err)
+  }
 }
 </script>
