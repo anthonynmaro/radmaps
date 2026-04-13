@@ -13,17 +13,6 @@
     <div class="border-b border-gray-200">
       <div class="flex gap-6">
         <button
-          @click="activeTab = 'upload'"
-          :class="[
-            'pb-3 px-1 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'upload'
-              ? 'border-green-600 text-green-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-          ]"
-        >
-          Upload GPX
-        </button>
-        <button
           @click="activeTab = 'strava'"
           :class="[
             'pb-3 px-1 text-sm font-medium border-b-2 transition-colors',
@@ -33,6 +22,17 @@
           ]"
         >
           Import from Strava
+        </button>
+        <button
+          @click="activeTab = 'upload'"
+          :class="[
+            'pb-3 px-1 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'upload'
+              ? 'border-green-600 text-green-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+          ]"
+        >
+          Upload GPX
         </button>
       </div>
     </div>
@@ -261,7 +261,7 @@ const router = useRouter()
 const route = useRoute()
 const user = useSupabaseUser()
 
-const activeTab = ref<'upload' | 'strava'>('upload')
+const activeTab = ref<'upload' | 'strava'>('strava')
 const isDragging = ref(false)
 const isParsing = ref(false)
 const isCreating = ref(false)

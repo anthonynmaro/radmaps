@@ -115,23 +115,73 @@
                 </p>
               </div>
 
-              <!-- Live MapLibre map -->
-              <div class="relative flex-1" style="height:calc(100% - 88px)">
-                <ClientOnly>
-                  <div ref="heroMapEl" class="absolute inset-0" />
-                  <template #fallback>
-                    <!-- SSR placeholder that looks like a topo map -->
-                    <div class="absolute inset-0 bg-[#e8dfd0] flex items-center justify-center">
-                      <svg viewBox="0 0 200 270" class="w-full h-full opacity-40" fill="none">
-                        <ellipse cx="100" cy="135" rx="80" ry="60" stroke="#a09070" stroke-width="1"/>
-                        <ellipse cx="100" cy="135" rx="60" ry="44" stroke="#a09070" stroke-width="0.8"/>
-                        <ellipse cx="100" cy="135" rx="40" ry="29" stroke="#a09070" stroke-width="0.6"/>
-                        <ellipse cx="100" cy="135" rx="20" ry="14" stroke="#a09070" stroke-width="0.5"/>
-                        <path d="M40 100 Q70 80 100 90 Q130 100 160 80" stroke="#C0392B" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </div>
-                  </template>
-                </ClientOnly>
+              <!-- Static topographic illustration — no Mapbox requests -->
+              <div class="absolute inset-x-0" style="top:88px;bottom:0;overflow:hidden">
+                <svg class="w-full h-full" viewBox="0 0 340 280" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <radialGradient id="terrainBg" cx="58%" cy="38%" r="72%">
+                      <stop offset="0%" stop-color="#D5C4AB"/>
+                      <stop offset="100%" stop-color="#EDE4D5"/>
+                    </radialGradient>
+                    <clipPath id="mapClip">
+                      <rect width="340" height="280"/>
+                    </clipPath>
+                  </defs>
+                  <rect width="340" height="280" fill="url(#terrainBg)"/>
+
+                  <g clip-path="url(#mapClip)">
+                    <!-- Right peak contours (Maroon Peak), tilted slightly -->
+                    <g transform="rotate(-8,218,108)" stroke="#A8906C" fill="none">
+                      <ellipse cx="218" cy="108" rx="128" ry="86" stroke-width="0.45"/>
+                      <ellipse cx="218" cy="108" rx="112" ry="75" stroke-width="0.45"/>
+                      <ellipse cx="218" cy="108" rx="97"  ry="65" stroke-width="0.5"/>
+                      <ellipse cx="218" cy="108" rx="83"  ry="56" stroke-width="0.5"/>
+                      <ellipse cx="218" cy="108" rx="70"  ry="47" stroke-width="0.6" stroke="#9A8060"/>
+                      <ellipse cx="218" cy="108" rx="58"  ry="39" stroke-width="0.65" stroke="#9A8060"/>
+                      <ellipse cx="218" cy="108" rx="47"  ry="31" stroke-width="0.75" stroke="#8A6E50"/>
+                      <ellipse cx="218" cy="108" rx="37"  ry="25" stroke-width="0.85" stroke="#8A6E50"/>
+                      <ellipse cx="218" cy="108" rx="27"  ry="18" stroke-width="1.0"  stroke="#7A5C3E"/>
+                      <ellipse cx="218" cy="108" rx="18"  ry="12" stroke-width="1.1"  stroke="#7A5C3E"/>
+                      <ellipse cx="218" cy="108" rx="10"  ry="7"  stroke-width="1.2"  stroke="#6A4A2E"/>
+                      <ellipse cx="218" cy="108" rx="4"   ry="3"  stroke-width="1.3"  stroke="#6A4A2E"/>
+                    </g>
+
+                    <!-- Left peak contours (North Maroon), tilted opposite -->
+                    <g transform="rotate(14,110,128)" stroke="#A8906C" fill="none">
+                      <ellipse cx="110" cy="128" rx="108" ry="74" stroke-width="0.45"/>
+                      <ellipse cx="110" cy="128" rx="93"  ry="64" stroke-width="0.45"/>
+                      <ellipse cx="110" cy="128" rx="79"  ry="54" stroke-width="0.5"/>
+                      <ellipse cx="110" cy="128" rx="66"  ry="45" stroke-width="0.5"/>
+                      <ellipse cx="110" cy="128" rx="54"  ry="37" stroke-width="0.6"  stroke="#9A8060"/>
+                      <ellipse cx="110" cy="128" rx="43"  ry="29" stroke-width="0.65" stroke="#9A8060"/>
+                      <ellipse cx="110" cy="128" rx="33"  ry="22" stroke-width="0.75" stroke="#8A6E50"/>
+                      <ellipse cx="110" cy="128" rx="23"  ry="16" stroke-width="0.85" stroke="#8A6E50"/>
+                      <ellipse cx="110" cy="128" rx="14"  ry="10" stroke-width="1.0"  stroke="#7A5C3E"/>
+                      <ellipse cx="110" cy="128" rx="7"   ry="5"  stroke-width="1.1"  stroke="#7A5C3E"/>
+                    </g>
+
+                    <!-- Valley floor / lower elevation contours -->
+                    <g stroke="#BCB09A" fill="none" stroke-width="0.45">
+                      <path d="M0,205 Q85,193 165,191 Q245,189 310,199 Q328,203 340,208"/>
+                      <path d="M0,220 Q82,208 162,206 Q242,204 308,213 Q326,217 340,222"/>
+                      <path d="M0,235 Q80,223 158,221 Q236,219 304,228 Q323,232 340,237"/>
+                    </g>
+
+                    <!-- Maroon Lake -->
+                    <ellipse cx="158" cy="252" rx="42" ry="14" fill="#AECCE0" opacity="0.75"/>
+                    <ellipse cx="158" cy="252" rx="42" ry="14" stroke="#92B8CC" stroke-width="0.8"/>
+
+                    <!-- Trail — white casing then red line -->
+                    <path d="M28,272 Q52,256 72,240 Q92,224 102,206 Q112,188 120,170 Q130,150 144,136 Q160,120 174,114 Q190,108 200,98 Q212,86 220,94 Q228,104 224,118 Q216,134 206,147 Q196,160 190,174 Q182,190 178,208 Q174,226 180,242 Q186,256 200,263 Q218,272 244,265"
+                      stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+                    <path d="M28,272 Q52,256 72,240 Q92,224 102,206 Q112,188 120,170 Q130,150 144,136 Q160,120 174,114 Q190,108 200,98 Q212,86 220,94 Q228,104 224,118 Q216,134 206,147 Q196,160 190,174 Q182,190 178,208 Q174,226 180,242 Q186,256 200,263 Q218,272 244,265"
+                      stroke="#C0392B" stroke-width="2.5" stroke-linecap="round"/>
+
+                    <!-- Trail endpoints -->
+                    <circle cx="28"  cy="272" r="3.5" fill="#C0392B"/>
+                    <circle cx="244" cy="265" r="3.5" fill="#C0392B"/>
+                  </g>
+                </svg>
               </div>
 
               <!-- Footer band -->
@@ -283,108 +333,9 @@
 </template>
 
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-
 definePageMeta({ layout: false })
 
 const user = useSupabaseUser()
-const config = useRuntimeConfig()
-
-// ── Hero map ──────────────────────────────────────────────────────────────────
-
-const heroMapEl = ref<HTMLDivElement | null>(null)
-const TOKEN = config.public.mapboxToken as string
-
-// Maroon Bells loop trail, Colorado
-const TRAIL_COORDS = [
-  [-106.9437,39.0706],[-106.9447,39.0714],[-106.9458,39.0724],[-106.9468,39.0738],
-  [-106.9476,39.0754],[-106.9481,39.0772],[-106.9482,39.0791],[-106.9478,39.0808],
-  [-106.9469,39.0824],[-106.9457,39.0838],[-106.9442,39.0851],[-106.9424,39.0860],
-  [-106.9405,39.0866],[-106.9386,39.0869],[-106.9368,39.0868],[-106.9352,39.0862],
-  [-106.9338,39.0852],[-106.9327,39.0840],[-106.9320,39.0825],[-106.9317,39.0809],
-  [-106.9319,39.0793],[-106.9325,39.0779],[-106.9335,39.0765],[-106.9348,39.0752],
-  [-106.9362,39.0740],[-106.9377,39.0729],[-106.9393,39.0720],[-106.9410,39.0713],
-  [-106.9426,39.0709],[-106.9437,39.0706],
-]
-
-onMounted(async () => {
-  await nextTick()
-  if (!heroMapEl.value || !TOKEN) return
-
-  const map = new maplibregl.Map({
-    container: heroMapEl.value,
-    style: {
-      version: 8,
-      glyphs: `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${TOKEN}`,
-      sources: {
-        'outdoors': {
-          type: 'raster',
-          tiles: [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${TOKEN}`],
-          tileSize: 512,
-        },
-        'dem': {
-          type: 'raster-dem',
-          tiles: [`https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/{z}/{x}/{y}.webp?access_token=${TOKEN}`],
-          tileSize: 512, encoding: 'mapbox',
-        },
-        'terrain-v2': {
-          type: 'vector',
-          tiles: [`https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/{z}/{x}/{y}.vector.pbf?access_token=${TOKEN}`],
-          minzoom: 9, maxzoom: 15,
-        },
-        'trail': {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: null,
-            geometry: { type: 'LineString', coordinates: TRAIL_COORDS },
-          },
-        },
-      },
-      layers: [
-        { id: 'bg', type: 'background', paint: { 'background-color': '#e8dfd0' } },
-        { id: 'base', type: 'raster', source: 'outdoors', paint: { 'raster-opacity': 0.78, 'raster-saturation': -0.1 } },
-        { id: 'hillshade', type: 'hillshade', source: 'dem',
-          paint: { 'hillshade-exaggeration': 0.5, 'hillshade-illumination-direction': 335 } },
-        { id: 'contours-minor', type: 'line', source: 'terrain-v2', 'source-layer': 'contour',
-          filter: ['==', ['get', 'index'], 1],
-          paint: { 'line-color': '#9b8b72', 'line-width': 0.5, 'line-opacity': 0.55 } },
-        { id: 'contours-major', type: 'line', source: 'terrain-v2', 'source-layer': 'contour',
-          filter: ['==', ['get', 'index'], 10],
-          paint: { 'line-color': '#7a6a54', 'line-width': 1.0, 'line-opacity': 0.75 } },
-        { id: 'contour-labels', type: 'symbol', source: 'terrain-v2', 'source-layer': 'contour',
-          filter: ['==', ['get', 'index'], 10],
-          layout: { 'symbol-placement': 'line', 'symbol-spacing': 400,
-            'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
-            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-            'text-size': 9, 'text-pitch-alignment': 'viewport' },
-          paint: { 'text-color': '#7a6a54', 'text-halo-color': 'rgba(240,235,226,0.9)', 'text-halo-width': 1.5 } },
-        { id: 'trail-casing', type: 'line', source: 'trail',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#fff', 'line-width': 5, 'line-opacity': 0.9 } },
-        { id: 'trail-line', type: 'line', source: 'trail',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#C0392B', 'line-width': 2.8 } },
-      ],
-    } as maplibregl.StyleSpecification,
-    center: [-106.926, 39.078],
-    zoom: 12.8,
-    pitch: 35,
-    bearing: -20,
-    interactive: false,
-    attributionControl: false,
-  })
-
-  // Slow pan for life
-  let angle = 0
-  const pan = () => {
-    angle = (angle + 0.01) % 360
-    map.rotateTo(angle * 0.05, { duration: 0, easing: t => t })
-    requestAnimationFrame(pan)
-  }
-  map.on('load', () => requestAnimationFrame(pan))
-})
 
 // ── Static data ────────────────────────────────────────────────────────────────
 
