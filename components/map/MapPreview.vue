@@ -562,6 +562,17 @@ watch(
   () => { if (mapInstance && mapReady.value) populateRouteSource() },
 )
 
+// Refit bounds when padding changes so the route zoom updates live.
+watch(
+  () => props.styleConfig.padding_factor,
+  (val) => {
+    if (!mapInstance || !mapReady.value || !mapContainer.value) return
+    mapInstance.fitBounds(props.map.bbox as maplibregl.LngLatBoundsLike, {
+      padding: Math.round(mapContainer.value.offsetHeight * (val ?? 0.15)),
+    })
+  },
+)
+
 onUnmounted(() => {
   resizeObserver?.disconnect()
   mapInstance?.remove()
