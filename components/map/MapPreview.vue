@@ -442,7 +442,7 @@ const frameStyle = computed(() => ({
 const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'preset', 'base_tile_style',
   'show_contours', 'show_hillshade', 'show_elevation_labels',
-  'contour_color', 'contour_major_color', 'contour_opacity',
+  'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
 ]
 
@@ -450,7 +450,7 @@ onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
 
-  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken) as maplibregl.StyleSpecification
+  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken) as maplibregl.StyleSpecification
 
   mapInstance = new maplibregl.Map({
     container: mapContainer.value,
@@ -536,13 +536,11 @@ watch(
 
     if (needsFullReload) {
       mapReady.value = false
-      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken) as maplibregl.StyleSpecification
+      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken) as maplibregl.StyleSpecification
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => { populateRouteSource(); mapReady.value = true })
       return
     }
-
-    if (newConfig.route_smooth !== oldConfig?.route_smooth) populateRouteSource()
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
 
@@ -555,6 +553,13 @@ watch(
     }
   },
   { deep: true },
+)
+
+// Dedicated watcher for route_smooth — watches a primitive directly, avoiding
+// the old/new reference aliasing issue that can affect deep object watchers.
+watch(
+  () => props.styleConfig.route_smooth,
+  () => { if (mapInstance && mapReady.value) populateRouteSource() },
 )
 
 onUnmounted(() => {
