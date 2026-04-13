@@ -171,7 +171,7 @@
       <!-- ── Typography ── -->
       <Section label="Typography" icon="i-heroicons-bars-3-bottom-left">
         <template v-for="group in fontGroups" :key="group.label">
-          <p :class="['text-[9px] font-semibold tracking-widest uppercase text-gray-400 mb-1 mt-3', group === fontGroups[0] ? 'first:mt-0 mt-0' : '']">{{ group.label }}</p>
+          <p :class="['text-[9px] font-semibold tracking-widest uppercase text-gray-400 mb-1.5 mt-3', group === fontGroups[0] ? 'mt-0' : '']">{{ group.label }}</p>
           <div class="grid grid-cols-2 gap-1.5">
             <FontButton
               v-for="fontName in group.fonts"
@@ -179,10 +179,13 @@
               :label="fontName"
               :font="fontName"
               :active="local.font_family === fontName"
-              @click="set('font_family', fontName)"
+              @click="selectFont(fontName)"
             />
           </div>
         </template>
+        <p v-if="local.body_font_family && local.body_font_family !== local.font_family" class="text-[9px] text-gray-400 mt-3 pl-0.5">
+          Body paired with <span class="font-medium text-gray-500" :style="{ fontFamily: local.body_font_family }">{{ local.body_font_family }}</span>
+        </p>
       </Section>
 
       <!-- ── Labels ── -->
@@ -277,10 +280,32 @@ function applyTheme(theme: ThemeDefinition) {
   emit('update:modelValue', { ...local })
 }
 
+// Each title font auto-pairs with a body font for stats/meta text
+const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
+  'Big Shoulders Display': 'DM Sans',
+  'Fjalla One': 'Work Sans',
+  'Oswald': 'Work Sans',
+  'Bebas Neue': 'DM Sans',
+  'DM Sans': 'DM Sans',
+  'Space Grotesk': 'Space Grotesk',
+  'Outfit': 'Outfit',
+  'Work Sans': 'Work Sans',
+  'Playfair Display': 'Libre Baskerville',
+  'Cormorant Garamond': 'Libre Baskerville',
+  'Libre Baskerville': 'Libre Baskerville',
+  'DM Serif Display': 'DM Sans',
+}
+
+function selectFont(fontName: FontFamily) {
+  local.font_family = fontName
+  local.body_font_family = FONT_PAIRINGS[fontName] ?? fontName
+  emit('update:modelValue', { ...local })
+}
+
 const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
-  { label: 'SANS', fonts: ['DM Sans', 'Space Grotesk', 'Montserrat', 'Oswald', 'Raleway'] },
-  { label: 'SERIF', fonts: ['Playfair Display', 'Lora', 'Cormorant Garamond'] },
-  { label: 'DISPLAY', fonts: ['Bebas Neue', 'Anton'] },
+  { label: 'EDITORIAL', fonts: ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue'] },
+  { label: 'MODERN', fonts: ['DM Sans', 'Space Grotesk', 'Outfit', 'Work Sans'] },
+  { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
 
 const BORDERS: Array<{ label: string; value: BorderStyle }> = [
@@ -436,11 +461,19 @@ export const FontButton = defineComponent({
   emits: ['click'],
   setup(props, { emit }) {
     return () => h('button', {
-      class: ['py-1.5 px-2 rounded border text-xs transition-all text-center',
-        props.active ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'],
-      style: { fontFamily: props.font },
+      class: ['py-2 px-2 rounded border transition-all text-center flex flex-col items-center gap-0.5 w-full',
+        props.active ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'],
       onClick: () => emit('click'),
-    }, props.label)
+    }, [
+      h('span', {
+        class: [props.active ? 'text-green-700' : 'text-gray-800'],
+        style: { fontFamily: props.font, fontSize: '13px', lineHeight: '1.2', letterSpacing: '0.04em' },
+      }, 'SUMMIT'),
+      h('span', {
+        class: ['leading-none tracking-wide', props.active ? 'text-green-600' : 'text-gray-400'],
+        style: { fontSize: '8px' },
+      }, props.label),
+    ])
   },
 })
 

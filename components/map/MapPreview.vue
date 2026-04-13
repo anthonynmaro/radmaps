@@ -19,12 +19,13 @@
         class="poster-title-band shrink-0 flex flex-col items-center justify-center"
         :style="titleBandStyle"
       >
-        <p class="poster-title leading-none tracking-widest uppercase text-center">
+        <p class="poster-title leading-none uppercase text-center" :style="{ letterSpacing: titleLetterSpacing }">
           {{ styleConfig.trail_name || map.title }}
         </p>
         <p
           v-if="map.subtitle || styleConfig.occasion_text"
-          class="poster-subtitle uppercase tracking-wider text-center mt-[0.4cqh] opacity-70"
+          class="poster-subtitle uppercase text-center mt-[0.4cqh] opacity-60"
+          :style="{ letterSpacing: titleLetterSpacing }"
         >
           {{ styleConfig.occasion_text || map.subtitle }}
         </p>
@@ -92,7 +93,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { PRINT_SIZES } from '~/types'
-import type { StyleConfig, TrailMap } from '~/types'
+import type { StyleConfig, TrailMap, FontFamily } from '~/types'
 
 // ── maplibre-contour setup ────────────────────────────────────────────────────
 // Dynamic import — maplibre-contour uses Web Workers and must never be evaluated
@@ -145,6 +146,14 @@ const mapReady = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 
+// ── Letter-spacing adapts to condensed vs open fonts ─────────────────────────
+
+const CONDENSED_FONTS: FontFamily[] = ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue']
+
+const titleLetterSpacing = computed(() =>
+  CONDENSED_FONTS.includes(props.styleConfig.font_family as FontFamily) ? '0.05em' : '0.12em',
+)
+
 // ── Print canvas ─────────────────────────────────────────────────────────────
 
 const printSize = computed(() =>
@@ -176,7 +185,7 @@ const titleBandStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.label_bg_color,
   color: props.styleConfig.label_text_color,
-  fontFamily: props.styleConfig.font_family,
+  fontFamily: props.styleConfig.body_font_family ?? props.styleConfig.font_family,
   padding: '1.8cqh 6cqw',
   borderTop: props.styleConfig.border_style !== 'none'
     ? `${props.styleConfig.border_style === 'thick' ? '2px' : '1px'} solid ${props.styleConfig.label_text_color}22`
@@ -340,8 +349,8 @@ onUnmounted(() => {
 
 /* Typography scales with poster height via cqh units */
 .poster-title     { font-size: 3.8cqh; font-weight: 800; }
-.poster-subtitle  { font-size: 1.8cqh; font-weight: 500; }
-.poster-stat      { font-size: 2.0cqh; font-weight: 700; }
+.poster-subtitle  { font-size: 1.6cqh; font-weight: 400; }
+.poster-stat      { font-size: 2.0cqh; font-weight: 600; }
 .poster-stat-sep  { font-size: 2.0cqh; }
-.poster-meta      { font-size: 1.3cqh; font-weight: 400; }
+.poster-meta      { font-size: 1.2cqh; font-weight: 400; letter-spacing: 0.14em; }
 </style>

@@ -5,16 +5,21 @@ export type StylePreset = 'minimalist' | 'topographic'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
+  // Editorial — condensed, impactful, poster-native
+  | 'Big Shoulders Display'
+  | 'Fjalla One'
+  | 'Oswald'
+  | 'Bebas Neue'
+  // Modern — clean, contemporary
   | 'DM Sans'
   | 'Space Grotesk'
-  | 'Montserrat'
-  | 'Oswald'
-  | 'Raleway'
+  | 'Outfit'
+  | 'Work Sans'
+  // Refined — serif, timeless
   | 'Playfair Display'
-  | 'Lora'
   | 'Cormorant Garamond'
-  | 'Bebas Neue'
-  | 'Anton'
+  | 'Libre Baskerville'
+  | 'DM Serif Display'
 export type ColorTheme = 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
 export type PrintSize = '18x24' | '24x36' | '16x20' | '11x14' | '8x10'
 export type BaseTileStyle =
@@ -53,6 +58,7 @@ export interface StyleConfig {
   water_color: string
   land_color: string
   font_family: FontFamily
+  body_font_family: FontFamily
   title_size: number
   subtitle_size: number
   labels: StyleLabels
@@ -88,7 +94,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   hillshade_highlight: 0.3,
   water_color: '#B8D8E8',
   land_color: '#EDE8DF',
-  font_family: 'DM Sans',
+  font_family: 'Big Shoulders Display',
+  body_font_family: 'DM Sans',
   title_size: 48,
   subtitle_size: 24,
   labels: {
