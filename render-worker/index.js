@@ -328,46 +328,47 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     }
     if (!startCoord && !endCoord) return ''
 
-    const color = style_config.route_color || '#2D6A4F'
     const startJson = JSON.stringify(startCoord)
     const endJson   = JSON.stringify(endCoord)
 
+    // Mirrors MapPreview.vue: start pole on LEFT (anchor=bottom-left),
+    // finish pole on RIGHT (anchor=bottom-right) → no overlap at loop trailheads.
     return `
       (function() {
-        var c = ${JSON.stringify(color)};
+        var GREEN = '#2D6A4F', RED = '#B91C1C';
         function flagSvg(type) {
           if (type === 'start') {
-            return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">'
-              + '<line x1="14" y1="46" x2="7" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>'
-              + '<polygon points="7,8 7,23 24,15.5" fill="white" opacity="0.88"/>'
-              + '<line x1="14" y1="46" x2="7" y2="8" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round"/>'
-              + '<polygon points="7,8 7,23 24,15.5" fill="' + c + '"/>'
-              + '<circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>'
-              + '<circle cx="14" cy="46" r="2.8" fill="' + c + '"/>'
+            return '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">'
+              + '<line x1="2" y1="34" x2="2" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>'
+              + '<polygon points="2,4 2,15 18,9.5" fill="white" opacity="0.85"/>'
+              + '<line x1="2" y1="34" x2="2" y2="4" stroke="' + GREEN + '" stroke-width="2" stroke-linecap="round"/>'
+              + '<polygon points="2,4 2,15 18,9.5" fill="' + GREEN + '"/>'
+              + '<circle cx="2" cy="34" r="3.5" fill="white" opacity="0.85"/>'
+              + '<circle cx="2" cy="34" r="2.2" fill="' + GREEN + '"/>'
               + '</svg>';
           }
-          return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">'
-            + '<line x1="14" y1="46" x2="21" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>'
-            + '<rect x="5" y="8" width="16" height="12" fill="white" opacity="0.88"/>'
-            + '<line x1="14" y1="46" x2="21" y2="8" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round"/>'
-            + '<rect x="5"  y="8"  width="8" height="6" fill="' + c + '"/>'
-            + '<rect x="13" y="8"  width="8" height="6" fill="white"/>'
-            + '<rect x="5"  y="14" width="8" height="6" fill="white"/>'
-            + '<rect x="13" y="14" width="8" height="6" fill="' + c + '"/>'
-            + '<circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>'
-            + '<circle cx="14" cy="46" r="2.8" fill="' + c + '"/>'
+          return '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">'
+            + '<line x1="20" y1="34" x2="20" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>'
+            + '<rect x="4" y="4" width="16" height="12" fill="white" opacity="0.85"/>'
+            + '<line x1="20" y1="34" x2="20" y2="4" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>'
+            + '<rect x="4"  y="4"  width="8" height="6" fill="' + RED + '"/>'
+            + '<rect x="12" y="4"  width="8" height="6" fill="white"/>'
+            + '<rect x="4"  y="10" width="8" height="6" fill="white"/>'
+            + '<rect x="12" y="10" width="8" height="6" fill="' + RED + '"/>'
+            + '<circle cx="20" cy="34" r="3.5" fill="white" opacity="0.85"/>'
+            + '<circle cx="20" cy="34" r="2.2" fill="' + RED + '"/>'
             + '</svg>';
         }
-        function makeMarker(type, coord) {
+        function makeMarker(type, coord, anchor) {
           var el = document.createElement('div');
           el.style.cssText = 'display:block;pointer-events:none;';
           el.innerHTML = flagSvg(type);
-          new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 4] })
+          new maplibregl.Marker({ element: el, anchor: anchor })
             .setLngLat(coord)
             .addTo(map);
         }
-        ${showStart && startCoord ? `makeMarker('start', ${startJson});` : ''}
-        ${showFinish && endCoord  ? `makeMarker('finish', ${endJson});`  : ''}
+        ${showStart && startCoord ? `makeMarker('start', ${startJson}, 'bottom-left');`  : ''}
+        ${showFinish && endCoord  ? `makeMarker('finish', ${endJson},  'bottom-right');` : ''}
       })();
     `
   }

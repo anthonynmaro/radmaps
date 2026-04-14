@@ -1075,49 +1075,61 @@ function populateSegmentSources() {
 // Finish: pole leans RIGHT, checkered rectangle extends left.
 // The opposing lean gives natural separation at loop trailheads.
 
+// ── Flag-style start / finish markers ────────────────────────────────────────
+// Uses maplibregl.Marker (DOM overlay) so the SVG appears in both the browser
+// preview and Puppeteer screenshots.
+//
+// KEY layout rule — opposite anchors prevent overlap at loop trailheads:
+//   Start:  pole on LEFT edge, anchor='bottom-left'  → element extends RIGHT of coord
+//   Finish: pole on RIGHT edge, anchor='bottom-right' → element extends LEFT of coord
+//
+// Colors are semantic (not route_color): green = start, red = finish.
+
+const PIN_GREEN = '#2D6A4F'
+const PIN_RED   = '#B91C1C'
+
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function flagSvg(type: 'start' | 'finish', color: string): string {
-  // 28 × 48 viewBox; pole base at (14, 46) — anchor: bottom + offset [0,4]
-  // puts the base dot precisely at the geographic coordinate.
-  const c = color
+function flagSvg(type: 'start' | 'finish'): string {
+  // 22 × 36 viewBox.
+  // Start: pole at x=2 (left edge), pennant extends right.
+  // Finish: pole at x=20 (right edge), checkered rect extends left.
   if (type === 'start') {
-    // Pole leans LEFT to (7,8); pennant triangle extends RIGHT
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">
-      <line x1="14" y1="46" x2="7" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>
-      <polygon points="7,8 7,23 24,15.5" fill="white" opacity="0.88"/>
-      <line x1="14" y1="46" x2="7" y2="8" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
-      <polygon points="7,8 7,23 24,15.5" fill="${c}"/>
-      <circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>
-      <circle cx="14" cy="46" r="2.8" fill="${c}"/>
+    const c = PIN_GREEN
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">
+      <line x1="2" y1="34" x2="2" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+      <polygon points="2,4 2,15 18,9.5" fill="white" opacity="0.85"/>
+      <line x1="2" y1="34" x2="2" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="2,4 2,15 18,9.5" fill="${c}"/>
+      <circle cx="2" cy="34" r="3.5" fill="white" opacity="0.85"/>
+      <circle cx="2" cy="34" r="2.2" fill="${c}"/>
     </svg>`
   }
-  // Finish: pole leans RIGHT to (21,8); checkered 2×2 rect extends LEFT
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">
-    <line x1="14" y1="46" x2="21" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>
-    <rect x="5" y="8" width="16" height="12" fill="white" opacity="0.88"/>
-    <line x1="14" y1="46" x2="21" y2="8" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
-    <rect x="5"  y="8"  width="8" height="6" fill="${c}"/>
-    <rect x="13" y="8"  width="8" height="6" fill="white"/>
-    <rect x="5"  y="14" width="8" height="6" fill="white"/>
-    <rect x="13" y="14" width="8" height="6" fill="${c}"/>
-    <circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>
-    <circle cx="14" cy="46" r="2.8" fill="${c}"/>
+  const c = PIN_RED
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">
+    <line x1="20" y1="34" x2="20" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+    <rect x="4" y="4" width="16" height="12" fill="white" opacity="0.85"/>
+    <line x1="20" y1="34" x2="20" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <rect x="4"  y="4"  width="8" height="6" fill="${c}"/>
+    <rect x="12" y="4"  width="8" height="6" fill="white"/>
+    <rect x="4"  y="10" width="8" height="6" fill="white"/>
+    <rect x="12" y="10" width="8" height="6" fill="${c}"/>
+    <circle cx="20" cy="34" r="3.5" fill="white" opacity="0.85"/>
+    <circle cx="20" cy="34" r="2.2" fill="${c}"/>
   </svg>`
 }
 
-function makeFlagEl(type: 'start' | 'finish', color: string): HTMLElement {
+function makeFlagEl(type: 'start' | 'finish'): HTMLElement {
   const el = document.createElement('div')
   el.style.cssText = 'display:block;pointer-events:none;'
-  el.innerHTML = flagSvg(type, color)
+  el.innerHTML = flagSvg(type)
   return el
 }
 
 function placePinMarkers() {
   if (!mapInstance) return
 
-  // Remove existing markers before re-placing
   startMarker?.remove(); startMarker = null
   finishMarker?.remove(); finishMarker = null
 
@@ -1140,16 +1152,13 @@ function placePinMarkers() {
     }
   }
 
-  const color = props.styleConfig.route_color || '#2D6A4F'
-  const markerOpts = { anchor: 'bottom' as const, offset: [0, 4] as [number, number] }
-
   if (startCoord && props.styleConfig.show_start_pin !== false) {
-    startMarker = new maplibregl.Marker({ element: makeFlagEl('start', color), ...markerOpts })
+    startMarker = new maplibregl.Marker({ element: makeFlagEl('start'), anchor: 'bottom-left' })
       .setLngLat(startCoord as [number, number])
       .addTo(mapInstance)
   }
   if (endCoord && props.styleConfig.show_finish_pin !== false) {
-    finishMarker = new maplibregl.Marker({ element: makeFlagEl('finish', color), ...markerOpts })
+    finishMarker = new maplibregl.Marker({ element: makeFlagEl('finish'), anchor: 'bottom-right' })
       .setLngLat(endCoord as [number, number])
       .addTo(mapInstance)
   }
@@ -1286,9 +1295,8 @@ watch(
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
     }
 
-    // Re-place flag markers when color or visibility toggles (cheap DOM operation)
+    // Re-place flag markers when visibility toggles
     if (
-      newConfig.route_color !== oldConfig?.route_color ||
       newConfig.show_start_pin !== oldConfig?.show_start_pin ||
       newConfig.show_finish_pin !== oldConfig?.show_finish_pin
     ) {
