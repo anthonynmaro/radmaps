@@ -302,6 +302,93 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
   return layers
 }
 
+// ─── Roads overlay ───────────────────────────────────────────────────────────
+// Mapbox Streets v8 vector tiles — uses the same token as terrain.
+// Falls back gracefully (no source/layers added) when no token is present.
+
+function roadsSource(token: string) {
+  return {
+    'mapbox-streets': {
+      type: 'vector' as const,
+      tiles: [`https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/{z}/{x}/{y}.vector.pbf?access_token=${token}`],
+      minzoom: 0,
+      maxzoom: 16,
+      attribution: '© Mapbox © OpenStreetMap contributors',
+    },
+  }
+}
+
+function roadsLayers(config: StyleConfig): object[] {
+  if (!config.show_roads) return []
+  const color = config.label_text_color
+
+  return [
+    // Motorways + trunk — widest, most prominent
+    {
+      id: 'roads-major',
+      type: 'line',
+      source: 'mapbox-streets',
+      'source-layer': 'road',
+      filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': color,
+        'line-opacity': 0.30,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.0, 14, 3.5],
+      },
+    },
+    // Primary + secondary
+    {
+      id: 'roads-primary',
+      type: 'line',
+      source: 'mapbox-streets',
+      'source-layer': 'road',
+      filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary']]],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': color,
+        'line-opacity': 0.22,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 2.5],
+      },
+    },
+    // Tertiary + local streets
+    {
+      id: 'roads-minor',
+      type: 'line',
+      source: 'mapbox-streets',
+      'source-layer': 'road',
+      filter: ['in', ['get', 'class'], ['literal', ['tertiary', 'street', 'service', 'path']]],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': color,
+        'line-opacity': 0.14,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.5],
+      },
+    },
+    // Place labels (cities, towns, villages)
+    {
+      id: 'roads-place-labels',
+      type: 'symbol',
+      source: 'mapbox-streets',
+      'source-layer': 'place_label',
+      filter: ['in', ['get', 'type'], ['literal', ['city', 'town', 'village']]],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 9, 14, 13],
+        'text-anchor': 'center',
+        'text-max-width': 8,
+      },
+      paint: {
+        'text-color': color,
+        'text-opacity': 0.45,
+        'text-halo-color': config.background_color,
+        'text-halo-width': 1.5,
+      },
+    },
+  ]
+}
+
 // ─── Trail segment sources/layers ────────────────────────────────────────────
 
 export function trailSegmentSources(segments: TrailSegment[] = []): Record<string, object> {
@@ -356,74 +443,50 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
   return layers
 }
 
-// ─── Pin source + layers ──────────────────────────────────────────────────────
+// ─── Segment endpoint handles ─────────────────────────────────────────────────
+// Small colored dots at the start/end of each visible trail segment.
+// Data is populated by MapPreview.vue's populateSegmentSources().
+// circle-color is data-driven from the GeoJSON feature's `color` property.
 
-export function pinSource(): object {
+function segmentHandleSource(): object {
   return {
-    'route-pins': {
+    'segment-handles': {
       type: 'geojson' as const,
       data: { type: 'FeatureCollection', features: [] },
     },
   }
 }
 
-export function pinLayers(config: StyleConfig): object[] {
-  const startVis = config.show_start_pin !== false ? 'visible' : 'none'
-  const finishVis = config.show_finish_pin !== false ? 'visible' : 'none'
-
+function segmentHandleLayers(): object[] {
   return [
-    // ── Start pin: white halo → route_color disk → white center (open ring look) ──
     {
-      id: 'route-pin-start-halo',
+      id: 'segment-handle-halo',
       type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'start'],
-      layout: { visibility: startVis },
-      paint: { 'circle-radius': 13, 'circle-color': '#FFFFFF', 'circle-opacity': 0.88, 'circle-blur': 0.18 },
+      source: 'segment-handles',
+      paint: {
+        'circle-radius': 9,
+        'circle-color': '#FFFFFF',
+        'circle-opacity': 0.88,
+        'circle-blur': 0.15,
+      },
     },
     {
-      id: 'route-pin-start-ring',
+      id: 'segment-handle-dot',
       type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'start'],
-      layout: { visibility: startVis },
-      paint: { 'circle-radius': 9, 'circle-color': config.route_color, 'circle-opacity': 1 },
-    },
-    {
-      id: 'route-pin-start-center',
-      type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'start'],
-      layout: { visibility: startVis },
-      paint: { 'circle-radius': 4, 'circle-color': '#FFFFFF', 'circle-opacity': 1 },
-    },
-    // ── Finish pin: white halo → route_color solid disk (closed look) ────────────
-    {
-      id: 'route-pin-finish-halo',
-      type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'finish'],
-      layout: { visibility: finishVis },
-      paint: { 'circle-radius': 13, 'circle-color': '#FFFFFF', 'circle-opacity': 0.88, 'circle-blur': 0.18 },
-    },
-    {
-      id: 'route-pin-finish',
-      type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'finish'],
-      layout: { visibility: finishVis },
-      paint: { 'circle-radius': 10, 'circle-color': config.route_color, 'circle-opacity': 1 },
-    },
-    {
-      id: 'route-pin-finish-dot',
-      type: 'circle',
-      source: 'route-pins',
-      filter: ['==', ['get', 'type'], 'finish'],
-      layout: { visibility: finishVis },
-      paint: { 'circle-radius': 3.5, 'circle-color': '#FFFFFF', 'circle-opacity': 1 },
+      source: 'segment-handles',
+      paint: {
+        'circle-radius': 5.5,
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#FFFFFF',
+        'circle-stroke-width': 1.5,
+        'circle-opacity': 1,
+      },
     },
   ]
 }
+
+// Pins are rendered as maplibregl.Marker HTML elements (see MapPreview.vue → placePinMarkers).
+// No MapLibre source/layers needed — markers sit in the DOM above the canvas.
 
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
@@ -508,9 +571,10 @@ function buildMinimalistStyle(
       'base-tiles': { ...baseTileSource, attribution: baseTileAttribution },
       ...(config.show_hillshade ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       ...trailSegmentSources(config.trail_segments),
-      ...pinSource(),
+      ...segmentHandleSource(),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
@@ -524,10 +588,11 @@ function buildMinimalistStyle(
         },
       },
       ...hillshadeLayers(config),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
-      ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
-      ...pinLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(),
     ],
   }
 }
@@ -555,9 +620,10 @@ function buildTopographicStyle(
       },
       ...(config.show_hillshade ? demSource(token) : {}),
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
+      ...(config.show_roads && token ? roadsSource(token) : {}),
       route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       ...trailSegmentSources(config.trail_segments),
-      ...pinSource(),
+      ...segmentHandleSource(),
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
@@ -573,10 +639,11 @@ function buildTopographicStyle(
         },
       },
       ...hillshadeLayers(config),
+      ...(token ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
-      ...trailSegmentLayers(config.trail_segments, config),
       ...routeLayers(config),
-      ...pinLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(),
     ],
   }
 }

@@ -299,14 +299,17 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     }).join('')
   }
 
-  // Pin JS (run inside map.on('load')) — populates route-pins GeoJSON source
-  // and separates start/finish by 28 px when they overlap (loop routes).
-  function pinsJs() {
+  // Flag marker JS (run inside map.on('load')).
+  // Creates maplibregl.Marker DOM elements — Puppeteer screenshots capture DOM
+  // overlays, so these appear correctly in the rendered image.
+  // Start flag: pole leans LEFT, pennant extends RIGHT.
+  // Finish flag: pole leans RIGHT, checkered rect extends LEFT.
+  // Opposing lean gives natural separation on loop trailheads — no offset hack needed.
+  function pinMarkersJs() {
     const showStart = style_config.show_start_pin !== false
     const showFinish = style_config.show_finish_pin !== false
     if (!showStart && !showFinish) return ''
 
-    // Extract first and last coordinate from the GeoJSON
     let startCoord = null
     let endCoord = null
     for (const f of geojson.features) {
@@ -323,27 +326,49 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
         }
       }
     }
-
     if (!startCoord && !endCoord) return ''
 
-    const features = []
-    if (showStart && startCoord) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: startCoord }, properties: { type: 'start' } })
-    if (showFinish && endCoord) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: endCoord }, properties: { type: 'finish' } })
-
-    // Detect overlap (~500m threshold)
-    const overlapping = startCoord && endCoord &&
-      Math.abs(startCoord[0] - endCoord[0]) < 0.005 &&
-      Math.abs(startCoord[1] - endCoord[1]) < 0.0045
-
-    const pinsData = JSON.stringify({ type: 'FeatureCollection', features })
-    const startTranslate = overlapping ? '[0, -28]' : '[0, 0]'
+    const color = style_config.route_color || '#2D6A4F'
+    const startJson = JSON.stringify(startCoord)
+    const endJson   = JSON.stringify(endCoord)
 
     return `
-      map.getSource('route-pins').setData(${pinsData});
-      ${overlapping && showStart ? `
-      map.setPaintProperty('route-pin-start-halo', 'circle-translate', ${startTranslate});
-      map.setPaintProperty('route-pin-start-ring', 'circle-translate', ${startTranslate});
-      map.setPaintProperty('route-pin-start-center', 'circle-translate', ${startTranslate});` : ''}
+      (function() {
+        var c = ${JSON.stringify(color)};
+        function flagSvg(type) {
+          if (type === 'start') {
+            return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">'
+              + '<line x1="14" y1="46" x2="7" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>'
+              + '<polygon points="7,8 7,23 24,15.5" fill="white" opacity="0.88"/>'
+              + '<line x1="14" y1="46" x2="7" y2="8" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round"/>'
+              + '<polygon points="7,8 7,23 24,15.5" fill="' + c + '"/>'
+              + '<circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>'
+              + '<circle cx="14" cy="46" r="2.8" fill="' + c + '"/>'
+              + '</svg>';
+          }
+          return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">'
+            + '<line x1="14" y1="46" x2="21" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>'
+            + '<rect x="5" y="8" width="16" height="12" fill="white" opacity="0.88"/>'
+            + '<line x1="14" y1="46" x2="21" y2="8" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round"/>'
+            + '<rect x="5"  y="8"  width="8" height="6" fill="' + c + '"/>'
+            + '<rect x="13" y="8"  width="8" height="6" fill="white"/>'
+            + '<rect x="5"  y="14" width="8" height="6" fill="white"/>'
+            + '<rect x="13" y="14" width="8" height="6" fill="' + c + '"/>'
+            + '<circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>'
+            + '<circle cx="14" cy="46" r="2.8" fill="' + c + '"/>'
+            + '</svg>';
+        }
+        function makeMarker(type, coord) {
+          var el = document.createElement('div');
+          el.style.cssText = 'display:block;pointer-events:none;';
+          el.innerHTML = flagSvg(type);
+          new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 4] })
+            .setLngLat(coord)
+            .addTo(map);
+        }
+        ${showStart && startCoord ? `makeMarker('start', ${startJson});` : ''}
+        ${showFinish && endCoord  ? `makeMarker('finish', ${endJson});`  : ''}
+      })();
     `
   }
 
@@ -550,7 +575,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
         paint: { 'line-color': '${style_config.route_color}', 'line-width': ${style_config.route_width}, 'line-opacity': ${style_config.route_opacity} }
       });
       ${trailSegmentsJs()}
-      ${pinsJs()}
+      ${pinMarkersJs()}
       map.once('idle', () => { window.__mapReady = true; });
     });
   </script>

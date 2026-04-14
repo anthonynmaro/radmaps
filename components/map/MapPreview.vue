@@ -965,7 +965,7 @@ onMounted(async () => {
   mapInstance.on('load', () => {
     populateRouteSource()
     populateSegmentSources()
-    populatePinSource()
+    placePinMarkers()
     setPaintBackground()
     mapReady.value = true
     if (props.editable) initOverlayDrag()
@@ -1067,14 +1067,61 @@ function populateSegmentSources() {
   if (handleSrc) handleSrc.setData({ type: 'FeatureCollection', features: handleFeatures })
 }
 
-// Cached pin coords so overlap offset can be re-applied after style reloads
-let _pinStart: number[] | null = null
-let _pinEnd: number[] | null = null
+// ── Flag-style start / finish markers ────────────────────────────────────────
+// Uses maplibregl.Marker (DOM overlay) so the SVG renders in both the browser
+// preview and Puppeteer screenshots without needing a MapLibre source/layer.
+//
+// Start: pole leans LEFT, pennant extends right.
+// Finish: pole leans RIGHT, checkered rectangle extends left.
+// The opposing lean gives natural separation at loop trailheads.
 
-function populatePinSource() {
+let startMarker: maplibregl.Marker | null = null
+let finishMarker: maplibregl.Marker | null = null
+
+function flagSvg(type: 'start' | 'finish', color: string): string {
+  // 28 × 48 viewBox; pole base at (14, 46) — anchor: bottom + offset [0,4]
+  // puts the base dot precisely at the geographic coordinate.
+  const c = color
+  if (type === 'start') {
+    // Pole leans LEFT to (7,8); pennant triangle extends RIGHT
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">
+      <line x1="14" y1="46" x2="7" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>
+      <polygon points="7,8 7,23 24,15.5" fill="white" opacity="0.88"/>
+      <line x1="14" y1="46" x2="7" y2="8" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="7,8 7,23 24,15.5" fill="${c}"/>
+      <circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>
+      <circle cx="14" cy="46" r="2.8" fill="${c}"/>
+    </svg>`
+  }
+  // Finish: pole leans RIGHT to (21,8); checkered 2×2 rect extends LEFT
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="48" viewBox="0 0 28 48" style="display:block;overflow:visible">
+    <line x1="14" y1="46" x2="21" y2="8" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.88"/>
+    <rect x="5" y="8" width="16" height="12" fill="white" opacity="0.88"/>
+    <line x1="14" y1="46" x2="21" y2="8" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="5"  y="8"  width="8" height="6" fill="${c}"/>
+    <rect x="13" y="8"  width="8" height="6" fill="white"/>
+    <rect x="5"  y="14" width="8" height="6" fill="white"/>
+    <rect x="13" y="14" width="8" height="6" fill="${c}"/>
+    <circle cx="14" cy="46" r="4" fill="white" opacity="0.88"/>
+    <circle cx="14" cy="46" r="2.8" fill="${c}"/>
+  </svg>`
+}
+
+function makeFlagEl(type: 'start' | 'finish', color: string): HTMLElement {
+  const el = document.createElement('div')
+  el.style.cssText = 'display:block;pointer-events:none;'
+  el.innerHTML = flagSvg(type, color)
+  return el
+}
+
+function placePinMarkers() {
   if (!mapInstance) return
-  const features = (props.map.geojson as GeoJSON.FeatureCollection).features
 
+  // Remove existing markers before re-placing
+  startMarker?.remove(); startMarker = null
+  finishMarker?.remove(); finishMarker = null
+
+  const features = (props.map.geojson as GeoJSON.FeatureCollection).features
   let startCoord: number[] | null = null
   let endCoord: number[] | null = null
 
@@ -1093,40 +1140,18 @@ function populatePinSource() {
     }
   }
 
-  _pinStart = startCoord
-  _pinEnd = endCoord
+  const color = props.styleConfig.route_color || '#2D6A4F'
+  const markerOpts = { anchor: 'bottom' as const, offset: [0, 4] as [number, number] }
 
-  const pinFeatures: GeoJSON.Feature[] = []
-  if (startCoord) {
-    pinFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: startCoord }, properties: { type: 'start' } })
+  if (startCoord && props.styleConfig.show_start_pin !== false) {
+    startMarker = new maplibregl.Marker({ element: makeFlagEl('start', color), ...markerOpts })
+      .setLngLat(startCoord as [number, number])
+      .addTo(mapInstance)
   }
-  if (endCoord) {
-    pinFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: endCoord }, properties: { type: 'finish' } })
-  }
-
-  const src = mapInstance.getSource('route-pins') as maplibregl.GeoJSONSource | undefined
-  if (src) src.setData({ type: 'FeatureCollection', features: pinFeatures })
-
-  applyPinOffsets()
-}
-
-// Returns true when start and finish are close enough to visually overlap
-// (~500m threshold covers exact loops and same-trailhead out-and-backs)
-function pinsOverlap(): boolean {
-  if (!_pinStart || !_pinEnd) return false
-  return Math.abs(_pinStart[0] - _pinEnd[0]) < 0.005 &&
-         Math.abs(_pinStart[1] - _pinEnd[1]) < 0.0045
-}
-
-// Offset the start pin 28 px upward when it would overlap the finish pin.
-// 28 px > outer halo diameter (26 px) so the two circles just clear each other.
-function applyPinOffsets() {
-  if (!mapInstance) return
-  const translate: [number, number] = pinsOverlap() ? [0, -28] : [0, 0]
-  for (const id of ['route-pin-start-halo', 'route-pin-start-ring', 'route-pin-start-center']) {
-    if (mapInstance.getLayer(id)) {
-      mapInstance.setPaintProperty(id, 'circle-translate', translate)
-    }
+  if (endCoord && props.styleConfig.show_finish_pin !== false) {
+    finishMarker = new maplibregl.Marker({ element: makeFlagEl('finish', color), ...markerOpts })
+      .setLngLat(endCoord as [number, number])
+      .addTo(mapInstance)
   }
 }
 
@@ -1206,7 +1231,7 @@ watch(
       mapInstance.once('styledata', () => {
         populateRouteSource()
         populateSegmentSources()
-        populatePinSource()
+        placePinMarkers()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
       })
@@ -1261,27 +1286,13 @@ watch(
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
     }
 
-    // Update pin colors when route_color changes (paint-only)
-    if (newConfig.route_color !== oldConfig?.route_color) {
-      for (const id of ['route-pin-start-ring', 'route-pin-finish']) {
-        if (mapInstance.getLayer(id)) {
-          mapInstance.setPaintProperty(id, 'circle-color', newConfig.route_color)
-        }
-      }
-    }
-
-    // Toggle pin visibility without a full reload
-    if (newConfig.show_start_pin !== oldConfig?.show_start_pin) {
-      const vis = newConfig.show_start_pin !== false ? 'visible' : 'none'
-      for (const id of ['route-pin-start-halo', 'route-pin-start-ring', 'route-pin-start-center']) {
-        if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', vis)
-      }
-    }
-    if (newConfig.show_finish_pin !== oldConfig?.show_finish_pin) {
-      const vis = newConfig.show_finish_pin !== false ? 'visible' : 'none'
-      for (const id of ['route-pin-finish-halo', 'route-pin-finish', 'route-pin-finish-dot']) {
-        if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', vis)
-      }
+    // Re-place flag markers when color or visibility toggles (cheap DOM operation)
+    if (
+      newConfig.route_color !== oldConfig?.route_color ||
+      newConfig.show_start_pin !== oldConfig?.show_start_pin ||
+      newConfig.show_finish_pin !== oldConfig?.show_finish_pin
+    ) {
+      placePinMarkers()
     }
   },
   { deep: true },
@@ -1313,6 +1324,8 @@ watch(
 onUnmounted(() => {
   for (const inst of interactInstances) inst.unset()
   resizeObserver?.disconnect()
+  startMarker?.remove()
+  finishMarker?.remove()
   mapInstance?.remove()
   mapInstance = null
 })
