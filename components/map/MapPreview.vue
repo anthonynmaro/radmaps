@@ -116,6 +116,8 @@
         <div
           v-if="(styleConfig.text_overlays ?? []).length > 0"
           class="overlay-layer"
+          :style="{ pointerEvents: editable && selectedOverlayId ? 'auto' : 'none' }"
+          @click.self="selectedOverlayId = null"
         >
           <div
             v-for="overlay in styleConfig.text_overlays"
@@ -124,8 +126,33 @@
             class="text-overlay"
             :class="{ 'is-editable': editable }"
             :style="overlayStyle(overlay)"
-            @click="editable ? onOverlayClick(overlay.id) : undefined"
-          >{{ overlay.content }}</div>
+            @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
+          >
+            {{ overlay.content }}
+            <template v-if="editable && selectedOverlayId === overlay.id">
+              <!-- Delete button -->
+              <button
+                class="overlay-delete-btn"
+                title="Remove"
+                @click.stop="onOverlayDelete(overlay.id)"
+                @pointerdown.stop
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+              <!-- Resize handle -->
+              <div
+                class="overlay-resize-handle"
+                title="Drag to resize"
+                @pointerdown.stop.prevent="onResizeStart($event, overlay.id)"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" width="9" height="9">
+                  <path d="M13.5 6.5L17 10l-3.5 3.5V6.5zM6.5 13.5L3 10l3.5-3.5v7z" opacity="0.8"/>
+                </svg>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -221,6 +248,8 @@ const emit = defineEmits<{
   'update:locationText': [value: string]
   'overlay-moved': [payload: { id: string; x: number; y: number }]
   'overlay-selected': [id: string]
+  'overlay-deleted': [id: string]
+  'overlay-resized': [payload: { id: string; font_size: number }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
 }>()
 
@@ -300,8 +329,47 @@ function onOccasionBlur(e: FocusEvent) {
   emit('update:occasionText', (e.target as HTMLElement).innerText.trim())
 }
 
+const selectedOverlayId = ref<string | null>(null)
+const resizePreview = ref<{ id: string; font_size: number } | null>(null)
+
 function onOverlayClick(id: string) {
+  selectedOverlayId.value = id
   emit('overlay-selected', id)
+}
+
+function onOverlayDelete(id: string) {
+  selectedOverlayId.value = null
+  emit('overlay-deleted', id)
+}
+
+function onResizeStart(e: PointerEvent, id: string) {
+  const overlay = props.styleConfig.text_overlays?.find(o => o.id === id)
+  if (!overlay || !mapContainer.value) return
+  e.preventDefault()
+
+  const startY = e.clientY
+  const startSize = overlay.font_size
+  const containerH = mapContainer.value.offsetHeight
+
+  resizePreview.value = { id, font_size: startSize }
+
+  function onMove(e: PointerEvent) {
+    const dy = e.clientY - startY
+    const newSize = Math.max(0.5, Math.min(10, startSize + (dy / containerH) * 10))
+    resizePreview.value = { id, font_size: newSize }
+  }
+
+  function onUp() {
+    if (resizePreview.value) {
+      emit('overlay-resized', { id, font_size: parseFloat(resizePreview.value.font_size.toFixed(2)) })
+    }
+    resizePreview.value = null
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+  }
+
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
 }
 
 // ── Print canvas ─────────────────────────────────────────────────────────────
@@ -666,12 +734,14 @@ const logoFooterStyle = computed(() => ({
 
 function overlayStyle(o: TextOverlay): Record<string, string> {
   const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
+  const fontSize = resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
+  const isSelected = props.editable && selectedOverlayId.value === o.id
   return {
     position: 'absolute',
     left: `${o.x}%`,
     top: `${o.y}%`,
     fontFamily: `'${o.font_family}', sans-serif`,
-    fontSize: `${o.font_size}cqh`,
+    fontSize: `${fontSize}cqh`,
     color: o.color,
     textAlign: o.alignment,
     opacity: String(o.opacity),
@@ -682,6 +752,7 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
     zIndex: '8',
+    ...(isSelected ? { outline: '1.5px dashed rgba(45,106,79,0.7)', borderRadius: '2px' } : {}),
     ...(o.bg_color ? {
       backgroundColor: o.bg_color,
       padding: '0.3cqh 0.8cqh',
@@ -713,7 +784,7 @@ const trailLegendStyle = computed(() => {
   const style: Record<string, string> = {
     position: 'absolute',
     zIndex: '9',
-    background: 'rgba(255,255,255,0.88)',
+    background: bg.value,
     backdropFilter: 'blur(6px)',
     WebkitBackdropFilter: 'blur(6px)',
     borderRadius: '0.6cqh',
@@ -746,6 +817,7 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'show_contours', 'show_hillshade', 'show_elevation_labels',
   'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
+  'show_roads',
   'trail_segments',
 ]
 
@@ -915,6 +987,7 @@ async function initOverlayDrag() {
   const overlays = container.querySelectorAll<HTMLElement>('.text-overlay.is-editable')
   overlays.forEach(el => {
     const inst = interact(el).draggable({
+      ignoreFrom: '.overlay-delete-btn, .overlay-resize-handle',
       listeners: {
         move(event: { dx: number; dy: number; target: HTMLElement }) {
           const containerRect = container.getBoundingClientRect()
@@ -1135,11 +1208,61 @@ onUnmounted(() => {
 .text-overlay.is-editable {
   pointer-events: auto !important;
   cursor: move !important;
+  position: relative; /* needed for child absolute positioning */
 }
 
 .text-overlay.is-editable:hover {
   outline: 1.5px dashed rgba(45, 106, 79, 0.4);
   border-radius: 2px;
+}
+
+/* Delete button — top-right corner of selected overlay */
+.overlay-delete-btn {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.92);
+  color: white;
+  border: 1.5px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto !important;
+  touch-action: none;
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.overlay-delete-btn:hover {
+  background: rgb(220, 38, 38);
+  transform: scale(1.1);
+}
+
+/* Resize handle — bottom-right corner of selected overlay */
+.overlay-resize-handle {
+  position: absolute;
+  bottom: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(45, 106, 79, 0.88);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: se-resize;
+  pointer-events: auto !important;
+  touch-action: none;
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  border: 1.5px solid white;
+}
+.overlay-resize-handle:hover {
+  background: rgba(35, 88, 64, 0.95);
 }
 
 /* Trail legend */

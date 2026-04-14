@@ -120,6 +120,11 @@ export interface StyleConfig {
   logo_url?: string
   logo_position?: 'map-top-right' | 'header-right' | 'footer-left'
   logo_size?: number              // 5–20 cqh units, default: 8
+  // Roads overlay (Mapbox Streets v8, requires mapbox token)
+  show_roads?: boolean
+  // Route pins (start / finish markers)
+  show_start_pin?: boolean
+  show_finish_pin?: boolean
   // Text overlays (floating text on map)
   text_overlays?: TextOverlay[]
   // Trail segments (named slices of the primary route)
@@ -168,6 +173,9 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   label_text_color: '#1C1917',
   label_bg_color: '#F7F4EF',
   show_branding: true,
+  show_roads: false,
+  show_start_pin: true,
+  show_finish_pin: true,
   show_logo: false,
   logo_position: 'map-top-right',
   logo_size: 8,

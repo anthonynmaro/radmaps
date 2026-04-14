@@ -1,5 +1,5 @@
 <template>
-  <div class="h-[100dvh] bg-stone-100 flex flex-col overflow-hidden">
+  <div class="fixed inset-0 bg-stone-100 flex flex-col overflow-hidden">
 
     <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
     <header class="bg-white border-b border-stone-200 px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 shrink-0 z-20">
@@ -140,6 +140,8 @@
               @update:location-text="styleConfig.location_text = $event"
               @overlay-moved="onOverlayMoved"
               @overlay-selected="onOverlaySelected"
+              @overlay-deleted="onOverlayDeleted"
+              @overlay-resized="onOverlayResized"
             />
           </ClientOnly>
           <div v-if="!mapData" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -353,6 +355,21 @@ function onOverlayMoved(payload: { id: string; x: number; y: number }) {
 function onOverlaySelected(id: string) {
   // Switch to Style tab on mobile so panel is visible
   if (mobileTab.value === 'preview') mobileTab.value = 'style'
+}
+
+function onOverlayDeleted(id: string) {
+  styleConfig.value = {
+    ...styleConfig.value,
+    text_overlays: (styleConfig.value.text_overlays ?? []).filter(o => o.id !== id),
+  }
+}
+
+function onOverlayResized(payload: { id: string; font_size: number }) {
+  const overlays = styleConfig.value.text_overlays ?? []
+  styleConfig.value = {
+    ...styleConfig.value,
+    text_overlays: overlays.map(o => o.id === payload.id ? { ...o, font_size: payload.font_size } : o),
+  }
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────
