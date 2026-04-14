@@ -34,24 +34,26 @@ app.get('/health', async () => ({ status: 'ok' }))
 
 // ─── Submit render job ────────────────────────────────────────────────────────
 app.post('/render', async (request, reply) => {
-  const { map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token } = request.body
+  const { map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, quality } = request.body
+  const isPreview = quality === 'preview'
 
   const jobId = randomUUID()
   jobs.set(jobId, { status: 'queued', map_id })
 
   // Kick off async render (don't await)
-  renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token })
+  renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, isPreview })
     .catch(async err => {
       app.log.error(err)
       jobs.set(jobId, { status: 'failed', error: err.message, map_id })
 
-      // Write error sentinel to Supabase so the client can detect failure fast
-      // instead of waiting for the 5-minute client-side poll timeout.
+      // Write error sentinel to Supabase so the client can detect failure fast.
+      // Preview failures write to thumbnail_url; print failures write to render_url.
       try {
         const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+        const sentinel = `error:${err.message.slice(0, 200)}`
         await supabase
           .from('maps')
-          .update({ render_url: `error:${err.message.slice(0, 200)}` })
+          .update(isPreview ? { thumbnail_url: sentinel } : { render_url: sentinel })
           .eq('id', map_id)
       } catch (supabaseErr) {
         app.log.error('Failed to write error sentinel to Supabase:', supabaseErr)
@@ -69,15 +71,13 @@ app.get('/render/status/:jobId', async (request, reply) => {
 })
 
 // ─── Core render function ─────────────────────────────────────────────────────
-async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token }) {
+async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, isPreview }) {
   jobs.set(jobId, { status: 'rendering', map_id })
 
-  // Render at 18×24" × 300 DPI (Gelato's most popular large-format poster size).
-  // Adding 3mm bleed on each side (≈ 35px at 300 DPI) gives the final canvas size.
-  // For larger products (24×36") the render is upscaled by Gelato's print pipeline;
-  // alternatively, pass product dimensions from the job payload to render at native size.
-  const WIDTH_PX = 5470   // (18in + 6mm bleed) × 300 DPI ≈ 5400 + 70
-  const HEIGHT_PX = 7270  // (24in + 6mm bleed) × 300 DPI ≈ 7200 + 70
+  // Preview: 1/4 scale — fast enough to appear while the user fills in shipping (~15–20s).
+  // Print: full 18×24" × 300 DPI with 3mm bleed — the file sent to Gelato.
+  const WIDTH_PX  = isPreview ? 1350 : 5470
+  const HEIGHT_PX = isPreview ? 1800 : 7270
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -99,8 +99,8 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
   // window.__mapReady is set by map.once('idle'), which is the real completion signal.
   await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
 
-  // Wait for MapLibre idle — 90s gives enough headroom for a 5470×7270 render
-  await page.waitForFunction('window.__mapReady === true', { timeout: 90000 })
+  // Preview needs much less headroom; print gets the full 90s budget.
+  await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 30000 : 90000 })
   await new Promise(resolve => setTimeout(resolve, 500)) // Extra settle time
 
   // Screenshot
@@ -118,7 +118,8 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
     process.env.SUPABASE_SERVICE_KEY,
   )
 
-  const jpegPath = `${map_id}/render-${Date.now()}.jpg`
+  const fileKey = isPreview ? 'preview' : 'render'
+  const jpegPath = `${map_id}/${fileKey}-${Date.now()}.jpg`
   const { error: jpegError } = await supabase.storage
     .from('maps')
     .upload(jpegPath, optimisedJpeg, { contentType: 'image/jpeg', upsert: true })
@@ -127,16 +128,13 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
 
   const { data: { publicUrl: jpegUrl } } = supabase.storage.from('maps').getPublicUrl(jpegPath)
 
-  // TODO: Generate PDF (Puppeteer print-to-PDF) — omitted for brevity
-  // const pdfBuffer = await page.pdf({ width: `${WIDTH_PX}px`, height: `${HEIGHT_PX}px`, printBackground: true })
+  // Preview → thumbnail_url only; print → render_url + status = 'rendered'.
+  const update = isPreview
+    ? { thumbnail_url: jpegUrl }
+    : { render_url: jpegUrl, status: 'rendered' }
+  await supabase.from('maps').update(update).eq('id', map_id)
 
-  // Update map record
-  await supabase
-    .from('maps')
-    .update({ render_url: jpegUrl, status: 'rendered' })
-    .eq('id', map_id)
-
-  jobs.set(jobId, { status: 'complete', map_id, render_url: jpegUrl })
+  jobs.set(jobId, { status: 'complete', map_id, ...(isPreview ? { thumbnail_url: jpegUrl } : { render_url: jpegUrl }) })
 }
 
 // ─── HTML template for server-side MapLibre render ───────────────────────────

@@ -920,8 +920,8 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
   'show_roads',
-  'trail_segments',
-  // Tile effect type requires new tile URLs → full style rebuild
+  // trail_segments intentionally absent — segment ID changes are detected below,
+  // and data-only changes (section_start/end, color, width) use the fast path.
   'tile_effect',
 ]
 
@@ -1047,13 +1047,29 @@ function populateRouteSource() {
 
 function populateSegmentSources() {
   if (!mapInstance) return
+  const handleFeatures: GeoJSON.Feature[] = []
+
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible) continue
     const sliced = sliceRouteByPercent(props.map.geojson as GeoJSON.FeatureCollection, seg.section_start, seg.section_end)
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
     if (src) src.setData(sliced)
+
+    // Collect start + end handle dots for this segment
+    const coords = (sliced.features[0]?.geometry as GeoJSON.LineString | undefined)?.coordinates
+    if (coords && coords.length >= 2) {
+      handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color: seg.color } })
+      handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color: seg.color } })
+    }
   }
+
+  const handleSrc = mapInstance.getSource('segment-handles') as maplibregl.GeoJSONSource | undefined
+  if (handleSrc) handleSrc.setData({ type: 'FeatureCollection', features: handleFeatures })
 }
+
+// Cached pin coords so overlap offset can be re-applied after style reloads
+let _pinStart: number[] | null = null
+let _pinEnd: number[] | null = null
 
 function populatePinSource() {
   if (!mapInstance) return
@@ -1077,6 +1093,9 @@ function populatePinSource() {
     }
   }
 
+  _pinStart = startCoord
+  _pinEnd = endCoord
+
   const pinFeatures: GeoJSON.Feature[] = []
   if (startCoord) {
     pinFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: startCoord }, properties: { type: 'start' } })
@@ -1087,6 +1106,28 @@ function populatePinSource() {
 
   const src = mapInstance.getSource('route-pins') as maplibregl.GeoJSONSource | undefined
   if (src) src.setData({ type: 'FeatureCollection', features: pinFeatures })
+
+  applyPinOffsets()
+}
+
+// Returns true when start and finish are close enough to visually overlap
+// (~500m threshold covers exact loops and same-trailhead out-and-backs)
+function pinsOverlap(): boolean {
+  if (!_pinStart || !_pinEnd) return false
+  return Math.abs(_pinStart[0] - _pinEnd[0]) < 0.005 &&
+         Math.abs(_pinStart[1] - _pinEnd[1]) < 0.0045
+}
+
+// Offset the start pin 28 px upward when it would overlap the finish pin.
+// 28 px > outer halo diameter (26 px) so the two circles just clear each other.
+function applyPinOffsets() {
+  if (!mapInstance) return
+  const translate: [number, number] = pinsOverlap() ? [0, -28] : [0, 0]
+  for (const id of ['route-pin-start-halo', 'route-pin-start-ring', 'route-pin-start-center']) {
+    if (mapInstance.getLayer(id)) {
+      mapInstance.setPaintProperty(id, 'circle-translate', translate)
+    }
+  }
 }
 
 function setPaintBackground() {
@@ -1124,10 +1165,12 @@ async function initOverlayDrag() {
         end(event: { target: HTMLElement }) {
           const id = event.target.dataset.overlayId
           if (!id) return
-          const containerRect = container.getBoundingClientRect()
-          const rect = event.target.getBoundingClientRect()
-          const x = Math.round(((rect.left - containerRect.left) / containerRect.width) * 100)
-          const y = Math.round(((rect.top - containerRect.top) / containerRect.height) * 100)
+          // Read the logical % position accumulated by the move handler — NOT
+          // getBoundingClientRect(), which includes the translateX offset applied
+          // by overlayStyle() for center/right alignment and would cause a jump
+          // when Vue re-renders the element back to those coordinates.
+          const x = Math.round(parseFloat(el.style.left) || 0)
+          const y = Math.round(parseFloat(el.style.top)  || 0)
           emit('overlay-moved', { id, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
         },
       },
@@ -1138,66 +1181,25 @@ async function initOverlayDrag() {
 
 // ── Style config watcher ──────────────────────────────────────────────────────
 
-// Track previous trail_segments for smart diffing
-let prevSegmentIds: string[] = []
-let prevSegmentCount = 0
-
 watch(
   () => props.styleConfig,
   async (newConfig, oldConfig) => {
     if (!mapInstance || !mapReady.value) return
 
-    // Also reload when duotone/posterize params change (these are baked into tile URLs)
+    // Tile effect params are baked into tile URLs — require a full style rebuild
     const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
 
-    const needsFullReload = tileKeyChanged || FULL_RELOAD_KEYS.some(
+    // Segment source/layer structure changes when segment IDs are added/removed
+    const newSegIds = (newConfig.trail_segments ?? []).map(s => s.id).join(',')
+    const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => s.id).join(',')
+    const segStructureChanged = newSegIds !== oldSegIds
+
+    const needsFullReload = tileKeyChanged || segStructureChanged || FULL_RELOAD_KEYS.some(
       key => JSON.stringify(newConfig[key]) !== JSON.stringify(oldConfig?.[key]),
     )
 
     if (needsFullReload) {
-      // Check if only segment geometry/paint changed (same IDs, same count)
-      const newSegs = newConfig.trail_segments ?? []
-      const oldSegs = oldConfig?.trail_segments ?? []
-      const newIds = newSegs.map(s => s.id).join(',')
-      const oldIds = oldSegs.map(s => s.id).join(',')
-
-      if (
-        newIds === prevSegmentIds.join(',') &&
-        newSegs.length === prevSegmentCount &&
-        newIds === oldIds &&
-        newConfig.preset === oldConfig?.preset &&
-        newConfig.base_tile_style === oldConfig?.base_tile_style &&
-        newConfig.show_contours === oldConfig?.show_contours &&
-        newConfig.show_hillshade === oldConfig?.show_hillshade &&
-        newConfig.show_elevation_labels === oldConfig?.show_elevation_labels &&
-        newConfig.contour_color === oldConfig?.contour_color &&
-        newConfig.contour_major_color === oldConfig?.contour_major_color &&
-        newConfig.contour_opacity === oldConfig?.contour_opacity &&
-        newConfig.contour_detail === oldConfig?.contour_detail &&
-        newConfig.hillshade_intensity === oldConfig?.hillshade_intensity &&
-        newConfig.hillshade_highlight === oldConfig?.hillshade_highlight
-      ) {
-        // Only segment data changed — update sources + paint properties without full reload
-        populateSegmentSources()
-        for (const seg of newSegs) {
-          if (!seg.visible) continue
-          const lineId = `trail-seg-line-${seg.id}`
-          const casingId = `trail-seg-casing-${seg.id}`
-          const width = seg.width ?? newConfig.route_width ?? 2
-          if (mapInstance.getLayer(lineId)) {
-            mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
-            mapInstance.setPaintProperty(lineId, 'line-width', width)
-            mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
-            mapInstance.setPaintProperty(casingId, 'line-width', width + 3)
-          }
-        }
-        return
-      }
-
-      // Full reload needed
       mapReady.value = false
-      prevSegmentIds = (newConfig.trail_segments ?? []).map(s => s.id)
-      prevSegmentCount = newConfig.trail_segments?.length ?? 0
       if (newConfig.show_contours) await ensureContourProtocol()
       const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(newConfig)) as maplibregl.StyleSpecification
       mapInstance.setStyle(newStyle)
@@ -1209,6 +1211,28 @@ watch(
         if (props.editable) nextTick(() => initOverlayDrag())
       })
       return
+    }
+
+    // Segment data changed (section_start/end, color, width, visibility, opacity)
+    // — update GeoJSON sources and paint properties without any style reload
+    if (JSON.stringify(newConfig.trail_segments) !== JSON.stringify(oldConfig?.trail_segments)) {
+      populateSegmentSources()
+      const newSegs = newConfig.trail_segments ?? []
+      for (const seg of newSegs) {
+        const lineId = `trail-seg-line-${seg.id}`
+        const casingId = `trail-seg-casing-${seg.id}`
+        if (!mapInstance.getLayer(lineId)) continue
+        const vis = seg.visible ? 'visible' : 'none'
+        mapInstance.setLayoutProperty(lineId, 'visibility', vis)
+        mapInstance.setLayoutProperty(casingId, 'visibility', vis)
+        if (seg.visible) {
+          const width = seg.width ?? newConfig.route_width ?? 2
+          mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
+          mapInstance.setPaintProperty(lineId, 'line-width', width)
+          mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
+          mapInstance.setPaintProperty(casingId, 'line-width', width + 3)
+        }
+      }
     }
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()

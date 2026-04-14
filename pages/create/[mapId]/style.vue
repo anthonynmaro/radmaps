@@ -51,31 +51,8 @@
 
         <div class="hidden sm:block w-px h-5 bg-stone-200" />
 
-        <!-- Generate DPI -->
-        <button
-          :disabled="isRendering"
-          class="flex items-center gap-1.5 text-xs font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 disabled:opacity-60 disabled:cursor-not-allowed px-2 sm:px-3 py-2 rounded-lg transition-colors min-h-[36px]"
-          @click="triggerRender"
-          :title="isRendering ? 'Rendering…' : 'Generate 300 DPI'"
-        >
-          <svg class="w-4 h-4 shrink-0" :class="{ 'animate-spin': isRendering }" viewBox="0 0 20 20" fill="currentColor">
-            <path v-if="!isRendering" fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
-            <path v-else fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-          </svg>
-          <span class="hidden sm:inline">{{ isRendering ? 'Rendering…' : 'Generate' }}</span>
-        </button>
-
-        <!-- Ready badge -->
-        <span v-if="renderComplete" class="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
-          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          Ready
-        </span>
-
-        <!-- Continue/Order -->
+        <!-- Order — always available; full render fires automatically on the checkout page -->
         <NuxtLink
-          v-if="renderComplete"
           :to="`/create/${mapId}/checkout`"
           class="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-3 py-2 rounded-lg transition-colors min-h-[36px]"
         >
@@ -84,10 +61,6 @@
             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
           </svg>
         </NuxtLink>
-        <button v-else disabled
-          class="flex items-center gap-1.5 text-xs font-semibold text-stone-400 bg-stone-100 px-3 py-2 rounded-lg min-h-[36px] cursor-not-allowed">
-          Order
-        </button>
       </div>
     </header>
 
@@ -152,15 +125,6 @@
           </div>
         </div>
 
-        <!-- Render error -->
-        <div v-if="renderError" class="px-4 sm:px-6 pb-4 shrink-0">
-          <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <svg class="h-4 w-4 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-            </svg>
-            <span class="text-sm text-red-700">{{ renderError }}</span>
-          </div>
-        </div>
       </main>
 
       <!-- Style controls panel — full screen on mobile when mobileTab==='style' -->
@@ -262,7 +226,6 @@ const route = useRoute()
 const mapId = computed(() => route.params.mapId as string)
 
 const { map: mapData, saving, updateStyle } = useMap(mapId)
-const { triggerRender, isRendering, isComplete: renderComplete, error: renderError } = useMapRenderer(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
 const mobileTab = ref<'preview' | 'style'>('preview')

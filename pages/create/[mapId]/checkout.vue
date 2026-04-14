@@ -32,16 +32,25 @@
           <p class="text-stone-500 text-sm ml-11">{{ map.title }}</p>
         </div>
 
-        <!-- Alert if not rendered -->
-        <div v-if="map.status !== 'rendered'"
-          class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
-          <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        <!-- Render progress / error banner -->
+        <div v-if="renderError"
+          class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-4">
+          <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
           </svg>
           <div>
-            <p class="text-sm font-semibold text-amber-800">Map Not Ready</p>
-            <p class="text-sm text-amber-700 mt-0.5">Your map needs to be styled and rendered first. Please complete the styling step before ordering.</p>
+            <p class="text-sm font-semibold text-red-800">Render failed</p>
+            <p class="text-sm text-red-700 mt-0.5">{{ renderError }}</p>
+            <button @click="startRenders" class="mt-2 text-xs font-medium text-red-700 underline">Try again</button>
           </div>
+        </div>
+        <div v-else-if="!printReady"
+          class="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3.5">
+          <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <p class="text-sm text-sky-800">Preparing your print file — fill in your shipping details while we get it ready.</p>
         </div>
 
         <!-- Product Type Selector -->
@@ -185,6 +194,21 @@
         <div class="lg:sticky lg:top-24 bg-stone-50 rounded-2xl border border-stone-200 p-5 sm:p-6 space-y-4">
           <h3 class="font-semibold text-stone-900" style="font-family:'Space Grotesk',sans-serif">Order Summary</h3>
 
+          <!-- Preview thumbnail -->
+          <div class="rounded-xl overflow-hidden bg-stone-200 aspect-[3/4] w-full relative">
+            <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-cover" alt="Map preview" />
+            <div v-else class="absolute inset-0 flex items-center justify-center">
+              <svg class="w-5 h-5 text-stone-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            </div>
+            <div v-if="printReady" class="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              Print ready
+            </div>
+          </div>
+
           <div class="space-y-3 border-t border-stone-200 pt-4">
             <div class="flex justify-between text-sm">
               <span class="text-stone-500">Map</span>
@@ -219,15 +243,15 @@
               (selectedType !== 'digital' && !selectedProduct) ||
               (selectedType !== 'digital' && !isFormValid()) ||
               isSubmitting ||
-              map.status !== 'rendered'
+              !printReady
             "
             class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-3.5 transition-colors min-h-[52px]"
           >
-            <svg v-if="isSubmitting" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg v-if="isSubmitting || !printReady" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            {{ isSubmitting ? 'Redirecting…' : 'Proceed to Payment' }}
+            {{ isSubmitting ? 'Redirecting…' : !printReady ? 'Preparing print file…' : 'Proceed to Payment' }}
           </button>
 
           <p class="text-xs text-stone-400 text-center">
@@ -252,8 +276,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { getProductsByType, formatPrice } from '~/utils/products'
 import type { TrailMap, PrintProduct } from '~/types'
@@ -264,7 +288,6 @@ definePageMeta({
 })
 
 const route = useRoute()
-const router = useRouter()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
@@ -288,6 +311,76 @@ const shippingAddress = ref({
   country_code: 'US',
   phone: '',
 })
+
+// ─── Render state ─────────────────────────────────────────────────────────────
+
+const previewUrl = ref<string | null>(null)
+const printReady  = ref(false)
+const renderError = ref<string | null>(null)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let timeoutTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopPolling() {
+  if (pollTimer)   { clearInterval(pollTimer);   pollTimer   = null }
+  if (timeoutTimer){ clearTimeout(timeoutTimer);  timeoutTimer = null }
+}
+
+async function triggerRender(quality: 'preview' | 'print') {
+  await $fetch(`/api/maps/${mapId}/render`, { method: 'POST', body: { quality } })
+}
+
+async function pollStatus() {
+  const { data } = await supabase
+    .from('maps')
+    .select('status, render_url, thumbnail_url')
+    .eq('id', mapId)
+    .single()
+  if (!data) return
+
+  // Detect error sentinels written by the worker on failure
+  if (typeof data.thumbnail_url === 'string' && data.thumbnail_url.startsWith('error:') && !previewUrl.value) {
+    // Preview failed — not fatal, just skip the thumbnail
+  } else if (typeof data.thumbnail_url === 'string' && !data.thumbnail_url.startsWith('error:')) {
+    previewUrl.value = data.thumbnail_url
+  }
+
+  if (typeof data.render_url === 'string' && data.render_url.startsWith('error:')) {
+    renderError.value = data.render_url.slice(6) || 'Render failed. Please try again.'
+    stopPolling()
+    // Clear sentinel so a retry starts fresh
+    await supabase.from('maps').update({ render_url: null }).eq('id', mapId)
+    return
+  }
+
+  if (data.status === 'rendered') {
+    printReady.value = true
+    stopPolling()
+  }
+}
+
+async function startRenders() {
+  renderError.value = null
+  stopPolling()
+
+  // Fire preview and print renders in parallel
+  await Promise.allSettled([
+    triggerRender('preview'),
+    triggerRender('print'),
+  ])
+
+  // Poll Supabase every 3s; give up after 3 minutes
+  pollTimer = setInterval(pollStatus, 3000)
+  timeoutTimer = setTimeout(() => {
+    if (!printReady.value && !renderError.value) {
+      renderError.value = 'Render timed out. Please try again.'
+      stopPolling()
+    }
+  }, 3 * 60 * 1000)
+}
+
+onUnmounted(stopPolling)
+
+// ─── Products / form ──────────────────────────────────────────────────────────
 
 const availableProducts = computed(() => {
   if (selectedType.value === 'digital') return []
@@ -315,6 +408,17 @@ const fetchMap = async () => {
     if (error) throw error
     map.value = data as TrailMap
     handleTypeChange()
+
+    // Seed state from already-completed renders so we don't re-trigger needlessly
+    if (data.thumbnail_url && !data.thumbnail_url.startsWith('error:')) {
+      previewUrl.value = data.thumbnail_url
+    }
+    if (data.status === 'rendered') {
+      printReady.value = true
+    } else {
+      // Kick off both renders; the user fills in shipping while they run
+      startRenders()
+    }
   } catch (err) {
     console.error('Error fetching map:', err)
   } finally {

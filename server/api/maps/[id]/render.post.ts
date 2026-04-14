@@ -43,19 +43,19 @@ export default defineEventHandler(async (event) => {
     .update({ status: 'draft' })  // stays draft until worker completes
     .eq('id', mapId)
 
+  const { quality = 'print' } = await readBody(event).catch(() => ({}))
+
   // Fire the render job without awaiting — Puppeteer can take 60-90s
   // which would exceed the Vercel serverless function timeout.
   const workerUrl = config.renderWorkerUrl || 'http://localhost:3002'
   const workerSecret = config.renderWorkerSecret || 'dev-secret'
 
-  // Use event.node.req.socket to prevent the Node.js process from blocking
   // We deliberately don't await this — fire-and-forget
   $fetch(`${workerUrl}/render`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${workerSecret}`,
       'Content-Type': 'application/json',
-      // Pass the job_id so the worker can include it in logs
       'X-Job-Id': jobId,
     },
     body: {
@@ -69,6 +69,7 @@ export default defineEventHandler(async (event) => {
       bbox: map.bbox,
       mapbox_token: config.public.mapboxToken,
       maptiler_token: config.public.maptilerToken,
+      quality,
     },
     // No timeout — the worker handles its own timeout internally
     timeout: 0,
