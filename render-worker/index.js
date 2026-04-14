@@ -94,10 +94,13 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
 
   // Build self-contained HTML page that renders the map
   const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: WIDTH_PX, height: HEIGHT_PX })
-  await page.setContent(html, { waitUntil: 'networkidle0' })
+  // 'load' fires once the HTML + scripts are parsed; we don't wait for networkidle
+  // because MapLibre fires hundreds of tile requests that would stall networkidle0.
+  // window.__mapReady is set by map.once('idle'), which is the real completion signal.
+  await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
 
-  // Wait for MapLibre to finish rendering
-  await page.waitForFunction('window.__mapReady === true', { timeout: 30000 })
+  // Wait for MapLibre idle — 90s gives enough headroom for a 5470×7270 render
+  await page.waitForFunction('window.__mapReady === true', { timeout: 90000 })
   await new Promise(resolve => setTimeout(resolve, 500)) // Extra settle time
 
   // Screenshot
@@ -296,6 +299,54 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#FFFFFF', 'line-width': ${w + 3}, 'line-opacity': ${op} } });
       map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round'${s.dash ? ", 'line-dasharray': [4,3]" : ''} }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op} } });`
     }).join('')
+  }
+
+  // Pin JS (run inside map.on('load')) — populates route-pins GeoJSON source
+  // and separates start/finish by 28 px when they overlap (loop routes).
+  function pinsJs() {
+    const showStart = style_config.show_start_pin !== false
+    const showFinish = style_config.show_finish_pin !== false
+    if (!showStart && !showFinish) return ''
+
+    // Extract first and last coordinate from the GeoJSON
+    let startCoord = null
+    let endCoord = null
+    for (const f of geojson.features) {
+      const g = f.geometry
+      if (g.type === 'LineString' && g.coordinates.length > 0) {
+        if (!startCoord) startCoord = g.coordinates[0]
+        endCoord = g.coordinates[g.coordinates.length - 1]
+      } else if (g.type === 'MultiLineString') {
+        for (const line of g.coordinates) {
+          if (line.length > 0) {
+            if (!startCoord) startCoord = line[0]
+            endCoord = line[line.length - 1]
+          }
+        }
+      }
+    }
+
+    if (!startCoord && !endCoord) return ''
+
+    const features = []
+    if (showStart && startCoord) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: startCoord }, properties: { type: 'start' } })
+    if (showFinish && endCoord) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: endCoord }, properties: { type: 'finish' } })
+
+    // Detect overlap (~500m threshold)
+    const overlapping = startCoord && endCoord &&
+      Math.abs(startCoord[0] - endCoord[0]) < 0.005 &&
+      Math.abs(startCoord[1] - endCoord[1]) < 0.0045
+
+    const pinsData = JSON.stringify({ type: 'FeatureCollection', features })
+    const startTranslate = overlapping ? '[0, -28]' : '[0, 0]'
+
+    return `
+      map.getSource('route-pins').setData(${pinsData});
+      ${overlapping && showStart ? `
+      map.setPaintProperty('route-pin-start-halo', 'circle-translate', ${startTranslate});
+      map.setPaintProperty('route-pin-start-ring', 'circle-translate', ${startTranslate});
+      map.setPaintProperty('route-pin-start-center', 'circle-translate', ${startTranslate});` : ''}
+    `
   }
 
   // Font families needed for Google Fonts
@@ -501,6 +552,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
         paint: { 'line-color': '${style_config.route_color}', 'line-width': ${style_config.route_width}, 'line-opacity': ${style_config.route_opacity} }
       });
       ${trailSegmentsJs()}
+      ${pinsJs()}
       map.once('idle', () => { window.__mapReady = true; });
     });
   </script>
