@@ -1092,31 +1092,31 @@ let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
 function flagSvg(type: 'start' | 'finish'): string {
-  // 22 × 36 viewBox.
-  // Start: pole at x=2 (left edge), pennant extends right.
-  // Finish: pole at x=20 (right edge), checkered rect extends left.
+  // 24 × 36 viewBox.
+  // Start: pole base left (x=2), top slants right (x=7) — pennant extends right.
+  // Finish: pole base right (x=22), top slants left (x=17) — checkered rect extends left.
   if (type === 'start') {
     const c = PIN_GREEN
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">
-      <line x1="2" y1="34" x2="2" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
-      <polygon points="2,4 2,15 18,9.5" fill="white" opacity="0.85"/>
-      <line x1="2" y1="34" x2="2" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
-      <polygon points="2,4 2,15 18,9.5" fill="${c}"/>
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">
+      <line x1="2" y1="34" x2="7" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+      <polygon points="7,4 7,15 23,9.5" fill="white" opacity="0.85"/>
+      <line x1="2" y1="34" x2="7" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="7,4 7,15 23,9.5" fill="${c}"/>
       <circle cx="2" cy="34" r="3.5" fill="white" opacity="0.85"/>
       <circle cx="2" cy="34" r="2.2" fill="${c}"/>
     </svg>`
   }
   const c = PIN_RED
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="36" viewBox="0 0 22 36" style="display:block;overflow:visible">
-    <line x1="20" y1="34" x2="20" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
-    <rect x="4" y="4" width="16" height="12" fill="white" opacity="0.85"/>
-    <line x1="20" y1="34" x2="20" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
-    <rect x="4"  y="4"  width="8" height="6" fill="${c}"/>
-    <rect x="12" y="4"  width="8" height="6" fill="white"/>
-    <rect x="4"  y="10" width="8" height="6" fill="white"/>
-    <rect x="12" y="10" width="8" height="6" fill="${c}"/>
-    <circle cx="20" cy="34" r="3.5" fill="white" opacity="0.85"/>
-    <circle cx="20" cy="34" r="2.2" fill="${c}"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">
+    <line x1="22" y1="34" x2="17" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+    <rect x="1" y="4" width="16" height="12" fill="white" opacity="0.85"/>
+    <line x1="22" y1="34" x2="17" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <rect x="1"  y="4"  width="8" height="6" fill="${c}"/>
+    <rect x="9"  y="4"  width="8" height="6" fill="white"/>
+    <rect x="1"  y="10" width="8" height="6" fill="white"/>
+    <rect x="9"  y="10" width="8" height="6" fill="${c}"/>
+    <circle cx="22" cy="34" r="3.5" fill="white" opacity="0.85"/>
+    <circle cx="22" cy="34" r="2.2" fill="${c}"/>
   </svg>`
 }
 
