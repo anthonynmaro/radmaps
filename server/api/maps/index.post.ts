@@ -7,7 +7,8 @@ import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { parseGpxServer } from '~/utils/gpx'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
-import type { RouteStats } from '~/types'
+import type { RouteStats, TrailSegment } from '~/types'
+import { extractNamedTrackSegments } from '~/utils/trail'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -26,6 +27,7 @@ export default defineEventHandler(async (event) => {
   let geojson: GeoJSON.FeatureCollection
   let bbox: [number, number, number, number]
   let stats: RouteStats
+  let trailSegments: TrailSegment[] = []
 
   if (contentType.includes('application/json')) {
     // Client parsed GPX in the browser and is sending pre-computed GeoJSON + stats
@@ -42,6 +44,10 @@ export default defineEventHandler(async (event) => {
     geojson = body.geojson
     bbox = body.bbox
     stats = body.stats
+    // Client-side parsed GPX may include auto-detected named track segments
+    if (Array.isArray(body.trail_segments) && body.trail_segments.length > 0) {
+      trailSegments = body.trail_segments
+    }
   } else {
     // Raw GPX file upload via multipart/form-data
     const formData = await readFormData(event)
@@ -70,6 +76,7 @@ export default defineEventHandler(async (event) => {
       geojson = result.geojson
       bbox = result.bbox
       stats = result.stats
+      trailSegments = extractNamedTrackSegments(result.geojson)
     } catch (e) {
       throw createError({ statusCode: 422, message: `Invalid GPX file: ${(e as Error).message}` })
     }
@@ -85,7 +92,9 @@ export default defineEventHandler(async (event) => {
       geojson,
       bbox,
       stats,
-      style_config: DEFAULT_STYLE_CONFIG,
+      style_config: trailSegments.length > 0
+        ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
+        : DEFAULT_STYLE_CONFIG,
       status: 'draft',
     })
     .select()

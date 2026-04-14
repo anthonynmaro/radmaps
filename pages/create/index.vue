@@ -358,6 +358,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import * as toGeoJSON from '@tmcw/togeojson'
+import { extractNamedTrackSegments } from '~/utils/trail'
 import type { RouteStats } from '~/types'
 
 definePageMeta({
@@ -380,6 +381,7 @@ const parsedGeojson = ref<GeoJSON.FeatureCollection | null>(null)
 const parsedStats = ref<RouteStats | null>(null)
 const parsedBbox = ref<[number, number, number, number] | null>(null)
 const parsedPointCount = ref(0)
+const parsedSegments = ref<import('~/types').TrailSegment[]>([])
 
 // Strava
 const ACTIVITIES_PER_PAGE = 20
@@ -520,6 +522,7 @@ const parseFile = async (file: File) => {
     parsedStats.value = stats
     parsedBbox.value = bbox
     parsedPointCount.value = pointCount
+    parsedSegments.value = extractNamedTrackSegments(geojson)
   } catch (err) {
     parseError.value = err instanceof Error ? err.message : 'Failed to parse file'
     parsedGeojson.value = null
@@ -546,6 +549,7 @@ const resetFile = () => {
   parsedStats.value = null
   parsedBbox.value = null
   parsedPointCount.value = 0
+  parsedSegments.value = []
   mapTitle.value = ''
   parseError.value = null
   if (fileInput.value) fileInput.value.value = ''
@@ -563,6 +567,7 @@ const createMap = async () => {
         geojson: parsedGeojson.value,
         bbox: parsedBbox.value,
         stats: parsedStats.value,
+        trail_segments: parsedSegments.value.length > 0 ? parsedSegments.value : undefined,
       }),
     })
     if (!response.ok) {

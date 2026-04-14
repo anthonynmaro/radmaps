@@ -214,6 +214,8 @@
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
           </template>
+          <div class="pt-1 border-t border-gray-100" />
+          <ToggleRow label="Roads &amp; place labels" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
         </div>
       </Section>
 

@@ -74,13 +74,14 @@ export default defineEventHandler(async (event) => {
     // No timeout — the worker handles its own timeout internally
     timeout: 0,
   }).catch((err) => {
-    // Log errors but don't throw — the request already returned to the client
+    // Log the raw error server-side (includes internal URL) but never expose it to the client
     console.error(`[render ${jobId}] Worker request failed:`, err.message)
-    // Write error sentinel so the client's poll loop detects failure immediately
-    // instead of waiting for the 2-minute client-side timeout.
+    const msg = /ECONNREFUSED|fetch failed|no response/i.test(err.message)
+      ? 'Render service unavailable. Please try again in a moment.'
+      : 'Render failed. Please try again.'
     supabase
       .from('maps')
-      .update({ render_url: `error:${String(err.message).slice(0, 200)}` })
+      .update({ render_url: `error:${msg}` })
       .eq('id', mapId)
       .then(() => {})
   })

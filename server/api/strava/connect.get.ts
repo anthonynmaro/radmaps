@@ -7,9 +7,32 @@
  * it works correctly on localhost in dev and on the production domain without
  * needing a STRAVA_REDIRECT_URI env var (which was the source of the old
  * localhost:3000/auth/strava-callback mismatch on Vercel).
+ *
+ * If the logged-in user already has Strava tokens stored, skip OAuth entirely
+ * and redirect straight to the create page.
  */
+import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+
+  // Short-circuit: if the user is already logged in and has tokens, skip OAuth.
+  try {
+    const user = await serverSupabaseUser(event)
+    if (user) {
+      const client = await serverSupabaseClient(event)
+      const { data: token } = await client
+        .from('strava_tokens')
+        .select('athlete_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (token?.athlete_id) {
+        return sendRedirect(event, '/create?strava_connected=1')
+      }
+    }
+  } catch {
+    // No session or DB error — fall through to normal OAuth flow
+  }
 
   // Build the redirect URI from the actual request origin.
   // x-forwarded-proto / x-forwarded-host are set by Vercel's edge proxy,

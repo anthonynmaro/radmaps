@@ -161,19 +161,33 @@ async function copyLink() {
   }
 }
 
+const ogImage = computed(() =>
+  map.value?.render_url ?? map.value?.thumbnail_url ?? undefined
+)
+
+const pageDescription = computed(() => {
+  const s = map.value?.stats
+  if (!s) return 'A custom trail map made with RadMaps.'
+  const miles = (s.distance_km * 0.621371).toFixed(1)
+  const gain = Math.round(s.elevation_gain_m * 3.28084).toLocaleString()
+  return `${miles} miles · ${gain} ft gain — made with RadMaps`
+})
+
 useHead({
   title: computed(() => map.value ? `${map.value.title} — RadMaps` : 'RadMaps'),
-  meta: [
-    {
-      name: 'description',
-      content: computed(() => {
-        const s = map.value?.stats
-        if (!s) return 'A custom trail map made with RadMaps.'
-        const miles = (s.distance_km * 0.621371).toFixed(1)
-        const gain = Math.round(s.elevation_gain_m * 3.28084).toLocaleString()
-        return `${miles} miles · ${gain} ft gain`
-      }),
-    },
-  ],
+})
+
+useSeoMeta({
+  description: pageDescription,
+  ogSiteName: 'RadMaps',
+  ogType: 'website',
+  ogUrl: computed(() => `https://radmaps.studio/map/${id.value}`),
+  ogTitle: computed(() => map.value?.title ?? 'RadMaps'),
+  ogDescription: pageDescription,
+  ogImage,
+  twitterCard: 'summary_large_image',
+  twitterTitle: computed(() => map.value?.title ?? 'RadMaps'),
+  twitterDescription: pageDescription,
+  twitterImage: ogImage,
 })
 </script>
