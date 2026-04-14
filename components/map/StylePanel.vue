@@ -217,6 +217,60 @@
         </div>
       </Section>
 
+      <!-- ── Effects ── -->
+      <Section label="Effects" icon="i-heroicons-sparkles">
+        <div class="space-y-3">
+
+          <!-- Tile effect picker -->
+          <div>
+            <p class="text-xs text-gray-500 mb-2">Tile effect</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <SegmentButton label="None"      :active="(local.tile_effect ?? 'none') === 'none'"  @click="set('tile_effect', 'none')" />
+              <SegmentButton label="Duotone"   :active="local.tile_effect === 'duotone'"            @click="set('tile_effect', 'duotone')" />
+              <SegmentButton label="Posterize" :active="local.tile_effect === 'posterize'"          @click="set('tile_effect', 'posterize')" />
+            </div>
+          </div>
+
+          <!-- Duotone controls -->
+          <template v-if="local.tile_effect === 'duotone'">
+            <p class="text-[10px] text-gray-400 -mb-1">Remaps tile luminance to your poster's shadow → highlight colours</p>
+            <SliderRow label="Strength" :value="local.tile_duotone_strength ?? 0.9" :min="0.1" :max="1" :step="0.05"
+              :display="v => Math.round(v * 100) + '%'" @change="set('tile_duotone_strength', $event)" />
+          </template>
+
+          <!-- Posterize controls -->
+          <template v-if="local.tile_effect === 'posterize'">
+            <p class="text-[10px] text-gray-400 -mb-1">Quantises tile colours to a limited palette — screen-print look</p>
+            <SliderRow label="Levels" :value="local.tile_posterize_levels ?? 4" :min="2" :max="8" :step="1"
+              :display="v => Math.round(v) + ' colours'" @change="set('tile_posterize_levels', $event)" />
+          </template>
+
+          <div class="pt-1 border-t border-gray-100" />
+
+          <!-- Raster adjustments (work with or without tile effect) -->
+          <SliderRow label="Contrast" :value="local.tile_contrast ?? 0" :min="-1" :max="1" :step="0.05"
+            :display="v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_contrast', $event)" />
+          <SliderRow label="Saturation" :value="local.tile_saturation ?? 0" :min="-1" :max="1" :step="0.05"
+            :display="v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_saturation', $event)" />
+          <SliderRow label="Hue shift" :value="local.tile_hue_rotate ?? 0" :min="0" :max="360" :step="5"
+            :display="v => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
+
+          <div class="pt-1 border-t border-gray-100" />
+
+          <!-- Vignette -->
+          <ToggleRow label="Vignette" :value="local.show_vignette ?? false" @change="set('show_vignette', $event)" />
+          <template v-if="local.show_vignette">
+            <SliderRow label="Intensity" :value="local.vignette_intensity ?? 0.45" :min="0.05" :max="1" :step="0.05"
+              :display="v => Math.round(v * 100) + '%'" @change="set('vignette_intensity', $event)" />
+          </template>
+
+          <!-- Film grain -->
+          <SliderRow label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
+            :display="v => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
+
+        </div>
+      </Section>
+
       <!-- ── Colours ── -->
       <Section label="Colours" icon="i-heroicons-swatch">
         <p class="text-[10px] text-gray-400 mb-3 -mt-1">Auto-set by theme · override below</p>

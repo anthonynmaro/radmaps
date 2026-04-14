@@ -259,6 +259,28 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     </div>`
   }
 
+  // Vignette overlay HTML
+  function vignetteHtml() {
+    if (!style_config.show_vignette) return ''
+    const intensity = style_config.vignette_intensity ?? 0.45
+    const isDark = ['obsidian', 'forest', 'midnight'].includes(style_config.color_theme ?? '')
+    const alpha = isDark ? intensity : intensity * 0.65
+    return `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,${alpha.toFixed(2)}) 100%);pointer-events:none;z-index:11;"></div>`
+  }
+
+  // Film grain overlay HTML
+  function grainHtml() {
+    const grain = style_config.tile_grain ?? 0
+    if (grain <= 0) return ''
+    return `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:11;mix-blend-mode:overlay;" xmlns="http://www.w3.org/2000/svg">
+      <filter id="grain-noise" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noiseOut"/>
+        <feColorMatrix type="saturate" values="0" in="noiseOut"/>
+      </filter>
+      <rect width="100%" height="100%" filter="url(#grain-noise)" opacity="${grain}"/>
+    </svg>`
+  }
+
   // Trail segment JS (run inside map.on('load'))
   function trailSegmentsJs() {
     const segments = (style_config.trail_segments ?? []).filter(s => s.visible)
@@ -384,6 +406,8 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     ${logoHtml()}
     ${trailLegendHtml()}
     <div style="position:absolute;inset:0;pointer-events:none;z-index:8;">${textOverlaysHtml()}</div>
+    ${vignetteHtml()}
+    ${grainHtml()}
   </div>
 
   <!-- FOOTER -->
@@ -407,6 +431,53 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
   </div>
 
   <script>
+    // ── styledtile:// protocol handler ────────────────────────────────────────
+    // Mirrors the handler registered in MapPreview.vue.
+    // Must be registered before the Map instance is created so MapLibre
+    // can resolve the protocol during style load.
+    maplibregl.addProtocol('styledtile', async function(params, abortController) {
+      var url = params.url;
+      var withoutScheme = url.slice('styledtile://'.length);
+      var pipeIdx = withoutScheme.indexOf('|');
+      if (pipeIdx === -1) throw new Error('Invalid styledtile URL');
+      var effectPart = withoutScheme.slice(0, pipeIdx);
+      var realUrl    = withoutScheme.slice(pipeIdx + 1);
+      var parts = effectPart.split(',');
+      var effect = parts[0];
+      var args   = parts.slice(1);
+      var res = await fetch(realUrl, { signal: abortController ? abortController.signal : undefined });
+      if (!res.ok) throw new Error('Tile fetch failed: ' + res.status);
+      var blob = await res.blob();
+      var img  = await createImageBitmap(blob);
+      var canvas = new OffscreenCanvas(img.width, img.height);
+      var ctx  = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      var imgData = ctx.getImageData(0, 0, img.width, img.height);
+      var d = imgData.data;
+      if (effect === 'duotone') {
+        var sh = args[0], hi = args[1], strength = parseInt(args[2]) / 100;
+        var sr = parseInt(sh.slice(0,2),16), sg = parseInt(sh.slice(2,4),16), sb = parseInt(sh.slice(4,6),16);
+        var hr = parseInt(hi.slice(0,2),16), hg = parseInt(hi.slice(2,4),16), hb = parseInt(hi.slice(4,6),16);
+        for (var i = 0; i < d.length; i += 4) {
+          var lum = (0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]) / 255;
+          d[i]   = Math.round(d[i]   + (sr + (hr-sr)*lum - d[i])   * strength);
+          d[i+1] = Math.round(d[i+1] + (sg + (hg-sg)*lum - d[i+1]) * strength);
+          d[i+2] = Math.round(d[i+2] + (sb + (hb-sb)*lum - d[i+2]) * strength);
+        }
+      } else if (effect === 'posterize') {
+        var levels = Math.max(2, parseInt(args[0]));
+        var step = 255 / (levels - 1);
+        for (var i = 0; i < d.length; i += 4) {
+          d[i]   = Math.round(Math.round(d[i]  /step)*step);
+          d[i+1] = Math.round(Math.round(d[i+1]/step)*step);
+          d[i+2] = Math.round(Math.round(d[i+2]/step)*step);
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      var resultBlob = await canvas.convertToBlob({ type: 'image/png' });
+      return { data: await resultBlob.arrayBuffer() };
+    });
+
     const map = new maplibregl.Map({
       container: 'map',
       style: ${styleJson},
@@ -471,6 +542,23 @@ function buildMapStyle(config, mapboxToken, maptilerToken) {
   return buildMinimalistStyle(config, mapboxToken, maptilerToken)
 }
 
+// Mirrors styledTileUrls() in utils/mapStyle.ts
+function styledTileUrls(config, urls) {
+  const effect = config.tile_effect ?? 'none'
+  if (effect === 'none') return urls
+  if (effect === 'duotone') {
+    const shadow    = (config.label_text_color  ?? '#1C1917').replace('#', '')
+    const highlight = (config.background_color  ?? '#F7F4EF').replace('#', '')
+    const strength  = Math.round((config.tile_duotone_strength ?? 0.9) * 100)
+    return urls.map(u => `styledtile://duotone,${shadow},${highlight},${strength}|${u}`)
+  }
+  if (effect === 'posterize') {
+    const levels = config.tile_posterize_levels ?? 4
+    return urls.map(u => `styledtile://posterize,${levels}|${u}`)
+  }
+  return urls
+}
+
 function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
   const base = config.base_tile_style ?? 'carto-light'
 
@@ -479,7 +567,7 @@ function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
     const styleMap = { 'maptiler-outdoor': 'outdoor-v2', 'maptiler-topo': 'topo-v2', 'maptiler-winter': 'winter-v2' }
     baseTileSource = {
       type: 'raster',
-      tiles: [`https://api.maptiler.com/maps/${styleMap[base]}/{z}/{x}/{y}@2x.png?key=${maptilerToken ?? ''}`],
+      tiles: styledTileUrls(config, [`https://api.maptiler.com/maps/${styleMap[base]}/{z}/{x}/{y}@2x.png?key=${maptilerToken ?? ''}`]),
       tileSize: 512,
       attribution: '© MapTiler © OpenStreetMap contributors',
     }
@@ -489,7 +577,7 @@ function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
     const sub = (s) => ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}.png`)
     baseTileSource = {
       type: 'raster',
-      tiles: dark ? sub('dark_all') : sub('light_all'),
+      tiles: styledTileUrls(config, dark ? sub('dark_all') : sub('light_all')),
       tileSize: 256,
       attribution: '© CARTO © OpenStreetMap contributors',
     }
@@ -510,7 +598,15 @@ function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
-      { id: 'base-tiles', type: 'raster', source: 'base-tiles', paint: { 'raster-opacity': baseTileOpacity } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    baseTileOpacity,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
       ...hillshadeLayers(config),
       ...contourLayers(config),
     ],
@@ -525,7 +621,7 @@ function buildTopographicStyle(config, mapboxToken) {
     sources: {
       'mapbox-outdoors': {
         type: 'raster',
-        tiles: [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`],
+        tiles: styledTileUrls(config, [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`]),
         tileSize: 512,
         attribution: '© Mapbox © OpenStreetMap contributors',
       },
@@ -534,7 +630,15 @@ function buildTopographicStyle(config, mapboxToken) {
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
-      { id: 'outdoors-tiles', type: 'raster', source: 'mapbox-outdoors', paint: { 'raster-opacity': config.show_hillshade ? 0.75 : 0.9 } },
+      {
+        id: 'outdoors-tiles', type: 'raster', source: 'mapbox-outdoors',
+        paint: {
+          'raster-opacity':    config.show_hillshade ? 0.75 : 0.9,
+          'raster-saturation': Math.max(-1, Math.min(1, (config.show_hillshade ? -0.15 : 0) + (config.tile_saturation ?? 0))),
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
       ...hillshadeLayers(config),
       ...contourLayers(config),
     ],

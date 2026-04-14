@@ -130,6 +130,17 @@ export interface StyleConfig {
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
   trail_legend?: TrailLegend
+  // Tile post-processing effects
+  tile_effect?: 'none' | 'duotone' | 'posterize'
+  tile_duotone_strength?: number    // 0–1, blend strength (default 0.9)
+  tile_posterize_levels?: number    // 2–8, colour quantisation levels (default 4)
+  tile_grain?: number               // 0–1, film grain overlay intensity
+  tile_contrast?: number            // -1–1, raster layer contrast
+  tile_saturation?: number          // -1–1, raster layer saturation
+  tile_hue_rotate?: number          // 0–360, raster layer hue rotation (degrees)
+  // Vignette overlay
+  show_vignette?: boolean
+  vignette_intensity?: number       // 0–1 (default 0.45)
 }
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
@@ -174,6 +185,15 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   label_bg_color: '#F7F4EF',
   show_branding: true,
   show_roads: false,
+  tile_effect: 'none',
+  tile_duotone_strength: 0.9,
+  tile_posterize_levels: 4,
+  tile_grain: 0,
+  tile_contrast: 0,
+  tile_saturation: 0,
+  tile_hue_rotate: 0,
+  show_vignette: false,
+  vignette_intensity: 0.45,
   show_start_pin: true,
   show_finish_pin: true,
   show_logo: false,

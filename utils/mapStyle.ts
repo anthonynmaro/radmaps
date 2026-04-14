@@ -45,6 +45,37 @@ export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>
   4: { 1: [50,   250],  7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
 }
 
+// ─── Tile effect URL wrapper ──────────────────────────────────────────────────
+// Prefixes raster tile URLs with a custom 'styledtile://' protocol when a
+// per-pixel effect is active. Parameters are encoded into the URL so MapLibre
+// generates a distinct cache key whenever they change.
+//
+// Format: styledtile://{effect},{...params}|{realTileUrl}
+//
+// The MapPreview.vue protocol handler parses this, fetches the real tile,
+// applies the pixel transform via OffscreenCanvas, and returns the result.
+// The render-worker registers an identical handler in its inline script.
+function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
+  const effect = config.tile_effect ?? 'none'
+  if (effect === 'none') return urls
+
+  if (effect === 'duotone') {
+    // Shadow → label_text_color (dark), Highlight → background_color (light).
+    // Together they remap any tile's luminance into the poster's own palette.
+    const shadow    = (config.label_text_color  ?? '#1C1917').replace('#', '')
+    const highlight = (config.background_color  ?? '#F7F4EF').replace('#', '')
+    const strength  = Math.round((config.tile_duotone_strength ?? 0.9) * 100)
+    return urls.map(u => `styledtile://duotone,${shadow},${highlight},${strength}|${u}`)
+  }
+
+  if (effect === 'posterize') {
+    const levels = config.tile_posterize_levels ?? 4
+    return urls.map(u => `styledtile://posterize,${levels}|${u}`)
+  }
+
+  return urls
+}
+
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
 // AWS Terrain Tiles (Tilezen/Terrarium) — free, no auth, terrarium encoding.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -449,7 +480,7 @@ function buildMinimalistStyle(
     }
     baseTileSource = {
       type: 'raster' as const,
-      tiles: [`https://api.maptiler.com/maps/${styleMap[base]}/{z}/{x}/{y}@2x.png?key=${maptilerTk}`],
+      tiles: styledTileUrls(config, [`https://api.maptiler.com/maps/${styleMap[base]}/{z}/{x}/{y}@2x.png?key=${maptilerTk}`]),
       tileSize: 512,
     }
     baseTileOpacity = 0.85
@@ -460,7 +491,7 @@ function buildMinimalistStyle(
       ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}.png`)
     baseTileSource = {
       type: 'raster' as const,
-      tiles: dark ? sub('dark_all') : sub('light_all'),
+      tiles: styledTileUrls(config, dark ? sub('dark_all') : sub('light_all')),
       tileSize: 256,
     }
     baseTileOpacity = base === 'carto-dark' ? 0.45 : 0.55
@@ -483,7 +514,15 @@ function buildMinimalistStyle(
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
-      { id: 'base-tiles', type: 'raster', source: 'base-tiles', paint: { 'raster-opacity': baseTileOpacity } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    baseTileOpacity,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...trailSegmentLayers(config.trail_segments, config),
@@ -510,7 +549,7 @@ function buildTopographicStyle(
     sources: {
       'mapbox-outdoors': {
         type: 'raster' as const,
-        tiles: [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`],
+        tiles: styledTileUrls(config, [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`]),
         tileSize: 512,
         attribution: '© Mapbox © OpenStreetMap contributors',
       },
@@ -527,8 +566,10 @@ function buildTopographicStyle(
         type: 'raster',
         source: 'mapbox-outdoors',
         paint: {
-          'raster-opacity': config.show_hillshade ? 0.75 : 0.9,
-          'raster-saturation': config.show_hillshade ? -0.15 : 0,
+          'raster-opacity':    config.show_hillshade ? 0.75 : 0.9,
+          'raster-saturation': Math.max(-1, Math.min(1, (config.show_hillshade ? -0.15 : 0) + (config.tile_saturation ?? 0))),
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
         },
       },
       ...hillshadeLayers(config),

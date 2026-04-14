@@ -154,6 +154,28 @@
             </template>
           </div>
         </div>
+
+        <!-- ── Vignette overlay ──────────────────────────────────────────── -->
+        <div
+          v-if="styleConfig.show_vignette"
+          class="absolute inset-0 pointer-events-none"
+          style="z-index: 11;"
+          :style="vignetteStyle"
+        />
+
+        <!-- ── Film grain overlay ────────────────────────────────────────── -->
+        <svg
+          v-if="grainOpacity > 0"
+          class="absolute inset-0 w-full h-full pointer-events-none"
+          style="z-index: 11; mix-blend-mode: overlay;"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <filter id="grain-noise" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noiseOut"/>
+            <feColorMatrix type="saturate" values="0" in="noiseOut"/>
+          </filter>
+          <rect width="100%" height="100%" filter="url(#grain-noise)" :opacity="grainOpacity"/>
+        </svg>
       </div>
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
@@ -259,6 +281,72 @@ const mapReady = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
+
+// ── Tile effect protocol (styledtile://) ──────────────────────────────────────
+// Intercepts raster tile fetches and applies per-pixel colour transforms:
+//   duotone   — remaps luminance to the poster's shadow + highlight colours
+//   posterize — quantises each channel to N discrete levels
+//
+// URL format: styledtile://{effect},{...params}|{realTileUrl}
+// Params are baked into the URL so MapLibre cache-busts on any config change.
+
+let tileEffectProtocolRegistered = false
+
+function ensureTileEffectProtocol() {
+  if (tileEffectProtocolRegistered) return
+  tileEffectProtocolRegistered = true
+
+  maplibregl.addProtocol('styledtile', async (params: { url: string }, abortController: AbortController) => {
+    const withoutScheme = params.url.slice('styledtile://'.length)
+    const pipeIdx = withoutScheme.indexOf('|')
+    if (pipeIdx === -1) throw new Error('Invalid styledtile URL: missing | separator')
+
+    const effectPart = withoutScheme.slice(0, pipeIdx)
+    const realUrl    = withoutScheme.slice(pipeIdx + 1)
+    const [effect, ...args] = effectPart.split(',')
+
+    const res = await fetch(realUrl, { signal: abortController.signal })
+    if (!res.ok) throw new Error(`Tile fetch failed: ${res.status}`)
+
+    const blob = await res.blob()
+    const img  = await createImageBitmap(blob)
+    const canvas = new OffscreenCanvas(img.width, img.height)
+    const ctx  = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    const imgData = ctx.getImageData(0, 0, img.width, img.height)
+    const d = imgData.data
+
+    if (effect === 'duotone') {
+      // args: [shadowHex, highlightHex, strengthPercent]
+      const sh = args[0], hi = args[1]
+      const strength = parseInt(args[2]) / 100
+      const sr = parseInt(sh.slice(0, 2), 16), sg = parseInt(sh.slice(2, 4), 16), sb = parseInt(sh.slice(4, 6), 16)
+      const hr = parseInt(hi.slice(0, 2), 16), hg = parseInt(hi.slice(2, 4), 16), hb = parseInt(hi.slice(4, 6), 16)
+      for (let i = 0; i < d.length; i += 4) {
+        // Perceptual luminance
+        const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255
+        // Lerp from shadow to highlight, then blend with original by strength
+        d[i]     = Math.round(d[i]     + (sr + (hr - sr) * lum - d[i])     * strength)
+        d[i + 1] = Math.round(d[i + 1] + (sg + (hg - sg) * lum - d[i + 1]) * strength)
+        d[i + 2] = Math.round(d[i + 2] + (sb + (hb - sb) * lum - d[i + 2]) * strength)
+        // alpha unchanged
+      }
+    } else if (effect === 'posterize') {
+      // args: [levels]
+      const levels = Math.max(2, parseInt(args[0]))
+      const step = 255 / (levels - 1)
+      for (let i = 0; i < d.length; i += 4) {
+        d[i]     = Math.round(Math.round(d[i]     / step) * step)
+        d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step)
+        d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step)
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0)
+    const resultBlob = await canvas.convertToBlob({ type: 'image/png' })
+    return { data: await resultBlob.arrayBuffer() }
+  })
+}
 
 // ── maplibre-contour protocol ─────────────────────────────────────────────────
 // Set up once per component mount. The DemSource registers a custom
@@ -810,6 +898,20 @@ const legendLabelStyle = computed(() => ({
   opacity: '0.85',
 }))
 
+// ── Vignette + grain computed values ─────────────────────────────────────────
+
+const vignetteStyle = computed(() => {
+  const intensity = props.styleConfig.vignette_intensity ?? 0.45
+  // Dark themes get a pure-black vignette; light themes get a softer version
+  const isDark = ['obsidian', 'forest', 'midnight'].includes(props.styleConfig.color_theme ?? '')
+  const alpha = isDark ? intensity : intensity * 0.65
+  return {
+    background: `radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,${alpha.toFixed(2)}) 100%)`,
+  }
+})
+
+const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
+
 // ── Map lifecycle ─────────────────────────────────────────────────────────────
 
 const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
@@ -819,12 +921,33 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'hillshade_intensity', 'hillshade_highlight',
   'show_roads',
   'trail_segments',
+  // Tile effect type requires new tile URLs → full style rebuild
+  'tile_effect',
 ]
+
+// Computes a cache key for all parameters baked into the styledtile:// URL.
+// When this key changes, MapLibre needs a full style reload to re-fetch tiles.
+function effectiveTileKey(cfg: StyleConfig): string {
+  const effect = cfg.tile_effect ?? 'none'
+  if (effect === 'duotone') {
+    const shadow    = cfg.label_text_color ?? '#1C1917'
+    const highlight = cfg.background_color ?? '#F7F4EF'
+    const strength  = Math.round((cfg.tile_duotone_strength ?? 0.9) * 100)
+    return `duo:${shadow}:${highlight}:${strength}`
+  }
+  if (effect === 'posterize') {
+    return `post:${cfg.tile_posterize_levels ?? 4}`
+  }
+  return 'none'
+}
 
 onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
 
+  // Register tile effect protocol unconditionally — cheap and avoids
+  // conditional logic when the user enables duotone/posterize later.
+  ensureTileEffectProtocol()
   if (props.styleConfig.show_contours) await ensureContourProtocol()
   const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
 
@@ -1024,7 +1147,10 @@ watch(
   async (newConfig, oldConfig) => {
     if (!mapInstance || !mapReady.value) return
 
-    const needsFullReload = FULL_RELOAD_KEYS.some(
+    // Also reload when duotone/posterize params change (these are baked into tile URLs)
+    const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
+
+    const needsFullReload = tileKeyChanged || FULL_RELOAD_KEYS.some(
       key => JSON.stringify(newConfig[key]) !== JSON.stringify(oldConfig?.[key]),
     )
 
@@ -1086,6 +1212,22 @@ watch(
     }
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
+
+    // Raster layer paint-only updates (contrast / saturation / hue) —
+    // these are MapLibre paint properties and don't need a tile re-fetch.
+    const rasterLayerId = newConfig.preset === 'topographic' ? 'outdoors-tiles' : 'base-tiles'
+    if (newConfig.tile_contrast !== oldConfig?.tile_contrast) {
+      if (mapInstance.getLayer(rasterLayerId))
+        mapInstance.setPaintProperty(rasterLayerId, 'raster-contrast', newConfig.tile_contrast ?? 0)
+    }
+    if (newConfig.tile_saturation !== oldConfig?.tile_saturation) {
+      if (mapInstance.getLayer(rasterLayerId))
+        mapInstance.setPaintProperty(rasterLayerId, 'raster-saturation', newConfig.tile_saturation ?? 0)
+    }
+    if (newConfig.tile_hue_rotate !== oldConfig?.tile_hue_rotate) {
+      if (mapInstance.getLayer(rasterLayerId))
+        mapInstance.setPaintProperty(rasterLayerId, 'raster-hue-rotate', newConfig.tile_hue_rotate ?? 0)
+    }
 
     if (mapInstance.getLayer('route-line')) {
       mapInstance.setPaintProperty('route-line', 'line-color', newConfig.route_color)
