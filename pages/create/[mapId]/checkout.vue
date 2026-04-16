@@ -409,12 +409,18 @@ const fetchMap = async () => {
     map.value = data as TrailMap
     handleTypeChange()
 
-    // Seed state from already-completed renders so we don't re-trigger needlessly
-    if (data.thumbnail_url && !data.thumbnail_url.startsWith('error:')) {
-      previewUrl.value = data.thumbnail_url
-    }
+    // Seed preview from render_url (always a clean poster) or thumbnail as fallback
+    const seedUrl = data.render_url && !data.render_url.startsWith('error:')
+      ? data.render_url
+      : data.thumbnail_url && !data.thumbnail_url.startsWith('error:')
+        ? data.thumbnail_url
+        : null
+    if (seedUrl) previewUrl.value = seedUrl
+
     if (data.status === 'rendered') {
       printReady.value = true
+      // Always refresh the preview thumbnail so the OG share image stays current
+      triggerRender('preview').catch(() => {})
     } else {
       // Kick off both renders; the user fills in shipping while they run
       startRenders()
