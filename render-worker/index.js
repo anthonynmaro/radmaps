@@ -443,7 +443,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     #poster-footer {
       flex-shrink: 0;
       background: ${bg};
-      padding: ${borderW !== '0' ? '1.8vh 7vw calc(1.8vh + 14px)' : '1.8vh 7vw'};
+      padding: ${borderW !== '0' ? 'calc(1.8vh + 14px) 7vw' : '1.8vh 7vw'};
       display: flex; align-items: center; justify-content: space-between;
       position: relative;
       border-top: ${borderW !== '0' ? borderW + ' solid ' + fg + '1a' : '1px solid ' + fg + '0d'};
