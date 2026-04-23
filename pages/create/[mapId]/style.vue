@@ -115,6 +115,7 @@
               @overlay-selected="onOverlaySelected"
               @overlay-deleted="onOverlayDeleted"
               @overlay-resized="onOverlayResized"
+              @freeze-changed="onFreezeChanged"
             />
           </ClientOnly>
           <div v-if="!mapData" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -333,6 +334,12 @@ function onOverlayResized(payload: { id: string; font_size: number }) {
     ...styleConfig.value,
     text_overlays: overlays.map(o => o.id === payload.id ? { ...o, font_size: payload.font_size } : o),
   }
+}
+
+// ─── Freeze / unfreeze ────────────────────────────────────────────────────────
+
+function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }) {
+  styleConfig.value = { ...styleConfig.value, ...payload }
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────

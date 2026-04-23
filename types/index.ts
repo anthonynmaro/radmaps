@@ -1,7 +1,7 @@
 // ─── StyleConfig ─────────────────────────────────────────────────────────────
 // Shared between MapLibre preview (client) and render worker (server)
 
-export type StylePreset = 'minimalist' | 'topographic'
+export type StylePreset = 'minimalist' | 'topographic' | 'route-only' | 'road-network' | 'contour-art' | 'natural-topo'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
@@ -131,16 +131,24 @@ export interface StyleConfig {
   trail_segments?: TrailSegment[]
   trail_legend?: TrailLegend
   // Tile post-processing effects
-  tile_effect?: 'none' | 'duotone' | 'posterize'
+  tile_effect?: 'none' | 'duotone' | 'posterize' | 'layer-color'
   tile_duotone_strength?: number    // 0–1, blend strength (default 0.9)
   tile_posterize_levels?: number    // 2–8, colour quantisation levels (default 4)
   tile_grain?: number               // 0–1, film grain overlay intensity
   tile_contrast?: number            // -1–1, raster layer contrast
   tile_saturation?: number          // -1–1, raster layer saturation
   tile_hue_rotate?: number          // 0–360, raster layer hue rotation (degrees)
+  // Layer-color effect: independent tinting of shadow / midtone / highlight bands
+  tile_shadow_color?: string        // dark features (roads, labels); default: label_text_color
+  tile_midtone_color?: string       // mid-luminance features; default: blend of shadow/highlight
+  tile_highlight_color?: string     // light features (water, open land); default: background_color
   // Vignette overlay
   show_vignette?: boolean
   vignette_intensity?: number       // 0–1 (default 0.45)
+  // Frozen view state — locks zoom + center for deterministic tile processing
+  map_zoom?: number                 // locked zoom level (undefined = auto-fit from bounds)
+  map_center?: [number, number]     // locked center [lng, lat] (undefined = auto-fit)
+  map_frozen?: boolean              // when true: non-interactive, processing-ready
 }
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
@@ -194,6 +202,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   tile_hue_rotate: 0,
   show_vignette: false,
   vignette_intensity: 0.45,
+  map_frozen: false,
   show_start_pin: true,
   show_finish_pin: true,
   show_logo: false,
