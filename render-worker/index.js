@@ -294,7 +294,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       const dashArray = s.dash ? '[4,3]' : 'undefined'
       return `
       map.addSource('trail-seg-${s.id}', { type: 'geojson', data: ${slicedStr} });
-      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#FFFFFF', 'line-width': ${w + 3}, 'line-opacity': ${op} } });
+      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${style_config.background_color ?? '#F7F4EF'}', 'line-width': ${w + 3}, 'line-opacity': ${op} } });
       map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round'${s.dash ? ", 'line-dasharray': [4,3]" : ''} }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op} } });`
     }).join('')
   }
@@ -443,7 +443,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     #poster-footer {
       flex-shrink: 0;
       background: ${bg};
-      padding: 1.8vh 7vw;
+      padding: ${borderW !== '0' ? 'calc(1.8vh + 14px) 7vw' : '1.8vh 7vw'};
       display: flex; align-items: center; justify-content: space-between;
       position: relative;
       border-top: ${borderW !== '0' ? borderW + ' solid ' + fg + '1a' : '1px solid ' + fg + '0d'};
@@ -568,7 +568,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       map.addLayer({
         id: 'route-casing', type: 'line', source: 'route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#FFFFFF', 'line-width': ${style_config.route_width + 3}, 'line-opacity': ${style_config.route_opacity} }
+        paint: { 'line-color': '${style_config.background_color ?? '#F7F4EF'}', 'line-width': ${style_config.route_width + 3}, 'line-opacity': ${style_config.route_opacity} }
       });
       map.addLayer({
         id: 'route-line', type: 'line', source: 'route',

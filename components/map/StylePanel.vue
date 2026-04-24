@@ -90,36 +90,26 @@
       <!-- ── Base Map ── -->
       <Section label="Base Map" icon="i-heroicons-map">
         <div class="space-y-3">
-          <!-- Preset row -->
-          <div class="grid grid-cols-2 gap-2">
-            <PresetButton
-              label="Minimalist"
-              :active="local.preset === 'minimalist'"
-              @click="set('preset', 'minimalist')"
+          <!-- 3×2 preset grid -->
+          <div class="grid grid-cols-3 gap-1.5">
+            <button v-for="p in MAP_PRESETS" :key="p.id"
+              class="flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all overflow-hidden"
+              :class="local.preset === p.id
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'"
+              @click="set('preset', p.id)"
+              :title="p.title"
             >
-              <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
-                <rect width="48" height="32" fill="#f0ece4"/>
-                <path d="M4 24 Q12 20 24 22 Q36 24 44 18" stroke="#c8b8a2" stroke-width="1" fill="none"/>
-                <path d="M8 16 Q18 10 28 14 Q38 18 44 12" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-              </svg>
-              Minimalist
-            </PresetButton>
-            <PresetButton
-              label="Topographic"
-              :active="local.preset === 'topographic'"
-              @click="set('preset', 'topographic')"
-            >
-              <svg viewBox="0 0 48 32" class="w-full h-auto opacity-70" fill="none">
-                <rect width="48" height="32" fill="#e8dfd0"/>
-                <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#b8a888" stroke-width="0.8" fill="none"/>
-                <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#a09070" stroke-width="0.8" fill="none"/>
-                <ellipse cx="24" cy="18" rx="6" ry="4" stroke="#887850" stroke-width="0.8" fill="none"/>
-                <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-              </svg>
-              Topographic
-            </PresetButton>
+              <div class="w-full rounded overflow-hidden" style="aspect-ratio:3/2">
+                <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
+              </div>
+              <span class="text-[9px] leading-none font-medium"
+                :class="local.preset === p.id ? 'text-green-700' : 'text-gray-500'"
+              >{{ p.label }}</span>
+            </button>
           </div>
-          <!-- Tile style (minimalist only) -->
+
+          <!-- Tile style variant (minimalist + natural-topo only) -->
           <template v-if="local.preset === 'minimalist'">
             <p class="text-[10px] text-gray-400 -mb-1">Tile style</p>
             <div class="grid grid-cols-3 gap-1.5">
@@ -132,6 +122,27 @@
               >{{ ts.label }}</button>
             </div>
           </template>
+
+          <template v-if="local.preset === 'natural-topo'">
+            <p class="text-[10px] text-gray-400 -mb-1">Tile variant</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button v-for="ts in TOPO_TILE_STYLES" :key="ts.value"
+                class="rounded border text-[10px] py-1 px-1.5 text-center transition-colors"
+                :class="(local.base_tile_style ?? 'maptiler-outdoor') === ts.value
+                  ? 'border-green-500 bg-green-50 text-green-700 font-medium'
+                  : 'border-gray-200 text-gray-500 hover:border-gray-300'"
+                @click="set('base_tile_style', ts.value)"
+              >{{ ts.label }}</button>
+            </div>
+          </template>
+
+          <!-- Freeze status (shown when map is frozen) -->
+          <div v-if="local.map_frozen" class="flex items-center gap-2 px-2.5 py-2 bg-green-50 border border-green-200 rounded-lg">
+            <div class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+            <p class="text-[10px] text-green-700 leading-snug flex-1">
+              View frozen at Z{{ local.map_zoom?.toFixed(1) }} · position locked
+            </p>
+          </div>
         </div>
       </Section>
 
@@ -226,10 +237,11 @@
           <!-- Tile effect picker -->
           <div>
             <p class="text-xs text-gray-500 mb-2">Tile effect</p>
-            <div class="grid grid-cols-3 gap-1.5">
-              <SegmentButton label="None"      :active="(local.tile_effect ?? 'none') === 'none'"  @click="set('tile_effect', 'none')" />
-              <SegmentButton label="Duotone"   :active="local.tile_effect === 'duotone'"            @click="set('tile_effect', 'duotone')" />
-              <SegmentButton label="Posterize" :active="local.tile_effect === 'posterize'"          @click="set('tile_effect', 'posterize')" />
+            <div class="grid grid-cols-2 gap-1.5">
+              <SegmentButton label="None"         :active="(local.tile_effect ?? 'none') === 'none'"  @click="set('tile_effect', 'none')" />
+              <SegmentButton label="Duotone"      :active="local.tile_effect === 'duotone'"            @click="set('tile_effect', 'duotone')" />
+              <SegmentButton label="Posterize"    :active="local.tile_effect === 'posterize'"          @click="set('tile_effect', 'posterize')" />
+              <SegmentButton label="Layer Color"  :active="local.tile_effect === 'layer-color'"        @click="set('tile_effect', 'layer-color')" />
             </div>
           </div>
 
@@ -245,6 +257,26 @@
             <p class="text-[10px] text-gray-400 -mb-1">Quantises tile colours to a limited palette — screen-print look</p>
             <SliderRow label="Levels" :value="local.tile_posterize_levels ?? 4" :min="2" :max="8" :step="1"
               :display="v => Math.round(v) + ' colours'" @change="set('tile_posterize_levels', $event)" />
+          </template>
+
+          <!-- Layer-color controls -->
+          <template v-if="local.tile_effect === 'layer-color'">
+            <p class="text-[10px] text-gray-400 -mb-1">Maps dark / mid / light tile regions to independent colours</p>
+            <ColorRow
+              label="Shadow (dark)"
+              :value="local.tile_shadow_color ?? local.label_text_color"
+              @change="set('tile_shadow_color', $event)"
+            />
+            <ColorRow
+              label="Midtone"
+              :value="local.tile_midtone_color ?? blendForPreview(local.tile_shadow_color ?? local.label_text_color, local.tile_highlight_color ?? local.background_color)"
+              @change="set('tile_midtone_color', $event)"
+            />
+            <ColorRow
+              label="Highlight (light)"
+              :value="local.tile_highlight_color ?? local.background_color"
+              @change="set('tile_highlight_color', $event)"
+            />
           </template>
 
           <div class="pt-1 border-t border-gray-100" />
@@ -504,19 +536,19 @@
                   label="Start"
                   :value="seg.section_start"
                   :min="0"
-                  :max="Math.max(0, seg.section_end - 2)"
+                  :max="100"
                   :step="1"
                   :display="v => Math.round(v) + '%'"
-                  @change="setSegment(seg.id, { section_start: $event })"
+                  @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - 1) })"
                 />
                 <SliderRow
                   label="End"
                   :value="seg.section_end"
-                  :min="Math.min(100, seg.section_start + 2)"
+                  :min="0"
                   :max="100"
                   :step="1"
                   :display="v => Math.round(v) + '%'"
-                  @change="setSegment(seg.id, { section_end: $event })"
+                  @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + 1) })"
                 />
               </div>
               <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5"
@@ -586,7 +618,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TextOverlayAlignment, TrailSegment } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TextOverlayAlignment, TrailSegment, StylePreset } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
 
 const props = defineProps<{
@@ -800,6 +832,98 @@ const TILE_STYLES: Array<{ label: string; value: BaseTileStyle }> = [
   { label: 'Outdoor', value: 'maptiler-outdoor' },
   { label: 'Topo', value: 'maptiler-topo' },
   { label: 'Winter', value: 'maptiler-winter' },
+]
+
+const TOPO_TILE_STYLES: Array<{ label: string; value: BaseTileStyle }> = [
+  { label: 'Outdoor', value: 'maptiler-outdoor' },
+  { label: 'Topo', value: 'maptiler-topo' },
+  { label: 'Winter', value: 'maptiler-winter' },
+]
+
+// Blend two hex colors at 50% for the midtone preview swatch
+function blendForPreview(a: string | undefined, b: string | undefined): string {
+  const ca = a ?? '#1C1917', cb = b ?? '#F7F4EF'
+  const ar = parseInt(ca.slice(1, 3), 16), ag = parseInt(ca.slice(3, 5), 16), ab = parseInt(ca.slice(5, 7), 16)
+  const br = parseInt(cb.slice(1, 3), 16), bg = parseInt(cb.slice(3, 5), 16), bb = parseInt(cb.slice(5, 7), 16)
+  const r = Math.round((ar + br) / 2).toString(16).padStart(2, '0')
+  const g = Math.round((ag + bg) / 2).toString(16).padStart(2, '0')
+  const bh = Math.round((ab + bb) / 2).toString(16).padStart(2, '0')
+  return `#${r}${g}${bh}`
+}
+
+// ── Map preset definitions ─────────────────────────────────────────────────────
+// Each entry has an SVG thumbnail (raw HTML string) rendered inside a viewBox.
+
+const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBox: string; svg: string }> = [
+  {
+    id: 'minimalist',
+    label: 'Minimalist',
+    title: 'Clean raster tiles — CARTO light or dark',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#f0ece4"/>
+      <path d="M4 24 Q12 20 24 22 Q36 24 44 18" stroke="#c8b8a2" stroke-width="1" fill="none"/>
+      <path d="M8 16 Q18 10 28 14 Q38 18 44 12" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'topographic',
+    label: 'Topographic',
+    title: 'Mapbox Outdoors — terrain + trails (requires Mapbox token)',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#e8dfd0"/>
+      <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#b8a888" stroke-width="0.8" fill="none"/>
+      <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#a09070" stroke-width="0.8" fill="none"/>
+      <ellipse cx="24" cy="18" rx="6" ry="4" stroke="#887850" stroke-width="0.8" fill="none"/>
+      <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'natural-topo',
+    label: 'Natural',
+    title: 'MapTiler full-colour terrain — greens, blues, earth tones (requires MapTiler token)',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#c8dba8"/>
+      <rect x="0" y="18" width="48" height="14" fill="#a8c878"/>
+      <rect x="22" y="10" width="26" height="22" fill="#d4e8b0" rx="2"/>
+      <path d="M0 16 Q8 12 16 14 Q24 16 32 10 Q38 6 48 8" stroke="#5a8a30" stroke-width="0.8" fill="none" opacity="0.5"/>
+      <path d="M14 8 Q20 4 28 6 Q36 8 42 4" stroke="#3a6e20" stroke-width="0.8" fill="none" opacity="0.4"/>
+      <path d="M6 20 Q16 16 26 18 Q36 20 44 16" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'route-only',
+    label: 'Route Only',
+    title: 'Solid background, route line only — no base tiles',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#f7f4ef"/>
+      <path d="M8 28 Q12 22 18 20 Q24 18 28 14 Q32 10 36 6 Q40 4 44 6" stroke="#e63946" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <circle cx="8" cy="28" r="2" fill="#2d6a4f"/>
+      <circle cx="44" cy="6" r="2" fill="#b91c1c"/>`,
+  },
+  {
+    id: 'road-network',
+    label: 'Road Net',
+    title: 'Vector roads as ink lines on a clean background — city map look (requires Mapbox token)',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#f5f5f5"/>
+      <path d="M0 8 Q12 10 24 8 Q36 6 48 10" stroke="#1c1917" stroke-width="1.4" fill="none" opacity="0.7"/>
+      <path d="M0 18 Q10 16 20 18 Q32 20 48 16" stroke="#1c1917" stroke-width="1.0" fill="none" opacity="0.5"/>
+      <path d="M0 26 Q8 24 16 26 Q28 28 40 24 Q44 23 48 24" stroke="#1c1917" stroke-width="0.6" fill="none" opacity="0.35"/>
+      <path d="M12 0 Q10 10 12 20 Q14 28 12 32" stroke="#1c1917" stroke-width="1.2" fill="none" opacity="0.6"/>
+      <path d="M28 0 Q26 8 28 16 Q30 26 28 32" stroke="#1c1917" stroke-width="0.8" fill="none" opacity="0.4"/>
+      <path d="M40 0 Q38 6 40 14 Q42 22 40 32" stroke="#1c1917" stroke-width="0.5" fill="none" opacity="0.3"/>
+      <path d="M6 12 Q16 8 26 12 Q36 16 44 12" stroke="#e63946" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'contour-art',
+    label: 'Contour Art',
+    title: 'Topographic contours as standalone art — no raster tiles',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#fafafa"/>
+      <ellipse cx="24" cy="18" rx="20" ry="12" stroke="#9e9082" stroke-width="0.6" fill="none"/>
+      <ellipse cx="24" cy="18" rx="16" ry="9" stroke="#9e9082" stroke-width="0.6" fill="none"/>
+      <ellipse cx="24" cy="18" rx="12" ry="6.5" stroke="#7a6e62" stroke-width="0.7" fill="none"/>
+      <ellipse cx="24" cy="18" rx="8" ry="4" stroke="#7a6e62" stroke-width="0.9" fill="none"/>
+      <ellipse cx="24" cy="18" rx="4" ry="2" stroke="#5a504a" stroke-width="1.1" fill="none"/>
+      <path d="M6 6 Q14 2 24 6 Q34 10 42 6" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+  },
 ]
 </script>
 

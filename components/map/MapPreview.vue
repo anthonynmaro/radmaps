@@ -163,6 +163,15 @@
           :style="vignetteStyle"
         />
 
+        <!-- ── Freeze control ───────────────────────────────────────────── -->
+        <FreezeControl
+          v-if="editable && mapReady"
+          :frozen="styleConfig.map_frozen ?? false"
+          :zoom="liveZoom"
+          @freeze="freezeView"
+          @unfreeze="unfreezeView"
+        />
+
         <!-- ── Film grain overlay ────────────────────────────────────────── -->
         <svg
           v-if="grainOpacity > 0"
@@ -257,6 +266,7 @@ import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { sliceRouteByPercent, trailSourceId } from '~/utils/trail'
 import { PRINT_SIZES } from '~/types'
 import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
+import FreezeControl from '~/components/map/FreezeControl.vue'
 
 const props = defineProps<{
   map: TrailMap
@@ -273,11 +283,14 @@ const emit = defineEmits<{
   'overlay-deleted': [id: string]
   'overlay-resized': [payload: { id: string; font_size: number }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
+  // Emitted when the user freezes/unfreezes the view from the FreezeControl widget
+  'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }]
 }>()
 
 const config = useRuntimeConfig()
 const mapContainer = ref<HTMLDivElement | null>(null)
 const mapReady = ref(false)
+const liveZoom = ref<number | undefined>(undefined)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
@@ -292,11 +305,28 @@ let interactInstances: Array<{ unset: () => void }> = []
 
 let tileEffectProtocolRegistered = false
 
+// Per-session cache: keyed by the full styledtile:// URL (includes all effect params).
+// Stable when zoom is frozen — same tile coords → same URL → cache hit.
+const _tileCache = new Map<string, ArrayBuffer>()
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '')
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  }
+}
+
 function ensureTileEffectProtocol() {
   if (tileEffectProtocolRegistered) return
   tileEffectProtocolRegistered = true
 
   maplibregl.addProtocol('styledtile', async (params: { url: string }, abortController: AbortController) => {
+    // Check cache first — avoids re-processing the same tile when params haven't changed
+    const cached = _tileCache.get(params.url)
+    if (cached) return { data: cached }
+
     const withoutScheme = params.url.slice('styledtile://'.length)
     const pipeIdx = withoutScheme.indexOf('|')
     if (pipeIdx === -1) throw new Error('Invalid styledtile URL: missing | separator')
@@ -340,11 +370,33 @@ function ensureTileEffectProtocol() {
         d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step)
         d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step)
       }
+    } else if (effect === 'layer-color') {
+      // args: [shadowHex, midHex, highlightHex]
+      // Trilinear luminance-band mapping:
+      //   L → 0   : pure shadow colour
+      //   L → 0.5 : pure midtone colour
+      //   L → 1   : pure highlight colour
+      const sr = hexToRgb(args[0]), mr = hexToRgb(args[1]), hr = hexToRgb(args[2])
+      for (let i = 0; i < d.length; i += 4) {
+        const L = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255
+        const sw = Math.max(0, 1 - L * 2)           // 1 at L=0, 0 at L≥0.5
+        const hw = Math.max(0, (L - 0.5) * 2)        // 0 at L≤0.5, 1 at L=1
+        const mw = 1 - sw - hw                        // peaks at L=0.5
+        d[i]     = Math.round(sr.r * sw + mr.r * mw + hr.r * hw)
+        d[i + 1] = Math.round(sr.g * sw + mr.g * mw + hr.g * hw)
+        d[i + 2] = Math.round(sr.b * sw + mr.b * mw + hr.b * hw)
+        // alpha unchanged
+      }
     }
 
     ctx.putImageData(imgData, 0, 0)
     const resultBlob = await canvas.convertToBlob({ type: 'image/png' })
-    return { data: await resultBlob.arrayBuffer() }
+    const buffer = await resultBlob.arrayBuffer()
+
+    // Cache the result (bounded to ~200 tiles to avoid unbounded memory growth)
+    if (_tileCache.size < 200) _tileCache.set(params.url, buffer)
+
+    return { data: buffer }
   })
 }
 
@@ -691,7 +743,10 @@ const ruleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: bg.value,
   color: fg.value,
-  padding: '1.8cqh 7cqw',
+  paddingTop: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
+  paddingBottom: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
+  paddingLeft: '7cqw',
+  paddingRight: '7cqw',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -938,6 +993,12 @@ function effectiveTileKey(cfg: StyleConfig): string {
   if (effect === 'posterize') {
     return `post:${cfg.tile_posterize_levels ?? 4}`
   }
+  if (effect === 'layer-color') {
+    const shadow    = cfg.tile_shadow_color    ?? cfg.label_text_color  ?? '#1C1917'
+    const highlight = cfg.tile_highlight_color ?? cfg.background_color  ?? '#F7F4EF'
+    const mid       = cfg.tile_midtone_color   ?? 'auto'
+    return `lc:${shadow}:${mid}:${highlight}`
+  }
   return 'none'
 }
 
@@ -951,16 +1012,30 @@ onMounted(async () => {
   if (props.styleConfig.show_contours) await ensureContourProtocol()
   const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
 
-  mapInstance = new maplibregl.Map({
-    container: mapContainer.value,
-    style,
-    bounds: props.map.bbox,
-    fitBoundsOptions: {
-      padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
-    },
-    attributionControl: false,
-    interactive: true,
-  })
+  const frozen = props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
+
+  if (frozen) {
+    // Restore saved view state — exact zoom + center from when the user froze the frame.
+    mapInstance = new maplibregl.Map({
+      container: mapContainer.value,
+      style,
+      center: props.styleConfig.map_center as [number, number],
+      zoom: props.styleConfig.map_zoom as number,
+      attributionControl: false,
+      interactive: false,
+    })
+  } else {
+    mapInstance = new maplibregl.Map({
+      container: mapContainer.value,
+      style,
+      bounds: props.map.bbox,
+      fitBoundsOptions: {
+        padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
+      },
+      attributionControl: false,
+      interactive: true,
+    })
+  }
 
   mapInstance.on('load', () => {
     populateRouteSource()
@@ -968,7 +1043,12 @@ onMounted(async () => {
     placePinMarkers()
     setPaintBackground()
     mapReady.value = true
+    liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
+  })
+
+  mapInstance.on('zoom', () => {
+    liveZoom.value = mapInstance?.getZoom()
   })
 
   resizeObserver = new ResizeObserver(() => mapInstance?.resize())
@@ -1233,6 +1313,8 @@ watch(
     )
 
     if (needsFullReload) {
+      // Clear tile cache when effect params change so stale processed tiles aren't reused
+      if (tileKeyChanged) _tileCache.clear()
       mapReady.value = false
       if (newConfig.show_contours) await ensureContourProtocol()
       const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(newConfig)) as maplibregl.StyleSpecification
@@ -1315,11 +1397,69 @@ watch(
   () => props.styleConfig.padding_factor,
   (val) => {
     if (!mapInstance || !mapReady.value || !mapContainer.value) return
+    // Padding changes only refits when not frozen — frozen view holds its position
+    if (props.styleConfig.map_frozen) return
     mapInstance.fitBounds(props.map.bbox as maplibregl.LngLatBoundsLike, {
       padding: Math.round(mapContainer.value.offsetHeight * (val ?? 0.15)),
     })
   },
 )
+
+// ── Freeze / unfreeze watcher ─────────────────────────────────────────────────
+// Enables / disables interactive pan+zoom when map_frozen changes externally
+// (e.g. from StylePanel or restored from DB).
+
+watch(
+  () => props.styleConfig.map_frozen,
+  (frozen) => {
+    if (!mapInstance || !mapReady.value) return
+    if (frozen) {
+      mapInstance.dragPan.disable()
+      mapInstance.scrollZoom.disable()
+      mapInstance.doubleClickZoom.disable()
+      mapInstance.touchZoomRotate.disable()
+      mapInstance.keyboard.disable()
+    } else {
+      mapInstance.dragPan.enable()
+      mapInstance.scrollZoom.enable()
+      mapInstance.doubleClickZoom.enable()
+      mapInstance.touchZoomRotate.enable()
+      mapInstance.keyboard.enable()
+    }
+  },
+)
+
+// ── Freeze / unfreeze API (called by FreezeControl.vue) ───────────────────────
+
+function freezeView() {
+  if (!mapInstance) return
+  const zoom = mapInstance.getZoom()
+  const center = mapInstance.getCenter()
+  // Clear tile cache — we're establishing a new fixed tile set
+  _tileCache.clear()
+  mapInstance.dragPan.disable()
+  mapInstance.scrollZoom.disable()
+  mapInstance.doubleClickZoom.disable()
+  mapInstance.touchZoomRotate.disable()
+  mapInstance.keyboard.disable()
+  emit('freeze-changed', {
+    map_frozen: true,
+    map_zoom: zoom,
+    map_center: [center.lng, center.lat],
+  })
+}
+
+function unfreezeView() {
+  if (!mapInstance) return
+  mapInstance.dragPan.enable()
+  mapInstance.scrollZoom.enable()
+  mapInstance.doubleClickZoom.enable()
+  mapInstance.touchZoomRotate.enable()
+  mapInstance.keyboard.enable()
+  emit('freeze-changed', { map_frozen: false })
+}
+
+defineExpose({ freezeView, unfreezeView })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(
