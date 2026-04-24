@@ -102,7 +102,7 @@
         >
           <h2 class="text-lg font-semibold text-green-900">Turn your trails into art</h2>
           <p class="text-sm text-green-800">
-            Create a custom map from your GPX or Strava activities — then order a high-quality print delivered to your door.
+            Create a custom map from your Strava activities or any route from your watch — then order a high-quality print delivered to your door.
           </p>
           <div class="flex items-center justify-center gap-3">
             <UButton to="/auth/login" color="green" size="md">

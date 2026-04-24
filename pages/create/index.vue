@@ -5,7 +5,7 @@
     <div class="mb-7">
       <h1 class="text-2xl font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">Create New Map</h1>
       <p class="mt-1 text-sm text-stone-500">
-        Upload a GPX file or import from Strava to get started
+        Connect Strava or upload a route from your watch or favourite trail app
       </p>
     </div>
 
@@ -31,11 +31,11 @@
             : 'text-stone-500 hover:text-stone-700',
         ]"
       >
-        Upload GPX
+        Upload a route
       </button>
     </div>
 
-    <!-- Tab 1: Upload GPX -->
+    <!-- Tab 1: Upload a route -->
     <div v-show="activeTab === 'upload'" class="space-y-5">
 
       <!-- Drop zone — hidden once file is parsed -->
@@ -68,7 +68,7 @@
           <p class="text-sm font-medium text-stone-700">
             Drop your file here, or <span class="text-[#2D6A4F] underline underline-offset-2">browse</span>
           </p>
-          <p class="mt-1 text-xs text-stone-400">GPX or GeoJSON · up to 50 MB</p>
+          <p class="mt-1 text-xs text-stone-400">GPX (most apps export this) or GeoJSON · up to 50 MB</p>
         </div>
       </div>
 

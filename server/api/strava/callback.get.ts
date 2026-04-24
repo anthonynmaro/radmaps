@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
   if (dbError) throw createError({ statusCode: 500, message: 'Failed to store Strava tokens' })
 
   // 4. Generate a one-time magic link so the browser can acquire a Supabase session.
-  //    redirectTo → /auth/confirm, which handles the hash tokens and sends user to /dashboard.
+  //    redirectTo → /auth/confirm, which handles the hash tokens and sends user to `/` (their Maps).
   const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
     type: 'magiclink',
     email: syntheticEmail,

@@ -1,186 +1,471 @@
 <template>
-  <div class="min-h-screen flex">
-    <!-- Left Panel: Brand & Topographic Design -->
-    <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#2D6A4F] to-[#1b4332] relative overflow-hidden flex-col items-center justify-center p-12">
-      <!-- Decorative topographic lines -->
-      <svg class="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="80" cy="80" r="60" fill="none" stroke="white" stroke-width="2" />
-        <circle cx="80" cy="80" r="50" fill="none" stroke="white" stroke-width="1.5" />
-        <circle cx="80" cy="80" r="40" fill="none" stroke="white" stroke-width="1" />
-        <circle cx="280" cy="120" r="70" fill="none" stroke="white" stroke-width="2" />
-        <circle cx="280" cy="120" r="58" fill="none" stroke="white" stroke-width="1.5" />
-        <circle cx="280" cy="120" r="46" fill="none" stroke="white" stroke-width="1" />
-        <circle cx="120" cy="280" r="65" fill="none" stroke="white" stroke-width="2" />
-        <circle cx="120" cy="280" r="53" fill="none" stroke="white" stroke-width="1.5" />
-        <circle cx="120" cy="280" r="41" fill="none" stroke="white" stroke-width="1" />
-        <path d="M 200 0 Q 250 100 200 200 T 200 400" fill="none" stroke="white" stroke-width="2" opacity="0.3" />
-        <path d="M 0 100 Q 100 150 200 100 T 400 100" fill="none" stroke="white" stroke-width="1.5" opacity="0.2" />
-      </svg>
+  <div class="min-h-screen flex bg-[#FAF8F4]">
 
-      <!-- Brand Content -->
-      <div class="relative z-10 text-center max-w-md">
-        <div class="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-8">
-          <svg class="w-10 h-10 text-[#2D6A4F]" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
-          </svg>
+    <!-- ════════════════════════════════════════════════════════════
+         LEFT — Three.js terrain scene + brand
+         ════════════════════════════════════════════════════════════ -->
+    <div class="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-[#0A1812]">
+
+      <!-- Subtle gradient floor -->
+      <div class="absolute inset-0 pointer-events-none"
+        style="background:radial-gradient(ellipse at 60% 30%, #14342A 0%, #0A1812 70%);" />
+
+      <!-- WebGL canvas -->
+      <ClientOnly>
+        <canvas ref="canvasEl" class="absolute inset-0 w-full h-full" />
+      </ClientOnly>
+
+      <!-- Vignette / fade-out at bottom for legibility -->
+      <div class="absolute inset-0 bg-gradient-to-t from-[#0A1812] via-transparent to-transparent pointer-events-none" />
+
+      <!-- Faint grid overlay for that surveyor feel -->
+      <div class="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style="background-image:linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px); background-size: 40px 40px;" />
+
+      <!-- Top-left brand mark -->
+      <NuxtLink to="/" class="absolute top-8 left-8 z-10 flex items-center gap-2.5 group">
+        <svg class="w-7 h-7 text-[#52B788] transition-transform duration-300 group-hover:-rotate-3" viewBox="0 0 32 32" fill="none">
+          <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.18"/>
+          <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+          <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.55"/>
+          <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
+        </svg>
+        <span class="text-[15px] font-bold tracking-tight text-white" style="font-family:'Space Grotesk',sans-serif">Rad Maps</span>
+        <span class="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/40 border border-white/15 rounded-full px-1.5 py-px">Studio</span>
+      </NuxtLink>
+
+      <!-- Bottom-left editorial copy -->
+      <div class="absolute bottom-12 left-12 right-12 z-10 max-w-md">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-[#52B788]">
+            Trail Posters · Printed &amp; Framed
+          </span>
+          <span class="h-px flex-1 w-12 bg-[#52B788]/40" />
         </div>
-        <h1 class="text-4xl font-bold text-white mb-4">RadMaps</h1>
-        <p class="text-lg text-green-100">Turn your trails into art. Upload your favorite routes and get them printed on beautiful maps.</p>
+        <h1
+          class="text-4xl xl:text-5xl text-white leading-[1.05] mb-4 tracking-tight"
+          style="font-family:'Playfair Display',serif"
+        >
+          Some trails get the <em class="not-italic text-[#52B788]">wall.</em>
+        </h1>
+        <p class="text-white/55 text-[15px] leading-relaxed">
+          Sign in to design a poster from your own route — or browse a
+          curated collection of the world's greatest trails.
+        </p>
       </div>
     </div>
 
-    <!-- Right Panel: Login Form -->
-    <div class="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12 bg-white">
+    <!-- ════════════════════════════════════════════════════════════
+         RIGHT — Sign in / sign up form
+         ════════════════════════════════════════════════════════════ -->
+    <div class="w-full lg:w-[45%] flex flex-col items-center justify-center px-6 py-12 sm:px-12 bg-[#FAF8F4]">
       <div class="w-full max-w-sm">
-        <!-- Header -->
-        <div class="mb-10">
-          <h2 class="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
-          <p class="text-gray-600">Sign in to access your trail maps and orders.</p>
+
+        <!-- Logo (mobile only — desktop has the left panel) -->
+        <NuxtLink to="/" class="lg:hidden mb-10 flex items-center gap-2.5">
+          <svg class="w-7 h-7 text-[#2D6A4F]" viewBox="0 0 32 32" fill="none">
+            <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.14"/>
+            <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+            <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
+          </svg>
+          <span class="text-[15px] font-bold tracking-tight text-stone-900" style="font-family:'Space Grotesk',sans-serif">Rad Maps</span>
+        </NuxtLink>
+
+        <!-- Eyebrow -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-[#2D6A4F]">
+            {{ isSignup ? 'Create account' : 'Sign in' }}
+          </span>
+          <span class="h-px flex-1 w-12 bg-stone-300/70" />
         </div>
+
+        <h2
+          class="text-[36px] tracking-tight text-stone-900 leading-[1.05] mb-2"
+          style="font-family:'Playfair Display',serif"
+        >
+          {{ heading }}
+        </h2>
+        <p class="text-sm text-stone-500 mb-8 leading-relaxed">
+          {{ subhead }}
+        </p>
 
         <!-- Form -->
-        <form @submit.prevent="handleLogin" class="space-y-6">
-          <!-- Email Input -->
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-              Email address
-            </label>
-            <UInput
-              id="email"
-              v-model="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-              size="lg"
-              class="w-full"
-              :disabled="isLoading"
-            />
-          </div>
+        <form @submit.prevent="handleLogin" class="space-y-3">
+          <input
+            v-model="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+            :disabled="isLoading"
+            class="w-full rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/15 disabled:opacity-60 transition-shadow"
+          />
 
-          <!-- Success Message -->
-          <Transition name="fade">
-            <UAlert
-              v-if="showSuccessMessage"
-              color="green"
-              icon="i-heroicons-check-circle-20-solid"
-              title="Check your email!"
-              description="We've sent a magic link to your inbox. Click it to sign in."
-              class="mb-6"
-            />
-          </Transition>
-
-          <!-- Error Message -->
-          <Transition name="fade">
-            <UAlert
-              v-if="showErrorMessage"
-              color="red"
-              icon="i-heroicons-exclamation-circle-20-solid"
-              :title="`Error: ${errorMessage}`"
-              class="mb-6"
-            />
-          </Transition>
-
-          <!-- Submit Button -->
-          <UButton
+          <button
             type="submit"
-            size="lg"
-            color="green"
-            block
-            :loading="isLoading"
-            class="bg-[#2D6A4F] hover:bg-[#1b4332]"
+            :disabled="isLoading || isGoogleLoading"
+            class="w-full inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 text-white font-semibold text-sm py-3.5 rounded-full transition-colors shadow-sm shadow-stone-900/10"
           >
-            <template v-if="!isLoading">
-              Send magic link
-            </template>
-            <template v-else>
-              Sending...
-            </template>
-          </UButton>
+            <svg v-if="isLoading" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <svg v-else class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+            </svg>
+            {{ isLoading ? 'Sending magic link…' : 'Send magic link' }}
+          </button>
         </form>
 
-        <!-- Divider -->
-        <div class="relative my-8">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300" />
+        <!-- Success / error -->
+        <Transition name="fade">
+          <div v-if="showSuccessMessage"
+            class="mt-4 flex gap-3 p-4 rounded-2xl bg-[#2D6A4F]/5 border border-[#2D6A4F]/15">
+            <svg class="w-5 h-5 text-[#2D6A4F] shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-stone-900">Check your inbox</p>
+              <p class="text-xs text-stone-600 mt-0.5 leading-relaxed">
+                We've sent a magic link to your email. Click it to {{ isSignup ? 'finish creating your account' : 'sign in' }} — no password needed.
+              </p>
+            </div>
           </div>
-          <div class="relative flex justify-center text-sm">
-            <span class="px-3 bg-white text-gray-500">Or continue with</span>
+        </Transition>
+        <Transition name="fade">
+          <div v-if="showErrorMessage"
+            class="mt-4 flex gap-3 p-4 rounded-2xl bg-red-50 border border-red-200">
+            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <p class="text-sm text-red-800">{{ errorMessage }}</p>
+          </div>
+        </Transition>
+
+        <!-- Divider -->
+        <div class="relative my-7">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-stone-200" />
+          </div>
+          <div class="relative flex justify-center text-[11px]">
+            <span class="px-3 bg-[#FAF8F4] tracking-[0.18em] uppercase font-semibold text-stone-400">
+              or continue with
+            </span>
           </div>
         </div>
 
-        <!-- Strava OAuth -->
-        <a href="/api/strava/connect" class="strava-btn flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg font-semibold text-white transition-colors duration-150">
-          <!-- Strava chevron logo mark -->
-          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <!-- Google (uniform pill) -->
+        <button
+          type="button"
+          @click="handleGoogleLogin"
+          :disabled="isGoogleLoading || isLoading"
+          class="w-full inline-flex items-center justify-center gap-2.5 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-800 font-semibold text-sm py-3.5 rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-2"
+        >
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          <span v-if="!isGoogleLoading">Continue with Google</span>
+          <span v-else>Redirecting…</span>
+        </button>
+
+        <!-- Strava (uniform pill, same shape) -->
+        <a
+          href="/api/strava/connect"
+          class="w-full inline-flex items-center justify-center gap-2.5 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-800 font-semibold text-sm py-3.5 rounded-full transition-colors"
+        >
+          <svg class="w-4 h-4 shrink-0 text-[#FC4C02]" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0 5 13.828h4.172"/>
           </svg>
           Continue with Strava
         </a>
 
-        <!-- Sign Up Link -->
+        <!-- Mode switcher -->
         <div class="text-center mt-8">
-          <p class="text-gray-600 text-sm">
-            Don't have an account?
-            <NuxtLink to="/auth/login" class="font-semibold text-[#2D6A4F] hover:underline">
-              Get started
+          <p class="text-sm text-stone-500">
+            {{ isSignup ? 'Already have an account?' : 'New to RadMaps?' }}
+            <NuxtLink
+              :to="isSignup ? '/auth/login' : '/auth/login?mode=signup'"
+              class="font-semibold text-[#2D6A4F] hover:text-[#1E5238] hover:underline ml-1"
+            >
+              {{ isSignup ? 'Sign in' : 'Create one free' }}
             </NuxtLink>
           </p>
         </div>
+
+        <!-- Tiny legal -->
+        <p class="text-[10px] text-stone-400 mt-10 text-center leading-relaxed">
+          By continuing, you agree to our
+          <NuxtLink to="/terms" class="underline hover:text-stone-600">Terms</NuxtLink>
+          and
+          <NuxtLink to="/privacy" class="underline hover:text-stone-600">Privacy Policy</NuxtLink>.
+        </p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  layout: false
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import * as THREE from 'three'
+
+definePageMeta({ layout: false })
+
+useHead({
+  title: 'Sign in — RadMaps',
+  meta: [{ name: 'description', content: 'Sign in to RadMaps to design custom trail posters and order prints.' }],
 })
 
+const route = useRoute()
 const client = useSupabaseClient()
-const router = useRouter()
 
+// ── Mode (sign in vs sign up) ────────────────────────────────────────
+const isSignup = computed(() => route.query.mode === 'signup')
+const heading = computed(() => isSignup.value ? 'Welcome to RadMaps.' : 'Welcome back.')
+const subhead = computed(() =>
+  isSignup.value
+    ? "Enter your email — we'll send a magic link to set up your account in seconds."
+    : "Enter your email — we'll send a magic link, no password needed."
+)
+
+// ── Form state ────────────────────────────────────────────────────────
 const email = ref('')
 const isLoading = ref(false)
+const isGoogleLoading = ref(false)
 const showSuccessMessage = ref(false)
 const showErrorMessage = ref(false)
 const errorMessage = ref('')
 
+const handleGoogleLogin = async () => {
+  isGoogleLoading.value = true
+  showErrorMessage.value = false
+  errorMessage.value = ''
+  try {
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/confirm` },
+    })
+    if (error) {
+      errorMessage.value = error.message
+      showErrorMessage.value = true
+      isGoogleLoading.value = false
+    }
+  } catch {
+    errorMessage.value = 'Could not start Google sign-in. Please try again.'
+    showErrorMessage.value = true
+    isGoogleLoading.value = false
+  }
+}
+
 const handleLogin = async () => {
   if (!email.value) return
-
   isLoading.value = true
   showErrorMessage.value = false
   errorMessage.value = ''
-
   try {
     const { error } = await client.auth.signInWithOtp({
       email: email.value,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`
-      }
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
     })
-
     if (error) {
       errorMessage.value = error.message
       showErrorMessage.value = true
       isLoading.value = false
       return
     }
-
     showSuccessMessage.value = true
     email.value = ''
-
-    // Optionally redirect after a delay
-    setTimeout(() => {
-      showSuccessMessage.value = false
-    }, 5000)
-  } catch (err) {
+    setTimeout(() => { showSuccessMessage.value = false }, 8000)
+  } catch {
     errorMessage.value = 'An unexpected error occurred. Please try again.'
     showErrorMessage.value = true
   } finally {
     isLoading.value = false
   }
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Three.js scene — wireframe topographic terrain with a glowing trail
+// ════════════════════════════════════════════════════════════════════
+const canvasEl = ref<HTMLCanvasElement | null>(null)
+let cleanup: (() => void) | null = null
+
+function terrainHeight(x: number, z: number): number {
+  return (
+    Math.sin(x * 0.12) * Math.cos(z * 0.10) * 2.4 +
+    Math.sin(x * 0.05 + z * 0.03) * 4.2 +
+    Math.cos(x * 0.07 - z * 0.09) * 1.6
+  )
+}
+
+function initThreeScene(canvas: HTMLCanvasElement) {
+  const scene = new THREE.Scene()
+
+  let w = canvas.clientWidth
+  let h = canvas.clientHeight
+  const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 1000)
+  camera.position.set(40, 26, 40)
+  camera.lookAt(0, -2, 0)
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+  renderer.setSize(w, h, false)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+  // ── Terrain wireframe ──
+  const SIZE = 80
+  const SEGS = 80
+  const terrainGeo = new THREE.PlaneGeometry(SIZE, SIZE, SEGS, SEGS)
+  terrainGeo.rotateX(-Math.PI / 2)
+  const positions = terrainGeo.attributes.position
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i)
+    const z = positions.getZ(i)
+    positions.setY(i, terrainHeight(x, z))
+  }
+  positions.needsUpdate = true
+  terrainGeo.computeVertexNormals()
+
+  const terrainMat = new THREE.MeshBasicMaterial({
+    color: 0x52B788,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.28,
+  })
+  const terrain = new THREE.Mesh(terrainGeo, terrainMat)
+
+  const group = new THREE.Group()
+  group.add(terrain)
+
+  // ── Trail line as a tube (so it's actually thick) ──
+  const trailPoints: THREE.Vector3[] = []
+  for (let t = 0; t <= 1; t += 0.003) {
+    const x = -34 + t * 68
+    const z = Math.sin(t * Math.PI * 3) * 16 + Math.cos(t * Math.PI * 1.4) * 7
+    const y = terrainHeight(x, z) + 0.5
+    trailPoints.push(new THREE.Vector3(x, y, z))
+  }
+  const trailCurve = new THREE.CatmullRomCurve3(trailPoints)
+  const tubeGeo = new THREE.TubeGeometry(trailCurve, 600, 0.18, 6, false)
+  const tubeMat = new THREE.MeshBasicMaterial({
+    color: 0xFFB703,
+    transparent: true,
+    opacity: 0.9,
+  })
+  const tube = new THREE.Mesh(tubeGeo, tubeMat)
+  group.add(tube)
+
+  // ── Pulsing waypoint dot travelling along the trail ──
+  const dotGeo = new THREE.SphereGeometry(0.55, 18, 18)
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xFFE17A })
+  const dot = new THREE.Mesh(dotGeo, dotMat)
+  group.add(dot)
+
+  const ringGeo = new THREE.RingGeometry(0.7, 1.3, 32)
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xFFD96B,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.5,
+  })
+  const ring = new THREE.Mesh(ringGeo, ringMat)
+  group.add(ring)
+
+  // ── Background star particles for atmosphere ──
+  const starGeo = new THREE.BufferGeometry()
+  const STAR_COUNT = 280
+  const starPositions = new Float32Array(STAR_COUNT * 3)
+  for (let i = 0; i < STAR_COUNT; i++) {
+    starPositions[i * 3 + 0] = (Math.random() - 0.5) * 220
+    starPositions[i * 3 + 1] = Math.random() * 80 + 10
+    starPositions[i * 3 + 2] = (Math.random() - 0.5) * 220
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
+  const starMat = new THREE.PointsMaterial({
+    color: 0x88C9A8,
+    size: 0.35,
+    transparent: true,
+    opacity: 0.55,
+  })
+  const stars = new THREE.Points(starGeo, starMat)
+  scene.add(stars)
+  scene.add(group)
+
+  // ── Animation loop ──
+  const clock = new THREE.Clock()
+  let animId = 0
+  function tick() {
+    animId = requestAnimationFrame(tick)
+    const t = clock.getElapsedTime()
+
+    // Slow rotation
+    group.rotation.y = t * 0.06
+
+    // Move waypoint along trail
+    const trailT = (t * 0.06) % 1
+    const idx = Math.min(trailPoints.length - 1, Math.floor(trailT * trailPoints.length))
+    const point = trailPoints[idx]
+    dot.position.copy(point)
+    ring.position.copy(point)
+
+    // Make the ring face the camera (billboard)
+    ring.lookAt(camera.position)
+    const pulse = 1 + Math.sin(t * 3.5) * 0.35
+    ring.scale.set(pulse, pulse, pulse)
+    ringMat.opacity = 0.5 - Math.sin(t * 3.5) * 0.25
+
+    // Subtle terrain breathing
+    terrain.position.y = Math.sin(t * 0.4) * 0.4
+
+    // Star drift
+    stars.rotation.y = t * 0.005
+
+    renderer.render(scene, camera)
+  }
+  tick()
+
+  // ── Resize handler ──
+  function onResize() {
+    if (!canvas) return
+    w = canvas.clientWidth
+    h = canvas.clientHeight
+    if (w === 0 || h === 0) return
+    camera.aspect = w / h
+    camera.updateProjectionMatrix()
+    renderer.setSize(w, h, false)
+  }
+  window.addEventListener('resize', onResize)
+
+  return () => {
+    window.removeEventListener('resize', onResize)
+    cancelAnimationFrame(animId)
+    terrainGeo.dispose()
+    terrainMat.dispose()
+    tubeGeo.dispose()
+    tubeMat.dispose()
+    dotGeo.dispose()
+    dotMat.dispose()
+    ringGeo.dispose()
+    ringMat.dispose()
+    starGeo.dispose()
+    starMat.dispose()
+    renderer.dispose()
+  }
+}
+
+onMounted(async () => {
+  await nextTick()
+  if (canvasEl.value) {
+    cleanup = initThreeScene(canvasEl.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  cleanup?.()
+  cleanup = null
+})
 </script>
 
 <style scoped>
@@ -188,16 +473,8 @@ const handleLogin = async () => {
 .fade-leave-active {
   transition: opacity 0.3s ease;
 }
-
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.strava-btn {
-  background-color: #FC4C02;
-}
-.strava-btn:hover {
-  background-color: #e04200;
 }
 </style>

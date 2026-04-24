@@ -69,10 +69,17 @@ CREATE TRIGGER set_maps_updated_at
   FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
 -- ─── orders ───────────────────────────────────────────────────────────────────
+-- Supports both (a) logged-in user orders and (b) guest orders for premade
+-- catalog purchases. Exactly one of user_id / guest_email must be present,
+-- and exactly one of map_id / premade_slug must be present (enforced via
+-- CHECK constraints below).
 CREATE TABLE IF NOT EXISTS public.orders (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id               UUID NOT NULL REFERENCES public.profiles(id),
-  map_id                UUID NOT NULL REFERENCES public.maps(id),
+  user_id               UUID REFERENCES public.profiles(id),   -- null for guest orders
+  map_id                UUID REFERENCES public.maps(id),        -- null for premade orders
+  guest_email           TEXT,                                   -- set when user_id is null
+  premade_slug          TEXT,                                   -- set when map_id is null
+  premade_title         TEXT,
   stripe_pi_id          TEXT NOT NULL UNIQUE,
   gelato_order_id       TEXT,              -- Gelato's internal order ID
   product_uid           TEXT NOT NULL,     -- Gelato productUid (e.g. 'flat_product_pf_18x24_...') or 'digital'
@@ -87,13 +94,19 @@ CREATE TABLE IF NOT EXISTS public.orders (
   carrier               TEXT,             -- Shipping carrier name
   digital_url           TEXT,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT orders_has_identity_chk
+    CHECK (user_id IS NOT NULL OR guest_email IS NOT NULL),
+  CONSTRAINT orders_has_product_chk
+    CHECK (map_id IS NOT NULL OR premade_slug IS NOT NULL)
 );
 
-CREATE INDEX IF NOT EXISTS orders_user_id_idx ON public.orders (user_id);
-CREATE INDEX IF NOT EXISTS orders_map_id_idx ON public.orders (map_id);
-CREATE INDEX IF NOT EXISTS orders_stripe_pi_idx ON public.orders (stripe_pi_id);
+CREATE INDEX IF NOT EXISTS orders_user_id_idx      ON public.orders (user_id);
+CREATE INDEX IF NOT EXISTS orders_map_id_idx       ON public.orders (map_id);
+CREATE INDEX IF NOT EXISTS orders_stripe_pi_idx    ON public.orders (stripe_pi_id);
 CREATE INDEX IF NOT EXISTS orders_gelato_order_idx ON public.orders (gelato_order_id);
+CREATE INDEX IF NOT EXISTS orders_guest_email_idx  ON public.orders (guest_email);
+CREATE INDEX IF NOT EXISTS orders_premade_slug_idx ON public.orders (premade_slug);
 
 DROP TRIGGER IF EXISTS set_orders_updated_at ON public.orders;
 CREATE TRIGGER set_orders_updated_at

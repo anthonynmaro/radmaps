@@ -103,14 +103,14 @@ onMounted(async () => {
       return
     }
 
-    await router.push('/dashboard')
+    await router.push('/')
     return
   }
 
   // No hash tokens — check if there's already an active session (e.g. PKCE flow)
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    await router.push('/dashboard')
+    await router.push('/')
   } else {
     hasError.value = true
     isLoading.value = false

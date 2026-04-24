@@ -20,7 +20,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
-      exclude: ['/', '/map/*'],
+      exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support'],
     },
   },
 
@@ -86,7 +86,7 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Turn your GPX tracks, Strava activities, and trail routes into beautiful print-quality maps.' },
+        { name: 'description', content: 'Turn your Strava activities, watch routes, and favourite trails into beautiful print-quality maps.' },
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

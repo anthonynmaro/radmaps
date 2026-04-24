@@ -74,7 +74,7 @@
 
       <!-- Action Buttons -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <NuxtLink to="/dashboard">
+        <NuxtLink to="/">
           <button class="w-full text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-5 py-3.5 rounded-xl transition-colors min-h-[48px]">
             View Your Maps
           </button>

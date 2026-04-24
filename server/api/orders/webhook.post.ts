@@ -44,22 +44,37 @@ export default defineEventHandler(async (event) => {
     const productUid = meta.product_uid       // Gelato productUid (or 'digital')
     const printSize = meta.print_size
     const isDigital = productUid === 'digital'
+    const isPremade = meta.kind === 'premade'
 
-    // Create the Order record
+    // Import premade catalog lazily to keep custom-order hot path small
+    let premade: Awaited<ReturnType<typeof import('~/data/premade-maps').getPremadeBySlug>> = undefined
+    if (isPremade && meta.premade_slug) {
+      const { getPremadeBySlug } = await import('~/data/premade-maps')
+      premade = getPremadeBySlug(meta.premade_slug)
+    }
+
+    // Build the order row. For premade orders, `map_id` is null and
+    // `premade_slug` / `premade_title` identify the product. For guests,
+    // `user_id` is null and `guest_email` identifies the customer.
+    const orderPayload: Record<string, unknown> = {
+      stripe_pi_id: session.payment_intent as string,
+      product_uid: productUid,
+      print_size: printSize,
+      quantity: parseInt(meta.quantity),
+      shipping_address: shippingAddress,
+      total_cents: session.amount_total ?? 0,
+      currency: session.currency ?? 'usd',
+      status: 'paid',
+      user_id: meta.user_id || null,
+      map_id: isPremade ? null : (meta.map_id || null),
+      guest_email: meta.guest_email || null,
+      premade_slug: isPremade ? meta.premade_slug : null,
+      premade_title: isPremade ? meta.premade_title : null,
+    }
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        user_id: meta.user_id,
-        map_id: meta.map_id,
-        stripe_pi_id: session.payment_intent as string,
-        product_uid: productUid,
-        print_size: printSize,
-        quantity: parseInt(meta.quantity),
-        shipping_address: shippingAddress,
-        total_cents: session.amount_total ?? 0,
-        currency: session.currency ?? 'usd',
-        status: 'paid',
-      })
+      .insert(orderPayload)
       .select()
       .single()
 
@@ -68,49 +83,67 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, message: 'Order creation failed' })
     }
 
-    let gelatoOrderId: string | undefined
-
-    if (!isDigital) {
-      // Place Gelato print order
-      gelatoOrderId = await placeGelatoOrder({
-        order,
-        shippingAddress,
-        mapId: meta.map_id,
-        productUid,
-        supabase,
-        gelatoApiKey: config.gelatoApiKey,
-      })
-    }
-
-    // Generate digital download URL (signed, 48hr expiry)
-    const { data: map } = await supabase
-      .from('maps')
-      .select('render_url, title, pdf_url')
-      .eq('id', meta.map_id)
-      .single()
-
+    // Resolve the print file URL.
+    //   Custom: map.render_url
+    //   Premade: premade.render_url (pre-generated, stored in catalog)
+    let printFileUrl: string | undefined
     let digitalUrl: string | undefined
-    if (map?.render_url) {
-      const filePath = map.render_url.split('/storage/v1/object/public/maps/')[1]
-      const { data: signedData } = await supabase.storage
+    let productTitle = 'RadMaps Print'
+
+    if (isPremade && premade) {
+      printFileUrl = premade.render_url
+      productTitle = premade.title
+      // For digital downloads on premade, use the public preview as the
+      // delivery URL (replace with a signed storage URL in production).
+      if (isDigital) digitalUrl = premade.render_url ?? premade.preview_image_url
+    } else if (meta.map_id) {
+      const { data: map } = await supabase
         .from('maps')
-        .createSignedUrl(filePath, 60 * 60 * 48)
-      digitalUrl = signedData?.signedUrl
+        .select('render_url, title, pdf_url')
+        .eq('id', meta.map_id)
+        .single()
+      if (map?.render_url) {
+        printFileUrl = map.render_url
+        productTitle = map.title
+        // Create a 48h signed URL for the digital download
+        const filePath = map.render_url.split('/storage/v1/object/public/maps/')[1]
+        if (filePath) {
+          const { data: signedData } = await supabase.storage
+            .from('maps')
+            .createSignedUrl(filePath, 60 * 60 * 48)
+          digitalUrl = signedData?.signedUrl
+        }
+      }
     }
 
-    // Update order with Gelato ID and digital URL
+    let gelatoOrderId: string | undefined
+    if (!isDigital) {
+      try {
+        gelatoOrderId = await placeGelatoOrder({
+          order,
+          shippingAddress,
+          printFileUrl,
+          productUid,
+          gelatoApiKey: config.gelatoApiKey,
+        })
+      } catch (err) {
+        console.error('Gelato order placement failed:', err)
+        // Don't fail the webhook — order is still paid; we can reconcile manually.
+      }
+    }
+
     await supabase.from('orders').update({
       gelato_order_id: gelatoOrderId,
       digital_url: digitalUrl,
       status: isDigital ? 'delivered' : 'in_production',
     }).eq('id', order.id)
 
-    // Send confirmation email
+    // Send confirmation email (guest or user — always have an email)
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
       to: shippingAddress.email,
       subject: `Your RadMaps order is confirmed! 🗺️`,
-      html: buildConfirmationEmail({ order, map, digitalUrl, isDigital }),
+      html: buildConfirmationEmail({ order, productTitle, digitalUrl, isDigital, isGuest: !meta.user_id }),
     })
   }
 
@@ -127,34 +160,22 @@ export default defineEventHandler(async (event) => {
 async function placeGelatoOrder({
   order,
   shippingAddress,
-  mapId,
+  printFileUrl,
   productUid,
-  supabase,
   gelatoApiKey,
 }: {
   order: Record<string, unknown>
   shippingAddress: Record<string, string>
-  mapId: string
+  printFileUrl: string | undefined
   productUid: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any
   gelatoApiKey: string
 }): Promise<string> {
-  const { data: map } = await supabase
-    .from('maps')
-    .select('render_url, title')
-    .eq('id', mapId)
-    .single()
-
-  if (!map?.render_url) {
-    throw createError({ statusCode: 422, message: 'Map render not yet available. Please render the map before ordering.' })
+  if (!printFileUrl) {
+    throw createError({ statusCode: 422, message: 'Print file URL is not available for this order.' })
   }
 
   const product = getProduct(productUid)
   if (!product) throw createError({ statusCode: 400, message: 'Invalid product UID' })
-
-  // Gelato requires the print file to be a publicly accessible URL
-  const printFileUrl = map.render_url
 
   // Split name into first/last for Gelato's address schema
   const nameParts = (shippingAddress.name ?? '').split(' ')
@@ -163,7 +184,7 @@ async function placeGelatoOrder({
 
   const gelatoOrder = {
     orderReferenceId: String(order.id),
-    customerReferenceId: String(order.user_id),
+    customerReferenceId: String(order.user_id ?? order.guest_email ?? order.id),
     currency: 'USD',
     items: [
       {
@@ -209,19 +230,21 @@ async function placeGelatoOrder({
 
 function buildConfirmationEmail({
   order,
-  map,
+  productTitle,
   digitalUrl,
   isDigital,
+  isGuest,
 }: {
   order: Record<string, unknown>
-  map: Record<string, unknown> | null
+  productTitle: string
   digitalUrl?: string
   isDigital: boolean
+  isGuest: boolean
 }) {
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <h1 style="color: #2D6A4F;">Your order is confirmed! 🗺️</h1>
-      <p>Thanks for ordering from RadMaps.</p>
+      <p>Thanks for ordering <strong>${productTitle}</strong> from RadMaps.</p>
       ${isDigital
         ? `<p>Your <strong>digital download</strong> is ready:</p>
            <p><a href="${digitalUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Download Your Map</a></p>
@@ -230,6 +253,7 @@ function buildConfirmationEmail({
            <p>You'll receive a shipping notification with tracking details once your order is dispatched.</p>
            ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${digitalUrl}">Download</a></p>` : ''}`
       }
+      ${isGuest ? `<p style="margin-top:24px;padding:16px;background:#F7F4EF;border-radius:8px;font-size:14px;">Want to design your own custom trail poster next time? <a href="https://radmaps.studio/auth/login" style="color:#2D6A4F;font-weight:600;">Create a free account</a> to bring in routes from Strava, your watch, or any trail app.</p>` : ''}
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
       <p style="font-size:12px;color:#999;">Order ID: <code>${order.id}</code> &nbsp;|&nbsp; RadMaps &mdash; Beautiful maps from your trails.</p>
     </div>

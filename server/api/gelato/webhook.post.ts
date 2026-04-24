@@ -154,7 +154,7 @@ export default defineEventHandler(async (event) => {
           <h1 style="color: #2D6A4F;">Your map has arrived! 🗺️</h1>
           <p>Your RadMaps print has been delivered. We hope you love it on the wall!</p>
           <p>Want to order another size or share a map with someone?
-             <a href="https://radmaps.studio/dashboard">Visit your dashboard</a>.</p>
+             <a href="https://radmaps.studio/">Visit your studio</a>.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
           <p style="font-size:12px;color:#999;">Order ID: <code>${dbOrder.id}</code></p>
         </div>

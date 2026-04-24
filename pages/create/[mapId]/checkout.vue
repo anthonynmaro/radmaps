@@ -265,9 +265,9 @@
     <!-- Error State -->
     <div v-else class="text-center py-20">
       <p class="text-stone-500 mb-4">Unable to load map details</p>
-      <NuxtLink to="/dashboard">
+      <NuxtLink to="/">
         <button class="text-sm font-medium text-stone-700 border border-stone-200 px-4 py-2.5 rounded-xl hover:bg-stone-50 transition-colors">
-          Back to Dashboard
+          Back to My Maps
         </button>
       </NuxtLink>
     </div>

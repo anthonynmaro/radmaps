@@ -387,8 +387,8 @@ export interface ShippingAddress {
 
 export interface Order {
   id: string
-  user_id: string
-  map_id: string
+  user_id: string | null         // nullable when guest_email is set
+  map_id: string | null          // nullable when premade_slug is set
   stripe_pi_id: string
   gelato_order_id?: string
   product_uid: string
@@ -401,8 +401,45 @@ export interface Order {
   tracking_code?: string
   carrier?: string
   digital_url?: string
+  // Guest / premade purchase fields
+  guest_email?: string | null
+  premade_slug?: string | null
+  premade_title?: string | null
   created_at: string
   updated_at: string
+}
+
+// ─── Premade Map Catalog ─────────────────────────────────────────────────────
+
+export type PremadeCategory =
+  | 'national-park'
+  | 'long-distance'
+  | 'marathon'
+  | 'peak'
+  | 'pilgrimage'
+  | 'adventure'
+
+export interface PremadeMap {
+  slug: string                    // URL-safe unique identifier, e.g. 'john-muir-trail'
+  title: string                   // Poster title
+  subtitle: string                // Short secondary line for the poster / card
+  region: string                  // Human-readable region (e.g. 'Sierra Nevada, California')
+  country: string                 // ISO 3166 alpha-2 or short name
+  category: PremadeCategory
+  tagline: string                 // Short marketing blurb for card
+  description: string             // Long-form product description
+  badges?: string[]               // Optional badges like 'Iconic', 'New', 'Bestseller'
+  stats: RouteStats
+  bbox: [number, number, number, number]
+  geojson: GeoJSON.FeatureCollection
+  style_config: StyleConfig
+  featured: boolean               // Show in featured strip
+  base_price_cents: number        // Starting price (smallest size)
+  // Visual presentation
+  cover_gradient?: [string, string]
+  // Pre-rendered assets (point these at Supabase Storage URLs in production)
+  preview_image_url?: string      // High-quality JPG for card/detail hero
+  render_url?: string             // 300 DPI print-ready file for Gelato
 }
 
 // ─── Gelato Product Catalogue ─────────────────────────────────────────────────
