@@ -156,9 +156,12 @@ const slug = route.params.slug as string
 const premade = getPremadeBySlug(slug)
 const sessionId = route.query.session_id as string | undefined
 
-useHead(() => ({
-  title: premade ? `Order confirmed — ${premade.title}` : 'Order confirmed — RadMaps',
-}))
+useSeo({
+  title: premade ? `Order confirmed — ${premade.title}` : 'Order confirmed',
+  description: 'Your RadMaps trail poster order has been confirmed.',
+  path: route.fullPath,
+  noindex: true,
+})
 
 const formatKm = (km?: number) => {
   if (km == null) return '—'

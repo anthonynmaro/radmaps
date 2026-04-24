@@ -97,10 +97,60 @@
 </template>
 
 <script setup lang="ts">
+import { useSeo } from '~/composables/useSeo'
+import { breadcrumbSchema } from '~/utils/seo'
+
 definePageMeta({ layout: 'default' })
 
-useHead({
-  title: 'Support — RadMaps',
-  meta: [{ name: 'description', content: 'Get help with your RadMaps order, importing your route, or your account.' }],
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How long does shipping take?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Orders are printed on demand and ship within 5–10 business days. Tracking is emailed when your print dispatches. RadMaps prints at the closest of 130+ Gelato facilities to minimize shipping times.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is your return policy?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Prints are made to order. If something arrives damaged or misprinted, we will reprint or refund it — just email support@radmaps.studio with a photo.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What route file types are supported?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Connect Strava to import directly, or upload a route file from your watch or any trail app — most export GPX, up to 25 MB. GeoJSON is also supported.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What materials are RadMaps prints made from?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'All prints are produced at 300 DPI on 170 gsm archival matte paper. Available sizes range from 8×10″ to 24×36″.',
+      },
+    },
+  ],
+}
+
+useSeo({
+  title: 'Support',
+  description: 'Get help with your RadMaps order, importing your route, or your account. Common questions about shipping, returns, GPX uploads, and design.',
+  path: '/support',
+  jsonLd: [
+    faqSchema,
+    breadcrumbSchema([
+      { name: 'Home', path: '/' },
+      { name: 'Support', path: '/support' },
+    ]),
+  ],
 })
 </script>

@@ -320,9 +320,12 @@ async function checkout() {
   }
 }
 
-useHead(() => ({
-  title: premade ? `Checkout — ${premade.title}` : 'Checkout — RadMaps',
-}))
+useSeo({
+  title: premade ? `Checkout — ${premade.title}` : 'Checkout',
+  description: 'Secure checkout for your RadMaps trail poster.',
+  path: route.fullPath,
+  noindex: true,
+})
 
 // ─── Route SVG for summary thumbnail ────────────────────────────────────
 function projectCoords() {

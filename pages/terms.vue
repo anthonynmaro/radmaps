@@ -66,10 +66,20 @@
 </template>
 
 <script setup lang="ts">
+import { useSeo } from '~/composables/useSeo'
+import { breadcrumbSchema } from '~/utils/seo'
+
 definePageMeta({ layout: 'default' })
 
-useHead({
-  title: 'Terms of Service — RadMaps',
-  meta: [{ name: 'description', content: 'RadMaps Studio Terms of Service.' }],
+useSeo({
+  title: 'Terms of Service',
+  description: 'RadMaps Studio Terms of Service — our standard fulfilment, refund, and licensing policies for custom and premade trail poster orders.',
+  path: '/terms',
+  jsonLd: [
+    breadcrumbSchema([
+      { name: 'Home', path: '/' },
+      { name: 'Terms', path: '/terms' },
+    ]),
+  ],
 })
 </script>

@@ -79,19 +79,34 @@ export default defineNuxtConfig({
   // CSS
   css: ['~/assets/styles/main.css'],
 
-  // App head
+  // App head — site-wide defaults. Per-page overrides land via useSeo().
   app: {
     head: {
-      title: 'RadMaps — Beautiful Maps from Your Trails',
+      htmlAttrs: { lang: 'en' },
+      titleTemplate: '%s',
+      title: 'RadMaps Studio — Trail Posters, Printed and Framed',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Turn your Strava activities, watch routes, and favourite trails into beautiful print-quality maps.' },
+        { name: 'description', content: 'Turn your Strava activities, watch routes, and favourite trails into beautiful print-quality posters — or pick from a curated catalog of iconic routes.' },
+        { name: 'theme-color', content: '#2D6A4F' },
+        { name: 'application-name', content: 'RadMaps' },
+        { name: 'apple-mobile-web-app-title', content: 'RadMaps' },
+        // Defaults overridden per-page by useSeo()
+        { property: 'og:site_name', content: 'RadMaps Studio' },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:locale', content: 'en_US' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        // Sensible robots default — pages can opt out via useSeo({ noindex: true })
+        { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
+        { name: 'googlebot', content: 'index, follow' },
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;600;700;900&family=Fjalla+One&family=Oswald:wght@400;500;600;700&family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Work+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital,wght@0,400;1,400&display=swap' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'alternate', type: 'application/xml', title: 'Sitemap', href: '/sitemap.xml' },
       ],
     },
   },

@@ -8,7 +8,7 @@
       style="background-image:url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');background-size:180px"
     />
 
-    <div class="relative max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
 
       <!-- ═══════════════════════════════════════════════════════════════
            EDITORIAL HEADER
@@ -486,8 +486,12 @@ definePageMeta({
   layout: 'default',
 })
 
-useHead({
-  title: 'Create a new map — RadMaps',
+useSeo({
+  title: 'Create a new map',
+  description: 'Design a custom trail poster — import from Strava, upload a route file, start from a premade, or draw on a map.',
+  path: '/create',
+  // Authenticated, user-specific flow — not for the index.
+  noindex: true,
 })
 
 const router = useRouter()

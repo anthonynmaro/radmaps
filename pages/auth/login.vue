@@ -214,9 +214,12 @@ import * as THREE from 'three'
 
 definePageMeta({ layout: false })
 
-useHead({
-  title: 'Sign in — RadMaps',
-  meta: [{ name: 'description', content: 'Sign in to RadMaps to design custom trail posters and order prints.' }],
+useSeo({
+  title: 'Sign in or create an account',
+  description: 'Sign in to RadMaps Studio with a magic link, Google, or Strava — and design custom trail posters from your routes.',
+  path: '/auth/login',
+  // Auth pages should not be indexed.
+  noindex: true,
 })
 
 const route = useRoute()

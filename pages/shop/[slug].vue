@@ -331,16 +331,84 @@ const posterAspect = computed(() => {
   return `${p.width_in} / ${p.height_in}`
 })
 
-useHead(() => ({
-  title: premade ? `${premade.title} Poster — RadMaps` : 'RadMaps',
-  meta: premade
-    ? [
-        { name: 'description', content: premade.tagline },
-        { property: 'og:title', content: `${premade.title} — Trail Poster` },
-        { property: 'og:description', content: premade.description },
-      ]
-    : [],
-}))
+// ─── SEO + structured data ──────────────────────────────────────────────
+import { useSeo } from '~/composables/useSeo'
+import { absoluteUrl, breadcrumbSchema, SITE_URL } from '~/utils/seo'
+
+if (premade) {
+  // Build a Product schema with one Offer per available size.
+  const offers = posterOptions.map((p) => ({
+    '@type': 'Offer',
+    sku: p.product_uid,
+    name: `${premade.title} — ${p.size_label} Poster`,
+    price: (p.price_cents / 100).toFixed(2),
+    priceCurrency: 'USD',
+    availability: 'https://schema.org/InStock',
+    url: `${SITE_URL}/shop/${premade.slug}`,
+    itemCondition: 'https://schema.org/NewCondition',
+    shippingDetails: {
+      '@type': 'OfferShippingDetails',
+      shippingRate: { '@type': 'MonetaryAmount', value: '5.99', currency: 'USD' },
+      deliveryTime: {
+        '@type': 'ShippingDeliveryTime',
+        handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
+        transitTime: { '@type': 'QuantitativeValue', minValue: 5, maxValue: 10, unitCode: 'DAY' },
+      },
+    },
+  }))
+
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: `${premade.title} — Trail Poster`,
+    description: premade.description,
+    image: premade.preview_image_url ?? undefined,
+    brand: { '@type': 'Brand', name: 'RadMaps Studio' },
+    category: 'Wall Art > Posters > Maps',
+    sku: premade.slug,
+    url: `${SITE_URL}/shop/${premade.slug}`,
+    offers: {
+      '@type': 'AggregateOffer',
+      offerCount: offers.length,
+      lowPrice: (Math.min(...posterOptions.map((p) => p.price_cents)) / 100).toFixed(2),
+      highPrice: (Math.max(...posterOptions.map((p) => p.price_cents)) / 100).toFixed(2),
+      priceCurrency: 'USD',
+      offers,
+    },
+    additionalProperty: [
+      { '@type': 'PropertyValue', name: 'Distance', value: `${premade.stats.distance_km} km` },
+      { '@type': 'PropertyValue', name: 'Elevation gain', value: `${premade.stats.elevation_gain_m} m` },
+      { '@type': 'PropertyValue', name: 'Region', value: premade.region },
+      { '@type': 'PropertyValue', name: 'Country', value: premade.country },
+      { '@type': 'PropertyValue', name: 'Activity', value: premade.stats.activity_type ?? 'hiking' },
+      { '@type': 'PropertyValue', name: 'Paper', value: '170 gsm archival matte' },
+      { '@type': 'PropertyValue', name: 'Print resolution', value: '300 DPI' },
+    ],
+  }
+
+  useSeo({
+    title: `${premade.title} Poster`,
+    description: `${premade.tagline} ${premade.description.slice(0, 130)}…`,
+    path: `/shop/${premade.slug}`,
+    image: premade.preview_image_url,
+    ogType: 'product',
+    jsonLd: [
+      productSchema,
+      breadcrumbSchema([
+        { name: 'Home', path: '/' },
+        { name: 'Shop', path: '/shop' },
+        { name: premade.title, path: `/shop/${premade.slug}` },
+      ]),
+    ],
+  })
+} else {
+  useSeo({
+    title: 'Print not found',
+    description: "We couldn't find that poster.",
+    path: '/shop',
+    noindex: true,
+  })
+}
 
 // ─── Customize (logged-in only) ────────────────────────────────────────
 const customizing = ref(false)
