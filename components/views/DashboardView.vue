@@ -463,7 +463,7 @@
               class="text-xl font-semibold tracking-tight text-stone-900"
               style="font-family:'Space Grotesk',sans-serif"
             >
-              Iconic trails, framed for you
+              Iconic maps, framed for you
             </h2>
           </div>
           <NuxtLink to="/shop" class="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors">

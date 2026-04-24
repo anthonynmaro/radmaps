@@ -25,7 +25,7 @@
           class="text-[48px] sm:text-[64px] leading-[1.02] tracking-tight text-stone-900 max-w-3xl"
           style="font-family:'Playfair Display',serif"
         >
-          Iconic trails, <em class="not-italic text-[#2D6A4F]">framed for you.</em>
+          Iconic maps, <em class="not-italic text-[#2D6A4F]">framed for you.</em>
         </h1>
         <p class="text-[15px] sm:text-base text-stone-500 mt-4 max-w-xl leading-relaxed">
           A curated collection of the world's greatest routes — printed on 170 gsm archival paper
@@ -44,7 +44,7 @@
             <svg class="w-3.5 h-3.5 text-[#2D6A4F]" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10 2a1 1 0 00-1 1v1H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-1-1z"/>
             </svg>
-            Printed via Gelato
+            Printed on-demand
           </span>
           <span class="inline-flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-[#2D6A4F]" viewBox="0 0 20 20" fill="currentColor">
