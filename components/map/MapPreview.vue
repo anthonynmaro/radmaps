@@ -43,7 +43,7 @@
           :style="trailNameStyle"
         >{{ trailName }}</h1>
         <h1
-          v-else-if="editable && styleConfig.labels?.show_title !== false"
+          v-else-if="editable"
           class="poster-trail-name editable-text"
           :style="trailNameStyle"
           :contenteditable="!isMobile"
@@ -1169,32 +1169,16 @@ function populateSegmentSources() {
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function makePinEl(type: 'start' | 'finish'): HTMLElement {
-  const routeColor = props.styleConfig.route_color || '#2D6A4F'
-  const bgColor    = props.styleConfig.label_bg_color  || '#1C1917'
-  const textColor  = props.styleConfig.label_text_color || '#F5F5F0'
-  const font       = typography.value.statsFont
-  const label      = type === 'start' ? 'Start' : 'Finish'
+function makePinEl(label: string): HTMLElement {
+  const color = props.styleConfig.label_text_color || '#1C1917'
+  const font  = typography.value.statsFont
 
   const el = document.createElement('div')
   el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;'
   el.innerHTML = `
-    <div style="
-      background:${bgColor};
-      color:${textColor};
-      font-family:${font};
-      font-size:8px;
-      font-weight:700;
-      letter-spacing:0.16em;
-      text-transform:uppercase;
-      padding:3px 8px 3px 9px;
-      border-radius:3px;
-      white-space:nowrap;
-      box-shadow:0 1px 4px rgba(0,0,0,0.3);
-      line-height:1.4;
-    ">${label}</div>
-    <div style="width:1.5px;height:7px;background:${routeColor};flex-shrink:0;"></div>
-    <div style="width:5px;height:5px;border-radius:50%;background:${routeColor};flex-shrink:0;outline:2px solid rgba(255,255,255,0.75);outline-offset:-1px;"></div>
+    <span style="font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;">${label}</span>
+    <div style="width:1px;height:10px;background:${color};margin-top:3px;flex-shrink:0;opacity:0.55;"></div>
+    <div style="width:3px;height:3px;border-radius:50%;background:${color};flex-shrink:0;"></div>
   `
   return el
 }
@@ -1224,15 +1208,25 @@ function placePinMarkers() {
     }
   }
 
-  if (startCoord && props.styleConfig.show_start_pin !== false) {
-    startMarker = new maplibregl.Marker({ element: makePinEl('start'), anchor: 'bottom' })
+  const isLoop = !!(startCoord && endCoord &&
+    Math.abs(startCoord[0] - endCoord[0]) < 0.0005 &&
+    Math.abs(startCoord[1] - endCoord[1]) < 0.0005)
+
+  if (isLoop && startCoord) {
+    startMarker = new maplibregl.Marker({ element: makePinEl('Start · Finish'), anchor: 'bottom' })
       .setLngLat(startCoord as [number, number])
       .addTo(mapInstance)
-  }
-  if (endCoord && props.styleConfig.show_finish_pin !== false) {
-    finishMarker = new maplibregl.Marker({ element: makePinEl('finish'), anchor: 'bottom' })
-      .setLngLat(endCoord as [number, number])
-      .addTo(mapInstance)
+  } else {
+    if (startCoord && props.styleConfig.show_start_pin !== false) {
+      startMarker = new maplibregl.Marker({ element: makePinEl('Start'), anchor: 'bottom' })
+        .setLngLat(startCoord as [number, number])
+        .addTo(mapInstance)
+    }
+    if (endCoord && props.styleConfig.show_finish_pin !== false) {
+      finishMarker = new maplibregl.Marker({ element: makePinEl('Finish'), anchor: 'bottom' })
+        .setLngLat(endCoord as [number, number])
+        .addTo(mapInstance)
+    }
   }
 }
 
