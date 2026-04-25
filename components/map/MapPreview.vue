@@ -1156,63 +1156,42 @@ function populateSegmentSources() {
   if (handleSrc) handleSrc.setData({ type: 'FeatureCollection', features: handleFeatures })
 }
 
-// ── Flag-style start / finish markers ────────────────────────────────────────
-// Uses maplibregl.Marker (DOM overlay) so the SVG renders in both the browser
-// preview and Puppeteer screenshots without needing a MapLibre source/layer.
-//
-// Start: pole leans LEFT, pennant extends right.
-// Finish: pole leans RIGHT, checkered rectangle extends left.
-// The opposing lean gives natural separation at loop trailheads.
-
-// ── Flag-style start / finish markers ────────────────────────────────────────
-// Uses maplibregl.Marker (DOM overlay) so the SVG appears in both the browser
-// preview and Puppeteer screenshots.
-//
-// KEY layout rule — opposite anchors prevent overlap at loop trailheads:
-//   Start:  pole on LEFT edge, anchor='bottom-left'  → element extends RIGHT of coord
-//   Finish: pole on RIGHT edge, anchor='bottom-right' → element extends LEFT of coord
-//
-// Colors are semantic (not route_color): green = start, red = finish.
-
-const PIN_GREEN = '#2D6A4F'
-const PIN_RED   = '#B91C1C'
+// ── Text-label start / finish markers ────────────────────────────────────────
+// Renders themed "START" / "FINISH" text pills as MapLibre DOM overlays so they
+// appear correctly in both the browser preview and Puppeteer screenshots.
+// Colors and font are pulled from the live styleConfig + typography computed
+// so they always stay in sync with the poster's theme.
 
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function flagSvg(type: 'start' | 'finish'): string {
-  // 24 × 36 viewBox.
-  // Start: pole base left (x=2), top slants right (x=7) — pennant extends right.
-  // Finish: pole base right (x=22), top slants left (x=17) — checkered rect extends left.
-  if (type === 'start') {
-    const c = PIN_GREEN
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">
-      <line x1="2" y1="34" x2="7" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
-      <polygon points="7,4 7,15 23,9.5" fill="white" opacity="0.85"/>
-      <line x1="2" y1="34" x2="7" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
-      <polygon points="7,4 7,15 23,9.5" fill="${c}"/>
-      <circle cx="2" cy="34" r="3.5" fill="white" opacity="0.85"/>
-      <circle cx="2" cy="34" r="2.2" fill="${c}"/>
-    </svg>`
-  }
-  const c = PIN_RED
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">
-    <line x1="22" y1="34" x2="17" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
-    <rect x="1" y="4" width="16" height="12" fill="white" opacity="0.85"/>
-    <line x1="22" y1="34" x2="17" y2="4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
-    <rect x="1"  y="4"  width="8" height="6" fill="${c}"/>
-    <rect x="9"  y="4"  width="8" height="6" fill="white"/>
-    <rect x="1"  y="10" width="8" height="6" fill="white"/>
-    <rect x="9"  y="10" width="8" height="6" fill="${c}"/>
-    <circle cx="22" cy="34" r="3.5" fill="white" opacity="0.85"/>
-    <circle cx="22" cy="34" r="2.2" fill="${c}"/>
-  </svg>`
-}
+function makePinEl(type: 'start' | 'finish'): HTMLElement {
+  const routeColor = props.styleConfig.route_color || '#2D6A4F'
+  const bgColor    = props.styleConfig.label_bg_color  || '#1C1917'
+  const textColor  = props.styleConfig.label_text_color || '#F5F5F0'
+  const font       = typography.value.statsFont
+  const label      = type === 'start' ? 'Start' : 'Finish'
 
-function makeFlagEl(type: 'start' | 'finish'): HTMLElement {
   const el = document.createElement('div')
-  el.style.cssText = 'display:block;pointer-events:none;'
-  el.innerHTML = flagSvg(type)
+  el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;'
+  el.innerHTML = `
+    <div style="
+      background:${bgColor};
+      color:${textColor};
+      font-family:${font};
+      font-size:8px;
+      font-weight:700;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      padding:3px 8px 3px 9px;
+      border-radius:3px;
+      white-space:nowrap;
+      box-shadow:0 1px 4px rgba(0,0,0,0.3);
+      line-height:1.4;
+    ">${label}</div>
+    <div style="width:1.5px;height:7px;background:${routeColor};flex-shrink:0;"></div>
+    <div style="width:5px;height:5px;border-radius:50%;background:${routeColor};flex-shrink:0;outline:2px solid rgba(255,255,255,0.75);outline-offset:-1px;"></div>
+  `
   return el
 }
 
@@ -1242,12 +1221,12 @@ function placePinMarkers() {
   }
 
   if (startCoord && props.styleConfig.show_start_pin !== false) {
-    startMarker = new maplibregl.Marker({ element: makeFlagEl('start'), anchor: 'bottom-left' })
+    startMarker = new maplibregl.Marker({ element: makePinEl('start'), anchor: 'bottom' })
       .setLngLat(startCoord as [number, number])
       .addTo(mapInstance)
   }
   if (endCoord && props.styleConfig.show_finish_pin !== false) {
-    finishMarker = new maplibregl.Marker({ element: makeFlagEl('finish'), anchor: 'bottom-right' })
+    finishMarker = new maplibregl.Marker({ element: makePinEl('finish'), anchor: 'bottom' })
       .setLngLat(endCoord as [number, number])
       .addTo(mapInstance)
   }
@@ -1386,10 +1365,15 @@ watch(
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
     }
 
-    // Re-place flag markers when visibility toggles
+    // Re-place pin markers when visibility, colors, or font changes
     if (
-      newConfig.show_start_pin !== oldConfig?.show_start_pin ||
-      newConfig.show_finish_pin !== oldConfig?.show_finish_pin
+      newConfig.show_start_pin    !== oldConfig?.show_start_pin    ||
+      newConfig.show_finish_pin   !== oldConfig?.show_finish_pin   ||
+      newConfig.route_color       !== oldConfig?.route_color       ||
+      newConfig.label_bg_color    !== oldConfig?.label_bg_color    ||
+      newConfig.label_text_color  !== oldConfig?.label_text_color  ||
+      newConfig.font_family       !== oldConfig?.font_family       ||
+      newConfig.body_font_family  !== oldConfig?.body_font_family
     ) {
       placePinMarkers()
     }
