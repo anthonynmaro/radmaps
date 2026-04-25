@@ -630,14 +630,23 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
   },
 }
 
-const THEME_DEFAULT_FONTS = ['Work Sans', 'Space Grotesk', 'DM Serif Display', 'Big Shoulders Display', 'Oswald', 'Fjalla One', 'DM Sans']
+const SERIF_FONTS = new Set(['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'])
+
+function toFontStack(family: string) {
+  return `'${family}', ${SERIF_FONTS.has(family) ? 'serif' : 'sans-serif'}`
+}
 
 const typography = computed((): TypographyProfile => {
   const base = THEME_TYPOGRAPHY[props.styleConfig.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
-  const override = props.styleConfig.font_family
-  if (override && !THEME_DEFAULT_FONTS.includes(override as string)) {
-    const f = `'${override}', sans-serif`
-    return { ...base, titleFont: f, subFont: f, statsFont: f }
+  const titleOverride = props.styleConfig.font_family
+  if (titleOverride) {
+    const bodyOverride = props.styleConfig.body_font_family ?? titleOverride
+    return {
+      ...base,
+      titleFont: toFontStack(titleOverride as string),
+      subFont: toFontStack(bodyOverride as string),
+      statsFont: toFontStack(bodyOverride as string),
+    }
   }
   return base
 })
@@ -883,7 +892,7 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     position: 'absolute',
     left: `${o.x}%`,
     top: `${o.y}%`,
-    fontFamily: `'${o.font_family}', sans-serif`,
+    fontFamily: toFontStack(o.font_family),
     fontSize: `${fontSize}cqh`,
     color: o.color,
     textAlign: o.alignment,
