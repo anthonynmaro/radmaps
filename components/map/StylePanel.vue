@@ -426,7 +426,11 @@
                 <textarea
                   :value="overlay.content"
                   rows="2"
-                  class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
+                  class="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-[16px] leading-snug text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 focus:border-[#2D6A4F] transition-colors resize-none"
+                  autocapitalize="sentences"
+                  autocorrect="on"
+                  spellcheck="true"
+                  enterkeyhint="done"
                   @input="setOverlay(overlay.id, { content: ($event.target as HTMLTextAreaElement).value })"
                 />
               </div>
@@ -1038,11 +1042,20 @@ export const TextRow = defineComponent({
   props: { label: String, value: String, placeholder: String },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('div', { class: 'space-y-1' }, [
-      h('span', { class: 'text-xs text-gray-600' }, props.label),
+    return () => h('div', { class: 'space-y-1.5' }, [
+      h('span', { class: 'text-xs font-medium text-stone-600' }, props.label),
       h('input', {
-        type: 'text', value: props.value, placeholder: props.placeholder,
-        class: 'w-full border border-gray-200 rounded px-2 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500',
+        type: 'text',
+        value: props.value,
+        placeholder: props.placeholder,
+        // 16px font-size is the iOS Safari threshold below which the viewport
+        // zooms in on focus. bg-white prevents OS dark-mode from applying a
+        // black background. min-h-[44px] meets the WCAG 2.5.8 touch target size.
+        class: 'w-full min-h-[44px] bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-[16px] leading-snug text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 focus:border-[#2D6A4F] transition-colors',
+        autocapitalize: 'words',
+        autocorrect: 'off',
+        spellcheck: 'false',
+        enterkeyhint: 'done',
         onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
       }),
     ])
