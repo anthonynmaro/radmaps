@@ -56,6 +56,32 @@
       </header>
 
       <!-- ═══════════════════════════════════════════════════════════════
+           CREATE YOUR OWN — guest callout
+           ═══════════════════════════════════════════════════════════════ -->
+      <div v-if="!user" class="mb-12 flex flex-col sm:flex-row sm:items-center gap-5 rounded-2xl border border-[#2D6A4F]/20 bg-[#2D6A4F]/[0.05] px-6 py-5 sm:px-8 sm:py-6">
+        <div class="flex-1 min-w-0">
+          <p class="text-[10px] font-semibold tracking-[0.22em] uppercase text-[#2D6A4F] mb-1.5">Custom Maps</p>
+          <h2
+            class="text-lg sm:text-xl font-semibold text-stone-900 leading-snug tracking-tight"
+            style="font-family:'Space Grotesk',sans-serif"
+          >
+            Got a GPS track? Turn it into wall art.
+          </h2>
+          <p class="text-sm text-stone-500 mt-1 leading-relaxed">
+            Upload a GPX from Strava, Garmin, or any app — design a print-quality poster in minutes. Free to try, pay only if you order.
+          </p>
+        </div>
+        <NuxtLink to="/auth/login?mode=signup" class="shrink-0">
+          <button class="inline-flex items-center gap-2 bg-[#2D6A4F] hover:bg-[#235840] text-white font-semibold px-5 py-3 rounded-full text-sm transition-colors shadow-sm shadow-[#2D6A4F]/20 whitespace-nowrap">
+            Start designing free
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 8h10M9 4l4 4-4 4"/>
+            </svg>
+          </button>
+        </NuxtLink>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════
            CATEGORY FILTER
            ═══════════════════════════════════════════════════════════════ -->
       <div class="flex flex-wrap items-center gap-2 mb-10">
@@ -242,9 +268,9 @@
             museum-quality print styled exactly how you want. Free to design, pay only if you print.
           </p>
           <div class="flex flex-wrap gap-3">
-            <NuxtLink :to="user ? '/create' : '/auth/login'">
+            <NuxtLink :to="user ? '/create' : '/auth/login?mode=signup'">
               <button class="inline-flex items-center gap-2 bg-[#52B788] hover:bg-[#63C99A] text-stone-900 font-semibold px-5 py-3 rounded-full text-sm transition-colors">
-                {{ user ? 'Create a custom map' : 'Sign up to create' }}
+                {{ user ? 'Create a custom map' : 'Start designing free' }}
                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 8h10M9 4l4 4-4 4"/>
                 </svg>

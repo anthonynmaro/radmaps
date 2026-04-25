@@ -241,6 +241,7 @@ const isGoogleLoading = ref(false)
 const showSuccessMessage = ref(false)
 const showErrorMessage = ref(false)
 const errorMessage = ref('')
+const toast = useToast()
 
 const handleGoogleLogin = async () => {
   isGoogleLoading.value = true
@@ -277,11 +278,25 @@ const handleLogin = async () => {
       errorMessage.value = error.message
       showErrorMessage.value = true
       isLoading.value = false
+      toast.add({
+        title: 'Could not send link',
+        description: error.message,
+        icon: 'i-heroicons-exclamation-circle',
+        color: 'red',
+        timeout: 6000,
+      })
       return
     }
     showSuccessMessage.value = true
     email.value = ''
     setTimeout(() => { showSuccessMessage.value = false }, 8000)
+    toast.add({
+      title: 'Magic link sent',
+      description: 'Check your inbox — click the link to sign in.',
+      icon: 'i-heroicons-envelope',
+      color: 'green',
+      timeout: 8000,
+    })
   } catch {
     errorMessage.value = 'An unexpected error occurred. Please try again.'
     showErrorMessage.value = true
