@@ -36,6 +36,12 @@ export function buildMapStyle(
   if (config.preset === 'natural-topo') {
     return buildNaturalTopoStyle(config, mapboxToken, maptilerToken, contourTileUrl)
   }
+  if (config.preset === 'stadia-watercolor') {
+    return buildStadiaWatercolorStyle(config, contourTileUrl)
+  }
+  if (config.preset === 'stadia-toner') {
+    return buildStadiaTonerStyle(config, contourTileUrl)
+  }
   return buildMinimalistStyle(config, mapboxToken, maptilerToken, contourTileUrl)
 }
 
@@ -524,21 +530,58 @@ function segmentHandleLayers(): object[] {
 // Pins are rendered as maplibregl.Marker HTML elements (see MapPreview.vue → placePinMarkers).
 // No MapLibre source/layers needed — markers sit in the DOM above the canvas.
 
+// ─── Route source ─────────────────────────────────────────────────────────────
+// lineMetrics must be true when using line-gradient; data is populated by MapPreview.vue.
+
+function routeSource(config: StyleConfig): object {
+  return {
+    type: 'geojson' as const,
+    data: { type: 'FeatureCollection', features: [] },
+    ...(config.route_color_mode === 'gradient' ? { lineMetrics: true } : {}),
+  }
+}
+
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
-  return [
-    {
-      id: 'route-line-casing',
-      type: 'line',
-      source: 'route',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': config.background_color ?? '#F7F4EF',
-        'line-width': config.route_width + 4,
-        'line-opacity': config.route_opacity,
-      },
+  const casing = {
+    id: 'route-line-casing',
+    type: 'line',
+    source: 'route',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': config.background_color ?? '#F7F4EF',
+      'line-width': config.route_width + 4,
+      'line-opacity': config.route_opacity,
     },
+  }
+
+  if (config.route_color_mode === 'gradient') {
+    return [
+      casing,
+      {
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-gradient': [
+            'interpolate', ['linear'], ['line-progress'],
+            0,    '#4F8EF7',
+            0.25, '#52B788',
+            0.6,  '#F4A261',
+            0.85, '#E76F51',
+            1,    '#C1121F',
+          ],
+          'line-width': config.route_width,
+          'line-opacity': config.route_opacity,
+        },
+      },
+    ]
+  }
+
+  return [
+    casing,
     {
       id: 'route-line',
       type: 'line',
@@ -605,10 +648,10 @@ function buildMinimalistStyle(
       : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'base-tiles': { ...baseTileSource, attribution: baseTileAttribution },
-      ...(config.show_hillshade ? demSource(mapboxTk) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -654,10 +697,10 @@ function buildRouteOnlyStyle(
     name: 'RadMaps Route Only',
     glyphs,
     sources: {
-      ...(config.show_hillshade ? demSource(mapboxTk) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -689,9 +732,9 @@ function buildRoadNetworkStyle(
   const ink = config.label_text_color
 
   const sources: Record<string, object> = {
-    ...(config.show_hillshade ? demSource(token) : {}),
+    ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
     ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
-    route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    route: routeSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
   }
@@ -829,9 +872,9 @@ function buildContourArtStyle(
     name: 'RadMaps Contour Art',
     glyphs,
     sources: {
-      ...(config.show_hillshade ? demSource(token) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...contourSource(token, contourTileUrl),
-      route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -952,10 +995,10 @@ function buildNaturalTopoStyle(
         tileSize: 512,
         attribution: '© MapTiler © OpenStreetMap contributors',
       },
-      ...(config.show_hillshade ? demSource(mapboxTk) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -975,6 +1018,97 @@ function buildNaturalTopoStyle(
       ...hillshadeLayers(config),
       ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(),
+    ],
+  }
+}
+
+// ─── Stadia Watercolor Style ──────────────────────────────────────────────────
+// Hand-painted watercolor raster tiles from Stamen Design, hosted by Stadia Maps.
+// Free for low-traffic / non-commercial use. Production needs a STADIA_API_KEY.
+
+function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string): object {
+  const usingMlContour = !!contourTileUrl
+
+  return {
+    version: 8,
+    name: 'RadMaps Watercolor',
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'base-tiles': {
+        type: 'raster' as const,
+        tiles: styledTileUrls(config, [
+          'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+        ]),
+        tileSize: 256,
+        attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+      },
+      ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
+      ...(config.show_contours ? (contourTileUrl ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } } : {}) : {}),
+      route: routeSource(config),
+      ...trailSegmentSources(config.trail_segments),
+      ...segmentHandleSource(),
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': '#d4dde1' } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    0.95,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
+      ...(config.show_hillshade ? hillshadeLayers(config) : []),
+      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(),
+    ],
+  }
+}
+
+// ─── Stadia Toner Style ───────────────────────────────────────────────────────
+// High-contrast black & white graphic style by Stamen Design, hosted by Stadia Maps.
+
+function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string): object {
+  const usingMlContour = !!contourTileUrl
+
+  return {
+    version: 8,
+    name: 'RadMaps Toner',
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'base-tiles': {
+        type: 'raster' as const,
+        tiles: styledTileUrls(config, [
+          'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png',
+        ]),
+        tileSize: 256,
+        attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+      },
+      ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
+      ...(config.show_contours && usingMlContour ? { contours: { type: 'vector' as const, tiles: [contourTileUrl!], minzoom: 0, maxzoom: 14 } } : {}),
+      route: routeSource(config),
+      ...trailSegmentSources(config.trail_segments),
+      ...segmentHandleSource(),
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': '#ffffff' } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    0.85,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
+      ...(config.show_hillshade ? hillshadeLayers(config) : []),
+      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(),
@@ -1003,10 +1137,10 @@ function buildTopographicStyle(
         tileSize: 512,
         attribution: '© Mapbox © OpenStreetMap contributors',
       },
-      ...(config.show_hillshade ? demSource(token) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
       ...(config.show_roads && token ? roadsSource(token) : {}),
-      route: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },

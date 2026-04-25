@@ -161,6 +161,8 @@
       <!-- ── Route ── -->
       <Section label="Route" icon="i-heroicons-map-pin">
         <div class="space-y-3">
+          <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
+            @change="set('route_color_mode', $event ? 'gradient' : 'solid')" />
           <ColorRow label="Colour" :value="local.route_color" @change="set('route_color', $event)" />
           <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
             :display="v => v + 'px'" @change="set('route_width', $event)" />
@@ -202,6 +204,7 @@
       <!-- ── Terrain ── -->
       <Section label="Terrain" icon="i-heroicons-signal">
         <div class="space-y-3">
+          <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set('map_3d', $event)" />
           <ToggleRow label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
           <template v-if="local.show_hillshade">
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
@@ -927,6 +930,29 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
       <ellipse cx="24" cy="18" rx="8" ry="4" stroke="#7a6e62" stroke-width="0.9" fill="none"/>
       <ellipse cx="24" cy="18" rx="4" ry="2" stroke="#5a504a" stroke-width="1.1" fill="none"/>
       <path d="M6 6 Q14 2 24 6 Q34 10 42 6" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'stadia-watercolor',
+    label: 'Watercolor',
+    title: 'Hand-painted watercolor tiles by Stamen/Stadia — artistic, painterly maps',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#d4dde1"/>
+      <ellipse cx="14" cy="14" rx="12" ry="9" fill="#c8dbc8" opacity="0.7"/>
+      <ellipse cx="34" cy="18" rx="10" ry="7" fill="#d4b8a0" opacity="0.6"/>
+      <rect x="0" y="20" width="48" height="12" fill="#a8c8d8" opacity="0.55"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    id: 'stadia-toner',
+    label: 'Toner',
+    title: 'High-contrast black & white graphic style by Stamen/Stadia',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#ffffff"/>
+      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#000" stroke-width="1.2" fill="none" opacity="0.45"/>
+      <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#000" stroke-width="0.8" fill="none" opacity="0.28"/>
+      <rect x="6" y="2" width="14" height="5" rx="1" fill="#000" opacity="0.1"/>
+      <rect x="28" y="4" width="10" height="4" rx="1" fill="#000" opacity="0.08"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
   },
 ]
 </script>

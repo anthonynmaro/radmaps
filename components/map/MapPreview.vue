@@ -991,6 +991,8 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   // trail_segments intentionally absent — segment ID changes are detected below,
   // and data-only changes (section_start/end, color, width) use the fast path.
   'tile_effect',
+  'route_color_mode',
+  'map_3d',
 ]
 
 // Computes a cache key for all parameters baked into the styledtile:// URL.
@@ -1055,6 +1057,7 @@ onMounted(async () => {
     populateSegmentSources()
     placePinMarkers()
     setPaintBackground()
+    apply3DTerrain()
     mapReady.value = true
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
@@ -1230,6 +1233,16 @@ function placePinMarkers() {
   }
 }
 
+function apply3DTerrain() {
+  if (!mapInstance) return
+  if (props.styleConfig.map_3d && mapInstance.getSource('mapbox-dem')) {
+    mapInstance.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 })
+    mapInstance.easeTo({ pitch: 45, duration: 600 })
+  } else {
+    try { mapInstance.setTerrain(null as any) } catch {}
+  }
+}
+
 function setPaintBackground() {
   if (!mapInstance) return
   if (mapInstance.getLayer('background')) {
@@ -1309,6 +1322,7 @@ watch(
         populateRouteSource()
         populateSegmentSources()
         placePinMarkers()
+        apply3DTerrain()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
       })
@@ -1356,7 +1370,9 @@ watch(
     }
 
     if (mapInstance.getLayer('route-line')) {
-      mapInstance.setPaintProperty('route-line', 'line-color', newConfig.route_color)
+      if ((newConfig.route_color_mode ?? 'solid') !== 'gradient') {
+        mapInstance.setPaintProperty('route-line', 'line-color', newConfig.route_color)
+      }
       mapInstance.setPaintProperty('route-line', 'line-width', newConfig.route_width)
       mapInstance.setPaintProperty('route-line', 'line-opacity', newConfig.route_opacity)
       mapInstance.setPaintProperty('route-line-casing', 'line-width', newConfig.route_width + 4)

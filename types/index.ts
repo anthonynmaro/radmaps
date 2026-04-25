@@ -1,7 +1,7 @@
 // ─── StyleConfig ─────────────────────────────────────────────────────────────
 // Shared between MapLibre preview (client) and render worker (server)
 
-export type StylePreset = 'minimalist' | 'topographic' | 'route-only' | 'road-network' | 'contour-art' | 'natural-topo'
+export type StylePreset = 'minimalist' | 'topographic' | 'route-only' | 'road-network' | 'contour-art' | 'natural-topo' | 'stadia-watercolor' | 'stadia-toner'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
@@ -145,6 +145,10 @@ export interface StyleConfig {
   // Vignette overlay
   show_vignette?: boolean
   vignette_intensity?: number       // 0–1 (default 0.45)
+  // Route gradient coloring — color the route by position along its length
+  route_color_mode?: 'solid' | 'gradient'
+  // 3D terrain — applies MapLibre terrain extrusion and 45° pitch
+  map_3d?: boolean
   // Frozen view state — locks zoom + center for deterministic tile processing
   map_zoom?: number                 // locked zoom level (undefined = auto-fit from bounds)
   map_center?: [number, number]     // locked center [lng, lat] (undefined = auto-fit)

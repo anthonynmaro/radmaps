@@ -353,6 +353,95 @@
           </div>
         </div>
 
+        <!-- PLACE -->
+        <div v-show="activeMethod === 'place'">
+          <PanelHeader
+            eyebrow="Place a location"
+            title="Search or drop a pin anywhere"
+            body="Find any city, park, or landmark — then design a poster around it. No route required."
+          />
+
+          <!-- Search -->
+          <div class="relative mb-4">
+            <div class="flex gap-2">
+              <input
+                v-model="placeQuery"
+                type="text"
+                placeholder="Search for a city, park, or landmark…"
+                class="flex-1 rounded-full border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/15"
+                @keydown.enter="geocodePlace"
+              />
+              <button
+                @click="geocodePlace"
+                :disabled="placeSearching || !placeQuery.trim()"
+                class="shrink-0 inline-flex items-center gap-2 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 px-4 py-3 rounded-full transition-colors"
+              >
+                <Spinner v-if="placeSearching" class="w-3.5 h-3.5" />
+                <span v-else>Search</span>
+              </button>
+            </div>
+
+            <!-- Geocode results dropdown -->
+            <div v-if="placeResults.length > 0" class="absolute z-20 top-full mt-1 left-0 right-0 bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
+              <button
+                v-for="r in placeResults"
+                :key="r.lat + r.lon"
+                @click="selectGeoResult(r)"
+                class="w-full text-left px-4 py-3 text-sm text-stone-800 hover:bg-stone-50 transition-colors border-b border-stone-100 last:border-0 truncate"
+              >{{ r.display_name }}</button>
+            </div>
+          </div>
+
+          <!-- Map -->
+          <ClientOnly>
+            <div class="rounded-2xl overflow-hidden border border-stone-200 bg-stone-100">
+              <div class="relative" style="height:340px;">
+                <div ref="placeMapEl" class="absolute inset-0 w-full h-full" />
+                <div v-if="!placeMapLoaded" class="absolute inset-0 flex items-center justify-center bg-stone-50">
+                  <div class="flex items-center gap-2">
+                    <Spinner class="w-4 h-4 text-[#2D6A4F]" />
+                    <span class="text-sm text-stone-500">Loading map…</span>
+                  </div>
+                </div>
+                <div v-if="placeMapLoaded && placePinLng === null"
+                  class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                  <div class="bg-white/95 backdrop-blur-sm px-5 py-3 rounded-full shadow-lg border border-stone-200 flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-[#2D6A4F]" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="text-xs font-semibold text-stone-800">Search above or click to place a pin</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ClientOnly>
+
+          <!-- Name + create -->
+          <div v-if="placePinLng !== null" class="mt-5 space-y-4">
+            <div class="space-y-2">
+              <label class="block text-[11px] font-semibold tracking-[0.16em] uppercase text-stone-500">Name this map</label>
+              <input
+                v-model="placeTitle"
+                type="text"
+                placeholder="e.g., Paris, France"
+                class="w-full rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/15"
+              />
+            </div>
+            <button
+              @click="savePlaceMap"
+              :disabled="!placeTitle.trim() || isSavingPlace"
+              class="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 rounded-full py-3.5 transition-colors shadow-sm shadow-stone-900/10"
+            >
+              <Spinner v-if="isSavingPlace" class="w-4 h-4" />
+              {{ isSavingPlace ? 'Creating…' : 'Continue to styling' }}
+              <svg v-if="!isSavingPlace" class="w-3.5 h-3.5 opacity-70" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 8h10M9 4l4 4-4 4"/>
+              </svg>
+            </button>
+            <InlineError v-if="placeError" :message="placeError" />
+          </div>
+        </div>
+
         <!-- DRAW -->
         <div v-show="activeMethod === 'draw'">
           <PanelHeader
@@ -499,7 +588,7 @@ const route = useRoute()
 const user = useSupabaseUser()
 
 // ─── Method picker ───────────────────────────────────────────────────────
-type MethodId = 'strava' | 'upload' | 'premade' | 'draw'
+type MethodId = 'strava' | 'upload' | 'premade' | 'draw' | 'place'
 
 const methods = [
   {
@@ -526,15 +615,20 @@ const methods = [
     subtitle: 'Sketch with your mouse',
     tone: 'amber',
   },
+  {
+    id: 'place' as MethodId,
+    title: 'Place a location',
+    subtitle: 'Search or drop a pin',
+    tone: 'blue',
+  },
 ]
 
 const activeMethod = ref<MethodId>('strava')
 
 function setMethod(id: MethodId) {
   activeMethod.value = id
-  if (id === 'draw') {
-    nextTick(() => initDrawMap())
-  }
+  if (id === 'draw') nextTick(() => initDrawMap())
+  if (id === 'place') nextTick(() => initPlaceMap())
 }
 
 // ─── Shared form state (upload) ──────────────────────────────────────────
@@ -566,6 +660,125 @@ const isDisconnecting = ref(false)
 const selectedPremadeSlug = ref<string | null>(null)
 const isCustomizing = ref(false)
 const customizeError = ref<string | null>(null)
+
+// ─── Place state ─────────────────────────────────────────────────────────────
+interface GeoResult { display_name: string; lat: string; lon: string; boundingbox: string[] }
+const placeMapEl     = ref<HTMLDivElement | null>(null)
+const placeMapLoaded = ref(false)
+const placeQuery     = ref('')
+const placeResults   = ref<GeoResult[]>([])
+const placeSearching = ref(false)
+const placePinLng    = ref<number | null>(null)
+const placePinLat    = ref<number | null>(null)
+const placeBbox      = ref<[number,number,number,number] | null>(null)
+const placeTitle     = ref('')
+const isSavingPlace  = ref(false)
+const placeError     = ref<string | null>(null)
+let placeMapInstance: any = null
+let placeMarker: any = null
+
+async function initPlaceMap() {
+  if (placeMapInstance || !placeMapEl.value) return
+  const maplibregl = (await import('maplibre-gl')).default
+  if (!document.querySelector('link[data-maplibre]')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'
+    link.setAttribute('data-maplibre', 'true')
+    document.head.appendChild(link)
+  }
+  placeMapInstance = new maplibregl.Map({
+    container: placeMapEl.value,
+    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    center: [-98.5795, 39.8283],
+    zoom: 3,
+    attributionControl: { compact: true },
+  })
+  placeMapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
+  placeMapInstance.on('load', () => { placeMapLoaded.value = true })
+  placeMapInstance.on('click', async (e: any) => {
+    const maplibregl2 = (await import('maplibre-gl')).default
+    setPlacePin(e.lngLat.lng, e.lngLat.lat, maplibregl2, null)
+  })
+}
+
+function setPlacePin(lng: number, lat: number, maplibregl: any, bbox: [number,number,number,number] | null) {
+  placePinLng.value = lng
+  placePinLat.value = lat
+  placeBbox.value = bbox ?? [lng - 0.05, lat - 0.05, lng + 0.05, lat + 0.05]
+  if (!placeMapInstance) return
+  if (placeMarker) placeMarker.remove()
+  const el = document.createElement('div')
+  el.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#2D6A4F;border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:move;'
+  placeMarker = new maplibregl.Marker({ element: el, draggable: true })
+    .setLngLat([lng, lat])
+    .addTo(placeMapInstance)
+  placeMarker.on('dragend', () => {
+    const pos = placeMarker.getLngLat()
+    placePinLng.value = pos.lng
+    placePinLat.value = pos.lat
+    placeBbox.value = [pos.lng - 0.05, pos.lat - 0.05, pos.lng + 0.05, pos.lat + 0.05]
+  })
+}
+
+async function geocodePlace() {
+  if (!placeQuery.value.trim()) return
+  placeSearching.value = true
+  placeResults.value = []
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeQuery.value)}&format=json&limit=5`
+    const data: GeoResult[] = await $fetch(url, { headers: { 'Accept-Language': 'en' } })
+    placeResults.value = data
+  } catch { /* ignore */ } finally {
+    placeSearching.value = false
+  }
+}
+
+async function selectGeoResult(r: GeoResult) {
+  placeResults.value = []
+  placeQuery.value = r.display_name.split(',').slice(0, 2).join(',')
+  const maplibregl = (await import('maplibre-gl')).default
+  const bb = r.boundingbox // [south, north, west, east]
+  const bbox: [number,number,number,number] = [
+    parseFloat(bb[2]), parseFloat(bb[0]),
+    parseFloat(bb[3]), parseFloat(bb[1]),
+  ]
+  setPlacePin(parseFloat(r.lon), parseFloat(r.lat), maplibregl, bbox)
+  if (placeMapInstance) {
+    placeMapInstance.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 40, maxZoom: 14, duration: 600 })
+  }
+  if (!placeTitle.value) {
+    placeTitle.value = r.display_name.split(',').slice(0, 2).join(',').trim()
+  }
+}
+
+async function savePlaceMap() {
+  if (!user.value?.id || placePinLng.value === null || placePinLat.value === null || !placeTitle.value.trim()) return
+  isSavingPlace.value = true
+  placeError.value = null
+  try {
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [placePinLng.value, placePinLat.value] } }],
+    }
+    const stats = { distance_km: 0, elevation_gain_m: 0, elevation_loss_m: 0, max_elevation_m: 0, min_elevation_m: 0 }
+    const response = await fetch('/api/maps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: placeTitle.value.trim(), geojson, bbox: placeBbox.value, stats }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error((err as any).message ?? 'Failed to create map')
+    }
+    const data: any = await response.json()
+    router.push(`/create/${data.id}/style`)
+  } catch (err) {
+    placeError.value = err instanceof Error ? err.message : 'Could not create map.'
+  } finally {
+    isSavingPlace.value = false
+  }
+}
 
 // ─── Draw state ──────────────────────────────────────────────────────────
 const drawMapEl = ref<HTMLDivElement | null>(null)
@@ -1041,6 +1254,10 @@ onBeforeUnmount(() => {
     try { drawMapInstance.remove() } catch {}
     drawMapInstance = null
   }
+  if (placeMapInstance) {
+    try { placeMapInstance.remove() } catch {}
+    placeMapInstance = null
+  }
 })
 
 // ─── Inline components ───────────────────────────────────────────────────
@@ -1141,6 +1358,7 @@ const MethodCard = defineComponent({
       stone: { bg: 'bg-stone-900/5', icon: 'text-stone-700' },
       green: { bg: 'bg-[#2D6A4F]/10', icon: 'text-[#2D6A4F]' },
       amber: { bg: 'bg-amber-500/10', icon: 'text-amber-700' },
+      blue: { bg: 'bg-blue-500/10', icon: 'text-blue-600' },
     }
     const icons: Record<string, () => any> = {
       strava: () =>
@@ -1166,6 +1384,10 @@ const MethodCard = defineComponent({
         h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
           h('path', { d: 'M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793z' }),
           h('path', { d: 'M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z' }),
+        ]),
+      place: () =>
+        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
+          h('path', { 'fill-rule': 'evenodd', 'clip-rule': 'evenodd', d: 'M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z' }),
         ]),
     }
     const tone = computed(() => toneClasses[props.method.tone] ?? toneClasses.stone)
