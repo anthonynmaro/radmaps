@@ -38,12 +38,12 @@
 
         <!-- Trail name — static or editable -->
         <h1
-          v-if="!editable"
+          v-if="!editable && styleConfig.labels?.show_title !== false"
           class="poster-trail-name"
           :style="trailNameStyle"
         >{{ trailName }}</h1>
         <h1
-          v-else
+          v-else-if="editable && styleConfig.labels?.show_title !== false"
           class="poster-trail-name editable-text"
           :style="trailNameStyle"
           :contenteditable="!isMobile"
@@ -216,9 +216,9 @@
             <span class="stat-unit" :style="statUnitStyle">ft gain</span>
           </div>
 
-          <div v-if="coords" class="stat-divider" :style="dividerStyle" />
+          <div v-if="coords && styleConfig.labels?.show_location !== false" class="stat-divider" :style="dividerStyle" />
 
-          <div v-if="coords" class="stat-block stat-block--coords">
+          <div v-if="coords && styleConfig.labels?.show_location !== false" class="stat-block stat-block--coords">
             <span :style="coordStyle">{{ coords.lat }}</span>
             <span :style="coordStyle">{{ coords.lng }}</span>
           </div>
@@ -659,10 +659,14 @@ const trailName = computed(() =>
 
 const locationLine = computed(() => {
   const parts: string[] = []
-  const loc = props.styleConfig.location_text || props.map.stats?.location
-  if (loc) parts.push(loc.toUpperCase())
-  const elev = props.map.stats?.max_elevation_m
-  if (elev) parts.push(`${Math.round(elev).toLocaleString()} M ELEV.`)
+  if (props.styleConfig.labels?.show_location !== false) {
+    const loc = props.styleConfig.location_text || props.map.stats?.location
+    if (loc) parts.push(loc.toUpperCase())
+  }
+  if (props.styleConfig.labels?.show_elevation_gain !== false) {
+    const elev = props.map.stats?.max_elevation_m
+    if (elev) parts.push(`${Math.round(elev).toLocaleString()} M ELEV.`)
+  }
   return parts.join('  ·  ')
 })
 
@@ -703,11 +707,11 @@ const borderW = computed(() =>
 const headerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.background_color,
   color: fg.value,
-  padding: '3cqh 7cqw 2.2cqh',
+  padding: '2.4cqh 7cqw',
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: 'center',
-  justifyContent: 'flex-end',
+  justifyContent: 'center',
   gap: '1.1cqh',
   position: 'relative' as const,
 }))
