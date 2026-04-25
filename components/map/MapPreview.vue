@@ -707,7 +707,7 @@ const borderW = computed(() =>
 const headerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.background_color,
   color: fg.value,
-  padding: '2.4cqh 7cqw',
+  padding: '5cqh 7cqw 2.8cqh',
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: 'center',
@@ -1172,16 +1172,61 @@ function populateSegmentSources() {
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function makePinEl(label: string): HTMLElement {
+// diagonal pin: dot sits at the anchor corner; line + label extend inward
+function makePinEl(label: string, direction: 'left' | 'right'): HTMLElement {
   const color = props.styleConfig.label_text_color || '#1C1917'
   const font  = typography.value.statsFont
+  const W = 60, H = 28
+  // dot is at the anchor corner (bottom-right for 'left', bottom-left for 'right')
+  const dotX = direction === 'left' ? W : 0
+  const dotY = H
+  const lineEndX = direction === 'left' ? 5 : W - 5
+  const lineEndY = 7
 
   const el = document.createElement('div')
-  el.style.cssText = 'display:flex;flex-direction:column;align-items:center;pointer-events:none;'
+  el.style.cssText = `position:relative;width:${W}px;height:${H}px;pointer-events:none;`
   el.innerHTML = `
-    <span style="font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;">${label}</span>
-    <div style="width:1px;height:10px;background:${color};margin-top:3px;flex-shrink:0;opacity:0.55;"></div>
-    <div style="width:3px;height:3px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+    <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;overflow:visible;">
+      <line x1="${dotX}" y1="${dotY}" x2="${lineEndX}" y2="${lineEndY}"
+            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
+      <circle cx="${dotX}" cy="${dotY}" r="2" fill="${color}"/>
+    </svg>
+    <span style="
+      position:absolute;top:0;${direction === 'left' ? 'left:0' : 'right:0'};
+      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
+      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
+    ">${label}</span>
+  `
+  return el
+}
+
+// loop pin: dot at bottom-center; two diagonal lines fan out to START (left) and FINISH (right)
+function makeLoopPinEl(): HTMLElement {
+  const color = props.styleConfig.label_text_color || '#1C1917'
+  const font  = typography.value.statsFont
+  const W = 112, H = 28
+  const dotX = W / 2, dotY = H
+
+  const el = document.createElement('div')
+  el.style.cssText = `position:relative;width:${W}px;height:${H}px;pointer-events:none;`
+  el.innerHTML = `
+    <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;overflow:visible;">
+      <line x1="${dotX}" y1="${dotY}" x2="7" y2="7"
+            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="${dotX}" y1="${dotY}" x2="${W - 7}" y2="7"
+            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
+      <circle cx="${dotX}" cy="${dotY}" r="2" fill="${color}"/>
+    </svg>
+    <span style="
+      position:absolute;top:0;left:0;
+      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
+      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
+    ">Start</span>
+    <span style="
+      position:absolute;top:0;right:0;
+      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
+      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
+    ">Finish</span>
   `
   return el
 }
@@ -1211,22 +1256,23 @@ function placePinMarkers() {
     }
   }
 
+  // ~330 m threshold — catches marathons/loops where start and finish are close
   const isLoop = !!(startCoord && endCoord &&
-    Math.abs(startCoord[0] - endCoord[0]) < 0.0005 &&
-    Math.abs(startCoord[1] - endCoord[1]) < 0.0005)
+    Math.abs(startCoord[0] - endCoord[0]) < 0.003 &&
+    Math.abs(startCoord[1] - endCoord[1]) < 0.003)
 
   if (isLoop && startCoord) {
-    startMarker = new maplibregl.Marker({ element: makePinEl('Start · Finish'), anchor: 'bottom' })
+    startMarker = new maplibregl.Marker({ element: makeLoopPinEl(), anchor: 'bottom' })
       .setLngLat(startCoord as [number, number])
       .addTo(mapInstance)
   } else {
     if (startCoord && props.styleConfig.show_start_pin !== false) {
-      startMarker = new maplibregl.Marker({ element: makePinEl('Start'), anchor: 'bottom' })
+      startMarker = new maplibregl.Marker({ element: makePinEl('Start', 'left'), anchor: 'bottom-right' })
         .setLngLat(startCoord as [number, number])
         .addTo(mapInstance)
     }
     if (endCoord && props.styleConfig.show_finish_pin !== false) {
-      finishMarker = new maplibregl.Marker({ element: makePinEl('Finish'), anchor: 'bottom' })
+      finishMarker = new maplibregl.Marker({ element: makePinEl('Finish', 'right'), anchor: 'bottom-left' })
         .setLngLat(endCoord as [number, number])
         .addTo(mapInstance)
     }
