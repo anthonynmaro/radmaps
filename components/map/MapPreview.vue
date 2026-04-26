@@ -1369,6 +1369,13 @@ watch(
         populateSegmentSources()
         placePinMarkers()
         apply3DTerrain()
+        // setStyle() resets the viewport — restore frozen position before revealing the map
+        if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+          mapInstance!.jumpTo({
+            zoom: props.styleConfig.map_zoom,
+            center: props.styleConfig.map_center as [number, number],
+          })
+        }
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
       })
