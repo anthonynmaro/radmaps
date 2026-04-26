@@ -68,6 +68,57 @@
             >{{ theme.label }}</span>
           </button>
         </div>
+
+        <!-- My Themes -->
+        <div v-if="savedThemes.length" class="mt-3 pt-3 border-t border-gray-100">
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">My Themes</p>
+          <div class="grid grid-cols-3 gap-2">
+            <div v-for="saved in savedThemes" :key="saved.id" class="relative group">
+              <button
+                @click="applySavedTheme(saved)"
+                class="relative flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all overflow-hidden w-full"
+              >
+                <!-- Poster mini-preview -->
+                <div class="w-full rounded overflow-hidden" style="aspect-ratio: 18/24; position: relative;">
+                  <div class="absolute inset-0" :style="{ backgroundColor: saved.config.background_color ?? '#F7F4EF' }" />
+                  <div class="absolute inset-0 flex flex-col items-center justify-start pt-[8%] px-[6%] gap-[3%]">
+                    <span
+                      :style="{
+                        fontFamily: 'sans-serif',
+                        color: saved.config.label_text_color ?? '#1C1917',
+                        fontSize: '6px',
+                        fontWeight: '600',
+                        letterSpacing: '0.2em',
+                        textTransform: 'uppercase',
+                        lineHeight: '1.1',
+                        textAlign: 'center',
+                        display: 'block',
+                        width: '100%',
+                      }"
+                    >SUMMIT<br/>TRAIL</span>
+                    <div class="w-full" :style="{ height: '0.5px', backgroundColor: saved.config.label_text_color ?? '#1C1917', opacity: '0.2' }" />
+                    <div class="relative flex-1 w-full rounded-sm overflow-hidden" style="height: 55%">
+                      <svg viewBox="0 0 48 32" class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="xMidYMid slice">
+                        <ellipse cx="24" cy="18" rx="18" ry="10" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.12"/>
+                        <ellipse cx="24" cy="18" rx="12" ry="7" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.1"/>
+                        <ellipse cx="24" cy="18" rx="6" ry="4" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.08"/>
+                        <path d="M6 26 Q14 20 20 22 Q28 24 36 14 Q40 10 44 12"
+                          :stroke="saved.config.route_color ?? '#C1121F'" stroke-width="2" fill="none" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <span class="text-[9px] leading-none font-medium text-gray-500 truncate w-full text-center">{{ saved.name }}</span>
+              </button>
+              <!-- Delete button -->
+              <button
+                @click.stop="removeTheme(saved.id)"
+                class="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-gray-800/70 text-white text-[8px] leading-none z-10 hover:bg-gray-900/90 transition-colors"
+                title="Delete theme"
+              >✕</button>
+            </div>
+          </div>
+        </div>
       </Section>
 
       <!-- ── Print Size ── -->
@@ -614,11 +665,38 @@
 
     </div>
 
-    <!-- Reset footer -->
+    <!-- Footer actions -->
     <div class="px-5 py-3 border-t shrink-0">
-      <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors" @click="$emit('reset')">
-        Reset to defaults
-      </button>
+      <!-- Save-theme name input -->
+      <div v-if="showSaveInput" class="flex items-center gap-2">
+        <input
+          ref="saveInputRef"
+          v-model="newThemeName"
+          type="text"
+          placeholder="Theme name…"
+          maxlength="40"
+          class="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/30"
+          @keydown.enter="handleSaveTheme"
+          @keydown.escape="showSaveInput = false"
+        />
+        <button
+          class="text-xs font-medium text-green-700 hover:text-green-800 transition-colors"
+          @click="handleSaveTheme"
+        >Save</button>
+        <button
+          class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          @click="showSaveInput = false"
+        >✕</button>
+      </div>
+      <!-- Default: reset + save -->
+      <div v-else class="flex items-center justify-between">
+        <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors" @click="$emit('reset')">
+          Reset to defaults
+        </button>
+        <button class="text-xs font-medium text-green-600 hover:text-green-700 transition-colors" @click="openSaveInput">
+          Save theme
+        </button>
+      </div>
     </div>
 
   </div>
@@ -627,6 +705,7 @@
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TextOverlayAlignment, TrailSegment, StylePreset } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
+import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -646,6 +725,31 @@ watch(() => props.modelValue, (v) => {
     Object.assign(local, v)
   }
 }, { deep: true })
+
+// ── Saved themes ───────────────────────────────────────────────────────────────
+const { themes: savedThemes, saveTheme, removeTheme } = useSavedThemes()
+
+const showSaveInput = ref(false)
+const newThemeName = ref('')
+const saveInputRef = ref<HTMLInputElement | null>(null)
+
+function openSaveInput() {
+  newThemeName.value = ''
+  showSaveInput.value = true
+  nextTick(() => saveInputRef.value?.focus())
+}
+
+function handleSaveTheme() {
+  if (!newThemeName.value.trim()) return
+  saveTheme(newThemeName.value, { ...local } as StyleConfig)
+  showSaveInput.value = false
+  newThemeName.value = ''
+}
+
+function applySavedTheme(saved: SavedTheme) {
+  Object.assign(local, saved.config)
+  emit('update:modelValue', { ...local })
+}
 
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
