@@ -30,3 +30,9 @@ npm-debug.log*
 # Testing
 coverage/
 .vercel
+
+# Claude Code
+.claude/
+
+# Supabase CLI temp files
+supabase/.temp/
