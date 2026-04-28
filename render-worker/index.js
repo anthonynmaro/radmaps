@@ -133,12 +133,12 @@ async function renderMap({
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      // WebGL (required by MapLibre) via software renderer — no GPU hardware needed.
-      // '--disable-gpu' kills WebGL; SwiftShader is the headless-safe alternative.
-      '--use-gl=swiftshader',
-      '--enable-webgl',
+      // WebGL via Mesa software renderer (libgl1-mesa-dri + libegl1 in Dockerfile).
+      // --use-gl=egl tells system Chromium to use EGL/Mesa rather than GLX or ANGLE.
+      // Do NOT use --disable-gpu — it kills WebGL entirely.
+      '--use-gl=egl',
       '--ignore-gpu-blocklist',
-      '--disable-gpu-sandbox',
+      '--enable-webgl',
     ],
   })
 

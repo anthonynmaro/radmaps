@@ -32,6 +32,9 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxtst6 \
     ca-certificates \
+    libgl1-mesa-dri \
+    libegl1 \
+    libgles2 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
