@@ -140,6 +140,10 @@ async function renderMap({
   const page = await browser.newPage()
   await page.setViewport({ width: WIDTH_PX, height: HEIGHT_PX, deviceScaleFactor: 1 })
 
+  // Forward in-page console output to the worker log so tile errors are visible.
+  page.on('console', msg => app.log.info(`[page:${msg.type()}] ${msg.text()}`))
+  page.on('pageerror', err => app.log.error(`[page:error] ${err.message}`))
+
   // Build self-contained HTML page that renders the map
   // If framing data is provided (user adjusted center/zoom in ProductSelector),
   // pass it through so the render matches the user's chosen view.
@@ -150,6 +154,7 @@ async function renderMap({
   await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
 
   // Preview needs much less headroom; print gets the full 90s budget.
+  // The page script sets a 55s internal fallback so we always complete before this fires.
   await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 30000 : 90000 })
   await new Promise(resolve => setTimeout(resolve, 500)) // Extra settle time
 
@@ -194,7 +199,10 @@ async function renderMap({
 // matching cqh units in MapPreview.vue (1cqh = 1% of poster canvas height).
 function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width, height, framing }) {
   const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token))
-  const geojsonStr = JSON.stringify(geojson)
+  const cropStart = style_config.route_crop_start ?? 0
+  const cropEnd = style_config.route_crop_end ?? 100
+  const croppedGeojson = (cropStart > 0 || cropEnd < 100) ? sliceRouteByPct(geojson, cropStart, cropEnd) : geojson
+  const geojsonStr = JSON.stringify(smoothGeojson(croppedGeojson, style_config.route_smooth ?? 0))
   const padding = Math.round(Math.min(width, height) * (style_config.padding_factor ?? 0.15))
 
   const fg = style_config.label_text_color || '#1C1917'
@@ -202,21 +210,55 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
   const trailName = style_config.trail_name || title || 'Your Trail'
   const occasionText = style_config.occasion_text || ''
   const locationText = style_config.location_text || stats?.location || ''
-  const maxElev = stats?.max_elevation_m ? `${Math.round(stats.max_elevation_m).toLocaleString()} M ELEV.` : ''
-  const locationLine = [locationText ? locationText.toUpperCase() : '', maxElev].filter(Boolean).join('  ·  ')
+  const locationLine = locationText ? locationText.toUpperCase() : ''
   const distanceMi = stats?.distance_km ? (stats.distance_km * 0.621371).toFixed(1) : ''
   const elevGainFt = stats?.elevation_gain_m ? Math.round(stats.elevation_gain_m * 3.28084).toLocaleString() : ''
 
-  // Typography per theme (mirrors THEME_TYPOGRAPHY in MapPreview.vue)
-  const THEME_TYPOGRAPHY = {
-    chalk:    { titleFont: "'Work Sans'",          titleWeight: '300', titleTracking: '0.38em', titleSize: '3.4vh', subFont: "'Work Sans'",          subWeight: '400', subTracking: '0.28em', statsFont: "'Work Sans'" },
-    topaz:    { titleFont: "'Space Grotesk'",      titleWeight: '700', titleTracking: '0.06em', titleSize: '4.4vh', subFont: "'Space Grotesk'",      subWeight: '400', subTracking: '0.22em', statsFont: "'Space Grotesk'" },
-    dusk:     { titleFont: "'DM Serif Display'",   titleWeight: '400', titleTracking: '0.03em', titleSize: '4.8vh', subFont: "'DM Sans'",            subWeight: '400', subTracking: '0.22em', statsFont: "'DM Sans'" },
-    obsidian: { titleFont: "'Big Shoulders Display'", titleWeight: '800', titleTracking: '-0.01em', titleSize: '5.8vh', subFont: "'DM Sans'",        subWeight: '400', subTracking: '0.35em', statsFont: "'Big Shoulders Display'" },
-    forest:   { titleFont: "'Oswald'",             titleWeight: '600', titleTracking: '0.08em', titleSize: '4.6vh', subFont: "'Oswald'",             subWeight: '300', subTracking: '0.22em', statsFont: "'Oswald'" },
-    midnight: { titleFont: "'Fjalla One'",         titleWeight: '400', titleTracking: '0.12em', titleSize: '4.8vh', subFont: "'DM Sans'",            subWeight: '300', subTracking: '0.32em', statsFont: "'Fjalla One'" },
+  // Typography and layout per theme — mirrors utils/posterData.ts (keep in sync).
+  // Sizes are plain numbers; append 'vh' here (vs 'cqh' in browser preview).
+  const SERIF_FONTS_SET = new Set(['Playfair Display','Cormorant Garamond','Libre Baskerville','DM Serif Display'])
+  function toFontStack(family) {
+    return `'${family}', ${SERIF_FONTS_SET.has(family) ? 'serif' : 'sans-serif'}`
   }
-  const typo = THEME_TYPOGRAPHY[style_config.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
+  const POSTER_TYPOGRAPHY = {
+    // Family A
+    chalk:         { titleFont: "'Work Sans', sans-serif",           titleWeight: '300', titleTracking: '0.38em', titleCase: 'uppercase', titleSize: 3.4, titleLineHeight: '1.15', subFont: "'Work Sans', sans-serif",           subWeight: '400', subTracking: '0.28em', subSize: 1.0,  statsFont: "'Work Sans', sans-serif",           statsWeight: '500' },
+    topaz:         { titleFont: "'Space Grotesk', sans-serif",       titleWeight: '700', titleTracking: '0.06em', titleCase: 'uppercase', titleSize: 4.4, titleLineHeight: '1.05', subFont: "'Space Grotesk', sans-serif",       subWeight: '400', subTracking: '0.22em', subSize: 1.05, statsFont: "'Space Grotesk', sans-serif",       statsWeight: '600' },
+    dusk:          { titleFont: "'DM Serif Display', serif",         titleWeight: '400', titleTracking: '0.03em', titleCase: 'none',      titleSize: 4.8, titleLineHeight: '1.1',  subFont: "'DM Sans', sans-serif",            subWeight: '400', subTracking: '0.22em', subSize: 1.0,  statsFont: "'DM Sans', sans-serif",            statsWeight: '500' },
+    obsidian:      { titleFont: "'Big Shoulders Display', sans-serif", titleWeight: '800', titleTracking: '-0.01em', titleCase: 'uppercase', titleSize: 5.8, titleLineHeight: '0.95', subFont: "'DM Sans', sans-serif",          subWeight: '400', subTracking: '0.35em', subSize: 1.0,  statsFont: "'Big Shoulders Display', sans-serif", statsWeight: '700' },
+    forest:        { titleFont: "'Oswald', sans-serif",              titleWeight: '600', titleTracking: '0.08em', titleCase: 'uppercase', titleSize: 4.6, titleLineHeight: '1.05', subFont: "'Oswald', sans-serif",             subWeight: '300', subTracking: '0.22em', subSize: 1.0,  statsFont: "'Oswald', sans-serif",             statsWeight: '500' },
+    midnight:      { titleFont: "'Fjalla One', sans-serif",          titleWeight: '400', titleTracking: '0.12em', titleCase: 'uppercase', titleSize: 4.8, titleLineHeight: '1.05', subFont: "'DM Sans', sans-serif",            subWeight: '300', subTracking: '0.32em', subSize: 1.0,  statsFont: "'Fjalla One', sans-serif",         statsWeight: '400' },
+    // Family B
+    editorial:     { titleFont: "'Playfair Display', serif",         titleWeight: '400', titleTracking: '0.02em', titleCase: 'none',      titleSize: 5.0, titleLineHeight: '1.1',  subFont: "'Playfair Display', serif",        subWeight: '400', subTracking: '0.18em', subSize: 1.0,  statsFont: "'Libre Baskerville', serif",       statsWeight: '400' },
+    bauhaus:       { titleFont: "'Big Shoulders Display', sans-serif", titleWeight: '900', titleTracking: '-0.02em', titleCase: 'uppercase', titleSize: 6.8, titleLineHeight: '0.9',  subFont: "'DM Sans', sans-serif",          subWeight: '400', subTracking: '0.28em', subSize: 0.95, statsFont: "'Big Shoulders Display', sans-serif", statsWeight: '700' },
+    vintage:       { titleFont: "'DM Serif Display', serif",         titleWeight: '400', titleTracking: '0.04em', titleCase: 'none',      titleSize: 5.2, titleLineHeight: '1.08', subFont: "'DM Serif Display', serif",        subWeight: '400', subTracking: '0.22em', subSize: 1.0,  statsFont: "'DM Sans', sans-serif",            statsWeight: '400' },
+    brutalist:     { titleFont: "'Bebas Neue', sans-serif",          titleWeight: '400', titleTracking: '0.07em', titleCase: 'uppercase', titleSize: 7.2, titleLineHeight: '0.92', subFont: "'DM Sans', sans-serif",            subWeight: '700', subTracking: '0.35em', subSize: 0.9,  statsFont: "'Bebas Neue', sans-serif",         statsWeight: '400' },
+    risograph:     { titleFont: "'Oswald', sans-serif",              titleWeight: '500', titleTracking: '0.10em', titleCase: 'uppercase', titleSize: 5.0, titleLineHeight: '1.0',  subFont: "'Oswald', sans-serif",             subWeight: '300', subTracking: '0.25em', subSize: 1.0,  statsFont: "'Work Sans', sans-serif",          statsWeight: '500' },
+    blueprint:     { titleFont: "'Space Grotesk', sans-serif",       titleWeight: '700', titleTracking: '0.14em', titleCase: 'uppercase', titleSize: 4.2, titleLineHeight: '1.05', subFont: "'Space Grotesk', sans-serif",      subWeight: '400', subTracking: '0.28em', subSize: 0.9,  statsFont: "'Space Grotesk', sans-serif",      statsWeight: '600' },
+    kertok:        { titleFont: "'Work Sans', sans-serif",           titleWeight: '200', titleTracking: '0.06em', titleCase: 'none',      titleSize: 4.6, titleLineHeight: '1.12', subFont: "'Work Sans', sans-serif",          subWeight: '300', subTracking: '0.20em', subSize: 0.95, statsFont: "'Work Sans', sans-serif",          statsWeight: '300' },
+    'mid-century': { titleFont: "'Oswald', sans-serif",              titleWeight: '400', titleTracking: '0.16em', titleCase: 'uppercase', titleSize: 4.4, titleLineHeight: '1.05', subFont: "'Work Sans', sans-serif",          subWeight: '400', subTracking: '0.30em', subSize: 0.95, statsFont: "'Oswald', sans-serif",             statsWeight: '400' },
+    'topo-art':    { titleFont: "'Work Sans', sans-serif",           titleWeight: '400', titleTracking: '0.28em', titleCase: 'uppercase', titleSize: 3.6, titleLineHeight: '1.15', subFont: "'Work Sans', sans-serif",          subWeight: '300', subTracking: '0.22em', subSize: 0.95, statsFont: "'Work Sans', sans-serif",          statsWeight: '400' },
+    'dark-sky':    { titleFont: "'Fjalla One', sans-serif",          titleWeight: '400', titleTracking: '0.08em', titleCase: 'uppercase', titleSize: 5.4, titleLineHeight: '1.0',  subFont: "'DM Sans', sans-serif",            subWeight: '300', subTracking: '0.35em', subSize: 1.0,  statsFont: "'Fjalla One', sans-serif",         statsWeight: '400' },
+  }
+  const POSTER_LAYOUT = {
+    chalk: { titleAlign: 'center', titlePosition: 'top' }, topaz: { titleAlign: 'center', titlePosition: 'top' },
+    dusk: { titleAlign: 'center', titlePosition: 'top' }, obsidian: { titleAlign: 'center', titlePosition: 'top' },
+    forest: { titleAlign: 'center', titlePosition: 'top' }, midnight: { titleAlign: 'center', titlePosition: 'top' },
+    editorial: { titleAlign: 'left', titlePosition: 'top' }, bauhaus: { titleAlign: 'left', titlePosition: 'bottom' },
+    vintage: { titleAlign: 'center', titlePosition: 'top' }, brutalist: { titleAlign: 'left', titlePosition: 'bottom' },
+    risograph: { titleAlign: 'left', titlePosition: 'top' }, blueprint: { titleAlign: 'left', titlePosition: 'bottom' },
+    kertok: { titleAlign: 'left', titlePosition: 'top' }, 'mid-century': { titleAlign: 'center', titlePosition: 'bottom' },
+    'topo-art': { titleAlign: 'center', titlePosition: 'top' }, 'dark-sky': { titleAlign: 'center', titlePosition: 'bottom' },
+  }
+  const baseTypo = POSTER_TYPOGRAPHY[style_config.color_theme ?? 'chalk'] ?? POSTER_TYPOGRAPHY.chalk
+  const fontOverride = style_config.font_family
+  const typo = fontOverride ? {
+    ...baseTypo,
+    titleFont: toFontStack(fontOverride),
+    subFont: toFontStack(style_config.body_font_family ?? fontOverride),
+    statsFont: toFontStack(style_config.body_font_family ?? fontOverride),
+  } : baseTypo
+  const layout = POSTER_LAYOUT[style_config.color_theme ?? 'chalk'] ?? POSTER_LAYOUT.chalk
 
   const borderW = style_config.border_style === 'thick' ? '2px' : style_config.border_style === 'thin' ? '1px' : '0'
 
@@ -230,20 +272,20 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
   if (bbox) {
     const lat = (bbox[1] + bbox[3]) / 2
     const lng = (bbox[0] + bbox[2]) / 2
-    coordHtml = `<span style="display:block;font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lat,'N','S')}</span>
-                 <span style="display:block;font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lng,'E','W')}</span>`
+    coordHtml = `<span style="display:block;font-family:${typo.statsFont};font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lat,'N','S')}</span>
+                 <span style="display:block;font-family:${typo.statsFont};font-weight:500;font-size:1.2vh;letter-spacing:0.04em;color:${fg};opacity:0.65;">${fmtCoord(lng,'E','W')}</span>`
   }
 
   // Build stat blocks HTML
   const statsHtml = [
     distanceMi ? `<div style="display:flex;flex-direction:column;align-items:flex-start;">
-      <span style="font-family:${typo.statsFont},sans-serif;font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${distanceMi}</span>
-      <span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">miles</span>
+      <span style="font-family:${typo.statsFont};font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${distanceMi}</span>
+      <span style="font-family:${typo.statsFont};font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">miles</span>
     </div>` : '',
     distanceMi && elevGainFt ? `<div style="width:1px;height:3vh;background:${fg};opacity:0.15;align-self:center;flex-shrink:0;"></div>` : '',
     elevGainFt ? `<div style="display:flex;flex-direction:column;align-items:flex-start;">
-      <span style="font-family:${typo.statsFont},sans-serif;font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${elevGainFt}</span>
-      <span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">ft gain</span>
+      <span style="font-family:${typo.statsFont};font-weight:600;font-size:2.6vh;letter-spacing:-0.01em;line-height:1;color:${fg};">${elevGainFt}</span>
+      <span style="font-family:${typo.statsFont};font-weight:400;font-size:0.8vh;letter-spacing:0.18em;text-transform:uppercase;color:${fg};opacity:0.45;margin-top:0.55vh;">ft gain</span>
     </div>` : '',
     coordHtml ? `<div style="width:1px;height:3vh;background:${fg};opacity:0.15;align-self:center;flex-shrink:0;"></div><div>${coordHtml}</div>` : '',
   ].filter(Boolean).join('')
@@ -307,7 +349,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     const items = segments.map(s =>
       `<div style="display:flex;align-items:center;gap:${Math.round(width*0.008)}px;margin-bottom:${gap}px;">
         <div style="width:${swatchW}px;height:${swatchH}px;background:${s.color};border-radius:2px;flex-shrink:0;"></div>
-        <span style="font-family:${typo.statsFont},sans-serif;font-weight:500;font-size:${fontSize}px;color:${fg};opacity:0.85;">${escapeHtml(s.name)}</span>
+        <span style="font-family:${typo.statsFont};font-weight:500;font-size:${fontSize}px;color:${fg};opacity:0.85;">${escapeHtml(s.name)}</span>
       </div>`
     ).join('')
     return `<div style="position:absolute;${posStyle};z-index:9;background:rgba(255,255,255,0.88);border-radius:${Math.round(height*0.006)}px;padding:${padding}px ${Math.round(width*0.012)}px;pointer-events:none;">
@@ -428,10 +470,11 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     `
   }
 
-  // Font families needed for Google Fonts
+  // Font families needed for Google Fonts — include all three font roles
   const fontsNeeded = new Set([
-    typo.titleFont.replace(/'/g, '').split(',')[0],
-    typo.statsFont.replace(/'/g, '').split(',')[0],
+    typo.titleFont.replace(/'/g, '').split(',')[0].trim(),
+    typo.subFont.replace(/'/g, '').split(',')[0].trim(),
+    typo.statsFont.replace(/'/g, '').split(',')[0].trim(),
   ])
   if (style_config.font_family) fontsNeeded.add(style_config.font_family)
   if (style_config.body_font_family) fontsNeeded.add(style_config.body_font_family)
@@ -458,32 +501,33 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     #poster-header {
       flex-shrink: 0;
       background: ${style_config.background_color || '#F7F4EF'};
-      padding: 3vh 7vw 2.2vh;
+      padding: ${layout.titlePosition === 'bottom' ? '2.4vh 7vw 3.5vh' : '5vh 7vw 2.8vh'};
       display: flex; flex-direction: column;
-      align-items: center; justify-content: flex-end;
+      align-items: ${layout.titleAlign === 'left' ? 'flex-start' : 'center'}; justify-content: center;
       gap: 1.1vh;
       position: relative;
+      order: ${layout.titlePosition === 'top' ? '0' : '1'};
     }
     #poster-header h1 {
-      font-family: ${typo.titleFont}, sans-serif;
+      font-family: ${typo.titleFont};
       font-weight: ${typo.titleWeight};
       letter-spacing: ${typo.titleTracking};
-      font-size: ${typo.titleSize};
-      line-height: 1.1;
+      font-size: ${typo.titleSize}vh;
+      line-height: ${typo.titleLineHeight};
       color: ${fg};
-      text-align: center;
-      text-transform: uppercase;
+      text-align: ${layout.titleAlign};
+      text-transform: ${typo.titleCase};
       margin: 0;
     }
     #poster-header p {
-      font-family: ${typo.subFont}, sans-serif;
+      font-family: ${typo.subFont};
       font-weight: ${typo.subWeight};
       letter-spacing: ${typo.subTracking};
-      font-size: 1.0vh;
+      font-size: ${typo.subSize}vh;
       color: ${fg};
       opacity: 0.5;
       text-transform: uppercase;
-      text-align: center;
+      text-align: ${layout.titleAlign};
       margin: 0;
     }
     #poster-rule {
@@ -493,6 +537,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     }
     #map-container {
       flex: 1; position: relative; overflow: hidden;
+      order: ${layout.titlePosition === 'top' ? '1' : '0'};
     }
     #map { width: 100%; height: 100%; }
     #poster-footer {
@@ -545,8 +590,9 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     ${logoFooterHtml()}
     <div id="poster-stats">${statsHtml}</div>
 
-    ${occasionText ? `<p style="font-family:${typo.subFont},sans-serif;font-weight:${typo.subWeight};font-size:0.95vh;letter-spacing:0.22em;text-transform:uppercase;color:${fg};opacity:0.5;text-align:center;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;">${escapeHtml(occasionText)}</p>` : ''}
+    ${occasionText ? `<p style="font-family:${typo.subFont};font-weight:${typo.subWeight};font-size:0.95vh;letter-spacing:0.22em;text-transform:uppercase;color:${fg};opacity:0.5;text-align:center;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;">${escapeHtml(occasionText)}</p>` : ''}
 
+    ${style_config.show_branding !== false ? `
     <div id="poster-mark">
       <svg viewBox="0 0 32 32" fill="none" style="width:4vh;height:4vh;color:${fg};opacity:0.4;">
         <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
@@ -555,9 +601,9 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
         <path d="M8 18 Q13 16 16 17 Q19.5 18 23 16.5" stroke="currentColor" stroke-width="0.65" fill="none" opacity="0.6"/>
         <circle cx="11" cy="8" r="1.1" fill="currentColor"/>
       </svg>
-      <span style="font-family:${typo.statsFont},sans-serif;font-weight:700;font-size:0.55vh;letter-spacing:0.22em;color:${fg};opacity:0.4;text-transform:uppercase;">RAD MAPS</span>
-      ${style_config.show_branding !== false ? `<span style="font-family:${typo.statsFont},sans-serif;font-weight:400;font-size:0.42vh;letter-spacing:0.14em;color:${fg};opacity:0.28;">radmaps.studio</span>` : ''}
-    </div>
+      <span style="font-family:${typo.statsFont};font-weight:700;font-size:0.55vh;letter-spacing:0.22em;color:${fg};opacity:0.4;text-transform:uppercase;">RAD MAPS</span>
+      <span style="font-family:${typo.statsFont};font-weight:400;font-size:0.42vh;letter-spacing:0.14em;color:${fg};opacity:0.28;">radmaps.studio</span>
+    </div>` : ''}
   </div>
 
   <script>
@@ -602,6 +648,21 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
           d[i+1] = Math.round(Math.round(d[i+1]/step)*step);
           d[i+2] = Math.round(Math.round(d[i+2]/step)*step);
         }
+      } else if (effect === 'layer-color') {
+        // args: [shadowHex, midHex, highlightHex] — trilinear luminance-band mapping
+        function hx(s, o) { return parseInt(s.slice(o, o+2), 16); }
+        var sr2 = hx(args[0],0), sg2 = hx(args[0],2), sb2 = hx(args[0],4);
+        var mr2 = hx(args[1],0), mg2 = hx(args[1],2), mb2 = hx(args[1],4);
+        var hr2 = hx(args[2],0), hg2 = hx(args[2],2), hb2 = hx(args[2],4);
+        for (var i = 0; i < d.length; i += 4) {
+          var L2 = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+          var sw2 = Math.max(0, 1 - L2 * 2);
+          var hw2 = Math.max(0, (L2 - 0.5) * 2);
+          var mw2 = 1 - sw2 - hw2;
+          d[i]   = Math.round(sr2*sw2 + mr2*mw2 + hr2*hw2);
+          d[i+1] = Math.round(sg2*sw2 + mg2*mw2 + hg2*hw2);
+          d[i+2] = Math.round(sb2*sw2 + mb2*mw2 + hb2*hw2);
+        }
       }
       ctx.putImageData(imgData, 0, 0);
       var resultBlob = await canvas.convertToBlob({ type: 'image/png' });
@@ -634,6 +695,19 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     });
     `}
 
+    map.on('error', function(e) {
+      console.error('MapLibre error:', e.error ? e.error.message : JSON.stringify(e));
+    });
+
+    // Safety valve: if idle never fires (e.g. tile auth failures keep retrying),
+    // force-complete at 55s so Puppeteer's 90s hard timeout is never reached.
+    setTimeout(function() {
+      if (!window.__mapReady) {
+        console.warn('render: forcing __mapReady after 55s fallback');
+        window.__mapReady = true;
+      }
+    }, 55000);
+
     map.on('load', () => {
       map.addSource('route', { type: 'geojson', data: ${geojsonStr} });
       map.addLayer({
@@ -663,6 +737,57 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+// Route smoothing — mirrors MapPreview.vue smoothLine/smoothGeojson (utils/posterData.ts pattern)
+const SMOOTH_PRESETS = [
+  null,
+  { radius: 3,  passes: 2 },
+  { radius: 6,  passes: 3 },
+  { radius: 10, passes: 4 },
+  { radius: 16, passes: 5 },
+  { radius: 25, passes: 6 },
+]
+
+function smoothLine(coords, strength) {
+  const preset = SMOOTH_PRESETS[strength]
+  if (!preset || coords.length < 3) return coords
+  const { radius, passes } = preset
+  let pts = coords.map(c => c.slice())
+  for (let p = 0; p < passes; p++) {
+    const out = pts.map(c => c.slice())
+    for (let i = 1; i < pts.length - 1; i++) {
+      const lo = Math.max(0, i - radius)
+      const hi = Math.min(pts.length - 1, i + radius)
+      const n = hi - lo + 1
+      out[i] = pts[i].map((_, dim) => {
+        let sum = 0
+        for (let j = lo; j <= hi; j++) sum += pts[j][dim]
+        return sum / n
+      })
+    }
+    pts = out
+    pts[0] = coords[0].slice()
+    pts[pts.length - 1] = coords[coords.length - 1].slice()
+  }
+  return pts
+}
+
+function smoothGeojson(geojson, strength) {
+  if (!strength) return geojson
+  return {
+    ...geojson,
+    features: geojson.features.map(feature => {
+      const g = feature.geometry
+      if (g.type === 'LineString') {
+        return { ...feature, geometry: { ...g, coordinates: smoothLine(g.coordinates, strength) } }
+      }
+      if (g.type === 'MultiLineString') {
+        return { ...feature, geometry: { ...g, coordinates: g.coordinates.map(line => smoothLine(line, strength)) } }
+      }
+      return feature
+    }),
+  }
 }
 
 // Slice route GeoJSON by percentage (mirrors utils/trail.ts)

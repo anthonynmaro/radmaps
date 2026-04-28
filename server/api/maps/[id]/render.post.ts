@@ -11,6 +11,7 @@
  * Render worker: render-worker/index.js (deployed on Railway)
  */
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { DEFAULT_STYLE_CONFIG } from '~/types'
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
@@ -67,7 +68,7 @@ export default defineEventHandler(async (event) => {
       job_id: jobId,
       map_id: map.id,
       geojson: map.geojson,
-      style_config: map.style_config,
+      style_config: map.style_config ?? DEFAULT_STYLE_CONFIG,
       title: map.title,
       subtitle: map.subtitle,
       stats: map.stats,
