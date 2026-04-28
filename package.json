@@ -16,6 +16,7 @@
     "@nuxtjs/supabase": "^1.3.5",
     "@stripe/stripe-js": "^4.9.0",
     "@tmcw/togeojson": "^5.8.1",
+    "@types/three": "^0.184.0",
     "ai": "^4.1.5",
     "interactjs": "^1.10.27",
     "maplibre-contour": "^0.1.0",

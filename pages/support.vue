@@ -25,6 +25,62 @@
         still need us, drop a line and we'll get back within one business day.
       </p>
 
+      <!-- Order Lookup -->
+      <div class="rounded-2xl border border-stone-200 bg-white/70 backdrop-blur-sm p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 shrink-0 rounded-full bg-[#2D6A4F]/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-[#2D6A4F]" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-stone-900">Track Your Order</p>
+            <p class="text-xs text-stone-500">Enter your email and order ID from your confirmation email.</p>
+          </div>
+        </div>
+        <form @submit.prevent="lookupOrder" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input v-model="lookupEmail" type="email" placeholder="Email address" required
+              class="w-full px-4 py-2.5 text-sm border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] bg-white"/>
+            <input v-model="lookupOrderId" type="text" placeholder="Order ID (first 8 chars is fine)" required
+              class="w-full px-4 py-2.5 text-sm border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] bg-white"/>
+          </div>
+          <button type="submit" :disabled="lookupLoading"
+            class="flex items-center gap-2 text-xs font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] disabled:opacity-50 rounded-lg px-5 py-2.5 transition-colors">
+            <svg v-if="lookupLoading" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            {{ lookupLoading ? 'Looking up…' : 'Look Up Order' }}
+          </button>
+        </form>
+
+        <!-- Lookup results -->
+        <div v-if="lookupResult" class="mt-4 space-y-2">
+          <div v-for="order in lookupResult" :key="order.id"
+            class="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-200">
+            <div>
+              <p class="text-sm font-semibold text-stone-900">
+                {{ order.title || order.product || 'Print Order' }}
+              </p>
+              <p class="text-xs text-stone-500 mt-0.5">
+                {{ order.id.slice(0, 8) }}… · {{ new Date(order.created_at).toLocaleDateString() }}
+              </p>
+            </div>
+            <div class="text-right">
+              <span :class="statusClass(order.status)"
+                class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                {{ statusLabel(order.status) }}
+              </span>
+              <p v-if="order.tracking_code" class="text-[10px] text-stone-500 mt-1">
+                Tracking: {{ order.tracking_code }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <p v-if="lookupError" class="mt-3 text-xs text-red-600">{{ lookupError }}</p>
+      </div>
+
       <!-- Contact card -->
       <div class="rounded-2xl border border-stone-200 bg-white/70 backdrop-blur-sm p-6 mb-10 flex flex-col sm:flex-row items-start sm:items-center gap-5">
         <div class="w-12 h-12 shrink-0 rounded-full bg-[#2D6A4F]/10 flex items-center justify-center">
@@ -80,8 +136,8 @@
               <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/>
             </svg>
           </div>
-          <p class="text-sm font-semibold text-stone-900 mb-1">Design &amp; sizing</p>
-          <p class="text-xs text-stone-500 leading-relaxed">All prints are produced at 300 DPI on 170 gsm archival matte. Available from 8×10″ up to 24×36″.</p>
+          <p class="text-sm font-semibold text-stone-900 mb-1">Products &amp; sizing</p>
+          <p class="text-xs text-stone-500 leading-relaxed">Matte posters, framed prints, stretched canvas, and digital downloads. Sizes from 5×7″ to 24×36″, all at 300 DPI.</p>
         </div>
       </div>
 
@@ -97,10 +153,60 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useSeo } from '~/composables/useSeo'
 import { breadcrumbSchema } from '~/utils/seo'
 
 definePageMeta({ layout: 'default' })
+
+// ─── Order Lookup ──────────────────────────────────────────────────────────
+const lookupEmail = ref('')
+const lookupOrderId = ref('')
+const lookupLoading = ref(false)
+const lookupResult = ref<Array<{
+  id: string; status: string; product: string
+  tracking_code?: string; carrier?: string
+  has_digital: boolean; created_at: string; title?: string
+}> | null>(null)
+const lookupError = ref<string | null>(null)
+
+async function lookupOrder() {
+  lookupLoading.value = true
+  lookupError.value = null
+  lookupResult.value = null
+  try {
+    const data = await $fetch('/api/orders/lookup', {
+      method: 'POST',
+      body: { email: lookupEmail.value, order_id: lookupOrderId.value },
+    })
+    lookupResult.value = data as typeof lookupResult.value
+    if (!lookupResult.value?.length) {
+      lookupError.value = 'No order found with that email and order ID.'
+    }
+  } catch (err: unknown) {
+    const msg = (err as { data?: { message?: string } })?.data?.message
+    lookupError.value = msg || 'Unable to look up your order. Please check the details and try again.'
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    paid: 'Processing', in_production: 'In Production', shipped: 'Shipped',
+    delivered: 'Delivered', failed: 'Issue', cancelled: 'Cancelled',
+  }
+  return labels[status] ?? status
+}
+
+function statusClass(status: string): string {
+  const classes: Record<string, string> = {
+    paid: 'bg-amber-100 text-amber-800', in_production: 'bg-sky-100 text-sky-800',
+    shipped: 'bg-indigo-100 text-indigo-800', delivered: 'bg-emerald-100 text-emerald-800',
+    failed: 'bg-red-100 text-red-800', cancelled: 'bg-stone-100 text-stone-600',
+  }
+  return classes[status] ?? 'bg-stone-100 text-stone-600'
+}
 
 const faqSchema = {
   '@context': 'https://schema.org',
@@ -136,6 +242,22 @@ const faqSchema = {
       acceptedAnswer: {
         '@type': 'Answer',
         text: 'All prints are produced at 300 DPI on 170 gsm archival matte paper. Available sizes range from 8×10″ to 24×36″.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What product types does RadMaps offer?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'RadMaps offers matte posters (5×7″ to 24×36″), framed prints with black frame (8×10″ to 18×24″), stretched canvas (8×10″ to 24×36″), and high-resolution digital downloads.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How do I track my RadMaps order?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'You will receive a shipping notification email with tracking details once your order dispatches. You can also use the order lookup tool on our support page by entering your email and order ID.',
       },
     },
   ],

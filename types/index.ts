@@ -20,7 +20,12 @@ export type FontFamily =
   | 'Cormorant Garamond'
   | 'Libre Baskerville'
   | 'DM Serif Display'
-export type ColorTheme = 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
+export type ColorTheme =
+  // Family A — classic poster palettes
+  | 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
+  // Family B — distinct visual languages
+  | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
+  | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
 export type PrintSize = '18x24' | '24x36' | '16x20' | '11x14' | '8x10'
 export type BaseTileStyle =
   | 'carto-light'
@@ -86,7 +91,9 @@ export interface StyleConfig {
   contour_color: string
   contour_major_color: string
   contour_opacity: number
-  contour_detail: number   // 0–4 → maplibre-contour threshold level; higher = finer intervals
+  contour_detail: number       // 0–5 → maplibre-contour threshold level; higher = finer intervals
+  contour_minor_width: number  // line width multiplier for minor contours (default 1.0)
+  contour_major_width: number  // line width multiplier for major contours (default 1.0)
   show_elevation_labels: boolean
   // Hillshade (requires Mapbox Terrain DEM v1)
   show_hillshade: boolean
@@ -157,7 +164,7 @@ export interface StyleConfig {
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   preset: 'minimalist',
-  background_color: '#F7F4EF',
+  background_color: '#F4EFE6',
   route_color: '#C1121F',
   route_width: 3,
   route_opacity: 0.9,
@@ -167,6 +174,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   contour_major_color: '#9E9082',
   contour_opacity: 0.75,
   contour_detail: 3,
+  contour_minor_width: 1.0,
+  contour_major_width: 1.0,
   show_elevation_labels: false,
   show_hillshade: false,
   hillshade_intensity: 0.5,
@@ -194,7 +203,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   occasion_text: '',
   location_text: '',
   label_text_color: '#1C1917',
-  label_bg_color: '#F7F4EF',
+  label_bg_color: '#F4EFE6',
   show_branding: true,
   show_roads: false,
   tile_effect: 'none',
@@ -232,6 +241,9 @@ export interface ThemeDefinition {
   base_tile_style: BaseTileStyle
   contour_color: string
   contour_major_color: string
+  font_family?: FontFamily
+  border_style?: BorderStyle
+  tile_grain?: number
 }
 
 export const COLOR_THEMES: ThemeDefinition[] = [
@@ -240,12 +252,12 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     id: 'chalk',
     label: 'Chalk',
     dark: false,
-    background_color: '#F7F4EF',
-    label_bg_color: '#F7F4EF',
+    background_color: '#F4EFE6',
+    label_bg_color: '#F4EFE6',
     label_text_color: '#1C1917',
     route_color: '#C1121F',
     water_color: '#B8D8E8',
-    land_color: '#EDE8DF',
+    land_color: '#EBE6DC',
     base_tile_style: 'carto-light',
     contour_color: '#C8BDB0',
     contour_major_color: '#9E9082',
@@ -254,39 +266,39 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     id: 'topaz',
     label: 'Topaz',
     dark: false,
-    background_color: '#F0F4F2',
-    label_bg_color: '#E8EEE9',
-    label_text_color: '#1A2E24',
-    route_color: '#2D6A4F',
-    water_color: '#A8CDCA',
-    land_color: '#E4EDE5',
+    background_color: '#F3D5A5',
+    label_bg_color: '#F3D5A5',
+    label_text_color: '#3B2A1A',
+    route_color: '#9B2C2C',
+    water_color: '#8FBFBA',
+    land_color: '#F8E8C5',
     base_tile_style: 'carto-light',
-    contour_color: '#B8CCBC',
-    contour_major_color: '#7CA98C',
+    contour_color: '#C8A478',
+    contour_major_color: '#A07850',
   },
   {
     id: 'dusk',
     label: 'Dusk',
-    dark: false,
-    background_color: '#FAF3E8',
-    label_bg_color: '#FAF3E8',
-    label_text_color: '#2C1810',
-    route_color: '#C4622D',
-    water_color: '#AECDD8',
-    land_color: '#EEE4CC',
-    base_tile_style: 'carto-light',
-    contour_color: '#D4BCA0',
-    contour_major_color: '#A8896A',
+    dark: true,
+    background_color: '#2A2438',
+    label_bg_color: '#2A2438',
+    label_text_color: '#F5E8C7',
+    route_color: '#E5A04B',
+    water_color: '#1A1840',
+    land_color: '#322B48',
+    base_tile_style: 'carto-dark',
+    contour_color: '#7070A0',
+    contour_major_color: '#A0A0C8',
   },
   // ── Dark themes ───────────────────────────────────────────────────────────
   {
     id: 'obsidian',
     label: 'Obsidian',
     dark: true,
-    background_color: '#121212',
-    label_bg_color: '#1A1A1A',
-    label_text_color: '#F0EDE8',
-    route_color: '#FF6B6B',
+    background_color: '#161616',
+    label_bg_color: '#161616',
+    label_text_color: '#FAFAFA',
+    route_color: '#FB923C',
     water_color: '#1A3A4A',
     land_color: '#1E1E1E',
     base_tile_style: 'carto-dark',
@@ -296,30 +308,201 @@ export const COLOR_THEMES: ThemeDefinition[] = [
   {
     id: 'forest',
     label: 'Forest',
-    dark: true,
-    background_color: '#0F1F17',
-    label_bg_color: '#0F1F17',
-    label_text_color: '#D4EDD9',
-    route_color: '#74C69D',
-    water_color: '#0D2B35',
-    land_color: '#142A1C',
-    base_tile_style: 'carto-dark',
-    contour_color: '#4A9065',
-    contour_major_color: '#78C490',
+    dark: false,
+    background_color: '#E8E4D5',
+    label_bg_color: '#E8E4D5',
+    label_text_color: '#2D4A2B',
+    route_color: '#A23B2A',
+    water_color: '#A8C8BE',
+    land_color: '#F0EDE0',
+    base_tile_style: 'carto-light',
+    contour_color: '#A8A870',
+    contour_major_color: '#787848',
   },
   {
     id: 'midnight',
     label: 'Midnight',
     dark: true,
-    background_color: '#0D1421',
-    label_bg_color: '#0A1018',
-    label_text_color: '#F0E8C8',
-    route_color: '#C9A84C',
+    background_color: '#0F1B2D',
+    label_bg_color: '#0F1B2D',
+    label_text_color: '#E8EDF5',
+    route_color: '#60A5FA',
     water_color: '#0A1F35',
     land_color: '#111A25',
     base_tile_style: 'carto-dark',
     contour_color: '#4A80A8',
     contour_major_color: '#72B0D8',
+  },
+  // ── Family B — distinct visual languages ──────────────────────────────────
+  {
+    id: 'editorial',
+    label: 'Editorial',
+    dark: false,
+    background_color: '#F8F6F2',
+    label_bg_color: '#F8F6F2',
+    label_text_color: '#1A1A1A',
+    route_color: '#C1121F',
+    water_color: '#C4D8E4',
+    land_color: '#EEE8E0',
+    base_tile_style: 'carto-light',
+    contour_color: '#C8C0B0',
+    contour_major_color: '#A09888',
+    font_family: 'Playfair Display',
+    border_style: 'none',
+    tile_grain: 0,
+  },
+  {
+    id: 'bauhaus',
+    label: 'Bauhaus',
+    dark: false,
+    background_color: '#FFFFFF',
+    label_bg_color: '#FFFFFF',
+    label_text_color: '#111111',
+    route_color: '#E52727',
+    water_color: '#C8D8E8',
+    land_color: '#F5F5F5',
+    base_tile_style: 'carto-light',
+    contour_color: '#D0D0D0',
+    contour_major_color: '#A0A0A0',
+    font_family: 'Big Shoulders Display',
+    border_style: 'thick',
+    tile_grain: 0,
+  },
+  {
+    id: 'vintage',
+    label: 'U009 Vintage',
+    dark: false,
+    background_color: '#E8D5A0',
+    label_bg_color: '#E8D5A0',
+    label_text_color: '#2A1A0A',
+    route_color: '#B5451B',
+    water_color: '#8EB0BA',
+    land_color: '#EDE0B8',
+    base_tile_style: 'carto-light',
+    contour_color: '#C0A070',
+    contour_major_color: '#907040',
+    font_family: 'DM Serif Display',
+    border_style: 'none',
+    tile_grain: 0.28,
+  },
+  {
+    id: 'brutalist',
+    label: 'Brutalist',
+    dark: false,
+    background_color: '#FFFFFF',
+    label_bg_color: '#FFFFFF',
+    label_text_color: '#000000',
+    route_color: '#FF2010',
+    water_color: '#C8D0D8',
+    land_color: '#F5F5F5',
+    base_tile_style: 'carto-light',
+    contour_color: '#B8B8B8',
+    contour_major_color: '#888888',
+    font_family: 'Bebas Neue',
+    border_style: 'thick',
+    tile_grain: 0,
+  },
+  {
+    id: 'risograph',
+    label: 'Risograph',
+    dark: false,
+    background_color: '#F5ECD4',
+    label_bg_color: '#F5ECD4',
+    label_text_color: '#1A1A3E',
+    route_color: '#E8533C',
+    water_color: '#A0B8C0',
+    land_color: '#EDE0C0',
+    base_tile_style: 'carto-light',
+    contour_color: '#C0A888',
+    contour_major_color: '#988060',
+    font_family: 'Oswald',
+    border_style: 'none',
+    tile_grain: 0.18,
+  },
+  {
+    id: 'blueprint',
+    label: 'Blueprint',
+    dark: true,
+    background_color: '#1B3A6B',
+    label_bg_color: '#1B3A6B',
+    label_text_color: '#D4E8FF',
+    route_color: '#60B8FF',
+    water_color: '#0A2040',
+    land_color: '#1F4080',
+    base_tile_style: 'carto-dark',
+    contour_color: '#4080C0',
+    contour_major_color: '#60A0E0',
+    font_family: 'Space Grotesk',
+    border_style: 'thin',
+    tile_grain: 0.06,
+  },
+  {
+    id: 'kertok',
+    label: 'Kertok',
+    dark: false,
+    background_color: '#FAFAF8',
+    label_bg_color: '#FAFAF8',
+    label_text_color: '#2A2A2A',
+    route_color: '#E52727',
+    water_color: '#D0E0EC',
+    land_color: '#F5F5F2',
+    base_tile_style: 'carto-light',
+    contour_color: '#D0C8C0',
+    contour_major_color: '#B0A8A0',
+    font_family: 'Work Sans',
+    border_style: 'thin',
+    tile_grain: 0,
+  },
+  {
+    id: 'mid-century',
+    label: 'Mid-Century',
+    dark: false,
+    background_color: '#F0E6CE',
+    label_bg_color: '#F0E6CE',
+    label_text_color: '#2A2010',
+    route_color: '#D4603A',
+    water_color: '#A0B8C8',
+    land_color: '#E8D8B8',
+    base_tile_style: 'carto-light',
+    contour_color: '#C8B088',
+    contour_major_color: '#A08860',
+    font_family: 'Oswald',
+    border_style: 'none',
+    tile_grain: 0.08,
+  },
+  {
+    id: 'topo-art',
+    label: 'Topo Art',
+    dark: false,
+    background_color: '#F8F8F4',
+    label_bg_color: '#F8F8F4',
+    label_text_color: '#2C3020',
+    route_color: '#7A6A50',
+    water_color: '#C0D0D8',
+    land_color: '#EEEDE8',
+    base_tile_style: 'carto-light',
+    contour_color: '#A8A880',
+    contour_major_color: '#808860',
+    font_family: 'Work Sans',
+    border_style: 'thin',
+    tile_grain: 0,
+  },
+  {
+    id: 'dark-sky',
+    label: 'Dark Sky',
+    dark: true,
+    background_color: '#161616',
+    label_bg_color: '#161616',
+    label_text_color: '#F0F0F0',
+    route_color: '#FF4444',
+    water_color: '#0A1820',
+    land_color: '#202020',
+    base_tile_style: 'carto-dark',
+    contour_color: '#404040',
+    contour_major_color: '#686868',
+    font_family: 'Fjalla One',
+    border_style: 'none',
+    tile_grain: 0.14,
   },
 ]
 
@@ -464,9 +647,21 @@ export interface PrintProduct {
   size_label: string
   width_in: number
   height_in: number
+  aspect_ratio: number            // width / height (e.g. 0.75 for 3:4 portrait)
   price_cents: number
   recommended_px_w: number
   recommended_px_h: number
+}
+
+// ─── Product Selection State ─────────────────────────────────────────────────
+// Used by ProductSelector component to pass map framing to the render worker
+
+export interface ProductFraming {
+  product_uid: string
+  center: [number, number]        // [lng, lat] — map center after user adjustment
+  zoom: number                    // map zoom level after user adjustment
+  bearing: number
+  pitch: number
 }
 
 // ─── Render Job ───────────────────────────────────────────────────────────────

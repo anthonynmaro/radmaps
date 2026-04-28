@@ -64,42 +64,12 @@
       </div>
     </header>
 
-    <!-- ── Mobile tab switcher ────────────────────────────────────────────── -->
-    <div class="md:hidden flex bg-white border-b border-stone-200 shrink-0">
-      <button
-        @click="mobileTab = 'preview'"
-        :class="[
-          'flex-1 py-2.5 text-sm font-medium transition-colors border-b-2',
-          mobileTab === 'preview'
-            ? 'border-[#2D6A4F] text-[#2D6A4F]'
-            : 'border-transparent text-stone-500 hover:text-stone-700',
-        ]"
-      >
-        Preview
-      </button>
-      <button
-        @click="mobileTab = 'style'"
-        :class="[
-          'flex-1 py-2.5 text-sm font-medium transition-colors border-b-2',
-          mobileTab === 'style'
-            ? 'border-[#2D6A4F] text-[#2D6A4F]'
-            : 'border-transparent text-stone-500 hover:text-stone-700',
-        ]"
-      >
-        Style
-      </button>
-    </div>
-
     <!-- ── Main split layout ──────────────────────────────────────────────── -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
 
-      <!-- Map preview — full width on mobile when mobileTab==='preview', hidden when 'style' -->
-      <main
-        :class="[
-          'flex-1 flex flex-col overflow-hidden',
-          mobileTab === 'style' ? 'hidden md:flex' : 'flex',
-        ]"
-      >
+      <!-- Map preview — always visible; on mobile the bottom sheet overlays it -->
+      <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- On mobile: leave room above the sheet so the map isn't fully covered -->
         <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
           <ClientOnly>
             <MapPreview
@@ -125,17 +95,21 @@
             </svg>
           </div>
         </div>
-
       </main>
 
-      <!-- Style controls panel — full screen on mobile when mobileTab==='style' -->
+      <!-- Style controls panel:
+           Mobile — fixed bottom sheet that overlays the map
+           Desktop — right sidebar (unchanged) -->
       <aside
+        class="shrink-0 overflow-hidden flex flex-col bg-white transition-all duration-300 ease-out"
         :class="[
-          'shrink-0 overflow-hidden flex flex-col bg-white',
-          mobileTab === 'style'
-            ? 'flex w-full md:w-[320px] md:border-l md:border-stone-200'
-            : 'hidden md:flex w-[320px] border-l border-stone-200',
+          // Desktop sidebar
+          'md:relative md:inset-auto md:w-[320px] md:h-auto md:border-l md:border-stone-200 md:rounded-none md:shadow-none',
+          // Mobile bottom sheet
+          'fixed inset-x-0 bottom-0 z-30 md:static',
+          sheetState === 'full' ? 'h-[85vh]' : 'h-[55vh]',
         ]"
+        style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
       >
         <MapStylePanel
           v-if="mapData"
@@ -143,6 +117,7 @@
           :saving="saving"
           @reset="resetStyle"
           @logo-upload="handleLogoUpload"
+          @toggle-sheet="toggleSheet"
         />
         <div v-else class="flex-1 bg-white animate-pulse" />
       </aside>
@@ -229,7 +204,11 @@ const mapId = computed(() => route.params.mapId as string)
 const { map: mapData, saving, updateStyle } = useMap(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
-const mobileTab = ref<'preview' | 'style'>('preview')
+const sheetState = ref<'half' | 'full'>('half')
+
+function toggleSheet() {
+  sheetState.value = sheetState.value === 'half' ? 'full' : 'half'
+}
 
 watch(mapData, (m) => {
   if (m?.style_config) {
@@ -321,9 +300,8 @@ function onOverlayMoved(payload: { id: string; x: number; y: number }) {
   }
 }
 
-function onOverlaySelected(id: string) {
-  // Switch to Style tab on mobile so panel is visible
-  if (mobileTab.value === 'preview') mobileTab.value = 'style'
+function onOverlaySelected(_id: string) {
+  if (window.innerWidth < 768) sheetState.value = 'full'
 }
 
 function onOverlayDeleted(id: string) {

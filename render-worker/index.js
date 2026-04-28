@@ -34,14 +34,25 @@ app.get('/health', async () => ({ status: 'ok' }))
 
 // ─── Submit render job ────────────────────────────────────────────────────────
 app.post('/render', async (request, reply) => {
-  const { map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, quality } = request.body
+  const {
+    map_id, geojson, style_config, title, subtitle, stats, bbox,
+    mapbox_token, maptiler_token, quality,
+    // Product-specific render dimensions (optional — falls back to 18×24" default)
+    render_width_px, render_height_px,
+    // User-adjusted map framing from ProductSelector (optional)
+    framing,
+  } = request.body
   const isPreview = quality === 'preview'
 
   const jobId = randomUUID()
   jobs.set(jobId, { status: 'queued', map_id })
 
   // Kick off async render (don't await)
-  renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, isPreview })
+  renderMap({
+    jobId, map_id, geojson, style_config, title, subtitle, stats, bbox,
+    mapbox_token, maptiler_token, isPreview,
+    render_width_px, render_height_px, framing,
+  })
     .catch(async err => {
       app.log.error(err)
       jobs.set(jobId, { status: 'failed', error: err.message, map_id })
@@ -71,13 +82,30 @@ app.get('/render/status/:jobId', async (request, reply) => {
 })
 
 // ─── Core render function ─────────────────────────────────────────────────────
-async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle, stats, bbox, mapbox_token, maptiler_token, isPreview }) {
+async function renderMap({
+  jobId, map_id, geojson, style_config, title, subtitle, stats, bbox,
+  mapbox_token, maptiler_token, isPreview,
+  render_width_px, render_height_px, framing,
+}) {
   jobs.set(jobId, { status: 'rendering', map_id })
 
-  // Preview: 1/4 scale — fast enough to appear while the user fills in shipping (~15–20s).
-  // Print: full 18×24" × 300 DPI with 3mm bleed — the file sent to Gelato.
-  const WIDTH_PX  = isPreview ? 1350 : 5470
-  const HEIGHT_PX = isPreview ? 1800 : 7270
+  // Product-aware dimensions:
+  // If render_width_px / render_height_px are provided, use them (already includes bleed).
+  // Otherwise fall back to the 18×24" default (for backwards compatibility).
+  const DEFAULT_PRINT_W = 5470  // 18" × 300 DPI + 2×35px bleed
+  const DEFAULT_PRINT_H = 7270  // 24" × 300 DPI + 2×35px bleed
+  const PREVIEW_SCALE = 0.25
+
+  let WIDTH_PX, HEIGHT_PX
+  if (isPreview) {
+    const baseW = render_width_px || DEFAULT_PRINT_W
+    const baseH = render_height_px || DEFAULT_PRINT_H
+    WIDTH_PX  = Math.round(baseW * PREVIEW_SCALE)
+    HEIGHT_PX = Math.round(baseH * PREVIEW_SCALE)
+  } else {
+    WIDTH_PX  = render_width_px || DEFAULT_PRINT_W
+    HEIGHT_PX = render_height_px || DEFAULT_PRINT_H
+  }
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -93,7 +121,9 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
   await page.setViewport({ width: WIDTH_PX, height: HEIGHT_PX, deviceScaleFactor: 1 })
 
   // Build self-contained HTML page that renders the map
-  const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: WIDTH_PX, height: HEIGHT_PX })
+  // If framing data is provided (user adjusted center/zoom in ProductSelector),
+  // pass it through so the render matches the user's chosen view.
+  const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: WIDTH_PX, height: HEIGHT_PX, framing })
   // 'load' fires once the HTML + scripts are parsed; we don't wait for networkidle
   // because MapLibre fires hundreds of tile requests that would stall networkidle0.
   // window.__mapReady is set by map.once('idle'), which is the real completion signal.
@@ -140,7 +170,7 @@ async function renderMap({ jobId, map_id, geojson, style_config, title, subtitle
 // ─── HTML template for server-side MapLibre render ───────────────────────────
 // Uses vh units throughout (1vh = height/100 in Puppeteer's fixed viewport)
 // matching cqh units in MapPreview.vue (1cqh = 1% of poster canvas height).
-function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width, height }) {
+function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width, height, framing }) {
   const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token))
   const geojsonStr = JSON.stringify(geojson)
   const padding = Math.round(Math.min(width, height) * (style_config.padding_factor ?? 0.15))
@@ -553,6 +583,21 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       return { data: await resultBlob.arrayBuffer() };
     });
 
+    // If user-adjusted framing is provided, use center/zoom instead of fitBounds.
+    // This ensures the print render matches exactly what the user saw in the preview.
+    ${framing ? `
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: ${styleJson},
+      center: ${JSON.stringify(framing.center)},
+      zoom: ${framing.zoom},
+      bearing: ${framing.bearing ?? 0},
+      pitch: ${framing.pitch ?? 0},
+      interactive: false,
+      attributionControl: false,
+      preserveDrawingBuffer: true,
+    });
+    ` : `
     const map = new maplibregl.Map({
       container: 'map',
       style: ${styleJson},
@@ -562,6 +607,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       attributionControl: false,
       preserveDrawingBuffer: true,
     });
+    `}
 
     map.on('load', () => {
       map.addSource('route', { type: 'geojson', data: ${geojsonStr} });

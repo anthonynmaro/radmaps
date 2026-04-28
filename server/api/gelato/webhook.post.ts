@@ -125,7 +125,7 @@ export default defineEventHandler(async (event) => {
       to: address.email,
       subject: 'Your RadMaps print is on its way! 📦',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h1 style="color: #2D6A4F;">Your map is on its way! 🗺️</h1>
           <p>Great news — your RadMaps print has shipped and is heading to you.</p>
           ${trackingUrl
@@ -136,7 +136,11 @@ export default defineEventHandler(async (event) => {
           }
           <p style="color:#666;font-size:14px;">Typical delivery is 3–7 business days after dispatch.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-          <p style="font-size:12px;color:#999;">Order ID: <code>${dbOrder.id}</code></p>
+          <p style="font-size:12px;color:#999;">
+            Order ID: <code>${dbOrder.id}</code> &nbsp;|&nbsp;
+            <a href="https://radmaps.studio/support" style="color:#2D6A4F;">Track order</a> &nbsp;|&nbsp;
+            <a href="mailto:support@radmaps.studio" style="color:#2D6A4F;">Get help</a>
+          </p>
         </div>
       `,
     })
@@ -150,13 +154,20 @@ export default defineEventHandler(async (event) => {
       to: address.email,
       subject: 'Your RadMaps print has been delivered! 📬',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h1 style="color: #2D6A4F;">Your map has arrived! 🗺️</h1>
           <p>Your RadMaps print has been delivered. We hope you love it on the wall!</p>
           <p>Want to order another size or share a map with someone?
-             <a href="https://radmaps.studio/">Visit your studio</a>.</p>
+             <a href="https://radmaps.studio/" style="color:#2D6A4F;font-weight:600;">Visit your studio</a>.</p>
+          <div style="background:#F7F4EF;border-radius:8px;padding:16px;margin:20px 0;">
+            <p style="margin:0;font-size:13px;color:#666;">Something not right? If your print arrived damaged, email us within 14 days at
+              <a href="mailto:support@radmaps.studio" style="color:#2D6A4F;">support@radmaps.studio</a> with a photo and we'll send a free replacement.</p>
+          </div>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-          <p style="font-size:12px;color:#999;">Order ID: <code>${dbOrder.id}</code></p>
+          <p style="font-size:12px;color:#999;">
+            Order ID: <code>${dbOrder.id}</code> &nbsp;|&nbsp;
+            <a href="https://radmaps.studio/support" style="color:#2D6A4F;">Support</a>
+          </p>
         </div>
       `,
     })

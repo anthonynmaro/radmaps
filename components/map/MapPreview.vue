@@ -24,6 +24,15 @@
         :style="frameStyle"
       />
 
+      <!-- ── Freeze control (poster-level, top-right) ──────────────────────── -->
+      <FreezeControl
+        v-if="editable && mapReady"
+        :frozen="styleConfig.map_frozen ?? false"
+        :map-hovered="mapHovered"
+        @freeze="freezeView"
+        @unfreeze="unfreezeView"
+      />
+
       <!-- ── Logo: header-right position ──────────────────────────────────── -->
       <img
         v-if="styleConfig.show_logo && styleConfig.logo_url && styleConfig.logo_position === 'header-right'"
@@ -35,6 +44,9 @@
 
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
       <div class="poster-header shrink-0" :style="headerBandStyle">
+
+        <!-- Thin rule at top — only for bottom-positioned header -->
+        <div v-if="layout.titlePosition === 'bottom'" class="poster-rule" :style="ruleStyle" />
 
         <!-- Trail name — static or editable -->
         <h1
@@ -68,12 +80,14 @@
           @click="onTextClick('location_text', styleConfig.location_text)"
         >{{ locationLine }}</p>
 
-        <!-- Thin rule -->
-        <div class="poster-rule" :style="ruleStyle" />
+        <!-- Thin rule at bottom — only for top-positioned header -->
+        <div v-if="layout.titlePosition === 'top'" class="poster-rule" :style="ruleStyle" />
       </div>
 
       <!-- ── MAP (hero — takes all remaining height) ─────────────────────── -->
-      <div ref="mapContainer" class="relative flex-1 overflow-hidden">
+      <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle"
+        @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
+      >
         <!-- Loading placeholder -->
         <div
           v-if="!mapReady"
@@ -161,15 +175,6 @@
           class="absolute inset-0 pointer-events-none"
           style="z-index: 11;"
           :style="vignetteStyle"
-        />
-
-        <!-- ── Freeze control ───────────────────────────────────────────── -->
-        <FreezeControl
-          v-if="editable && mapReady"
-          :frozen="styleConfig.map_frozen ?? false"
-          :zoom="liveZoom"
-          @freeze="freezeView"
-          @unfreeze="unfreezeView"
         />
 
         <!-- ── Film grain overlay ────────────────────────────────────────── -->
@@ -291,6 +296,7 @@ const config = useRuntimeConfig()
 const mapContainer = ref<HTMLDivElement | null>(null)
 const mapReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
+const mapHovered = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
@@ -628,6 +634,173 @@ const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
     statsFont: "'Fjalla One', sans-serif",
     statsWeight: '400',
   },
+  // ── Family B ──────────────────────────────────────────────────────────────
+  editorial: {
+    titleFont: "'Playfair Display', serif",
+    titleWeight: '400',
+    titleTracking: '0.02em',
+    titleCase: 'none',
+    titleSize: '5.0cqh',
+    titleLineHeight: '1.1',
+    subFont: "'Playfair Display', serif",
+    subWeight: '400',
+    subTracking: '0.18em',
+    subSize: '1.0cqh',
+    statsFont: "'Libre Baskerville', serif",
+    statsWeight: '400',
+  },
+  bauhaus: {
+    titleFont: "'Big Shoulders Display', sans-serif",
+    titleWeight: '900',
+    titleTracking: '-0.02em',
+    titleCase: 'uppercase',
+    titleSize: '6.8cqh',
+    titleLineHeight: '0.9',
+    subFont: "'DM Sans', sans-serif",
+    subWeight: '400',
+    subTracking: '0.28em',
+    subSize: '0.95cqh',
+    statsFont: "'Big Shoulders Display', sans-serif",
+    statsWeight: '700',
+  },
+  vintage: {
+    titleFont: "'DM Serif Display', serif",
+    titleWeight: '400',
+    titleTracking: '0.04em',
+    titleCase: 'none',
+    titleSize: '5.2cqh',
+    titleLineHeight: '1.08',
+    subFont: "'DM Serif Display', serif",
+    subWeight: '400',
+    subTracking: '0.22em',
+    subSize: '1.0cqh',
+    statsFont: "'DM Sans', sans-serif",
+    statsWeight: '400',
+  },
+  brutalist: {
+    titleFont: "'Bebas Neue', sans-serif",
+    titleWeight: '400',
+    titleTracking: '0.07em',
+    titleCase: 'uppercase',
+    titleSize: '7.2cqh',
+    titleLineHeight: '0.92',
+    subFont: "'DM Sans', sans-serif",
+    subWeight: '700',
+    subTracking: '0.35em',
+    subSize: '0.9cqh',
+    statsFont: "'Bebas Neue', sans-serif",
+    statsWeight: '400',
+  },
+  risograph: {
+    titleFont: "'Oswald', sans-serif",
+    titleWeight: '500',
+    titleTracking: '0.10em',
+    titleCase: 'uppercase',
+    titleSize: '5.0cqh',
+    titleLineHeight: '1.0',
+    subFont: "'Oswald', sans-serif",
+    subWeight: '300',
+    subTracking: '0.25em',
+    subSize: '1.0cqh',
+    statsFont: "'Work Sans', sans-serif",
+    statsWeight: '500',
+  },
+  blueprint: {
+    titleFont: "'Space Grotesk', sans-serif",
+    titleWeight: '700',
+    titleTracking: '0.14em',
+    titleCase: 'uppercase',
+    titleSize: '4.2cqh',
+    titleLineHeight: '1.05',
+    subFont: "'Space Grotesk', sans-serif",
+    subWeight: '400',
+    subTracking: '0.28em',
+    subSize: '0.9cqh',
+    statsFont: "'Space Grotesk', sans-serif",
+    statsWeight: '600',
+  },
+  kertok: {
+    titleFont: "'Work Sans', sans-serif",
+    titleWeight: '200',
+    titleTracking: '0.06em',
+    titleCase: 'none',
+    titleSize: '4.6cqh',
+    titleLineHeight: '1.12',
+    subFont: "'Work Sans', sans-serif",
+    subWeight: '300',
+    subTracking: '0.20em',
+    subSize: '0.95cqh',
+    statsFont: "'Work Sans', sans-serif",
+    statsWeight: '300',
+  },
+  'mid-century': {
+    titleFont: "'Oswald', sans-serif",
+    titleWeight: '400',
+    titleTracking: '0.16em',
+    titleCase: 'uppercase',
+    titleSize: '4.4cqh',
+    titleLineHeight: '1.05',
+    subFont: "'Work Sans', sans-serif",
+    subWeight: '400',
+    subTracking: '0.30em',
+    subSize: '0.95cqh',
+    statsFont: "'Oswald', sans-serif",
+    statsWeight: '400',
+  },
+  'topo-art': {
+    titleFont: "'Work Sans', sans-serif",
+    titleWeight: '400',
+    titleTracking: '0.28em',
+    titleCase: 'uppercase',
+    titleSize: '3.6cqh',
+    titleLineHeight: '1.15',
+    subFont: "'Work Sans', sans-serif",
+    subWeight: '300',
+    subTracking: '0.22em',
+    subSize: '0.95cqh',
+    statsFont: "'Work Sans', sans-serif",
+    statsWeight: '400',
+  },
+  'dark-sky': {
+    titleFont: "'Fjalla One', sans-serif",
+    titleWeight: '400',
+    titleTracking: '0.08em',
+    titleCase: 'uppercase',
+    titleSize: '5.4cqh',
+    titleLineHeight: '1.0',
+    subFont: "'DM Sans', sans-serif",
+    subWeight: '300',
+    subTracking: '0.35em',
+    subSize: '1.0cqh',
+    statsFont: "'Fjalla One', sans-serif",
+    statsWeight: '400',
+  },
+}
+
+interface LayoutProfile {
+  titleAlign: 'center' | 'left'
+  titlePosition: 'top' | 'bottom'
+}
+
+const THEME_LAYOUT: Record<string, LayoutProfile> = {
+  // Family A — classic centered top
+  chalk:         { titleAlign: 'center', titlePosition: 'top' },
+  topaz:         { titleAlign: 'center', titlePosition: 'top' },
+  dusk:          { titleAlign: 'center', titlePosition: 'top' },
+  obsidian:      { titleAlign: 'center', titlePosition: 'top' },
+  forest:        { titleAlign: 'center', titlePosition: 'top' },
+  midnight:      { titleAlign: 'center', titlePosition: 'top' },
+  // Family B — varied layouts
+  editorial:     { titleAlign: 'left',   titlePosition: 'top' },    // magazine — left-aligned masthead
+  bauhaus:       { titleAlign: 'left',   titlePosition: 'bottom' }, // Bauhaus poster — title anchored at base
+  vintage:       { titleAlign: 'center', titlePosition: 'top' },    // vintage national park — centered crown
+  brutalist:     { titleAlign: 'left',   titlePosition: 'bottom' }, // raw/stark — title slammed to bottom-left
+  risograph:     { titleAlign: 'left',   titlePosition: 'top' },    // printmaking — left-block header
+  blueprint:     { titleAlign: 'left',   titlePosition: 'bottom' }, // technical drawing — title block at foot
+  kertok:        { titleAlign: 'left',   titlePosition: 'top' },    // spare minimal — left-flush top
+  'mid-century': { titleAlign: 'center', titlePosition: 'bottom' }, // retro poster — centered title foot
+  'topo-art':    { titleAlign: 'center', titlePosition: 'top' },    // art print — centred crown
+  'dark-sky':    { titleAlign: 'center', titlePosition: 'bottom' }, // dramatic — text at bottom, sky above
 }
 
 const SERIF_FONTS = new Set(['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'])
@@ -650,6 +823,10 @@ const typography = computed((): TypographyProfile => {
   }
   return base
 })
+
+const layout = computed((): LayoutProfile =>
+  THEME_LAYOUT[props.styleConfig.color_theme ?? 'chalk'] ?? THEME_LAYOUT.chalk,
+)
 
 // ── Poster content ────────────────────────────────────────────────────────────
 
@@ -707,13 +884,14 @@ const borderW = computed(() =>
 const headerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.background_color,
   color: fg.value,
-  padding: '5cqh 7cqw 2.8cqh',
+  padding: layout.value.titlePosition === 'bottom' ? '2.4cqh 7cqw 3.5cqh' : '5cqh 7cqw 2.8cqh',
   display: 'flex',
   flexDirection: 'column' as const,
-  alignItems: 'center',
+  alignItems: layout.value.titleAlign === 'left' ? 'flex-start' : 'center',
   justifyContent: 'center',
   gap: '1.1cqh',
   position: 'relative' as const,
+  order: layout.value.titlePosition === 'top' ? '0' : '1',
 }))
 
 const trailNameStyle = computed(() => ({
@@ -724,7 +902,7 @@ const trailNameStyle = computed(() => ({
   fontSize: typography.value.titleSize,
   lineHeight: typography.value.titleLineHeight,
   color: fg.value,
-  textAlign: 'center' as const,
+  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
   outline: 'none',
@@ -738,7 +916,7 @@ const locationLineStyle = computed(() => ({
   color: fg.value,
   opacity: '0.5',
   textTransform: 'uppercase' as const,
-  textAlign: 'center' as const,
+  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
   outline: 'none',
@@ -749,7 +927,7 @@ const ruleStyle = computed(() => ({
   height: '1px',
   backgroundColor: fg.value,
   opacity: '0.12',
-  marginTop: '0.4cqh',
+  marginTop: layout.value.titlePosition === 'bottom' ? '0' : '0.4cqh',
   flexShrink: '0',
 }))
 
@@ -765,6 +943,11 @@ const footerBandStyle = computed(() => ({
   justifyContent: 'space-between',
   position: 'relative' as const,
   borderTop: borderW.value !== '0' ? `${borderW.value} solid ${fg.value}1a` : `1px solid ${fg.value}0d`,
+  order: '2',
+}))
+
+const mapAreaStyle = computed(() => ({
+  order: layout.value.titlePosition === 'top' ? '1' : '0',
 }))
 
 const statNumberStyle = computed(() => ({
@@ -930,11 +1113,13 @@ const showTrailLegend = computed(() =>
 
 const trailLegendStyle = computed(() => {
   const pos = props.styleConfig.trail_legend?.position ?? 'bottom-left'
+  const hasBorder = props.styleConfig.border_style !== 'none'
+  const edge = hasBorder ? 'calc(2% + 20px)' : '2%'
   const posStyles: Record<string, string> = {
-    'bottom-left': 'bottom: 2%; left: 2%;',
-    'bottom-right': 'bottom: 2%; right: 2%;',
-    'top-left': 'top: 2%; left: 2%;',
-    'top-right': 'top: 2%; right: 2%;',
+    'bottom-left': `bottom: ${edge}; left: ${edge};`,
+    'bottom-right': `bottom: ${edge}; right: ${edge};`,
+    'top-left': `top: ${edge}; left: ${edge};`,
+    'top-right': `top: ${edge}; right: ${edge};`,
   }
   const parts = posStyles[pos]?.split(';').filter(Boolean) ?? []
   const style: Record<string, string> = {
@@ -1405,6 +1590,23 @@ watch(
     }
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
+
+    // Contour line-width fast path — avoids full reload for width multiplier changes
+    if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
+      const w = newConfig.contour_minor_width ?? 1
+      if (mapInstance.getLayer('contours-minor'))
+        mapInstance.setPaintProperty('contours-minor', 'line-width',
+          ['interpolate', ['linear'], ['zoom'], 5, 0.8 * w, 14, 1.0 * w])
+      if (mapInstance.getLayer('contours-mid'))
+        mapInstance.setPaintProperty('contours-mid', 'line-width',
+          ['interpolate', ['linear'], ['zoom'], 5, 1.1 * w, 14, 1.5 * w])
+    }
+    if (newConfig.contour_major_width !== oldConfig?.contour_major_width) {
+      const w = newConfig.contour_major_width ?? 1
+      if (mapInstance.getLayer('contours-major'))
+        mapInstance.setPaintProperty('contours-major', 'line-width',
+          ['interpolate', ['linear'], ['zoom'], 5, 1.5 * w, 14, 2.5 * w])
+    }
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
     // these are MapLibre paint properties and don't need a tile re-fetch.

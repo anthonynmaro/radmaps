@@ -1,710 +1,630 @@
 <template>
-  <div class="h-full flex flex-col bg-white overflow-hidden">
+  <div class="h-full flex flex-col bg-white overflow-hidden" style="border-radius: 18px 18px 0 0">
 
-    <!-- Panel header -->
-    <div class="px-5 py-3 border-b flex items-center justify-between shrink-0">
-      <h2 class="text-sm font-semibold text-gray-700">Style</h2>
-      <UBadge v-if="saving" color="gray" size="xs" variant="subtle">Saving…</UBadge>
+    <!-- Drag handle -->
+    <button
+      class="w-full flex justify-center pt-2.5 pb-1.5 shrink-0 border-none cursor-pointer bg-white focus:outline-none"
+      style="border-radius: 18px 18px 0 0"
+      @click="$emit('toggle-sheet')"
+      aria-label="Toggle panel size"
+    >
+      <div class="w-9 h-1 rounded-full bg-[#D6D3D1]" />
+    </button>
+
+    <!-- Header -->
+    <div class="px-4 pt-0.5 pb-2.5 shrink-0">
+      <p class="text-sm font-bold text-[#1C1917] leading-none">Style your map</p>
+      <p class="text-[10px] text-[#A8A29E] mt-1 leading-none">{{ saving ? 'Saving…' : 'All changes saved' }}</p>
     </div>
 
-    <!-- Scrollable controls -->
-    <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
+    <!-- Segmented tab bar -->
+    <div class="px-3 pb-2 shrink-0">
+      <div class="flex bg-[#F5F5F4] rounded-lg p-[3px] gap-0.5">
+        <button
+          v-for="t in TABS"
+          :key="t.id"
+          @click="activeTab = t.id as typeof activeTab"
+          class="flex-1 text-[11px] font-semibold rounded-md leading-none py-[6px] transition-all duration-150 border-none cursor-pointer"
+          :style="activeTab === t.id
+            ? 'background: white; color: #1C1917; box-shadow: 0 1px 2px rgba(0,0,0,0.06);'
+            : 'background: transparent; color: #78716C;'"
+        >{{ t.label }}</button>
+      </div>
+    </div>
 
-      <!-- ── Themes ── -->
-      <Section label="Theme" icon="i-heroicons-swatch">
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="theme in COLOR_THEMES"
-            :key="theme.id"
-            @click="applyTheme(theme)"
-            :class="[
-              'relative flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-all overflow-hidden',
-              local.color_theme === theme.id
-                ? 'border-green-600'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
-            <!-- Poster mini-preview -->
-            <div class="w-full rounded overflow-hidden" style="aspect-ratio: 18/24; position: relative;">
-              <!-- Paper background -->
-              <div class="absolute inset-0" :style="{ backgroundColor: theme.background_color }" />
-              <!-- Title text (shows theme font personality) -->
+    <!-- Tab divider -->
+    <div class="h-px bg-[#F5F5F4] shrink-0" />
+
+    <!-- Scrollable tab content -->
+    <div class="flex-1 overflow-y-auto" style="-webkit-overflow-scrolling: touch">
+
+      <!-- ─── QUICK TAB ──────────────────────────────────────────────────────── -->
+      <template v-if="activeTab === 'quick'">
+
+        <V4Card title="Theme" hint="One tap sets colors and fonts" :default-open="true">
+
+          <!-- All themes -->
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              v-for="theme in COLOR_THEMES"
+              :key="theme.id"
+              @click="applyTheme(theme)"
+              class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
+              style="border-radius: 10px; border: 2px solid; padding: 4px;"
+              :style="{ borderColor: local.color_theme === theme.id ? '#2D6A4F' : '#E7E5E4' }"
+            >
+              <!-- Mini poster thumbnail — layout mirrors actual theme -->
               <div
-                class="absolute inset-0 flex flex-col items-center justify-start pt-[8%] px-[6%] gap-[3%]"
+                class="w-full overflow-hidden flex flex-col"
+                style="aspect-ratio: 3/4; border-radius: 5px;"
+                :style="{ backgroundColor: theme.background_color }"
               >
-                <span
-                  :style="{
-                    fontFamily: THEME_FONT_PREVIEW[theme.id],
-                    color: theme.label_text_color,
-                    fontSize: '6px',
-                    fontWeight: THEME_FONT_WEIGHT[theme.id],
-                    letterSpacing: THEME_FONT_TRACKING[theme.id],
-                    textTransform: 'uppercase',
-                    lineHeight: '1.1',
-                    textAlign: 'center',
+                <!-- Title band: flex order flips for bottom-title themes -->
+                <div :style="{
+                  order: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? 1 : 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: THEME_THUMB[theme.id]?.titleAlign === 'left' ? 'flex-start' : 'center',
+                  padding: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? '4% 9% 9%' : '9% 9% 4%',
+                  gap: '7%',
+                  backgroundColor: theme.background_color,
+                }">
+                  <!-- Rule above text for bottom-title themes -->
+                  <div v-if="THEME_THUMB[theme.id]?.titlePosition === 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
+                  <span :style="{
                     display: 'block',
-                    width: '100%',
-                  }"
-                >SUMMIT<br/>TRAIL</span>
-                <!-- Divider -->
-                <div class="w-full" :style="{ height: '0.5px', backgroundColor: theme.label_text_color, opacity: '0.2' }" />
-                <!-- Map area (route squiggle) -->
-                <div class="relative flex-1 w-full rounded-sm overflow-hidden" style="height: 55%">
-                  <svg viewBox="0 0 48 32" class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="xMidYMid slice">
-                    <!-- Topo rings -->
-                    <ellipse cx="24" cy="18" rx="18" ry="10" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.12"/>
-                    <ellipse cx="24" cy="18" rx="12" ry="7" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.1"/>
-                    <ellipse cx="24" cy="18" rx="6" ry="4" :stroke="theme.label_text_color" stroke-width="0.5" fill="none" opacity="0.08"/>
-                    <!-- Route -->
-                    <path d="M6 26 Q14 20 20 22 Q28 24 36 14 Q40 10 44 12"
-                      :stroke="theme.route_color" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    color: theme.label_text_color,
+                    fontFamily: THEME_FONT_PREVIEW[theme.id] ?? 'system-ui',
+                    fontSize: THEME_THUMB[theme.id]?.fontSize ?? '7px',
+                    fontWeight: THEME_THUMB[theme.id]?.fontWeight ?? '700',
+                    letterSpacing: THEME_THUMB[theme.id]?.letterSpacing ?? '0.1em',
+                    textTransform: THEME_THUMB[theme.id]?.textTransform ?? 'uppercase',
+                    lineHeight: THEME_THUMB[theme.id]?.lineHeight ?? '1.1',
+                    textAlign: THEME_THUMB[theme.id]?.titleAlign === 'left' ? 'left' : 'center',
+                  }">SUMMIT<br/>TRAIL</span>
+                  <!-- Rule below text for top-title themes -->
+                  <div v-if="THEME_THUMB[theme.id]?.titlePosition !== 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
+                </div>
+
+                <!-- Map area -->
+                <div :style="{
+                  order: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? 0 : 1,
+                  flex: 1,
+                  overflow: 'hidden',
+                }">
+                  <svg viewBox="0 0 60 40" style="width: 100%; height: 100%;" fill="none" preserveAspectRatio="xMidYMid slice">
+                    <ellipse cx="30" cy="22" rx="22" ry="12" :stroke="theme.label_text_color" stroke-width="0.4" fill="none" opacity="0.18"/>
+                    <ellipse cx="30" cy="22" rx="14" ry="8" :stroke="theme.label_text_color" stroke-width="0.4" fill="none" opacity="0.14"/>
+                    <path d="M6 32 Q16 26 24 28 Q34 30 44 18 Q50 12 56 14" :stroke="theme.route_color" stroke-width="1.6" fill="none" stroke-linecap="round"/>
                   </svg>
                 </div>
-              </div>
-            </div>
-            <span
-              class="text-[9px] leading-none font-medium"
-              :class="local.color_theme === theme.id ? 'text-green-700' : 'text-gray-500'"
-            >{{ theme.label }}</span>
-          </button>
-        </div>
 
-        <!-- My Themes -->
-        <div v-if="savedThemes.length" class="mt-3 pt-3 border-t border-gray-100">
-          <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">My Themes</p>
-          <div class="grid grid-cols-3 gap-2">
-            <div v-for="saved in savedThemes" :key="saved.id" class="relative group">
-              <button
-                @click="applySavedTheme(saved)"
-                class="relative flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all overflow-hidden w-full"
-              >
-                <!-- Poster mini-preview -->
-                <div class="w-full rounded overflow-hidden" style="aspect-ratio: 18/24; position: relative;">
-                  <div class="absolute inset-0" :style="{ backgroundColor: saved.config.background_color ?? '#F7F4EF' }" />
-                  <div class="absolute inset-0 flex flex-col items-center justify-start pt-[8%] px-[6%] gap-[3%]">
-                    <span
-                      :style="{
-                        fontFamily: 'sans-serif',
-                        color: saved.config.label_text_color ?? '#1C1917',
-                        fontSize: '6px',
-                        fontWeight: '600',
-                        letterSpacing: '0.2em',
-                        textTransform: 'uppercase',
-                        lineHeight: '1.1',
-                        textAlign: 'center',
-                        display: 'block',
-                        width: '100%',
-                      }"
-                    >SUMMIT<br/>TRAIL</span>
-                    <div class="w-full" :style="{ height: '0.5px', backgroundColor: saved.config.label_text_color ?? '#1C1917', opacity: '0.2' }" />
-                    <div class="relative flex-1 w-full rounded-sm overflow-hidden" style="height: 55%">
-                      <svg viewBox="0 0 48 32" class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="xMidYMid slice">
-                        <ellipse cx="24" cy="18" rx="18" ry="10" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.12"/>
-                        <ellipse cx="24" cy="18" rx="12" ry="7" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.1"/>
-                        <ellipse cx="24" cy="18" rx="6" ry="4" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.5" fill="none" opacity="0.08"/>
-                        <path d="M6 26 Q14 20 20 22 Q28 24 36 14 Q40 10 44 12"
-                          :stroke="saved.config.route_color ?? '#C1121F'" stroke-width="2" fill="none" stroke-linecap="round"/>
-                      </svg>
-                    </div>
-                  </div>
+                <!-- Footer strip -->
+                <div :style="{
+                  order: 2,
+                  height: '13%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 9%',
+                  backgroundColor: theme.background_color,
+                  borderTop: `1px solid ${theme.label_text_color}20`,
+                }">
+                  <div style="width: 28%; height: 1px; border-radius: 1px; opacity: 0.25;" :style="{ backgroundColor: theme.label_text_color }" />
                 </div>
-                <span class="text-[9px] leading-none font-medium text-gray-500 truncate w-full text-center">{{ saved.name }}</span>
-              </button>
-              <!-- Delete button -->
-              <button
-                @click.stop="removeTheme(saved.id)"
-                class="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-gray-800/70 text-white text-[8px] leading-none z-10 hover:bg-gray-900/90 transition-colors"
-                title="Delete theme"
-              >✕</button>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <!-- ── Print Size ── -->
-      <Section label="Print Size" icon="i-heroicons-rectangle-stack">
-        <div class="grid grid-cols-5 gap-1.5">
-          <button
-            v-for="size in PRINT_SIZES"
-            :key="size.id"
-            @click="set('print_size', size.id)"
-            :class="[
-              'py-1.5 rounded border text-[10px] font-medium transition-all leading-tight text-center',
-              local.print_size === size.id
-                ? 'border-green-600 bg-green-50 text-green-700'
-                : 'border-gray-200 text-gray-500 hover:border-gray-300',
-            ]"
-          >{{ size.label }}</button>
-        </div>
-      </Section>
-
-      <!-- ── Base Map ── -->
-      <Section label="Base Map" icon="i-heroicons-map">
-        <div class="space-y-3">
-          <!-- 3×2 preset grid -->
-          <div class="grid grid-cols-3 gap-1.5">
-            <button v-for="p in MAP_PRESETS" :key="p.id"
-              class="flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all overflow-hidden"
-              :class="local.preset === p.id
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'"
-              @click="set('preset', p.id)"
-              :title="p.title"
-            >
-              <div class="w-full rounded overflow-hidden" style="aspect-ratio:3/2">
-                <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
               </div>
-              <span class="text-[9px] leading-none font-medium"
-                :class="local.preset === p.id ? 'text-green-700' : 'text-gray-500'"
-              >{{ p.label }}</span>
+
+              <span
+                class="text-[10px] font-semibold leading-none"
+                :style="{ color: local.color_theme === theme.id ? '#2D6A4F' : '#78716C' }"
+              >{{ theme.label }}</span>
             </button>
           </div>
 
-          <!-- Tile style variant (minimalist + natural-topo only) -->
+          <!-- My Themes -->
+          <div v-if="savedThemes.length" class="mt-3 pt-3 border-t border-[#F5F5F4]">
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">My Themes</p>
+            <div class="grid grid-cols-3 gap-2">
+              <div v-for="saved in savedThemes" :key="saved.id" class="relative group">
+                <button @click="applySavedTheme(saved)" class="w-full flex flex-col items-center gap-1 bg-white cursor-pointer border-none p-0" style="border-radius: 10px; border: 2px solid #E7E5E4; padding: 4px;">
+                  <div class="w-full overflow-hidden flex flex-col items-center" style="aspect-ratio: 3/4; border-radius: 5px; padding: 12% 8%; gap: 4%;" :style="{ backgroundColor: saved.config.background_color ?? '#F7F4EF' }">
+                    <span class="text-center" style="font-size: 7px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.1;" :style="{ color: saved.config.label_text_color ?? '#1C1917' }">SUMMIT<br/>TRAIL</span>
+                    <div class="w-full shrink-0" style="height: 1px; opacity: 0.2;" :style="{ backgroundColor: saved.config.label_text_color ?? '#1C1917' }" />
+                    <svg viewBox="0 0 60 40" class="w-full flex-1" fill="none">
+                      <ellipse cx="30" cy="22" rx="22" ry="12" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.4" fill="none" opacity="0.18"/>
+                      <ellipse cx="30" cy="22" rx="14" ry="8" :stroke="saved.config.label_text_color ?? '#1C1917'" stroke-width="0.4" fill="none" opacity="0.14"/>
+                      <path d="M6 32 Q16 26 24 28 Q34 30 44 18 Q50 12 56 14" :stroke="saved.config.route_color ?? '#C1121F'" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <span class="text-[10px] font-semibold leading-none truncate w-full text-center" style="color: #78716C;">{{ saved.name }}</span>
+                </button>
+                <button @click.stop="removeTheme(saved.id)" class="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-gray-800/70 text-white text-[8px] leading-none z-10 hover:bg-gray-900/90 transition-colors">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save theme -->
+          <div class="mt-3 pt-3 border-t border-[#F5F5F4]">
+            <div v-if="showSaveInput" class="flex items-center gap-2">
+              <input
+                ref="saveInputRef"
+                v-model="newThemeName"
+                type="text"
+                placeholder="Theme name…"
+                maxlength="40"
+                class="flex-1 text-xs border border-[#E7E5E4] rounded px-2 py-1 focus:outline-none focus:border-[#2D6A4F] focus:ring-1"
+                style="focus:ring-color: rgba(45,106,79,0.3)"
+                @keydown.enter="handleSaveTheme"
+                @keydown.escape="showSaveInput = false"
+              />
+              <button class="text-xs font-semibold transition-colors" style="color: #1F4D38;" @click="handleSaveTheme">Save</button>
+              <button class="text-xs transition-colors" style="color: #A8A29E;" @click="showSaveInput = false">✕</button>
+            </div>
+            <button v-else class="text-[10px] font-semibold transition-colors" style="color: #78716C; background: none; border: none; padding: 0; cursor: pointer;" @click="openSaveInput">+ Save current theme</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Print size" :default-open="true">
+          <div class="grid grid-cols-5 gap-1.5">
+            <button
+              v-for="size in PRINT_SIZES"
+              :key="size.id"
+              @click="set('print_size', size.id)"
+              class="text-[11px] font-semibold text-center cursor-pointer transition-all border-none"
+              style="padding: 10px 4px; border-radius: 8px; border: 1.5px solid;"
+              :style="local.print_size === size.id
+                ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
+                : 'background: white; border-color: #E7E5E4; color: #44403C;'"
+            >{{ size.label }}</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Route line" :default-open="true">
+          <ColorRow label="Color" :value="local.route_color" @change="set('route_color', $event)" />
+          <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
+            :display="(v: number) => v + 'px'" @change="set('route_width', $event)" />
+        </V4Card>
+
+      </template>
+
+      <!-- ─── MAP TAB ───────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'map'">
+
+        <V4Card title="Base map" :default-open="true">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="p in MAP_PRESETS"
+              :key="p.id"
+              @click="set('preset', p.id)"
+              class="flex flex-col items-center gap-1 cursor-pointer transition-all overflow-hidden border-none"
+              style="padding: 6px; border-radius: 8px; border: 1.5px solid;"
+              :style="local.preset === p.id
+                ? 'background: #DCEBE2; border-color: #2D6A4F;'
+                : 'background: white; border-color: #E7E5E4;'"
+              :title="p.title"
+            >
+              <div class="w-full rounded overflow-hidden" style="aspect-ratio: 3/2">
+                <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
+              </div>
+              <span class="text-[9px] leading-none font-semibold"
+                :style="local.preset === p.id ? 'color: #1F4D38;' : 'color: #78716C;'"
+              >{{ p.label }}</span>
+            </button>
+          </div>
           <template v-if="local.preset === 'minimalist'">
-            <p class="text-[10px] text-gray-400 -mb-1">Tile style</p>
+            <p class="text-[10px] mt-3 mb-1.5" style="color: #A8A29E;">Tile style</p>
             <div class="grid grid-cols-3 gap-1.5">
               <button v-for="ts in TILE_STYLES" :key="ts.value"
-                class="rounded border text-[10px] py-1 px-1.5 text-center transition-colors"
-                :class="(local.base_tile_style ?? 'carto-light') === ts.value
-                  ? 'border-green-500 bg-green-50 text-green-700 font-medium'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-300'"
+                class="text-[10px] text-center cursor-pointer transition-colors font-semibold border-none"
+                style="border-radius: 8px; border: 1.5px solid; padding: 6px 6px;"
+                :style="(local.base_tile_style ?? 'carto-light') === ts.value
+                  ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
+                  : 'background: white; border-color: #E7E5E4; color: #78716C;'"
                 @click="set('base_tile_style', ts.value)"
               >{{ ts.label }}</button>
             </div>
           </template>
-
           <template v-if="local.preset === 'natural-topo'">
-            <p class="text-[10px] text-gray-400 -mb-1">Tile variant</p>
+            <p class="text-[10px] mt-3 mb-1.5" style="color: #A8A29E;">Tile variant</p>
             <div class="grid grid-cols-3 gap-1.5">
               <button v-for="ts in TOPO_TILE_STYLES" :key="ts.value"
-                class="rounded border text-[10px] py-1 px-1.5 text-center transition-colors"
-                :class="(local.base_tile_style ?? 'maptiler-outdoor') === ts.value
-                  ? 'border-green-500 bg-green-50 text-green-700 font-medium'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-300'"
+                class="text-[10px] text-center cursor-pointer transition-colors font-semibold border-none"
+                style="border-radius: 8px; border: 1.5px solid; padding: 6px 6px;"
+                :style="(local.base_tile_style ?? 'maptiler-outdoor') === ts.value
+                  ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
+                  : 'background: white; border-color: #E7E5E4; color: #78716C;'"
                 @click="set('base_tile_style', ts.value)"
               >{{ ts.label }}</button>
             </div>
           </template>
-
-          <!-- Freeze status (shown when map is frozen) -->
-          <div v-if="local.map_frozen" class="flex items-center gap-2 px-2.5 py-2 bg-green-50 border border-green-200 rounded-lg">
-            <div class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-            <p class="text-[10px] text-green-700 leading-snug flex-1">
-              View frozen at Z{{ local.map_zoom?.toFixed(1) }} · position locked
-            </p>
+          <div v-if="local.map_frozen" class="mt-3 flex items-center gap-2 px-2.5 py-2 rounded-lg" style="background: #DCEBE2; border: 1px solid #2D6A4F;">
+            <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
+            <p class="text-[10px] leading-snug flex-1" style="color: #1F4D38;">View frozen at Z{{ local.map_zoom?.toFixed(1) }} · position locked</p>
           </div>
-        </div>
-      </Section>
+        </V4Card>
 
-      <!-- ── Poster Text ── -->
-      <Section label="Poster Text" icon="i-heroicons-pencil">
-        <div class="space-y-3">
-          <TextRow label="Trail name" :value="local.trail_name" placeholder="Defaults to map title"
-            @change="set('trail_name', $event)" />
-          <TextRow label="Occasion" :value="local.occasion_text" placeholder="e.g. Summit Day 2024"
-            @change="set('occasion_text', $event)" />
-          <TextRow label="Location" :value="local.location_text" placeholder="e.g. Moab, Utah"
-            @change="set('location_text', $event)" />
-        </div>
-      </Section>
-
-      <!-- ── Route ── -->
-      <Section label="Route" icon="i-heroicons-map-pin">
-        <div class="space-y-3">
+        <V4Card title="Route" :default-open="false">
           <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
             @change="set('route_color_mode', $event ? 'gradient' : 'solid')" />
-          <ColorRow label="Colour" :value="local.route_color" @change="set('route_color', $event)" />
+          <ColorRow label="Color" :value="local.route_color" @change="set('route_color', $event)" />
           <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
-            :display="v => v + 'px'" @change="set('route_width', $event)" />
+            :display="(v: number) => v + 'px'" @change="set('route_width', $event)" />
           <SliderRow label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
-            :display="v => Math.round(v * 100) + '%'" @change="set('route_opacity', $event)" />
+            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('route_opacity', $event)" />
           <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="5" :step="1"
-            :display="v => (['Off','Light','Gentle','Medium','Strong','Max'] as const)[Math.round(v)]"
+            :display="(v: number) => (['Off','Light','Gentle','Medium','Strong','Max'] as const)[Math.round(v)]"
             @change="set('route_smooth', $event)" />
-          <!-- Start / Finish pins -->
-          <div class="pt-1 border-t border-gray-100" />
-          <p class="text-[10px] text-gray-400 -mb-1">Pins</p>
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
+          <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Pins</p>
           <div class="flex items-center gap-3">
-            <!-- Start pin preview -->
             <div class="flex flex-col items-center gap-1 shrink-0">
               <svg viewBox="0 0 28 28" width="28" height="28" class="overflow-visible">
                 <circle cx="14" cy="14" r="11" fill="white" opacity="0.88"/>
                 <circle cx="14" cy="14" r="8" :fill="local.route_color"/>
                 <circle cx="14" cy="14" r="3.5" fill="white"/>
               </svg>
-              <span class="text-[9px] text-gray-400 leading-none">Start</span>
+              <span class="text-[9px] leading-none" style="color: #A8A29E;">Start</span>
             </div>
             <div class="flex-1 space-y-2">
               <ToggleRow label="Show start" :value="local.show_start_pin ?? true" @change="set('show_start_pin', $event)" />
               <ToggleRow label="Show finish" :value="local.show_finish_pin ?? true" @change="set('show_finish_pin', $event)" />
             </div>
-            <!-- Finish pin preview -->
             <div class="flex flex-col items-center gap-1 shrink-0">
               <svg viewBox="0 0 28 28" width="28" height="28" class="overflow-visible">
                 <circle cx="14" cy="14" r="11" fill="white" opacity="0.88"/>
                 <circle cx="14" cy="14" r="9" :fill="local.route_color"/>
                 <circle cx="14" cy="14" r="3" fill="white"/>
               </svg>
-              <span class="text-[9px] text-gray-400 leading-none">Finish</span>
+              <span class="text-[9px] leading-none" style="color: #A8A29E;">Finish</span>
             </div>
           </div>
-        </div>
-      </Section>
+        </V4Card>
 
-      <!-- ── Terrain ── -->
-      <Section label="Terrain" icon="i-heroicons-signal">
-        <div class="space-y-3">
+        <V4Card title="Terrain" :default-open="false">
           <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set('map_3d', $event)" />
           <ToggleRow label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
           <template v-if="local.show_hillshade">
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
-              :display="v => Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
           </template>
-          <div class="pt-1 border-t border-gray-100" />
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <ToggleRow label="Contour lines" :value="local.show_contours" @change="set('show_contours', $event)" />
           <template v-if="local.show_contours">
-            <div class="flex items-center justify-between text-xs text-gray-500">
-              <span>Minor / Major colour</span>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs" style="color: #44403C;">Minor / Major color</span>
               <div class="flex gap-2">
                 <ColorSwatch :value="local.contour_color" @change="set('contour_color', $event)" title="Minor" />
                 <ColorSwatch :value="local.contour_major_color" @change="set('contour_major_color', $event)" title="Major" />
               </div>
             </div>
             <SliderRow label="Opacity" :value="local.contour_opacity" :min="0" :max="1" :step="0.05"
-              :display="v => Math.round(v * 100) + '%'" @change="set('contour_opacity', $event)" />
-            <SliderRow label="Detail" :value="local.contour_detail ?? 2" :min="0" :max="4" :step="1"
-              :display="v => (['~200m','~100m','~50m','~20m','~10m'] as const)[Math.round(v)]"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('contour_opacity', $event)" />
+            <SliderRow label="Detail" :value="local.contour_detail ?? 2" :min="0" :max="5" :step="1"
+              :display="(v: number) => (['~200m','~100m','~50m','~20m','~10m','~2m'] as const)[Math.round(v)]"
               @change="set('contour_detail', $event)" />
+            <SliderRow label="Minor weight" :value="local.contour_minor_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
+              :display="(v: number) => v + '×'" @change="set('contour_minor_width', $event)" />
+            <SliderRow label="Major weight" :value="local.contour_major_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
+              :display="(v: number) => v + '×'" @change="set('contour_major_width', $event)" />
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
           </template>
-          <div class="pt-1 border-t border-gray-100" />
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <ToggleRow label="Roads &amp; place labels" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
-        </div>
-      </Section>
+        </V4Card>
 
-      <!-- ── Effects ── -->
-      <Section label="Effects" icon="i-heroicons-sparkles">
-        <div class="space-y-3">
-
-          <!-- Tile effect picker -->
-          <div>
-            <p class="text-xs text-gray-500 mb-2">Tile effect</p>
+        <V4Card title="Effects" hint="Advanced — duotone, posterize, grain" :default-open="false">
+          <div class="mb-3">
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Tile effect</p>
             <div class="grid grid-cols-2 gap-1.5">
-              <SegmentButton label="None"         :active="(local.tile_effect ?? 'none') === 'none'"  @click="set('tile_effect', 'none')" />
-              <SegmentButton label="Duotone"      :active="local.tile_effect === 'duotone'"            @click="set('tile_effect', 'duotone')" />
-              <SegmentButton label="Posterize"    :active="local.tile_effect === 'posterize'"          @click="set('tile_effect', 'posterize')" />
-              <SegmentButton label="Layer Color"  :active="local.tile_effect === 'layer-color'"        @click="set('tile_effect', 'layer-color')" />
+              <SegmentButton label="None"        :active="(local.tile_effect ?? 'none') === 'none'"   @click="set('tile_effect', 'none')" />
+              <SegmentButton label="Duotone"     :active="local.tile_effect === 'duotone'"             @click="set('tile_effect', 'duotone')" />
+              <SegmentButton label="Posterize"   :active="local.tile_effect === 'posterize'"           @click="set('tile_effect', 'posterize')" />
+              <SegmentButton label="Layer Color" :active="local.tile_effect === 'layer-color'"         @click="set('tile_effect', 'layer-color')" />
             </div>
           </div>
-
-          <!-- Duotone controls -->
           <template v-if="local.tile_effect === 'duotone'">
-            <p class="text-[10px] text-gray-400 -mb-1">Remaps tile luminance to your poster's shadow → highlight colours</p>
+            <p class="text-[10px] mb-2" style="color: #A8A29E;">Remaps tile luminance to your poster's shadow → highlight colours</p>
             <SliderRow label="Strength" :value="local.tile_duotone_strength ?? 0.9" :min="0.1" :max="1" :step="0.05"
-              :display="v => Math.round(v * 100) + '%'" @change="set('tile_duotone_strength', $event)" />
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('tile_duotone_strength', $event)" />
           </template>
-
-          <!-- Posterize controls -->
           <template v-if="local.tile_effect === 'posterize'">
-            <p class="text-[10px] text-gray-400 -mb-1">Quantises tile colours to a limited palette — screen-print look</p>
+            <p class="text-[10px] mb-2" style="color: #A8A29E;">Quantises tile colours to a limited palette — screen-print look</p>
             <SliderRow label="Levels" :value="local.tile_posterize_levels ?? 4" :min="2" :max="8" :step="1"
-              :display="v => Math.round(v) + ' colours'" @change="set('tile_posterize_levels', $event)" />
+              :display="(v: number) => Math.round(v) + ' colours'" @change="set('tile_posterize_levels', $event)" />
           </template>
-
-          <!-- Layer-color controls -->
           <template v-if="local.tile_effect === 'layer-color'">
-            <p class="text-[10px] text-gray-400 -mb-1">Maps dark / mid / light tile regions to independent colours</p>
-            <ColorRow
-              label="Shadow (dark)"
-              :value="local.tile_shadow_color ?? local.label_text_color"
-              @change="set('tile_shadow_color', $event)"
-            />
-            <ColorRow
-              label="Midtone"
-              :value="local.tile_midtone_color ?? blendForPreview(local.tile_shadow_color ?? local.label_text_color, local.tile_highlight_color ?? local.background_color)"
-              @change="set('tile_midtone_color', $event)"
-            />
-            <ColorRow
-              label="Highlight (light)"
-              :value="local.tile_highlight_color ?? local.background_color"
-              @change="set('tile_highlight_color', $event)"
-            />
+            <p class="text-[10px] mb-2" style="color: #A8A29E;">Maps dark / mid / light tile regions to independent colours</p>
+            <ColorRow label="Shadow (dark)" :value="local.tile_shadow_color ?? local.label_text_color" @change="set('tile_shadow_color', $event)" />
+            <ColorRow label="Midtone" :value="local.tile_midtone_color ?? blendForPreview(local.tile_shadow_color ?? local.label_text_color, local.tile_highlight_color ?? local.background_color)" @change="set('tile_midtone_color', $event)" />
+            <ColorRow label="Highlight (light)" :value="local.tile_highlight_color ?? local.background_color" @change="set('tile_highlight_color', $event)" />
           </template>
-
-          <div class="pt-1 border-t border-gray-100" />
-
-          <!-- Raster adjustments (work with or without tile effect) -->
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <SliderRow label="Contrast" :value="local.tile_contrast ?? 0" :min="-1" :max="1" :step="0.05"
-            :display="v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_contrast', $event)" />
+            :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_contrast', $event)" />
           <SliderRow label="Saturation" :value="local.tile_saturation ?? 0" :min="-1" :max="1" :step="0.05"
-            :display="v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_saturation', $event)" />
+            :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_saturation', $event)" />
           <SliderRow label="Hue shift" :value="local.tile_hue_rotate ?? 0" :min="0" :max="360" :step="5"
-            :display="v => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
-
-          <div class="pt-1 border-t border-gray-100" />
-
-          <!-- Vignette -->
+            :display="(v: number) => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <ToggleRow label="Vignette" :value="local.show_vignette ?? false" @change="set('show_vignette', $event)" />
           <template v-if="local.show_vignette">
             <SliderRow label="Intensity" :value="local.vignette_intensity ?? 0.45" :min="0.05" :max="1" :step="0.05"
-              :display="v => Math.round(v * 100) + '%'" @change="set('vignette_intensity', $event)" />
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('vignette_intensity', $event)" />
           </template>
-
-          <!-- Film grain -->
           <SliderRow label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
-            :display="v => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
+            :display="(v: number) => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
+        </V4Card>
 
-        </div>
-      </Section>
+      </template>
 
-      <!-- ── Colours ── -->
-      <Section label="Colours" icon="i-heroicons-swatch">
-        <p class="text-[10px] text-gray-400 mb-3 -mt-1">Auto-set by theme · override below</p>
-        <div class="space-y-3">
+      <!-- ─── STYLE TAB ─────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'style'">
+
+        <V4Card title="Colors" hint="Auto-set by theme · override below" :default-open="true">
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
           <ColorRow label="Water" :value="local.water_color" @change="set('water_color', $event)" />
-        </div>
-      </Section>
+        </V4Card>
 
-      <!-- ── Typography ── -->
-      <Section label="Typography" icon="i-heroicons-bars-3-bottom-left">
-        <!-- Theme typography hint -->
-        <div class="flex items-center gap-2 mb-3 px-2.5 py-2 bg-gray-50 rounded-lg border border-gray-100">
-          <div class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-          <p class="text-[10px] text-gray-500 leading-snug">
-            <span class="font-semibold text-gray-700">{{ activeThemeTypography }}</span> is set by your theme.
-            Pick below to override.
-          </p>
-        </div>
-        <template v-for="group in fontGroups" :key="group.label">
-          <p :class="['text-[9px] font-semibold tracking-widest uppercase text-gray-400 mb-1.5 mt-3', group === fontGroups[0] ? 'mt-0' : '']">{{ group.label }}</p>
-          <div class="grid grid-cols-2 gap-1.5">
-            <FontButton
-              v-for="fontName in group.fonts"
-              :key="fontName"
-              :label="fontName"
-              :font="fontName"
-              :active="local.font_family === fontName"
-              @click="selectFont(fontName)"
-            />
+        <V4Card title="Typography" :default-open="false">
+          <div class="flex items-center gap-2 mb-3 px-2.5 py-2 rounded-lg" style="background: #F5F5F4;">
+            <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
+            <p class="text-[10px] leading-snug" style="color: #57534E;">
+              <span class="font-semibold" style="color: #1C1917;">{{ activeThemeTypography }}</span> is set by your theme. Pick below to override.
+            </p>
           </div>
-        </template>
-        <p v-if="local.body_font_family && local.body_font_family !== local.font_family" class="text-[9px] text-gray-400 mt-3 pl-0.5">
-          Body paired with <span class="font-medium text-gray-500" :style="{ fontFamily: local.body_font_family }">{{ local.body_font_family }}</span>
-        </p>
-      </Section>
-
-      <!-- ── Labels ── -->
-      <Section label="Labels" icon="i-heroicons-tag">
-        <div class="space-y-2.5">
-          <ToggleRow label="Trail name" :value="local.labels.show_title"
-            @change="setLabel('show_title', $event)" />
-          <ToggleRow label="Distance" :value="local.labels.show_distance"
-            @change="setLabel('show_distance', $event)" />
-          <ToggleRow label="Elevation gain" :value="local.labels.show_elevation_gain"
-            @change="setLabel('show_elevation_gain', $event)" />
-          <ToggleRow label="Date" :value="local.labels.show_date"
-            @change="setLabel('show_date', $event)" />
-          <ToggleRow label="Location" :value="local.labels.show_location"
-            @change="setLabel('show_location', $event)" />
-          <div class="pt-1 border-t border-gray-100" />
-          <ToggleRow label="RadMaps credit" :value="local.show_branding ?? true"
-            @change="set('show_branding', $event)" />
-        </div>
-      </Section>
-
-      <!-- ── Logo ── -->
-      <Section label="Logo" icon="i-heroicons-photo">
-        <div class="space-y-3">
-          <!-- Upload area -->
-          <div v-if="!local.logo_url" class="relative">
-            <label class="flex flex-col items-center justify-center gap-2 w-full min-h-[60px] border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-green-400 transition-colors bg-gray-50">
-              <svg class="w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
-              <span class="text-xs text-gray-500">Tap to upload logo</span>
-              <input ref="logoInputRef" type="file" accept="image/*" class="sr-only" @change="handleLogoUpload" />
-            </label>
-          </div>
-          <!-- Preview + remove -->
-          <div v-else class="flex items-center gap-3">
-            <img :src="local.logo_url" alt="Logo" class="h-10 w-auto rounded border border-gray-200 object-contain bg-white p-0.5" />
-            <div class="flex-1 min-w-0">
-              <ToggleRow label="Show logo" :value="local.show_logo ?? false" @change="set('show_logo', $event)" />
-            </div>
-            <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="set('logo_url', undefined); set('show_logo', false)">Remove</button>
-          </div>
-          <template v-if="local.logo_url && local.show_logo">
-            <div>
-              <p class="text-xs text-gray-500 mb-2">Position</p>
-              <div class="grid grid-cols-3 gap-1.5">
-                <SegmentButton label="Map" :active="(local.logo_position ?? 'map-top-right') === 'map-top-right'" @click="set('logo_position', 'map-top-right')" />
-                <SegmentButton label="Header" :active="local.logo_position === 'header-right'" @click="set('logo_position', 'header-right')" />
-                <SegmentButton label="Footer" :active="local.logo_position === 'footer-left'" @click="set('logo_position', 'footer-left')" />
-              </div>
-            </div>
-            <SliderRow label="Size" :value="local.logo_size ?? 8" :min="4" :max="18" :step="1"
-              :display="v => v + 'u'" @change="set('logo_size', $event)" />
-          </template>
-        </div>
-      </Section>
-
-      <!-- ── Text Overlays ── -->
-      <Section label="Text" icon="i-heroicons-cursor-arrow-rays">
-        <div class="space-y-2">
-          <div
-            v-for="overlay in (local.text_overlays ?? [])"
-            :key="overlay.id"
-            class="border border-gray-100 rounded-xl overflow-hidden"
-          >
-            <!-- Row header -->
-            <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50">
-              <div class="w-3 h-3 rounded-full shrink-0 border border-white ring-1 ring-gray-200" :style="{ backgroundColor: overlay.color }" />
-              <span class="flex-1 text-xs text-gray-700 truncate min-w-0">{{ overlay.content || 'Empty text' }}</span>
-              <button class="text-gray-300 hover:text-gray-500 transition-colors ml-1 shrink-0" @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path v-if="expandedOverlayId === overlay.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
-                  <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-              <button class="text-gray-300 hover:text-red-400 transition-colors shrink-0" @click="removeOverlay(overlay.id)">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-              </button>
-            </div>
-            <!-- Expanded controls -->
-            <div v-if="expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3 border-t border-gray-100">
-              <div class="space-y-1">
-                <span class="text-xs text-gray-600">Content</span>
-                <textarea
-                  :value="overlay.content"
-                  rows="2"
-                  class="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-[16px] leading-snug text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 focus:border-[#2D6A4F] transition-colors resize-none"
-                  autocapitalize="sentences"
-                  autocorrect="on"
-                  spellcheck="true"
-                  enterkeyhint="done"
-                  @input="setOverlay(overlay.id, { content: ($event.target as HTMLTextAreaElement).value })"
-                />
-              </div>
-              <ColorRow label="Colour" :value="overlay.color" @change="setOverlay(overlay.id, { color: $event })" />
-              <SliderRow label="Size" :value="overlay.font_size" :min="0.5" :max="8" :step="0.25"
-                :display="v => v + 'u'" @change="setOverlay(overlay.id, { font_size: $event })" />
-              <SliderRow label="Opacity" :value="overlay.opacity" :min="0.1" :max="1" :step="0.05"
-                :display="v => Math.round(v * 100) + '%'" @change="setOverlay(overlay.id, { opacity: $event })" />
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-600">Bold</span>
-                <button
-                  class="px-2 py-1 rounded border text-xs font-medium transition-all"
-                  :class="overlay.bold ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'"
-                  @click="setOverlay(overlay.id, { bold: !overlay.bold })"
-                >B</button>
-              </div>
-              <!-- Position grid (mobile-friendly) -->
-              <div>
-                <p class="text-xs text-gray-500 mb-2">Position <span class="text-gray-400">(or drag on desktop)</span></p>
-                <div class="grid grid-cols-3 gap-1">
-                  <button
-                    v-for="pos in OVERLAY_POSITIONS"
-                    :key="pos.label"
-                    class="py-2 rounded border text-sm font-medium transition-all border-gray-200 text-gray-500 hover:border-green-400 active:bg-green-50"
-                    @click="setOverlay(overlay.id, { x: pos.x, y: pos.y })"
-                  >{{ pos.label }}</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button
-            class="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 hover:border-green-400 hover:text-green-600 transition-all font-medium"
-            @click="addOverlay"
-          >+ Add text</button>
-        </div>
-      </Section>
-
-      <!-- ── Trails ── -->
-      <Section label="Trails" icon="i-heroicons-map-pin">
-        <div class="space-y-2">
-          <p class="text-[10px] text-gray-400 -mt-1 mb-2">Name segments of your route to build a map legend</p>
-
-          <div
-            v-for="seg in (local.trail_segments ?? [])"
-            :key="seg.id"
-            class="border border-gray-100 rounded-xl overflow-hidden"
-          >
-            <!-- Row header -->
-            <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50">
-              <div class="w-3 h-3 rounded-full shrink-0 border border-white ring-1 ring-gray-200" :style="{ backgroundColor: seg.color }" />
-              <input
-                :value="seg.name"
-                class="flex-1 text-xs text-gray-700 bg-transparent border-none outline-none min-w-0 placeholder-gray-400"
-                placeholder="Trail name…"
-                @input="setSegment(seg.id, { name: ($event.target as HTMLInputElement).value })"
+          <template v-for="group in fontGroups" :key="group.label">
+            <p class="text-[9px] font-semibold uppercase mb-1.5 mt-3 first:mt-0" style="letter-spacing: 0.14em; color: #A8A29E;">{{ group.label }}</p>
+            <div class="grid grid-cols-2 gap-1.5">
+              <FontButton
+                v-for="fontName in group.fonts"
+                :key="fontName"
+                :label="fontName"
+                :font="fontName"
+                :active="local.font_family === fontName"
+                @click="selectFont(fontName)"
               />
-              <!-- Visibility toggle -->
-              <button
-                class="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-                :title="seg.visible ? 'Hide' : 'Show'"
-                @click="setSegment(seg.id, { visible: !seg.visible })"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path v-if="seg.visible" d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                  <path v-if="seg.visible" fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                  <path v-else fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-              <!-- Expand toggle -->
-              <button class="text-gray-300 hover:text-gray-500 transition-colors shrink-0" @click="expandedSegmentId = expandedSegmentId === seg.id ? null : seg.id">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path v-if="expandedSegmentId === seg.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
-                  <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-              <!-- Delete -->
-              <button class="text-gray-300 hover:text-red-400 transition-colors shrink-0" @click="removeSegment(seg.id)">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-              </button>
-            </div>
-            <!-- Expanded controls -->
-            <div v-if="expandedSegmentId === seg.id" class="px-3 py-3 space-y-3 border-t border-gray-100">
-              <!-- Color palette -->
-              <div>
-                <p class="text-xs text-gray-600 mb-2">Colour</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="c in SEGMENT_COLORS"
-                    :key="c"
-                    class="w-6 h-6 rounded-full border-2 transition-all"
-                    :style="{ backgroundColor: c }"
-                    :class="seg.color === c ? 'border-green-600 scale-110' : 'border-white ring-1 ring-gray-200'"
-                    @click="setSegment(seg.id, { color: c })"
-                  />
-                  <!-- Custom color -->
-                  <label class="relative w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-green-400 transition-colors overflow-hidden" title="Custom color">
-                    <svg class="w-3 h-3 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                    <input type="color" :value="seg.color" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer" @input="setSegment(seg.id, { color: ($event.target as HTMLInputElement).value })" />
-                  </label>
-                </div>
-              </div>
-              <!-- Section range -->
-              <div class="space-y-2">
-                <p class="text-xs text-gray-600">Route section</p>
-                <SliderRow
-                  label="Start"
-                  :value="seg.section_start"
-                  :min="0"
-                  :max="100"
-                  :step="1"
-                  :display="v => Math.round(v) + '%'"
-                  @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - 1) })"
-                />
-                <SliderRow
-                  label="End"
-                  :value="seg.section_end"
-                  :min="0"
-                  :max="100"
-                  :step="1"
-                  :display="v => Math.round(v) + '%'"
-                  @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + 1) })"
-                />
-              </div>
-              <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5"
-                :display="v => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-600">Dashed</span>
-                <button
-                  class="px-2 py-1 rounded border text-xs font-medium transition-all"
-                  :class="seg.dash ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'"
-                  @click="setSegment(seg.id, { dash: !seg.dash })"
-                >- - -</button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            class="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 hover:border-green-400 hover:text-green-600 transition-all font-medium"
-            @click="addSegment"
-          >+ Add segment</button>
-
-          <!-- Legend controls (show when there are segments) -->
-          <template v-if="(local.trail_segments ?? []).length > 0">
-            <div class="pt-2 border-t border-gray-100 space-y-2.5">
-              <ToggleRow label="Show legend" :value="local.trail_legend?.show ?? true" @change="setLegend({ show: $event })" />
-              <template v-if="local.trail_legend?.show !== false">
-                <div>
-                  <p class="text-xs text-gray-500 mb-2">Legend position</p>
-                  <div class="grid grid-cols-2 gap-1.5">
-                    <SegmentButton label="↙ Bottom left" :active="(local.trail_legend?.position ?? 'bottom-left') === 'bottom-left'" @click="setLegend({ position: 'bottom-left' })" />
-                    <SegmentButton label="↘ Bottom right" :active="local.trail_legend?.position === 'bottom-right'" @click="setLegend({ position: 'bottom-right' })" />
-                    <SegmentButton label="↖ Top left" :active="local.trail_legend?.position === 'top-left'" @click="setLegend({ position: 'top-left' })" />
-                    <SegmentButton label="↗ Top right" :active="local.trail_legend?.position === 'top-right'" @click="setLegend({ position: 'top-right' })" />
-                  </div>
-                </div>
-              </template>
             </div>
           </template>
-        </div>
-      </Section>
+        </V4Card>
 
-      <!-- ── Frame ── -->
-      <Section label="Frame & Padding" icon="i-heroicons-square-2-stack">
-        <div class="space-y-3">
-          <div>
-            <p class="text-xs text-gray-500 mb-2">Border</p>
+        <V4Card title="Frame & padding" :default-open="false">
+          <div class="mb-3">
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Border</p>
             <div class="grid grid-cols-3 gap-1.5">
-              <SegmentButton v-for="b in BORDERS" :key="b.value"
-                :label="b.label" :active="local.border_style === b.value"
-                @click="set('border_style', b.value)" />
+              <SegmentButton v-for="b in BORDERS" :key="b.value" :label="b.label" :active="local.border_style === b.value" @click="set('border_style', b.value)" />
             </div>
           </div>
           <SliderRow label="Map padding" :value="local.padding_factor" :min="0.05" :max="0.35" :step="0.01"
-            :display="v => Math.round(v * 100) + '%'" @change="set('padding_factor', $event)" />
-        </div>
-      </Section>
+            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('padding_factor', $event)" />
+        </V4Card>
 
-    </div>
+      </template>
 
-    <!-- Footer actions -->
-    <div class="px-5 py-3 border-t shrink-0">
-      <!-- Save-theme name input -->
-      <div v-if="showSaveInput" class="flex items-center gap-2">
-        <input
-          ref="saveInputRef"
-          v-model="newThemeName"
-          type="text"
-          placeholder="Theme name…"
-          maxlength="40"
-          class="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/30"
-          @keydown.enter="handleSaveTheme"
-          @keydown.escape="showSaveInput = false"
-        />
-        <button
-          class="text-xs font-medium text-green-700 hover:text-green-800 transition-colors"
-          @click="handleSaveTheme"
-        >Save</button>
-        <button
-          class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          @click="showSaveInput = false"
-        >✕</button>
-      </div>
-      <!-- Default: reset + save -->
-      <div v-else class="flex items-center justify-between">
-        <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors" @click="$emit('reset')">
-          Reset to defaults
-        </button>
-        <button class="text-xs font-medium text-green-600 hover:text-green-700 transition-colors" @click="openSaveInput">
-          Save theme
-        </button>
-      </div>
+      <!-- ─── TEXT TAB ──────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'text'">
+
+        <V4Card title="Poster text" :default-open="true">
+          <TextRow label="Trail name" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
+          <TextRow label="Occasion" :value="local.occasion_text" placeholder="e.g. Summit Day 2024" @change="set('occasion_text', $event)" />
+          <TextRow label="Location" :value="local.location_text" placeholder="e.g. Moab, Utah" @change="set('location_text', $event)" />
+        </V4Card>
+
+        <V4Card title="Stats & labels" :default-open="false">
+          <ToggleRow label="Trail name" :value="local.labels.show_title" @change="setLabel('show_title', $event)" />
+          <ToggleRow label="Distance" :value="local.labels.show_distance" @change="setLabel('show_distance', $event)" />
+          <ToggleRow label="Elevation gain" :value="local.labels.show_elevation_gain" @change="setLabel('show_elevation_gain', $event)" />
+          <ToggleRow label="Date" :value="local.labels.show_date" @change="setLabel('show_date', $event)" />
+          <ToggleRow label="Location" :value="local.labels.show_location" @change="setLabel('show_location', $event)" />
+          <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
+          <ToggleRow label="RadMaps credit" :value="local.show_branding ?? true" @change="set('show_branding', $event)" />
+        </V4Card>
+
+        <V4Card title="Logo" :default-open="false">
+          <div v-if="!local.logo_url"
+            class="cursor-pointer"
+            style="padding: 20px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
+            @click="logoInputRef?.click()"
+          >
+            <p class="text-[11px]" style="color: #A8A29E;">Tap to upload logo</p>
+            <input ref="logoInputRef" type="file" accept="image/*" class="sr-only" @change="handleLogoUpload" />
+          </div>
+          <div v-else class="space-y-3">
+            <div class="flex items-center gap-3">
+              <img :src="local.logo_url" alt="Logo" class="h-10 w-auto rounded object-contain bg-white p-0.5" style="border: 1px solid #E7E5E4;" />
+              <div class="flex-1 min-w-0">
+                <ToggleRow label="Show logo" :value="local.show_logo ?? false" @change="set('show_logo', $event)" />
+              </div>
+              <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="set('logo_url', undefined); set('show_logo', false)">Remove</button>
+            </div>
+            <template v-if="local.logo_url && local.show_logo">
+              <div>
+                <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Position</p>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <SegmentButton label="Map"    :active="(local.logo_position ?? 'map-top-right') === 'map-top-right'" @click="set('logo_position', 'map-top-right')" />
+                  <SegmentButton label="Header" :active="local.logo_position === 'header-right'"                       @click="set('logo_position', 'header-right')" />
+                  <SegmentButton label="Footer" :active="local.logo_position === 'footer-left'"                        @click="set('logo_position', 'footer-left')" />
+                </div>
+              </div>
+              <SliderRow label="Size" :value="local.logo_size ?? 8" :min="4" :max="18" :step="1"
+                :display="(v: number) => v + 'u'" @change="set('logo_size', $event)" />
+            </template>
+          </div>
+        </V4Card>
+
+        <V4Card title="Text overlays" :default-open="false">
+          <div class="space-y-2">
+            <div v-for="overlay in (local.text_overlays ?? [])" :key="overlay.id" class="overflow-hidden" style="border: 1px solid #F5F5F4; border-radius: 12px;">
+              <div class="flex items-center gap-2 px-3 py-2.5" style="background: #FAFAF9;">
+                <div class="w-3 h-3 rounded-full shrink-0" style="border: 1px solid white; box-shadow: 0 0 0 1px #E7E5E4;" :style="{ backgroundColor: overlay.color }" />
+                <span class="flex-1 text-xs truncate min-w-0" style="color: #1C1917;">{{ overlay.content || 'Empty text' }}</span>
+                <button class="transition-colors ml-1 shrink-0" style="color: #D6D3D1; background: none; border: none; cursor: pointer; padding: 0;" @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path v-if="expandedOverlayId === overlay.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                    <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <button class="transition-colors shrink-0" style="color: #D6D3D1; background: none; border: none; cursor: pointer; padding: 0;" @click="removeOverlay(overlay.id)">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+              <div v-if="expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
+                <div class="space-y-1">
+                  <span class="text-xs" style="color: #44403C;">Content</span>
+                  <textarea
+                    :value="overlay.content"
+                    rows="2"
+                    class="w-full bg-white rounded-xl px-3 py-2.5 text-[16px] leading-snug placeholder-stone-400 focus:outline-none resize-none transition-colors"
+                    style="border: 1px solid #E7E5E4; color: #1C1917;"
+                    autocapitalize="sentences"
+                    autocorrect="on"
+                    spellcheck="true"
+                    enterkeyhint="done"
+                    @input="setOverlay(overlay.id, { content: ($event.target as HTMLTextAreaElement).value })"
+                  />
+                </div>
+                <ColorRow label="Color" :value="overlay.color" @change="setOverlay(overlay.id, { color: $event })" />
+                <SliderRow label="Size" :value="overlay.font_size" :min="0.5" :max="8" :step="0.25"
+                  :display="(v: number) => v + 'u'" @change="setOverlay(overlay.id, { font_size: $event })" />
+                <SliderRow label="Opacity" :value="overlay.opacity" :min="0.1" :max="1" :step="0.05"
+                  :display="(v: number) => Math.round(v * 100) + '%'" @change="setOverlay(overlay.id, { opacity: $event })" />
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: #44403C;">Bold</span>
+                  <button
+                    class="px-2 py-1 rounded text-xs font-medium transition-all cursor-pointer"
+                    style="border: 1px solid;"
+                    :style="overlay.bold ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; color: #78716C; background: white;'"
+                    @click="setOverlay(overlay.id, { bold: !overlay.bold })"
+                  >B</button>
+                </div>
+                <div>
+                  <p class="text-xs mb-2" style="color: #44403C;">Position <span style="color: #A8A29E;">(or drag on desktop)</span></p>
+                  <div class="grid grid-cols-3 gap-1">
+                    <button
+                      v-for="pos in OVERLAY_POSITIONS"
+                      :key="pos.label"
+                      class="py-2 rounded text-sm font-medium transition-all cursor-pointer"
+                      style="border: 1px solid #E7E5E4; color: #78716C; background: white;"
+                      @click="setOverlay(overlay.id, { x: pos.x, y: pos.y })"
+                    >{{ pos.label }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button
+              class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              style="border: 2px dashed #E7E5E4; color: #A8A29E; background: transparent;"
+              @click="addOverlay"
+            >+ Add text</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Trail segments" :default-open="false">
+          <p class="text-[10px] mb-3" style="color: #A8A29E;">Name segments of your route to build a map legend</p>
+          <div class="space-y-2">
+            <div v-for="seg in (local.trail_segments ?? [])" :key="seg.id" class="overflow-hidden" style="border: 1px solid #F5F5F4; border-radius: 12px;">
+              <div class="flex items-center gap-2 px-3 py-2.5" style="background: #FAFAF9;">
+                <div class="w-3 h-3 rounded-full shrink-0" style="border: 1px solid white; box-shadow: 0 0 0 1px #E7E5E4;" :style="{ backgroundColor: seg.color }" />
+                <input :value="seg.name" class="flex-1 text-xs bg-transparent border-none outline-none min-w-0" style="color: #1C1917;" placeholder="Trail name…" @input="setSegment(seg.id, { name: ($event.target as HTMLInputElement).value })" />
+                <button class="shrink-0 transition-colors cursor-pointer" style="color: #A8A29E; background: none; border: none; padding: 0;" :title="seg.visible ? 'Hide' : 'Show'" @click="setSegment(seg.id, { visible: !seg.visible })">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path v-if="seg.visible" d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    <path v-if="seg.visible" fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                    <path v-else fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <button class="transition-colors shrink-0 cursor-pointer" style="color: #D6D3D1; background: none; border: none; padding: 0;" @click="expandedSegmentId = expandedSegmentId === seg.id ? null : seg.id">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path v-if="expandedSegmentId === seg.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                    <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <button class="transition-colors shrink-0 cursor-pointer" style="color: #D6D3D1; background: none; border: none; padding: 0;" @click="removeSegment(seg.id)">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+              <div v-if="expandedSegmentId === seg.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
+                <div>
+                  <p class="text-xs mb-2" style="color: #44403C;">Color</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button v-for="c in SEGMENT_COLORS" :key="c" class="w-6 h-6 rounded-full border-2 transition-all cursor-pointer" :style="{ backgroundColor: c, borderColor: seg.color === c ? '#2D6A4F' : 'white', boxShadow: seg.color === c ? 'none' : '0 0 0 1px #E7E5E4', transform: seg.color === c ? 'scale(1.1)' : 'scale(1)' }" @click="setSegment(seg.id, { color: c })" />
+                    <label class="relative w-6 h-6 rounded-full flex items-center justify-center cursor-pointer overflow-hidden" style="border: 2px dashed #D6D3D1;" title="Custom color">
+                      <svg class="w-3 h-3 pointer-events-none" style="color: #A8A29E;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                      <input type="color" :value="seg.color" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer" @input="setSegment(seg.id, { color: ($event.target as HTMLInputElement).value })" />
+                    </label>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-xs" style="color: #44403C;">Route section</p>
+                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="1" :display="(v: number) => Math.round(v) + '%'" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - 1) })" />
+                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="1" :display="(v: number) => Math.round(v) + '%'" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + 1) })" />
+                </div>
+                <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: #44403C;">Dashed</span>
+                  <button class="px-2 py-1 rounded text-xs font-medium transition-all cursor-pointer" style="border: 1px solid;" :style="seg.dash ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; color: #78716C; background: white;'" @click="setSegment(seg.id, { dash: !seg.dash })">- - -</button>
+                </div>
+              </div>
+            </div>
+            <button class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer" style="border: 2px dashed #E7E5E4; color: #A8A29E; background: transparent;" @click="addSegment">+ Add segment</button>
+            <template v-if="(local.trail_segments ?? []).length > 0">
+              <div class="pt-2 space-y-2.5" style="border-top: 1px solid #F5F5F4;">
+                <ToggleRow label="Show legend" :value="local.trail_legend?.show ?? true" @change="setLegend({ show: $event })" />
+                <template v-if="local.trail_legend?.show !== false">
+                  <div>
+                    <p class="text-xs mb-2" style="color: #44403C;">Legend position</p>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <SegmentButton label="↙ Bottom left"  :active="(local.trail_legend?.position ?? 'bottom-left') === 'bottom-left'" @click="setLegend({ position: 'bottom-left' })" />
+                      <SegmentButton label="↘ Bottom right" :active="local.trail_legend?.position === 'bottom-right'"                   @click="setLegend({ position: 'bottom-right' })" />
+                      <SegmentButton label="↖ Top left"     :active="local.trail_legend?.position === 'top-left'"                       @click="setLegend({ position: 'top-left' })" />
+                      <SegmentButton label="↗ Top right"    :active="local.trail_legend?.position === 'top-right'"                      @click="setLegend({ position: 'top-right' })" />
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </V4Card>
+
+      </template>
+
+      <div class="h-8" />
     </div>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TextOverlayAlignment, TrailSegment, StylePreset } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
+
+const THEME_THUMB: Record<string, {
+  titlePosition: 'top' | 'bottom'
+  titleAlign: 'center' | 'left'
+  fontWeight: string
+  fontSize: string
+  letterSpacing: string
+  textTransform: string
+  lineHeight: string
+}> = {
+  chalk:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '300', fontSize: '5.5px', letterSpacing: '0.32em', textTransform: 'uppercase', lineHeight: '1.2'  },
+  topaz:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '700', fontSize: '7.5px', letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: '1.05' },
+  dusk:            { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.03em', textTransform: 'none',      lineHeight: '1.1'  },
+  obsidian:        { titlePosition: 'top',    titleAlign: 'center', fontWeight: '800', fontSize: '9px',   letterSpacing: '-0.01em', textTransform: 'uppercase', lineHeight: '0.95' },
+  forest:          { titlePosition: 'top',    titleAlign: 'center', fontWeight: '600', fontSize: '7.5px', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.05' },
+  midnight:        { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '7px',   letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: '1.05' },
+  editorial:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.02em', textTransform: 'none',      lineHeight: '1.1'  },
+  bauhaus:         { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '900', fontSize: '9.5px', letterSpacing: '-0.02em', textTransform: 'uppercase', lineHeight: '0.9'  },
+  vintage:         { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.04em', textTransform: 'none',      lineHeight: '1.08' },
+  brutalist:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '400', fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: '0.92' },
+  risograph:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '500', fontSize: '7px',   letterSpacing: '0.10em', textTransform: 'uppercase', lineHeight: '1.0'  },
+  blueprint:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.14em', textTransform: 'uppercase', lineHeight: '1.05' },
+  kertok:          { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '200', fontSize: '7px',   letterSpacing: '0.06em', textTransform: 'none',      lineHeight: '1.12' },
+  'mid-century':   { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '6px',   letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: '1.05' },
+  'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
+  'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
+}
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 
 const props = defineProps<{
@@ -716,6 +636,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
   'reset': []
   'logo-upload': [file: File]
+  'toggle-sheet': []
 }>()
 
 const local = reactive<StyleConfig>({ ...props.modelValue })
@@ -725,6 +646,17 @@ watch(() => props.modelValue, (v) => {
     Object.assign(local, v)
   }
 }, { deep: true })
+
+// ── Tab state ──────────────────────────────────────────────────────────────────
+type TabId = 'quick' | 'map' | 'style' | 'text'
+const activeTab = ref<TabId>('quick')
+
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: 'quick', label: 'Quick' },
+  { id: 'map',   label: 'Map' },
+  { id: 'style', label: 'Style' },
+  { id: 'text',  label: 'Text' },
+]
 
 // ── Saved themes ───────────────────────────────────────────────────────────────
 const { themes: savedThemes, saveTheme, removeTheme } = useSavedThemes()
@@ -762,8 +694,6 @@ function setLabel(key: keyof StyleLabels, value: boolean) {
 }
 
 // ── Text overlay helpers ───────────────────────────────────────────────────────
-
-const OUTDOOR_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#4A4A4A', '#F7F4EF']
 
 function addOverlay() {
   const overlay: TextOverlay = {
@@ -840,27 +770,21 @@ function setLegend(patch: Partial<{ show: boolean; position: 'bottom-left' | 'bo
 
 const expandedSegmentId = ref<string | null>(null)
 
-// Logo upload
+// ── Logo upload ────────────────────────────────────────────────────────────────
 const logoInputRef = ref<HTMLInputElement | null>(null)
-const logoUploading = ref(false)
 
 async function handleLogoUpload(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  logoUploading.value = true
   try {
-    const formData = new FormData()
-    formData.append('image', file)
-    // We need the mapId but StylePanel doesn't have it — emit up instead
     emit('logo-upload', file)
   } finally {
-    logoUploading.value = false
     if (logoInputRef.value) logoInputRef.value.value = ''
   }
 }
 
 function applyTheme(theme: ThemeDefinition) {
-  Object.assign(local, {
+  const patch: Partial<StyleConfig> = {
     color_theme: theme.id,
     background_color: theme.background_color,
     label_bg_color: theme.label_bg_color,
@@ -871,11 +795,17 @@ function applyTheme(theme: ThemeDefinition) {
     base_tile_style: theme.base_tile_style,
     contour_color: theme.contour_color,
     contour_major_color: theme.contour_major_color,
-  })
+  }
+  if (theme.font_family) {
+    patch.font_family = theme.font_family
+    patch.body_font_family = FONT_PAIRINGS[theme.font_family] ?? theme.font_family
+  }
+  if (theme.border_style !== undefined) patch.border_style = theme.border_style
+  if (theme.tile_grain !== undefined) patch.tile_grain = theme.tile_grain
+  Object.assign(local, patch)
   emit('update:modelValue', { ...local })
 }
 
-// Each title font auto-pairs with a body font for stats/meta text
 const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
   'Big Shoulders Display': 'DM Sans',
   'Fjalla One': 'Work Sans',
@@ -903,28 +833,42 @@ const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
   { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
 
-// Theme font preview data — mirrors the THEME_TYPOGRAPHY in MapPreview.vue
 const THEME_FONT_PREVIEW: Record<string, string> = {
-  chalk: "'Work Sans', sans-serif",
-  topaz: "'Space Grotesk', sans-serif",
-  dusk: "'DM Serif Display', serif",
-  obsidian: "'Big Shoulders Display', sans-serif",
-  forest: "'Oswald', sans-serif",
-  midnight: "'Fjalla One', sans-serif",
+  chalk:       "'Work Sans', sans-serif",
+  topaz:       "'Space Grotesk', sans-serif",
+  dusk:        "'DM Serif Display', serif",
+  obsidian:    "'Big Shoulders Display', sans-serif",
+  forest:      "'Oswald', sans-serif",
+  midnight:    "'Fjalla One', sans-serif",
+  editorial:   "'Playfair Display', serif",
+  bauhaus:     "'Big Shoulders Display', sans-serif",
+  vintage:     "'DM Serif Display', serif",
+  brutalist:   "'Bebas Neue', sans-serif",
+  risograph:   "'Oswald', sans-serif",
+  blueprint:   "'Space Grotesk', sans-serif",
+  kertok:      "'Work Sans', sans-serif",
+  'mid-century': "'Oswald', sans-serif",
+  'topo-art':  "'Work Sans', sans-serif",
+  'dark-sky':  "'Fjalla One', sans-serif",
 }
-const THEME_FONT_WEIGHT: Record<string, string> = {
-  chalk: '300', topaz: '700', dusk: '400', obsidian: '800', forest: '600', midnight: '400',
-}
-const THEME_FONT_TRACKING: Record<string, string> = {
-  chalk: '0.3em', topaz: '0.06em', dusk: '0.02em', obsidian: '-0.01em', forest: '0.08em', midnight: '0.12em',
-}
+
 const THEME_FONT_NAME: Record<string, string> = {
-  chalk: 'Work Sans Light',
-  topaz: 'Space Grotesk Bold',
-  dusk: 'DM Serif Display',
-  obsidian: 'Big Shoulders Display',
-  forest: 'Oswald SemiBold',
-  midnight: 'Fjalla One',
+  chalk:       'Work Sans Light',
+  topaz:       'Space Grotesk Bold',
+  dusk:        'DM Serif Display',
+  obsidian:    'Big Shoulders Display',
+  forest:      'Oswald SemiBold',
+  midnight:    'Fjalla One',
+  editorial:   'Playfair Display',
+  bauhaus:     'Big Shoulders Display',
+  vintage:     'DM Serif Display',
+  brutalist:   'Bebas Neue',
+  risograph:   'Oswald',
+  blueprint:   'Space Grotesk',
+  kertok:      'Work Sans',
+  'mid-century': 'Oswald',
+  'topo-art':  'Work Sans',
+  'dark-sky':  'Fjalla One',
 }
 
 const activeThemeTypography = computed(() =>
@@ -938,20 +882,19 @@ const BORDERS: Array<{ label: string; value: BorderStyle }> = [
 ]
 
 const TILE_STYLES: Array<{ label: string; value: BaseTileStyle }> = [
-  { label: 'Light', value: 'carto-light' },
-  { label: 'Dark', value: 'carto-dark' },
+  { label: 'Light',   value: 'carto-light' },
+  { label: 'Dark',    value: 'carto-dark' },
   { label: 'Outdoor', value: 'maptiler-outdoor' },
-  { label: 'Topo', value: 'maptiler-topo' },
-  { label: 'Winter', value: 'maptiler-winter' },
+  { label: 'Topo',    value: 'maptiler-topo' },
+  { label: 'Winter',  value: 'maptiler-winter' },
 ]
 
 const TOPO_TILE_STYLES: Array<{ label: string; value: BaseTileStyle }> = [
   { label: 'Outdoor', value: 'maptiler-outdoor' },
-  { label: 'Topo', value: 'maptiler-topo' },
-  { label: 'Winter', value: 'maptiler-winter' },
+  { label: 'Topo',    value: 'maptiler-topo' },
+  { label: 'Winter',  value: 'maptiler-winter' },
 ]
 
-// Blend two hex colors at 50% for the midtone preview swatch
 function blendForPreview(a: string | undefined, b: string | undefined): string {
   const ca = a ?? '#1C1917', cb = b ?? '#F7F4EF'
   const ar = parseInt(ca.slice(1, 3), 16), ag = parseInt(ca.slice(3, 5), 16), ab = parseInt(ca.slice(5, 7), 16)
@@ -962,23 +905,16 @@ function blendForPreview(a: string | undefined, b: string | undefined): string {
   return `#${r}${g}${bh}`
 }
 
-// ── Map preset definitions ─────────────────────────────────────────────────────
-// Each entry has an SVG thumbnail (raw HTML string) rendered inside a viewBox.
-
 const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBox: string; svg: string }> = [
   {
-    id: 'minimalist',
-    label: 'Minimalist',
-    title: 'Clean raster tiles — CARTO light or dark',
+    id: 'minimalist', label: 'Minimalist', title: 'Clean raster tiles — CARTO light or dark',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#f0ece4"/>
       <path d="M4 24 Q12 20 24 22 Q36 24 44 18" stroke="#c8b8a2" stroke-width="1" fill="none"/>
       <path d="M8 16 Q18 10 28 14 Q38 18 44 12" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'topographic',
-    label: 'Topographic',
-    title: 'Mapbox Outdoors — terrain + trails (requires Mapbox token)',
+    id: 'topographic', label: 'Topographic', title: 'Mapbox Outdoors — terrain + trails',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#e8dfd0"/>
       <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#b8a888" stroke-width="0.8" fill="none"/>
@@ -987,21 +923,14 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
       <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'natural-topo',
-    label: 'Natural',
-    title: 'MapTiler full-colour terrain — greens, blues, earth tones (requires MapTiler token)',
+    id: 'natural-topo', label: 'Natural', title: 'MapTiler full-colour terrain',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#c8dba8"/>
       <rect x="0" y="18" width="48" height="14" fill="#a8c878"/>
-      <rect x="22" y="10" width="26" height="22" fill="#d4e8b0" rx="2"/>
-      <path d="M0 16 Q8 12 16 14 Q24 16 32 10 Q38 6 48 8" stroke="#5a8a30" stroke-width="0.8" fill="none" opacity="0.5"/>
-      <path d="M14 8 Q20 4 28 6 Q36 8 42 4" stroke="#3a6e20" stroke-width="0.8" fill="none" opacity="0.4"/>
       <path d="M6 20 Q16 16 26 18 Q36 20 44 16" stroke="#e63946" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'route-only',
-    label: 'Route Only',
-    title: 'Solid background, route line only — no base tiles',
+    id: 'route-only', label: 'Route Only', title: 'Solid background, route line only',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#f7f4ef"/>
       <path d="M8 28 Q12 22 18 20 Q24 18 28 14 Q32 10 36 6 Q40 4 44 6" stroke="#e63946" stroke-width="2" fill="none" stroke-linecap="round"/>
@@ -1009,23 +938,16 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
       <circle cx="44" cy="6" r="2" fill="#b91c1c"/>`,
   },
   {
-    id: 'road-network',
-    label: 'Road Net',
-    title: 'Vector roads as ink lines on a clean background — city map look (requires Mapbox token)',
+    id: 'road-network', label: 'Road Net', title: 'Vector roads as ink lines',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#f5f5f5"/>
       <path d="M0 8 Q12 10 24 8 Q36 6 48 10" stroke="#1c1917" stroke-width="1.4" fill="none" opacity="0.7"/>
       <path d="M0 18 Q10 16 20 18 Q32 20 48 16" stroke="#1c1917" stroke-width="1.0" fill="none" opacity="0.5"/>
-      <path d="M0 26 Q8 24 16 26 Q28 28 40 24 Q44 23 48 24" stroke="#1c1917" stroke-width="0.6" fill="none" opacity="0.35"/>
       <path d="M12 0 Q10 10 12 20 Q14 28 12 32" stroke="#1c1917" stroke-width="1.2" fill="none" opacity="0.6"/>
-      <path d="M28 0 Q26 8 28 16 Q30 26 28 32" stroke="#1c1917" stroke-width="0.8" fill="none" opacity="0.4"/>
-      <path d="M40 0 Q38 6 40 14 Q42 22 40 32" stroke="#1c1917" stroke-width="0.5" fill="none" opacity="0.3"/>
       <path d="M6 12 Q16 8 26 12 Q36 16 44 12" stroke="#e63946" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'contour-art',
-    label: 'Contour Art',
-    title: 'Topographic contours as standalone art — no raster tiles',
+    id: 'contour-art', label: 'Contour Art', title: 'Topographic contours as standalone art',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#fafafa"/>
       <ellipse cx="24" cy="18" rx="20" ry="12" stroke="#9e9082" stroke-width="0.6" fill="none"/>
@@ -1036,9 +958,7 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
       <path d="M6 6 Q14 2 24 6 Q34 10 42 6" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'stadia-watercolor',
-    label: 'Watercolor',
-    title: 'Hand-painted watercolor tiles by Stamen/Stadia — artistic, painterly maps',
+    id: 'stadia-watercolor', label: 'Watercolor', title: 'Hand-painted watercolor tiles by Stamen/Stadia',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#d4dde1"/>
       <ellipse cx="14" cy="14" rx="12" ry="9" fill="#c8dbc8" opacity="0.7"/>
@@ -1047,15 +967,11 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
   },
   {
-    id: 'stadia-toner',
-    label: 'Toner',
-    title: 'High-contrast black & white graphic style by Stamen/Stadia',
+    id: 'stadia-toner', label: 'Toner', title: 'High-contrast black & white graphic style',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#ffffff"/>
       <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#000" stroke-width="1.2" fill="none" opacity="0.45"/>
       <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#000" stroke-width="0.8" fill="none" opacity="0.28"/>
-      <rect x="6" y="2" width="14" height="5" rx="1" fill="#000" opacity="0.1"/>
-      <rect x="28" y="4" width="10" height="4" rx="1" fill="#000" opacity="0.08"/>
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
   },
 ]
@@ -1064,25 +980,54 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
 <!-- ─── Sub-components ─────────────────────────────────────────────────────── -->
 
 <script lang="ts">
-export const Section = defineComponent({
-  props: { label: String, icon: String },
+export const V4Card = defineComponent({
+  props: {
+    title: String,
+    hint: String,
+    defaultOpen: { type: Boolean, default: true },
+    collapsible: { type: Boolean, default: true },
+  },
   setup(props, { slots }) {
-    const open = ref(true)
-    return () => h('div', { class: 'px-5 py-3' }, [
-      h('button', {
-        class: 'flex items-center justify-between w-full mb-3 group',
-        onClick: () => { open.value = !open.value },
+    const open = ref(props.defaultOpen ?? true)
+    return () => h('div', {
+      style: 'margin: 10px 12px; padding: 12px 14px; background: #FAFAF9; border-radius: 14px; border: 1px solid #F5F5F4;',
+    }, [
+      h('div', {
+        role: props.collapsible ? 'button' : undefined,
+        tabindex: props.collapsible ? 0 : undefined,
+        style: [
+          'display: flex; align-items: center; justify-content: space-between;',
+          `cursor: ${props.collapsible ? 'pointer' : 'default'};`,
+          `margin-bottom: ${open.value ? (props.hint ? '2px' : '8px') : '0'};`,
+          'user-select: none; color: #1C1917;',
+        ].join(' '),
+        onClick: () => { if (props.collapsible) open.value = !open.value },
+        onKeydown: (e: KeyboardEvent) => {
+          if (props.collapsible && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            open.value = !open.value
+          }
+        },
       }, [
-        h('div', { class: 'flex items-center gap-1.5' }, [
-          h(resolveComponent('UIcon'), { name: props.icon, class: 'w-3.5 h-3.5 text-gray-400' }),
-          h('span', { class: 'text-xs font-semibold text-gray-500 uppercase tracking-wider' }, props.label),
+        h('span', { style: 'font-size: 12px; font-weight: 700; letter-spacing: 0.04em;' }, props.title),
+        h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+          slots.action?.(),
+          props.collapsible && h('svg', {
+            width: '14', height: '14', viewBox: '0 0 20 20', fill: 'currentColor',
+            style: `color: #A8A29E; transform: ${open.value ? 'rotate(180deg)' : 'rotate(0deg)'}; transition: transform 0.2s;`,
+          }, [
+            h('path', {
+              'fill-rule': 'evenodd',
+              d: 'M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z',
+              'clip-rule': 'evenodd',
+            }),
+          ]),
         ]),
-        h(resolveComponent('UIcon'), {
-          name: open.value ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down',
-          class: 'w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-colors',
-        }),
       ]),
-      open.value && slots.default ? h('div', slots.default()) : null,
+      open.value && props.hint
+        ? h('div', { style: 'font-size: 10px; color: #A8A29E; margin-bottom: 10px;' }, props.hint)
+        : null,
+      open.value ? slots.default?.() : null,
     ])
   },
 })
@@ -1091,16 +1036,21 @@ export const ToggleRow = defineComponent({
   props: { label: String, value: Boolean },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('label', { class: 'flex items-center justify-between cursor-pointer' }, [
-      h('span', { class: 'text-xs text-gray-600' }, props.label),
+    return () => h('label', { class: 'flex items-center justify-between cursor-pointer mb-3' }, [
+      h('span', { style: 'font-size: 12px; color: #44403C; font-weight: 500;' }, props.label),
       h('button', {
-        class: ['relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none',
-          props.value ? 'bg-green-600' : 'bg-gray-200'],
+        style: [
+          'position: relative; width: 34px; height: 20px; border-radius: 999px; border: none; cursor: pointer; padding: 0;',
+          `background: ${props.value ? '#2D6A4F' : '#D6D3D1'}; transition: background 0.2s;`,
+        ].join(' '),
         onClick: () => emit('change', !props.value),
       }, [
         h('span', {
-          class: ['absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200',
-            props.value ? 'translate-x-4' : 'translate-x-0'],
+          style: [
+            'position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: white;',
+            'box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: left 0.2s;',
+            `left: ${props.value ? '16px' : '2px'};`,
+          ].join(' '),
         }),
       ]),
     ])
@@ -1118,14 +1068,22 @@ export const SliderRow = defineComponent({
   },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('div', { class: 'space-y-1' }, [
-      h('div', { class: 'flex items-center justify-between' }, [
-        h('span', { class: 'text-xs text-gray-600' }, props.label),
-        h('span', { class: 'text-xs text-gray-400 tabular-nums' }, props.display?.(props.value ?? 0) ?? props.value),
+    const pct = computed(() => {
+      const min = props.min ?? 0, max = props.max ?? 100, val = props.value ?? min
+      return ((val - min) / (max - min)) * 100
+    })
+    return () => h('div', { class: 'mb-3' }, [
+      h('div', { class: 'flex items-center justify-between mb-1' }, [
+        h('span', { style: 'font-size: 12px; color: #44403C; font-weight: 500;' }, props.label),
+        h('span', { style: 'font-size: 10px; color: #78716C; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right;' },
+          props.display?.(props.value ?? 0) ?? props.value),
       ]),
       h('input', {
         type: 'range', min: props.min, max: props.max, step: props.step, value: props.value,
-        class: 'w-full h-1 rounded-full appearance-none bg-gray-200 accent-green-600 cursor-pointer',
+        style: [
+          'width: 100%; height: 4px; appearance: none; border-radius: 999px; outline: none; cursor: pointer; -webkit-appearance: none;',
+          `background: linear-gradient(to right, #2D6A4F ${pct.value}%, #E7E5E4 ${pct.value}%);`,
+        ].join(' '),
         onInput: (e: Event) => emit('change', parseFloat((e.target as HTMLInputElement).value)),
       }),
     ])
@@ -1136,15 +1094,25 @@ export const ColorRow = defineComponent({
   props: { label: String, value: String },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('div', { class: 'flex items-center justify-between' }, [
-      h('span', { class: 'text-xs text-gray-600' }, props.label),
+    return () => h('div', { class: 'flex items-center justify-between mb-3' }, [
+      h('span', { style: 'font-size: 12px; color: #44403C; font-weight: 500;' }, props.label),
       h('label', { class: 'flex items-center gap-2 cursor-pointer' }, [
-        h('span', { class: 'text-xs text-gray-400 font-mono' }, props.value?.toUpperCase()),
-        h('input', {
-          type: 'color', value: props.value,
-          class: 'w-7 h-7 rounded cursor-pointer border border-gray-200 p-0.5 bg-white',
-          onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
-        }),
+        h('span', { style: 'font-size: 10px; color: #A8A29E; font-family: monospace;' }, props.value?.toUpperCase()),
+        h('label', {
+          style: 'position: relative; display: inline-block; width: 22px; height: 22px; cursor: pointer;',
+        }, [
+          h('div', {
+            style: [
+              `width: 22px; height: 22px; border-radius: 50%; background: ${props.value};`,
+              'border: 2px solid white; box-shadow: 0 0 0 1px #E7E5E4, 0 1px 2px rgba(0,0,0,0.06);',
+            ].join(' '),
+          }),
+          h('input', {
+            type: 'color', value: props.value,
+            style: 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;',
+            onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
+          }),
+        ]),
       ]),
     ])
   },
@@ -1156,8 +1124,7 @@ export const ColorSwatch = defineComponent({
   setup(props, { emit }) {
     return () => h('label', { class: 'relative cursor-pointer block w-6 h-6', title: props.title }, [
       h('div', {
-        class: 'w-6 h-6 rounded border-2 border-white ring-1 ring-gray-200 shadow-sm',
-        style: { backgroundColor: props.value },
+        style: `width: 24px; height: 24px; border-radius: 50%; background: ${props.value}; border: 2px solid white; box-shadow: 0 0 0 1px #E7E5E4;`,
       }),
       h('input', {
         type: 'color', value: props.value,
@@ -1172,16 +1139,14 @@ export const TextRow = defineComponent({
   props: { label: String, value: String, placeholder: String },
   emits: ['change'],
   setup(props, { emit }) {
-    return () => h('div', { class: 'space-y-1.5' }, [
-      h('span', { class: 'text-xs font-medium text-stone-600' }, props.label),
+    return () => h('div', { class: 'mb-3' }, [
+      h('span', { style: 'display: block; font-size: 11px; font-weight: 500; color: #78716C; margin-bottom: 4px;' }, props.label),
       h('input', {
         type: 'text',
         value: props.value,
         placeholder: props.placeholder,
-        // 16px font-size is the iOS Safari threshold below which the viewport
-        // zooms in on focus. bg-white prevents OS dark-mode from applying a
-        // black background. min-h-[44px] meets the WCAG 2.5.8 touch target size.
-        class: 'w-full min-h-[44px] bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-[16px] leading-snug text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 focus:border-[#2D6A4F] transition-colors',
+        class: 'w-full bg-white rounded-xl px-3 py-2.5 text-[16px] leading-snug placeholder-stone-400 focus:outline-none transition-colors',
+        style: 'border: 1px solid #E7E5E4; color: #1C1917; min-height: 44px;',
         autocapitalize: 'words',
         autocorrect: 'off',
         spellcheck: 'false',
@@ -1192,34 +1157,27 @@ export const TextRow = defineComponent({
   },
 })
 
-export const PresetButton = defineComponent({
-  props: { label: String, active: Boolean },
-  emits: ['click'],
-  setup(props, { slots, emit }) {
-    return () => h('button', {
-      class: ['flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 text-xs font-medium transition-all',
-        props.active ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'],
-      onClick: () => emit('click'),
-    }, slots.default?.())
-  },
-})
-
 export const FontButton = defineComponent({
   props: { label: String, font: String, active: Boolean },
   emits: ['click'],
   setup(props, { emit }) {
     return () => h('button', {
-      class: ['py-2 px-2 rounded border transition-all text-center flex flex-col items-center gap-0.5 w-full',
-        props.active ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-gray-300'],
+      style: [
+        'padding: 8px 6px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; border: 1.5px solid;',
+        props.active
+          ? 'background: #DCEBE2; border-color: #2D6A4F;'
+          : 'background: white; border-color: #E7E5E4;',
+      ].join(' '),
       onClick: () => emit('click'),
     }, [
       h('span', {
-        class: [props.active ? 'text-green-700' : 'text-gray-800'],
-        style: { fontFamily: props.font, fontSize: '13px', lineHeight: '1.2', letterSpacing: '0.04em' },
+        style: [
+          `font-family: '${props.font}', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.2;`,
+          props.active ? 'color: #1F4D38;' : 'color: #1C1917;',
+        ].join(' '),
       }, 'SUMMIT'),
       h('span', {
-        class: ['leading-none tracking-wide', props.active ? 'text-green-600' : 'text-gray-400'],
-        style: { fontSize: '8px' },
+        style: `font-size: 9px; color: #A8A29E; line-height: 1;`,
       }, props.label),
     ])
   },
@@ -1230,8 +1188,12 @@ export const SegmentButton = defineComponent({
   emits: ['click'],
   setup(props, { emit }) {
     return () => h('button', {
-      class: ['py-1.5 rounded border text-xs font-medium transition-all',
-        props.active ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'],
+      style: [
+        'padding: 6px 4px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1.5px solid; width: 100%;',
+        props.active
+          ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
+          : 'background: white; border-color: #E7E5E4; color: #78716C;',
+      ].join(' '),
       onClick: () => emit('click'),
     }, props.label)
   },

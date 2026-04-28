@@ -61,6 +61,7 @@ export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>
   2: { 1: [200,  1000], 7: [200, 1000], 8: [100, 500],  9: [50,  250],  10: [50,  200],  11: [50,  200],  12: [50,  200],  13: [20,  100],  14: [10,  50]  },
   3: { 1: [100,  500],  7: [100, 500],  8: [50,  250],  9: [30,  150],  10: [20,  100],  11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
   4: { 1: [50,   250],  7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
+  5: { 1: [20,   100],  7: [20,  100],  8: [10,  50],   9: [10,  50],   10: [5,   20],   11: [5,   20],   12: [5,   20],   13: [2,   10],   14: [2,   5]   },
 }
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
             5, config.contour_opacity,
             14, config.contour_opacity * 0.9,
           ],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 1.0],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
         },
       },
       {
@@ -221,7 +222,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         paint: {
           'line-color': config.contour_major_color,
           'line-opacity': config.contour_opacity,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 14, 2.5],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
         },
       },
     ]
@@ -279,7 +280,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
           5, config.contour_opacity,
           14, config.contour_opacity * 0.9,
         ],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 1.0],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
       },
     })
   }
@@ -295,7 +296,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
       paint: {
         'line-color': config.contour_color,
         'line-opacity': config.contour_opacity,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1, 14, 1.5],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1 * (config.contour_minor_width ?? 1), 14, 1.5 * (config.contour_minor_width ?? 1)],
       },
     })
   }
@@ -310,7 +311,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
     paint: {
       'line-color': config.contour_major_color,
       'line-opacity': config.contour_opacity,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 14, 2.5],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
     },
   })
 
@@ -1043,6 +1044,7 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
           'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
         ]),
         tileSize: 256,
+        maxzoom: 16,
         attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),

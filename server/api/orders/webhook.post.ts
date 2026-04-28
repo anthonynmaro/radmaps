@@ -241,21 +241,37 @@ function buildConfirmationEmail({
   isDigital: boolean
   isGuest: boolean
 }) {
+  const productInfo = getProduct(String(order.product_uid))
+  const productName = productInfo ? productInfo.name : 'Print'
+
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <h1 style="color: #2D6A4F;">Your order is confirmed! 🗺️</h1>
       <p>Thanks for ordering <strong>${productTitle}</strong> from RadMaps.</p>
+
+      <div style="background:#F7F4EF;border-radius:8px;padding:16px;margin:16px 0;">
+        <p style="margin:0 0 4px;font-size:13px;color:#666;">Order details</p>
+        <p style="margin:0;font-size:15px;font-weight:600;color:#1C1917;">${productName}</p>
+        <p style="margin:4px 0 0;font-size:12px;color:#999;">Order ID: ${order.id}</p>
+      </div>
+
       ${isDigital
         ? `<p>Your <strong>digital download</strong> is ready:</p>
            <p><a href="${digitalUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Download Your Map</a></p>
            <p><em>This link expires in 48 hours. Save the files to your device.</em></p>`
-        : `<p>Your map is being printed and shipped by Gelato. Estimated delivery is 5–10 business days depending on your location.</p>
+        : `<p>Your map is being printed and shipped by our global print partner. Estimated delivery is 5–10 business days depending on your location.</p>
            <p>You'll receive a shipping notification with tracking details once your order is dispatched.</p>
-           ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${digitalUrl}">Download</a></p>` : ''}`
+           ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${digitalUrl}" style="color:#2D6A4F;font-weight:600;">Download</a></p>` : ''}`
       }
+
       ${isGuest ? `<p style="margin-top:24px;padding:16px;background:#F7F4EF;border-radius:8px;font-size:14px;">Want to design your own custom trail poster next time? <a href="https://radmaps.studio/auth/login" style="color:#2D6A4F;font-weight:600;">Create a free account</a> to bring in routes from Strava, your watch, or any trail app.</p>` : ''}
+
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
-      <p style="font-size:12px;color:#999;">Order ID: <code>${order.id}</code> &nbsp;|&nbsp; RadMaps &mdash; Beautiful maps from your trails.</p>
+      <p style="font-size:12px;color:#999;">
+        <a href="https://radmaps.studio/support" style="color:#2D6A4F;">Track your order</a> &nbsp;|&nbsp;
+        <a href="mailto:support@radmaps.studio" style="color:#2D6A4F;">Get help</a> &nbsp;|&nbsp;
+        RadMaps &mdash; Beautiful maps from your trails.
+      </p>
     </div>
   `
 }

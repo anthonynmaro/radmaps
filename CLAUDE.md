@@ -26,34 +26,54 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 ## Project structure
 ```
 ├── components/map/
-│   ├── MapPreview.vue     — poster canvas (title + MapLibre map + footer)
-│   └── StylePanel.vue     — right-side editor panel (11 collapsible sections)
+│   ├── MapPreview.vue       — poster canvas (title + MapLibre map + footer)
+│   ├── StylePanel.vue       — right-side editor panel (11 collapsible sections)
+│   ├── FreezeControl.vue    — freeze/unfreeze map pan & zoom
+│   └── InlineEditSheet.vue  — mobile bottom-sheet for editing poster text
 ├── composables/
-│   ├── useMap.ts          — Supabase fetch/save for a single TrailMap record
-│   ├── useMapRenderer.ts  — trigger + poll the Puppeteer render worker
-│   └── useStyleAgent.ts   — Claude AI style assistant (SSE streaming, not yet wired in UI)
+│   ├── useMap.ts            — Supabase fetch/save for a single TrailMap record
+│   ├── useMapRenderer.ts    — trigger + poll the Puppeteer render worker (3s flat interval)
+│   ├── useSavedThemes.ts    — localStorage-backed theme presets
+│   ├── useSeo.ts            — meta tag helpers
+│   └── useStyleAgent.ts     — Claude AI style assistant (SSE streaming, NOT wired in UI)
 ├── pages/
-│   ├── index.vue          — landing page
-│   ├── dashboard/         — user's map list
-│   ├── create/index.vue   — GPX upload + parse
-│   └── create/[mapId]/
-│       ├── style.vue      — main editor (MapPreview + StylePanel)
-│       ├── checkout.vue   — Stripe checkout
-│       └── success.vue    — post-order confirmation
+│   ├── index.vue            — landing page
+│   ├── dashboard/           — user's map list
+│   ├── create/index.vue     — GPX upload + parse
+│   ├── create/[mapId]/
+│   │   ├── style.vue        — main editor (MapPreview + StylePanel)
+│   │   ├── checkout.vue     — Stripe checkout
+│   │   └── success.vue      — post-order confirmation
+│   └── shop/                — premade map purchase flow
 ├── server/api/
-│   ├── maps/index.post.ts         — create map (JSON or multipart/form-data)
-│   ├── maps/[id]/render.post.ts   — trigger render worker
-│   ├── orders/checkout.post.ts    — create Stripe PaymentIntent
-│   ├── orders/webhook.post.ts     — Stripe webhook handler
-│   ├── gelato/webhook.post.ts     — Gelato fulfillment webhooks
-│   ├── agent/style.post.ts        — Claude AI styling agent (SSE)
-│   └── strava/callback.get.ts     — Strava OAuth callback
+│   ├── maps/index.post.ts             — create map (JSON or multipart/form-data)
+│   ├── maps/[id]/render.post.ts       — trigger render worker (fire-and-forget)
+│   ├── maps/[id]/logo.post.ts         — upload poster logo to Supabase Storage
+│   ├── maps/[id]/versions.*.ts        — map version history
+│   ├── maps/public/[id].get.ts        — public map share (⚠ IDOR — see REMEDIATION.md)
+│   ├── orders/checkout.post.ts        — create Stripe Checkout session
+│   ├── orders/webhook.post.ts         — Stripe webhook → Gelato order placement
+│   ├── gelato/webhook.post.ts         — Gelato fulfillment status updates
+│   ├── agent/style.post.ts            — Claude AI styling agent (SSE)
+│   ├── shop/checkout.post.ts          — premade map Stripe checkout
+│   ├── shop/customize.post.ts         — premade map customization
+│   └── strava/                        — Strava OAuth + activity import
 ├── utils/
-│   ├── mapStyle.ts        — builds MapLibre style JSON (shared browser + worker)
-│   └── gpx.ts             — server-side GPX parser
-├── types/index.ts         — all shared types (StyleConfig, TrailMap, Order, etc.)
-├── render-worker/         — standalone Node/Puppeteer service for high-res renders
-└── supabase/schema.sql    — DB schema
+│   ├── mapStyle.ts          — builds MapLibre style JSON (shared browser + worker, ~1170 lines)
+│   ├── gpx.ts               — server-side GPX parser (⚠ XML bomb risk — see REMEDIATION.md)
+│   ├── products.ts          — premade map catalog helpers
+│   ├── trail.ts             — trail segment slicing utilities
+│   └── seo.ts               — SEO metadata helpers
+├── data/
+│   └── premade-maps.ts      — static premade map catalog
+├── types/index.ts           — all shared types (StyleConfig, TrailMap, Order, etc.)
+├── render-worker/           — standalone Node/Puppeteer service for high-res renders
+├── supabase/
+│   ├── schema.sql           — full DB schema
+│   └── migrations/          — incremental migrations
+├── tests/                   — vitest unit tests (only 2 files exist today)
+├── REMEDIATION.md           — full security + architecture remediation plan
+└── design_handoff_style_panel/  — ⚠ DEAD CODE: old JSX mockups, scheduled for deletion
 ```
 
 ## Core data model
@@ -132,6 +152,22 @@ Structure: title band (shrink-0) → MapLibre map area (flex-1) → footer band 
 - **`@nuxtjs/google-fonts`** for self-hosted fonts (removes Google CDN dep from render worker)
 - **`useStyleAgent`** wire-up in the editor UI (currently built but unused)
 
+## Open Security & Reliability Issues
+> Full details and sprint plan: `REMEDIATION.md`
+
+**CRITICAL (fix before next user-facing release):**
+- `maps/public/[id].get.ts` — **IDOR**: public endpoint uses service key, bypasses RLS, returns any user's private map data. Fix: add `is_public` column + query only public maps.
+- `render-worker/index.js` (logoHtml) — **SSRF**: `logo_url` embedded directly into Puppeteer HTML without domain validation. Fix: whitelist allowed hosts.
+- `utils/gpx.ts` — **XML bomb DoS**: `DOMParser` has no entity expansion limits. Fix: add 5MB size cap + switch to `fast-xml-parser`.
+- `orders/webhook.post.ts` — **Duplicate orders**: no Stripe event deduplication; webhook retries place duplicate Gelato orders. Fix: `processed_stripe_events` table.
+
+**HIGH:**
+- `gelato/webhook.post.ts` — conditional secret check silently allows unsigned webhooks when `GELATO_WEBHOOK_SECRET` is not set.
+- `maps/[id]/render.post.ts` — map status never transitions to `'rendering'`; no rate limit on renders (spam → Railway exhaustion).
+- `orders/webhook.post.ts` — Gelato placement failure still marks order `in_production`.
+- `maps/[id]/logo.post.ts` — client-controlled MIME type can be spoofed; `mapId` in storage path not validated as UUID (path traversal).
+- `maps/index.post.ts` — no GeoJSON size limit (huge uploads crash render worker OOM).
+
 ## Environment variables
 All vars in `.env` (gitignored). Production values set in Vercel dashboard.
 See `.env.example` for the full list with comments. Key ones:
@@ -149,3 +185,9 @@ See `.env.example` for the full list with comments. Key ones:
 - `height: 100%` (not `max-height: 100%`) is needed on the poster canvas div so `aspect-ratio` has a concrete dimension to derive from
 - Supabase `serverSupabaseUser` vs `serverSupabaseClient` — always use these in server routes, never raw env vars
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
+- **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
+- **Render worker jobs are in-memory** (plain Map) — all jobs are lost on Railway restart; no retry mechanism
+- **`render-worker/index.js` is a monolith** — HTML template build, Puppeteer orchestration, Supabase upload, and Sharp optimization are all inline
+- `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
+- `useStyleAgent` composable is built but NOT wired into any UI yet
+- `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

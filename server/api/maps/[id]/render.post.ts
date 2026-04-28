@@ -43,7 +43,12 @@ export default defineEventHandler(async (event) => {
     .update({ status: 'draft' })  // stays draft until worker completes
     .eq('id', mapId)
 
-  const { quality = 'print' } = await readBody(event).catch(() => ({}))
+  const {
+    quality = 'print',
+    render_width_px,
+    render_height_px,
+    framing,
+  } = await readBody(event).catch(() => ({}))
 
   // Fire the render job without awaiting — Puppeteer can take 60-90s
   // which would exceed the Vercel serverless function timeout.
@@ -70,6 +75,11 @@ export default defineEventHandler(async (event) => {
       mapbox_token: config.public.mapboxToken,
       maptiler_token: config.public.maptilerToken,
       quality,
+      // Product-specific render dimensions (when provided)
+      render_width_px,
+      render_height_px,
+      // User-adjusted map framing from ProductSelector
+      framing,
     },
     // No timeout — the worker handles its own timeout internally
     timeout: 0,
