@@ -133,7 +133,12 @@ async function renderMap({
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-gpu',
+      // WebGL (required by MapLibre) via software renderer — no GPU hardware needed.
+      // '--disable-gpu' kills WebGL; SwiftShader is the headless-safe alternative.
+      '--use-gl=swiftshader',
+      '--enable-webgl',
+      '--ignore-gpu-blocklist',
+      '--disable-gpu-sandbox',
     ],
   })
 
@@ -148,10 +153,12 @@ async function renderMap({
   // If framing data is provided (user adjusted center/zoom in ProductSelector),
   // pass it through so the render matches the user's chosen view.
   const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: WIDTH_PX, height: HEIGHT_PX, framing })
-  // 'load' fires once the HTML + scripts are parsed; we don't wait for networkidle
-  // because MapLibre fires hundreds of tile requests that would stall networkidle0.
-  // window.__mapReady is set by map.once('idle'), which is the real completion signal.
-  await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
+  // Use 'domcontentloaded' so we don't wait for the MapLibre CDN script tag.
+  // We inject MapLibre via addScriptTag instead to avoid cross-origin document.write
+  // blocking warnings in headless Chrome.
+  await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.addScriptTag({ url: 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js' })
+  await page.addStyleTag({ url: 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' })
 
   // Preview needs much less headroom; print gets the full 90s budget.
   // The page script sets a 55s internal fallback so we always complete before this fires.
@@ -488,8 +495,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="${googleFontsUrl}" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <!-- MapLibre injected via page.addScriptTag to avoid cross-origin document.write block -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
