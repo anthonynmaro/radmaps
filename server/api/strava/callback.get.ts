@@ -44,6 +44,10 @@ export default defineEventHandler(async (event) => {
   })
 
   const athleteId = tokenResponse.athlete.id
+  const athleteFullName = [tokenResponse.athlete.firstname, tokenResponse.athlete.lastname]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
   // Synthetic email: deterministic, unguessable as a login target
   const syntheticEmail = `strava-${athleteId}@auth.radmaps.studio`
   const adminClient = await serverSupabaseServiceRole(event)
@@ -59,13 +63,21 @@ export default defineEventHandler(async (event) => {
 
   if (existingToken?.user_id) {
     userId = existingToken.user_id
+    // Keep the display name in sync with Strava in case the user updated their profile.
+    // Update both auth user_metadata (read by the client) and the profiles row.
+    await Promise.all([
+      adminClient.auth.admin.updateUserById(userId, {
+        user_metadata: { full_name: athleteFullName },
+      }),
+      adminClient.from('profiles').update({ full_name: athleteFullName }).eq('id', userId),
+    ])
   } else {
     // First time — create a Supabase account with email pre-confirmed (no inbox needed)
     const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
       email: syntheticEmail,
       email_confirm: true,
       user_metadata: {
-        full_name: `${tokenResponse.athlete.firstname} ${tokenResponse.athlete.lastname}`,
+        full_name: athleteFullName,
         provider: 'strava',
         strava_athlete_id: athleteId,
       },

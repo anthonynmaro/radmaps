@@ -671,10 +671,18 @@ const filters: { id: FilterId; label: string }[] = [
 
 // ─── User ─────────────────────────────────────────────────────────────────
 const firstName = computed(() => {
+  // Prefer the real name stored in user_metadata (set during Strava/social OAuth).
+  // Strava users have a synthetic email (strava-{id}@auth.radmaps.studio) so we
+  // must not derive the name from the email address for those accounts.
+  const fullName = (user.value?.user_metadata?.full_name as string | undefined) ?? ''
+  if (fullName.trim()) {
+    return fullName.trim().split(/\s+/)[0]
+  }
+
+  // Fallback: derive from email for password-based accounts.
   const email = user.value?.email ?? ''
   const local = email.split('@')[0] ?? ''
   if (!local) return ''
-  // strip trailing numbers, capitalise first letter, keep short-ish
   const cleaned = local.replace(/[._-]/g, ' ').replace(/\d+$/, '').trim()
   const first = cleaned.split(' ')[0] || cleaned
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()
