@@ -133,10 +133,15 @@ async function renderMap({
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      // WebGL via Mesa software renderer (libgl1-mesa-dri + libegl1 in Dockerfile).
-      // --use-gl=egl tells system Chromium to use EGL/Mesa rather than GLX or ANGLE.
-      // Do NOT use --disable-gpu — it kills WebGL entirely.
-      '--use-gl=egl',
+      // Root cause of WebGL failure: Chrome's GPU process can't bind a command buffer
+      // sequence (BindToCurrentSequence failed) in Railway's container environment.
+      // --in-process-gpu runs GPU code inside the renderer process, eliminating the
+      // cross-process binding that fails. --no-zygote prevents the zygote process
+      // from interfering. --use-angle=swiftshader-webgl uses Chrome's built-in
+      // software WebGL renderer (no system GL/EGL libraries required).
+      '--in-process-gpu',
+      '--no-zygote',
+      '--use-angle=swiftshader-webgl',
       '--ignore-gpu-blocklist',
       '--enable-webgl',
     ],
