@@ -15,6 +15,26 @@ import sharp from 'sharp'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 
+// Allowed logo URL origins — must match where logos are actually stored.
+// This prevents SSRF: an authenticated user could set logo_url to an internal
+// cloud metadata endpoint (e.g. 169.254.169.254) and trigger a fetch via Puppeteer.
+const ALLOWED_LOGO_ORIGINS = [
+  process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : null,
+  'https://radmaps.studio',
+].filter(Boolean)
+
+function validateLogoUrl(url) {
+  if (!url || typeof url !== 'string') return null
+  try {
+    const parsed = new URL(url)
+    if (!['https:', 'http:'].includes(parsed.protocol)) return null
+    if (!ALLOWED_LOGO_ORIGINS.some(origin => parsed.origin === origin)) return null
+    return url
+  } catch {
+    return null
+  }
+}
+
 const app = Fastify({ logger: true })
 
 // In-memory job store (use Redis/BullMQ for production at scale)
@@ -158,10 +178,12 @@ async function renderMap({
 
   const { data: { publicUrl: jpegUrl } } = supabase.storage.from('maps').getPublicUrl(jpegPath)
 
-  // Preview → thumbnail_url only; print → render_url + status = 'rendered'.
+  // Preview → thumbnail_url only.
+  // Print → render_url + status 'rendered' + is_public true (makes the map
+  // accessible via the public share endpoint for the first time).
   const update = isPreview
     ? { thumbnail_url: jpegUrl }
-    : { render_url: jpegUrl, status: 'rendered' }
+    : { render_url: jpegUrl, status: 'rendered', is_public: true }
   await supabase.from('maps').update(update).eq('id', map_id)
 
   jobs.set(jobId, { status: 'complete', map_id, ...(isPreview ? { thumbnail_url: jpegUrl } : { render_url: jpegUrl }) })
@@ -228,26 +250,29 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
 
   // Logo HTML (when positioned over map)
   function logoHtml() {
-    if (!style_config.show_logo || !style_config.logo_url) return ''
+    const safeUrl = validateLogoUrl(style_config.show_logo ? style_config.logo_url : null)
+    if (!safeUrl) return ''
     const size = (style_config.logo_size ?? 8) * height / 100
     const pos = style_config.logo_position ?? 'map-top-right'
     if (pos === 'map-top-right') {
-      return `<img src="${style_config.logo_url}" alt="" style="position:absolute;top:2%;right:2%;max-height:${size}px;max-width:15%;object-fit:contain;z-index:10;pointer-events:none;" />`
+      return `<img src="${safeUrl}" alt="" style="position:absolute;top:2%;right:2%;max-height:${size}px;max-width:15%;object-fit:contain;z-index:10;pointer-events:none;" />`
     }
     return ''
   }
 
   // Logo in footer-left
   function logoFooterHtml() {
-    if (!style_config.show_logo || !style_config.logo_url || style_config.logo_position !== 'footer-left') return ''
-    return `<img src="${style_config.logo_url}" alt="" style="max-height:4vh;max-width:10%;object-fit:contain;flex-shrink:0;" />`
+    const safeUrl = validateLogoUrl(style_config.show_logo && style_config.logo_position === 'footer-left' ? style_config.logo_url : null)
+    if (!safeUrl) return ''
+    return `<img src="${safeUrl}" alt="" style="max-height:4vh;max-width:10%;object-fit:contain;flex-shrink:0;" />`
   }
 
   // Logo in header-right
   function logoHeaderHtml() {
-    if (!style_config.show_logo || !style_config.logo_url || style_config.logo_position !== 'header-right') return ''
+    const safeUrl = validateLogoUrl(style_config.show_logo && style_config.logo_position === 'header-right' ? style_config.logo_url : null)
+    if (!safeUrl) return ''
     const size = (style_config.logo_size ?? 8) * height / 100
-    return `<img src="${style_config.logo_url}" alt="" style="position:absolute;top:50%;right:7vw;transform:translateY(-50%);max-height:${size}px;max-width:12%;object-fit:contain;" />`
+    return `<img src="${safeUrl}" alt="" style="position:absolute;top:50%;right:7vw;transform:translateY(-50%);max-height:${size}px;max-width:12%;object-fit:contain;" />`
   }
 
   // Text overlays HTML

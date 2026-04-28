@@ -56,19 +56,23 @@ export default defineEventHandler(async (event) => {
 
   // Gelato sends a static secret in the Authorization header (HTTP Header auth type).
   // The Header Name is "Authorization" and the value is the raw secret — no Bearer prefix.
-  if (config.gelatoWebhookSecret) {
-    if (!authHeader) {
-      throw createError({ statusCode: 401, message: 'Missing Authorization header' })
+  // Hard-fail if the secret is not configured — never silently skip verification.
+  const gelatoSecret = config.gelatoWebhookSecret as string | undefined
+  if (!gelatoSecret) {
+    console.error('[gelato/webhook] GELATO_WEBHOOK_SECRET is not set — refusing all requests')
+    throw createError({ statusCode: 500, message: 'Webhook not configured' })
+  }
+  if (!authHeader) {
+    throw createError({ statusCode: 401, message: 'Missing Authorization header' })
+  }
+  try {
+    const incoming = Buffer.from(authHeader)
+    const expected = Buffer.from(gelatoSecret)
+    if (incoming.length !== expected.length || !timingSafeEqual(incoming, expected)) {
+      throw new Error('Mismatch')
     }
-    try {
-      const incoming = Buffer.from(authHeader)
-      const expected = Buffer.from(config.gelatoWebhookSecret as string)
-      if (incoming.length !== expected.length || !timingSafeEqual(incoming, expected)) {
-        throw new Error('Mismatch')
-      }
-    } catch {
-      throw createError({ statusCode: 401, message: 'Invalid Gelato webhook secret' })
-    }
+  } catch {
+    throw createError({ statusCode: 401, message: 'Invalid Gelato webhook secret' })
   }
 
   const body = JSON.parse(rawBody) as GelatoWebhookPayload

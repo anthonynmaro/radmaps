@@ -36,11 +36,11 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const jobId = crypto.randomUUID()
 
-  // Mark map as rendering (optimistic, lets the UI know we've started)
-  // The worker will update status → 'rendered' when done.
+  // Mark map as rendering so the UI can show an in-progress state.
+  // The worker will update status → 'rendered' (and is_public → true) when done.
   await supabase
     .from('maps')
-    .update({ status: 'draft' })  // stays draft until worker completes
+    .update({ status: 'rendering' })
     .eq('id', mapId)
 
   const {

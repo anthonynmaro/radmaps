@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS public.maps (
   thumbnail_url   TEXT,
   render_url      TEXT,
   pdf_url         TEXT,
-  status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'rendered', 'ordered')),
+  status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'rendering', 'rendered', 'ordered')),
+  is_public       BOOLEAN NOT NULL DEFAULT false,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -89,7 +90,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   total_cents           INT NOT NULL,
   currency              TEXT NOT NULL DEFAULT 'usd',
   status                TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending','paid','in_production','shipped','delivered','cancelled','failed')),
+    CHECK (status IN ('pending','paid','in_production','shipped','delivered','cancelled','failed','fulfillment_failed')),
   tracking_code         TEXT,             -- Carrier tracking code from Gelato
   carrier               TEXT,             -- Shipping carrier name
   digital_url           TEXT,
@@ -139,6 +140,10 @@ CREATE POLICY "Users update own profile" ON public.profiles
 CREATE POLICY "Users CRUD own maps" ON public.maps
   FOR ALL USING (auth.uid() = user_id);
 
+-- maps: public share — read-only access to explicitly shared maps
+CREATE POLICY "Public map share" ON public.maps
+  FOR SELECT USING (is_public = true);
+
 -- orders: users read own orders only
 CREATE POLICY "Users read own orders" ON public.orders
   FOR SELECT USING (auth.uid() = user_id);
@@ -166,6 +171,17 @@ ALTER TABLE public.map_versions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users CRUD own map versions" ON public.map_versions
   FOR ALL USING (auth.uid() = user_id);
+
+-- ─── Stripe event deduplication ──────────────────────────────────────────────
+-- Prevents duplicate Gelato orders when Stripe retries webhook delivery.
+CREATE TABLE IF NOT EXISTS public.processed_stripe_events (
+  event_id   TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.processed_stripe_events ENABLE ROW LEVEL SECURITY;
+-- Accessible only via service key; no end-user RLS policies needed.
+CREATE INDEX IF NOT EXISTS processed_stripe_events_created_at_idx
+  ON public.processed_stripe_events (created_at);
 
 -- ─── Storage Buckets ──────────────────────────────────────────────────────────
 -- Create these via Supabase dashboard or CLI:

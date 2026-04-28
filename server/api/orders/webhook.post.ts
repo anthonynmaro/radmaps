@@ -37,6 +37,21 @@ export default defineEventHandler(async (event) => {
   const supabase = createClient(config.public.supabaseUrl as string, config.supabaseServiceKey as string) as any
   const resend = new Resend(config.resendApiKey)
 
+  // Idempotency guard — Stripe retries webhooks on transient failures.
+  // Record each event_id so duplicate deliveries are no-ops.
+  const { error: dedupError } = await supabase
+    .from('processed_stripe_events')
+    .insert({ event_id: stripeEvent.id })
+  if (dedupError) {
+    if (dedupError.code === '23505') {
+      // Duplicate key — already processed, acknowledge and return.
+      return { received: true }
+    }
+    // Unexpected DB error — surface it so Stripe retries later.
+    console.error('[stripe/webhook] Failed to record event dedup:', dedupError)
+    throw createError({ statusCode: 500, message: 'Internal error' })
+  }
+
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object as Stripe.Checkout.Session
     const meta = session.metadata!
@@ -117,7 +132,10 @@ export default defineEventHandler(async (event) => {
     }
 
     let gelatoOrderId: string | undefined
-    if (!isDigital) {
+    let finalStatus: string
+    if (isDigital) {
+      finalStatus = 'delivered'
+    } else {
       try {
         gelatoOrderId = await placeGelatoOrder({
           order,
@@ -126,16 +144,19 @@ export default defineEventHandler(async (event) => {
           productUid,
           gelatoApiKey: config.gelatoApiKey,
         })
+        finalStatus = 'in_production'
       } catch (err) {
-        console.error('Gelato order placement failed:', err)
-        // Don't fail the webhook — order is still paid; we can reconcile manually.
+        console.error('[stripe/webhook] Gelato order placement failed:', (err as Error).message)
+        // Mark the order so ops can see it needs manual fulfillment.
+        // The customer's payment was captured — the print just wasn't queued.
+        finalStatus = 'fulfillment_failed'
       }
     }
 
     await supabase.from('orders').update({
-      gelato_order_id: gelatoOrderId,
+      gelato_order_id: gelatoOrderId ?? null,
       digital_url: digitalUrl,
-      status: isDigital ? 'delivered' : 'in_production',
+      status: finalStatus,
     }).eq('id', order.id)
 
     // Send confirmation email (guest or user — always have an email)

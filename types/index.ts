@@ -539,7 +539,7 @@ export interface RouteStats {
 
 // ─── Map Record ───────────────────────────────────────────────────────────────
 
-export type MapStatus = 'draft' | 'rendered' | 'ordered'
+export type MapStatus = 'draft' | 'rendering' | 'rendered' | 'ordered'
 
 export interface TrailMap {
   id: string

@@ -1,13 +1,21 @@
+import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif'])
+// SVG excluded: Puppeteer renders it inline — a malicious SVG can trigger SSRF
+// or stored XSS. GIF excluded: not useful for print logos.
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
+
+const mapIdSchema = z.string().uuid()
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
 
-  const mapId = getRouterParam(event, 'id')
-  if (!mapId) throw createError({ statusCode: 400, message: 'Missing map ID' })
+  const rawMapId = getRouterParam(event, 'id')
+  const mapIdParsed = mapIdSchema.safeParse(rawMapId)
+  if (!mapIdParsed.success) throw createError({ statusCode: 400, message: 'Invalid map ID' })
+  const mapId = mapIdParsed.data
 
   const supabase = await serverSupabaseClient(event)
 
@@ -28,11 +36,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'No image file provided' })
   }
 
+  // Validate client-reported MIME type against allowlist
   if (!ALLOWED_MIME.has(imageFile.type)) {
-    throw createError({ statusCode: 400, message: 'Invalid image type. Use PNG, JPG, WebP, SVG, or GIF.' })
+    throw createError({ statusCode: 400, message: 'Invalid image type. Use PNG, JPG, or WebP.' })
   }
 
-  const ext = imageFile.name.split('.').pop()?.toLowerCase() ?? 'png'
+  if (imageFile.size > MAX_SIZE_BYTES) {
+    throw createError({ statusCode: 413, message: 'Image too large (max 5 MB)' })
+  }
+
+  // Use a safe, deterministic storage path — no user-controlled extension
+  const mimeToExt: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  }
+  const ext = mimeToExt[imageFile.type] ?? 'jpg'
   const storagePath = `${user.id}/${mapId}.${ext}`
 
   const arrayBuffer = await imageFile.arrayBuffer()
@@ -45,7 +64,7 @@ export default defineEventHandler(async (event) => {
       upsert: true,
     })
 
-  if (uploadError) throw createError({ statusCode: 500, message: `Upload failed: ${uploadError.message}` })
+  if (uploadError) throw createError({ statusCode: 500, message: 'Upload failed' })
 
   const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(storagePath)
 

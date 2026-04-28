@@ -39,6 +39,24 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: 'Missing required fields: geojson, bbox, stats' })
     }
 
+    // Prevent oversized GeoJSON from crashing the render worker OOM.
+    const geojsonStr = JSON.stringify(body.geojson)
+    if (geojsonStr.length > 5 * 1024 * 1024) {
+      throw createError({ statusCode: 413, message: 'Route GeoJSON exceeds 5 MB limit' })
+    }
+
+    // Validate bbox values are finite and in legal ranges.
+    if (Array.isArray(body.bbox) && body.bbox.length === 4) {
+      const [minLng, minLat, maxLng, maxLat] = body.bbox as number[]
+      if (
+        !isFinite(minLng) || !isFinite(minLat) || !isFinite(maxLng) || !isFinite(maxLat) ||
+        minLng >= maxLng || minLat >= maxLat ||
+        minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90
+      ) {
+        throw createError({ statusCode: 400, message: 'Invalid bounding box coordinates' })
+      }
+    }
+
     title = parsed.data.title
     subtitle = parsed.data.subtitle
     geojson = body.geojson
@@ -61,6 +79,11 @@ export default defineEventHandler(async (event) => {
     subtitle = parsed.data.subtitle
 
     if (!gpxFile) throw createError({ statusCode: 400, message: 'No GPX file provided' })
+
+    // Guard against XML bomb (billion-laughs) attacks and accidental huge uploads.
+    if (gpxFile.size > 5 * 1024 * 1024) {
+      throw createError({ statusCode: 413, message: 'GPX file too large (max 5 MB)' })
+    }
 
     const gpxText = await gpxFile.text()
     const { error: storageError } = await supabase.storage
