@@ -108,6 +108,7 @@ async function renderMap({
   render_width_px, render_height_px, framing,
 }) {
   jobs.set(jobId, { status: 'rendering', map_id })
+  app.log.info(`[render ${jobId}] mapbox_token present: ${!!mapbox_token}`)
 
   // Product-aware dimensions:
   // If render_width_px / render_height_px are provided, use them (already includes bleed).
@@ -883,11 +884,12 @@ function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
     glyphs,
     sources: {
       'base-tiles': baseTileSource,
-      ...(config.show_hillshade ? { 'mapbox-dem': demSource() } : {}),
-      ...(config.show_contours ? { 'mapbox-terrain-v2': terrainV2Source(mapboxToken) } : {}),
+      // Gate Mapbox sources on token presence — empty token causes 401s that block idle
+      ...(config.show_hillshade && mapboxToken ? { 'mapbox-dem': demSource() } : {}),
+      ...(config.show_contours && mapboxToken ? { 'mapbox-terrain-v2': terrainV2Source(mapboxToken) } : {}),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': config.land_color ?? config.background_color } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -907,20 +909,26 @@ function buildTopographicStyle(config, mapboxToken) {
   const token = mapboxToken ?? ''
   return {
     version: 8,
-    glyphs: `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`,
+    glyphs: token
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      'mapbox-outdoors': {
-        type: 'raster',
-        tiles: styledTileUrls(config, [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`]),
-        tileSize: 512,
-        attribution: '© Mapbox © OpenStreetMap contributors',
-      },
-      ...(config.show_hillshade ? { 'mapbox-dem': demSource() } : {}),
-      ...(config.show_contours ? { 'mapbox-terrain-v2': terrainV2Source(token) } : {}),
+      // Skip Mapbox outdoors tiles if token is absent — avoids 401s blocking idle
+      ...(token ? {
+        'mapbox-outdoors': {
+          type: 'raster',
+          tiles: styledTileUrls(config, [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`]),
+          tileSize: 512,
+          attribution: '© Mapbox © OpenStreetMap contributors',
+        },
+      } : {}),
+      ...(config.show_hillshade && token ? { 'mapbox-dem': demSource() } : {}),
+      ...(config.show_contours && token ? { 'mapbox-terrain-v2': terrainV2Source(token) } : {}),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
-      {
+      { id: 'background', type: 'background', paint: { 'background-color': config.land_color ?? config.background_color } },
+      // Only add the outdoors raster layer if we have a token (source won't exist otherwise)
+      ...(token ? [{
         id: 'outdoors-tiles', type: 'raster', source: 'mapbox-outdoors',
         paint: {
           'raster-opacity':    config.show_hillshade ? 0.75 : 0.9,
@@ -928,7 +936,7 @@ function buildTopographicStyle(config, mapboxToken) {
           'raster-contrast':   config.tile_contrast   ?? 0,
           'raster-hue-rotate': config.tile_hue_rotate ?? 0,
         },
-      },
+      }] : []),
       ...hillshadeLayers(config),
       ...contourLayers(config),
     ],
@@ -974,6 +982,8 @@ function contourLayers(config) {
   if (!config.show_contours) return []
   const detail = Math.round(config.contour_detail ?? 2)
   const layers = []
+  const minorW = config.contour_minor_width ?? 1
+  const majorW = config.contour_major_width ?? 1
   if (detail >= 2) {
     layers.push({
       id: 'contours-minor',
@@ -984,7 +994,7 @@ function contourLayers(config) {
       paint: {
         'line-color': config.contour_color,
         'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, config.contour_opacity, 14, config.contour_opacity * 0.9],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 1.0],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * minorW, 14, 1.0 * minorW],
       },
     })
   }
@@ -999,7 +1009,7 @@ function contourLayers(config) {
       paint: {
         'line-color': config.contour_color,
         'line-opacity': config.contour_opacity,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1, 14, 1.5],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1 * minorW, 14, 1.5 * minorW],
       },
     })
   }
@@ -1013,7 +1023,7 @@ function contourLayers(config) {
     paint: {
       'line-color': config.contour_major_color,
       'line-opacity': config.contour_opacity,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 14, 2.5],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * majorW, 14, 2.5 * majorW],
     },
   })
   if (config.show_elevation_labels) {
