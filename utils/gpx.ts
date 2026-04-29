@@ -8,6 +8,7 @@ export function parseGpx(gpxString: string): {
   geojson: GeoJSON.FeatureCollection
   bbox: [number, number, number, number]
   stats: RouteStats
+  trackName?: string
 } {
   const parser = new DOMParser()
   const dom = parser.parseFromString(gpxString, 'text/xml')
@@ -62,10 +63,13 @@ export function parseGpx(gpxString: string): {
     min_elevation_m: elevations.length ? Math.round(Math.min(...elevations)) : 0,
   }
 
+  const trackName = (geojson.features[0]?.properties?.name as string | undefined)?.trim() || undefined
+
   return {
     geojson,
     bbox: [minLng, minLat, maxLng, maxLat],
     stats,
+    trackName,
   }
 }
 
@@ -127,6 +131,8 @@ export function parseGpxServer(gpxString: string) {
     if (diff > 0) elevationGain += diff; else elevationLoss += Math.abs(diff)
   }
 
+  const trackName = (geojson.features[0]?.properties?.name as string | undefined)?.trim() || undefined
+
   return {
     geojson,
     bbox: [minLng, minLat, maxLng, maxLat] as [number, number, number, number],
@@ -137,5 +143,6 @@ export function parseGpxServer(gpxString: string) {
       max_elevation_m: elevations.length ? Math.round(Math.max(...elevations)) : 0,
       min_elevation_m: elevations.length ? Math.round(Math.min(...elevations)) : 0,
     } as RouteStats,
+    trackName,
   }
 }

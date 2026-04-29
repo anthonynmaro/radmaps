@@ -18,7 +18,7 @@ const CheckoutBody = z.object({
     address1: z.string().min(1),
     address2: z.string().optional(),
     city: z.string().min(1),
-    state_code: z.string().length(2),
+    state_code: z.string().min(2).max(3),
     country_code: z.string().length(2),
     zip: z.string().min(1),
     email: z.string().email(),

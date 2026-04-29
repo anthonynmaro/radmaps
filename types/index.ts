@@ -1,7 +1,11 @@
 // ─── StyleConfig ─────────────────────────────────────────────────────────────
 // Shared between MapLibre preview (client) and render worker (server)
 
-export type StylePreset = 'minimalist' | 'topographic' | 'route-only' | 'road-network' | 'contour-art' | 'natural-topo' | 'stadia-watercolor' | 'stadia-toner'
+export type StylePreset =
+  | 'minimalist' | 'topographic' | 'route-only' | 'road-network'
+  | 'contour-art' | 'natural-topo' | 'stadia-watercolor' | 'stadia-toner'
+  // Beta — native presets with no Stadia Maps dependency
+  | 'native-toner' | 'native-watercolor' | 'alidade-smooth' | 'alidade-smooth-dark'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
@@ -57,6 +61,7 @@ export interface TextOverlay {
   alignment: TextOverlayAlignment
   opacity: number
   bold: boolean
+  italic?: boolean
   bg_color?: string               // optional frosted pill background
 }
 
@@ -72,11 +77,17 @@ export interface TrailSegment {
   width?: number                  // line width in px, defaults to route_width
   opacity?: number                // default: 0.9
   dash?: boolean                  // dashed line style
+  label_lnglat?: [number, number] // user-dragged label position (lng/lat)
 }
 
 export interface TrailLegend {
   show: boolean
   position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
+}
+
+export interface DeletedRange {
+  start: number  // 0–100, % of coordinate array
+  end: number    // 0–100
 }
 
 export interface StyleConfig {
@@ -86,6 +97,9 @@ export interface StyleConfig {
   route_width: number
   route_opacity: number
   route_smooth: number
+  route_crop_start: number      // 0–100, trims the visible start of the primary route
+  route_crop_end: number        // 0–100, trims the visible end of the primary route
+  route_deleted_ranges?: DeletedRange[]  // non-destructive mid-route section removal
   // Contours (requires Mapbox Terrain v2 vector tiles)
   show_contours: boolean
   contour_color: string
@@ -129,14 +143,46 @@ export interface StyleConfig {
   logo_size?: number              // 5–20 cqh units, default: 8
   // Roads overlay (Mapbox Streets v8, requires mapbox token)
   show_roads?: boolean
+  roads_color?: string              // default: auto from label_text_color
+  roads_opacity?: number            // 0–1, default: 0.6
+  show_place_labels?: boolean       // default: true when show_roads
+  place_labels_color?: string       // default: label_text_color
+  place_labels_opacity?: number     // 0–1, default: 0.75
+  place_labels_scale?: 'city' | 'town' | 'village'  // max density shown, default: 'town'
+  show_poi_labels?: boolean         // default: false
+  poi_labels_color?: string         // default: label_text_color
+  poi_labels_opacity?: number       // 0–1, default: 0.65
   // Route pins (start / finish markers)
   show_start_pin?: boolean
   show_finish_pin?: boolean
+  start_pin_lnglat?: [number, number]  // dot position; undefined = first route coord
+  finish_pin_lnglat?: [number, number] // dot position; undefined = last route coord
+  start_label_lnglat?: [number, number]  // draggable label position (lng/lat)
+  finish_label_lnglat?: [number, number]
+  start_pin_label?: string             // default: 'Start'
+  finish_pin_label?: string            // default: 'Finish'
+  pin_color?: string                   // default: label_text_color
+  pin_opacity?: number                 // 0–1, default: 0.9
+  pin_font_family?: FontFamily
+  // Per-field text scale multipliers (1.0 = default theme size)
+  title_scale?: number
+  occasion_scale?: number
+  subtitle_scale?: number
   // Text overlays (floating text on map)
   text_overlays?: TextOverlay[]
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
   trail_legend?: TrailLegend
+  trail_label_style?: 'legend' | 'leader-lines'  // default: 'legend'
+  segment_casing_width?: number   // casing/border extra px (added to seg width), default: 3
+  segment_casing_color?: string   // border/casing line color, default: '#FFFFFF'
+  segment_dot_size?: number       // radius of handle dots at segment endpoints, default: 4
+  leader_label_scale?: number     // font size multiplier for leader line labels, default: 1.0
+  // Elevation profile (SVG chart overlaid at bottom of map area)
+  show_elevation_profile?: boolean
+  elevation_profile_color?: string    // default: route_color
+  elevation_profile_opacity?: number  // 0–1, default: 0.65
+  elevation_profile_height?: number   // % of map area height, 8–40, default: 22
   // Tile post-processing effects
   tile_effect?: 'none' | 'duotone' | 'posterize' | 'layer-color'
   tile_duotone_strength?: number    // 0–1, blend strength (default 0.9)
@@ -169,6 +215,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   route_width: 3,
   route_opacity: 0.9,
   route_smooth: 0,
+  route_crop_start: 0,
+  route_crop_end: 100,
   show_contours: true,
   contour_color: '#C8BDB0',
   contour_major_color: '#9E9082',
@@ -215,6 +263,9 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   tile_hue_rotate: 0,
   show_vignette: false,
   vignette_intensity: 0.45,
+  segment_casing_width: 3,
+  segment_casing_color: '#FFFFFF',
+  segment_dot_size: 4,
   map_frozen: false,
   show_start_pin: true,
   show_finish_pin: true,
@@ -643,7 +694,7 @@ export interface PremadeMap {
 export interface PrintProduct {
   product_uid: string
   name: string
-  type: 'poster' | 'framed' | 'canvas' | 'digital'
+  type: 'poster' | 'framed' | 'canvas' | 'wall_hanging' | 'digital'
   size_label: string
   width_in: number
   height_in: number

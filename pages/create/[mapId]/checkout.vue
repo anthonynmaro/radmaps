@@ -84,7 +84,7 @@
         </div>
 
         <!-- Product Selector overlay (bottom of map area) -->
-        <ProductSelector
+        <MapProductSelector
           v-model="selectedProduct"
           :map-center="mapCenter"
           :map-zoom="mapZoom"
@@ -277,16 +277,8 @@ const currentStyleConfig = ref<StyleConfig | null>(null)
 
 function onAspectChange(payload: { product: PrintProduct; previousAspect: number | null }) {
   if (!currentStyleConfig.value) return
-  // Map the product to a print_size ID for the MapPreview component
-  const sizeMap: Record<string, string> = {
-    '18×24"': '18x24', '24×36"': '24x36', '16×20"': '16x20',
-    '12×16"': '11x14', '8×10"': '8x10', '5×7"': '8x10',
-  }
-  const printSizeId = sizeMap[payload.product.size_label] ?? '18x24'
-  currentStyleConfig.value = {
-    ...currentStyleConfig.value,
-    print_size: printSizeId as any,
-  }
+  // All products use 2:3 — always preview at 24×36 aspect ratio
+  currentStyleConfig.value = { ...currentStyleConfig.value, print_size: '24x36' as any }
 }
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
@@ -304,9 +296,14 @@ function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFr
 
 // ─── Shipping form ──────────────────────────────────────────────────────────
 
+function isSyntheticEmail(email: string | null | undefined): boolean {
+  if (!email) return false
+  return /^strava-\d+@auth\./i.test(email)
+}
+
 const shippingAddress = reactive({
   name: '',
-  email: user.value?.email || '',
+  email: isSyntheticEmail(user.value?.email) ? '' : (user.value?.email || ''),
   address1: '',
   address2: '',
   city: '',
@@ -385,10 +382,9 @@ async function startRenders() {
   printReady.value = false
   stopPolling()
 
-  await Promise.allSettled([
-    triggerRender('preview'),
-    triggerRender('print'),
-  ])
+  // Only fire the print render — preview thumbnail already exists from the style editor.
+  // Two concurrent Puppeteer instances on Railway cause OOM/slowdowns.
+  await triggerRender('print')
 
   pollTimer = setInterval(pollStatus, 3000)
   timeoutTimer = setTimeout(() => {
@@ -396,7 +392,7 @@ async function startRenders() {
       renderError.value = 'Render timed out. Please try again.'
       stopPolling()
     }
-  }, 3 * 60 * 1000)
+  }, 5 * 60 * 1000)
 }
 
 onUnmounted(stopPolling)
@@ -466,11 +462,7 @@ onMounted(async () => {
       ]
     }
 
-    if (data.status === 'rendered') {
-      printReady.value = true
-    } else {
-      startRenders()
-    }
+    startRenders()
   } catch (err) {
     console.error('Error fetching map:', err)
   } finally {

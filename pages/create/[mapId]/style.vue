@@ -77,6 +77,9 @@
               :map="mapData"
               :style-config="styleConfig"
               :editable="true"
+              :plot-mode="plotMode"
+              :can-undo="canUndo"
+              :can-redo="canRedo"
               class="w-full h-full"
               @update:trail-name="styleConfig.trail_name = $event"
               @update:occasion-text="styleConfig.occasion_text = $event"
@@ -86,6 +89,13 @@
               @overlay-deleted="onOverlayDeleted"
               @overlay-resized="onOverlayResized"
               @freeze-changed="onFreezeChanged"
+              @segment-plotted="onSegmentPlotted"
+              @plot-cancelled="plotMode = null"
+              @label-moved="onLabelMoved"
+              @segment-label-moved="onSegmentLabelMoved"
+              @view-changed="onViewChanged"
+              @undo="undo"
+              @redo="redo"
             />
           </ClientOnly>
           <div v-if="!mapData" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -115,9 +125,15 @@
           v-if="mapData"
           v-model="styleConfig"
           :saving="saving"
+          :has-route="!!(mapData?.geojson)"
+          :has-elevation-data="hasElevationData"
+          :total-distance-km="mapData?.stats?.distance_km"
+          :active-plot-mode="plotMode"
           @reset="resetStyle"
           @logo-upload="handleLogoUpload"
           @toggle-sheet="toggleSheet"
+          @request-plot="onRequestPlot"
+          @request-detect-disconnected="onDetectDisconnected"
         />
         <div v-else class="flex-1 bg-white animate-pulse" />
       </aside>
@@ -195,15 +211,21 @@
 <script setup lang="ts">
 import type { StyleConfig } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
+import { buildElevationProfile, detectDisconnectedRanges } from '~/utils/trail'
 
 definePageMeta({ middleware: 'auth', layout: false })
 
 const route = useRoute()
 const mapId = computed(() => route.params.mapId as string)
 
-const { map: mapData, saving, updateStyle } = useMap(mapId)
+const { map: mapData, saving, updateStyle, saveNow } = useMap(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
+
+const hasElevationData = computed(() => {
+  if (!mapData.value?.geojson) return false
+  return buildElevationProfile(mapData.value.geojson as GeoJSON.FeatureCollection) !== null
+})
 const sheetState = ref<'half' | 'full'>('half')
 
 function toggleSheet() {
@@ -221,18 +243,144 @@ watch(mapData, (m) => {
         position: m.style_config.trail_legend?.position ?? DEFAULT_STYLE_CONFIG.trail_legend!.position,
       },
     }
+    // Seed history with the loaded config so undo can't go past the initial state
+    nextTick(() => {
+      undoHistory.value = [JSON.parse(JSON.stringify(styleConfig.value))]
+      undoIndex.value = 0
+      historyReady = true
+    })
   }
 }, { immediate: true })
+
+// ── Undo / redo ───────────────────────────────────────────────────────────────
+
+const undoHistory = ref<StyleConfig[]>([])
+const undoIndex = ref(-1)
+let historyReady = false
+let isUndoRedoing = false
+let historyTimer: ReturnType<typeof setTimeout> | null = null
+
+const canUndo = computed(() => undoIndex.value > 0)
+const canRedo = computed(() => undoIndex.value < undoHistory.value.length - 1)
+
+function recordHistory(config: StyleConfig) {
+  if (!historyReady || isUndoRedoing) return
+  if (historyTimer) clearTimeout(historyTimer)
+  historyTimer = setTimeout(() => {
+    const snapshot = JSON.parse(JSON.stringify(config))
+    const trimmed = undoHistory.value.slice(0, undoIndex.value + 1)
+    trimmed.push(snapshot)
+    if (trimmed.length > 50) trimmed.shift()
+    undoHistory.value = trimmed
+    undoIndex.value = trimmed.length - 1
+  }, 400)
+}
+
+function undo() {
+  if (!canUndo.value) return
+  if (historyTimer) clearTimeout(historyTimer)
+  isUndoRedoing = true
+  undoIndex.value--
+  styleConfig.value = JSON.parse(JSON.stringify(undoHistory.value[undoIndex.value]))
+  nextTick(() => { isUndoRedoing = false })
+}
+
+function redo() {
+  if (!canRedo.value) return
+  if (historyTimer) clearTimeout(historyTimer)
+  isUndoRedoing = true
+  undoIndex.value++
+  styleConfig.value = JSON.parse(JSON.stringify(undoHistory.value[undoIndex.value]))
+  nextTick(() => { isUndoRedoing = false })
+}
 
 // Debounced save — 600ms after the user stops tweaking
 let saveTimer: ReturnType<typeof setTimeout>
 watch(styleConfig, (newConfig) => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => updateStyle(newConfig), 600)
+  recordHistory(newConfig)
 }, { deep: true })
+
+// Keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z or Ctrl+Y = redo
+function onKeyDown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement
+  if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+  const mod = e.metaKey || e.ctrlKey
+  if (!mod) return
+  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+  if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redo() }
+}
+
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 
 function resetStyle() {
   styleConfig.value = { ...DEFAULT_STYLE_CONFIG }
+}
+
+// ─── Plot mode (tap route to set segment/crop positions) ─────────────────────
+
+const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
+const pendingDeleteStart = ref<number | null>(null)
+
+// Reset pending delete state if plot mode is cancelled externally (Escape / toggle-off)
+watch(plotMode, (mode) => { if (!mode) pendingDeleteStart.value = null })
+
+function onRequestPlot(payload: { segId: string; field: 'start' | 'end' }) {
+  // Toggle off if clicking the same button again
+  if (plotMode.value?.segId === payload.segId && plotMode.value?.field === payload.field) {
+    plotMode.value = null
+  } else {
+    plotMode.value = payload
+  }
+}
+
+function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start' | 'end'; pct: number }) {
+  if (segId === 'route-crop') {
+    if (field === 'start') {
+      styleConfig.value = { ...styleConfig.value, route_crop_start: Math.min(pct, (styleConfig.value.route_crop_end ?? 100) - 0.1) }
+    } else {
+      styleConfig.value = { ...styleConfig.value, route_crop_end: Math.max(pct, (styleConfig.value.route_crop_start ?? 0) + 0.1) }
+    }
+  } else if (segId === 'route-delete-pending') {
+    if (field === 'start') {
+      pendingDeleteStart.value = pct
+      plotMode.value = { segId: 'route-delete-pending', field: 'end' }
+      return  // keep plot mode active for the second click
+    } else {
+      const start = Math.min(pendingDeleteStart.value!, pct)
+      const end = Math.max(pendingDeleteStart.value!, pct)
+      if (end - start > 0.1) {
+        styleConfig.value = {
+          ...styleConfig.value,
+          route_deleted_ranges: [...(styleConfig.value.route_deleted_ranges ?? []), { start, end }],
+        }
+      }
+      pendingDeleteStart.value = null
+    }
+  } else {
+    const segments = styleConfig.value.trail_segments ?? []
+    styleConfig.value = {
+      ...styleConfig.value,
+      trail_segments: segments.map(s => {
+        if (s.id !== segId) return s
+        if (field === 'start') return { ...s, section_start: Math.min(pct, s.section_end - 0.1) }
+        return { ...s, section_end: Math.max(pct, s.section_start + 0.1) }
+      }),
+    }
+  }
+  plotMode.value = null
+}
+
+function onDetectDisconnected() {
+  if (!mapData.value?.geojson) return
+  const detected = detectDisconnectedRanges(mapData.value.geojson as GeoJSON.FeatureCollection, 50)
+  if (!detected.length) return
+  styleConfig.value = {
+    ...styleConfig.value,
+    route_deleted_ranges: [...(styleConfig.value.route_deleted_ranges ?? []), ...detected],
+  }
 }
 
 // ─── Share link ───────────────────────────────────────────────────────────────
@@ -323,6 +471,31 @@ function onOverlayResized(payload: { id: string; font_size: number }) {
 
 function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }) {
   styleConfig.value = { ...styleConfig.value, ...payload }
+  // Sync optimistic state then save immediately — frozen position must survive
+  // navigation (e.g. clicking Order) before the debounce timer fires.
+  if (mapData.value) {
+    mapData.value.style_config = { ...mapData.value.style_config, ...payload }
+  }
+  saveNow()
+}
+
+function onLabelMoved({ pin, lnglat }: { pin: 'start' | 'finish'; lnglat: [number, number] }) {
+  if (pin === 'start') {
+    styleConfig.value = { ...styleConfig.value, start_label_lnglat: lnglat }
+  } else {
+    styleConfig.value = { ...styleConfig.value, finish_label_lnglat: lnglat }
+  }
+}
+
+function onSegmentLabelMoved({ id, lnglat }: { id: string; lnglat: [number, number] }) {
+  const segments = (styleConfig.value.trail_segments ?? []).map(s =>
+    s.id === id ? { ...s, label_lnglat: lnglat } : s,
+  )
+  styleConfig.value = { ...styleConfig.value, trail_segments: segments }
+}
+
+function onViewChanged({ map_zoom, map_center }: { map_zoom: number; map_center: [number, number] }) {
+  styleConfig.value = { ...styleConfig.value, map_zoom, map_center }
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────

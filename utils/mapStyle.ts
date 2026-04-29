@@ -42,6 +42,18 @@ export function buildMapStyle(
   if (config.preset === 'stadia-toner') {
     return buildStadiaTonerStyle(config, contourTileUrl)
   }
+  if (config.preset === 'native-toner') {
+    return buildNativeTonerStyle(config, mapboxToken, contourTileUrl)
+  }
+  if (config.preset === 'native-watercolor') {
+    return buildNativeWatercolorStyle(config, contourTileUrl)
+  }
+  if (config.preset === 'alidade-smooth') {
+    return buildAlidadeSmoothStyle(config, maptilerToken, mapboxToken, contourTileUrl)
+  }
+  if (config.preset === 'alidade-smooth-dark') {
+    return buildAlidadeSmoothDarkStyle(config, maptilerToken, mapboxToken, contourTileUrl)
+  }
   return buildMinimalistStyle(config, mapboxToken, maptilerToken, contourTileUrl)
 }
 
@@ -361,11 +373,23 @@ function roadsSource(token: string) {
   }
 }
 
+function placeLabelTypes(scale: StyleConfig['place_labels_scale']): string[] {
+  if (scale === 'city') return ['city']
+  if (scale === 'village') return ['city', 'town', 'village']
+  return ['city', 'town']  // default: 'town'
+}
+
 function roadsLayers(config: StyleConfig): object[] {
   if (!config.show_roads) return []
-  const color = config.label_text_color
 
-  return [
+  const roadColor  = config.roads_color  ?? config.label_text_color
+  const roadOpacity = config.roads_opacity ?? 0.6
+  const labelColor  = config.place_labels_color  ?? config.label_text_color
+  const labelOpacity = config.place_labels_opacity ?? 0.75
+  const poiColor  = config.poi_labels_color  ?? config.label_text_color
+  const poiOpacity = config.poi_labels_opacity ?? 0.65
+
+  const layers: object[] = [
     // Motorways + trunk — widest, most prominent
     {
       id: 'roads-major',
@@ -375,8 +399,8 @@ function roadsLayers(config: StyleConfig): object[] {
       filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': color,
-        'line-opacity': 0.30,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.50,
         'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.0, 14, 3.5],
       },
     },
@@ -389,8 +413,8 @@ function roadsLayers(config: StyleConfig): object[] {
       filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': color,
-        'line-opacity': 0.22,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.37,
         'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 2.5],
       },
     },
@@ -403,18 +427,21 @@ function roadsLayers(config: StyleConfig): object[] {
       filter: ['in', ['get', 'class'], ['literal', ['tertiary', 'street', 'service', 'path']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': color,
-        'line-opacity': 0.14,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.23,
         'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.5],
       },
     },
-    // Place labels (cities, towns, villages)
-    {
+  ]
+
+  // Place labels (cities, towns, villages) — shown by default
+  if (config.show_place_labels !== false) {
+    layers.push({
       id: 'roads-place-labels',
       type: 'symbol',
       source: 'mapbox-streets',
       'source-layer': 'place_label',
-      filter: ['in', ['get', 'type'], ['literal', ['city', 'town', 'village']]],
+      filter: ['in', ['get', 'type'], ['literal', placeLabelTypes(config.place_labels_scale)]],
       layout: {
         'text-field': ['get', 'name'],
         'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
@@ -423,13 +450,44 @@ function roadsLayers(config: StyleConfig): object[] {
         'text-max-width': 8,
       },
       paint: {
-        'text-color': color,
-        'text-opacity': 0.45,
+        'text-color': labelColor,
+        'text-opacity': labelOpacity,
         'text-halo-color': config.background_color,
         'text-halo-width': 1.5,
       },
-    },
-  ]
+    })
+  }
+
+  // POI labels — opt-in only
+  if (config.show_poi_labels) {
+    layers.push({
+      id: 'roads-poi-labels',
+      type: 'symbol',
+      source: 'mapbox-streets',
+      'source-layer': 'poi_label',
+      filter: ['all',
+        ['<=', ['to-number', ['get', 'filterrank'], 5], 3],
+        ['!=', ['get', 'maki'], 'marker'],
+      ],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': 10,
+        'text-anchor': 'top',
+        'text-offset': [0, 0.6],
+        'text-max-width': 6,
+        'icon-image': '',
+      },
+      paint: {
+        'text-color': poiColor,
+        'text-opacity': poiOpacity,
+        'text-halo-color': config.background_color,
+        'text-halo-width': 1,
+      },
+    })
+  }
+
+  return layers
 }
 
 // ─── Trail segment sources/layers ────────────────────────────────────────────
@@ -460,8 +518,8 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
       source: `trail-seg-${seg.id}`,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': '#FFFFFF',
-        'line-width': width + 3,
+        'line-color': config.segment_casing_color ?? '#FFFFFF',
+        'line-width': width + (config.segment_casing_width ?? 3),
         'line-opacity': opacity,
       },
     })
@@ -473,12 +531,12 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
       layout: {
         'line-join': 'round',
         'line-cap': 'round',
-        ...(dashArray ? { 'line-dasharray': dashArray } : {}),
       },
       paint: {
         'line-color': seg.color,
         'line-width': width,
         'line-opacity': opacity,
+        ...(dashArray ? { 'line-dasharray': dashArray } : {}),
       },
     }
     layers.push(lineLayer)
@@ -500,15 +558,16 @@ function segmentHandleSource(): object {
   }
 }
 
-function segmentHandleLayers(): object[] {
+function segmentHandleLayers(config: StyleConfig): object[] {
+  const dotR = config.segment_dot_size ?? 4
   return [
     {
       id: 'segment-handle-halo',
       type: 'circle',
       source: 'segment-handles',
       paint: {
-        'circle-radius': 9,
-        'circle-color': '#FFFFFF',
+        'circle-radius': dotR + 3,
+        'circle-color': config.segment_casing_color ?? '#FFFFFF',
         'circle-opacity': 0.88,
         'circle-blur': 0.15,
       },
@@ -518,9 +577,9 @@ function segmentHandleLayers(): object[] {
       type: 'circle',
       source: 'segment-handles',
       paint: {
-        'circle-radius': 5.5,
+        'circle-radius': dotR,
         'circle-color': ['get', 'color'],
-        'circle-stroke-color': '#FFFFFF',
+        'circle-stroke-color': config.segment_casing_color ?? '#FFFFFF',
         'circle-stroke-width': 1.5,
         'circle-opacity': 1,
       },
@@ -535,10 +594,14 @@ function segmentHandleLayers(): object[] {
 // lineMetrics must be true when using line-gradient; data is populated by MapPreview.vue.
 
 function routeSource(config: StyleConfig): object {
+  // lineMetrics is required for line-gradient, but causes MapLibre to draw connector
+  // segments between MultiLineString sub-lines. Disable it when deleted ranges are
+  // present so that route gaps render correctly; the layer falls back to line-color.
+  const useGradient = config.route_color_mode === 'gradient' && !(config.route_deleted_ranges ?? []).length
   return {
     type: 'geojson' as const,
     data: { type: 'FeatureCollection', features: [] },
-    ...(config.route_color_mode === 'gradient' ? { lineMetrics: true } : {}),
+    ...(useGradient ? { lineMetrics: true } : {}),
   }
 }
 
@@ -557,7 +620,8 @@ function routeLayers(config: StyleConfig) {
     },
   }
 
-  if (config.route_color_mode === 'gradient') {
+  const useGradient = config.route_color_mode === 'gradient' && !(config.route_deleted_ranges ?? []).length
+  if (useGradient) {
     return [
       casing,
       {
@@ -672,7 +736,7 @@ function buildMinimalistStyle(
       ...contourLayers(config, usingMlContour),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -712,7 +776,7 @@ function buildRouteOnlyStyle(
       ...contourLayers(config, usingMlContour),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -845,7 +909,7 @@ function buildRoadNetworkStyle(
       ...contourLayers(config, usingMlContour),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -955,7 +1019,7 @@ function buildContourArtStyle(
       ),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -1021,7 +1085,7 @@ function buildNaturalTopoStyle(
       ...contourLayers(config, usingMlContour),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -1068,7 +1132,7 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
       ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -1113,7 +1177,260 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string): ob
       ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
+    ],
+  }
+}
+
+// ─── Beta: Native Toner ───────────────────────────────────────────────────────
+// B&W vector look using Mapbox Streets v8. Falls back to CARTO light with
+// raster-saturation: -1 when no Mapbox token is present.
+
+function buildNativeTonerStyle(
+  config: StyleConfig,
+  mapboxToken?: string,
+  contourTileUrl?: string,
+): object {
+  const token = mapboxToken || ''
+  const usingMlContour = !!contourTileUrl
+  const ink = config.label_text_color
+
+  const sources: Record<string, object> = {
+    ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
+    ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
+    route: routeSource(config),
+    ...trailSegmentSources(config.trail_segments),
+    ...segmentHandleSource(),
+  }
+
+  const baseLayers: object[] = []
+
+  if (token) {
+    sources['mapbox-streets'] = {
+      type: 'vector' as const,
+      tiles: [`https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/{z}/{x}/{y}.vector.pbf?access_token=${token}`],
+      minzoom: 0,
+      maxzoom: 16,
+      attribution: '© Mapbox © OpenStreetMap contributors',
+    }
+    baseLayers.push(
+      { id: 'nt-water',     type: 'fill', source: 'mapbox-streets', 'source-layer': 'water',
+        paint: { 'fill-color': ink, 'fill-opacity': 0.85 } },
+      { id: 'nt-landuse',   type: 'fill', source: 'mapbox-streets', 'source-layer': 'landuse',
+        filter: ['in', ['get', 'class'], ['literal', ['park', 'grass', 'wood', 'forest', 'scrub']]],
+        paint: { 'fill-color': ink, 'fill-opacity': 0.08 } },
+      { id: 'nt-buildings', type: 'fill', source: 'mapbox-streets', 'source-layer': 'building',
+        paint: { 'fill-color': ink, 'fill-opacity': 0.06 } },
+      { id: 'nt-service', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['service', 'path', 'pedestrian', 'track']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': ink, 'line-opacity': 0.25,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.4, 15, 1.0] } },
+      { id: 'nt-street', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['street', 'street_limited', 'tertiary']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': ink, 'line-opacity': 0.55,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 14, 1.6] } },
+      { id: 'nt-secondary', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['secondary', 'primary']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': ink, 'line-opacity': 0.80,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.8, 14, 2.8] } },
+      { id: 'nt-motorway', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': ink, 'line-opacity': 1.0,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.0, 14, 4.0] } },
+    )
+  } else {
+    sources['base-tiles'] = {
+      type: 'raster' as const,
+      tiles: ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`),
+      tileSize: 256,
+      attribution: '© CARTO © OpenStreetMap contributors',
+    }
+    baseLayers.push({
+      id: 'base-tiles', type: 'raster', source: 'base-tiles',
+      paint: { 'raster-opacity': 0.9, 'raster-saturation': -1, 'raster-contrast': 0.30 },
+    })
+  }
+
+  return {
+    version: 8,
+    name: 'RadMaps Native Toner',
+    glyphs: token
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources,
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      ...baseLayers,
+      ...hillshadeLayers(config),
+      ...contourLayers(config, usingMlContour),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(config),
+    ],
+  }
+}
+
+// ─── Beta: Native Watercolor ──────────────────────────────────────────────────
+// Warm paper approximation: CARTO light at low opacity over a cream background.
+// No Mapbox token required.
+
+function buildNativeWatercolorStyle(
+  config: StyleConfig,
+  contourTileUrl?: string,
+): object {
+  const usingMlContour = !!contourTileUrl
+  const cartoUrls = ['a', 'b', 'c', 'd'].map(
+    p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
+  )
+
+  return {
+    version: 8,
+    name: 'RadMaps Native Watercolor',
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'base-tiles': {
+        type: 'raster' as const,
+        tiles: styledTileUrls(config, cartoUrls),
+        tileSize: 256,
+        attribution: '© CARTO © OpenStreetMap contributors',
+      },
+      ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
+      ...(config.show_contours && contourTileUrl
+        ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } }
+        : {}),
+      route: routeSource(config),
+      ...trailSegmentSources(config.trail_segments),
+      ...segmentHandleSource(),
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    0.38,
+          'raster-saturation': (config.tile_saturation ?? 0) - 0.35,
+          'raster-hue-rotate': (config.tile_hue_rotate ?? 0) + 18,
+          'raster-contrast':   (config.tile_contrast ?? 0) - 0.15,
+        },
+      },
+      ...(config.show_hillshade ? hillshadeLayers(config) : []),
+      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(config),
+    ],
+  }
+}
+
+// ─── Beta: Alidade Smooth ─────────────────────────────────────────────────────
+// Clean modern cartography using MapTiler Streets v2 raster tiles.
+
+function buildAlidadeSmoothStyle(
+  config: StyleConfig,
+  maptilerToken?: string,
+  mapboxToken?: string,
+  contourTileUrl?: string,
+): object {
+  const maptilerTk = maptilerToken || ''
+  const mapboxTk   = mapboxToken   || ''
+  const usingMlContour = !!contourTileUrl
+
+  return {
+    version: 8,
+    name: 'RadMaps Alidade Smooth',
+    glyphs: mapboxTk
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxTk}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'base-tiles': {
+        type: 'raster' as const,
+        tiles: styledTileUrls(config, [`https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=${maptilerTk}`]),
+        tileSize: 512,
+        attribution: '© MapTiler © OpenStreetMap contributors',
+      },
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      route: routeSource(config),
+      ...trailSegmentSources(config.trail_segments),
+      ...segmentHandleSource(),
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    0.92,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
+      ...hillshadeLayers(config),
+      ...(mapboxTk ? roadsLayers(config) : []),
+      ...contourLayers(config, usingMlContour),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(config),
+    ],
+  }
+}
+
+// ─── Beta: Alidade Smooth Dark ────────────────────────────────────────────────
+// Dark clean cartography using MapTiler Dataviz Dark raster tiles.
+// If dataviz-dark is unavailable at your MapTiler tier, swap the map ID to dark-matter.
+
+function buildAlidadeSmoothDarkStyle(
+  config: StyleConfig,
+  maptilerToken?: string,
+  mapboxToken?: string,
+  contourTileUrl?: string,
+): object {
+  const maptilerTk = maptilerToken || ''
+  const mapboxTk   = mapboxToken   || ''
+  const usingMlContour = !!contourTileUrl
+
+  return {
+    version: 8,
+    name: 'RadMaps Alidade Smooth Dark',
+    glyphs: mapboxTk
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxTk}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'base-tiles': {
+        type: 'raster' as const,
+        tiles: styledTileUrls(config, [`https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}@2x.png?key=${maptilerTk}`]),
+        tileSize: 512,
+        attribution: '© MapTiler © OpenStreetMap contributors',
+      },
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      route: routeSource(config),
+      ...trailSegmentSources(config.trail_segments),
+      ...segmentHandleSource(),
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      {
+        id: 'base-tiles', type: 'raster', source: 'base-tiles',
+        paint: {
+          'raster-opacity':    0.88,
+          'raster-contrast':   config.tile_contrast   ?? 0,
+          'raster-saturation': config.tile_saturation ?? 0,
+          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
+        },
+      },
+      ...hillshadeLayers(config),
+      ...(mapboxTk ? roadsLayers(config) : []),
+      ...contourLayers(config, usingMlContour),
+      ...routeLayers(config),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(config),
     ],
   }
 }
@@ -1164,7 +1481,7 @@ function buildTopographicStyle(
       ...contourLayers(config, usingMlContour),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
-      ...segmentHandleLayers(),
+      ...segmentHandleLayers(config),
     ],
   }
 }

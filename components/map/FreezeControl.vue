@@ -4,6 +4,7 @@
     :class="{ 'is-frozen': frozen, 'map-hovered': mapHovered }"
     :title="frozen ? 'Unlock to reposition' : 'Lock map view'"
     @click="$emit(frozen ? 'unfreeze' : 'freeze')"
+    style="position: static;"
   >
     <span class="zoom-label">Zoom</span>
 
@@ -35,10 +36,6 @@ defineEmits<{
 
 <style scoped>
 .freeze-pill {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 21;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -51,14 +48,9 @@ defineEmits<{
   color: #6B7280;
   cursor: pointer;
   pointer-events: auto;
-  opacity: 0.6;
-  transition: opacity 0.2s ease, background 0.15s, border-color 0.15s, color 0.15s;
-}
-.freeze-pill.map-hovered {
-  opacity: 0.9;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .freeze-pill:hover {
-  opacity: 1;
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(0, 0, 0, 0.18);
 }

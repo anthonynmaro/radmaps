@@ -58,6 +58,20 @@ export function useMap(mapId: Ref<string> | string) {
     }, 500)
   }
 
+  // Bypass debounce — use for high-value state (freeze position) that must
+  // survive navigation before the normal 500ms timer fires.
+  async function saveNow() {
+    if (!map.value) return
+    clearTimeout(saveTimer)
+    saving.value = true
+    const { error: updateError } = await supabase
+      .from('maps')
+      .update({ style_config: map.value.style_config, updated_at: new Date().toISOString() })
+      .eq('id', id.value)
+    if (updateError) console.error('Failed to save style:', updateError.message)
+    saving.value = false
+  }
+
   async function updateMeta(updates: { title?: string; subtitle?: string }) {
     if (!map.value) return
     Object.assign(map.value, updates)
@@ -67,5 +81,5 @@ export function useMap(mapId: Ref<string> | string) {
       .eq('id', id.value)
   }
 
-  return { map, loading, saving, error, updateStyle, updateMeta }
+  return { map, loading, saving, error, updateStyle, saveNow, updateMeta }
 }

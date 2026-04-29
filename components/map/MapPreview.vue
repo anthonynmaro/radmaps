@@ -13,6 +13,7 @@
 
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
+      ref="posterCanvasEl"
       class="poster-canvas relative flex flex-col shadow-[0_32px_80px_rgba(0,0,0,0.35)]"
       :style="posterCanvasStyle"
     >
@@ -24,14 +25,44 @@
         :style="frameStyle"
       />
 
-      <!-- ── Freeze control (poster-level, top-right) ──────────────────────── -->
-      <FreezeControl
+      <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
+      <div
         v-if="editable && mapReady"
-        :frozen="styleConfig.map_frozen ?? false"
-        :map-hovered="mapHovered"
-        @freeze="freezeView"
-        @unfreeze="unfreezeView"
-      />
+        class="poster-controls"
+        :class="{ 'map-hovered': mapHovered }"
+      >
+        <!-- Undo / redo pill -->
+        <div class="control-pill">
+          <button
+            class="control-btn"
+            :disabled="!canUndo"
+            title="Undo (⌘Z)"
+            @click="emit('undo')"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+              <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.061.025z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <span class="control-divider"/>
+          <button
+            class="control-btn"
+            :disabled="!canRedo"
+            title="Redo (⌘⇧Z)"
+            @click="emit('redo')"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+              <path fill-rule="evenodd" d="M12.207 2.232a.75.75 0 00.025 1.06l4.146 3.958H6.375a5.375 5.375 0 000 10.75H9.25a.75.75 0 000-1.5H6.375a3.875 3.875 0 010-7.75h10.003l-4.146 3.957a.75.75 0 001.036 1.085l5.5-5.25a.75.75 0 000-1.085l-5.5-5.25a.75.75 0 00-1.061.025z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+
+        <FreezeControl
+          :frozen="styleConfig.map_frozen ?? false"
+          :map-hovered="mapHovered"
+          @freeze="freezeView"
+          @unfreeze="unfreezeView"
+        />
+      </div>
 
       <!-- ── Logo: header-right position ──────────────────────────────────── -->
       <img
@@ -88,6 +119,24 @@
       <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+
+        <!-- Plot mode overlay — instruction banner + cancel -->
+        <div
+          v-if="plotMode"
+          class="absolute top-0 inset-x-0 z-20 flex items-center justify-between pointer-events-none"
+          style="padding: 0.8cqh 1.4cqw; background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);"
+        >
+          <span style="color: white; font-size: 0.85cqh; font-weight: 600; letter-spacing: 0.06em; text-shadow: 0 1px 3px rgba(0,0,0,0.4);">
+            {{ plotMode.segId === 'route-delete-pending'
+              ? (plotMode.field === 'start' ? 'Tap route: mark delete start…' : 'Tap route: mark delete end…')
+              : `Tap route to set ${plotMode.field === 'start' ? 'start' : 'end'}` }}
+          </span>
+          <button
+            class="pointer-events-auto"
+            style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 600; cursor: pointer; backdrop-filter: blur(4px);"
+            @click="emit('plot-cancelled')"
+          >Cancel</button>
+        </div>
         <!-- Loading placeholder -->
         <div
           v-if="!mapReady"
@@ -126,48 +175,84 @@
           </div>
         </div>
 
-        <!-- ── Text overlays ─────────────────────────────────────────────── -->
-        <div
-          v-if="(styleConfig.text_overlays ?? []).length > 0"
-          class="overlay-layer"
-          :style="{ pointerEvents: editable && selectedOverlayId ? 'auto' : 'none' }"
-          @click.self="selectedOverlayId = null"
+        <!-- ── Elevation profile ─────────────────────────────────────────── -->
+        <ElevationProfile
+          v-if="styleConfig.show_elevation_profile && mapReady"
+          :map="map"
+          :style-config="styleConfig"
+        />
+
+        <!-- ── Leader lines + pin label SVG overlay ──────────────────────── -->
+        <svg
+          v-if="mapReady && (showLeaderLines || showPinOverlay)"
+          class="absolute inset-0 w-full h-full"
+          style="z-index: 14; overflow: visible; pointer-events: none;"
         >
-          <div
-            v-for="overlay in styleConfig.text_overlays"
-            :key="overlay.id"
-            :data-overlay-id="overlay.id"
-            class="text-overlay"
-            :class="{ 'is-editable': editable }"
-            :style="overlayStyle(overlay)"
-            @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
-          >
-            {{ overlay.content }}
-            <template v-if="editable && selectedOverlayId === overlay.id">
-              <!-- Delete button -->
-              <button
-                class="overlay-delete-btn"
-                title="Remove"
-                @click.stop="onOverlayDelete(overlay.id)"
-                @pointerdown.stop
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-              <!-- Resize handle -->
-              <div
-                class="overlay-resize-handle"
-                title="Drag to resize"
-                @pointerdown.stop.prevent="onResizeStart($event, overlay.id)"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" width="9" height="9">
-                  <path d="M13.5 6.5L17 10l-3.5 3.5V6.5zM6.5 13.5L3 10l3.5-3.5v7z" opacity="0.8"/>
-                </svg>
-              </div>
+          <!-- Pin labels with leader lines (labels are draggable) -->
+          <g v-if="showPinOverlay">
+            <template v-for="pin in pinOverlayItems" :key="pin.id">
+              <line
+                :x1="pin.dotX" :y1="pin.dotY"
+                :x2="pin.labelX" :y2="pin.labelY"
+                :stroke="pin.color" :stroke-width="svgLineW"
+                :stroke-opacity="pin.opacity * 0.55"
+                style="pointer-events: none;"
+              />
+              <text
+                :x="pin.labelX" :y="pin.labelY"
+                :text-anchor="pin.anchor"
+                :font-size="svgPinFontSize"
+                :font-family="styleConfig.pin_font_family ? `'${styleConfig.pin_font_family}', sans-serif` : typography.statsFont"
+                :fill="pin.color"
+                :opacity="pin.opacity"
+                :stroke="styleConfig.background_color ?? '#FFFFFF'"
+                stroke-width="3"
+                paint-order="stroke fill"
+                font-weight="600"
+                letter-spacing="0.12em"
+                dominant-baseline="middle"
+                :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
+                @pointerdown.stop="editable && startLabelDrag($event, pin.id as 'start' | 'finish')"
+                @pointermove="draggingPin === pin.id && onLabelDragMove($event)"
+                @pointerup="draggingPin === pin.id && onLabelDragEnd($event)"
+                @pointercancel="draggingPin = null"
+              >{{ pin.label.toUpperCase() }}</text>
             </template>
-          </div>
-        </div>
+          </g>
+
+          <!-- Trail segment leader lines -->
+          <g v-if="showLeaderLines">
+            <template v-for="item in leaderLineItems" :key="item.id">
+              <circle :cx="item.dotX" :cy="item.dotY" :r="svgDotR" :fill="item.color"
+                :stroke="styleConfig.background_color ?? '#FFFFFF'" :stroke-width="svgDotStroke"
+                vector-effect="non-scaling-stroke" style="pointer-events: none;" />
+              <line
+                :x1="item.dotX" :y1="item.dotY"
+                :x2="item.labelX" :y2="item.labelY"
+                :stroke="item.color" :stroke-width="svgLineW" stroke-opacity="0.6"
+                style="pointer-events: none;"
+              />
+              <text
+                :x="item.labelX" :y="item.labelY"
+                :text-anchor="item.anchor"
+                :font-size="svgLeaderFontSize"
+                :font-family="`'${styleConfig.font_family}', sans-serif`"
+                :fill="item.color"
+                :stroke="styleConfig.background_color ?? '#FFFFFF'"
+                stroke-width="3"
+                paint-order="stroke fill"
+                font-weight="700"
+                letter-spacing="0.1em"
+                dominant-baseline="middle"
+                :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
+                @pointerdown.stop="editable && startLeaderDrag($event, item.id)"
+                @pointermove="draggingLeader === item.id && onLeaderDragMove($event)"
+                @pointerup="draggingLeader === item.id && onLeaderDragEnd($event, item.id)"
+                @pointercancel="draggingLeader = null"
+              >{{ item.name }}</text>
+            </template>
+          </g>
+        </svg>
 
         <!-- ── Vignette overlay ──────────────────────────────────────────── -->
         <div
@@ -246,7 +331,7 @@
         >{{ occasionText }}</p>
 
         <!-- Rad Maps mark (right) -->
-        <div class="poster-mark">
+        <div v-if="styleConfig.show_branding !== false" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
@@ -255,9 +340,50 @@
             <circle cx="11" cy="8" r="1.1" fill="currentColor"/>
           </svg>
           <span class="mark-label" :style="markLabelStyle">RAD MAPS</span>
-          <span v-if="styleConfig.show_branding !== false" class="branding-note" :style="brandingNoteStyle">radmaps.studio</span>
+          <span class="branding-note" :style="brandingNoteStyle">radmaps.studio</span>
         </div>
 
+      </div>
+
+      <!-- ── Text overlays (poster-level — can span header, map, footer) ──── -->
+      <div
+        v-if="(styleConfig.text_overlays ?? []).length > 0"
+        class="overlay-layer"
+        style="pointer-events: none;"
+        @click.self="selectedOverlayId = null"
+      >
+        <div
+          v-for="overlay in styleConfig.text_overlays"
+          :key="overlay.id"
+          :data-overlay-id="overlay.id"
+          class="text-overlay"
+          :class="{ 'is-editable': editable, 'is-selected': editable && selectedOverlayId === overlay.id }"
+          :style="overlayStyle(overlay)"
+          @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
+        >
+          {{ overlay.content }}
+          <template v-if="editable">
+            <button
+              class="overlay-delete-btn"
+              title="Remove"
+              @click.stop="onOverlayDelete(overlay.id)"
+              @pointerdown.stop
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div
+              class="overlay-resize-handle"
+              title="Drag to resize"
+              @pointerdown.stop.prevent="onResizeStart($event, overlay.id)"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="9" height="9">
+                <path d="M13.5 6.5L17 10l-3.5 3.5V6.5zM6.5 13.5L3 10l3.5-3.5v7z" opacity="0.8"/>
+              </svg>
+            </div>
+          </template>
+        </div>
       </div>
 
     </div>
@@ -268,15 +394,21 @@
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
-import { sliceRouteByPercent, trailSourceId } from '~/utils/trail'
+import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints } from '~/utils/trail'
+import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { PRINT_SIZES } from '~/types'
 import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
 import FreezeControl from '~/components/map/FreezeControl.vue'
+import ElevationProfile from '~/components/map/ElevationProfile.vue'
 
 const props = defineProps<{
   map: TrailMap
   styleConfig: StyleConfig
   editable?: boolean
+  /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
+  plotMode?: { segId: string; field: 'start' | 'end' } | null
+  canUndo?: boolean
+  canRedo?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -288,18 +420,35 @@ const emit = defineEmits<{
   'overlay-deleted': [id: string]
   'overlay-resized': [payload: { id: string; font_size: number }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
-  // Emitted when the user freezes/unfreezes the view from the FreezeControl widget
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }]
+  /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
+  'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
+  /** Fired when user cancels plot mode (Escape key or cancel button) */
+  'plot-cancelled': []
+  /** Fired when user drags a pin label to a new position */
+  'label-moved': [payload: { pin: 'start' | 'finish'; lnglat: [number, number] }]
+  /** Fired when user drags a trail segment label to a new position */
+  'segment-label-moved': [payload: { id: string; lnglat: [number, number] }]
+  /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
+  'view-changed': [payload: { map_zoom: number; map_center: [number, number] }]
+  'undo': []
+  'redo': []
 }>()
 
 const config = useRuntimeConfig()
 const mapContainer = ref<HTMLDivElement | null>(null)
+const posterCanvasEl = ref<HTMLDivElement | null>(null)
 const mapReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
+
+// ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
+let plotGhostMarker: maplibregl.Marker | null = null
+let plotAnimFrame = 0
+let plotRouteCoords: number[][] = []
 
 // ── Tile effect protocol (styledtile://) ──────────────────────────────────────
 // Intercepts raster tile fetches and applies per-pixel colour transforms:
@@ -477,10 +626,18 @@ function onOccasionBlur(e: FocusEvent) {
 
 const selectedOverlayId = ref<string | null>(null)
 const resizePreview = ref<{ id: string; font_size: number } | null>(null)
+let deselectTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleDeselect() {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  deselectTimer = setTimeout(() => { selectedOverlayId.value = null }, 2000)
+}
 
 function onOverlayClick(id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   emit('overlay-selected', id)
+  scheduleDeselect()
 }
 
 function onOverlayDelete(id: string) {
@@ -490,12 +647,12 @@ function onOverlayDelete(id: string) {
 
 function onResizeStart(e: PointerEvent, id: string) {
   const overlay = props.styleConfig.text_overlays?.find(o => o.id === id)
-  if (!overlay || !mapContainer.value) return
+  if (!overlay || !posterCanvasEl.value) return
   e.preventDefault()
 
   const startY = e.clientY
   const startSize = overlay.font_size
-  const containerH = mapContainer.value.offsetHeight
+  const containerH = posterCanvasEl.value.offsetHeight
 
   resizePreview.value = { id, font_size: startSize }
 
@@ -512,6 +669,7 @@ function onResizeStart(e: PointerEvent, id: string) {
     resizePreview.value = null
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
+    scheduleDeselect()
   }
 
   window.addEventListener('pointermove', onMove)
@@ -532,301 +690,9 @@ const posterCanvasStyle = computed(() => ({
   containerType: 'size',
 }))
 
-// ── Theme typography personalities ────────────────────────────────────────────
+const typography = computed(() => getPosterTypography(props.styleConfig))
 
-interface TypographyProfile {
-  titleFont: string
-  titleWeight: string
-  titleTracking: string
-  titleCase: string
-  titleSize: string
-  titleLineHeight: string
-  subFont: string
-  subWeight: string
-  subTracking: string
-  subSize: string
-  statsFont: string
-  statsWeight: string
-}
-
-const THEME_TYPOGRAPHY: Record<string, TypographyProfile> = {
-  chalk: {
-    titleFont: "'Work Sans', sans-serif",
-    titleWeight: '300',
-    titleTracking: '0.38em',
-    titleCase: 'uppercase',
-    titleSize: '3.4cqh',
-    titleLineHeight: '1.15',
-    subFont: "'Work Sans', sans-serif",
-    subWeight: '400',
-    subTracking: '0.28em',
-    subSize: '1.0cqh',
-    statsFont: "'Work Sans', sans-serif",
-    statsWeight: '500',
-  },
-  topaz: {
-    titleFont: "'Space Grotesk', sans-serif",
-    titleWeight: '700',
-    titleTracking: '0.06em',
-    titleCase: 'uppercase',
-    titleSize: '4.4cqh',
-    titleLineHeight: '1.05',
-    subFont: "'Space Grotesk', sans-serif",
-    subWeight: '400',
-    subTracking: '0.22em',
-    subSize: '1.05cqh',
-    statsFont: "'Space Grotesk', sans-serif",
-    statsWeight: '600',
-  },
-  dusk: {
-    titleFont: "'DM Serif Display', serif",
-    titleWeight: '400',
-    titleTracking: '0.03em',
-    titleCase: 'none',
-    titleSize: '4.8cqh',
-    titleLineHeight: '1.1',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '400',
-    subTracking: '0.22em',
-    subSize: '1.0cqh',
-    statsFont: "'DM Sans', sans-serif",
-    statsWeight: '500',
-  },
-  obsidian: {
-    titleFont: "'Big Shoulders Display', sans-serif",
-    titleWeight: '800',
-    titleTracking: '-0.01em',
-    titleCase: 'uppercase',
-    titleSize: '5.8cqh',
-    titleLineHeight: '0.95',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '400',
-    subTracking: '0.35em',
-    subSize: '1.0cqh',
-    statsFont: "'Big Shoulders Display', sans-serif",
-    statsWeight: '700',
-  },
-  forest: {
-    titleFont: "'Oswald', sans-serif",
-    titleWeight: '600',
-    titleTracking: '0.08em',
-    titleCase: 'uppercase',
-    titleSize: '4.6cqh',
-    titleLineHeight: '1.05',
-    subFont: "'Oswald', sans-serif",
-    subWeight: '300',
-    subTracking: '0.22em',
-    subSize: '1.0cqh',
-    statsFont: "'Oswald', sans-serif",
-    statsWeight: '500',
-  },
-  midnight: {
-    titleFont: "'Fjalla One', sans-serif",
-    titleWeight: '400',
-    titleTracking: '0.12em',
-    titleCase: 'uppercase',
-    titleSize: '4.8cqh',
-    titleLineHeight: '1.05',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '300',
-    subTracking: '0.32em',
-    subSize: '1.0cqh',
-    statsFont: "'Fjalla One', sans-serif",
-    statsWeight: '400',
-  },
-  // ── Family B ──────────────────────────────────────────────────────────────
-  editorial: {
-    titleFont: "'Playfair Display', serif",
-    titleWeight: '400',
-    titleTracking: '0.02em',
-    titleCase: 'none',
-    titleSize: '5.0cqh',
-    titleLineHeight: '1.1',
-    subFont: "'Playfair Display', serif",
-    subWeight: '400',
-    subTracking: '0.18em',
-    subSize: '1.0cqh',
-    statsFont: "'Libre Baskerville', serif",
-    statsWeight: '400',
-  },
-  bauhaus: {
-    titleFont: "'Big Shoulders Display', sans-serif",
-    titleWeight: '900',
-    titleTracking: '-0.02em',
-    titleCase: 'uppercase',
-    titleSize: '6.8cqh',
-    titleLineHeight: '0.9',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '400',
-    subTracking: '0.28em',
-    subSize: '0.95cqh',
-    statsFont: "'Big Shoulders Display', sans-serif",
-    statsWeight: '700',
-  },
-  vintage: {
-    titleFont: "'DM Serif Display', serif",
-    titleWeight: '400',
-    titleTracking: '0.04em',
-    titleCase: 'none',
-    titleSize: '5.2cqh',
-    titleLineHeight: '1.08',
-    subFont: "'DM Serif Display', serif",
-    subWeight: '400',
-    subTracking: '0.22em',
-    subSize: '1.0cqh',
-    statsFont: "'DM Sans', sans-serif",
-    statsWeight: '400',
-  },
-  brutalist: {
-    titleFont: "'Bebas Neue', sans-serif",
-    titleWeight: '400',
-    titleTracking: '0.07em',
-    titleCase: 'uppercase',
-    titleSize: '7.2cqh',
-    titleLineHeight: '0.92',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '700',
-    subTracking: '0.35em',
-    subSize: '0.9cqh',
-    statsFont: "'Bebas Neue', sans-serif",
-    statsWeight: '400',
-  },
-  risograph: {
-    titleFont: "'Oswald', sans-serif",
-    titleWeight: '500',
-    titleTracking: '0.10em',
-    titleCase: 'uppercase',
-    titleSize: '5.0cqh',
-    titleLineHeight: '1.0',
-    subFont: "'Oswald', sans-serif",
-    subWeight: '300',
-    subTracking: '0.25em',
-    subSize: '1.0cqh',
-    statsFont: "'Work Sans', sans-serif",
-    statsWeight: '500',
-  },
-  blueprint: {
-    titleFont: "'Space Grotesk', sans-serif",
-    titleWeight: '700',
-    titleTracking: '0.14em',
-    titleCase: 'uppercase',
-    titleSize: '4.2cqh',
-    titleLineHeight: '1.05',
-    subFont: "'Space Grotesk', sans-serif",
-    subWeight: '400',
-    subTracking: '0.28em',
-    subSize: '0.9cqh',
-    statsFont: "'Space Grotesk', sans-serif",
-    statsWeight: '600',
-  },
-  kertok: {
-    titleFont: "'Work Sans', sans-serif",
-    titleWeight: '200',
-    titleTracking: '0.06em',
-    titleCase: 'none',
-    titleSize: '4.6cqh',
-    titleLineHeight: '1.12',
-    subFont: "'Work Sans', sans-serif",
-    subWeight: '300',
-    subTracking: '0.20em',
-    subSize: '0.95cqh',
-    statsFont: "'Work Sans', sans-serif",
-    statsWeight: '300',
-  },
-  'mid-century': {
-    titleFont: "'Oswald', sans-serif",
-    titleWeight: '400',
-    titleTracking: '0.16em',
-    titleCase: 'uppercase',
-    titleSize: '4.4cqh',
-    titleLineHeight: '1.05',
-    subFont: "'Work Sans', sans-serif",
-    subWeight: '400',
-    subTracking: '0.30em',
-    subSize: '0.95cqh',
-    statsFont: "'Oswald', sans-serif",
-    statsWeight: '400',
-  },
-  'topo-art': {
-    titleFont: "'Work Sans', sans-serif",
-    titleWeight: '400',
-    titleTracking: '0.28em',
-    titleCase: 'uppercase',
-    titleSize: '3.6cqh',
-    titleLineHeight: '1.15',
-    subFont: "'Work Sans', sans-serif",
-    subWeight: '300',
-    subTracking: '0.22em',
-    subSize: '0.95cqh',
-    statsFont: "'Work Sans', sans-serif",
-    statsWeight: '400',
-  },
-  'dark-sky': {
-    titleFont: "'Fjalla One', sans-serif",
-    titleWeight: '400',
-    titleTracking: '0.08em',
-    titleCase: 'uppercase',
-    titleSize: '5.4cqh',
-    titleLineHeight: '1.0',
-    subFont: "'DM Sans', sans-serif",
-    subWeight: '300',
-    subTracking: '0.35em',
-    subSize: '1.0cqh',
-    statsFont: "'Fjalla One', sans-serif",
-    statsWeight: '400',
-  },
-}
-
-interface LayoutProfile {
-  titleAlign: 'center' | 'left'
-  titlePosition: 'top' | 'bottom'
-}
-
-const THEME_LAYOUT: Record<string, LayoutProfile> = {
-  // Family A — classic centered top
-  chalk:         { titleAlign: 'center', titlePosition: 'top' },
-  topaz:         { titleAlign: 'center', titlePosition: 'top' },
-  dusk:          { titleAlign: 'center', titlePosition: 'top' },
-  obsidian:      { titleAlign: 'center', titlePosition: 'top' },
-  forest:        { titleAlign: 'center', titlePosition: 'top' },
-  midnight:      { titleAlign: 'center', titlePosition: 'top' },
-  // Family B — varied layouts
-  editorial:     { titleAlign: 'left',   titlePosition: 'top' },    // magazine — left-aligned masthead
-  bauhaus:       { titleAlign: 'left',   titlePosition: 'bottom' }, // Bauhaus poster — title anchored at base
-  vintage:       { titleAlign: 'center', titlePosition: 'top' },    // vintage national park — centered crown
-  brutalist:     { titleAlign: 'left',   titlePosition: 'bottom' }, // raw/stark — title slammed to bottom-left
-  risograph:     { titleAlign: 'left',   titlePosition: 'top' },    // printmaking — left-block header
-  blueprint:     { titleAlign: 'left',   titlePosition: 'bottom' }, // technical drawing — title block at foot
-  kertok:        { titleAlign: 'left',   titlePosition: 'top' },    // spare minimal — left-flush top
-  'mid-century': { titleAlign: 'center', titlePosition: 'bottom' }, // retro poster — centered title foot
-  'topo-art':    { titleAlign: 'center', titlePosition: 'top' },    // art print — centred crown
-  'dark-sky':    { titleAlign: 'center', titlePosition: 'bottom' }, // dramatic — text at bottom, sky above
-}
-
-const SERIF_FONTS = new Set(['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'])
-
-function toFontStack(family: string) {
-  return `'${family}', ${SERIF_FONTS.has(family) ? 'serif' : 'sans-serif'}`
-}
-
-const typography = computed((): TypographyProfile => {
-  const base = THEME_TYPOGRAPHY[props.styleConfig.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
-  const titleOverride = props.styleConfig.font_family
-  if (titleOverride) {
-    const bodyOverride = props.styleConfig.body_font_family ?? titleOverride
-    return {
-      ...base,
-      titleFont: toFontStack(titleOverride as string),
-      subFont: toFontStack(bodyOverride as string),
-      statsFont: toFontStack(bodyOverride as string),
-    }
-  }
-  return base
-})
-
-const layout = computed((): LayoutProfile =>
-  THEME_LAYOUT[props.styleConfig.color_theme ?? 'chalk'] ?? THEME_LAYOUT.chalk,
-)
+const layout = computed(() => getPosterLayout(props.styleConfig))
 
 // ── Poster content ────────────────────────────────────────────────────────────
 
@@ -835,16 +701,8 @@ const trailName = computed(() =>
 )
 
 const locationLine = computed(() => {
-  const parts: string[] = []
-  if (props.styleConfig.labels?.show_location !== false) {
-    const loc = props.styleConfig.location_text || props.map.stats?.location
-    if (loc) parts.push(loc.toUpperCase())
-  }
-  if (props.styleConfig.labels?.show_elevation_gain !== false) {
-    const elev = props.map.stats?.max_elevation_m
-    if (elev) parts.push(`${Math.round(elev).toLocaleString()} M ELEV.`)
-  }
-  return parts.join('  ·  ')
+  const text = props.styleConfig.location_text?.trim() || (props.map.stats as Record<string, unknown> & { location?: string })?.location?.trim() || ''
+  return text ? text.toUpperCase() : ''
 })
 
 const occasionText = computed(() => props.styleConfig.occasion_text || '')
@@ -881,6 +739,17 @@ const borderW = computed(() =>
   : props.styleConfig.border_style === 'thin' ? '1px' : '0',
 )
 
+function getTextHalo() {
+  const bg = props.styleConfig.background_color ?? '#FFF'
+  // 8-direction solid offsets create a crisp outline; blur fills any gaps
+  return [
+    `-2px -2px 0 ${bg}`, `0 -2px 0 ${bg}`, `2px -2px 0 ${bg}`,
+    `-2px 0 0 ${bg}`,                        `2px 0 0 ${bg}`,
+    `-2px 2px 0 ${bg}`,  `0 2px 0 ${bg}`,  `2px 2px 0 ${bg}`,
+    `0 0 4px ${bg}`,
+  ].join(', ')
+}
+
 const headerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.background_color,
   color: fg.value,
@@ -899,20 +768,21 @@ const trailNameStyle = computed(() => ({
   fontWeight: typography.value.titleWeight,
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: typography.value.titleSize,
+  fontSize: `${typography.value.titleSize * (props.styleConfig.title_scale ?? 1.0)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: fg.value,
   textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
   outline: 'none',
+  textShadow: getTextHalo(),
 }))
 
 const locationLineStyle = computed(() => ({
   fontFamily: typography.value.subFont,
   fontWeight: typography.value.subWeight,
   letterSpacing: typography.value.subTracking,
-  fontSize: typography.value.subSize,
+  fontSize: `${typography.value.subSize * (props.styleConfig.subtitle_scale ?? 1.0)}cqh`,
   color: fg.value,
   opacity: '0.5',
   textTransform: 'uppercase' as const,
@@ -920,6 +790,7 @@ const locationLineStyle = computed(() => ({
   margin: '0',
   padding: '0',
   outline: 'none',
+  textShadow: getTextHalo(),
 }))
 
 const ruleStyle = computed(() => ({
@@ -995,7 +866,7 @@ const dividerStyle = computed(() => ({
 const occasionStyle = computed(() => ({
   fontFamily: typography.value.subFont,
   fontWeight: typography.value.subWeight,
-  fontSize: '0.95cqh',
+  fontSize: `${0.95 * (props.styleConfig.occasion_scale ?? 1.0)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: fg.value,
@@ -1006,6 +877,7 @@ const occasionStyle = computed(() => ({
   transform: 'translateX(-50%)',
   whiteSpace: 'nowrap' as const,
   outline: 'none',
+  textShadow: getTextHalo(),
 }))
 
 const markLabelStyle = computed(() => ({
@@ -1074,7 +946,6 @@ const logoFooterStyle = computed(() => ({
 function overlayStyle(o: TextOverlay): Record<string, string> {
   const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
   const fontSize = resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
-  const isSelected = props.editable && selectedOverlayId.value === o.id
   return {
     position: 'absolute',
     left: `${o.x}%`,
@@ -1085,13 +956,16 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     textAlign: o.alignment,
     opacity: String(o.opacity),
     fontWeight: o.bold ? '700' : '400',
+    fontStyle: o.italic ? 'italic' : 'normal',
     transform: `translateX(${xOffset})`,
-    whiteSpace: 'pre-wrap',
+    whiteSpace: 'pre',
+    width: 'max-content',
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
     zIndex: '8',
-    ...(isSelected ? { outline: '1.5px dashed rgba(45,106,79,0.7)', borderRadius: '2px' } : {}),
+    // Halo: skip when bg_color is set (the pill background already provides contrast)
+    ...(!o.bg_color ? { textShadow: getTextHalo() } : {}),
     ...(o.bg_color ? {
       backgroundColor: o.bg_color,
       padding: '0.3cqh 0.8cqh',
@@ -1108,7 +982,8 @@ const visibleNamedSegments = computed(() =>
 
 const showTrailLegend = computed(() =>
   props.styleConfig.trail_legend?.show !== false &&
-  visibleNamedSegments.value.length > 0,
+  visibleNamedSegments.value.length > 0 &&
+  props.styleConfig.trail_label_style !== 'leader-lines',
 )
 
 const trailLegendStyle = computed(() => {
@@ -1165,6 +1040,264 @@ const vignetteStyle = computed(() => {
 
 const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
 
+// ── SVG overlay state (leader lines + pin labels) ─────────────────────────────
+// All positions are in px relative to the map container, recomputed on every
+// map move/zoom via recomputeOverlays(). Sizes scale with container height so
+// they look correct at both browser-preview and Puppeteer print dimensions.
+
+interface LeaderItem {
+  id: string
+  name: string
+  color: string
+  dotX: number
+  dotY: number
+  labelX: number
+  labelY: number
+  anchor: 'start' | 'end'
+}
+
+interface PinItem {
+  id: 'start' | 'finish'
+  label: string
+  color: string
+  opacity: number
+  dotX: number
+  dotY: number
+  labelX: number
+  labelY: number
+  anchor: 'start' | 'end'
+}
+
+const containerDims  = ref({ w: 0, h: 0 })
+const leaderLineItems = ref<LeaderItem[]>([])
+const pinOverlayItems = ref<PinItem[]>([])
+const draggingPin    = ref<'start' | 'finish' | null>(null)
+const draggingLeader = ref<string | null>(null)
+
+const svgDotR         = computed(() => Math.max(1.5, containerDims.value.h * 0.00125))
+const svgDotStroke    = computed(() => Math.max(0.5, containerDims.value.h * 0.0003))
+const svgLineW        = computed(() => Math.max(0.8, containerDims.value.h * 0.0012))
+const svgPinFontSize  = computed(() => Math.max(11,  containerDims.value.h * 0.022))
+const svgLeaderFontSize = computed(() => Math.max(9, containerDims.value.h * 0.014) * (props.styleConfig.leader_label_scale ?? 1.0))
+const svgPinOffset    = computed(() => Math.max(40,  containerDims.value.h * 0.07))
+
+const showLeaderLines = computed(() =>
+  props.styleConfig.trail_label_style === 'leader-lines' &&
+  (props.styleConfig.trail_segments ?? []).some(s => s.visible && s.name),
+)
+const showPinOverlay = computed(() =>
+  mapReady.value && (
+    (props.styleConfig.show_start_pin !== false) ||
+    (props.styleConfig.show_finish_pin !== false)
+  ),
+)
+
+function recomputeOverlays() {
+  if (!mapInstance || !mapContainer.value) return
+  const W = mapContainer.value.offsetWidth
+  const H = mapContainer.value.offsetHeight
+  containerDims.value = { w: W, h: H }
+  const offset = svgPinOffset.value
+
+  // ── Pin labels ────────────────────────────────────────────────────────────
+  // Skip recomputing dot/label positions while the user is actively dragging
+  // (pinOverlayItems is updated live in onLabelDragMove instead)
+  if (draggingPin.value) {
+    // Still need to reproject the dot position for the active drag
+    for (let i = 0; i < pinOverlayItems.value.length; i++) {
+      const pin = pinOverlayItems.value[i]
+      const marker = pin.id === 'start' ? startMarker : finishMarker
+      if (!marker) continue
+      const pt = mapInstance.project(marker.getLngLat())
+      pinOverlayItems.value[i] = { ...pin, dotX: pt.x, dotY: pt.y }
+    }
+  } else {
+    const newPins: PinItem[] = []
+    const pinColor   = props.styleConfig.pin_color   ?? props.styleConfig.label_text_color ?? '#1C1917'
+    const pinOpacity = props.styleConfig.pin_opacity ?? 0.9
+
+    for (const which of ['start', 'finish'] as const) {
+      const show = which === 'start'
+        ? props.styleConfig.show_start_pin !== false
+        : props.styleConfig.show_finish_pin !== false
+      if (!show) continue
+
+      const marker = which === 'start' ? startMarker : finishMarker
+      if (!marker) continue
+
+      const ll = marker.getLngLat()
+      const pt = mapInstance.project(ll)
+      if (pt.x < -offset * 2 || pt.x > W + offset * 2 || pt.y < -offset * 2 || pt.y > H + offset * 2) continue
+
+      const label = which === 'start'
+        ? (props.styleConfig.start_pin_label ?? 'Start')
+        : (props.styleConfig.finish_pin_label ?? 'Finish')
+
+      // Use saved label lnglat (from prior drag) or auto-offset from dot
+      const savedLabelLnglat = which === 'start'
+        ? props.styleConfig.start_label_lnglat
+        : props.styleConfig.finish_label_lnglat
+
+      let labelX: number, labelY: number, anchor: 'start' | 'end'
+      if (savedLabelLnglat) {
+        const lp = mapInstance.project(savedLabelLnglat as [number, number])
+        labelX = lp.x
+        labelY = lp.y
+        anchor = lp.x < pt.x ? 'end' : 'start'
+      } else {
+        // Default: start label goes upper-left, finish goes upper-right
+        anchor = which === 'start' ? 'end' : 'start'
+        labelX = which === 'start' ? pt.x - offset * 0.7 : pt.x + offset * 0.7
+        labelY = pt.y - offset * 0.8
+      }
+
+      newPins.push({ id: which, label, color: pinColor, opacity: pinOpacity, dotX: pt.x, dotY: pt.y, labelX, labelY, anchor })
+    }
+    pinOverlayItems.value = newPins
+  }
+
+  // ── Trail leader lines ────────────────────────────────────────────────────
+  if (!showLeaderLines.value) { leaderLineItems.value = []; return }
+
+  // While dragging a leader label, only reproject the dot; keep label pos
+  if (draggingLeader.value) {
+    leaderLineItems.value = leaderLineItems.value.map(item => {
+      const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === item.id)
+      if (!seg) return item
+      const allC   = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+      const idx    = Math.min(Math.floor(allC.length * seg.section_start / 100), allC.length - 1)
+      if (idx < 0) return item
+      const pt = mapInstance.project([allC[idx][0], allC[idx][1]] as [number, number])
+      return { ...item, dotX: pt.x, dotY: pt.y }
+    })
+    return
+  }
+
+  const allCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+
+  interface Candidate { seg: NonNullable<typeof props.styleConfig.trail_segments>[number]; dotX: number; dotY: number }
+  const candidates: Candidate[] = []
+
+  for (const seg of (props.styleConfig.trail_segments ?? [])) {
+    if (!seg.visible || !seg.name) continue
+    const idx = Math.min(Math.floor(allCoords.length * seg.section_start / 100), allCoords.length - 1)
+    if (idx < 0) continue
+    const [lng, lat] = allCoords[idx]
+    const pt = mapInstance.project([lng, lat])
+    // Include segments slightly off-screen too (leader line still useful)
+    if (pt.x < -W * 0.5 || pt.x > W * 1.5 || pt.y < -H * 0.5 || pt.y > H * 1.5) continue
+    candidates.push({ seg, dotX: pt.x, dotY: pt.y })
+  }
+
+  // Place label on the side closest to each segment's start dot position
+  const leftCandidates  = candidates.filter(c => c.dotX <= W / 2).sort((a, b) => a.dotY - b.dotY)
+  const rightCandidates = candidates.filter(c => c.dotX  > W / 2).sort((a, b) => a.dotY - b.dotY)
+
+  // Pull labels in from edges so text doesn't get clipped
+  const leftX  = W * 0.13
+  const rightX = W * 0.87
+  const vMargin = H * 0.08
+
+  function evenY(count: number): number[] {
+    if (count === 0) return []
+    if (count === 1) return [H / 2]
+    return Array.from({ length: count }, (_, i) => vMargin + (H - 2 * vMargin) * i / (count - 1))
+  }
+
+  const leftYs  = evenY(leftCandidates.length)
+  const rightYs = evenY(rightCandidates.length)
+
+  const items: LeaderItem[] = []
+
+  for (let i = 0; i < leftCandidates.length; i++) {
+    const c = leftCandidates[i]
+    let labelX = leftX
+    let labelY = leftYs[i]
+    let anchor: 'start' | 'end' = 'end'
+    // Use saved label position if the user dragged it
+    if (c.seg.label_lnglat) {
+      const lp = mapInstance.project(c.seg.label_lnglat as [number, number])
+      labelX = lp.x; labelY = lp.y
+      anchor = lp.x < c.dotX ? 'end' : 'start'
+    }
+    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, dotX: c.dotX, dotY: c.dotY, labelX, labelY, anchor })
+  }
+  for (let i = 0; i < rightCandidates.length; i++) {
+    const c = rightCandidates[i]
+    let labelX = rightX
+    let labelY = rightYs[i]
+    let anchor: 'start' | 'end' = 'start'
+    if (c.seg.label_lnglat) {
+      const lp = mapInstance.project(c.seg.label_lnglat as [number, number])
+      labelX = lp.x; labelY = lp.y
+      anchor = lp.x < c.dotX ? 'end' : 'start'
+    }
+    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, dotX: c.dotX, dotY: c.dotY, labelX, labelY, anchor })
+  }
+
+  leaderLineItems.value = items
+}
+
+// ── Pin label drag (label moves, dot stays at route endpoint) ─────────────────
+
+function startLabelDrag(e: PointerEvent, pinId: 'start' | 'finish') {
+  draggingPin.value = pinId
+  ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  e.preventDefault()
+}
+
+function onLabelDragMove(e: PointerEvent) {
+  if (!draggingPin.value || !mapContainer.value || !mapInstance) return
+  const rect = mapContainer.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  pinOverlayItems.value = pinOverlayItems.value.map(pin => {
+    if (pin.id !== draggingPin.value) return pin
+    const anchor: 'start' | 'end' = x < pin.dotX ? 'end' : 'start'
+    return { ...pin, labelX: x, labelY: y, anchor }
+  })
+}
+
+function onLabelDragEnd(e: PointerEvent) {
+  if (!draggingPin.value || !mapContainer.value || !mapInstance) return
+  const rect = mapContainer.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const lngLat = mapInstance.unproject([x, y])
+  emit('label-moved', { pin: draggingPin.value, lnglat: [lngLat.lng, lngLat.lat] })
+  draggingPin.value = null
+}
+
+// ── Trail segment label drag ──────────────────────────────────────────────────
+
+function startLeaderDrag(e: PointerEvent, segId: string) {
+  draggingLeader.value = segId
+  ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  e.preventDefault()
+}
+
+function onLeaderDragMove(e: PointerEvent) {
+  if (!draggingLeader.value || !mapContainer.value) return
+  const rect = mapContainer.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  leaderLineItems.value = leaderLineItems.value.map(item => {
+    if (item.id !== draggingLeader.value) return item
+    const anchor: 'start' | 'end' = x < item.dotX ? 'end' : 'start'
+    return { ...item, labelX: x, labelY: y, anchor }
+  })
+}
+
+function onLeaderDragEnd(e: PointerEvent, segId: string) {
+  if (!draggingLeader.value || !mapContainer.value || !mapInstance) return
+  const rect = mapContainer.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const lngLat = mapInstance.unproject([x, y])
+  emit('segment-label-moved', { id: segId, lnglat: [lngLat.lng, lngLat.lat] })
+  draggingLeader.value = null
+}
+
 // ── Map lifecycle ─────────────────────────────────────────────────────────────
 
 const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
@@ -1172,12 +1305,17 @@ const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
   'show_contours', 'show_hillshade', 'show_elevation_labels',
   'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
   'hillshade_intensity', 'hillshade_highlight',
-  'show_roads',
+  'show_roads', 'roads_color', 'roads_opacity',
+  'show_place_labels', 'place_labels_color', 'place_labels_opacity', 'place_labels_scale',
+  'show_poi_labels', 'poi_labels_color', 'poi_labels_opacity',
   // trail_segments intentionally absent — segment ID changes are detected below,
   // and data-only changes (section_start/end, color, width) use the fast path.
   'tile_effect',
   'route_color_mode',
   'map_3d',
+  'segment_casing_width',
+  'segment_casing_color',
+  'segment_dot_size',
 ]
 
 // Computes a cache key for all parameters baked into the styledtile:// URL.
@@ -1212,29 +1350,31 @@ onMounted(async () => {
   if (props.styleConfig.show_contours) await ensureContourProtocol()
   const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
 
-  const frozen = props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
+  // Restore saved zoom/center whenever they exist (user panned/zoomed before),
+  // regardless of whether the map is frozen. Frozen = non-interactive only.
+  const hasSavedView = props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
 
-  if (frozen) {
-    // Restore saved view state — exact zoom + center from when the user froze the frame.
-    mapInstance = new maplibregl.Map({
-      container: mapContainer.value,
-      style,
-      center: props.styleConfig.map_center as [number, number],
-      zoom: props.styleConfig.map_zoom as number,
-      attributionControl: false,
-      interactive: false,
-    })
-  } else {
-    mapInstance = new maplibregl.Map({
-      container: mapContainer.value,
-      style,
-      bounds: props.map.bbox,
-      fitBoundsOptions: {
-        padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
-      },
-      attributionControl: false,
-      interactive: true,
-    })
+  mapInstance = new maplibregl.Map({
+    container: mapContainer.value,
+    style,
+    ...(hasSavedView
+      ? { center: props.styleConfig.map_center as [number, number], zoom: props.styleConfig.map_zoom as number }
+      : { bounds: props.map.bbox, fitBoundsOptions: { padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)) } }),
+    attributionControl: false,
+    interactive: props.editable !== false && !(props.styleConfig.map_frozen),
+  })
+
+  // Debounced view-change emitter so pan/zoom is auto-saved without flooding saves
+  let viewSaveTimer: ReturnType<typeof setTimeout> | null = null
+  function scheduleViewSave() {
+    if (!mapInstance || !props.editable) return
+    if (viewSaveTimer) clearTimeout(viewSaveTimer)
+    viewSaveTimer = setTimeout(() => {
+      if (!mapInstance) return
+      const z = mapInstance.getZoom()
+      const c = mapInstance.getCenter()
+      emit('view-changed', { map_zoom: z, map_center: [c.lng, c.lat] })
+    }, 800)
   }
 
   mapInstance.on('load', () => {
@@ -1246,13 +1386,21 @@ onMounted(async () => {
     mapReady.value = true
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
+    recomputeOverlays()
   })
 
   mapInstance.on('zoom', () => {
     liveZoom.value = mapInstance?.getZoom()
+    recomputeOverlays()
   })
 
-  resizeObserver = new ResizeObserver(() => mapInstance?.resize())
+  mapInstance.on('move', recomputeOverlays)
+  mapInstance.on('moveend', scheduleViewSave)
+
+  resizeObserver = new ResizeObserver(() => {
+    mapInstance?.resize()
+    recomputeOverlays()
+  })
   resizeObserver.observe(mapContainer.value)
 })
 
@@ -1264,11 +1412,16 @@ onMounted(async () => {
 
 const SMOOTH_PRESETS = [
   null,                        // 0 — Off
-  { radius: 3,  passes: 2 },  // 1 — Light
-  { radius: 6,  passes: 3 },  // 2 — Gentle
-  { radius: 10, passes: 4 },  // 3 — Medium
-  { radius: 16, passes: 5 },  // 4 — Strong
-  { radius: 25, passes: 6 },  // 5 — Max
+  { radius: 2,  passes: 1 },  // 1
+  { radius: 3,  passes: 2 },  // 2
+  { radius: 4,  passes: 2 },  // 3
+  { radius: 6,  passes: 3 },  // 4
+  { radius: 8,  passes: 3 },  // 5
+  { radius: 10, passes: 4 },  // 6
+  { radius: 13, passes: 4 },  // 7
+  { radius: 16, passes: 5 },  // 8
+  { radius: 20, passes: 5 },  // 9
+  { radius: 25, passes: 6 },  // 10 — Max
 ]
 
 function smoothLine(coords: number[][], strength: number): number[][] {
@@ -1319,8 +1472,16 @@ function smoothGeojson(geojson: GeoJSON.FeatureCollection, strength: number): Ge
 function populateRouteSource() {
   if (!mapInstance) return
   const raw = props.map.geojson as GeoJSON.FeatureCollection
+  const cropStart = props.styleConfig.route_crop_start ?? 0
+  const cropEnd = props.styleConfig.route_crop_end ?? 100
+  const deletedRanges = props.styleConfig.route_deleted_ranges ?? []
+  const hasModification = cropStart > 0 || cropEnd < 100 || deletedRanges.length > 0
+  const processed = hasModification
+    ? excludeRangesFromRoute(raw, cropStart, cropEnd, deletedRanges)
+    : raw
+
   const iterations = props.styleConfig.route_smooth ?? 0
-  const geojson = smoothGeojson(raw, iterations)
+  const geojson = smoothGeojson(processed, iterations)
   const src = mapInstance.getSource('route') as maplibregl.GeoJSONSource | undefined
   if (src) src.setData(geojson)
   else mapInstance.addSource('route', { type: 'geojson', data: geojson })
@@ -1348,71 +1509,25 @@ function populateSegmentSources() {
   if (handleSrc) handleSrc.setData({ type: 'FeatureCollection', features: handleFeatures })
 }
 
-// ── Text-label start / finish markers ────────────────────────────────────────
-// Renders themed "START" / "FINISH" text pills as MapLibre DOM overlays so they
-// appear correctly in both the browser preview and Puppeteer screenshots.
-// Colors and font are pulled from the live styleConfig + typography computed
-// so they always stay in sync with the poster's theme.
+// ── Start / finish pin markers ────────────────────────────────────────────────
+// The dot sits fixed at the route endpoint. Drag the SVG text label instead.
+// The leader line stretches from the fixed dot to wherever the label is placed.
 
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-// diagonal pin: dot sits at the anchor corner; line + label extend inward
-function makePinEl(label: string, direction: 'left' | 'right'): HTMLElement {
-  const color = props.styleConfig.label_text_color || '#1C1917'
-  const font  = typography.value.statsFont
-  const W = 60, H = 28
-  // dot is at the anchor corner (bottom-right for 'left', bottom-left for 'right')
-  const dotX = direction === 'left' ? W : 0
-  const dotY = H
-  const lineEndX = direction === 'left' ? 5 : W - 5
-  const lineEndY = 7
-
+function makePinDotEl(): HTMLElement {
+  const color   = props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917'
+  const opacity = props.styleConfig.pin_opacity ?? 0.9
+  const size    = Math.max(10, (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
-  el.style.cssText = `position:relative;width:${W}px;height:${H}px;pointer-events:none;`
-  el.innerHTML = `
-    <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;overflow:visible;">
-      <line x1="${dotX}" y1="${dotY}" x2="${lineEndX}" y2="${lineEndY}"
-            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
-      <circle cx="${dotX}" cy="${dotY}" r="2" fill="${color}"/>
-    </svg>
-    <span style="
-      position:absolute;top:0;${direction === 'left' ? 'left:0' : 'right:0'};
-      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
-      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
-    ">${label}</span>
-  `
-  return el
-}
-
-// loop pin: dot at bottom-center; two diagonal lines fan out to START (left) and FINISH (right)
-function makeLoopPinEl(): HTMLElement {
-  const color = props.styleConfig.label_text_color || '#1C1917'
-  const font  = typography.value.statsFont
-  const W = 112, H = 28
-  const dotX = W / 2, dotY = H
-
-  const el = document.createElement('div')
-  el.style.cssText = `position:relative;width:${W}px;height:${H}px;pointer-events:none;`
-  el.innerHTML = `
-    <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;overflow:visible;">
-      <line x1="${dotX}" y1="${dotY}" x2="7" y2="7"
-            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
-      <line x1="${dotX}" y1="${dotY}" x2="${W - 7}" y2="7"
-            stroke="${color}" stroke-width="1" stroke-opacity="0.5"/>
-      <circle cx="${dotX}" cy="${dotY}" r="2" fill="${color}"/>
-    </svg>
-    <span style="
-      position:absolute;top:0;left:0;
-      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
-      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
-    ">Start</span>
-    <span style="
-      position:absolute;top:0;right:0;
-      font-family:${font};font-size:7px;font-weight:600;letter-spacing:0.13em;
-      text-transform:uppercase;color:${color};white-space:nowrap;line-height:1;
-    ">Finish</span>
-  `
+  el.style.cssText = [
+    `width:${size}px`, `height:${size}px`, 'border-radius:50%',
+    `background:${color}`, `opacity:${opacity}`,
+    `border:${Math.max(2, size * 0.18)}px solid rgba(255,255,255,0.85)`,
+    'box-shadow:0 1px 6px rgba(0,0,0,0.4)',
+    'cursor:default', 'pointer-events:none',
+  ].join(';')
   return el
 }
 
@@ -1422,46 +1537,24 @@ function placePinMarkers() {
   startMarker?.remove(); startMarker = null
   finishMarker?.remove(); finishMarker = null
 
-  const features = (props.map.geojson as GeoJSON.FeatureCollection).features
-  let startCoord: number[] | null = null
-  let endCoord: number[] | null = null
+  const { start: routeStart, finish: routeFinish } = getRouteEndpoints(props.map.geojson as GeoJSON.FeatureCollection)
 
-  for (const feature of features) {
-    const g = feature.geometry
-    if (g.type === 'LineString' && g.coordinates.length > 0) {
-      if (!startCoord) startCoord = g.coordinates[0]
-      endCoord = g.coordinates[g.coordinates.length - 1]
-    } else if (g.type === 'MultiLineString') {
-      for (const line of g.coordinates) {
-        if (line.length > 0) {
-          if (!startCoord) startCoord = line[0]
-          endCoord = line[line.length - 1]
-        }
-      }
-    }
-  }
+  const startCoord: [number, number] | null = routeStart
+  const endCoord:   [number, number] | null = routeFinish
 
-  // ~330 m threshold — catches marathons/loops where start and finish are close
-  const isLoop = !!(startCoord && endCoord &&
-    Math.abs(startCoord[0] - endCoord[0]) < 0.003 &&
-    Math.abs(startCoord[1] - endCoord[1]) < 0.003)
-
-  if (isLoop && startCoord) {
-    startMarker = new maplibregl.Marker({ element: makeLoopPinEl(), anchor: 'bottom' })
-      .setLngLat(startCoord as [number, number])
+  if (startCoord && props.styleConfig.show_start_pin !== false) {
+    startMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+      .setLngLat(startCoord)
       .addTo(mapInstance)
-  } else {
-    if (startCoord && props.styleConfig.show_start_pin !== false) {
-      startMarker = new maplibregl.Marker({ element: makePinEl('Start', 'left'), anchor: 'bottom-right' })
-        .setLngLat(startCoord as [number, number])
-        .addTo(mapInstance)
-    }
-    if (endCoord && props.styleConfig.show_finish_pin !== false) {
-      finishMarker = new maplibregl.Marker({ element: makePinEl('Finish', 'right'), anchor: 'bottom-left' })
-        .setLngLat(endCoord as [number, number])
-        .addTo(mapInstance)
-    }
   }
+
+  if (endCoord && props.styleConfig.show_finish_pin !== false) {
+    finishMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+      .setLngLat(endCoord)
+      .addTo(mapInstance)
+  }
+
+  nextTick(recomputeOverlays)
 }
 
 function apply3DTerrain() {
@@ -1484,14 +1577,16 @@ function setPaintBackground() {
 // ── interactjs drag for text overlays ────────────────────────────────────────
 
 async function initOverlayDrag() {
-  if (!props.editable || !mapContainer.value) return
+  if (!props.editable || !posterCanvasEl.value) return
   // Clean up previous instances
   for (const inst of interactInstances) inst.unset()
   interactInstances = []
 
   const { default: interact } = await import('interactjs')
 
-  const container = mapContainer.value
+  // Use the poster canvas as the bounds reference so overlays can be dragged
+  // over the header and footer bands, not just the map area.
+  const container = posterCanvasEl.value
   const overlays = container.querySelectorAll<HTMLElement>('.text-overlay.is-editable')
   overlays.forEach(el => {
     const inst = interact(el).draggable({
@@ -1516,6 +1611,7 @@ async function initOverlayDrag() {
           const x = Math.round(parseFloat(el.style.left) || 0)
           const y = Math.round(parseFloat(el.style.top)  || 0)
           emit('overlay-moved', { id, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
+          scheduleDeselect()
         },
       },
     })
@@ -1563,6 +1659,7 @@ watch(
         }
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
+        nextTick(recomputeOverlays)
       })
       return
     }
@@ -1584,9 +1681,10 @@ watch(
           mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
           mapInstance.setPaintProperty(lineId, 'line-width', width)
           mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
-          mapInstance.setPaintProperty(casingId, 'line-width', width + 3)
+          mapInstance.setPaintProperty(casingId, 'line-width', width + (newConfig.segment_casing_width ?? 3))
         }
       }
+      nextTick(recomputeOverlays)
     }
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
@@ -1634,17 +1732,28 @@ watch(
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
     }
 
-    // Re-place pin markers when visibility, colors, or font changes
+    // Re-place pin markers when visibility or dot appearance changes
     if (
       newConfig.show_start_pin    !== oldConfig?.show_start_pin    ||
       newConfig.show_finish_pin   !== oldConfig?.show_finish_pin   ||
+      newConfig.pin_color         !== oldConfig?.pin_color         ||
+      newConfig.pin_opacity       !== oldConfig?.pin_opacity       ||
       newConfig.route_color       !== oldConfig?.route_color       ||
-      newConfig.label_bg_color    !== oldConfig?.label_bg_color    ||
-      newConfig.label_text_color  !== oldConfig?.label_text_color  ||
-      newConfig.font_family       !== oldConfig?.font_family       ||
-      newConfig.body_font_family  !== oldConfig?.body_font_family
+      newConfig.label_text_color  !== oldConfig?.label_text_color
     ) {
       placePinMarkers()
+    }
+
+    // Recompute SVG overlay when label-affecting config changes
+    if (
+      newConfig.trail_label_style   !== oldConfig?.trail_label_style   ||
+      newConfig.start_pin_label     !== oldConfig?.start_pin_label     ||
+      newConfig.finish_pin_label    !== oldConfig?.finish_pin_label    ||
+      newConfig.pin_font_family     !== oldConfig?.pin_font_family     ||
+      JSON.stringify(newConfig.start_label_lnglat)  !== JSON.stringify(oldConfig?.start_label_lnglat)  ||
+      JSON.stringify(newConfig.finish_label_lnglat) !== JSON.stringify(oldConfig?.finish_label_lnglat)
+    ) {
+      nextTick(recomputeOverlays)
     }
   },
   { deep: true },
@@ -1653,6 +1762,125 @@ watch(
 watch(
   () => props.styleConfig.route_smooth,
   () => { if (mapInstance && mapReady.value) populateRouteSource() },
+)
+
+watch(
+  [() => props.styleConfig.route_crop_start, () => props.styleConfig.route_crop_end],
+  () => { if (mapInstance && mapReady.value) populateRouteSource() },
+)
+
+watch(
+  () => props.styleConfig.route_deleted_ranges,
+  (newRanges, oldRanges) => {
+    if (!mapInstance || !mapReady.value) return
+    const isGradient = (props.styleConfig.route_color_mode ?? 'solid') === 'gradient'
+    const hadRanges = (oldRanges ?? []).length > 0
+    const hasRanges = (newRanges ?? []).length > 0
+    // In gradient mode, crossing the empty↔non-empty boundary changes both the
+    // source lineMetrics flag and the layer paint (line-gradient vs line-color).
+    // A full style reload is required — same path as FULL_RELOAD_KEYS.
+    if (isGradient && hadRanges !== hasRanges) {
+      mapReady.value = false
+      const newStyle = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
+      mapInstance.setStyle(newStyle)
+      mapInstance.once('styledata', () => {
+        populateRouteSource()
+        populateSegmentSources()
+        placePinMarkers()
+        apply3DTerrain()
+        if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+          mapInstance!.jumpTo({ zoom: props.styleConfig.map_zoom, center: props.styleConfig.map_center as [number, number] })
+        }
+        mapReady.value = true
+        if (props.editable) nextTick(() => initOverlayDrag())
+        nextTick(recomputeOverlays)
+      })
+      return
+    }
+    populateRouteSource()
+  },
+  { deep: true },
+)
+
+// ── Plot mode: crosshair + ghost marker + click handler ───────────────────────
+
+function nearestRouteCoord(lngLat: maplibregl.LngLat): [number, number] {
+  let bestIdx = 0, bestDist = Infinity
+  for (let i = 0; i < plotRouteCoords.length; i++) {
+    const dx = plotRouteCoords[i][0] - lngLat.lng
+    const dy = plotRouteCoords[i][1] - lngLat.lat
+    const d = dx * dx + dy * dy
+    if (d < bestDist) { bestDist = d; bestIdx = i }
+  }
+  return [plotRouteCoords[bestIdx][0], plotRouteCoords[bestIdx][1]]
+}
+
+function onPlotMouseMove(e: maplibregl.MapMouseEvent) {
+  if (!plotGhostMarker || plotRouteCoords.length === 0) return
+  cancelAnimationFrame(plotAnimFrame)
+  plotAnimFrame = requestAnimationFrame(() => {
+    const [lng, lat] = nearestRouteCoord(e.lngLat)
+    plotGhostMarker!.setLngLat([lng, lat])
+  })
+}
+
+function onPlotClick(e: maplibregl.MapMouseEvent) {
+  if (!props.plotMode || !mapInstance) return
+  const pct = findRoutePercent([e.lngLat.lng, e.lngLat.lat], props.map.geojson as GeoJSON.FeatureCollection)
+  emit('segment-plotted', { segId: props.plotMode.segId, field: props.plotMode.field, pct })
+}
+
+function onPlotKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') emit('plot-cancelled')
+}
+
+watch(
+  () => props.plotMode,
+  (mode, prevMode) => {
+    if (!mapInstance) return
+
+    // Tear down previous plot mode
+    if (prevMode) {
+      mapInstance.getCanvas().style.cursor = ''
+      mapInstance.off('mousemove', onPlotMouseMove)
+      mapInstance.off('click', onPlotClick)
+      document.removeEventListener('keydown', onPlotKeydown)
+      cancelAnimationFrame(plotAnimFrame)
+      if (plotGhostMarker) { plotGhostMarker.remove(); plotGhostMarker = null }
+    }
+
+    if (!mode) return
+
+    // Pre-compute route coords for fast nearest-point lookup
+    plotRouteCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+    if (plotRouteCoords.length === 0) return
+
+    // Position ghost marker at current segment position
+    const pct = mode.field === 'start'
+      ? (mode.segId === 'route-crop'
+          ? (props.styleConfig.route_crop_start ?? 0)
+          : (props.styleConfig.trail_segments ?? []).find(s => s.id === mode.segId)?.section_start ?? 0)
+      : (mode.segId === 'route-crop'
+          ? (props.styleConfig.route_crop_end ?? 100)
+          : (props.styleConfig.trail_segments ?? []).find(s => s.id === mode.segId)?.section_end ?? 100)
+    const idx = Math.round((pct / 100) * Math.max(plotRouteCoords.length - 1, 0))
+    const initCoord = plotRouteCoords[Math.min(idx, plotRouteCoords.length - 1)]
+
+    // Create ghost marker element
+    const isDeleteMode = mode.segId === 'route-delete-pending'
+    const isStart = mode.field === 'start'
+    const markerColor = isDeleteMode ? '#EA580C' : (isStart ? '#2D6A4F' : '#C1121F')
+    const el = document.createElement('div')
+    el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${markerColor};border:3px solid white;box-shadow:0 0 0 2px ${markerColor},0 2px 6px rgba(0,0,0,0.4);pointer-events:none;`
+    plotGhostMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([initCoord[0], initCoord[1]])
+      .addTo(mapInstance)
+
+    mapInstance.getCanvas().style.cursor = 'crosshair'
+    mapInstance.on('mousemove', onPlotMouseMove)
+    mapInstance.on('click', onPlotClick)
+    document.addEventListener('keydown', onPlotKeydown)
+  },
 )
 
 watch(
@@ -1669,7 +1897,10 @@ watch(
 
 // ── Freeze / unfreeze watcher ─────────────────────────────────────────────────
 // Enables / disables interactive pan+zoom when map_frozen changes externally
-// (e.g. from StylePanel or restored from DB).
+// (e.g. from StylePanel or restored from DB on page load).
+// Also jumps to saved position when frozen state is restored from DB — the map
+// may have initialized with bounds before the DB record loaded, so we need
+// to explicitly reposition it here.
 
 watch(
   () => props.styleConfig.map_frozen,
@@ -1681,6 +1912,12 @@ watch(
       mapInstance.doubleClickZoom.disable()
       mapInstance.touchZoomRotate.disable()
       mapInstance.keyboard.disable()
+      if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+        mapInstance.jumpTo({
+          zoom: props.styleConfig.map_zoom,
+          center: props.styleConfig.map_center as [number, number],
+        })
+      }
     } else {
       mapInstance.dragPan.enable()
       mapInstance.scrollZoom.enable()
@@ -1736,6 +1973,9 @@ onUnmounted(() => {
   resizeObserver?.disconnect()
   startMarker?.remove()
   finishMarker?.remove()
+  plotGhostMarker?.remove()
+  document.removeEventListener('keydown', onPlotKeydown)
+  cancelAnimationFrame(plotAnimFrame)
   mapInstance?.remove()
   mapInstance = null
 })
@@ -1791,21 +2031,45 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 8;
+  z-index: 25;
 }
 
 .text-overlay.is-editable {
   pointer-events: auto !important;
   cursor: move !important;
-  position: relative; /* needed for child absolute positioning */
+  position: relative;
+  border-radius: 2px;
+  outline: 1.5px dashed transparent;
+  transition: outline-color 0.2s;
 }
 
 .text-overlay.is-editable:hover {
-  outline: 1.5px dashed rgba(45, 106, 79, 0.4);
-  border-radius: 2px;
+  outline-color: rgba(45, 106, 79, 0.35);
 }
 
-/* Delete button — top-right corner of selected overlay */
+.text-overlay.is-editable.is-selected {
+  outline-color: rgba(45, 106, 79, 0.65);
+}
+
+/* Delete + resize buttons: hidden by default, revealed on hover/selected */
+.overlay-delete-btn,
+.overlay-resize-handle {
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none !important;
+  transition: opacity 0.18s, transform 0.18s;
+}
+
+.text-overlay.is-editable:hover .overlay-delete-btn,
+.text-overlay.is-editable:hover .overlay-resize-handle,
+.text-overlay.is-editable.is-selected .overlay-delete-btn,
+.text-overlay.is-editable.is-selected .overlay-resize-handle {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto !important;
+}
+
+/* Delete button — top-right corner */
 .overlay-delete-btn {
   position: absolute;
   top: -9px;
@@ -1820,17 +2084,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  pointer-events: auto !important;
   touch-action: none;
   z-index: 10;
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 .overlay-delete-btn:hover {
   background: rgb(220, 38, 38);
-  transform: scale(1.1);
+  transform: scale(1.1) !important;
 }
 
-/* Resize handle — bottom-right corner of selected overlay */
+/* Resize handle — bottom-right corner */
 .overlay-resize-handle {
   position: absolute;
   bottom: -9px;
@@ -1844,7 +2107,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: se-resize;
-  pointer-events: auto !important;
   touch-action: none;
   z-index: 10;
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
@@ -1874,5 +2136,65 @@ onUnmounted(() => {
 
 .logo-map {
   pointer-events: none;
+}
+
+/* ── Top-right poster controls group (undo/redo + zoom lock) ───────────────── */
+.poster-controls {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+}
+.poster-controls.map-hovered {
+  opacity: 0.9;
+}
+.poster-controls:hover {
+  opacity: 1;
+}
+
+/* Shared pill for undo/redo buttons */
+.control-pill {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  transition: background 0.12s, color 0.12s;
+}
+.control-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  color: #1C1917;
+}
+.control-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.control-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 }
 </style>

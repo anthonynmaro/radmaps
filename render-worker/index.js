@@ -212,7 +212,11 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
   const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token))
   const cropStart = style_config.route_crop_start ?? 0
   const cropEnd = style_config.route_crop_end ?? 100
-  const croppedGeojson = (cropStart > 0 || cropEnd < 100) ? sliceRouteByPct(geojson, cropStart, cropEnd) : geojson
+  const deletedRanges = style_config.route_deleted_ranges ?? []
+  const hasModification = cropStart > 0 || cropEnd < 100 || deletedRanges.length > 0
+  const croppedGeojson = hasModification
+    ? excludeRangesFromRoute(geojson, cropStart, cropEnd, deletedRanges)
+    : geojson
   const geojsonStr = JSON.stringify(smoothGeojson(croppedGeojson, style_config.route_smooth ?? 0))
   const padding = Math.round(Math.min(width, height) * (style_config.padding_factor ?? 0.15))
 
@@ -399,11 +403,12 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       const slicedStr = JSON.stringify(sliced)
       const w = s.width ?? style_config.route_width ?? 3
       const op = s.opacity ?? 0.9
-      const dashArray = s.dash ? '[4,3]' : 'undefined'
+      const casingColor = style_config.segment_casing_color ?? '#FFFFFF'
+      const casingW = w + (style_config.segment_casing_width ?? 3)
       return `
       map.addSource('trail-seg-${s.id}', { type: 'geojson', data: ${slicedStr} });
-      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${style_config.background_color ?? '#F7F4EF'}', 'line-width': ${w + 3}, 'line-opacity': ${op} } });
-      map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round'${s.dash ? ", 'line-dasharray': [4,3]" : ''} }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op} } });`
+      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${casingColor}', 'line-width': ${casingW}, 'line-opacity': ${op} } });
+      map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op}${s.dash ? ", 'line-dasharray': [4,3]" : ''} } });`
     }).join('')
   }
 
@@ -822,6 +827,63 @@ function sliceRouteByPct(geojson, startPct, endPct) {
   const end = Math.ceil(allCoords.length * Math.min(100, endPct) / 100)
   const sliced = allCoords.slice(start, Math.max(end, start + 2))
   return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: sliced } }] }
+}
+
+// Exclude deleted ranges from route (mirrors utils/trail.ts excludeRangesFromRoute)
+function excludeRangesFromRoute(geojson, cropStart, cropEnd, deletedRanges) {
+  const allCoords = []
+  for (const f of geojson.features) {
+    const g = f.geometry
+    if (g.type === 'LineString') allCoords.push(...g.coordinates)
+    else if (g.type === 'MultiLineString') for (const line of g.coordinates) allCoords.push(...line)
+  }
+  if (!allCoords.length) return { type: 'FeatureCollection', features: [] }
+
+  const total = allCoords.length
+  const cropStartIdx = Math.floor(total * Math.max(0, cropStart) / 100)
+  const cropEndIdx = Math.ceil(total * Math.min(100, cropEnd) / 100)
+
+  let blocked = (deletedRanges ?? []).map(r => [
+    Math.max(cropStartIdx, Math.floor(total * r.start / 100)),
+    Math.min(cropEndIdx, Math.ceil(total * r.end / 100)),
+  ]).filter(([s, e]) => e > s)
+  blocked.sort((a, b) => a[0] - b[0])
+
+  const merged = []
+  for (const [s, e] of blocked) {
+    if (merged.length && s <= merged[merged.length - 1][1]) {
+      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e)
+    } else {
+      merged.push([s, e])
+    }
+  }
+
+  const lineCoords = []
+  let cursor = cropStartIdx
+  for (const [blockStart, blockEnd] of merged) {
+    if (blockStart > cursor) {
+      const coords = allCoords.slice(cursor, blockStart)
+      if (coords.length >= 2) lineCoords.push(coords)
+    }
+    cursor = blockEnd
+  }
+  if (cursor < cropEndIdx) {
+    const coords = allCoords.slice(cursor, cropEndIdx)
+    if (coords.length >= 2) lineCoords.push(coords)
+  }
+
+  if (!lineCoords.length) return { type: 'FeatureCollection', features: [] }
+
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: {},
+      geometry: lineCoords.length === 1
+        ? { type: 'LineString', coordinates: lineCoords[0] }
+        : { type: 'MultiLineString', coordinates: lineCoords },
+    }]
+  }
 }
 
 // ─── Style builder for the worker (mirrors utils/mapStyle.ts) ────────────────

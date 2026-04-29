@@ -1,5 +1,4 @@
 <template>
-  <!-- Slide-up product selector panel -->
   <div class="product-selector" :class="{ 'is-expanded': isExpanded }">
 
     <!-- Toggle handle -->
@@ -8,7 +7,7 @@
       class="w-full flex items-center justify-between px-5 py-3 bg-white border-b border-stone-200 hover:bg-stone-50 transition-colors rounded-t-2xl"
     >
       <div class="flex items-center gap-3">
-        <span class="text-lg">{{ productTypeIcon }}</span>
+        <span class="text-lg">{{ selectedTypeIcon }}</span>
         <div class="text-left">
           <p class="text-sm font-semibold text-stone-900">
             {{ selectedProduct?.name ?? 'Select a Product' }}
@@ -31,77 +30,74 @@
     <!-- Expanded panel -->
     <div v-show="isExpanded" class="px-5 py-4 space-y-5 bg-white max-h-[60vh] overflow-y-auto">
 
-      <!-- Product type tabs -->
-      <div class="flex gap-2">
-        <button
-          v-for="ptype in productTypes"
-          :key="ptype.id"
-          @click="selectType(ptype.id)"
-          :class="[
-            'flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all text-xs font-medium',
-            selectedType === ptype.id
-              ? 'border-[#2D6A4F] bg-[#2D6A4F]/5 text-[#2D6A4F]'
-              : 'border-stone-200 text-stone-500 hover:border-stone-300',
-          ]"
-        >
-          <span class="text-base">{{ ptype.icon }}</span>
-          {{ ptype.label }}
-        </button>
-      </div>
-
-      <!-- Size grid (non-digital) -->
-      <div v-if="selectedType !== 'digital'" class="space-y-2">
-        <p class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Size</p>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <!-- Size grid (3×2) -->
+      <div>
+        <p class="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Size</p>
+        <div class="grid grid-cols-3 gap-2">
           <button
-            v-for="product in availableProducts"
-            :key="product.product_uid"
-            @click="selectProduct(product)"
+            v-for="size in SIZES"
+            :key="size.label"
+            @click="selectSize(size.label)"
             :class="[
-              'relative p-3 rounded-xl border-2 transition-all text-left',
-              selectedProduct?.product_uid === product.product_uid
+              'flex flex-col items-center py-3 px-2 rounded-xl border-2 transition-all',
+              selectedSizeLabel === size.label
                 ? 'border-[#2D6A4F] bg-[#2D6A4F]/5'
                 : 'border-stone-200 hover:border-stone-300',
             ]"
           >
-            <p class="font-semibold text-stone-900 text-sm">{{ product.size_label }}</p>
-            <p class="text-sm font-bold text-[#2D6A4F] mt-1">{{ formatPrice(product.price_cents) }}</p>
-            <!-- Aspect ratio changed indicator -->
-            <span
-              v-if="previousAspect && Math.abs(product.aspect_ratio - previousAspect) > 0.01"
-              class="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400"
-              title="Different aspect ratio — map will reframe"
+            <!-- Portrait rect visual -->
+            <div
+              :class="[
+                'w-5 rounded-sm mb-1.5 border-2',
+                selectedSizeLabel === size.label ? 'border-[#2D6A4F]' : 'border-stone-300',
+              ]"
+              style="height: 30px;"
             />
+            <span
+              :class="[
+                'text-xs font-semibold',
+                selectedSizeLabel === size.label ? 'text-[#2D6A4F]' : 'text-stone-700',
+              ]"
+            >
+              {{ size.label }}
+            </span>
           </button>
         </div>
       </div>
 
-      <!-- Digital info -->
+      <!-- Material/finish picker -->
+      <div>
+        <p class="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Finish</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="type in availableMaterials"
+            :key="type"
+            @click="selectType(type)"
+            :class="[
+              'flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 transition-all text-sm font-medium',
+              selectedType === type
+                ? 'border-[#2D6A4F] bg-[#2D6A4F]/5 text-[#2D6A4F]'
+                : 'border-stone-200 text-stone-600 hover:border-stone-300',
+            ]"
+          >
+            <span>{{ TYPE_META[type].icon }}</span>
+            {{ TYPE_META[type].label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Digital info card -->
       <div v-if="selectedType === 'digital'" class="bg-sky-50 border border-sky-200 rounded-xl p-4">
         <p class="font-semibold text-sky-900 text-sm mb-1">Digital Download</p>
         <p class="text-xs text-sky-700 mb-3">
-          High-resolution file (7200×10800px) ready for sharing or local printing at any size.
+          High-resolution file (7200×10800 px) ready for sharing or local printing at any size.
         </p>
         <p class="text-xl font-bold text-sky-900" style="font-family:'Space Grotesk',sans-serif">
           {{ formatPrice(999) }}
         </p>
       </div>
 
-      <!-- Framing hint when aspect ratio changes -->
-      <div
-        v-if="aspectChanged && selectedType !== 'digital'"
-        class="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
-      >
-        <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-        <p class="text-xs text-amber-800">
-          This size has a different aspect ratio. The map has been reframed — pan and zoom on the
-          preview to adjust how your trail is positioned before proceeding.
-        </p>
-      </div>
-
-      <!-- Action button -->
+      <!-- CTA -->
       <button
         v-if="selectedProduct"
         @click="confirmSelection"
@@ -118,100 +114,89 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { PRODUCTS, getProductsByType, formatPrice } from '~/utils/products'
+import { ref, computed } from 'vue'
+import { SIZES, PRODUCTS, getMaterialsForSize, getProductBySize, formatPrice } from '~/utils/products'
 import type { PrintProduct, ProductFraming } from '~/types'
 
+const TYPE_META: Record<string, { label: string; icon: string }> = {
+  poster:       { label: 'Poster',       icon: '📋' },
+  wall_hanging: { label: 'Wall Hanging', icon: '🪵' },
+  canvas:       { label: 'Canvas',       icon: '🎨' },
+  framed:       { label: 'Framed',       icon: '🖼️' },
+  digital:      { label: 'Digital',      icon: '💾' },
+}
+
 const props = defineProps<{
-  /** The currently selected product (if any) — for restoring state */
   modelValue?: PrintProduct | null
-  /** Current map center for framing state */
   mapCenter?: [number, number]
-  /** Current map zoom for framing state */
   mapZoom?: number
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [product: PrintProduct]
-  /** Emitted when product changes, carrying the new aspect ratio for the map preview */
   'aspect-change': [payload: { product: PrintProduct; previousAspect: number | null }]
-  /** Emitted when user confirms their selection and is ready to proceed to checkout */
   'confirm': [payload: { product: PrintProduct; framing: ProductFraming }]
 }>()
 
 const isExpanded = ref(false)
 
-const productTypes = [
-  { id: 'poster' as const, label: 'Poster', icon: '📋' },
-  { id: 'framed' as const, label: 'Framed', icon: '🖼️' },
-  { id: 'canvas' as const, label: 'Canvas', icon: '🎨' },
-  { id: 'digital' as const, label: 'Digital', icon: '💾' },
-]
+const selectedSizeLabel = ref<string>(
+  props.modelValue?.size_label && props.modelValue.size_label !== 'Digital'
+    ? props.modelValue.size_label
+    : SIZES[2].label  // default to 16×24"
+)
 
-const selectedType = ref<'poster' | 'framed' | 'canvas' | 'digital'>(
+const selectedType = ref<PrintProduct['type']>(
   props.modelValue?.type ?? 'poster'
 )
-const selectedProduct = ref<PrintProduct | null>(props.modelValue ?? null)
-const previousAspect = ref<number | null>(null)
 
-const availableProducts = computed(() => {
-  if (selectedType.value === 'digital') return []
-  return getProductsByType(selectedType.value)
+const availableMaterials = computed(() => getMaterialsForSize(selectedSizeLabel.value))
+
+const selectedProduct = computed<PrintProduct | null>(() => {
+  const product = getProductBySize(selectedSizeLabel.value, selectedType.value)
+  return product ?? null
 })
 
-const productTypeIcon = computed(() => {
-  const found = productTypes.find(t => t.id === selectedType.value)
-  return found?.icon ?? '📋'
-})
+const selectedTypeIcon = computed(() => TYPE_META[selectedType.value]?.icon ?? '📋')
 
-const aspectChanged = computed(() => {
-  if (!selectedProduct.value || !previousAspect.value) return false
-  return Math.abs(selectedProduct.value.aspect_ratio - previousAspect.value) > 0.01
-})
-
-function selectType(type: typeof selectedType.value) {
-  selectedType.value = type
-  if (type === 'digital') {
-    const dp = PRODUCTS.find(p => p.type === 'digital')
-    if (dp) selectProduct(dp)
-    return
+function selectSize(label: string) {
+  selectedSizeLabel.value = label
+  const available = getMaterialsForSize(label)
+  if (!available.includes(selectedType.value)) {
+    selectedType.value = available[0] ?? 'poster'
   }
-  const products = getProductsByType(type)
-  if (products.length > 0) {
-    // Try to match the current size, otherwise pick the first
-    const matchingSize = selectedProduct.value
-      ? products.find(p => p.size_label === selectedProduct.value!.size_label)
-      : null
-    selectProduct(matchingSize ?? products[0])
-  }
+  emitCurrentProduct()
 }
 
-function selectProduct(product: PrintProduct) {
-  const prevAspect = selectedProduct.value?.aspect_ratio ?? null
-  previousAspect.value = prevAspect
-  selectedProduct.value = product
+function selectType(type: PrintProduct['type']) {
+  selectedType.value = type
+  emitCurrentProduct()
+}
 
+function emitCurrentProduct() {
+  const product = selectedProduct.value
+  if (!product) return
   emit('update:modelValue', product)
-  emit('aspect-change', { product, previousAspect: prevAspect })
+  emit('aspect-change', { product, previousAspect: 2 / 3 })
 }
 
 function confirmSelection() {
-  if (!selectedProduct.value) return
+  const product = selectedProduct.value
+  if (!product) return
   const framing: ProductFraming = {
-    product_uid: selectedProduct.value.product_uid,
+    product_uid: product.product_uid,
     center: props.mapCenter ?? [0, 0],
     zoom: props.mapZoom ?? 10,
     bearing: 0,
     pitch: 0,
   }
-  emit('confirm', { product: selectedProduct.value, framing })
+  emit('confirm', { product, framing })
   isExpanded.value = false
 }
 
-// Auto-select first poster on mount if nothing selected
-if (!selectedProduct.value) {
-  const posters = getProductsByType('poster')
-  if (posters.length > 0) selectProduct(posters[0])
+// Auto-select on mount — emit so checkout knows which product is active
+if (!props.modelValue) {
+  emitCurrentProduct()
 }
 </script>
 

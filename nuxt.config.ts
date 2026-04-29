@@ -62,6 +62,7 @@ export default defineNuxtConfig({
   // Vite config
   vite: {
     optimizeDeps: {
+      include: ['cookie'],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
       // exclude it so it's served as-is and initialises correctly in the browser.

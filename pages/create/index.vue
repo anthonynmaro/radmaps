@@ -1106,7 +1106,8 @@ const parseFile = async (file: File) => {
     parsedPointCount.value = pointCount
     parsedSegments.value = extractNamedTrackSegments(geojson)
     if (!mapTitle.value) {
-      mapTitle.value = file.name.replace(/\.(gpx|geojson|json)$/i, '').replace(/[-_]/g, ' ')
+      const gpxTrackName = (geojson.features[0]?.properties?.name as string | undefined)?.trim()
+      mapTitle.value = gpxTrackName || file.name.replace(/\.(gpx|geojson|json)$/i, '').replace(/[-_]/g, ' ')
     }
   } catch (err) {
     parseError.value = err instanceof Error ? err.message : 'Failed to parse file'

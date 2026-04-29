@@ -20,10 +20,10 @@
       <!-- Order Details Card -->
       <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
 
-        <!-- Session ID -->
-        <div v-if="sessionId">
+        <!-- Order ID -->
+        <div v-if="orderId">
           <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Order ID</p>
-          <p class="text-sm font-mono text-emerald-900 break-all">{{ sessionId }}</p>
+          <p class="text-sm font-mono text-emerald-900 break-all">{{ orderId }}</p>
         </div>
 
         <!-- Map Title -->
@@ -100,9 +100,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useSupabaseClient } from '#imports'
+import { useSupabaseClient, useSupabaseUser } from '#imports'
 
 definePageMeta({
   layout: 'default',
@@ -111,32 +111,69 @@ definePageMeta({
 const route = useRoute()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = useSupabaseClient() as any
+const user = useSupabaseUser()
 
-const sessionId = ref<string | null>(null)
+const mapId = route.params.mapId as string
+const orderId = ref<string | null>(null)
 const mapTitle = ref<string | null>(null)
 const digitalUrl = ref<string | null>(null)
 const hasDigitalUrl = ref(false)
 
-onMounted(async () => {
-  const qSessionId = route.query.session_id as string
-  if (qSessionId) {
-    sessionId.value = qSessionId
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, maps(title)')
-        .eq('id', qSessionId)
-        .single()
-      if (!error && data) {
-        mapTitle.value = data.maps?.title || null
-        if (data.digital_url) {
-          digitalUrl.value = data.digital_url
-          hasDigitalUrl.value = true
-        }
+// Webhook fires async after Stripe redirects — poll until the order appears (up to ~15s).
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollAttempts = 0
+
+async function pollForOrder() {
+  pollAttempts++
+  try {
+    const { data } = await supabase
+      .from('orders')
+      .select('id, digital_url, maps(title)')
+      .eq('map_id', mapId)
+      .eq('user_id', user.value?.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (data) {
+      orderId.value = data.id
+      mapTitle.value = data.maps?.title ?? null
+      if (data.digital_url) {
+        digitalUrl.value = data.digital_url
+        hasDigitalUrl.value = true
       }
-    } catch (err) {
-      console.error('Error fetching order details:', err)
+      stopPolling()
+    } else if (pollAttempts >= 8) {
+      // Webhook took too long — stop polling, page still shows the success state
+      stopPolling()
     }
+  } catch (err) {
+    console.error('Error polling order:', err)
+    stopPolling()
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+
+onMounted(async () => {
+  // Fetch map title immediately so the page isn't blank while waiting for the order
+  try {
+    const { data: mapData } = await supabase
+      .from('maps')
+      .select('title')
+      .eq('id', mapId)
+      .single()
+    if (mapData?.title) mapTitle.value = mapData.title
+  } catch { /* non-critical */ }
+
+  // Poll for the order row — the Stripe webhook fires asynchronously
+  await pollForOrder()
+  if (!orderId.value) {
+    pollTimer = setInterval(pollForOrder, 2000)
   }
 })
+
+onUnmounted(stopPolling)
 </script>
