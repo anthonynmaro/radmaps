@@ -1,10 +1,9 @@
 import { test, expect } from './fixtures/test'
-import * as path from 'path'
 
 test.describe('Logo upload', () => {
   test.beforeEach(async ({ createPage, styleEditorPage, page }) => {
     await createPage.goto()
-    await createPage.uploadGpx(path.join(__dirname, 'fixtures/sample.gpx'))
+    await createPage.uploadGpx()
     // Navigate to Text tab where logo lives
     await styleEditorPage.switchTab('Text')
     // Open the Logo card

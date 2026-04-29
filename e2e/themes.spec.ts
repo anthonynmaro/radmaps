@@ -1,10 +1,9 @@
 import { test, expect } from './fixtures/test'
-import * as path from 'path'
 
 test.describe('Theme save/load', () => {
   test('save a theme and verify it appears in My Themes', async ({ createPage, styleEditorPage, page }) => {
     await createPage.goto()
-    await createPage.uploadGpx(path.join(__dirname, 'fixtures/sample.gpx'))
+    await createPage.uploadGpx()
 
     // Click "Save current theme"
     await page.getByText(/save current theme/i).click()
@@ -18,7 +17,7 @@ test.describe('Theme save/load', () => {
 
   test('saved themes persist after page refresh', async ({ createPage, page }) => {
     await createPage.goto()
-    await createPage.uploadGpx(path.join(__dirname, 'fixtures/sample.gpx'))
+    await createPage.uploadGpx()
 
     // Save
     await page.getByText(/save current theme/i).click()

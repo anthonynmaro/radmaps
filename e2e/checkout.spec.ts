@@ -1,5 +1,4 @@
 import { test, expect } from './fixtures/test'
-import * as path from 'path'
 
 test.describe('Checkout — mocked Stripe', () => {
   test.beforeEach(async ({ createPage, page }) => {
@@ -13,7 +12,7 @@ test.describe('Checkout — mocked Stripe', () => {
     })
 
     await createPage.goto()
-    await createPage.uploadGpx(path.join(__dirname, 'fixtures/sample.gpx'))
+    await createPage.uploadGpx()
   })
 
   test('checkout page loads with product options', async ({ styleEditorPage, page }) => {
@@ -27,7 +26,13 @@ test.describe('Checkout — mocked Stripe', () => {
   test('digital path is available', async ({ styleEditorPage, page }) => {
     await styleEditorPage.orderButton().click()
     await page.waitForURL(/checkout/, { timeout: 15_000 })
-    const digital = page.getByText(/digital/i).first()
-    await expect(digital).toBeVisible()
+    // Wait for loading to finish, then expand the product selector
+    await page.locator('.product-selector').waitFor({ state: 'visible', timeout: 15_000 })
+    // Use evaluate to trigger the Vue click handler reliably (avoids DevTools overlay on mobile)
+    await page.locator('.product-selector').getByRole('button').first().evaluate(el => (el as HTMLButtonElement).click())
+    // Scroll the Digital button into view (panel expands below the fold on mobile)
+    const digitalBtn = page.locator('.product-selector').getByRole('button', { name: /digital/i })
+    await digitalBtn.scrollIntoViewIfNeeded()
+    await expect(digitalBtn).toBeVisible({ timeout: 5_000 })
   })
 })

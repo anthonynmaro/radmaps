@@ -22,6 +22,9 @@ export default defineNuxtConfig({
       callback: '/auth/confirm',
       exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support'],
     },
+    // Required for SSR: server-side middleware reads the session from cookies so
+    // that authenticated users aren't redirected to login on full page reloads.
+    useSsrCookies: true,
   },
 
   // Runtime config — public vars available client-side, private server-only
