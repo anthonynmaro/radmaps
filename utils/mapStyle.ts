@@ -98,7 +98,7 @@ export function blendHex(a: string, b: string, t: number): string {
 // The MapPreview.vue protocol handler parses this, fetches the real tile,
 // applies the pixel transform via OffscreenCanvas, and returns the result.
 // The render-worker registers an identical handler in its inline script.
-function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
+export function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
   const effect = config.tile_effect ?? 'none'
   if (effect === 'none') return urls
 
@@ -190,7 +190,7 @@ function hillshadeLayers(config: StyleConfig) {
       source: 'mapbox-dem',
       paint: {
         'hillshade-shadow-color': '#000000',
-        'hillshade-highlight-color': '#FFFFFF',
+        'hillshade-highlight-color': blendHex(config.background_color, '#FFFFFF', config.hillshade_highlight ?? 0.3),
         'hillshade-accent-color': '#000000',
         'hillshade-illumination-direction': 335,
         'hillshade-exaggeration': config.hillshade_intensity,

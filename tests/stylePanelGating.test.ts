@@ -370,3 +370,93 @@ describe('combined state snapshots', () => {
     expect(s.naturalTopoTileStyles).toBe(false)
   })
 })
+
+// ── Additional coverage ────────────────────────────────────────────────────────
+
+describe('pinControls', () => {
+  it('hides when both start and finish pins are off', () => {
+    expect(compute({ showStartPin: false, showFinishPin: false }).pinControls).toBe(false)
+  })
+
+  it('shows when only start pin is on', () => {
+    expect(compute({ showStartPin: true, showFinishPin: false }).pinControls).toBe(true)
+  })
+
+  it('shows when only finish pin is on', () => {
+    expect(compute({ showStartPin: false, showFinishPin: true }).pinControls).toBe(true)
+  })
+
+  it('shows when both pins are on', () => {
+    expect(compute({ showStartPin: true, showFinishPin: true }).pinControls).toBe(true)
+  })
+})
+
+describe('logoPositionControls — additional', () => {
+  it('returns false when logoUrl is a URL but showLogo is false', () => {
+    const s = compute({ logoUrl: 'https://cdn.example.com/logo.png', showLogo: false })
+    expect(s.logoPositionControls).toBe(false)
+  })
+
+  it('returns true only when BOTH logoUrl is set AND showLogo is true', () => {
+    const both = compute({ logoUrl: 'https://cdn.example.com/logo.png', showLogo: true })
+    expect(both.logoPositionControls).toBe(true)
+    const noUrl = compute({ logoUrl: undefined, showLogo: true })
+    expect(noUrl.logoPositionControls).toBe(false)
+  })
+})
+
+describe('elevationProfileToggle and elevationProfileExpanded boundary conditions', () => {
+  it('toggle hides when hasElevationData is false even with a route', () => {
+    expect(compute({ hasRoute: true, hasElevationData: false }).elevationProfileToggle).toBe(false)
+  })
+
+  it('toggle hides when hasRoute is false even with elevation data', () => {
+    expect(compute({ hasRoute: false, hasElevationData: true }).elevationProfileToggle).toBe(false)
+  })
+
+  it('toggle shows only when both hasRoute and hasElevationData are true', () => {
+    expect(compute({ hasRoute: true, hasElevationData: true }).elevationProfileToggle).toBe(true)
+  })
+
+  it('expanded hides when showElevationProfile is false', () => {
+    const s = compute({ hasRoute: true, hasElevationData: true, showElevationProfile: false })
+    expect(s.elevationProfileExpanded).toBe(false)
+  })
+
+  it('expanded shows when all three conditions met', () => {
+    const s = compute({ hasRoute: true, hasElevationData: true, showElevationProfile: true })
+    expect(s.elevationProfileExpanded).toBe(true)
+  })
+})
+
+describe('trailLegendControls — boundary at segment count', () => {
+  it('hides at 0 segments', () => {
+    expect(compute({ trailSegmentCount: 0 }).trailLegendControls).toBe(false)
+  })
+
+  it('shows at exactly 1 segment', () => {
+    expect(compute({ trailSegmentCount: 1 }).trailLegendControls).toBe(true)
+  })
+
+  it('shows at many segments', () => {
+    expect(compute({ trailSegmentCount: 10 }).trailLegendControls).toBe(true)
+  })
+})
+
+describe('preset matrix — tile style pickers', () => {
+  const presetsWithNoTilePicker = ['topographic', 'route-only', 'road-network', 'contour-art'] as const
+
+  it('only minimalist shows minimalistTileStyles', () => {
+    expect(compute({ preset: 'minimalist' }).minimalistTileStyles).toBe(true)
+    for (const p of presetsWithNoTilePicker) {
+      expect(compute({ preset: p }).minimalistTileStyles).toBe(false)
+    }
+  })
+
+  it('only natural-topo shows naturalTopoTileStyles', () => {
+    expect(compute({ preset: 'natural-topo' }).naturalTopoTileStyles).toBe(true)
+    for (const p of presetsWithNoTilePicker) {
+      expect(compute({ preset: p }).naturalTopoTileStyles).toBe(false)
+    }
+  })
+})

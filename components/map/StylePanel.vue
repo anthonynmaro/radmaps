@@ -189,6 +189,7 @@
       <!-- ─── MAP TAB ───────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'map'">
 
+        <!-- ── Map: Base map & preset picker ─────────────────────────────── -->
         <V4Card title="Base map" :default-open="true">
           <div class="grid grid-cols-3 gap-1.5">
             <button
@@ -242,7 +243,8 @@
           </div>
         </V4Card>
 
-        <V4Card v-if="sections.routeMapCard" title="Route" :default-open="false">
+        <!-- ── Map: Route ─────────────────────────────────────────────────── -->
+        <V4Card v-if="sections.routeMapCard" title="Route" hint="Adjust GPX track appearance · trim endpoints with crop sliders" :default-open="false">
           <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
             @change="set('route_color_mode', $event ? 'gradient' : 'solid')" />
           <ColorRow label="Color" :value="local.route_color" @change="set('route_color', $event)" />
@@ -363,12 +365,16 @@
           </template>
         </V4Card>
 
-        <V4Card title="Terrain" :default-open="false">
+        <!-- ── Map: Terrain ───────────────────────────────────────────────── -->
+        <V4Card title="Terrain" hint="Adds depth via hillshade and topographic contours" :default-open="false">
           <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set('map_3d', $event)" />
           <ToggleRow label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
           <template v-if="sections.hillshadeDetails">
+            <p class="text-[10px] mb-1" style="color: #A8A29E;">Strength of shadow and highlight shading</p>
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
-              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
+              :display="(v: number) => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
+            <SliderRow label="Light color" :value="local.hillshade_highlight" :min="0" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('hillshade_highlight', $event)" />
           </template>
           <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <ToggleRow label="Contour lines" :value="local.show_contours" @change="set('show_contours', $event)" />
@@ -382,6 +388,7 @@
             </div>
             <SliderRow label="Opacity" :value="local.contour_opacity" :min="0" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('contour_opacity', $event)" />
+            <p class="text-[10px] mb-1" style="color: #A8A29E;">Higher = finer contour interval · increases tile fetches</p>
             <SliderRow label="Detail" :value="local.contour_detail ?? 2" :min="0" :max="5" :step="1"
               :display="(v: number) => (['~200m','~100m','~50m','~20m','~10m','~2m'] as const)[Math.round(v)]"
               @change="set('contour_detail', $event)" />
@@ -430,10 +437,11 @@
                 :display="(v: number) => Math.round(v * 100) + '%'" @change="set('poi_labels_opacity', $event)" />
             </template>
           </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <template v-if="sections.elevationProfileToggle">
-            <ToggleRow label="Elevation profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
-          </template>
+        </V4Card>
+
+        <!-- ── Map: Elevation profile ──────────────────────────────────────── -->
+        <V4Card v-if="sections.elevationProfileToggle" title="Elevation profile" :default-open="false">
+          <ToggleRow label="Show profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
           <template v-if="sections.elevationProfileExpanded">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs" style="color: #44403C;">Profile color</span>
@@ -446,6 +454,7 @@
           </template>
         </V4Card>
 
+        <!-- ── Map: Effects ───────────────────────────────────────────────── -->
         <V4Card title="Effects" hint="Advanced — duotone, posterize, grain" :default-open="false">
           <div class="mb-3">
             <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Tile effect</p>
@@ -485,6 +494,7 @@
             <SliderRow label="Intensity" :value="local.vignette_intensity ?? 0.45" :min="0.05" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('vignette_intensity', $event)" />
           </template>
+          <p class="text-[10px] mb-1" style="color: #A8A29E;">Film-grain texture over tiles · most visible on dark presets</p>
           <SliderRow label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
             :display="(v: number) => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
         </V4Card>
@@ -536,11 +546,13 @@
       <!-- ─── STYLE TAB ─────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'style'">
 
+        <!-- ── Style: Colors ──────────────────────────────────────────────── -->
         <V4Card title="Colors" hint="Auto-set by theme · override below" :default-open="true">
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
           <ColorRow label="Water" :value="local.water_color" @change="set('water_color', $event)" />
+          <ColorRow label="Land" :value="local.land_color" @change="set('land_color', $event)" />
         </V4Card>
 
         <V4Card title="Typography" :default-open="false">
@@ -616,7 +628,7 @@
                   <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ local.segment_dot_size ?? 4 }}px</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Labels</span>
+                  <span class="text-xs shrink-0" style="color: #44403C; width: 44px;" title="Font size for on-map leader-line labels">Labels</span>
                   <input type="range" min="0.5" max="2" step="0.05" :value="local.leader_label_scale ?? 1.0"
                     class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
                     @change="set('leader_label_scale', parseFloat(($event.target as HTMLInputElement).value))" />
@@ -790,7 +802,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Text overlays" :default-open="false">
+        <V4Card title="Text overlays" hint="Drag to reposition overlays on the poster" :default-open="false">
           <div class="space-y-2">
             <div v-for="overlay in (local.text_overlays ?? [])" :key="overlay.id" class="overflow-hidden" style="border: 1px solid #F5F5F4; border-radius: 12px;">
               <div class="flex items-center gap-2 px-3 py-2.5" style="background: #FAFAF9;">
@@ -911,6 +923,27 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * StylePanel — poster editor sidebar (4 tabs: Quick / Map / Style / Text)
+ *
+ * Tab contents:
+ *   Quick  — Theme picker, print size, route line color/width
+ *   Map    — Base map preset, route details, terrain (hillshade/contours/roads),
+ *            elevation profile, tile effects (duotone/posterize/grain/vignette)
+ *   Style  — Colors override, typography, frame & padding, trail segments
+ *   Text   — Poster text fields, stats toggles, logo, text overlays
+ *
+ * StyleConfig fields intentionally absent from the UI:
+ *   - label_position       — @deprecated, awaiting MapPreview.vue update
+ *   - title_size           — @deprecated, replaced by title_scale
+ *   - subtitle_size        — @deprecated, replaced by subtitle_scale
+ *   - map_zoom / map_center / map_frozen — managed by FreezeControl.vue
+ *   - *_lnglat fields      — set by map-click plot mode, not panel controls
+ *
+ * Gating pattern: all v-if logic lives in utils/stylePanelGating.ts as
+ * `computeSectionVisibility()`. Never add raw conditional logic directly
+ * to this template — always extend GatingInput + SectionVisibility there.
+ */
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset } from '~/types'
 import { COLOR_THEMES, PRINT_SIZES } from '~/types'
 

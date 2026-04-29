@@ -118,9 +118,12 @@ export interface StyleConfig {
   land_color: string
   font_family: FontFamily
   body_font_family: FontFamily
+  /** @deprecated Replaced by title_scale multiplier — has no effect on rendering */
   title_size: number
+  /** @deprecated Replaced by subtitle_scale multiplier — has no effect on rendering */
   subtitle_size: number
   labels: StyleLabels
+  /** @deprecated Has no effect until MapPreview.vue is updated to override getPosterLayout() with this value */
   label_position: LabelPosition
   border_style: BorderStyle
   padding_factor: number

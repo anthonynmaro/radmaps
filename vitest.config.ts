@@ -6,6 +6,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     typecheck: { tsconfig: './tsconfig.test.json' },
+    include: ['tests/**/*.test.ts'],
+    exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      include: ['utils/**', 'composables/useSavedThemes.ts'],
+      reporter: ['text', 'lcov'],
+    },
   },
   define: {
     // Nuxt compile-time constant — not available in the test runner

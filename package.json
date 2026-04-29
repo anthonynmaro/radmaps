@@ -8,17 +8,20 @@
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "lint": "eslint . --ext .ts,.vue",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
-    "cookie": "0.7.2",
     "@nuxt/ui": "^2.18.4",
     "@nuxtjs/supabase": "^1.3.5",
     "@stripe/stripe-js": "^4.9.0",
     "@tmcw/togeojson": "^5.8.1",
     "@types/three": "^0.184.0",
     "ai": "^4.1.5",
+    "cookie": "0.7.2",
     "interactjs": "^1.10.27",
     "maplibre-contour": "^0.1.0",
     "maplibre-gl": "^4.7.1",
@@ -35,8 +38,11 @@
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^0.5.7",
+    "@playwright/test": "^1.59.1",
     "@types/node": "^22.9.0",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^9.14.0",
+    "happy-dom": "^20.9.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5",
     "vue-tsc": "^2.1.10"
