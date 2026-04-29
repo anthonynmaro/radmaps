@@ -142,6 +142,7 @@ async function renderMap({
       '--in-process-gpu',
       '--no-zygote',
       '--use-angle=swiftshader-webgl',
+      '--enable-unsafe-swiftshader',
       '--ignore-gpu-blocklist',
       '--enable-webgl',
     ],
@@ -163,9 +164,8 @@ async function renderMap({
   // MapLibre fires hundreds of tile requests that would stall it indefinitely.
   await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
 
-  // Preview needs much less headroom; print gets the full 90s budget.
-  // The page script sets a 55s internal fallback so we always complete before this fires.
-  await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 30000 : 90000 })
+  // Preview: 30s. Print: 100s (page script force-completes at 80s via tile-error counter or hard timeout).
+  await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 30000 : 100000 })
   await new Promise(resolve => setTimeout(resolve, 500)) // Extra settle time
 
   // Screenshot
@@ -705,18 +705,26 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     });
     `}
 
+    var _tileErrors = 0;
     map.on('error', function(e) {
-      console.error('MapLibre error:', e.error ? e.error.message : JSON.stringify(e));
+      var msg = e.error ? e.error.message : JSON.stringify(e);
+      console.error('MapLibre error:', msg);
+      // If many tile errors accumulate (e.g. Mapbox terrain tiles 401ing),
+      // stop waiting — take the screenshot with whatever loaded.
+      _tileErrors++;
+      if (_tileErrors >= 8 && !window.__mapReady) {
+        console.warn('render: forcing __mapReady after ' + _tileErrors + ' tile errors');
+        setTimeout(function() { if (!window.__mapReady) window.__mapReady = true; }, 1500);
+      }
     });
 
-    // Safety valve: if idle never fires (e.g. tile auth failures keep retrying),
-    // force-complete at 55s so Puppeteer's 90s hard timeout is never reached.
+    // Hard safety valve at 80s (Puppeteer hard timeout is 100s).
     setTimeout(function() {
       if (!window.__mapReady) {
-        console.warn('render: forcing __mapReady after 55s fallback');
+        console.warn('render: forcing __mapReady after 80s fallback');
         window.__mapReady = true;
       }
-    }, 55000);
+    }, 80000);
 
     map.on('load', () => {
       map.addSource('route', { type: 'geojson', data: ${geojsonStr} });
