@@ -119,7 +119,7 @@
           'fixed inset-x-0 bottom-0 z-30 md:static',
           sheetState === 'full' ? 'h-[85vh]' :
           sheetState === 'half' ? 'h-[55vh]' :
-          'h-[44px]',
+          'h-16',
         ]"
         style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
       >
@@ -231,6 +231,12 @@ const hasElevationData = computed(() => {
   return buildElevationProfile(mapData.value.geojson as GeoJSON.FeatureCollection) !== null
 })
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
+
+// On mobile, start with the sheet collapsed so the map is visible.
+// Desktop renders the panel as a sidebar (the state has no effect there).
+onMounted(() => {
+  if (window.innerWidth < 768) sheetState.value = 'closed'
+})
 
 function toggleSheet() {
   // Tap on the drag handle: closed → half → full → half
