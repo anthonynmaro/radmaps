@@ -118,7 +118,7 @@
           // Mobile bottom sheet
           'fixed inset-x-0 bottom-0 z-30 md:static',
           sheetState === 'full' ? 'h-[85vh]' :
-          sheetState === 'half' ? 'h-[55vh]' :
+          sheetState === 'half' ? 'h-[45vh]' :
           'h-16',
         ]"
         style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
