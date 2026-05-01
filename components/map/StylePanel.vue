@@ -4,8 +4,12 @@
     <!-- Drag handle -->
     <button
       class="w-full flex justify-center pt-2.5 pb-1.5 shrink-0 border-none cursor-pointer bg-white focus:outline-none"
-      style="border-radius: 18px 18px 0 0"
-      @click="$emit('toggle-sheet')"
+      style="border-radius: 18px 18px 0 0; touch-action: none;"
+      @click="onHandleClick"
+      @touchstart.passive="onHandleTouchStart"
+      @touchmove.passive="onHandleTouchMove"
+      @touchend="onHandleTouchEnd"
+      @touchcancel="onHandleTouchCancel"
       aria-label="Toggle panel size"
     >
       <div class="w-9 h-1 rounded-full bg-[#D6D3D1]" />
@@ -979,11 +983,55 @@ const emit = defineEmits<{
   'reset': []
   'logo-upload': [file: File]
   'toggle-sheet': []
+  'swipe-up': []
+  'swipe-down': []
   /** User wants to set a segment/crop position by tapping the map */
   'request-plot': [payload: { segId: string; field: 'start' | 'end' }]
   /** User wants to auto-detect and hide GPS-dropout gaps */
   'request-detect-disconnected': []
 }>()
+
+// ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
+const SWIPE_THRESHOLD = 24
+const handleTouch = { startY: 0, lastY: 0, active: false, swiped: false }
+
+function onHandleTouchStart(e: TouchEvent) {
+  if (!e.touches[0]) return
+  handleTouch.startY = e.touches[0].clientY
+  handleTouch.lastY = handleTouch.startY
+  handleTouch.active = true
+  handleTouch.swiped = false
+}
+
+function onHandleTouchMove(e: TouchEvent) {
+  if (!handleTouch.active || !e.touches[0]) return
+  handleTouch.lastY = e.touches[0].clientY
+}
+
+function onHandleTouchEnd(e: TouchEvent) {
+  if (!handleTouch.active) return
+  handleTouch.active = false
+  const delta = handleTouch.lastY - handleTouch.startY
+  if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+    handleTouch.swiped = true
+    e.preventDefault()
+    if (delta > 0) emit('swipe-down')
+    else emit('swipe-up')
+  }
+}
+
+function onHandleTouchCancel() {
+  handleTouch.active = false
+}
+
+function onHandleClick() {
+  // Suppress the synthetic click that follows a swipe gesture
+  if (handleTouch.swiped) {
+    handleTouch.swiped = false
+    return
+  }
+  emit('toggle-sheet')
+}
 
 const local = reactive<StyleConfig>({ ...props.modelValue })
 

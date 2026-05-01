@@ -68,7 +68,7 @@
     <div class="flex flex-1 overflow-hidden relative">
 
       <!-- Map preview — always visible; on mobile the bottom sheet overlays it -->
-      <main class="flex-1 flex flex-col overflow-hidden">
+      <main class="flex-1 flex flex-col overflow-hidden" @click="onMapAreaClick">
         <!-- On mobile: leave room above the sheet so the map isn't fully covered -->
         <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
           <ClientOnly>
@@ -117,7 +117,9 @@
           'md:relative md:inset-auto md:w-[320px] md:h-auto md:border-l md:border-stone-200 md:rounded-none md:shadow-none',
           // Mobile bottom sheet
           'fixed inset-x-0 bottom-0 z-30 md:static',
-          sheetState === 'full' ? 'h-[85vh]' : 'h-[55vh]',
+          sheetState === 'full' ? 'h-[85vh]' :
+          sheetState === 'half' ? 'h-[55vh]' :
+          'h-[44px]',
         ]"
         style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
       >
@@ -132,6 +134,8 @@
           @reset="resetStyle"
           @logo-upload="handleLogoUpload"
           @toggle-sheet="toggleSheet"
+          @swipe-up="onSwipeUp"
+          @swipe-down="onSwipeDown"
           @request-plot="onRequestPlot"
           @request-detect-disconnected="onDetectDisconnected"
         />
@@ -226,10 +230,36 @@ const hasElevationData = computed(() => {
   if (!mapData.value?.geojson) return false
   return buildElevationProfile(mapData.value.geojson as GeoJSON.FeatureCollection) !== null
 })
-const sheetState = ref<'half' | 'full'>('half')
+const sheetState = ref<'closed' | 'half' | 'full'>('half')
 
 function toggleSheet() {
-  sheetState.value = sheetState.value === 'half' ? 'full' : 'half'
+  // Tap on the drag handle: closed → half → full → half
+  if (sheetState.value === 'closed') sheetState.value = 'half'
+  else if (sheetState.value === 'half') sheetState.value = 'full'
+  else sheetState.value = 'half'
+}
+
+function onSwipeUp() {
+  if (sheetState.value === 'closed') sheetState.value = 'half'
+  else if (sheetState.value === 'half') sheetState.value = 'full'
+}
+
+function onSwipeDown() {
+  if (sheetState.value === 'full') sheetState.value = 'half'
+  else if (sheetState.value === 'half') sheetState.value = 'closed'
+}
+
+function onMapAreaClick(e: MouseEvent) {
+  // Only on mobile, and only when the sheet is open and we're not actively plotting
+  if (typeof window === 'undefined' || window.innerWidth >= 768) return
+  if (plotMode.value) return
+  if (sheetState.value === 'closed') return
+  // Only dismiss on direct map canvas taps, not on poster controls / overlays / text
+  const target = e.target as HTMLElement | null
+  if (!target) return
+  if (target.closest('.maplibregl-canvas, .maplibregl-canvas-container')) {
+    sheetState.value = 'closed'
+  }
 }
 
 watch(mapData, (m) => {
