@@ -271,14 +271,13 @@ const mapZoom = ref(10)
 
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
 
-// ─── Style config for live preview (adjusts aspect ratio per product) ───────
+// ─── Style config for live preview (fixed 2:3 poster shape) ─────────────────
 const mapData = ref<TrailMap | null>(null)
 const currentStyleConfig = ref<StyleConfig | null>(null)
 
 function onAspectChange(payload: { product: PrintProduct; previousAspect: number | null }) {
   if (!currentStyleConfig.value) return
-  // All products use 2:3 — always preview at 24×36 aspect ratio
-  currentStyleConfig.value = { ...currentStyleConfig.value, print_size: '24x36' as any }
+  currentStyleConfig.value = { ...currentStyleConfig.value, print_size: '24x36' }
 }
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
@@ -334,6 +333,15 @@ function stopPolling() {
   if (timeoutTimer) { clearTimeout(timeoutTimer);  timeoutTimer = null }
 }
 
+// Tracks the proof_render_hash returned by the v4 render endpoint so
+// the polling loop can wait for *exactly that* hash to land. Null when
+// the server is on the legacy path (response had no proof_render_hash).
+const v4ExpectedHash = ref<string | null>(null)
+// Tracks whether the latest render trigger was a cache hit on the
+// server side — when true, the print is already ready and we skip the
+// status poll entirely.
+const v4Cached = ref(false)
+
 async function triggerRender(quality: 'preview' | 'print') {
   const body: Record<string, unknown> = { quality }
 
@@ -349,13 +357,47 @@ async function triggerRender(quality: 'preview' | 'print') {
     body.framing = confirmedFraming.value
   }
 
-  await $fetch(`/api/maps/${mapId}/render`, { method: 'POST', body })
+  // v4 endpoint takes a product_uid for hash framing. Legacy endpoint
+  // ignores unknown body keys, so this is safe with the flag off.
+  if (selectedProduct.value?.product_uid) {
+    body.product_uid = selectedProduct.value.product_uid
+  }
+
+  const resp = await $fetch<{
+    status?: 'cached' | 'compositing' | 'rendering' | 'queued'
+    render_url?: string
+    proof_render_hash?: string
+  }>(`/api/maps/${mapId}/render`, { method: 'POST', body })
+
+  if (resp && typeof resp.proof_render_hash === 'string') {
+    v4ExpectedHash.value = resp.proof_render_hash
+    if (resp.status === 'cached' && resp.render_url) {
+      // Server confirmed the hash matched and the proof is already up;
+      // skip render entirely and let the user proceed to payment.
+      v4Cached.value = true
+      previewUrl.value = resp.render_url
+      printReady.value = true
+    } else {
+      v4Cached.value = false
+    }
+  } else {
+    v4ExpectedHash.value = null
+    v4Cached.value = false
+  }
 }
 
 async function pollStatus() {
+  // v4 protocol: poll for the exact proof_render_hash to land, plus
+  // proof_render_url. Legacy: poll status === 'rendered'. Both paths
+  // honour the `error:` sentinel for worker failures.
+  const v4 = v4ExpectedHash.value
+  const cols = v4
+    ? 'render_url, thumbnail_url, proof_render_hash, proof_render_url'
+    : 'status, render_url, thumbnail_url'
+
   const { data } = await supabase
     .from('maps')
-    .select('status, render_url, thumbnail_url')
+    .select(cols)
     .eq('id', mapId)
     .single()
   if (!data) return
@@ -368,6 +410,15 @@ async function pollStatus() {
     renderError.value = data.render_url.slice(6) || 'Render failed. Please try again.'
     stopPolling()
     await supabase.from('maps').update({ render_url: null }).eq('id', mapId)
+    return
+  }
+
+  if (v4) {
+    if (data.proof_render_hash === v4 && data.proof_render_url) {
+      previewUrl.value = data.proof_render_url
+      printReady.value = true
+      stopPolling()
+    }
     return
   }
 
@@ -385,6 +436,12 @@ async function startRenders() {
   // Only fire the print render — preview thumbnail already exists from the style editor.
   // Two concurrent Puppeteer instances on Railway cause OOM/slowdowns.
   await triggerRender('print')
+
+  // v4 cache hit: server confirmed proof_render_hash matches and the
+  // proof URL is set. Skip polling entirely and proceed to payment.
+  if (v4Cached.value && printReady.value) {
+    return
+  }
 
   pollTimer = setInterval(pollStatus, 3000)
   timeoutTimer = setTimeout(() => {

@@ -1,6 +1,9 @@
 <template>
   <!-- Outer: fills parent, centers the poster canvas -->
-  <div class="w-full h-full flex items-center justify-center overflow-hidden" style="background:#e8e5e0">
+  <div
+    :class="previewRootClass"
+    :style="previewRootStyle"
+  >
 
     <!-- Inline text edit sheet (mobile only) -->
     <InlineEditSheet
@@ -14,7 +17,8 @@
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
       ref="posterCanvasEl"
-      class="poster-canvas relative flex flex-col shadow-[0_32px_80px_rgba(0,0,0,0.35)]"
+      class="poster-canvas relative flex flex-col"
+      :class="posterCanvasClass"
       :style="posterCanvasStyle"
     >
 
@@ -393,18 +397,33 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+// maplibre-contour 0.1.0 has a broken package `exports` map, so the bare
+// specifier cannot be resolved in the browser. Import the built ESM file
+// directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
+// @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
+import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
-import { PRINT_SIZES } from '~/types'
 import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
+import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
+import InlineEditSheet from '~/components/map/InlineEditSheet.vue'
+
+interface PrintContext {
+  framing: PrintFraming
+  cssWidthPx: number
+  cssHeightPx: number
+  deviceScaleFactor: number
+}
 
 const props = defineProps<{
   map: TrailMap
   styleConfig: StyleConfig
   editable?: boolean
+  renderMode?: 'editor' | 'print'
+  printContext?: PrintContext
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   canUndo?: boolean
@@ -420,7 +439,7 @@ const emit = defineEmits<{
   'overlay-deleted': [id: string]
   'overlay-resized': [payload: { id: string; font_size: number }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
-  'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }]
+  'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number }]
   /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
   /** Fired when user cancels plot mode (Escape key or cancel button) */
@@ -430,7 +449,7 @@ const emit = defineEmits<{
   /** Fired when user drags a trail segment label to a new position */
   'segment-label-moved': [payload: { id: string; lnglat: [number, number] }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
-  'view-changed': [payload: { map_zoom: number; map_center: [number, number] }]
+  'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number }]
   'undo': []
   'redo': []
 }>()
@@ -439,6 +458,7 @@ const config = useRuntimeConfig()
 const mapContainer = ref<HTMLDivElement | null>(null)
 const posterCanvasEl = ref<HTMLDivElement | null>(null)
 const mapReady = ref(false)
+const renderReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
 let mapInstance: maplibregl.Map | null = null
@@ -564,9 +584,8 @@ let mlDemSource: any = null
 
 async function ensureContourProtocol() {
   if (mlDemSource) return
-  const mlContour = await import('maplibre-contour') as any
   // UMD module: DemSource lives on .default under ESM interop, fall back to root
-  const { DemSource } = mlContour.default ?? mlContour
+  const { DemSource } = mlContour as any
   mlDemSource = new DemSource({
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     encoding: 'terrarium',
@@ -678,17 +697,37 @@ function onResizeStart(e: PointerEvent, id: string) {
 
 // ── Print canvas ─────────────────────────────────────────────────────────────
 
-const printSize = computed(() =>
-  PRINT_SIZES.find(s => s.id === props.styleConfig.print_size) ?? PRINT_SIZES[0],
-)
+const isPrintRender = computed(() => props.renderMode === 'print')
 
-const posterCanvasStyle = computed(() => ({
-  aspectRatio: `${printSize.value.width_in} / ${printSize.value.height_in}`,
-  backgroundColor: props.styleConfig.background_color,
-  height: '100%',
-  maxWidth: '100%',
-  containerType: 'size',
+const previewRootClass = computed(() => isPrintRender.value
+  ? 'radmaps-print-root'
+  : 'w-full h-full flex items-center justify-center overflow-hidden')
+
+const previewRootStyle = computed(() => ({
+  background: isPrintRender.value ? props.styleConfig.background_color : '#e8e5e0',
 }))
+
+const posterCanvasClass = computed(() => ({
+  'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
+  'poster-canvas--print': isPrintRender.value,
+}))
+
+const posterCanvasStyle = computed(() => isPrintRender.value
+  ? {
+      width: '100%',
+      height: '100%',
+      maxWidth: 'none',
+      aspectRatio: 'auto',
+      backgroundColor: props.styleConfig.background_color,
+      containerType: 'size',
+    }
+  : {
+      aspectRatio: '2 / 3',
+      backgroundColor: props.styleConfig.background_color,
+      height: '100%',
+      maxWidth: '100%',
+      containerType: 'size',
+    })
 
 const typography = computed(() => getPosterTypography(props.styleConfig))
 
@@ -701,7 +740,7 @@ const trailName = computed(() =>
 )
 
 const locationLine = computed(() => {
-  const text = props.styleConfig.location_text?.trim() || (props.map.stats as Record<string, unknown> & { location?: string })?.location?.trim() || ''
+  const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
   return text ? text.toUpperCase() : ''
 })
 
@@ -738,6 +777,9 @@ const borderW = computed(() =>
   props.styleConfig.border_style === 'thick' ? '2px'
   : props.styleConfig.border_style === 'thin' ? '1px' : '0',
 )
+const printBleedCssPx = computed(() =>
+  props.printContext ? props.printContext.framing.trimBox.x / props.printContext.deviceScaleFactor : 0,
+)
 
 function getTextHalo() {
   const bg = props.styleConfig.background_color ?? '#FFF'
@@ -753,7 +795,9 @@ function getTextHalo() {
 const headerBandStyle = computed(() => ({
   backgroundColor: props.styleConfig.background_color,
   color: fg.value,
-  padding: layout.value.titlePosition === 'bottom' ? '2.4cqh 7cqw 3.5cqh' : '5cqh 7cqw 2.8cqh',
+  padding: layout.value.titlePosition === 'bottom'
+    ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
+    : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`,
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: layout.value.titleAlign === 'left' ? 'flex-start' : 'center',
@@ -806,9 +850,11 @@ const footerBandStyle = computed(() => ({
   backgroundColor: bg.value,
   color: fg.value,
   paddingTop: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
-  paddingBottom: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
-  paddingLeft: '7cqw',
-  paddingRight: '7cqw',
+  paddingBottom: props.styleConfig.border_style !== 'none'
+    ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
+    : `calc(1.8cqh + ${printBleedCssPx.value}px)`,
+  paddingLeft: `calc(7cqw + ${printBleedCssPx.value}px)`,
+  paddingRight: `calc(7cqw + ${printBleedCssPx.value}px)`,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -901,10 +947,62 @@ const brandingNoteStyle = computed(() => ({
 }))
 
 const frameStyle = computed(() => ({
-  inset: '14px',
+  inset: `${14 + printBleedCssPx.value}px`,
   border: `${borderW.value !== '0' ? borderW.value : '1px'} solid ${fg.value}`,
   opacity: '0.18',
 }))
+
+function correctedPrintZoom(savedZoom: number): number {
+  if (!isPrintRender.value) return savedZoom
+  const editorWidth = props.styleConfig.map_editor_width ?? 0
+  const renderWidth = mapContainer.value?.offsetWidth ?? props.printContext?.cssWidthPx ?? 0
+  if (!editorWidth || !renderWidth) return savedZoom
+  return savedZoom + Math.log2(renderWidth / editorWidth)
+}
+
+async function waitForPrintableAssets() {
+  await nextTick()
+  const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
+  if (fonts?.ready) await fonts.ready
+
+  const images = Array.from(posterCanvasEl.value?.querySelectorAll('img') ?? [])
+  await Promise.all(images.map((img) => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve()
+    return img.decode().catch(() => undefined)
+  }))
+
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+}
+
+function markPrintRenderReady() {
+  if (!isPrintRender.value || renderReady.value || !mapInstance) return
+  const instance = mapInstance
+  let readyTimer: ReturnType<typeof setTimeout> | null = null
+  const complete = async () => {
+    if (renderReady.value) return
+    if (readyTimer) clearTimeout(readyTimer)
+    try {
+      await waitForPrintableAssets()
+      const status = {
+        ready: true,
+        mapLoaded: instance.loaded(),
+        routeLayerPresent: !!instance.getLayer('route-line'),
+        routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
+      }
+      renderReady.value = true
+      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = status
+      ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
+      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: status }))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: { ready: false; error: string }; __RENDER_ERROR?: string }).__RADMAPS_RENDER_STATUS = { ready: false, error: message }
+      ;(window as unknown as { __RENDER_ERROR?: string }).__RENDER_ERROR = message
+    }
+  }
+  instance.once('idle', complete)
+  readyTimer = setTimeout(complete, 12_000)
+}
 
 // ── Logo styles ───────────────────────────────────────────────────────────────
 
@@ -1161,13 +1259,15 @@ function recomputeOverlays() {
 
   // While dragging a leader label, only reproject the dot; keep label pos
   if (draggingLeader.value) {
+    const instance = mapInstance
+    if (!instance) return
     leaderLineItems.value = leaderLineItems.value.map(item => {
       const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === item.id)
       if (!seg) return item
       const allC   = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
       const idx    = Math.min(Math.floor(allC.length * seg.section_start / 100), allC.length - 1)
       if (idx < 0) return item
-      const pt = mapInstance.project([allC[idx][0], allC[idx][1]] as [number, number])
+      const pt = instance.project([allC[idx][0], allC[idx][1]] as [number, number])
       return { ...item, dotX: pt.x, dotY: pt.y }
     })
     return
@@ -1353,12 +1453,13 @@ onMounted(async () => {
   // Restore saved zoom/center whenever they exist (user panned/zoomed before),
   // regardless of whether the map is frozen. Frozen = non-interactive only.
   const hasSavedView = props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
+  const savedZoom = hasSavedView ? correctedPrintZoom(props.styleConfig.map_zoom as number) : undefined
 
   mapInstance = new maplibregl.Map({
     container: mapContainer.value,
     style,
     ...(hasSavedView
-      ? { center: props.styleConfig.map_center as [number, number], zoom: props.styleConfig.map_zoom as number }
+      ? { center: props.styleConfig.map_center as [number, number], zoom: savedZoom as number }
       : { bounds: props.map.bbox, fitBoundsOptions: { padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)) } }),
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
@@ -1373,7 +1474,8 @@ onMounted(async () => {
       if (!mapInstance) return
       const z = mapInstance.getZoom()
       const c = mapInstance.getCenter()
-      emit('view-changed', { map_zoom: z, map_center: [c.lng, c.lat] })
+      const w = mapContainer.value?.offsetWidth ?? 0
+      emit('view-changed', { map_zoom: z, map_center: [c.lng, c.lat], map_editor_width: w })
     }, 800)
   }
 
@@ -1387,6 +1489,7 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
     recomputeOverlays()
+    markPrintRenderReady()
   })
 
   mapInstance.on('zoom', () => {
@@ -1653,7 +1756,7 @@ watch(
         // setStyle() resets the viewport — restore frozen position before revealing the map
         if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
           mapInstance!.jumpTo({
-            zoom: props.styleConfig.map_zoom,
+            zoom: correctedPrintZoom(props.styleConfig.map_zoom),
             center: props.styleConfig.map_center as [number, number],
           })
         }
@@ -1789,7 +1892,7 @@ watch(
         placePinMarkers()
         apply3DTerrain()
         if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
-          mapInstance!.jumpTo({ zoom: props.styleConfig.map_zoom, center: props.styleConfig.map_center as [number, number] })
+          mapInstance!.jumpTo({ zoom: correctedPrintZoom(props.styleConfig.map_zoom), center: props.styleConfig.map_center as [number, number] })
         }
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -1914,7 +2017,7 @@ watch(
       mapInstance.keyboard.disable()
       if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
         mapInstance.jumpTo({
-          zoom: props.styleConfig.map_zoom,
+          zoom: correctedPrintZoom(props.styleConfig.map_zoom),
           center: props.styleConfig.map_center as [number, number],
         })
       }
@@ -1945,6 +2048,7 @@ function freezeView() {
     map_frozen: true,
     map_zoom: zoom,
     map_center: [center.lng, center.lat],
+    map_editor_width: mapContainer.value?.offsetWidth ?? 0,
   })
 }
 
@@ -1984,6 +2088,17 @@ onUnmounted(() => {
 <style scoped>
 .poster-canvas {
   container-type: size;
+}
+
+.radmaps-print-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: block;
+}
+
+.poster-canvas--print {
+  box-shadow: none !important;
 }
 
 .poster-stats {

@@ -3,7 +3,7 @@
     class="freeze-pill"
     :class="{ 'is-frozen': frozen, 'map-hovered': mapHovered }"
     :title="frozen ? 'Unlock to reposition' : 'Lock map view'"
-    @click="$emit(frozen ? 'unfreeze' : 'freeze')"
+    @click="toggleFreeze"
     style="position: static;"
   >
     <span class="zoom-label">Zoom</span>
@@ -23,15 +23,20 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   frozen: boolean
   mapHovered?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   freeze: []
   unfreeze: []
 }>()
+
+function toggleFreeze() {
+  if (props.frozen) emit('unfreeze')
+  else emit('freeze')
+}
 </script>
 
 <style scoped>

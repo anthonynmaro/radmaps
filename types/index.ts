@@ -30,7 +30,7 @@ export type ColorTheme =
   // Family B — distinct visual languages
   | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
   | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
-export type PrintSize = '18x24' | '24x36' | '16x20' | '11x14' | '8x10'
+export type PrintSize = '8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'
 export type BaseTileStyle =
   | 'carto-light'
   | 'carto-dark'
@@ -206,6 +206,7 @@ export interface StyleConfig {
   map_zoom?: number                 // locked zoom level (undefined = auto-fit from bounds)
   map_center?: [number, number]     // locked center [lng, lat] (undefined = auto-fit)
   map_frozen?: boolean              // when true: non-interactive, processing-ready
+  map_editor_width?: number         // px width of map container when zoom was saved; used to correct zoom at print resolution
 }
 
 export const DEFAULT_STYLE_CONFIG: StyleConfig = {
@@ -245,7 +246,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   border_style: 'thin',
   padding_factor: 0.15,
   color_theme: 'chalk',
-  print_size: '18x24',
+  print_size: '24x36',
   base_tile_style: 'carto-light',
   trail_name: '',
   occasion_text: '',
@@ -253,7 +254,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   label_text_color: '#1C1917',
   label_bg_color: '#F4EFE6',
   show_branding: true,
-  show_roads: false,
+  show_roads: true,
   tile_effect: 'none',
   tile_duotone_strength: 0.9,
   tile_posterize_levels: 4,
@@ -567,11 +568,12 @@ export interface PrintSizeDefinition {
 }
 
 export const PRINT_SIZES: PrintSizeDefinition[] = [
-  { id: '18x24', label: '18×24"', width_in: 18, height_in: 24 },
+  { id: '8x12',  label: '8×12"',  width_in: 8,  height_in: 12 },
+  { id: '12x18', label: '12×18"', width_in: 12, height_in: 18 },
+  { id: '16x24', label: '16×24"', width_in: 16, height_in: 24 },
+  { id: '20x30', label: '20×30"', width_in: 20, height_in: 30 },
   { id: '24x36', label: '24×36"', width_in: 24, height_in: 36 },
-  { id: '16x20', label: '16×20"', width_in: 16, height_in: 20 },
-  { id: '11x14', label: '11×14"', width_in: 11, height_in: 14 },
-  { id: '8x10',  label: '8×10"',  width_in: 8,  height_in: 10 },
+  { id: '32x48', label: '32×48"', width_in: 32, height_in: 48 },
 ]
 
 // ─── Route Stats ─────────────────────────────────────────────────────────────
@@ -698,7 +700,7 @@ export interface PrintProduct {
   size_label: string
   width_in: number
   height_in: number
-  aspect_ratio: number            // width / height (e.g. 0.75 for 3:4 portrait)
+  aspect_ratio: number            // width / height (2 / 3 for the current portrait family)
   price_cents: number
   recommended_px_w: number
   recommended_px_h: number

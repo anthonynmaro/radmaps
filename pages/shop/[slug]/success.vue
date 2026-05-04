@@ -39,7 +39,7 @@
         <div class="flex gap-5 items-start">
           <div
             class="w-28 shrink-0 rounded-lg overflow-hidden border border-stone-200"
-            style="aspect-ratio:3/4"
+            style="aspect-ratio:2/3"
             :style="{ backgroundColor: premade.style_config.background_color }"
           >
             <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" />

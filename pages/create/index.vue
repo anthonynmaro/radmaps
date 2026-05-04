@@ -294,7 +294,7 @@
             >
               <div
                 class="relative"
-                style="aspect-ratio:3/4"
+                style="aspect-ratio:2/3"
                 :style="{ backgroundColor: premade.style_config.background_color }"
               >
                 <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" />

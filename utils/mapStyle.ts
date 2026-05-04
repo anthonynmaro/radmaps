@@ -20,6 +20,7 @@ export function buildMapStyle(
   mapboxToken?: string,
   maptilerToken?: string,
   contourTileUrl?: string,
+  stadiaToken?: string,
 ): object {
   if (config.preset === 'topographic') {
     return buildTopographicStyle(config, mapboxToken, contourTileUrl)
@@ -37,16 +38,16 @@ export function buildMapStyle(
     return buildNaturalTopoStyle(config, mapboxToken, maptilerToken, contourTileUrl)
   }
   if (config.preset === 'stadia-watercolor') {
-    return buildStadiaWatercolorStyle(config, contourTileUrl)
+    return buildStadiaWatercolorStyle(config, contourTileUrl, stadiaToken, mapboxToken)
   }
   if (config.preset === 'stadia-toner') {
-    return buildStadiaTonerStyle(config, contourTileUrl)
+    return buildStadiaTonerStyle(config, contourTileUrl, stadiaToken, mapboxToken)
   }
   if (config.preset === 'native-toner') {
     return buildNativeTonerStyle(config, mapboxToken, contourTileUrl)
   }
   if (config.preset === 'native-watercolor') {
-    return buildNativeWatercolorStyle(config, contourTileUrl)
+    return buildNativeWatercolorStyle(config, contourTileUrl, mapboxToken)
   }
   if (config.preset === 'alidade-smooth') {
     return buildAlidadeSmoothStyle(config, maptilerToken, mapboxToken, contourTileUrl)
@@ -694,12 +695,15 @@ function buildMinimalistStyle(
     baseTileAttribution = '© MapTiler © OpenStreetMap contributors'
   } else {
     const dark = base === 'carto-dark'
+    // @2x raster tiles for retina/print quality. CARTO basemaps support
+    // the `{r}` retina suffix; we hard-code `@2x` and bump tileSize to
+    // 512 so MapLibre renders glyphs/edges sharply at print DPI.
     const sub = (s: string) =>
-      ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}.png`)
+      ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}@2x.png`)
     baseTileSource = {
       type: 'raster' as const,
       tiles: styledTileUrls(config, dark ? sub('dark_all') : sub('light_all')),
-      tileSize: 256,
+      tileSize: 512,
     }
     baseTileOpacity = base === 'carto-dark' ? 0.45 : 0.55
     baseTileAttribution = '© CARTO © OpenStreetMap contributors'
@@ -732,8 +736,8 @@ function buildMinimalistStyle(
         },
       },
       ...hillshadeLayers(config),
-      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -772,8 +776,8 @@ function buildRouteOnlyStyle(
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
       ...hillshadeLayers(config),
-      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -804,7 +808,10 @@ function buildRoadNetworkStyle(
     ...segmentHandleSource(),
   }
 
-  const roadLayers: object[] = []
+  // Fills (water, landuse) belong below hillshade/contours as base features.
+  // Road lines belong above hillshade/contours so labels/lines aren't cut by terrain.
+  const fillLayers: object[] = []
+  const roadLineLayers: object[] = []
 
   if (token) {
     sources['mapbox-streets'] = {
@@ -816,7 +823,7 @@ function buildRoadNetworkStyle(
     }
 
     // Water fill (light, below roads)
-    roadLayers.push({
+    fillLayers.push({
       id: 'rn-water',
       type: 'fill',
       source: 'mapbox-streets',
@@ -825,7 +832,7 @@ function buildRoadNetworkStyle(
     })
 
     // Land use — parks / green space
-    roadLayers.push({
+    fillLayers.push({
       id: 'rn-landuse',
       type: 'fill',
       source: 'mapbox-streets',
@@ -835,7 +842,7 @@ function buildRoadNetworkStyle(
     })
 
     // Service / footpath (thinnest)
-    roadLayers.push({
+    roadLineLayers.push({
       id: 'rn-service',
       type: 'line',
       source: 'mapbox-streets',
@@ -850,7 +857,7 @@ function buildRoadNetworkStyle(
     })
 
     // Residential / local streets
-    roadLayers.push({
+    roadLineLayers.push({
       id: 'rn-street',
       type: 'line',
       source: 'mapbox-streets',
@@ -865,7 +872,7 @@ function buildRoadNetworkStyle(
     })
 
     // Secondary
-    roadLayers.push({
+    roadLineLayers.push({
       id: 'rn-secondary',
       type: 'line',
       source: 'mapbox-streets',
@@ -880,7 +887,7 @@ function buildRoadNetworkStyle(
     })
 
     // Motorway / trunk (boldest)
-    roadLayers.push({
+    roadLineLayers.push({
       id: 'rn-motorway',
       type: 'line',
       source: 'mapbox-streets',
@@ -904,9 +911,10 @@ function buildRoadNetworkStyle(
     sources,
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': bg } },
-      ...roadLayers,
+      ...fillLayers,
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
+      ...roadLineLayers,
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1081,8 +1089,8 @@ function buildNaturalTopoStyle(
         },
       },
       ...hillshadeLayers(config),
-      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1094,25 +1102,40 @@ function buildNaturalTopoStyle(
 // Hand-painted watercolor raster tiles from Stamen Design, hosted by Stadia Maps.
 // Free for low-traffic / non-commercial use. Production needs a STADIA_API_KEY.
 
-function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string): object {
+function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string, stadiaToken?: string, mapboxToken?: string): object {
   const usingMlContour = !!contourTileUrl
+  const keyParam = stadiaToken ? `?api_key=${stadiaToken}` : ''
+  const mapboxTk = mapboxToken || ''
 
   return {
     version: 8,
     name: 'RadMaps Watercolor',
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    glyphs: mapboxTk
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxTk}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'base-tiles': {
         type: 'raster' as const,
+        // Use @2x (512×512 retina) tiles + tileSize 512 so the worker
+        // gets twice the source pixel density. At print DPI the rendered
+        // zoom often exceeds the source maxzoom (Stadia stamen_watercolor
+        // is capped at z14 server-side), and MapLibre upscales — @2x
+        // halves the upscale factor so glyphs/edges stay sharp.
         tiles: styledTileUrls(config, [
-          'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+          `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}@2x.jpg${keyParam}`,
         ]),
-        tileSize: 256,
-        maxzoom: 16,
+        tileSize: 512,
+        // Stadia stamen_watercolor's effective server-side maxzoom is 14 —
+        // higher zooms return 204 No Content even though they advertise 16.
+        // Cap here so MapLibre upscales z14 tiles for higher view zooms
+        // (e.g. 300 DPI print rendering at zoom 15+) instead of leaving
+        // gaps. Watercolor is artistic — soft upscale looks fine.
+        maxzoom: 14,
         attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
-      ...(config.show_contours ? (contourTileUrl ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } } : {}) : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1129,7 +1152,8 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
         },
       },
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
-      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1140,24 +1164,30 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
 // ─── Stadia Toner Style ───────────────────────────────────────────────────────
 // High-contrast black & white graphic style by Stamen Design, hosted by Stadia Maps.
 
-function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string): object {
+function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, stadiaToken?: string, mapboxToken?: string): object {
   const usingMlContour = !!contourTileUrl
+  const keyParam = stadiaToken ? `?api_key=${stadiaToken}` : ''
+  const mapboxTk = mapboxToken || ''
 
   return {
     version: 8,
     name: 'RadMaps Toner',
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    glyphs: mapboxTk
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxTk}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'base-tiles': {
         type: 'raster' as const,
+        // @2x for HiDPI print rendering — see watercolor source comment.
         tiles: styledTileUrls(config, [
-          'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}.png',
+          `https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}@2x.png${keyParam}`,
         ]),
-        tileSize: 256,
+        tileSize: 512,
         attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
-      ...(config.show_contours && usingMlContour ? { contours: { type: 'vector' as const, tiles: [contourTileUrl!], minzoom: 0, maxzoom: 14 } } : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1174,7 +1204,8 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string): ob
         },
       },
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
-      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1203,7 +1234,10 @@ function buildNativeTonerStyle(
     ...segmentHandleSource(),
   }
 
+  // Fills (water, landuse, buildings) sit below hillshade/contours as base features.
+  // Road lines sit above so they aren't visually cut by terrain.
   const baseLayers: object[] = []
+  const roadLineLayers: object[] = []
 
   if (token) {
     sources['mapbox-streets'] = {
@@ -1221,6 +1255,8 @@ function buildNativeTonerStyle(
         paint: { 'fill-color': ink, 'fill-opacity': 0.08 } },
       { id: 'nt-buildings', type: 'fill', source: 'mapbox-streets', 'source-layer': 'building',
         paint: { 'fill-color': ink, 'fill-opacity': 0.06 } },
+    )
+    roadLineLayers.push(
       { id: 'nt-service', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
         filter: ['in', ['get', 'class'], ['literal', ['service', 'path', 'pedestrian', 'track']]],
         layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -1245,8 +1281,8 @@ function buildNativeTonerStyle(
   } else {
     sources['base-tiles'] = {
       type: 'raster' as const,
-      tiles: ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`),
-      tileSize: 256,
+      tiles: ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png`),
+      tileSize: 512,
       attribution: '© CARTO © OpenStreetMap contributors',
     }
     baseLayers.push({
@@ -1267,6 +1303,7 @@ function buildNativeTonerStyle(
       ...baseLayers,
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
+      ...roadLineLayers,
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1281,27 +1318,32 @@ function buildNativeTonerStyle(
 function buildNativeWatercolorStyle(
   config: StyleConfig,
   contourTileUrl?: string,
+  mapboxToken?: string,
 ): object {
   const usingMlContour = !!contourTileUrl
+  const mapboxTk = mapboxToken || ''
   const cartoUrls = ['a', 'b', 'c', 'd'].map(
-    p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
+    p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png`,
   )
 
   return {
     version: 8,
     name: 'RadMaps Native Watercolor',
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    glyphs: mapboxTk
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxTk}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'base-tiles': {
         type: 'raster' as const,
         tiles: styledTileUrls(config, cartoUrls),
-        tileSize: 256,
+        tileSize: 512,
         attribution: '© CARTO © OpenStreetMap contributors',
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
       ...(config.show_contours && contourTileUrl
         ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } }
         : {}),
+      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1319,6 +1361,7 @@ function buildNativeWatercolorStyle(
       },
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
       ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1371,8 +1414,8 @@ function buildAlidadeSmoothStyle(
         },
       },
       ...hillshadeLayers(config),
-      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1426,8 +1469,8 @@ function buildAlidadeSmoothDarkStyle(
         },
       },
       ...hillshadeLayers(config),
-      ...(mapboxTk ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1477,8 +1520,8 @@ function buildTopographicStyle(
         },
       },
       ...hillshadeLayers(config),
-      ...(token ? roadsLayers(config) : []),
       ...contourLayers(config, usingMlContour),
+      ...(token ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),

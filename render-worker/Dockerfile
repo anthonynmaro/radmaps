@@ -44,7 +44,16 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 COPY render-worker/package*.json ./
-RUN npm install --omit=dev
+RUN npm install
+
+# Bundle utils/mapStyle.ts into mapStyle.js (all presets, type-erased)
+COPY utils/mapStyle.ts ./mapStyle.src.ts
+COPY types/index.ts ./types.ts
+RUN npx esbuild mapStyle.src.ts --bundle --platform=node --format=esm --outfile=mapStyle.js \
+    && rm mapStyle.src.ts types.ts
+
+# Prune dev dependencies after the build step
+RUN npm prune --omit=dev
 
 COPY render-worker/index.js ./
 

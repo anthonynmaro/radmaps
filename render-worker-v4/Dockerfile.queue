@@ -1,0 +1,62 @@
+# RadMaps render worker v4 — print queue consumer
+# ─────────────────────────────────────────────────────────────────────────────
+# Identical image to ./Dockerfile (same Node, same native deps, same build) —
+# only the CMD differs. We re-COPY the build artifacts into a runtime
+# stage and start `dist/queue.js` instead of `dist/index.js`.
+#
+# Operators have two equivalent options:
+#   1. Build this Dockerfile directly: `docker build -f Dockerfile.queue .`
+#   2. Build ./Dockerfile and override the CMD at deploy time:
+#      `docker run image node dist/queue.js`
+#
+# The base/build stages are duplicated here rather than shared so this file
+# is self-contained for Railway deploys (one Dockerfile per service).
+
+FROM node:20-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libgl1-mesa-glx \
+      libgles2-mesa \
+      libegl1 \
+      libx11-6 \
+      libvips-dev \
+      fontconfig \
+      fonts-dejavu-core \
+      ca-certificates \
+      curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ─── Build stage ────────────────────────────────────────────────────────────
+FROM base AS build
+
+COPY render-worker-v4/package*.json ./
+RUN npm install
+
+COPY render-worker-v4/ ./
+COPY utils/ ./utils-src/
+COPY types/ ./types-src/
+
+RUN node -e "const fs=require('fs');const p='./tsconfig.json';const t=JSON.parse(fs.readFileSync(p));t.compilerOptions.paths={'~/types':['./types-src/index'],'~/*':['./*']};fs.writeFileSync(p,JSON.stringify(t,null,2));"
+
+RUN npm run build
+
+RUN npm prune --omit=dev
+
+# ─── Runtime stage ──────────────────────────────────────────────────────────
+FROM base AS runtime
+
+WORKDIR /app
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./package.json
+
+# The queue process doesn't actually use the tile cache (no map renders),
+# but keep the directory so the same image works for both services.
+RUN mkdir -p /app/tile-cache
+
+# No EXPOSE — this is a worker, not an HTTP service. Health checks can use
+# `pidof node` or a sidecar; Railway will restart on exit code != 0.
+CMD ["node", "dist/queue.js"]

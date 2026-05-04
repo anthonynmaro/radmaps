@@ -72,8 +72,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── schema.sql           — full DB schema
 │   └── migrations/          — incremental migrations
 ├── tests/                   — vitest unit tests (only 2 files exist today)
-├── REMEDIATION.md           — full security + architecture remediation plan
-└── design_handoff_style_panel/  — ⚠ DEAD CODE: old JSX mockups, scheduled for deletion
+└── REMEDIATION.md           — full security + architecture remediation plan
 ```
 
 ## Core data model
@@ -188,6 +187,6 @@ See `.env.example` for the full list with comments. Key ones:
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
 - **Render worker jobs are in-memory** (plain Map) — all jobs are lost on Railway restart; no retry mechanism
 - **`render-worker/index.js` is a monolith** — HTML template build, Puppeteer orchestration, Supabase upload, and Sharp optimization are all inline
-- `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
+- **`render-worker-v4/` is the in-progress replacement** for the legacy worker. State and remaining work are documented in `render-worker-v4/HANDOFF.md`. The v4 system has not been run end-to-end in any environment; production traffic still goes to legacy `render-worker/`.
 - `useStyleAgent` composable is built but NOT wired into any UI yet
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

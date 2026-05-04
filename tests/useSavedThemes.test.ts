@@ -12,7 +12,7 @@ const mockConfig: StyleConfig = {
   preset: 'minimalist',
   base_tile_style: 'carto-light',
   color_theme: 'chalk',
-  print_size: '18x24',
+  print_size: '24x36',
   background_color: '#F7F4EF',
   label_bg_color: '#F7F4EF',
   label_text_color: '#1C1917',

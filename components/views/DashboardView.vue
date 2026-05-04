@@ -167,14 +167,14 @@
       <div v-if="loading">
         <div v-if="view === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <div v-for="i in 6" :key="i" class="animate-pulse">
-            <div class="bg-stone-200/70 rounded-xl" style="aspect-ratio:3/4" />
+            <div class="bg-stone-200/70 rounded-xl" style="aspect-ratio:2/3" />
             <div class="h-3 bg-stone-200/70 rounded mt-4 w-2/3" />
             <div class="h-2.5 bg-stone-200/60 rounded mt-2 w-1/3" />
           </div>
         </div>
         <div v-else class="space-y-3">
           <div v-for="i in 4" :key="i" class="bg-white rounded-2xl border border-stone-200 p-4 flex gap-4 animate-pulse">
-            <div class="w-14 shrink-0 rounded-lg bg-stone-100" style="aspect-ratio:3/4" />
+            <div class="w-14 shrink-0 rounded-lg bg-stone-100" style="aspect-ratio:2/3" />
             <div class="flex-1 py-1 space-y-2.5">
               <div class="h-4 bg-stone-100 rounded w-1/2" />
               <div class="h-3 bg-stone-100 rounded w-1/3" />
@@ -238,7 +238,7 @@
           <!-- Poster card -->
           <div
             class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
-            style="aspect-ratio:3/4"
+            style="aspect-ratio:2/3"
             :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
           >
             <!-- Real thumbnail if available -->
@@ -376,7 +376,7 @@
           <NuxtLink
             :to="`/create/${map.id}/style`"
             class="w-16 shrink-0 rounded-lg overflow-hidden border border-stone-100 relative"
-            style="aspect-ratio:3/4"
+            style="aspect-ratio:2/3"
           >
             <img
               v-if="map.thumbnail_url"
@@ -483,7 +483,7 @@
           >
             <div
               class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
-              style="aspect-ratio:3/4"
+              style="aspect-ratio:2/3"
               :style="{ backgroundColor: premade.style_config.background_color }"
             >
               <img

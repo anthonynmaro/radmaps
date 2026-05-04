@@ -1,10 +1,22 @@
 /**
- * useMapRenderer — trigger a 300 DPI render job and poll for completion.
+ * useMapRenderer — trigger a render and poll for completion.
  *
- * Flow:
- *   1. POST /api/maps/:id/render  → fires render worker (fire-and-forget)
- *   2. Poll the map record in Supabase every 3s until status → 'rendered'
- *   3. Expose isRendering / isComplete / renderUrl / error for the UI
+ * Two protocols, auto-detected from the server response:
+ *
+ *   v4 path — POST returns `{ status, proof_render_hash, render_url? }`:
+ *     • status === 'cached'      → resolve immediately, no polling
+ *     • status === 'compositing' → poll every 1 s for `proof_render_hash`
+ *                                   to land on the maps row, 15 s timeout
+ *     • status === 'rendering'   → exponential backoff (1, 2, 4, 8, 10 s),
+ *                                   2-minute total timeout
+ *
+ *   Legacy path — POST returns `{ job_id, status: 'queued' }`:
+ *     • flat 3 s polling on `maps.status === 'rendered'`, 2-minute cap
+ *     • mirrors the original Puppeteer-worker behaviour exactly
+ *
+ * The composable picks the path automatically based on the presence of
+ * `proof_render_hash` in the trigger response, so the consuming UI does
+ * not need to know which pipeline served the request.
  */
 export function useMapRenderer(mapId: Ref<string> | string) {
   const id = isRef(mapId) ? mapId : ref(mapId)
@@ -17,8 +29,27 @@ export function useMapRenderer(mapId: Ref<string> | string) {
   const pdfUrl      = ref<string | null>(null)
   const error       = ref<string | null>(null)
 
-  let pollInterval: ReturnType<typeof setInterval> | null = null
+  // Polling state — shared between paths so stopPolling() is one source of truth.
+  let nextTimeout: ReturnType<typeof setTimeout> | null = null
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+
+  function stopPolling() {
+    if (nextTimeout !== null)   { clearTimeout(nextTimeout);   nextTimeout = null }
+    if (timeoutHandle !== null) { clearTimeout(timeoutHandle); timeoutHandle = null }
+  }
+
+  function settleComplete(url: string | null) {
+    renderUrl.value   = url
+    isRendering.value = false
+    isComplete.value  = true
+    stopPolling()
+  }
+
+  function settleError(msg: string) {
+    error.value = msg
+    isRendering.value = false
+    stopPolling()
+  }
 
   // ── Trigger ──────────────────────────────────────────────────────────────────
 
@@ -27,67 +58,139 @@ export function useMapRenderer(mapId: Ref<string> | string) {
     isRendering.value = true
     isComplete.value  = false
     error.value       = null
+    renderUrl.value   = null
 
     try {
-      await $fetch(`/api/maps/${id.value}/render`, { method: 'POST' })
-      startPolling()
-    } catch (e) {
-      error.value = (e as Error).message ?? 'Failed to start render'
-      isRendering.value = false
-    }
-  }
+      const resp = await $fetch<{
+        status?: 'cached' | 'compositing' | 'rendering' | 'queued'
+        render_url?: string
+        proof_render_hash?: string
+        job_id?: string
+      }>(`/api/maps/${id.value}/render`, { method: 'POST' })
 
-  // ── Poll Supabase map record every 3s ─────────────────────────────────────────
-
-  function startPolling() {
-    stopPolling()
-    pollInterval = setInterval(checkStatus, 3000)
-    // Safety timeout: stop polling after 2 minutes
-    timeoutHandle = setTimeout(() => {
-      if (isRendering.value) {
-        error.value = 'Render timed out. Please try again.'
-        isRendering.value = false
-        stopPolling()
-      }
-    }, 2 * 60 * 1000)
-  }
-
-  async function checkStatus() {
-    try {
-      const { data: map } = await supabase
-        .from('maps')
-        .select('status, render_url, pdf_url')
-        .eq('id', id.value)
-        .single()
-
-      if (!map) return
-
-      // Detect worker error sentinel written on failure
-      if (typeof map.render_url === 'string' && map.render_url.startsWith('error:')) {
-        error.value = map.render_url.slice(6) || 'Render failed. Please try again.'
-        isRendering.value = false
-        stopPolling()
-        // Clear the sentinel so a retry starts fresh
-        await supabase.from('maps').update({ render_url: null }).eq('id', id.value)
+      // v4 path: response includes proof_render_hash.
+      if (resp && typeof resp.proof_render_hash === 'string') {
+        if (resp.status === 'cached' && resp.render_url) {
+          settleComplete(resp.render_url)
+          return
+        }
+        const targetHash = resp.proof_render_hash
+        if (resp.status === 'compositing') {
+          startV4Polling({ targetHash, intervalMs: 1000, totalTimeoutMs: 15_000, backoff: false })
+        } else {
+          // 'rendering' or anything else → backoff polling.
+          startV4Polling({ targetHash, intervalMs: 1000, totalTimeoutMs: 120_000, backoff: true })
+        }
         return
       }
 
-      if (map.status === 'rendered') {
-        renderUrl.value   = map.render_url ?? null
-        pdfUrl.value      = map.pdf_url ?? null
-        isRendering.value = false
-        isComplete.value  = true
-        stopPolling()
-      }
-      // 'draft' = still rendering or not started; keep polling
+      // Legacy path.
+      startLegacyPolling()
     } catch (e) {
-      console.error('Render status poll error:', e)
+      settleError((e as Error).message ?? 'Failed to start render')
     }
   }
 
-  function stopPolling() {
-    if (pollInterval !== null) { clearInterval(pollInterval); pollInterval = null }
-    if (timeoutHandle !== null) { clearTimeout(timeoutHandle); timeoutHandle = null }
+  // ── v4 polling ───────────────────────────────────────────────────────────────
+  //
+  // Polls maps row for the new `proof_render_hash` to land. When the hash
+  // matches what the server told us to expect, the worker has finished
+  // composing the proof and `proof_render_url` is set.
+
+  function startV4Polling(opts: {
+    targetHash: string
+    intervalMs: number
+    totalTimeoutMs: number
+    backoff: boolean
+  }) {
+    stopPolling()
+    let delay = opts.intervalMs
+    const MAX_DELAY = 10_000
+
+    const tick = async () => {
+      try {
+        const { data } = await supabase
+          .from('maps')
+          .select('proof_render_hash, proof_render_url, render_url')
+          .eq('id', id.value)
+          .single()
+        if (!data) return scheduleNext()
+
+        // Worker error sentinel (legacy + v4 both use this on failure).
+        if (typeof data.render_url === 'string' && data.render_url.startsWith('error:')) {
+          settleError(data.render_url.slice(6) || 'Render failed. Please try again.')
+          await supabase.from('maps').update({ render_url: null }).eq('id', id.value)
+          return
+        }
+
+        if (data.proof_render_hash === opts.targetHash && data.proof_render_url) {
+          settleComplete(data.proof_render_url)
+          return
+        }
+      } catch (e) {
+        console.error('Render status poll error (v4):', e)
+      }
+      scheduleNext()
+    }
+
+    const scheduleNext = () => {
+      if (opts.backoff) {
+        delay = Math.min(delay * 2, MAX_DELAY)
+      }
+      nextTimeout = setTimeout(tick, delay)
+    }
+
+    timeoutHandle = setTimeout(() => {
+      if (isRendering.value) {
+        settleError('Render timed out. Please try again.')
+      }
+    }, opts.totalTimeoutMs)
+
+    nextTimeout = setTimeout(tick, opts.intervalMs)
+  }
+
+  // ── Legacy polling (3s flat, 2-min timeout) ─────────────────────────────────
+
+  function startLegacyPolling() {
+    stopPolling()
+    const tick = async () => {
+      try {
+        const { data: map } = await supabase
+          .from('maps')
+          .select('status, render_url, pdf_url')
+          .eq('id', id.value)
+          .single()
+        if (!map) return scheduleNext()
+
+        if (typeof map.render_url === 'string' && map.render_url.startsWith('error:')) {
+          settleError(map.render_url.slice(6) || 'Render failed. Please try again.')
+          await supabase.from('maps').update({ render_url: null }).eq('id', id.value)
+          return
+        }
+
+        if (map.status === 'rendered') {
+          renderUrl.value = map.render_url ?? null
+          pdfUrl.value    = map.pdf_url ?? null
+          settleComplete(renderUrl.value)
+          return
+        }
+      } catch (e) {
+        console.error('Render status poll error:', e)
+      }
+      scheduleNext()
+    }
+
+    const scheduleNext = () => {
+      nextTimeout = setTimeout(tick, 3000)
+    }
+
+    timeoutHandle = setTimeout(() => {
+      if (isRendering.value) {
+        settleError('Render timed out. Please try again.')
+      }
+    }, 2 * 60 * 1000)
+
+    nextTimeout = setTimeout(tick, 3000)
   }
 
   onUnmounted(stopPolling)

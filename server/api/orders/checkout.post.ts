@@ -7,6 +7,7 @@ import Stripe from 'stripe'
 import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { getProduct, formatPrice } from '~/utils/products'
+import { freezeOrderSnapshot } from '~/server/utils/snapshot'
 
 const CheckoutBody = z.object({
   map_id: z.string().uuid(),
@@ -105,6 +106,25 @@ export default defineEventHandler(async (event) => {
     success_url: `${baseUrl}/create/${map_id}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/create/${map_id}/checkout`,
   })
+
+  // Plan v4 §"Snapshot lifecycle": freeze the design at session creation.
+  // The webhook handler will read this back by stripe_session_id rather
+  // than re-reading the (mutable) maps row.  Failure here would leave a
+  // Stripe session without a snapshot, so the webhook would have to fall
+  // back to the legacy flow — log the failure but do NOT block checkout.
+  if (!digital_only) {
+    try {
+      await freezeOrderSnapshot(supabase, {
+        stripeSessionId: session.id,
+        mapId: map_id,
+        productUid: product_uid,
+        userId: user.id,
+      })
+    } catch (err) {
+      console.error('[orders/checkout] snapshot freeze failed:', (err as Error).message)
+      // Webhook will fall back to legacy (live-map-read) path.
+    }
+  }
 
   return { url: session.url, session_id: session.id }
 })

@@ -60,7 +60,7 @@
               <!-- Mini poster thumbnail — layout mirrors actual theme -->
               <div
                 class="w-full overflow-hidden flex flex-col"
-                style="aspect-ratio: 3/4; border-radius: 5px;"
+                style="aspect-ratio: 2/3; border-radius: 5px;"
                 :style="{ backgroundColor: theme.background_color }"
               >
                 <!-- Title band: flex order flips for bottom-title themes -->
@@ -130,7 +130,7 @@
             <div class="grid grid-cols-3 gap-2">
               <div v-for="saved in savedThemes" :key="saved.id" class="relative group">
                 <button @click="applySavedTheme(saved)" class="w-full flex flex-col items-center gap-1 bg-white cursor-pointer border-none p-0" style="border-radius: 10px; border: 2px solid #E7E5E4; padding: 4px;">
-                  <div class="w-full overflow-hidden flex flex-col items-center" style="aspect-ratio: 3/4; border-radius: 5px; padding: 12% 8%; gap: 4%;" :style="{ backgroundColor: saved.config.background_color ?? '#F7F4EF' }">
+                  <div class="w-full overflow-hidden flex flex-col items-center" style="aspect-ratio: 2/3; border-radius: 5px; padding: 12% 8%; gap: 4%;" :style="{ backgroundColor: saved.config.background_color ?? '#F7F4EF' }">
                     <span class="text-center" style="font-size: 7px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.1;" :style="{ color: saved.config.label_text_color ?? '#1C1917' }">SUMMIT<br/>TRAIL</span>
                     <div class="w-full shrink-0" style="height: 1px; opacity: 0.2;" :style="{ backgroundColor: saved.config.label_text_color ?? '#1C1917' }" />
                     <svg viewBox="0 0 60 40" class="w-full flex-1" fill="none">
@@ -164,21 +164,6 @@
               <button class="text-xs transition-colors" style="color: #A8A29E;" @click="showSaveInput = false">✕</button>
             </div>
             <button v-else class="text-[10px] font-semibold transition-colors" style="color: #78716C; background: none; border: none; padding: 0; cursor: pointer;" @click="openSaveInput">+ Save current theme</button>
-          </div>
-        </V4Card>
-
-        <V4Card title="Print size" :default-open="true">
-          <div class="grid grid-cols-5 gap-1.5">
-            <button
-              v-for="size in PRINT_SIZES"
-              :key="size.id"
-              @click="set('print_size', size.id)"
-              class="text-[11px] font-semibold text-center cursor-pointer transition-all border-none"
-              style="padding: 10px 4px; border-radius: 8px; border: 1.5px solid;"
-              :style="local.print_size === size.id
-                ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
-                : 'background: white; border-color: #E7E5E4; color: #44403C;'"
-            >{{ size.label }}</button>
           </div>
         </V4Card>
 
@@ -916,7 +901,7 @@
 
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset } from '~/types'
-import { COLOR_THEMES, PRINT_SIZES } from '~/types'
+import { COLOR_THEMES } from '~/types'
 
 const THEME_THUMB: Record<string, {
   titlePosition: 'top' | 'bottom'

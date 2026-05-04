@@ -122,7 +122,7 @@
         >
           <div
             class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-2xl group-hover:-translate-y-1 transition-all duration-300 border border-stone-900/5"
-            style="aspect-ratio:3/4"
+            style="aspect-ratio:2/3"
             :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
           >
             <!-- Real pre-rendered image if available -->

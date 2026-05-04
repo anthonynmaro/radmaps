@@ -1,17 +1,30 @@
 /**
  * POST /api/maps/:id/render
- * Kick off a high-resolution render job on the Railway worker service.
- * The render worker runs Puppeteer, generates a 300 DPI JPEG + PDF,
- * uploads them to Supabase Storage, and patches the map record status → 'rendered'.
  *
- * This endpoint is fire-and-forget: it starts the render job and returns
- * immediately with a job_id. The client polls the map record's status field
- * directly from Supabase to detect completion.
+ * Two paths, gated by the `RENDER_PIPELINE_V4_ENABLED` runtime flag:
  *
- * Render worker: render-worker/index.js (deployed on Railway)
+ *   1. v4 path (flag = true): compute hashes, check the proof cache,
+ *      capture the dedicated Nuxt render page through Browserless, then
+ *      upload the proof artifact.
+ *      Returns one of:
+ *        { status: 'cached',      render_url, proof_render_hash }
+ *
+ *   2. Legacy path (flag = false, default): kicks off the legacy
+ *      Puppeteer worker fire-and-forget; client polls `maps.status`.
+ *
+ * The flag defaults to OFF (see nuxt.config.ts), so existing behavior
+ * is preserved verbatim until it's flipped ON in production.
  */
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { DEFAULT_STYLE_CONFIG } from '~/types'
+import type { H3Event } from 'h3'
+import { serverSupabaseClient, serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
+import { DEFAULT_STYLE_CONFIG, type StyleConfig, type RouteStats } from '~/types'
+import { computeMapContentHash, computeChromeHash, computeProofRenderHash } from '~/utils/render/hash'
+import { getPrintFraming } from '~/utils/print/printFraming'
+import { getProviderProfile } from '~/utils/print/providerProfile'
+import { createRenderTicket } from '~/utils/render/renderTicket'
+import { getProofPath } from '~/utils/render/storagePaths'
+import { takeScreenshot } from '~/server/utils/screenshotService'
+import { validateJpegBasics } from '~/server/utils/jpegMeta'
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
@@ -20,7 +33,15 @@ export default defineEventHandler(async (event) => {
   const mapId = getRouterParam(event, 'id')
   if (!mapId) throw createError({ statusCode: 400, message: 'Map ID required' })
 
+  const config = useRuntimeConfig()
   const supabase = await serverSupabaseClient(event)
+
+  // ─── v4 branch ────────────────────────────────────────────────────────────
+  if (config.renderPipelineV4Enabled) {
+    return await handleV4Render({ event, mapId, userId: user.id, config })
+  }
+
+  // ─── Legacy branch (preserved verbatim) ───────────────────────────────────
 
   // Verify ownership and fetch map data
   const { data: map, error: fetchError } = await supabase
@@ -34,7 +55,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Map not found' })
   }
 
-  const config = useRuntimeConfig()
   const jobId = crypto.randomUUID()
 
   // Mark map as rendering so the UI can show an in-progress state.
@@ -100,3 +120,138 @@ export default defineEventHandler(async (event) => {
   // Return immediately — client will poll map status
   return { job_id: jobId, status: 'queued' }
 })
+
+// ─── v4 handler ──────────────────────────────────────────────────────────────
+//
+// Self-contained so the legacy path stays untouched. Uses the
+// service-role client for the render_cache read because the table has
+// no per-user RLS and the user is already authenticated above.
+
+interface V4Args {
+  event: H3Event
+  mapId: string
+  userId: string
+  config: ReturnType<typeof useRuntimeConfig>
+}
+
+async function handleV4Render(args: V4Args) {
+  const { event, mapId, userId, config } = args
+  const supabase = await serverSupabaseClient(event)
+  const adminClient = await serverSupabaseServiceRole(event)
+
+  const body = await readBody(event).catch(() => ({})) as {
+    product_uid?: string
+    render_backend?: 'native' | 'browser'
+  }
+
+  // 1. Load map row with everything we need to hash + dispatch.
+  const { data: map, error: fetchError } = await supabase
+    .from('maps')
+    .select('id, user_id, geojson, style_config, stats, bbox, proof_render_hash, proof_render_url')
+    .eq('id', mapId)
+    .eq('user_id', userId)
+    .single()
+
+  if (fetchError || !map) {
+    throw createError({ statusCode: 404, message: 'Map not found' })
+  }
+
+  const styleConfig = (map.style_config ?? DEFAULT_STYLE_CONFIG) as StyleConfig
+  const stats = (map.stats ?? {}) as RouteStats
+  const geojson = (map.geojson ?? { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection
+  const bbox = map.bbox as [number, number, number, number] | null
+
+  // Resolve product UID. Checkout pins the concrete Gelato product UID;
+  // editor proofs fall back to the canonical 2:3 style size.
+  const productUid = body.product_uid ?? styleConfig.print_size
+  if (!productUid) {
+    throw createError({ statusCode: 400, message: 'product_uid required (no print_size in style_config)' })
+  }
+
+  const framing = getPrintFraming(productUid, 'proof')
+
+  // 2. Compute the three hashes.
+  const mapContentHash = computeMapContentHash(styleConfig, geojson, framing)
+  const chromeHash = computeChromeHash(styleConfig, stats)
+  const proofRenderHash = computeProofRenderHash(mapContentHash, chromeHash)
+
+  // 3. Proof cache hit on the maps row itself — fully cached, no work.
+  if (map.proof_render_hash === proofRenderHash && map.proof_render_url) {
+    return {
+      status: 'cached' as const,
+      render_url: map.proof_render_url,
+      proof_render_hash: proofRenderHash,
+    }
+  }
+
+  const deviceScaleFactor = 1
+  const ticket = createRenderTicket({
+    kind: 'map',
+    subject: mapId,
+    renderClass: 'proof',
+    widthPx: framing.fullWidthPx,
+    heightPx: framing.fullHeightPx,
+    deviceScaleFactor,
+    productUid,
+    expiresAt: Date.now() + 10 * 60_000,
+  }, config.renderTicketSecret)
+
+  const siteUrl = config.public.siteUrl || 'https://radmaps.studio'
+  const renderUrl = new URL(`/render/map/${mapId}`, siteUrl)
+  renderUrl.searchParams.set('ticket', ticket)
+
+  const screenshot = await takeScreenshot({
+    url: renderUrl.toString(),
+    widthPx: Math.round(framing.fullWidthPx / deviceScaleFactor),
+    heightPx: Math.round(framing.fullHeightPx / deviceScaleFactor),
+    deviceScaleFactor,
+    format: 'jpeg',
+    quality: 95,
+    waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
+    timeoutMs: config.browserlessTimeoutMs,
+  })
+
+  const profile = getProviderProfile(productUid)
+  validateJpegBasics({
+    buffer: screenshot.buffer,
+    expectedWidth: framing.fullWidthPx,
+    expectedHeight: framing.fullHeightPx,
+    maxFileSizeMb: profile.maxFileSizeMb,
+  })
+
+  const proofPath = getProofPath(mapId, proofRenderHash)
+  const { error: uploadError } = await adminClient.storage
+    .from('maps')
+    .upload(proofPath, screenshot.buffer, {
+      contentType: screenshot.contentType,
+      upsert: true,
+      cacheControl: '3600',
+    })
+  if (uploadError) {
+    throw createError({ statusCode: 500, message: `Proof upload failed: ${uploadError.message}` })
+  }
+
+  const { data: publicUrl } = adminClient.storage.from('maps').getPublicUrl(proofPath)
+  const proofUrl = publicUrl.publicUrl
+
+  const { error: updateError } = await adminClient
+    .from('maps')
+    .update({
+      proof_render_url: proofUrl,
+      proof_render_hash: proofRenderHash,
+      map_content_hash: mapContentHash,
+      chrome_hash: chromeHash,
+      render_url: proofUrl,
+      status: 'rendered',
+    })
+    .eq('id', mapId)
+  if (updateError) {
+    throw createError({ statusCode: 500, message: `Map proof update failed: ${updateError.message}` })
+  }
+
+  return {
+    status: 'cached' as const,
+    render_url: proofUrl,
+    proof_render_hash: proofRenderHash,
+  }
+}

@@ -170,7 +170,7 @@
           <div class="flex gap-4 items-start pb-5 border-b border-stone-200">
             <div
               class="w-20 shrink-0 rounded-lg overflow-hidden border border-stone-200"
-              style="aspect-ratio:3/4"
+              style="aspect-ratio:2/3"
               :style="{ backgroundColor: premade.style_config.background_color }"
             >
               <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" />
@@ -261,7 +261,7 @@ const currentPath = computed(() => `/shop/${slug}/checkout${route.query.size ? `
 // Read size + qty from query (set by detail page)
 const selectedProductUid = ref(
   (route.query.size as string) ||
-    PRODUCTS.find((p) => p.type === 'poster' && p.size_label === '12×16"')?.product_uid ||
+    PRODUCTS.find((p) => p.type === 'poster' && p.size_label === '12×18"')?.product_uid ||
     'flat_product_pf_12x16_pt_170-gsm-uncoated_cl_4-0_ver'
 )
 const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as string) || '1', 10) || 1)))

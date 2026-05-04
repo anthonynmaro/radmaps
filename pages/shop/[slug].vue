@@ -312,7 +312,7 @@ const posterOptions = PRODUCTS.filter((p) => p.type === 'poster' && p.size_label
 
 // Default size: 12x16 → falls back to first available
 const defaultSizeUid =
-  posterOptions.find((p) => p.size_label === '12×16"')?.product_uid ||
+  posterOptions.find((p) => p.size_label === '12×18"')?.product_uid ||
   posterOptions[0]?.product_uid ||
   ''
 

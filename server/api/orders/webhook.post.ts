@@ -13,6 +13,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { getProduct } from '~/utils/products'
+import { computePrintHash } from '~/utils/render/hash'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -61,6 +62,24 @@ export default defineEventHandler(async (event) => {
     const isDigital = productUid === 'digital'
     const isPremade = meta.kind === 'premade'
 
+    // ── Plan v4: look up the immutable design snapshot (if one was frozen
+    //    at checkout session creation).  If present, the snapshot is the
+    //    source of truth for the print render — never re-read the live
+    //    `maps` row for design fields.  Sessions created before the v4
+    //    deploy will not have a snapshot; they fall through to the legacy
+    //    flow below.
+    const { data: snapshot } = await supabase
+      .from('order_snapshots')
+      .select('*')
+      .eq('stripe_session_id', session.id)
+      .maybeSingle()
+
+    // Feature flag: when true, skip the legacy Gelato call here and let
+    // the print render queue consumer (Phase 8) handle submission.
+    // Default false — we're rolling out cautiously.
+    const queueEnabled =
+      process.env.RENDER_PIPELINE_V4_QUEUE_ENABLED === 'true' && !!snapshot && !isPremade && !isDigital
+
     // Import premade catalog lazily to keep custom-order hot path small
     let premade: Awaited<ReturnType<typeof import('~/data/premade-maps').getPremadeBySlug>> = undefined
     if (isPremade && meta.premade_slug) {
@@ -87,6 +106,13 @@ export default defineEventHandler(async (event) => {
       premade_title: isPremade ? meta.premade_title : null,
     }
 
+    // v4: tag the new order with the active session and the v4 fulfillment
+    // status if the new pipeline is enabled and we have a snapshot.
+    if (snapshot) {
+      orderPayload.active_stripe_session_id = session.id
+      orderPayload.fulfillment_status = queueEnabled ? 'rendering_print' : 'paid'
+    }
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert(orderPayload)
@@ -96,6 +122,62 @@ export default defineEventHandler(async (event) => {
     if (orderError || !order) {
       console.error('Failed to create order:', orderError)
       throw createError({ statusCode: 500, message: 'Order creation failed' })
+    }
+
+    // v4: link the snapshot to the newly-created order.  This is the
+    // ONE allowed mutation of order_snapshots after freeze — and it
+    // only writes order_id, never the design fields.
+    if (snapshot) {
+      const { error: linkError } = await supabase
+        .from('order_snapshots')
+        .update({ order_id: order.id })
+        .eq('stripe_session_id', session.id)
+      if (linkError) {
+        console.error('[stripe/webhook] Failed to link snapshot.order_id:', linkError)
+        // Non-fatal — snapshot is still queryable by stripe_session_id.
+      }
+    }
+
+    // v4: if the queue path is enabled, insert a print_render_jobs row and
+    // return early — the queue consumer will render and submit to Gelato
+    // asynchronously.  The legacy Gelato call below is skipped.
+    if (queueEnabled && snapshot) {
+      const printHash = computePrintHash({
+        mapContentHash: snapshot.map_content_hash,
+        chromeHash: snapshot.chrome_hash,
+        productUid,
+        dpi: snapshot.provider_profile?.maxDpi ?? 300,
+        bleedMm: snapshot.provider_profile?.bleedMm ?? 3,
+      })
+      const { error: jobError } = await supabase
+        .from('print_render_jobs')
+        .upsert(
+          {
+            stripe_session_id: session.id,
+            print_hash: printHash,
+            status: 'queued',
+          },
+          { onConflict: 'stripe_session_id,print_hash', ignoreDuplicates: true },
+        )
+      if (jobError) {
+        console.error('[stripe/webhook] Failed to enqueue print_render_jobs:', jobError)
+        // If queueing fails, fall back to the legacy Gelato call below.
+      } else {
+        // Send the same confirmation email the legacy path would have sent.
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
+          to: shippingAddress.email,
+          subject: `Your RadMaps order is confirmed! 🗺️`,
+          html: buildConfirmationEmail({
+            order,
+            productTitle: meta.map_title || 'RadMaps Print',
+            digitalUrl: undefined,
+            isDigital: false,
+            isGuest: !meta.user_id,
+          }),
+        })
+        return { received: true, queued: true }
+      }
     }
 
     // Resolve the print file URL.

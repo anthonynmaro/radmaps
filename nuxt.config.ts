@@ -3,6 +3,28 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   compatibilityDate: '2024-11-01',
 
+  // Sub-apps (separate workers, design handoffs) live in sibling dirs and
+  // carry their own node_modules. Ignore them at every layer so Nuxt's
+  // component scanner, Nitro, and Vite don't all try to watch ~300MB of
+  // unrelated files (which exhausts the macOS per-process fd limit and
+  // floods the dev server with EMFILE errors).
+  ignore: [
+    'render-worker/**',
+    'render-worker-v4/**',
+    'render-worker-native-spike/**',
+    'design_handoff_style_panel/**',
+  ],
+  watchers: {
+    chokidar: {
+      ignored: [
+        '**/render-worker/**',
+        '**/render-worker-v4/**',
+        '**/render-worker-native-spike/**',
+        '**/design_handoff_style_panel/**',
+      ],
+    },
+  },
+
   modules: [
     '@nuxt/ui',
     '@nuxtjs/supabase',
@@ -20,7 +42,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
-      exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support'],
+      exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support', '/render/**'],
     },
   },
 
@@ -40,6 +62,15 @@ export default defineNuxtConfig({
     resendApiKey: process.env.RESEND_API_KEY,
     renderWorkerUrl: process.env.RENDER_WORKER_URL,
     renderWorkerSecret: process.env.RENDER_WORKER_SECRET,
+    browserlessToken: process.env.BROWSERLESS_TOKEN,
+    browserlessEndpoint: process.env.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io',
+    browserlessTimeoutMs: Number(process.env.BROWSERLESS_TIMEOUT_MS || 60_000),
+    renderTicketSecret: process.env.RENDER_TICKET_SECRET || process.env.RENDER_WORKER_SECRET || 'dev-render-ticket-secret',
+    // Render pipeline v4 — feature-flagged. Defaults OFF: when the env
+    // var is unset or anything other than the literal string 'true',
+    // existing render-worker (legacy Puppeteer) flow is preserved.
+    renderPipelineV4Enabled: process.env.RENDER_PIPELINE_V4_ENABLED === 'true',
+    renderWorkerV4Url: process.env.RENDER_WORKER_V4_URL ?? '',
     public: {
       // Client-accessible vars
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
@@ -47,6 +78,7 @@ export default defineNuxtConfig({
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       mapboxToken: process.env.MAPBOX_TOKEN,
       maptilerToken: process.env.MAPTILER_TOKEN,
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://radmaps.studio' : 'http://localhost:3001'),
     },
   },
 
@@ -62,11 +94,37 @@ export default defineNuxtConfig({
   // Vite config
   vite: {
     optimizeDeps: {
-      include: ['cookie'],
+      include: ['cookie', '@supabase/ssr'],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
       // exclude it so it's served as-is and initialises correctly in the browser.
       exclude: ['maplibre-contour'],
+    },
+    server: {
+      allowedHosts: [
+        'localhost',
+        '127.0.0.1',
+        ...(process.env.NUXT_PUBLIC_SITE_URL
+          ? [new URL(process.env.NUXT_PUBLIC_SITE_URL).host]
+          : []),
+      ],
+      watch: {
+        // Sub-apps (separate render workers, design handoffs) carry their own
+        // node_modules and build artefacts. Watching them blows the macOS
+        // per-process fd limit (EMFILE) and serves no purpose — Nuxt only
+        // needs to react to changes in the main app.
+        ignored: [
+          '**/render-worker/**',
+          '**/render-worker-v4/**',
+          '**/render-worker-native-spike/**',
+          '**/design_handoff_style_panel/**',
+          '**/.git/**',
+          '**/.nuxt/**',
+          '**/.output/**',
+          '**/dist/**',
+          '**/coverage/**',
+        ],
+      },
     },
   },
 

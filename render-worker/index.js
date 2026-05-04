@@ -14,6 +14,7 @@ import puppeteer from 'puppeteer'
 import sharp from 'sharp'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { buildMapStyle } from './mapStyle.js'
 
 // Allowed logo URL origins — must match where logos are actually stored.
 // This prevents SSRF: an authenticated user could set logo_url to an internal
@@ -128,6 +129,15 @@ async function renderMap({
     HEIGHT_PX = render_height_px || DEFAULT_PRINT_H
   }
 
+  // Print renders use deviceScaleFactor=2 with a half-size CSS viewport.
+  // This gives Chrome the full physical resolution (WIDTH_PX × HEIGHT_PX) in the
+  // screenshot while MapLibre only loads tiles for the CSS viewport (WIDTH_PX/2),
+  // reducing tile count from ~484 to ~121 and eliminating tile-load timeouts.
+  // All vh-based typography and route line widths scale correctly at 2× DPR.
+  const CSS_W = isPreview ? WIDTH_PX : Math.round(WIDTH_PX / 2)
+  const CSS_H = isPreview ? HEIGHT_PX : Math.round(HEIGHT_PX / 2)
+  const DPR   = isPreview ? 1 : 2
+
   const browser = await puppeteer.launch({
     headless: true,
     args: [
@@ -150,24 +160,33 @@ async function renderMap({
   })
 
   const page = await browser.newPage()
-  await page.setViewport({ width: WIDTH_PX, height: HEIGHT_PX, deviceScaleFactor: 1 })
+  await page.setViewport({ width: CSS_W, height: CSS_H, deviceScaleFactor: DPR })
 
   // Forward in-page console output to the worker log so tile errors are visible.
   page.on('console', msg => app.log.info(`[page:${msg.type()}] ${msg.text()}`))
   page.on('pageerror', err => app.log.error(`[page:error] ${err.message}`))
 
-  // Build self-contained HTML page that renders the map
-  // If framing data is provided (user adjusted center/zoom in ProductSelector),
-  // pass it through so the render matches the user's chosen view.
-  const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: WIDTH_PX, height: HEIGHT_PX, framing })
+  // Stadia Maps uses domain-based auth: it checks the HTTP Referer header and only
+  // serves tiles to allowlisted domains. Puppeteer's headless context sends no Referer
+  // for in-page XHR/fetch requests (tile fetches), causing 401s.
+  // setExtraHTTPHeaders applies to ALL requests from the page (navigation + fetch + XHR),
+  // unlike setRequestInterception which requires per-request handling.
+  // APP_URL must match a domain registered in the Stadia Maps dashboard (or use STADIA_API_KEY).
+  await page.setExtraHTTPHeaders({ 'Referer': process.env.APP_URL ?? 'http://localhost:3000' })
+
+  // Build self-contained HTML page that renders the map.
+  // Pass CSS viewport dimensions (CSS_W × CSS_H) — at DPR=2 for print, these are
+  // half the physical size. The browser renders at physical resolution automatically.
+  const html = buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width: CSS_W, height: CSS_H, framing })
   // waitUntil:'load' ensures the MapLibre CDN script has executed before the
   // inline map-init script runs. networkidle is intentionally avoided because
   // MapLibre fires hundreds of tile requests that would stall it indefinitely.
   await page.setContent(html, { waitUntil: 'load', timeout: 60000 })
 
-  // Preview: 30s. Print: 100s (page script force-completes at 80s via tile-error counter or hard timeout).
-  await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 30000 : 100000 })
-  await new Promise(resolve => setTimeout(resolve, 500)) // Extra settle time
+  // Preview: 25s. Print: 75s (page script force-completes at 60s absolute / 25s post-load).
+  // With DPR=2, tile count is ~4× lower so renders finish well under 60s.
+  await page.waitForFunction('window.__mapReady === true', { timeout: isPreview ? 25000 : 75000 })
+  await new Promise(resolve => setTimeout(resolve, isPreview ? 500 : 2000))
 
   // Screenshot
   const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 95 })
@@ -209,7 +228,8 @@ async function renderMap({
 // Uses vh units throughout (1vh = height/100 in Puppeteer's fixed viewport)
 // matching cqh units in MapPreview.vue (1cqh = 1% of poster canvas height).
 function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, mapbox_token, maptiler_token, width, height, framing }) {
-  const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token))
+  const stadia_token = process.env.STADIA_API_KEY ?? ''
+  const styleJson = JSON.stringify(buildMapStyle(style_config, mapbox_token, maptiler_token, undefined, stadia_token))
   const cropStart = style_config.route_crop_start ?? 0
   const cropEnd = style_config.route_crop_end ?? 100
   const deletedRanges = style_config.route_deleted_ranges ?? []
@@ -340,7 +360,8 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       const fs = (o.font_size / 100) * height
       const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
       const bgStyle = o.bg_color ? `background:${o.bg_color};padding:${height*0.003}px ${height*0.008}px;border-radius:${height*0.004}px;` : ''
-      return `<div style="position:absolute;left:${o.x}%;top:${o.y}%;font-family:'${o.font_family}',sans-serif;font-size:${fs}px;color:${o.color};text-align:${o.alignment};opacity:${o.opacity};font-weight:${o.bold?700:400};white-space:pre-wrap;transform:translateX(${xOffset});pointer-events:none;z-index:8;${bgStyle}">${escapeHtml(o.content)}</div>`
+      const italic = o.italic ? 'italic' : 'normal'
+      return `<div style="position:absolute;left:${o.x}%;top:${o.y}%;font-family:'${o.font_family}',sans-serif;font-size:${fs}px;color:${o.color};text-align:${o.alignment};opacity:${o.opacity};font-weight:${o.bold?700:400};font-style:${italic};white-space:pre;transform:translateX(${xOffset});pointer-events:none;z-index:8;${bgStyle}">${escapeHtml(o.content)}</div>`
     }).join('')
   }
 
@@ -396,35 +417,28 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
 
   // Trail segment JS (run inside map.on('load'))
   function trailSegmentsJs() {
+    // buildMapStyle already added trail-seg-* sources and layers in the style JSON.
+    // We only need to populate each source with the sliced GeoJSON data.
     const segments = (style_config.trail_segments ?? []).filter(s => s.visible)
     if (!segments.length) return ''
     return segments.map(s => {
       const sliced = sliceRouteByPct(geojson, s.section_start, s.section_end)
       const slicedStr = JSON.stringify(sliced)
-      const w = s.width ?? style_config.route_width ?? 3
-      const op = s.opacity ?? 0.9
-      const casingColor = style_config.segment_casing_color ?? '#FFFFFF'
-      const casingW = w + (style_config.segment_casing_width ?? 3)
       return `
-      map.addSource('trail-seg-${s.id}', { type: 'geojson', data: ${slicedStr} });
-      map.addLayer({ id: 'trail-seg-casing-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${casingColor}', 'line-width': ${casingW}, 'line-opacity': ${op} } });
-      map.addLayer({ id: 'trail-seg-line-${s.id}', type: 'line', source: 'trail-seg-${s.id}', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '${s.color}', 'line-width': ${w}, 'line-opacity': ${op}${s.dash ? ", 'line-dasharray': [4,3]" : ''} } });`
+      var _src${s.id.replace(/-/g,'_')} = map.getSource('trail-seg-${s.id}');
+      if (_src${s.id.replace(/-/g,'_')}) _src${s.id.replace(/-/g,'_')}.setData(${slicedStr});`
     }).join('')
   }
 
-  // Flag marker JS (run inside map.on('load')).
-  // Creates maplibregl.Marker DOM elements — Puppeteer screenshots capture DOM
-  // overlays, so these appear correctly in the rendered image.
-  // Start flag: pole leans LEFT, pennant extends RIGHT.
-  // Finish flag: pole leans RIGHT, checkered rect extends LEFT.
-  // Opposing lean gives natural separation on loop trailheads — no offset hack needed.
+  // Dot marker JS (run inside map.on('load')).
+  // Matches MapPreview.vue's makePinDotEl(): colored circle + white border + shadow.
+  // The text labels and leader lines are added in pinLabelsIdleJs() after 'idle'.
   function pinMarkersJs() {
     const showStart = style_config.show_start_pin !== false
     const showFinish = style_config.show_finish_pin !== false
     if (!showStart && !showFinish) return ''
 
-    let startCoord = null
-    let endCoord = null
+    let startCoord = null, endCoord = null
     for (const f of geojson.features) {
       const g = f.geometry
       if (g.type === 'LineString' && g.coordinates.length > 0) {
@@ -441,47 +455,122 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     }
     if (!startCoord && !endCoord) return ''
 
+    const pinColor = style_config.pin_color ?? style_config.label_text_color ?? '#1C1917'
+    const pinOpacity = style_config.pin_opacity ?? 0.9
+    const dotSize = Math.max(10, height * 0.015)
+    const borderSize = Math.max(2, dotSize * 0.18)
     const startJson = JSON.stringify(startCoord)
     const endJson   = JSON.stringify(endCoord)
 
-    // Mirrors MapPreview.vue: start pole on LEFT (anchor=bottom-left),
-    // finish pole on RIGHT (anchor=bottom-right) → no overlap at loop trailheads.
     return `
       (function() {
-        var GREEN = '#2D6A4F', RED = '#B91C1C';
-        function flagSvg(type) {
-          if (type === 'start') {
-            return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">'
-              + '<line x1="2" y1="34" x2="7" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>'
-              + '<polygon points="7,4 7,15 23,9.5" fill="white" opacity="0.85"/>'
-              + '<line x1="2" y1="34" x2="7" y2="4" stroke="' + GREEN + '" stroke-width="2" stroke-linecap="round"/>'
-              + '<polygon points="7,4 7,15 23,9.5" fill="' + GREEN + '"/>'
-              + '<circle cx="2" cy="34" r="3.5" fill="white" opacity="0.85"/>'
-              + '<circle cx="2" cy="34" r="2.2" fill="' + GREEN + '"/>'
-              + '</svg>';
-          }
-          return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36" style="display:block;overflow:visible">'
-            + '<line x1="22" y1="34" x2="17" y2="4" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.85"/>'
-            + '<rect x="1" y="4" width="16" height="12" fill="white" opacity="0.85"/>'
-            + '<line x1="22" y1="34" x2="17" y2="4" stroke="' + RED + '" stroke-width="2" stroke-linecap="round"/>'
-            + '<rect x="1"  y="4"  width="8" height="6" fill="' + RED + '"/>'
-            + '<rect x="9"  y="4"  width="8" height="6" fill="white"/>'
-            + '<rect x="1"  y="10" width="8" height="6" fill="white"/>'
-            + '<rect x="9"  y="10" width="8" height="6" fill="' + RED + '"/>'
-            + '<circle cx="22" cy="34" r="3.5" fill="white" opacity="0.85"/>'
-            + '<circle cx="22" cy="34" r="2.2" fill="' + RED + '"/>'
-            + '</svg>';
-        }
-        function makeMarker(type, coord, anchor) {
+        var PIN_COLOR = ${JSON.stringify(pinColor)};
+        var PIN_OPACITY = ${pinOpacity};
+        var DOT_SIZE = ${dotSize.toFixed(1)};
+        var BORDER_SIZE = ${borderSize.toFixed(1)};
+        function makeDotEl() {
           var el = document.createElement('div');
-          el.style.cssText = 'display:block;pointer-events:none;';
-          el.innerHTML = flagSvg(type);
-          new maplibregl.Marker({ element: el, anchor: anchor })
-            .setLngLat(coord)
-            .addTo(map);
+          el.style.cssText = 'width:' + DOT_SIZE + 'px;height:' + DOT_SIZE + 'px;border-radius:50%;background:' + PIN_COLOR + ';opacity:' + PIN_OPACITY + ';border:' + BORDER_SIZE + 'px solid rgba(255,255,255,0.85);box-shadow:0 1px 6px rgba(0,0,0,0.4);pointer-events:none;';
+          return el;
         }
-        ${showStart && startCoord ? `makeMarker('start', ${startJson}, 'bottom-left');`  : ''}
-        ${showFinish && endCoord  ? `makeMarker('finish', ${endJson},  'bottom-right');` : ''}
+        ${showStart && startCoord ? `new maplibregl.Marker({ element: makeDotEl(), anchor: 'center' }).setLngLat(${startJson}).addTo(map);` : ''}
+        ${showFinish && endCoord  ? `new maplibregl.Marker({ element: makeDotEl(), anchor: 'center' }).setLngLat(${endJson}).addTo(map);`  : ''}
+      })();
+    `
+  }
+
+  // Pin label SVG overlay (run after 'idle' or 20s grace so map.project() is accurate).
+  // Matches MapPreview.vue's SVG overlay: leader line + text label with stroke halo.
+  function pinLabelsIdleJs() {
+    const showStart = style_config.show_start_pin !== false
+    const showFinish = style_config.show_finish_pin !== false
+    if (!showStart && !showFinish) return ''
+
+    let startCoord = null, endCoord = null
+    for (const f of geojson.features) {
+      const g = f.geometry
+      if (g.type === 'LineString' && g.coordinates.length > 0) {
+        if (!startCoord) startCoord = g.coordinates[0]
+        endCoord = g.coordinates[g.coordinates.length - 1]
+      } else if (g.type === 'MultiLineString') {
+        for (const line of g.coordinates) {
+          if (line.length > 0) {
+            if (!startCoord) startCoord = line[0]
+            endCoord = line[line.length - 1]
+          }
+        }
+      }
+    }
+    if (!startCoord && !endCoord) return ''
+
+    const pinColor   = style_config.pin_color ?? style_config.label_text_color ?? '#1C1917'
+    const pinOpacity = style_config.pin_opacity ?? 0.9
+    const bgColor    = style_config.background_color ?? '#FFFFFF'
+    const pinFontFamily = style_config.pin_font_family
+      ? `'${style_config.pin_font_family}', sans-serif`
+      : typo.statsFont
+    const startLabel  = (style_config.start_pin_label  ?? 'Start').toUpperCase()
+    const finishLabel = (style_config.finish_pin_label ?? 'Finish').toUpperCase()
+    const svgFontSize = (height * 0.022).toFixed(1)
+    const svgLineW    = (height * 0.0012).toFixed(2)
+    const offset      = (height * 0.07).toFixed(1)
+
+    const startJson  = JSON.stringify(startCoord)
+    const endJson    = JSON.stringify(endCoord)
+    const startSavedLabel  = style_config.start_label_lnglat  ? JSON.stringify(style_config.start_label_lnglat)  : 'null'
+    const finishSavedLabel = style_config.finish_label_lnglat ? JSON.stringify(style_config.finish_label_lnglat) : 'null'
+
+    return `
+      (function() {
+        var PIN_COLOR   = ${JSON.stringify(pinColor)};
+        var PIN_OPACITY = ${pinOpacity};
+        var BG_COLOR    = ${JSON.stringify(bgColor)};
+        var FONT_FAMILY = ${JSON.stringify(pinFontFamily)};
+        var FONT_SIZE   = ${svgFontSize};
+        var LINE_W      = ${svgLineW};
+        var OFFSET      = ${offset};
+
+        var svgParts = [];
+
+        function addPin(coord, savedLabelLnglat, labelText, defaultLeft) {
+          if (!coord) return;
+          var dot = map.project(coord);
+          var labelPt;
+          if (savedLabelLnglat) {
+            var saved = map.project(savedLabelLnglat);
+            labelPt = { x: saved.x, y: saved.y };
+          } else {
+            labelPt = defaultLeft
+              ? { x: dot.x - OFFSET * 0.7, y: dot.y - OFFSET * 0.8 }
+              : { x: dot.x + OFFSET * 0.7, y: dot.y - OFFSET * 0.8 };
+          }
+          var anchor = labelPt.x < dot.x ? 'end' : 'start';
+          svgParts.push(
+            '<line x1="' + dot.x + '" y1="' + dot.y + '" x2="' + labelPt.x + '" y2="' + labelPt.y +
+            '" stroke="' + PIN_COLOR + '" stroke-width="' + LINE_W + '" stroke-opacity="' + (PIN_OPACITY * 0.55).toFixed(2) + '" />'
+          );
+          svgParts.push(
+            '<text x="' + labelPt.x + '" y="' + labelPt.y +
+            '" text-anchor="' + anchor +
+            '" font-size="' + FONT_SIZE +
+            '" font-family="' + FONT_FAMILY +
+            '" fill="' + PIN_COLOR +
+            '" opacity="' + PIN_OPACITY +
+            '" stroke="' + BG_COLOR + '" stroke-width="3" paint-order="stroke fill"' +
+            ' font-weight="600" letter-spacing="0.12em" dominant-baseline="middle">' +
+            labelText + '</text>'
+          );
+        }
+
+        ${showStart  && startCoord ? `addPin(${startJson},  ${startSavedLabel},  ${JSON.stringify(startLabel)},  true);`  : ''}
+        ${showFinish && endCoord   ? `addPin(${endJson},    ${finishSavedLabel}, ${JSON.stringify(finishLabel)}, false);` : ''}
+
+        if (svgParts.length > 0) {
+          var svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svgEl.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;z-index:14;overflow:visible;pointer-events:none;');
+          svgEl.innerHTML = svgParts.join('');
+          document.getElementById('map-container').appendChild(svgEl);
+        }
       })();
     `
   }
@@ -513,6 +602,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       display: flex; flex-direction: column;
       background: ${style_config.background_color || '#F7F4EF'};
       font-family: sans-serif;
+      position: relative;
     }
     #poster-header {
       flex-shrink: 0;
@@ -528,7 +618,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       font-family: ${typo.titleFont};
       font-weight: ${typo.titleWeight};
       letter-spacing: ${typo.titleTracking};
-      font-size: ${typo.titleSize}vh;
+      font-size: ${(typo.titleSize * (style_config.title_scale ?? 1.0)).toFixed(3)}vh;
       line-height: ${typo.titleLineHeight};
       color: ${fg};
       text-align: ${layout.titleAlign};
@@ -539,7 +629,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       font-family: ${typo.subFont};
       font-weight: ${typo.subWeight};
       letter-spacing: ${typo.subTracking};
-      font-size: ${typo.subSize}vh;
+      font-size: ${(typo.subSize * (style_config.subtitle_scale ?? 1.0)).toFixed(3)}vh;
       color: ${fg};
       opacity: 0.5;
       text-transform: uppercase;
@@ -562,6 +652,7 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       padding: ${borderW !== '0' ? 'calc(1.8vh + 14px) 7vw' : '1.8vh 7vw'};
       display: flex; align-items: center; justify-content: space-between;
       position: relative;
+      order: 2;
       border-top: ${borderW !== '0' ? borderW + ' solid ' + fg + '1a' : '1px solid ' + fg + '0d'};
     }
     #poster-stats {
@@ -596,17 +687,19 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     <div id="map"></div>
     ${logoHtml()}
     ${trailLegendHtml()}
-    <div style="position:absolute;inset:0;pointer-events:none;z-index:8;">${textOverlaysHtml()}</div>
     ${vignetteHtml()}
     ${grainHtml()}
   </div>
+
+  <!-- TEXT OVERLAYS: poster-level, covers header + map + footer like browser -->
+  ${textOverlaysHtml() ? `<div style="position:absolute;inset:0;pointer-events:none;z-index:25;">${textOverlaysHtml()}</div>` : ''}
 
   <!-- FOOTER -->
   <div id="poster-footer">
     ${logoFooterHtml()}
     <div id="poster-stats">${statsHtml}</div>
 
-    ${occasionText ? `<p style="font-family:${typo.subFont};font-weight:${typo.subWeight};font-size:0.95vh;letter-spacing:0.22em;text-transform:uppercase;color:${fg};opacity:0.5;text-align:center;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;">${escapeHtml(occasionText)}</p>` : ''}
+    ${occasionText ? `<p style="font-family:${typo.subFont};font-weight:${typo.subWeight};font-size:${(0.95 * (style_config.occasion_scale ?? 1.0)).toFixed(3)}vh;letter-spacing:0.22em;text-transform:uppercase;color:${fg};opacity:0.5;text-align:center;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;">${escapeHtml(occasionText)}</p>` : ''}
 
     ${style_config.show_branding !== false ? `
     <div id="poster-mark">
@@ -685,8 +778,10 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       return { data: await resultBlob.arrayBuffer() };
     });
 
-    // If user-adjusted framing is provided, use center/zoom instead of fitBounds.
-    // This ensures the print render matches exactly what the user saw in the preview.
+    // Viewport priority:
+    // 1. User-adjusted framing from ProductSelector (explicit center/zoom/bearing)
+    // 2. Saved map_center/map_zoom from style_config (user panned in the editor)
+    // 3. fitBounds to bbox with padding (default, no saved view)
     ${framing ? `
     const map = new maplibregl.Map({
       container: 'map',
@@ -695,6 +790,23 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
       zoom: ${framing.zoom},
       bearing: ${framing.bearing ?? 0},
       pitch: ${framing.pitch ?? 0},
+      interactive: false,
+      attributionControl: false,
+      preserveDrawingBuffer: true,
+    });
+    ` : (style_config.map_zoom != null && style_config.map_center != null) ? `
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: ${styleJson},
+      center: ${JSON.stringify(style_config.map_center)},
+      zoom: ${(() => {
+        // Correct zoom for render viewport vs editor viewport.
+        // The same zoom shows more area on a wider canvas, so we zoom in proportionally.
+        // Cap per-preset: stamen tiles only have coverage to zoom 13.
+        const maxZ = ['stadia-watercolor','stadia-toner'].includes(style_config.preset) ? 13 : 16
+        if (!style_config.map_editor_width) return style_config.map_zoom
+        return Math.min(style_config.map_zoom + Math.log2(width / style_config.map_editor_width), maxZ).toFixed(4)
+      })()},
       interactive: false,
       attributionControl: false,
       preserveDrawingBuffer: true,
@@ -711,42 +823,52 @@ function buildRenderHtml({ geojson, style_config, bbox, title, subtitle, stats, 
     });
     `}
 
+    console.log('render: map object created, waiting for load event');
     var _tileErrors = 0;
     map.on('error', function(e) {
       var msg = e.error ? e.error.message : JSON.stringify(e);
       console.error('MapLibre error:', msg);
-      // If many tile errors accumulate (e.g. Mapbox terrain tiles 401ing),
-      // stop waiting — take the screenshot with whatever loaded.
       _tileErrors++;
-      if (_tileErrors >= 8 && !window.__mapReady) {
-        console.warn('render: forcing __mapReady after ' + _tileErrors + ' tile errors');
-        setTimeout(function() { if (!window.__mapReady) window.__mapReady = true; }, 1500);
+      if (_tileErrors === 8 && !window.__mapReady) {
+        console.warn('render: forcing __mapReady after 8 tile errors');
+        setTimeout(function() {
+          if (!window.__mapReady) {
+            ${pinLabelsIdleJs()}
+            window.__mapReady = true;
+          }
+        }, 1500);
       }
     });
 
-    // Hard safety valve at 80s (Puppeteer hard timeout is 100s).
+    // Absolute safety valve — should rarely trigger given the post-load timer below.
+    // At DPR=2 (print), tile count is ~4× lower so load+idle normally fires within 30s.
     setTimeout(function() {
       if (!window.__mapReady) {
-        console.warn('render: forcing __mapReady after 80s fallback');
+        console.warn('render: forcing __mapReady after 60s absolute timeout');
         window.__mapReady = true;
       }
-    }, 80000);
+    }, 60000);
 
-    map.on('load', () => {
-      map.addSource('route', { type: 'geojson', data: ${geojsonStr} });
-      map.addLayer({
-        id: 'route-casing', type: 'line', source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '${style_config.background_color ?? '#F7F4EF'}', 'line-width': ${style_config.route_width + 3}, 'line-opacity': ${style_config.route_opacity} }
-      });
-      map.addLayer({
-        id: 'route-line', type: 'line', source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '${style_config.route_color}', 'line-width': ${style_config.route_width}, 'line-opacity': ${style_config.route_opacity} }
-      });
-      ${trailSegmentsJs()}
-      ${pinMarkersJs()}
-      map.once('idle', () => { window.__mapReady = true; });
+    map.on('load', function() {
+      console.log('render: load event fired, adding route and starting 20s grace timer');
+      try {
+        var _routeSrc = map.getSource('route');
+        if (_routeSrc) _routeSrc.setData(${geojsonStr});
+        ${trailSegmentsJs()}
+        ${pinMarkersJs()}
+        setTimeout(function() {
+          if (!window.__mapReady) {
+            console.warn('render: forcing __mapReady after 25s post-load grace');
+            ${pinLabelsIdleJs()}
+            window.__mapReady = true;
+          }
+        }, 25000);
+        map.once('idle', function() {
+          console.log('render: idle event fired');
+          ${pinLabelsIdleJs()}
+          window.__mapReady = true;
+        });
+      } catch(e) { console.error('render: load callback threw:', e && e.message || String(e)); }
     });
   </script>
 </body>
@@ -763,14 +885,19 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;')
 }
 
-// Route smoothing — mirrors MapPreview.vue smoothLine/smoothGeojson (utils/posterData.ts pattern)
+// Route smoothing — exactly matches MapPreview.vue SMOOTH_PRESETS (10 levels)
 const SMOOTH_PRESETS = [
-  null,
-  { radius: 3,  passes: 2 },
-  { radius: 6,  passes: 3 },
-  { radius: 10, passes: 4 },
-  { radius: 16, passes: 5 },
-  { radius: 25, passes: 6 },
+  null,                        // 0 — Off
+  { radius: 2,  passes: 1 },  // 1
+  { radius: 3,  passes: 2 },  // 2
+  { radius: 4,  passes: 2 },  // 3
+  { radius: 6,  passes: 3 },  // 4
+  { radius: 8,  passes: 3 },  // 5
+  { radius: 10, passes: 4 },  // 6
+  { radius: 13, passes: 4 },  // 7
+  { radius: 16, passes: 5 },  // 8
+  { radius: 20, passes: 5 },  // 9
+  { radius: 25, passes: 6 },  // 10 — Max
 ]
 
 function smoothLine(coords, strength) {
@@ -886,236 +1013,8 @@ function excludeRangesFromRoute(geojson, cropStart, cropEnd, deletedRanges) {
   }
 }
 
-// ─── Style builder for the worker (mirrors utils/mapStyle.ts) ────────────────
-// No maplibre-contour in the worker — uses Mapbox terrain-v2 vector tiles for contours.
-function buildMapStyle(config, mapboxToken, maptilerToken) {
-  if (config.preset === 'topographic') {
-    return buildTopographicStyle(config, mapboxToken)
-  }
-  return buildMinimalistStyle(config, mapboxToken, maptilerToken)
-}
+// buildMapStyle is imported from ./mapStyle.js (esbuild bundle of utils/mapStyle.ts)
 
-// Mirrors styledTileUrls() in utils/mapStyle.ts
-function styledTileUrls(config, urls) {
-  const effect = config.tile_effect ?? 'none'
-  if (effect === 'none') return urls
-  if (effect === 'duotone') {
-    const shadow    = (config.label_text_color  ?? '#1C1917').replace('#', '')
-    const highlight = (config.background_color  ?? '#F7F4EF').replace('#', '')
-    const strength  = Math.round((config.tile_duotone_strength ?? 0.9) * 100)
-    return urls.map(u => `styledtile://duotone,${shadow},${highlight},${strength}|${u}`)
-  }
-  if (effect === 'posterize') {
-    const levels = config.tile_posterize_levels ?? 4
-    return urls.map(u => `styledtile://posterize,${levels}|${u}`)
-  }
-  return urls
-}
-
-function buildMinimalistStyle(config, mapboxToken, maptilerToken) {
-  const base = config.base_tile_style ?? 'carto-light'
-
-  let baseTileSource, baseTileOpacity
-  if (base === 'maptiler-outdoor' || base === 'maptiler-topo' || base === 'maptiler-winter') {
-    const styleMap = { 'maptiler-outdoor': 'outdoor-v2', 'maptiler-topo': 'topo-v2', 'maptiler-winter': 'winter-v2' }
-    baseTileSource = {
-      type: 'raster',
-      tiles: styledTileUrls(config, [`https://api.maptiler.com/maps/${styleMap[base]}/{z}/{x}/{y}@2x.png?key=${maptilerToken ?? ''}`]),
-      tileSize: 512,
-      attribution: '© MapTiler © OpenStreetMap contributors',
-    }
-    baseTileOpacity = 0.85
-  } else {
-    const dark = base === 'carto-dark'
-    const sub = (s) => ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}.png`)
-    baseTileSource = {
-      type: 'raster',
-      tiles: styledTileUrls(config, dark ? sub('dark_all') : sub('light_all')),
-      tileSize: 256,
-      attribution: '© CARTO © OpenStreetMap contributors',
-    }
-    baseTileOpacity = dark ? 0.45 : 0.55
-  }
-
-  const glyphs = mapboxToken
-    ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${mapboxToken}`
-    : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
-
-  return {
-    version: 8,
-    glyphs,
-    sources: {
-      'base-tiles': baseTileSource,
-      // Gate Mapbox sources on token presence — empty token causes 401s that block idle
-      ...(config.show_hillshade && mapboxToken ? { 'mapbox-dem': demSource() } : {}),
-      ...(config.show_contours && mapboxToken ? { 'mapbox-terrain-v2': terrainV2Source(mapboxToken) } : {}),
-    },
-    layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.land_color ?? config.background_color } },
-      {
-        id: 'base-tiles', type: 'raster', source: 'base-tiles',
-        paint: {
-          'raster-opacity':    baseTileOpacity,
-          'raster-contrast':   config.tile_contrast   ?? 0,
-          'raster-saturation': config.tile_saturation ?? 0,
-          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
-        },
-      },
-      ...hillshadeLayers(config),
-      ...contourLayers(config),
-    ],
-  }
-}
-
-function buildTopographicStyle(config, mapboxToken) {
-  const token = mapboxToken ?? ''
-  return {
-    version: 8,
-    glyphs: token
-      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
-      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-    sources: {
-      // Skip Mapbox outdoors tiles if token is absent — avoids 401s blocking idle
-      ...(token ? {
-        'mapbox-outdoors': {
-          type: 'raster',
-          tiles: styledTileUrls(config, [`https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/{z}/{x}/{y}@2x?access_token=${token}`]),
-          tileSize: 512,
-          attribution: '© Mapbox © OpenStreetMap contributors',
-        },
-      } : {}),
-      ...(config.show_hillshade && token ? { 'mapbox-dem': demSource() } : {}),
-      ...(config.show_contours && token ? { 'mapbox-terrain-v2': terrainV2Source(token) } : {}),
-    },
-    layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.land_color ?? config.background_color } },
-      // Only add the outdoors raster layer if we have a token (source won't exist otherwise)
-      ...(token ? [{
-        id: 'outdoors-tiles', type: 'raster', source: 'mapbox-outdoors',
-        paint: {
-          'raster-opacity':    config.show_hillshade ? 0.75 : 0.9,
-          'raster-saturation': Math.max(-1, Math.min(1, (config.show_hillshade ? -0.15 : 0) + (config.tile_saturation ?? 0))),
-          'raster-contrast':   config.tile_contrast   ?? 0,
-          'raster-hue-rotate': config.tile_hue_rotate ?? 0,
-        },
-      }] : []),
-      ...hillshadeLayers(config),
-      ...contourLayers(config),
-    ],
-  }
-}
-
-function demSource() {
-  return {
-    type: 'raster-dem',
-    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    maxzoom: 15,
-    encoding: 'terrarium',
-  }
-}
-
-function terrainV2Source(token) {
-  return {
-    type: 'vector',
-    tiles: [`https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/{z}/{x}/{y}.vector.pbf?access_token=${token ?? ''}`],
-    minzoom: 10,
-    maxzoom: 15,
-  }
-}
-
-function hillshadeLayers(config) {
-  if (!config.show_hillshade) return []
-  return [{
-    id: 'hillshade',
-    type: 'hillshade',
-    source: 'mapbox-dem',
-    paint: {
-      'hillshade-shadow-color': '#000000',
-      'hillshade-highlight-color': '#FFFFFF',
-      'hillshade-accent-color': '#000000',
-      'hillshade-illumination-direction': 335,
-      'hillshade-exaggeration': config.hillshade_intensity,
-    },
-  }]
-}
-
-function contourLayers(config) {
-  if (!config.show_contours) return []
-  const detail = Math.round(config.contour_detail ?? 2)
-  const layers = []
-  const minorW = config.contour_minor_width ?? 1
-  const majorW = config.contour_major_width ?? 1
-  if (detail >= 2) {
-    layers.push({
-      id: 'contours-minor',
-      type: 'line',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': config.contour_color,
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, config.contour_opacity, 14, config.contour_opacity * 0.9],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * minorW, 14, 1.0 * minorW],
-      },
-    })
-  }
-  if (detail >= 1) {
-    layers.push({
-      id: 'contours-mid',
-      type: 'line',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      filter: ['==', ['get', 'index'], 5],
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': config.contour_color,
-        'line-opacity': config.contour_opacity,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1 * minorW, 14, 1.5 * minorW],
-      },
-    })
-  }
-  layers.push({
-    id: 'contours-major',
-    type: 'line',
-    source: 'mapbox-terrain-v2',
-    'source-layer': 'contour',
-    filter: ['==', ['get', 'index'], 10],
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-      'line-color': config.contour_major_color,
-      'line-opacity': config.contour_opacity,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * majorW, 14, 2.5 * majorW],
-    },
-  })
-  if (config.show_elevation_labels) {
-    layers.push({
-      id: 'contours-labels',
-      type: 'symbol',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      filter: ['==', ['get', 'index'], 10],
-      layout: {
-        'symbol-placement': 'line',
-        'symbol-spacing': 400,
-        'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
-        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 8, 14, 11],
-        'text-letter-spacing': 0.05,
-        'text-padding': 2,
-        'text-pitch-alignment': 'viewport',
-        'text-rotation-alignment': 'map',
-      },
-      paint: {
-        'text-color': config.contour_major_color,
-        'text-halo-color': 'rgba(255,255,255,0.9)',
-        'text-halo-width': 1.5,
-        'text-opacity': config.contour_opacity,
-      },
-    })
-  }
-  return layers
-}
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001

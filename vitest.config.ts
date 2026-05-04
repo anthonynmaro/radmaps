@@ -1,5 +1,17 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'path'
+import { existsSync } from 'fs'
+
+// Load .env files from the root and every sub-app that has its own. Tests in
+// subprojects (e.g. render-worker-v4) read config at module-import time, so
+// their env must be populated before vitest collects suites. Node 20.12+
+// `loadEnvFile` is a no-op for missing files and never overrides existing
+// process.env keys, so layering is safe.
+for (const envPath of ['.env', 'render-worker/.env', 'render-worker-v4/.env']) {
+  if (existsSync(envPath)) {
+    try { process.loadEnvFile(envPath) } catch { /* malformed — let tests fail loudly */ }
+  }
+}
 
 export default defineConfig({
   test: {

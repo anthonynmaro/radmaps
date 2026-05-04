@@ -530,8 +530,8 @@ function onSegmentLabelMoved({ id, lnglat }: { id: string; lnglat: [number, numb
   styleConfig.value = { ...styleConfig.value, trail_segments: segments }
 }
 
-function onViewChanged({ map_zoom, map_center }: { map_zoom: number; map_center: [number, number] }) {
-  styleConfig.value = { ...styleConfig.value, map_zoom, map_center }
+function onViewChanged({ map_zoom, map_center, map_editor_width }: { map_zoom: number; map_center: [number, number]; map_editor_width: number }) {
+  styleConfig.value = { ...styleConfig.value, map_zoom, map_center, map_editor_width }
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────
