@@ -1,0 +1,185 @@
+# RadMaps Rendering And Print Sizes
+
+This is the canonical human-facing guide for the current RadMaps render pipeline.
+It is intentionally practical: if you are changing renderer behavior, product
+sizes, aspect ratio, or print geometry, start here.
+
+## Current Renderer
+
+RadMaps renders posters by screenshotting the real Nuxt/Vue/MapLibre poster in
+Chromium through Browserless.
+
+The key decision is that [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the only poster renderer. The editor and print render path must share the same Vue/MapLibre component instead of maintaining a separate SVG, Sharp, native, or worker-only poster template.
+
+### Render Paths
+
+Proof renders:
+
+1. [server/api/maps/[id]/render.post.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/server/api/maps/[id]/render.post.ts) authenticates the user and computes proof framing.
+2. It creates a short-lived signed render ticket with [utils/render/renderTicket.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/renderTicket.ts).
+3. It asks Browserless to screenshot `/render/map/[id]?ticket=...`.
+4. [pages/render/map/[id].vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/pages/render/map/[id].vue) loads only the server-approved payload from `/api/render/payload`.
+5. The JPEG is validated, uploaded to Supabase Storage, and the map row is updated with proof render metadata.
+
+Final order renders:
+
+1. Stripe checkout stores the selected concrete product UID.
+2. [server/utils/snapshot.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/server/utils/snapshot.ts) writes an immutable snapshot keyed by `stripe_session_id`.
+3. The Stripe webhook inserts a `print_render_jobs` row.
+4. The Railway `render-worker-v4` queue calls [renderFinalScreenshot.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/render-worker-v4/src/queue/renderFinalScreenshot.ts).
+5. Browserless screenshots `/render/session/[stripeSessionId]?ticket=...`.
+6. The worker validates dimensions and image health, uploads the artifact, inserts `product_renders`, then submits to Gelato.
+
+### Readiness Contract
+
+Browserless must wait for the render page to be truly ready, not just loaded.
+
+[MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) owns the readiness signal in print mode:
+
+- `renderMode="print"` removes editor chrome, shadows, background padding, and interactivity.
+- `printContext` supplies exact framing, render class, and device scale.
+- The component sets `window.__RENDER_READY === true` only after MapLibre, route data, style reloads, tiles, fonts, logos/images, overlays, and render diagnostics are ready.
+- The component also writes `window.__RADMAPS_RENDER_STATUS` so the caller can diagnose internal render failures.
+
+The screenshot caller should wait on:
+
+```js
+window.__RENDER_READY === true && !window.__RADMAPS_RENDER_STATUS?.errors?.length
+```
+
+Do not replace this with `networkidle`, a fixed sleep, or a CSS selector alone.
+
+## Print Geometry
+
+[utils/print/printFraming.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/print/printFraming.ts) is the source of truth for:
+
+- trim dimensions,
+- bleed,
+- safe margin,
+- proof vs final DPI,
+- final output pixel dimensions,
+- the map viewport and safe boxes passed to render pages.
+
+[utils/print/providerProfile.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/print/providerProfile.ts) is the source of truth for:
+
+- supported RadMaps size keys,
+- Gelato provider profiles,
+- `maxDpi` caps,
+- legacy size aliases,
+- concrete Gelato `product_uid` normalization.
+
+Do not hand-compute render dimensions in checkout pages, render routes, workers, or tests. Use `getPrintFraming(productUid, renderClass)`.
+
+## Current Size Policy
+
+The editor is intentionally fixed to a single 2:3 poster shape. Users choose among multiple products at that same aspect ratio so the map never reframes between editor, proof, checkout, and final print.
+
+Supported `PrintSize` values:
+
+| Size | Aspect | Final DPI | Notes |
+|---|---:|---:|---|
+| `8x12` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
+| `12x18` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
+| `16x24` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
+| `20x30` | 2:3 | 300 | canvas and digital only in the current catalog |
+| `24x36` | 2:3 | 300 | default editor/product size |
+| `32x48` | 2:3 | 200 | capped for memory and file-size safety |
+
+The legacy size aliases are preserved only so old rows and stale hashes fail gracefully:
+
+| Legacy | Canonical |
+|---|---|
+| `8x10` | `8x12` |
+| `11x14` | `12x18` |
+| `16x20` | `16x24` |
+| `18x24` | `24x36` |
+
+Do not reintroduce mixed-aspect product choices while the editor is single-aspect. A mixed-aspect checkout option would either crop, stretch, letterbox, or silently reframe the route after the user has approved the design.
+
+## Pixel Dimensions
+
+The final render includes bleed. For example, `24x36` with 3 mm bleed at 300 DPI renders to approximately `7271x10871` pixels, not `7200x10800`.
+
+This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. For final renders we currently use `deviceScaleFactor: 1` with an exact CSS viewport. Do not switch final renders to half-size CSS + DPR 2 unless you also implement explicit crop/pad logic and update validation.
+
+Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
+
+## Environment Variables
+
+Required for screenshot rendering:
+
+```bash
+BROWSERLESS_TOKEN=...
+BROWSERLESS_ENDPOINT=https://production-sfo.browserless.io
+BROWSERLESS_TIMEOUT_MS=60000
+RENDER_TICKET_SECRET=...
+NUXT_PUBLIC_SITE_URL=https://radmaps.studio
+```
+
+Local testing through ngrok should point `NUXT_PUBLIC_SITE_URL` at the ngrok URL so Browserless can reach your dev server. Vite must allow that host. Prefer a bot User-Agent over `ngrok-skip-browser-warning` headers when testing Google fonts, because the ngrok header can trigger CORS preflight behavior.
+
+`RENDER_TICKET_SECRET` must be a long random secret, generated independently from Browserless and Stripe secrets. Use `openssl rand -hex 32`.
+
+## Updating Product Sizes
+
+Use this checklist whenever adding, removing, renaming, or changing sizes.
+
+1. Confirm the product exists in Gelato and record the exact `product_uid`.
+2. Confirm the trim size, bleed, safe margin, accepted formats, and max file size from Gelato templates or API docs.
+3. Preserve a single aspect ratio unless you are intentionally doing the full mixed-aspect project described below.
+4. Update `PrintSize`, `DEFAULT_STYLE_CONFIG.print_size`, and any constants in [types/index.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/types/index.ts).
+5. Update [utils/products.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/products.ts): `SIZES`, `PRODUCTS`, `size_label`, `aspect_ratio`, prices, and recommended trim pixels.
+6. Update [utils/print/providerProfile.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/print/providerProfile.ts): `GELATO_PROFILES`, aliases if needed, `maxDpi`, bleed, and safe margin.
+7. Update checkout defaults and any premade-map defaults that reference a size.
+8. Update tests in [tests/print-framing.test.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/tests/print-framing.test.ts), [tests/render-hash.test.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/tests/render-hash.test.ts), and render-worker-v4 tests that assert framing.
+9. Render acceptance samples at the smallest size, the default size, and the largest size.
+10. Order physical samples before enabling the new size for paid production orders.
+
+## Changing Aspect Ratio Later
+
+Changing aspect ratio is not a catalog-only change. Treat it as a product project.
+
+Minimum required work:
+
+- Decide whether the editor remains single-aspect or becomes aspect-selectable.
+- If aspect-selectable, add explicit editor state for the chosen aspect and make the aspect visible before styling starts.
+- Update [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) so editor and print render use the same chosen aspect.
+- Update route fit, frozen camera behavior, overlay positions, text overlays, title/footer safe boxes, logo placement, and proof thumbnails for the new aspect.
+- Update `StyleConfig.print_size` and probably add a separate `aspect_ratio` or `format_family` field so size and shape are not overloaded.
+- Update `getProviderProfile` and `getPrintFraming` to reject products whose aspect does not match the approved editor aspect.
+- Version hashes in [utils/render/hashVersion.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/hashVersion.ts) so stale 2:3 artifacts cannot be reused.
+- Build visual regression fixtures for each aspect family.
+- Run physical sample prints for each aspect family and material.
+
+Until that work is complete, keep all sellable products at 2:3.
+
+## Validation Requirements
+
+Browser screenshots can still fail. Keep validation.
+
+Required checks:
+
+- output dimensions exactly match `getPrintFraming`,
+- JPEG or PNG is readable and non-empty,
+- file size is inside the provider cap,
+- color space is acceptable sRGB,
+- render page reported no readiness errors,
+- map canvas is not blank,
+- route pixels are present, or the page explicitly reports route source/layers rendered,
+- fonts and requested logos/images loaded.
+
+Before production cutover or any major renderer change, test at least `8x12`, `24x36`, and `32x48` if enabled, with topographic contours, hillshade, labels, route segments, logos, text overlays, long titles, and long routes.
+
+## Concurrency Notes
+
+Browserless is scalable, but it is still a bounded browser pool. The app should not fire unbounded final renders from request/response paths.
+
+Current posture:
+
+- proof renders run from the Nuxt API route and should be rate-limited before public launch,
+- final renders stay in the `print_render_jobs` queue,
+- the worker orchestrates Browserless, validation, upload, cache/product row writes, and Gelato submission,
+- queue concurrency should be tuned to the Browserless plan and observed render time,
+- failed or timed-out jobs should retry and eventually move to manual review.
+
+Hundreds of concurrent users are fine if most are editing and only a bounded number are rendering at once. Hundreds of simultaneous 24x36 final screenshots should be queued, not launched all at once.

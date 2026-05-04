@@ -1,4 +1,4 @@
-# RadMaps — Claude Context
+# RadMaps — Codex Context
 
 ## What this is
 RadMaps converts GPX tracks and Strava activities into print-quality trail map posters. Users upload a GPX file, style a poster (theme, fonts, terrain overlays), then order a physical print via Gelato.
@@ -35,7 +35,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── useMapRenderer.ts    — trigger + poll proof render jobs (3s flat interval)
 │   ├── useSavedThemes.ts    — localStorage-backed theme presets
 │   ├── useSeo.ts            — meta tag helpers
-│   └── useStyleAgent.ts     — Claude AI style assistant (SSE streaming, NOT wired in UI)
+│   └── useStyleAgent.ts     — Codex AI style assistant (SSE streaming, NOT wired in UI)
 ├── pages/
 │   ├── index.vue            — landing page
 │   ├── dashboard/           — user's map list
@@ -55,7 +55,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── orders/checkout.post.ts        — create Stripe Checkout session
 │   ├── orders/webhook.post.ts         — Stripe webhook → Gelato order placement
 │   ├── gelato/webhook.post.ts         — Gelato fulfillment status updates
-│   ├── agent/style.post.ts            — Claude AI styling agent (SSE)
+│   ├── agent/style.post.ts            — Codex AI styling agent (SSE)
 │   ├── shop/checkout.post.ts          — premade map Stripe checkout
 │   ├── shop/customize.post.ts         — premade map customization
 │   └── strava/                        — Strava OAuth + activity import
@@ -77,7 +77,8 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── schema.sql           — full DB schema
 │   └── migrations/          — incremental migrations
 ├── tests/                   — vitest unit tests (only 2 files exist today)
-└── REMEDIATION.md           — full security + architecture remediation plan
+├── REMEDIATION.md           — full security + architecture remediation plan
+└── design_handoff_style_panel/  — ⚠ DEAD CODE: old JSX mockups, scheduled for deletion
 ```
 
 ## Core data model
@@ -238,6 +239,7 @@ See `.env.example` for the full list with comments. Key ones:
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
 - **Legacy `render-worker/` is retired for new work** — it remains in the tree for history/compatibility, but the active render direction is Browserless screenshot rendering
-- **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato. State and remaining work are documented in `render-worker-v4/HANDOFF.md`.
+- **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato
+- `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
 - `useStyleAgent` composable is built but NOT wired into any UI yet
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

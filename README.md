@@ -1,6 +1,6 @@
 # TrailMaps App
 
-Turn GPX tracks, Strava activities, and Trailforks routes into beautiful print-quality maps — powered by **Nuxt 3**, **Supabase**, **MapLibre GL JS**, **Gelato Print API**, and **Claude AI**.
+Turn GPX tracks, Strava activities, and Trailforks routes into beautiful print-quality maps — powered by **Nuxt 3**, **Supabase**, **MapLibre GL JS**, **Browserless**, **Gelato Print API**, and **Claude AI**.
 
 ## Quick Start
 
@@ -36,6 +36,7 @@ trailmaps-app/
 │   └── ...
 ├── server/api/
 │   ├── maps/                       # Map CRUD + render trigger
+│   ├── render/payload.get.ts        # Server-only render payload for signed tickets
 │   ├── orders/checkout.post.ts     # Stripe Checkout
 │   ├── orders/webhook.post.ts      # Stripe webhook → Gelato order creation
 │   ├── gelato/webhook.post.ts      # Gelato webhook → order status updates
@@ -47,10 +48,11 @@ trailmaps-app/
 ├── utils/
 │   ├── gpx.ts                      # GPX → GeoJSON parser
 │   ├── mapStyle.ts                 # StyleConfig → MapLibre Style JSON
-│   └── products.ts                 # Gelato product catalogue + pricing
-└── render-worker/                  # Separate Railway service
-    ├── index.js                    # Fastify + Puppeteer render service
-    └── package.json
+│   ├── products.ts                 # 2:3 Gelato product catalogue + pricing
+│   ├── print/                      # Print framing, bleed, safe area, DPI profiles
+│   └── render/                     # Render tickets, hashes, shared render utilities
+├── pages/render/                   # Browserless-only render routes
+└── render-worker-v4/               # Railway queue worker for final print renders
 ```
 
 ## Deployment
@@ -58,7 +60,8 @@ trailmaps-app/
 | Service | Platform | Notes |
 |---------|----------|-------|
 | **Nuxt App** | **Vercel** | `nitro.preset: 'vercel'` already configured. Auto-deploy from `main`. |
-| Render Worker | Railway | Separate Fastify + Puppeteer service. 2 GB RAM minimum. |
+| Browser Screenshot Service | Browserless | Chromium screenshots for proof and final print renders. |
+| Final Render Worker | Railway | Queue orchestrator that calls Browserless, validates, uploads, and submits to Gelato. |
 | Database | Supabase | Free tier dev, Pro for production. |
 | File Storage | Supabase Storage | Private bucket for PDFs, public for thumbnails. |
 
@@ -74,22 +77,36 @@ trailmaps-app/
 | Anthropic Claude | AI styling agent | https://docs.anthropic.com |
 | Resend | Transactional email | https://resend.com/docs |
 
+## Rendering
+
+RadMaps uses Browserless/Chromium to screenshot the real Nuxt poster render. [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the single source of truth for editor, proof, and final print output.
+
+The full operational guide is [docs/RENDERING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/RENDERING.md). Read it before changing renderer code, product sizes, aspect ratio, print framing, or Gelato product UIDs.
+
+Important invariants:
+
+- The editor is fixed to a 2:3 poster shape.
+- Product choices must stay 2:3 unless the editor is explicitly rebuilt for multiple aspect families.
+- Use `getPrintFraming(productUid, renderClass)` for all proof/final pixel dimensions, bleed boxes, trim boxes, safe boxes, and DPI.
+- Final `24x36` with 3 mm bleed is roughly `7271x10871` pixels, not `7200x10800`.
+- Final renders are queued through `render-worker-v4`; do not launch unbounded paid-order screenshots from a Vercel request.
+
 ## Gelato Print Formats
 
-Gelato handles printing and global shipping via 130+ fulfilment facilities in 32 countries. Product UIDs must be verified from your Gelato dashboard (GET /v4/products) — the UIDs in `utils/products.ts` are illustrative.
+Gelato handles printing and global shipping via 130+ fulfilment facilities in 32 countries. Product UIDs must be verified from your Gelato dashboard or `/api/gelato/catalog` before enabling a product for production.
 
-| Format | Size | Price | Gelato API |
-|--------|------|-------|------------|
-| Matte Poster | 5×7" | $19.99 | `/v4/orders` with `flat_product_pf_5x7_...` |
-| Matte Poster | 8×10" | $29.99 | `/v4/orders` with `flat_product_pf_8x10_...` |
-| Matte Poster | 12×16" | $39.99 | `/v4/orders` with `flat_product_pf_12x16_...` |
-| Matte Poster | 18×24" | $54.99 | `/v4/orders` with `flat_product_pf_18x24_...` |
-| Matte Poster | 24×36" | $74.99 | `/v4/orders` with `flat_product_pf_24x36_...` |
-| Framed Print | 8×10"–18×24" | $59.99–$109.99 | `/v4/orders` with `framed_product_...` |
-| Canvas | 8×10"–24×36" | $69.99–$149.99 | `/v4/orders` with `canvas_product_...` |
-| Digital Download | — | $9.99 | Supabase signed URL |
+Current sellable formats are a single 2:3 family:
 
-**Note:** Gelato recommends a 3mm bleed on all sides for print products.
+| Size | Materials | Final DPI |
+|------|-----------|----------:|
+| 8×12" | poster, wall hanging, canvas, framed, digital | 300 |
+| 12×18" | poster, wall hanging, canvas, framed, digital | 300 |
+| 16×24" | poster, wall hanging, canvas, framed, digital | 300 |
+| 20×30" | canvas, digital | 300 |
+| 24×36" | poster, wall hanging, canvas, framed, digital | 300 |
+| 32×48" | poster, framed, digital | 200 |
+
+Bleed, safe margin, provider caps, and concrete product UID normalization live in `utils/print/providerProfile.ts`.
 
 ## Environment Variables
 
@@ -97,3 +114,8 @@ See `.env.example` for the full list. Key vars:
 - `GELATO_API_KEY` — get from https://dashboard.gelato.com/settings/api
 - `GELATO_WEBHOOK_SECRET` — from Gelato Dashboard > Settings > Webhooks
 - `STRIPE_WEBHOOK_SECRET` — from Stripe Dashboard > Webhooks
+- `BROWSERLESS_TOKEN` — Browserless API token
+- `BROWSERLESS_ENDPOINT` — e.g. `https://production-sfo.browserless.io`
+- `BROWSERLESS_TIMEOUT_MS` — currently `60000`
+- `RENDER_TICKET_SECRET` — long random secret for signed render URLs
+- `NUXT_PUBLIC_SITE_URL` — public URL Browserless can reach for render pages
