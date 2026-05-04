@@ -200,15 +200,66 @@ async function handleV4Render(args: V4Args) {
   const renderUrl = new URL(`/render/map/${mapId}`, siteUrl)
   renderUrl.searchParams.set('ticket', ticket)
 
-  const screenshot = await takeScreenshot({
-    url: renderUrl.toString(),
-    widthPx: Math.round(framing.fullWidthPx / deviceScaleFactor),
-    heightPx: Math.round(framing.fullHeightPx / deviceScaleFactor),
+  const screenshotWidthPx = Math.round(framing.fullWidthPx / deviceScaleFactor)
+  const screenshotHeightPx = Math.round(framing.fullHeightPx / deviceScaleFactor)
+  const timeoutMs = config.browserlessTimeoutMs
+  const screenshotStartedAt = Date.now()
+
+  console.info('[render:v4] Browserless screenshot starting', {
+    mapId,
+    productUid,
+    widthPx: screenshotWidthPx,
+    heightPx: screenshotHeightPx,
     deviceScaleFactor,
-    format: 'jpeg',
-    quality: 95,
-    waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
-    timeoutMs: config.browserlessTimeoutMs,
+    renderHost: renderUrl.hostname,
+    timeoutMs,
+  })
+
+  let screenshot: Awaited<ReturnType<typeof takeScreenshot>>
+  try {
+    screenshot = await takeScreenshot({
+      url: renderUrl.toString(),
+      widthPx: screenshotWidthPx,
+      heightPx: screenshotHeightPx,
+      deviceScaleFactor,
+      format: 'jpeg',
+      quality: 95,
+      waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
+      timeoutMs,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const friendlyMessage = /timed out|timeout|408/i.test(message)
+      ? 'Render service timed out. Please try again in a moment.'
+      : 'Render service unavailable. Please try again in a moment.'
+
+    console.error('[render:v4] Browserless screenshot failed', {
+      mapId,
+      productUid,
+      widthPx: screenshotWidthPx,
+      heightPx: screenshotHeightPx,
+      deviceScaleFactor,
+      renderHost: renderUrl.hostname,
+      timeoutMs,
+      durationMs: Date.now() - screenshotStartedAt,
+      error: message,
+    })
+
+    await adminClient
+      .from('maps')
+      .update({ render_url: `error:${friendlyMessage}` })
+      .eq('id', mapId)
+
+    throw createError({ statusCode: 503, message: friendlyMessage })
+  }
+
+  console.info('[render:v4] Browserless screenshot complete', {
+    mapId,
+    productUid,
+    widthPx: screenshot.widthPx,
+    heightPx: screenshot.heightPx,
+    bytes: screenshot.buffer.byteLength,
+    renderMs: screenshot.renderMs,
   })
 
   const profile = getProviderProfile(productUid)

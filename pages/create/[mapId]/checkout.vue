@@ -74,7 +74,7 @@
             <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
           </div>
         </div>
-        <div v-else-if="!printReady"
+        <div v-else-if="renderStarted && !printReady"
           class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 z-10">
           <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -325,6 +325,7 @@ const canProceed = computed(() => {
 const previewUrl = ref<string | null>(null)
 const printReady = ref(false)
 const renderError = ref<string | null>(null)
+const renderStarted = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -428,14 +429,47 @@ async function pollStatus() {
   }
 }
 
+function renderErrorMessage(error: unknown): string {
+  const fallback = 'Render failed. Please try again.'
+  if (!error || typeof error !== 'object') return fallback
+
+  const maybeError = error as {
+    data?: { message?: string; statusMessage?: string }
+    statusMessage?: string
+    message?: string
+  }
+  const message = maybeError.data?.message
+    || maybeError.data?.statusMessage
+    || maybeError.statusMessage
+    || maybeError.message
+    || fallback
+
+  if (/timed out|timeout|408/i.test(message)) {
+    return 'Render service timed out. Please try again in a moment.'
+  }
+  if (/browserless|render service|BROWSERLESS/i.test(message)) {
+    return 'Render service unavailable. Please try again in a moment.'
+  }
+  return message
+}
+
 async function startRenders() {
   renderError.value = null
   printReady.value = false
+  renderStarted.value = true
   stopPolling()
 
   // Only fire the print render — preview thumbnail already exists from the style editor.
   // Two concurrent Puppeteer instances on Railway cause OOM/slowdowns.
-  await triggerRender('print')
+  try {
+    await triggerRender('print')
+  } catch (error) {
+    renderError.value = renderErrorMessage(error)
+    printReady.value = false
+    renderStarted.value = false
+    stopPolling()
+    return
+  }
 
   // v4 cache hit: server confirmed proof_render_hash matches and the
   // proof URL is set. Skip polling entirely and proceed to payment.
