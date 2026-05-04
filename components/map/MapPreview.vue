@@ -982,6 +982,7 @@ function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecific
     config.public.mapboxToken,
     config.public.maptilerToken,
     getContourTileUrl(styleConfig),
+    config.public.stadiaToken,
   ) as maplibregl.StyleSpecification
   return applyViewportScaleToStyle(style, currentVisualScale()) as maplibregl.StyleSpecification
 }

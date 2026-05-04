@@ -78,6 +78,10 @@ export default defineNuxtConfig({
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       mapboxToken: process.env.MAPBOX_TOKEN,
       maptilerToken: process.env.MAPTILER_TOKEN,
+      // Stadia raster tile URLs are requested directly by MapLibre in the
+      // browser, so this key is public by design. Restrict it by domain in
+      // the Stadia dashboard.
+      stadiaToken: process.env.NUXT_PUBLIC_STADIA_API_KEY || process.env.STADIA_API_KEY,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://radmaps.studio' : 'http://localhost:3001'),
     },
   },

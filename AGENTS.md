@@ -219,6 +219,7 @@ All vars in `.env` (gitignored). Production values set in Vercel dashboard.
 See `.env.example` for the full list with comments. Key ones:
 - `SUPABASE_*` — database + auth
 - `MAPBOX_TOKEN` — Mapbox terrain tiles (must have terrain + raster scopes)
+- `STADIA_API_KEY` / optional `NUXT_PUBLIC_STADIA_API_KEY` — Stadia/Stamen raster tiles for Watercolor/Toner presets; client-visible, restrict by domain in Stadia
 - `STRIPE_*` — payments (live keys)
 - `GELATO_API_KEY` — print fulfillment
 - `BROWSERLESS_TOKEN` / `BROWSERLESS_ENDPOINT` / `BROWSERLESS_TIMEOUT_MS` — screenshot provider
