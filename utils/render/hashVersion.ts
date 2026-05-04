@@ -35,7 +35,7 @@ export const HASH_VERSION = {
     /** DPI tiering policy (currently per-product via maxDpi). */
     dpiPolicy: 'dpi-tiered-v1',
     /** Pixel-density and oversized-viewport math. */
-    printScaling: 'browser-screenshot-dpr-v2',
+    printScaling: 'browser-screenshot-dpr-v3',
     /** Tile fetch + LRU disk-cache pipeline. */
     tilePipeline: 'browser-tiles-v1',
   },

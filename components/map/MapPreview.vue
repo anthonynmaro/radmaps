@@ -465,7 +465,6 @@ let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
-const LEGACY_PRINT_EDITOR_WIDTH_PX = 1000
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -955,12 +954,18 @@ const frameStyle = computed(() => ({
 }))
 
 function correctedFrameZoom(savedZoom: number): number {
-  const editorWidth = props.styleConfig.map_editor_width
-    ?? sessionFrameWidth
-    ?? (isPrintRender.value ? LEGACY_PRINT_EDITOR_WIDTH_PX : 0)
+  const editorWidth = props.styleConfig.map_editor_width ?? sessionFrameWidth ?? 0
   const renderWidth = mapContainer.value?.offsetWidth ?? props.printContext?.cssWidthPx ?? 0
   if (!editorWidth || !renderWidth) return savedZoom
   return savedZoom + Math.log2(renderWidth / editorWidth)
+}
+
+function canUseSavedCamera(): boolean {
+  if (props.styleConfig.map_zoom == null || props.styleConfig.map_center == null) return false
+  // Legacy rows may have a frozen zoom/center without the editor frame width
+  // needed to scale that camera into a print screenshot. In print mode, fit the
+  // route bounds instead of guessing and producing a zoomed-out poster.
+  return !isPrintRender.value || props.styleConfig.map_editor_width != null
 }
 
 async function waitForPrintableAssets() {
@@ -1456,7 +1461,7 @@ onMounted(async () => {
   // Restore saved zoom/center whenever they exist (user panned/zoomed before).
   // Zoom is corrected against the current frame width so the map composition
   // scales with the poster chrome when the editor viewport changes.
-  const hasSavedView = props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
+  const hasSavedView = canUseSavedCamera()
   if (hasSavedView && !props.styleConfig.map_editor_width) {
     sessionFrameWidth = mapContainer.value.offsetWidth
   }
@@ -1494,9 +1499,9 @@ onMounted(async () => {
     suppressViewSave = true
     mapInstance.resize()
 
-    if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+    if (canUseSavedCamera()) {
       mapInstance.jumpTo({
-        zoom: correctedFrameZoom(props.styleConfig.map_zoom),
+        zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
         center: props.styleConfig.map_center as [number, number],
       })
     } else if (!props.styleConfig.map_frozen) {
@@ -1519,14 +1524,6 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
     recomputeOverlays()
-    if (props.editable && props.styleConfig.map_editor_width == null && mapContainer.value) {
-      const c = mapInstance!.getCenter()
-      emit('view-changed', {
-        map_zoom: mapInstance!.getZoom(),
-        map_center: [c.lng, c.lat],
-        map_editor_width: mapContainer.value.offsetWidth,
-      })
-    }
     markPrintRenderReady()
   })
 
@@ -1792,9 +1789,9 @@ watch(
         placePinMarkers()
         apply3DTerrain()
         // setStyle() resets the viewport — restore frozen position before revealing the map
-        if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
           mapInstance!.jumpTo({
-            zoom: correctedFrameZoom(props.styleConfig.map_zoom),
+            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
             center: props.styleConfig.map_center as [number, number],
           })
         }
@@ -1929,8 +1926,8 @@ watch(
         populateSegmentSources()
         placePinMarkers()
         apply3DTerrain()
-        if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
-          mapInstance!.jumpTo({ zoom: correctedFrameZoom(props.styleConfig.map_zoom), center: props.styleConfig.map_center as [number, number] })
+        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
+          mapInstance!.jumpTo({ zoom: correctedFrameZoom(props.styleConfig.map_zoom as number), center: props.styleConfig.map_center as [number, number] })
         }
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -2053,9 +2050,9 @@ watch(
       mapInstance.doubleClickZoom.disable()
       mapInstance.touchZoomRotate.disable()
       mapInstance.keyboard.disable()
-      if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+      if (canUseSavedCamera()) {
         mapInstance.jumpTo({
-          zoom: correctedFrameZoom(props.styleConfig.map_zoom),
+          zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
           center: props.styleConfig.map_center as [number, number],
         })
       }
