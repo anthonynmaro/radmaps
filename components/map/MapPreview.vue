@@ -405,6 +405,7 @@ import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
+import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -968,6 +969,50 @@ function canUseSavedCamera(): boolean {
   return !isPrintRender.value || props.styleConfig.map_editor_width != null
 }
 
+function currentVisualScale(): number {
+  return getViewportVisualScale({
+    currentWidth: mapContainer.value?.offsetWidth ?? props.printContext?.cssWidthPx,
+    savedEditorWidth: props.styleConfig.map_editor_width,
+  })
+}
+
+function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecification {
+  const style = buildMapStyle(
+    styleConfig,
+    config.public.mapboxToken,
+    config.public.maptilerToken,
+    getContourTileUrl(styleConfig),
+  ) as maplibregl.StyleSpecification
+  return applyViewportScaleToStyle(style, currentVisualScale()) as maplibregl.StyleSpecification
+}
+
+function applyViewportScaledLayerProperties(styleConfig: StyleConfig = props.styleConfig) {
+  if (!mapInstance) return
+  const scaledStyle = buildScaledMapStyle(styleConfig) as { layers?: Array<Record<string, unknown>> }
+  if (!Array.isArray(scaledStyle.layers)) return
+
+  for (const layer of scaledStyle.layers) {
+    const id = String(layer.id ?? '')
+    if (!mapInstance.getLayer(id)) continue
+    const paint = layer.paint as Record<string, unknown> | undefined
+    const layout = layer.layout as Record<string, unknown> | undefined
+    if (paint) {
+      for (const property of VIEWPORT_SCALED_PAINT_PROPERTIES) {
+        if (paint[property] != null) {
+          mapInstance.setPaintProperty(id, property, paint[property])
+        }
+      }
+    }
+    if (layout) {
+      for (const property of VIEWPORT_SCALED_LAYOUT_PROPERTIES) {
+        if (layout[property] != null) {
+          mapInstance.setLayoutProperty(id, property, layout[property])
+        }
+      }
+    }
+  }
+}
+
 async function waitForPrintableAssets() {
   await nextTick()
   const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
@@ -1180,12 +1225,13 @@ const pinOverlayItems = ref<PinItem[]>([])
 const draggingPin    = ref<'start' | 'finish' | null>(null)
 const draggingLeader = ref<string | null>(null)
 
-const svgDotR         = computed(() => Math.max(1.5, containerDims.value.h * 0.00125))
-const svgDotStroke    = computed(() => Math.max(0.5, containerDims.value.h * 0.0003))
-const svgLineW        = computed(() => Math.max(0.8, containerDims.value.h * 0.0012))
-const svgPinFontSize  = computed(() => Math.max(11,  containerDims.value.h * 0.022))
-const svgLeaderFontSize = computed(() => Math.max(9, containerDims.value.h * 0.014) * (props.styleConfig.leader_label_scale ?? 1.0))
-const svgPinOffset    = computed(() => Math.max(40,  containerDims.value.h * 0.07))
+const posterContentMinPx = (editorMin: number) => isPrintRender.value ? 0 : editorMin
+const svgDotR         = computed(() => Math.max(posterContentMinPx(1.5), containerDims.value.h * 0.00125))
+const svgDotStroke    = computed(() => Math.max(posterContentMinPx(0.5), containerDims.value.h * 0.0003))
+const svgLineW        = computed(() => Math.max(posterContentMinPx(0.8), containerDims.value.h * 0.0012))
+const svgPinFontSize  = computed(() => Math.max(posterContentMinPx(11),  containerDims.value.h * 0.022))
+const svgLeaderFontSize = computed(() => Math.max(posterContentMinPx(9), containerDims.value.h * 0.014) * (props.styleConfig.leader_label_scale ?? 1.0))
+const svgPinOffset    = computed(() => Math.max(posterContentMinPx(40),  containerDims.value.h * 0.07))
 
 const showLeaderLines = computed(() =>
   props.styleConfig.trail_label_style === 'leader-lines' &&
@@ -1456,7 +1502,7 @@ onMounted(async () => {
   // conditional logic when the user enables duotone/posterize later.
   ensureTileEffectProtocol()
   if (props.styleConfig.show_contours) await ensureContourProtocol()
-  const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
+  const style = buildScaledMapStyle(props.styleConfig)
 
   // Restore saved zoom/center whenever they exist (user panned/zoomed before).
   // Zoom is corrected against the current frame width so the map composition
@@ -1510,6 +1556,8 @@ onMounted(async () => {
       })
     }
 
+    applyViewportScaledLayerProperties()
+    placePinMarkers()
     recomputeOverlays()
     window.setTimeout(() => { suppressViewSave = false }, 250)
   }
@@ -1657,12 +1705,12 @@ let finishMarker: maplibregl.Marker | null = null
 function makePinDotEl(): HTMLElement {
   const color   = props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917'
   const opacity = props.styleConfig.pin_opacity ?? 0.9
-  const size    = Math.max(10, (containerDims.value.h || 600) * 0.015)
+  const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
   el.style.cssText = [
     `width:${size}px`, `height:${size}px`, 'border-radius:50%',
     `background:${color}`, `opacity:${opacity}`,
-    `border:${Math.max(2, size * 0.18)}px solid rgba(255,255,255,0.85)`,
+    `border:${Math.max(posterContentMinPx(2), size * 0.18)}px solid rgba(255,255,255,0.85)`,
     'box-shadow:0 1px 6px rgba(0,0,0,0.4)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
@@ -1781,7 +1829,7 @@ watch(
       if (tileKeyChanged) _tileCache.clear()
       mapReady.value = false
       if (newConfig.show_contours) await ensureContourProtocol()
-      const newStyle = buildMapStyle(newConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(newConfig)) as maplibregl.StyleSpecification
+      const newStyle = buildScaledMapStyle(newConfig)
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => {
         populateRouteSource()
@@ -1795,6 +1843,7 @@ watch(
             center: props.styleConfig.map_center as [number, number],
           })
         }
+        applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
@@ -1869,6 +1918,7 @@ watch(
       mapInstance.setPaintProperty('route-line-casing', 'line-width', newConfig.route_width + 4)
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
     }
+    applyViewportScaledLayerProperties(newConfig)
 
     // Re-place pin markers when visibility or dot appearance changes
     if (
@@ -1919,7 +1969,7 @@ watch(
     // A full style reload is required — same path as FULL_RELOAD_KEYS.
     if (isGradient && hadRanges !== hasRanges) {
       mapReady.value = false
-      const newStyle = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
+      const newStyle = buildScaledMapStyle(props.styleConfig)
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => {
         populateRouteSource()
@@ -1929,6 +1979,7 @@ watch(
         if (props.styleConfig.map_frozen && canUseSavedCamera()) {
           mapInstance!.jumpTo({ zoom: correctedFrameZoom(props.styleConfig.map_zoom as number), center: props.styleConfig.map_center as [number, number] })
         }
+        applyViewportScaledLayerProperties()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)

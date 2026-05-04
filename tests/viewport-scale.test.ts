@@ -1,0 +1,112 @@
+import { describe, expect, it } from 'vitest'
+import {
+  applyViewportScaleToStyle,
+  getViewportVisualScale,
+} from '../utils/render/viewportScale'
+
+function layerById(style: { layers?: Array<Record<string, unknown>> }, id: string) {
+  const layer = style.layers?.find(item => item.id === id)
+  if (!layer) throw new Error(`Missing layer ${id}`)
+  return layer
+}
+
+describe('getViewportVisualScale', () => {
+  it('uses current width divided by saved editor width', () => {
+    expect(getViewportVisualScale({ currentWidth: 1500, savedEditorWidth: 1000 })).toBe(1.5)
+  })
+
+  it('falls back to 1 for missing or invalid widths', () => {
+    expect(getViewportVisualScale({ currentWidth: 1500, savedEditorWidth: undefined })).toBe(1)
+    expect(getViewportVisualScale({ currentWidth: 0, savedEditorWidth: 1000 })).toBe(1)
+    expect(getViewportVisualScale({ currentWidth: 1500, savedEditorWidth: -1 })).toBe(1)
+  })
+})
+
+describe('applyViewportScaleToStyle', () => {
+  const style = {
+    version: 8,
+    layers: [
+      {
+        id: 'route-line-casing',
+        type: 'line',
+        paint: { 'line-width': 8 },
+      },
+      {
+        id: 'route-line',
+        type: 'line',
+        paint: { 'line-width': 4 },
+      },
+      {
+        id: 'trail-seg-line-a',
+        type: 'line',
+        paint: { 'line-width': 3, 'line-dasharray': [4, 3] },
+      },
+      {
+        id: 'segment-handle-dot',
+        type: 'circle',
+        paint: { 'circle-radius': 4, 'circle-stroke-width': 1.5 },
+      },
+      {
+        id: 'contours-minor',
+        type: 'line',
+        paint: {
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 1],
+        },
+      },
+      {
+        id: 'contours-labels',
+        type: 'symbol',
+        layout: {
+          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
+        },
+        paint: { 'text-halo-width': 2 },
+      },
+      {
+        id: 'roads-place-labels',
+        type: 'symbol',
+        layout: { 'text-size': ['interpolate', ['linear'], ['zoom'], 8, 9, 14, 13] },
+        paint: { 'text-halo-width': 1.5 },
+      },
+      {
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': '#fff' },
+      },
+    ],
+  }
+
+  it('scales route, casing, trail segments, dash spacing, and segment dots', () => {
+    const scaled = applyViewportScaleToStyle(style, 2)
+
+    expect(layerById(scaled, 'route-line-casing').paint['line-width']).toBe(16)
+    expect(layerById(scaled, 'route-line').paint['line-width']).toBe(8)
+    expect(layerById(scaled, 'trail-seg-line-a').paint['line-width']).toBe(6)
+    expect(layerById(scaled, 'trail-seg-line-a').paint['line-dasharray']).toEqual([8, 6])
+    expect(layerById(scaled, 'segment-handle-dot').paint['circle-radius']).toBe(8)
+    expect(layerById(scaled, 'segment-handle-dot').paint['circle-stroke-width']).toBe(3)
+  })
+
+  it('scales expression outputs without scaling zoom stop keys', () => {
+    const scaled = applyViewportScaleToStyle(style, 2)
+    expect(layerById(scaled, 'contours-minor').paint['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 1.6, 14, 2,
+    ])
+    expect(layerById(scaled, 'contours-labels').layout['text-size']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 18, 14, 26,
+    ])
+  })
+
+  it('scales place/POI/contour text halos and leaves unrelated layers alone', () => {
+    const scaled = applyViewportScaleToStyle(style, 2)
+    expect(layerById(scaled, 'contours-labels').paint['text-halo-width']).toBe(4)
+    expect(layerById(scaled, 'roads-place-labels').paint['text-halo-width']).toBe(3)
+    expect(layerById(scaled, 'background').paint['background-color']).toBe('#fff')
+  })
+
+  it('does not mutate the source style and scale 1 is equivalent', () => {
+    const scaled = applyViewportScaleToStyle(style, 1)
+    expect(scaled).toEqual(style)
+    expect(scaled).not.toBe(style)
+    expect(layerById(style, 'route-line').paint['line-width']).toBe(4)
+  })
+})
