@@ -74,7 +74,7 @@
             <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
           </div>
         </div>
-        <div v-else-if="renderStarted && !printReady"
+        <div v-else-if="renderInFlight && !printReady"
           class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 z-10">
           <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -200,6 +200,26 @@
 
         <!-- Proceed to payment -->
         <div class="pt-4 border-t border-stone-200">
+          <div v-if="renderError && !isDigital"
+            class="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-800">Render failed</p>
+              <p class="text-xs text-red-700 mt-0.5">{{ renderError }}</p>
+              <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
+            </div>
+          </div>
+          <div v-else-if="renderInFlight && !printReady && !isDigital"
+            class="mb-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
+            <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p class="text-xs text-sky-800">Preparing print file — you can finish shipping details while we get it ready.</p>
+          </div>
+
           <div class="flex justify-between items-center mb-4">
             <span class="text-base font-bold text-stone-900">Total</span>
             <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
@@ -239,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
@@ -314,7 +334,7 @@ const shippingAddress = reactive({
 
 const canProceed = computed(() => {
   if (!selectedProduct.value) return false
-  if (!printReady.value && !isDigital.value) return false
+  if (!isDigital.value && (!printReady.value || renderTargetProductUid.value !== selectedProduct.value.product_uid)) return false
   if (isDigital.value) return !!shippingAddress.email
   const { name, email, address1, city, state_code, zip, phone } = shippingAddress
   return !!(name && email && address1 && city && state_code && zip && phone)
@@ -325,7 +345,8 @@ const canProceed = computed(() => {
 const previewUrl = ref<string | null>(null)
 const printReady = ref(false)
 const renderError = ref<string | null>(null)
-const renderStarted = ref(false)
+const renderInFlight = ref(false)
+const renderTargetProductUid = ref<string | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -378,6 +399,7 @@ async function triggerRender(quality: 'preview' | 'print') {
       v4Cached.value = true
       previewUrl.value = resp.render_url
       printReady.value = true
+      renderInFlight.value = false
     } else {
       v4Cached.value = false
     }
@@ -409,6 +431,7 @@ async function pollStatus() {
 
   if (typeof data.render_url === 'string' && data.render_url.startsWith('error:')) {
     renderError.value = data.render_url.slice(6) || 'Render failed. Please try again.'
+    renderInFlight.value = false
     stopPolling()
     await supabase.from('maps').update({ render_url: null }).eq('id', mapId)
     return
@@ -418,6 +441,7 @@ async function pollStatus() {
     if (data.proof_render_hash === v4 && data.proof_render_url) {
       previewUrl.value = data.proof_render_url
       printReady.value = true
+      renderInFlight.value = false
       stopPolling()
     }
     return
@@ -425,6 +449,7 @@ async function pollStatus() {
 
   if (data.status === 'rendered') {
     printReady.value = true
+    renderInFlight.value = false
     stopPolling()
   }
 }
@@ -454,16 +479,23 @@ function renderErrorMessage(error: unknown): string {
 }
 
 async function startRenders() {
+  const product = selectedProduct.value
   renderError.value = null
-  printReady.value = false
-  stopPolling()
 
-  if (!selectedProduct.value || isDigital.value) {
-    renderStarted.value = false
+  if (!product || product.type === 'digital') {
+    renderInFlight.value = false
+    renderTargetProductUid.value = product?.product_uid ?? null
     return
   }
 
-  renderStarted.value = true
+  if ((renderInFlight.value || printReady.value) && renderTargetProductUid.value === product.product_uid) {
+    return
+  }
+
+  printReady.value = false
+  renderInFlight.value = true
+  renderTargetProductUid.value = product.product_uid
+  stopPolling()
 
   // Only fire the print render — preview thumbnail already exists from the style editor.
   // Two concurrent Puppeteer instances on Railway cause OOM/slowdowns.
@@ -472,7 +504,7 @@ async function startRenders() {
   } catch (error) {
     renderError.value = renderErrorMessage(error)
     printReady.value = false
-    renderStarted.value = false
+    renderInFlight.value = false
     stopPolling()
     return
   }
@@ -480,6 +512,7 @@ async function startRenders() {
   // v4 cache hit: server confirmed proof_render_hash matches and the
   // proof URL is set. Skip polling entirely and proceed to payment.
   if (v4Cached.value && printReady.value) {
+    renderInFlight.value = false
     return
   }
 
@@ -487,12 +520,33 @@ async function startRenders() {
   timeoutTimer = setTimeout(() => {
     if (!printReady.value && !renderError.value) {
       renderError.value = 'Render timed out. Please try again.'
+      renderInFlight.value = false
       stopPolling()
     }
   }, 5 * 60 * 1000)
 }
 
 onUnmounted(stopPolling)
+
+watch(selectedProduct, (product, previousProduct) => {
+  if (!product) return
+
+  if (product.type === 'digital') {
+    renderError.value = null
+    printReady.value = true
+    renderInFlight.value = false
+    renderTargetProductUid.value = product.product_uid
+    stopPolling()
+    return
+  }
+
+  if (previousProduct?.product_uid !== product.product_uid) {
+    printReady.value = false
+    renderError.value = null
+  }
+
+  startRenders()
+}, { flush: 'post' })
 
 // ─── Payment ────────────────────────────────────────────────────────────────
 
