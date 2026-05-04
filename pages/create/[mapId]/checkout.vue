@@ -456,8 +456,14 @@ function renderErrorMessage(error: unknown): string {
 async function startRenders() {
   renderError.value = null
   printReady.value = false
-  renderStarted.value = true
   stopPolling()
+
+  if (!selectedProduct.value || isDigital.value) {
+    renderStarted.value = false
+    return
+  }
+
+  renderStarted.value = true
 
   // Only fire the print render — preview thumbnail already exists from the style editor.
   // Two concurrent Puppeteer instances on Railway cause OOM/slowdowns.

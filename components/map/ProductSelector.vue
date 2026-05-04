@@ -114,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { SIZES, PRODUCTS, getMaterialsForSize, getProductBySize, formatPrice } from '~/utils/products'
 import type { PrintProduct, ProductFraming } from '~/types'
 
@@ -196,7 +196,7 @@ function confirmSelection() {
 
 // Auto-select on mount — emit so checkout knows which product is active
 if (!props.modelValue) {
-  emitCurrentProduct()
+  onMounted(emitCurrentProduct)
 }
 </script>
 

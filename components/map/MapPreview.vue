@@ -464,6 +464,8 @@ const mapHovered = ref(false)
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
+let sessionFrameWidth: number | null = null
+const LEGACY_PRINT_EDITOR_WIDTH_PX = 1000
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -952,9 +954,10 @@ const frameStyle = computed(() => ({
   opacity: '0.18',
 }))
 
-function correctedPrintZoom(savedZoom: number): number {
-  if (!isPrintRender.value) return savedZoom
-  const editorWidth = props.styleConfig.map_editor_width ?? 0
+function correctedFrameZoom(savedZoom: number): number {
+  const editorWidth = props.styleConfig.map_editor_width
+    ?? sessionFrameWidth
+    ?? (isPrintRender.value ? LEGACY_PRINT_EDITOR_WIDTH_PX : 0)
   const renderWidth = mapContainer.value?.offsetWidth ?? props.printContext?.cssWidthPx ?? 0
   if (!editorWidth || !renderWidth) return savedZoom
   return savedZoom + Math.log2(renderWidth / editorWidth)
@@ -1450,10 +1453,14 @@ onMounted(async () => {
   if (props.styleConfig.show_contours) await ensureContourProtocol()
   const style = buildMapStyle(props.styleConfig, config.public.mapboxToken, config.public.maptilerToken, getContourTileUrl(props.styleConfig)) as maplibregl.StyleSpecification
 
-  // Restore saved zoom/center whenever they exist (user panned/zoomed before),
-  // regardless of whether the map is frozen. Frozen = non-interactive only.
+  // Restore saved zoom/center whenever they exist (user panned/zoomed before).
+  // Zoom is corrected against the current frame width so the map composition
+  // scales with the poster chrome when the editor viewport changes.
   const hasSavedView = props.styleConfig.map_zoom != null && props.styleConfig.map_center != null
-  const savedZoom = hasSavedView ? correctedPrintZoom(props.styleConfig.map_zoom as number) : undefined
+  if (hasSavedView && !props.styleConfig.map_editor_width) {
+    sessionFrameWidth = mapContainer.value.offsetWidth
+  }
+  const savedZoom = hasSavedView ? correctedFrameZoom(props.styleConfig.map_zoom as number) : undefined
 
   mapInstance = new maplibregl.Map({
     container: mapContainer.value,
@@ -1467,16 +1474,39 @@ onMounted(async () => {
 
   // Debounced view-change emitter so pan/zoom is auto-saved without flooding saves
   let viewSaveTimer: ReturnType<typeof setTimeout> | null = null
+  let suppressViewSave = false
   function scheduleViewSave() {
-    if (!mapInstance || !props.editable) return
+    if (!mapInstance || !props.editable || suppressViewSave) return
     if (viewSaveTimer) clearTimeout(viewSaveTimer)
     viewSaveTimer = setTimeout(() => {
-      if (!mapInstance) return
+      if (!mapInstance || suppressViewSave) return
       const z = mapInstance.getZoom()
       const c = mapInstance.getCenter()
       const w = mapContainer.value?.offsetWidth ?? 0
       emit('view-changed', { map_zoom: z, map_center: [c.lng, c.lat], map_editor_width: w })
     }, 800)
+  }
+
+  let resizeFrame = 0
+  function syncCameraToFrame() {
+    if (!mapInstance || !mapContainer.value) return
+
+    suppressViewSave = true
+    mapInstance.resize()
+
+    if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
+      mapInstance.jumpTo({
+        zoom: correctedFrameZoom(props.styleConfig.map_zoom),
+        center: props.styleConfig.map_center as [number, number],
+      })
+    } else if (!props.styleConfig.map_frozen) {
+      mapInstance.fitBounds(props.map.bbox as maplibregl.LngLatBoundsLike, {
+        padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
+      })
+    }
+
+    recomputeOverlays()
+    window.setTimeout(() => { suppressViewSave = false }, 250)
   }
 
   mapInstance.on('load', () => {
@@ -1489,6 +1519,14 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
     recomputeOverlays()
+    if (props.editable && props.styleConfig.map_editor_width == null && mapContainer.value) {
+      const c = mapInstance!.getCenter()
+      emit('view-changed', {
+        map_zoom: mapInstance!.getZoom(),
+        map_center: [c.lng, c.lat],
+        map_editor_width: mapContainer.value.offsetWidth,
+      })
+    }
     markPrintRenderReady()
   })
 
@@ -1501,8 +1539,8 @@ onMounted(async () => {
   mapInstance.on('moveend', scheduleViewSave)
 
   resizeObserver = new ResizeObserver(() => {
-    mapInstance?.resize()
-    recomputeOverlays()
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(syncCameraToFrame)
   })
   resizeObserver.observe(mapContainer.value)
 })
@@ -1756,7 +1794,7 @@ watch(
         // setStyle() resets the viewport — restore frozen position before revealing the map
         if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
           mapInstance!.jumpTo({
-            zoom: correctedPrintZoom(props.styleConfig.map_zoom),
+            zoom: correctedFrameZoom(props.styleConfig.map_zoom),
             center: props.styleConfig.map_center as [number, number],
           })
         }
@@ -1892,7 +1930,7 @@ watch(
         placePinMarkers()
         apply3DTerrain()
         if (props.styleConfig.map_frozen && props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
-          mapInstance!.jumpTo({ zoom: correctedPrintZoom(props.styleConfig.map_zoom), center: props.styleConfig.map_center as [number, number] })
+          mapInstance!.jumpTo({ zoom: correctedFrameZoom(props.styleConfig.map_zoom), center: props.styleConfig.map_center as [number, number] })
         }
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -2017,7 +2055,7 @@ watch(
       mapInstance.keyboard.disable()
       if (props.styleConfig.map_zoom != null && props.styleConfig.map_center != null) {
         mapInstance.jumpTo({
-          zoom: correctedPrintZoom(props.styleConfig.map_zoom),
+          zoom: correctedFrameZoom(props.styleConfig.map_zoom),
           center: props.styleConfig.map_center as [number, number],
         })
       }

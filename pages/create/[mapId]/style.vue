@@ -52,15 +52,15 @@
         <div class="hidden sm:block w-px h-5 bg-stone-200" />
 
         <!-- Order — always available; full render fires automatically on the checkout page -->
-        <NuxtLink
-          :to="`/create/${mapId}/checkout`"
+        <button
           class="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-3 py-2 rounded-lg transition-colors min-h-[36px]"
+          @click="goToCheckout"
         >
           <span>Order</span>
           <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
           </svg>
-        </NuxtLink>
+        </button>
       </div>
     </header>
 
@@ -505,7 +505,7 @@ function onOverlayResized(payload: { id: string; font_size: number }) {
 
 // ─── Freeze / unfreeze ────────────────────────────────────────────────────────
 
-function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number] }) {
+function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number }) {
   styleConfig.value = { ...styleConfig.value, ...payload }
   // Sync optimistic state then save immediately — frozen position must survive
   // navigation (e.g. clicking Order) before the debounce timer fires.
@@ -532,6 +532,14 @@ function onSegmentLabelMoved({ id, lnglat }: { id: string; lnglat: [number, numb
 
 function onViewChanged({ map_zoom, map_center, map_editor_width }: { map_zoom: number; map_center: [number, number]; map_editor_width: number }) {
   styleConfig.value = { ...styleConfig.value, map_zoom, map_center, map_editor_width }
+}
+
+async function goToCheckout() {
+  if (mapData.value) {
+    mapData.value.style_config = { ...styleConfig.value }
+  }
+  await saveNow()
+  await navigateTo(`/create/${mapId.value}/checkout`)
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────
