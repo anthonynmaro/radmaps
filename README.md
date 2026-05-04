@@ -117,5 +117,6 @@ See `.env.example` for the full list. Key vars:
 - `BROWSERLESS_TOKEN` — Browserless API token
 - `BROWSERLESS_ENDPOINT` — e.g. `https://production-sfo.browserless.io`
 - `BROWSERLESS_TIMEOUT_MS` — currently `60000`
+- `RENDER_PIPELINE_V4_ENABLED` — set to `true` to route proof renders through Browserless
 - `RENDER_TICKET_SECRET` — long random secret for signed render URLs
 - `NUXT_PUBLIC_SITE_URL` — public URL Browserless can reach for render pages

@@ -66,10 +66,10 @@ export default defineNuxtConfig({
     browserlessEndpoint: process.env.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io',
     browserlessTimeoutMs: Number(process.env.BROWSERLESS_TIMEOUT_MS || 60_000),
     renderTicketSecret: process.env.RENDER_TICKET_SECRET || process.env.RENDER_WORKER_SECRET || 'dev-render-ticket-secret',
-    // Render pipeline v4 — feature-flagged. Defaults OFF: when the env
-    // var is unset or anything other than the literal string 'true',
-    // existing render-worker (legacy Puppeteer) flow is preserved.
-    renderPipelineV4Enabled: process.env.RENDER_PIPELINE_V4_ENABLED === 'true',
+    // Render pipeline v4 — feature-flagged. Defaults OFF. Accept common
+    // truthy spellings so deployment dashboards don't silently fall back
+    // to the legacy worker because of capitalization.
+    renderPipelineV4Enabled: /^(true|1|yes)$/i.test(process.env.RENDER_PIPELINE_V4_ENABLED || ''),
     renderWorkerV4Url: process.env.RENDER_WORKER_V4_URL ?? '',
     public: {
       // Client-accessible vars

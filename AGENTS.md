@@ -222,6 +222,7 @@ See `.env.example` for the full list with comments. Key ones:
 - `STRIPE_*` — payments (live keys)
 - `GELATO_API_KEY` — print fulfillment
 - `BROWSERLESS_TOKEN` / `BROWSERLESS_ENDPOINT` / `BROWSERLESS_TIMEOUT_MS` — screenshot provider
+- `RENDER_PIPELINE_V4_ENABLED=true` — routes proof renders through Browserless instead of legacy worker
 - `RENDER_TICKET_SECRET` — short-lived signed render URL secret
 - `RENDER_WORKER_*` — legacy worker / Railway queue compatibility depending on deployment path
 - `ANTHROPIC_API_KEY` — AI styling agent

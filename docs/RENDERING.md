@@ -112,6 +112,7 @@ Required for screenshot rendering:
 BROWSERLESS_TOKEN=...
 BROWSERLESS_ENDPOINT=https://production-sfo.browserless.io
 BROWSERLESS_TIMEOUT_MS=60000
+RENDER_PIPELINE_V4_ENABLED=true
 RENDER_TICKET_SECRET=...
 NUXT_PUBLIC_SITE_URL=https://radmaps.studio
 ```
