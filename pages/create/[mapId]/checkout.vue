@@ -106,8 +106,8 @@
 
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
-          <div class="w-16 h-20 rounded-lg overflow-hidden bg-stone-200 shrink-0 flex items-center justify-center">
-            <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-cover" alt="Preview" />
+          <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center">
+            <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-contain" alt="Preview" />
             <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
