@@ -243,8 +243,8 @@
           >
             <!-- Real thumbnail if available -->
             <img
-              v-if="map.thumbnail_url"
-              :src="map.thumbnail_url"
+              v-if="posterThumbnailUrl(map)"
+              :src="posterThumbnailUrl(map)!"
               :alt="map.title"
               class="w-full h-full object-cover"
             />
@@ -379,8 +379,8 @@
             style="aspect-ratio:2/3"
           >
             <img
-              v-if="map.thumbnail_url"
-              :src="map.thumbnail_url"
+              v-if="posterThumbnailUrl(map)"
+              :src="posterThumbnailUrl(map)!"
               :alt="map.title"
               class="w-full h-full object-cover"
             />
@@ -752,6 +752,9 @@ const formatM = (m?: number) => {
   if (m < 1000) return `${Math.round(m)} m`
   return `${(m / 1000).toFixed(1)} km`
 }
+
+const posterThumbnailUrl = (map: TrailMap) =>
+  map.proof_render_url ?? map.thumbnail_url ?? map.render_url ?? null
 
 // ─── Route geometry → SVG path ────────────────────────────────────────────
 function extractCoords(map: TrailMap): number[][] | null {

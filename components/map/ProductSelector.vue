@@ -1,15 +1,16 @@
 <template>
   <div class="product-selector" :class="{ 'is-expanded': isExpanded }">
 
-    <!-- Toggle handle -->
+    <!-- Selected option summary -->
     <button
       @click="isExpanded = !isExpanded"
-      class="w-full flex items-center justify-between px-5 py-3 bg-white border-b border-stone-200 hover:bg-stone-50 transition-colors rounded-t-2xl"
+      class="w-full flex items-center justify-between px-5 py-4 bg-white border-b border-stone-200 hover:bg-stone-50 transition-colors"
     >
       <div class="flex items-center gap-3">
         <span class="text-lg">{{ selectedTypeIcon }}</span>
         <div class="text-left">
-          <p class="text-sm font-semibold text-stone-900">
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Selected product</p>
+          <p class="text-sm font-semibold text-stone-900 mt-0.5">
             {{ selectedProduct?.name ?? 'Select a Product' }}
           </p>
           <p v-if="selectedProduct" class="text-xs text-stone-500">
@@ -28,7 +29,7 @@
     </button>
 
     <!-- Expanded panel -->
-    <div v-show="isExpanded" class="px-5 py-4 space-y-5 bg-white max-h-[60vh] overflow-y-auto">
+    <div v-show="isExpanded" class="px-5 py-5 space-y-6 bg-white lg:max-h-[calc(100vh-220px)] overflow-y-auto">
 
       <!-- Size grid (3×2) -->
       <div>
@@ -101,9 +102,9 @@
       <button
         v-if="selectedProduct"
         @click="confirmSelection"
-        class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] rounded-xl py-3 transition-colors"
+        class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] rounded-xl py-3.5 transition-colors min-h-[52px]"
       >
-        Continue with {{ selectedProduct.name }}
+        Render {{ selectedProduct.name }}
         <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
         </svg>
@@ -138,7 +139,7 @@ const emit = defineEmits<{
   'confirm': [payload: { product: PrintProduct; framing: ProductFraming }]
 }>()
 
-const isExpanded = ref(false)
+const isExpanded = ref(true)
 
 const selectedSizeLabel = ref<string>(
   props.modelValue?.size_label && props.modelValue.size_label !== 'Digital'
@@ -202,13 +203,6 @@ if (!props.modelValue) {
 
 <style scoped>
 .product-selector {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 30;
-  border-radius: 1rem 1rem 0 0;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  width: 100%;
 }
 </style>

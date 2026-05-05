@@ -95,6 +95,7 @@
           :style="trailNameStyle"
           :contenteditable="!isMobile"
           :suppressContentEditableWarning="true"
+          @focus="onTextFocus('trail_name', trailName)"
           @blur="onTrailNameBlur"
           @click="onTextClick('trail_name', trailName)"
         >{{ trailName }}</h1>
@@ -111,6 +112,7 @@
           :style="locationLineStyle"
           :contenteditable="!isMobile"
           :suppressContentEditableWarning="true"
+          @focus="onTextFocus('location_text', styleConfig.location_text)"
           @blur="onLocationBlur"
           @click="onTextClick('location_text', styleConfig.location_text)"
         >{{ locationLine }}</p>
@@ -141,6 +143,34 @@
             @click="emit('plot-cancelled')"
           >Cancel</button>
         </div>
+
+        <!-- Brush delete overlay — preview stays local until Apply -->
+        <div
+          v-if="deleteBrushActive"
+          class="absolute top-0 inset-x-0 z-20 flex items-center justify-between pointer-events-none"
+          style="padding: 0.8cqh 1.4cqw; background: linear-gradient(to bottom, rgba(127,29,29,0.62) 0%, transparent 100%);"
+        >
+          <span style="color: white; font-size: 0.85cqh; font-weight: 700; letter-spacing: 0.06em; text-shadow: 0 1px 3px rgba(0,0,0,0.4);">
+            Brush erase route sections
+          </span>
+          <div class="pointer-events-auto flex items-center gap-1.5">
+            <button
+              style="background: rgba(255,255,255,0.92); border: 1.5px solid rgba(255,255,255,0.65); color: #7F1D1D; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 800; cursor: pointer; backdrop-filter: blur(4px);"
+              :disabled="brushPreviewRanges.length === 0"
+              @click="applyDeleteBrush"
+            >Apply</button>
+            <button
+              style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 700; cursor: pointer; backdrop-filter: blur(4px);"
+              @click="cancelDeleteBrush"
+            >Cancel</button>
+          </div>
+        </div>
+
+        <div
+          v-if="deleteBrushActive && brushCursor"
+          class="absolute rounded-full pointer-events-none"
+          :style="brushCursorStyle"
+        />
         <!-- Loading placeholder -->
         <div
           v-if="!mapReady"
@@ -228,7 +258,6 @@
           <g v-if="showLeaderLines">
             <template v-for="item in leaderLineItems" :key="item.id">
               <circle :cx="item.dotX" :cy="item.dotY" :r="svgDotR" :fill="item.color"
-                :stroke="styleConfig.background_color ?? '#FFFFFF'" :stroke-width="svgDotStroke"
                 vector-effect="non-scaling-stroke" style="pointer-events: none;" />
               <line
                 :x1="item.dotX" :y1="item.dotY"
@@ -239,20 +268,20 @@
               <text
                 :x="item.labelX" :y="item.labelY"
                 :text-anchor="item.anchor"
-                :font-size="svgLeaderFontSize"
-                :font-family="`'${styleConfig.font_family}', sans-serif`"
+                :font-size="item.fontSize"
+                :font-family="leaderLabelFontFamily"
                 :fill="item.color"
                 :stroke="styleConfig.background_color ?? '#FFFFFF'"
-                stroke-width="3"
+                :stroke-width="selectedLeaderIds.includes(item.id) ? 5 : 3"
                 paint-order="stroke fill"
                 font-weight="700"
                 letter-spacing="0.1em"
                 dominant-baseline="middle"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
                 @pointerdown.stop="editable && startLeaderDrag($event, item.id)"
-                @pointermove="draggingLeader === item.id && onLeaderDragMove($event)"
-                @pointerup="draggingLeader === item.id && onLeaderDragEnd($event, item.id)"
-                @pointercancel="draggingLeader = null"
+                @pointermove="isLeaderDragActive(item.id) && onLeaderDragMove($event)"
+                @pointerup="isLeaderDragActive(item.id) && onLeaderDragEnd($event)"
+                @pointercancel="cancelLeaderDrag"
               >{{ item.name }}</text>
             </template>
           </g>
@@ -330,6 +359,7 @@
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
           :contenteditable="!isMobile"
           :suppressContentEditableWarning="true"
+          @focus="onTextFocus('occasion_text', styleConfig.occasion_text)"
           @blur="onOccasionBlur"
           @click="onTextClick('occasion_text', styleConfig.occasion_text)"
         >{{ occasionText }}</p>
@@ -403,10 +433,10 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
-import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints } from '~/utils/trail'
+import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromIndexes, routeRangesToGeojson } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
-import type { StyleConfig, TrailMap, TextOverlay } from '~/types'
+import type { DeletedRange, StyleConfig, TrailMap, TextOverlay } from '~/types'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
@@ -427,6 +457,10 @@ const props = defineProps<{
   printContext?: PrintContext
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
+  /** When true, the map enters paint-select mode for route deletion */
+  deleteBrushActive?: boolean
+  /** Brush radius in screen pixels for route deletion selection */
+  deleteBrushSize?: number
   canUndo?: boolean
   canRedo?: boolean
 }>()
@@ -445,10 +479,18 @@ const emit = defineEmits<{
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
   /** Fired when user cancels plot mode (Escape key or cancel button) */
   'plot-cancelled': []
+  /** Fired when user applies a brush-selected route deletion preview */
+  'route-delete-brush-applied': [payload: { ranges: DeletedRange[] }]
+  /** Fired when user cancels brush route deletion */
+  'route-delete-brush-cancelled': []
   /** Fired when user drags a pin label to a new position */
   'label-moved': [payload: { pin: 'start' | 'finish'; lnglat: [number, number] }]
+  /** Fired when manual segment-label editing starts; parent persists the current auto layout */
+  'segment-label-edit-started': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
   /** Fired when user drags a trail segment label to a new position */
   'segment-label-moved': [payload: { id: string; lnglat: [number, number] }]
+  /** Fired when a selected group of trail segment labels moves together */
+  'segment-labels-moved': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
   'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number }]
   'undo': []
@@ -462,6 +504,32 @@ const mapReady = ref(false)
 const renderReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
+
+const BRUSH_PREVIEW_SOURCE_ID = 'route-delete-brush-preview'
+const BRUSH_PREVIEW_CASING_LAYER_ID = 'route-delete-brush-preview-casing'
+const BRUSH_PREVIEW_LAYER_ID = 'route-delete-brush-preview-line'
+
+const brushCursor = ref<{ x: number; y: number } | null>(null)
+const brushPreviewRanges = ref<DeletedRange[]>([])
+const brushSelectedIndexes = ref<Set<number>>(new Set())
+const brushPointerDown = ref(false)
+let brushPointCache: Array<{ index: number; x: number; y: number }> = []
+
+const brushCursorStyle = computed(() => {
+  const radius = props.deleteBrushSize ?? 18
+  const cursor = brushCursor.value
+  if (!cursor) return {}
+  return {
+    zIndex: 21,
+    left: `${cursor.x - radius}px`,
+    top: `${cursor.y - radius}px`,
+    width: `${radius * 2}px`,
+    height: `${radius * 2}px`,
+    border: '1.5px solid rgba(248, 113, 113, 0.95)',
+    background: 'rgba(239, 68, 68, 0.12)',
+    boxShadow: '0 0 0 1px rgba(127, 29, 29, 0.38)',
+  }
+})
 let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
@@ -620,10 +688,14 @@ onMounted(() => {
 // Mobile text editing sheet state
 const activeEditField = ref<{ field: 'trail_name' | 'occasion_text' | 'location_text'; value: string } | null>(null)
 
+function onTextFocus(field: 'trail_name' | 'occasion_text' | 'location_text', value: string) {
+  emit('edit-requested', { field, value })
+}
+
 function onTextClick(field: 'trail_name' | 'occasion_text' | 'location_text', value: string) {
+  emit('edit-requested', { field, value })
   if (!isMobile.value) return // desktop uses contenteditable directly
   activeEditField.value = { field, value }
-  emit('edit-requested', { field, value })
 }
 
 function applyInlineEdit(value: string) {
@@ -1201,11 +1273,20 @@ interface LeaderItem {
   id: string
   name: string
   color: string
+  fontSize: number
   dotX: number
   dotY: number
   labelX: number
   labelY: number
   anchor: 'start' | 'end'
+}
+
+interface LeaderDragState {
+  ids: string[]
+  startX: number
+  startY: number
+  hasMoved: boolean
+  initialItems: Record<string, Pick<LeaderItem, 'labelX' | 'labelY' | 'dotX'>>
 }
 
 interface PinItem {
@@ -1224,15 +1305,82 @@ const containerDims  = ref({ w: 0, h: 0 })
 const leaderLineItems = ref<LeaderItem[]>([])
 const pinOverlayItems = ref<PinItem[]>([])
 const draggingPin    = ref<'start' | 'finish' | null>(null)
-const draggingLeader = ref<string | null>(null)
+const draggingLeader = ref<LeaderDragState | null>(null)
+const selectedLeaderIds = ref<string[]>([])
 
 const posterContentMinPx = (editorMin: number) => isPrintRender.value ? 0 : editorMin
 const svgDotR         = computed(() => Math.max(posterContentMinPx(1.5), containerDims.value.h * 0.00125))
-const svgDotStroke    = computed(() => Math.max(posterContentMinPx(0.5), containerDims.value.h * 0.0003))
 const svgLineW        = computed(() => Math.max(posterContentMinPx(0.8), containerDims.value.h * 0.0012))
 const svgPinFontSize  = computed(() => Math.max(posterContentMinPx(11),  containerDims.value.h * 0.022))
 const svgLeaderFontSize = computed(() => Math.max(posterContentMinPx(9), containerDims.value.h * 0.014) * (props.styleConfig.leader_label_scale ?? 1.0))
 const svgPinOffset    = computed(() => Math.max(posterContentMinPx(40),  containerDims.value.h * 0.07))
+const leaderLabelFontFamily = computed(() => `'${props.styleConfig.leader_label_font_family ?? props.styleConfig.font_family}', sans-serif`)
+
+let measureCanvas: HTMLCanvasElement | null = null
+
+function estimateSvgTextWidth(text: string, fontSize: number, fontFamily: string, fontWeight = 700, letterSpacingEm = 0): number {
+  const label = text.toUpperCase()
+  const fallback = label.length * fontSize * 0.62
+  if (typeof document === 'undefined') return fallback
+
+  measureCanvas ??= document.createElement('canvas')
+  const ctx = measureCanvas.getContext('2d')
+  if (!ctx) return fallback
+
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
+  const letterSpacing = Math.max(0, label.length - 1) * fontSize * letterSpacingEm
+  return ctx.measureText(label).width + letterSpacing
+}
+
+function clampValue(value: number, min: number, max: number): number {
+  if (max < min) return (min + max) / 2
+  return Math.min(Math.max(value, min), max)
+}
+
+function leaderLabelBounds(W: number, H: number, labelWidth: number, fontSize: number): {
+  hMargin: number
+  vMargin: number
+  minLeftX: number
+  maxLeftX: number
+  minRightX: number
+  maxRightX: number
+} {
+  const hMargin = Math.max(posterContentMinPx(24), Math.min(W, H) * 0.045)
+  const labelHalfHeight = fontSize * 0.62
+  const vMargin = Math.max(posterContentMinPx(24), H * 0.07, labelHalfHeight + posterContentMinPx(8))
+
+  return {
+    hMargin,
+    vMargin,
+    minLeftX: hMargin + labelWidth,
+    maxLeftX: W - hMargin,
+    minRightX: hMargin,
+    maxRightX: W - hMargin - labelWidth,
+  }
+}
+
+function clampLeaderLabelPoint(opts: {
+  labelX: number
+  labelY: number
+  dotX: number
+  name: string
+  fontSize: number
+  fontFamily: string
+  W: number
+  H: number
+}): { labelX: number; labelY: number; anchor: 'start' | 'end' } {
+  const labelWidth = estimateSvgTextWidth(opts.name, opts.fontSize, opts.fontFamily, 700, 0.1)
+  const bounds = leaderLabelBounds(opts.W, opts.H, labelWidth, opts.fontSize)
+  const anchor: 'start' | 'end' = opts.labelX < opts.dotX ? 'end' : 'start'
+  const minX = anchor === 'end' ? bounds.minLeftX : bounds.minRightX
+  const maxX = anchor === 'end' ? bounds.maxLeftX : bounds.maxRightX
+
+  return {
+    labelX: clampValue(opts.labelX, minX, maxX),
+    labelY: clampValue(opts.labelY, bounds.vMargin, opts.H - bounds.vMargin),
+    anchor,
+  }
+}
 
 const showLeaderLines = computed(() =>
   props.styleConfig.trail_label_style === 'leader-lines' &&
@@ -1330,8 +1478,16 @@ function recomputeOverlays() {
 
   const allCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
 
-  interface Candidate { seg: NonNullable<typeof props.styleConfig.trail_segments>[number]; dotX: number; dotY: number }
+  interface Candidate {
+    seg: NonNullable<typeof props.styleConfig.trail_segments>[number]
+    dotX: number
+    dotY: number
+    labelWidth: number
+  }
   const candidates: Candidate[] = []
+  const manualItems: LeaderItem[] = []
+  const fontFamily = leaderLabelFontFamily.value
+  let labelFontSize = svgLeaderFontSize.value
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible || !seg.name) continue
@@ -1341,53 +1497,148 @@ function recomputeOverlays() {
     const pt = mapInstance.project([lng, lat])
     // Include segments slightly off-screen too (leader line still useful)
     if (pt.x < -W * 0.5 || pt.x > W * 1.5 || pt.y < -H * 0.5 || pt.y > H * 1.5) continue
-    candidates.push({ seg, dotX: pt.x, dotY: pt.y })
+
+    if (seg.label_lnglat) {
+      const lp = mapInstance.project(seg.label_lnglat as [number, number])
+      const labelPoint = clampLeaderLabelPoint({
+        labelX: lp.x,
+        labelY: lp.y,
+        dotX: pt.x,
+        name: seg.name,
+        fontSize: labelFontSize,
+        fontFamily,
+        W,
+        H,
+      })
+      manualItems.push({
+        id: seg.id,
+        name: seg.name,
+        color: seg.color,
+        fontSize: labelFontSize,
+        dotX: pt.x,
+        dotY: pt.y,
+        ...labelPoint,
+      })
+      continue
+    }
+
+    candidates.push({
+      seg,
+      dotX: pt.x,
+      dotY: pt.y,
+      labelWidth: estimateSvgTextWidth(seg.name, labelFontSize, fontFamily, 700, 0.1),
+    })
   }
 
-  // Place label on the side closest to each segment's start dot position
-  const leftCandidates  = candidates.filter(c => c.dotX <= W / 2).sort((a, b) => a.dotY - b.dotY)
-  const rightCandidates = candidates.filter(c => c.dotX  > W / 2).sort((a, b) => a.dotY - b.dotY)
+  // Start labels on the side nearest their segment start, then rebalance near-center
+  // labels so dense routes don't pile every name onto one edge.
+  const leftCandidates: Candidate[] = candidates
+    .filter(c => c.dotX <= W / 2)
+  const rightCandidates: Candidate[] = candidates
+    .filter(c => c.dotX > W / 2)
 
-  // Pull labels in from edges so text doesn't get clipped
-  const leftX  = W * 0.13
-  const rightX = W * 0.87
-  const vMargin = H * 0.08
-
-  function evenY(count: number): number[] {
-    if (count === 0) return []
-    if (count === 1) return [H / 2]
-    return Array.from({ length: count }, (_, i) => vMargin + (H - 2 * vMargin) * i / (count - 1))
+  function moveCenterMost(from: Candidate[], to: Candidate[]) {
+    if (!from.length) return
+    let moveIndex = 0
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (let i = 0; i < from.length; i++) {
+      const distance = Math.abs(from[i].dotX - W / 2)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        moveIndex = i
+      }
+    }
+    const [moved] = from.splice(moveIndex, 1)
+    to.push(moved)
   }
 
-  const leftYs  = evenY(leftCandidates.length)
-  const rightYs = evenY(rightCandidates.length)
+  while (leftCandidates.length > rightCandidates.length + 1) {
+    moveCenterMost(leftCandidates, rightCandidates)
+  }
+  while (rightCandidates.length > leftCandidates.length + 1) {
+    moveCenterMost(rightCandidates, leftCandidates)
+  }
 
-  const items: LeaderItem[] = []
+  leftCandidates.sort((a, b) => a.dotY - b.dotY)
+  rightCandidates.sort((a, b) => a.dotY - b.dotY)
+
+  const fitLabelNames = [
+    ...candidates.map(c => c.seg.name),
+    ...manualItems.map(item => item.name),
+  ]
+
+  if (props.styleConfig.leader_label_auto_fit !== false && fitLabelNames.length) {
+    const maxMeasuredWidth = Math.max(
+      0,
+      ...fitLabelNames.map(name => estimateSvgTextWidth(name, labelFontSize, fontFamily, 700, 0.1)),
+    )
+    const maxSideCount = Math.max(leftCandidates.length, rightCandidates.length, Math.ceil(fitLabelNames.length / 2))
+    const widthLimit = maxMeasuredWidth > 0 ? labelFontSize * (W * 0.34) / maxMeasuredWidth : labelFontSize
+    const verticalLimit = maxSideCount > 1 ? (H * 0.38 / (maxSideCount - 1)) / 1.45 : labelFontSize
+    const minFontSize = Math.max(posterContentMinPx(7), H * 0.008)
+    const fittedFontSize = clampValue(Math.min(labelFontSize, widthLimit, verticalLimit), minFontSize, labelFontSize)
+
+    if (fittedFontSize < labelFontSize) {
+      labelFontSize = fittedFontSize
+      for (const c of candidates) {
+        c.labelWidth = estimateSvgTextWidth(c.seg.name, labelFontSize, fontFamily, 700, 0.1)
+      }
+      for (const item of manualItems) item.fontSize = labelFontSize
+    }
+  }
+
+  // Anchor x is the inner edge of the label. Reserve measured text width so the
+  // outer edge keeps a real margin from the map border.
+  const maxLeftWidth = Math.max(0, ...leftCandidates.map(c => c.labelWidth))
+  const maxRightWidth = Math.max(0, ...rightCandidates.map(c => c.labelWidth))
+  const leftBounds = leaderLabelBounds(W, H, maxLeftWidth, labelFontSize)
+  const rightBounds = leaderLabelBounds(W, H, maxRightWidth, labelFontSize)
+  const hMargin = Math.max(leftBounds.hMargin, rightBounds.hMargin)
+  const vMargin = Math.max(leftBounds.vMargin, rightBounds.vMargin)
+  const leftX = clampValue(Math.max(W * 0.16, hMargin + maxLeftWidth), hMargin, W - hMargin)
+  const rightX = clampValue(Math.min(W * 0.84, W - hMargin - maxRightWidth), hMargin, W - hMargin)
+
+  function packLabelYs(cands: Candidate[]): number[] {
+    if (cands.length === 0) return []
+
+    const minY = vMargin
+    const maxY = H - vMargin
+    const minGap = Math.max(posterContentMinPx(15), labelFontSize * 1.45)
+    const ys = cands.map(c => clampValue(c.dotY, minY, maxY))
+
+    for (let i = 1; i < ys.length; i++) {
+      ys[i] = Math.max(ys[i], ys[i - 1] + minGap)
+    }
+
+    const overflow = ys[ys.length - 1] - maxY
+    if (overflow > 0) {
+      for (let i = 0; i < ys.length; i++) ys[i] -= overflow
+    }
+
+    for (let i = ys.length - 2; i >= 0; i--) {
+      ys[i] = Math.min(ys[i], ys[i + 1] - minGap)
+    }
+
+    const underflow = minY - ys[0]
+    if (underflow > 0) {
+      for (let i = 0; i < ys.length; i++) ys[i] += underflow
+    }
+
+    return ys.map(y => clampValue(y, minY, maxY))
+  }
+
+  const leftYs  = packLabelYs(leftCandidates)
+  const rightYs = packLabelYs(rightCandidates)
+
+  const items: LeaderItem[] = [...manualItems]
 
   for (let i = 0; i < leftCandidates.length; i++) {
     const c = leftCandidates[i]
-    let labelX = leftX
-    let labelY = leftYs[i]
-    let anchor: 'start' | 'end' = 'end'
-    // Use saved label position if the user dragged it
-    if (c.seg.label_lnglat) {
-      const lp = mapInstance.project(c.seg.label_lnglat as [number, number])
-      labelX = lp.x; labelY = lp.y
-      anchor = lp.x < c.dotX ? 'end' : 'start'
-    }
-    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, dotX: c.dotX, dotY: c.dotY, labelX, labelY, anchor })
+    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: leftX, labelY: leftYs[i], anchor: 'end' })
   }
   for (let i = 0; i < rightCandidates.length; i++) {
     const c = rightCandidates[i]
-    let labelX = rightX
-    let labelY = rightYs[i]
-    let anchor: 'start' | 'end' = 'start'
-    if (c.seg.label_lnglat) {
-      const lp = mapInstance.project(c.seg.label_lnglat as [number, number])
-      labelX = lp.x; labelY = lp.y
-      anchor = lp.x < c.dotX ? 'end' : 'start'
-    }
-    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, dotX: c.dotX, dotY: c.dotY, labelX, labelY, anchor })
+    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: rightX, labelY: rightYs[i], anchor: 'start' })
   }
 
   leaderLineItems.value = items
@@ -1426,9 +1677,56 @@ function onLabelDragEnd(e: PointerEvent) {
 // ── Trail segment label drag ──────────────────────────────────────────────────
 
 function startLeaderDrag(e: PointerEvent, segId: string) {
-  draggingLeader.value = segId
+  if (e.shiftKey) {
+    toggleLeaderSelection(segId)
+    e.preventDefault()
+    return
+  }
+
+  if (!mapContainer.value) return
+  const rect = mapContainer.value.getBoundingClientRect()
+  const selected = selectedLeaderIds.value.includes(segId)
+  const ids = selected ? [...selectedLeaderIds.value] : [segId]
+
+  if (!selected) selectedLeaderIds.value = []
+
+  const initialItems: LeaderDragState['initialItems'] = {}
+  for (const item of leaderLineItems.value) {
+    if (!ids.includes(item.id)) continue
+    initialItems[item.id] = { labelX: item.labelX, labelY: item.labelY, dotX: item.dotX }
+  }
+
+  draggingLeader.value = {
+    ids,
+    startX: e.clientX - rect.left,
+    startY: e.clientY - rect.top,
+    hasMoved: false,
+    initialItems,
+  }
+
   ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
   e.preventDefault()
+}
+
+function toggleLeaderSelection(segId: string) {
+  selectedLeaderIds.value = selectedLeaderIds.value.includes(segId)
+    ? selectedLeaderIds.value.filter(id => id !== segId)
+    : [...selectedLeaderIds.value, segId]
+}
+
+function isLeaderDragActive(segId: string): boolean {
+  return draggingLeader.value?.ids.includes(segId) ?? false
+}
+
+function lockCurrentLeaderLabelPositions() {
+  if (!mapInstance || !leaderLineItems.value.length) return
+
+  const labels = leaderLineItems.value.map(item => {
+    const lngLat = mapInstance!.unproject([item.labelX, item.labelY])
+    return { id: item.id, lnglat: [lngLat.lng, lngLat.lat] as [number, number] }
+  })
+
+  emit('segment-label-edit-started', { labels })
 }
 
 function onLeaderDragMove(e: PointerEvent) {
@@ -1436,20 +1734,59 @@ function onLeaderDragMove(e: PointerEvent) {
   const rect = mapContainer.value.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
+  const dx = x - draggingLeader.value.startX
+  const dy = y - draggingLeader.value.startY
+
+  if (!draggingLeader.value.hasMoved) {
+    if (Math.hypot(dx, dy) < 4) return
+    draggingLeader.value = { ...draggingLeader.value, hasMoved: true }
+    lockCurrentLeaderLabelPositions()
+  }
+
+  const dragState = draggingLeader.value
   leaderLineItems.value = leaderLineItems.value.map(item => {
-    if (item.id !== draggingLeader.value) return item
-    const anchor: 'start' | 'end' = x < item.dotX ? 'end' : 'start'
-    return { ...item, labelX: x, labelY: y, anchor }
+    const initial = dragState.initialItems[item.id]
+    if (!initial) return item
+    const labelPoint = clampLeaderLabelPoint({
+      labelX: initial.labelX + dx,
+      labelY: initial.labelY + dy,
+      dotX: item.dotX,
+      name: item.name,
+      fontSize: item.fontSize,
+      fontFamily: leaderLabelFontFamily.value,
+      W: rect.width,
+      H: rect.height,
+    })
+    return { ...item, ...labelPoint }
   })
 }
 
-function onLeaderDragEnd(e: PointerEvent, segId: string) {
+function onLeaderDragEnd(_e: PointerEvent) {
   if (!draggingLeader.value || !mapContainer.value || !mapInstance) return
-  const rect = mapContainer.value.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
-  const lngLat = mapInstance.unproject([x, y])
-  emit('segment-label-moved', { id: segId, lnglat: [lngLat.lng, lngLat.lat] })
+  const dragState = draggingLeader.value
+
+  if (!dragState.hasMoved) {
+    draggingLeader.value = null
+    return
+  }
+
+  const labels = leaderLineItems.value
+    .filter(item => dragState.ids.includes(item.id))
+    .map(item => {
+      const lngLat = mapInstance!.unproject([item.labelX, item.labelY])
+      return { id: item.id, lnglat: [lngLat.lng, lngLat.lat] as [number, number] }
+    })
+
+  if (labels.length === 1) {
+    emit('segment-label-moved', labels[0])
+  } else if (labels.length > 1) {
+    emit('segment-labels-moved', { labels })
+  }
+
+  draggingLeader.value = null
+}
+
+function cancelLeaderDrag() {
   draggingLeader.value = null
 }
 
@@ -1574,6 +1911,7 @@ onMounted(async () => {
     if (props.editable) initOverlayDrag()
     recomputeOverlays()
     markPrintRenderReady()
+    if (props.deleteBrushActive) nextTick(activateDeleteBrush)
   })
 
   mapInstance.on('zoom', () => {
@@ -1680,12 +2018,22 @@ function populateSegmentSources() {
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible) continue
-    const sliced = sliceRouteByPercent(props.map.geojson as GeoJSON.FeatureCollection, seg.section_start, seg.section_end)
+    const sliced = sliceRouteByPercent(
+      props.map.geojson as GeoJSON.FeatureCollection,
+      seg.section_start,
+      seg.section_end,
+      props.styleConfig.route_deleted_ranges ?? [],
+    )
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
     if (src) src.setData(sliced)
 
     // Collect start + end handle dots for this segment
-    const coords = (sliced.features[0]?.geometry as GeoJSON.LineString | undefined)?.coordinates
+    const geometry = sliced.features[0]?.geometry as GeoJSON.LineString | GeoJSON.MultiLineString | undefined
+    const coords = geometry?.type === 'LineString'
+      ? geometry.coordinates
+      : geometry?.type === 'MultiLineString'
+        ? geometry.coordinates.flat()
+        : undefined
     if (coords && coords.length >= 2) {
       handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color: seg.color } })
       handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color: seg.color } })
@@ -1711,8 +2059,7 @@ function makePinDotEl(): HTMLElement {
   el.style.cssText = [
     `width:${size}px`, `height:${size}px`, 'border-radius:50%',
     `background:${color}`, `opacity:${opacity}`,
-    `border:${Math.max(posterContentMinPx(2), size * 0.18)}px solid rgba(255,255,255,0.85)`,
-    'box-shadow:0 1px 6px rgba(0,0,0,0.4)',
+    'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
   return el
@@ -1848,6 +2195,7 @@ watch(
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
+        if (props.deleteBrushActive) nextTick(activateDeleteBrush)
       })
       return
     }
@@ -1984,12 +2332,205 @@ watch(
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
+        if (props.deleteBrushActive) nextTick(activateDeleteBrush)
       })
       return
     }
     populateRouteSource()
+    populateSegmentSources()
+    if (props.deleteBrushActive) {
+      rebuildBrushPointCache()
+      updateDeleteBrushPreviewSource()
+    }
   },
   { deep: true },
+)
+
+// ── Brush delete mode: paint-select route indexes, preview, then apply ────────
+
+function isBrushSelectableIndex(index: number, total: number): boolean {
+  const pct = (index / Math.max(total - 1, 1)) * 100
+  const cropStart = props.styleConfig.route_crop_start ?? 0
+  const cropEnd = props.styleConfig.route_crop_end ?? 100
+  if (pct < cropStart || pct > cropEnd) return false
+  return !(props.styleConfig.route_deleted_ranges ?? []).some(range => pct >= range.start && pct <= range.end)
+}
+
+function rebuildBrushPointCache() {
+  if (!mapInstance) return
+  const coords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  brushPointCache = coords
+    .map((coord, index) => ({ coord, index }))
+    .filter(({ index }) => isBrushSelectableIndex(index, coords.length))
+    .map(({ coord, index }) => {
+      const p = mapInstance!.project([coord[0], coord[1]])
+      return { index, x: p.x, y: p.y }
+    })
+}
+
+function ensureDeleteBrushPreviewLayer() {
+  if (!mapInstance) return
+  if (!mapInstance.getSource(BRUSH_PREVIEW_SOURCE_ID)) {
+    mapInstance.addSource(BRUSH_PREVIEW_SOURCE_ID, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!mapInstance.getLayer(BRUSH_PREVIEW_CASING_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: BRUSH_PREVIEW_CASING_LAYER_ID,
+      type: 'line',
+      source: BRUSH_PREVIEW_SOURCE_ID,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': props.styleConfig.background_color ?? '#FFFFFF',
+        'line-width': (props.styleConfig.route_width ?? 3) + 6,
+        'line-opacity': 0.92,
+      },
+    })
+  }
+  if (!mapInstance.getLayer(BRUSH_PREVIEW_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: BRUSH_PREVIEW_LAYER_ID,
+      type: 'line',
+      source: BRUSH_PREVIEW_SOURCE_ID,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': '#EF4444',
+        'line-width': (props.styleConfig.route_width ?? 3) + 2,
+        'line-opacity': 0.96,
+      },
+    })
+  }
+}
+
+function removeDeleteBrushPreviewLayer() {
+  if (!mapInstance) return
+  if (mapInstance.getLayer(BRUSH_PREVIEW_LAYER_ID)) mapInstance.removeLayer(BRUSH_PREVIEW_LAYER_ID)
+  if (mapInstance.getLayer(BRUSH_PREVIEW_CASING_LAYER_ID)) mapInstance.removeLayer(BRUSH_PREVIEW_CASING_LAYER_ID)
+  if (mapInstance.getSource(BRUSH_PREVIEW_SOURCE_ID)) mapInstance.removeSource(BRUSH_PREVIEW_SOURCE_ID)
+}
+
+function updateDeleteBrushPreviewSource() {
+  if (!mapInstance) return
+  const src = mapInstance.getSource(BRUSH_PREVIEW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+  if (!src) return
+  src.setData(routeRangesToGeojson(
+    props.map.geojson as GeoJSON.FeatureCollection,
+    brushPreviewRanges.value,
+    props.styleConfig.route_crop_start ?? 0,
+    props.styleConfig.route_crop_end ?? 100,
+  ))
+}
+
+function addDeleteBrushSelection(x: number, y: number) {
+  const radius = props.deleteBrushSize ?? 18
+  const radiusSq = radius * radius
+  const next = new Set(brushSelectedIndexes.value)
+  for (const point of brushPointCache) {
+    const dx = point.x - x
+    const dy = point.y - y
+    if (dx * dx + dy * dy <= radiusSq) next.add(point.index)
+  }
+  brushSelectedIndexes.value = next
+  brushPreviewRanges.value = deletedRangesFromIndexes(next, getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection).length, 2)
+  updateDeleteBrushPreviewSource()
+}
+
+function onDeleteBrushMouseDown(e: maplibregl.MapMouseEvent) {
+  if (!props.deleteBrushActive) return
+  e.preventDefault()
+  brushPointerDown.value = true
+  brushCursor.value = { x: e.point.x, y: e.point.y }
+  addDeleteBrushSelection(e.point.x, e.point.y)
+}
+
+function onDeleteBrushMouseMove(e: maplibregl.MapMouseEvent) {
+  if (!props.deleteBrushActive) return
+  brushCursor.value = { x: e.point.x, y: e.point.y }
+  if (brushPointerDown.value) addDeleteBrushSelection(e.point.x, e.point.y)
+}
+
+function onDeleteBrushMouseUp() {
+  brushPointerDown.value = false
+}
+
+function onDeleteBrushKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') cancelDeleteBrush()
+}
+
+function setBrushInteractions(enabled: boolean) {
+  if (!mapInstance) return
+  if (enabled && !props.styleConfig.map_frozen) {
+    mapInstance.dragPan.enable()
+    mapInstance.scrollZoom.enable()
+    mapInstance.doubleClickZoom.enable()
+    mapInstance.touchZoomRotate.enable()
+    mapInstance.keyboard.enable()
+    return
+  }
+  mapInstance.dragPan.disable()
+  mapInstance.scrollZoom.disable()
+  mapInstance.doubleClickZoom.disable()
+  mapInstance.touchZoomRotate.disable()
+  mapInstance.keyboard.disable()
+}
+
+function activateDeleteBrush() {
+  if (!mapInstance || !mapReady.value) return
+  ensureDeleteBrushPreviewLayer()
+  rebuildBrushPointCache()
+  updateDeleteBrushPreviewSource()
+  setBrushInteractions(false)
+  mapInstance.getCanvas().style.cursor = 'none'
+  mapInstance.on('mousedown', onDeleteBrushMouseDown)
+  mapInstance.on('mousemove', onDeleteBrushMouseMove)
+  mapInstance.on('mouseup', onDeleteBrushMouseUp)
+  document.addEventListener('mouseup', onDeleteBrushMouseUp)
+  document.addEventListener('keydown', onDeleteBrushKeydown)
+}
+
+function deactivateDeleteBrush() {
+  if (!mapInstance) return
+  mapInstance.getCanvas().style.cursor = ''
+  mapInstance.off('mousedown', onDeleteBrushMouseDown)
+  mapInstance.off('mousemove', onDeleteBrushMouseMove)
+  mapInstance.off('mouseup', onDeleteBrushMouseUp)
+  document.removeEventListener('mouseup', onDeleteBrushMouseUp)
+  document.removeEventListener('keydown', onDeleteBrushKeydown)
+  removeDeleteBrushPreviewLayer()
+  setBrushInteractions(true)
+  brushPointerDown.value = false
+  brushCursor.value = null
+  brushSelectedIndexes.value = new Set()
+  brushPreviewRanges.value = []
+  brushPointCache = []
+}
+
+function applyDeleteBrush() {
+  const ranges = brushPreviewRanges.value
+  if (!ranges.length) return
+  emit('route-delete-brush-applied', { ranges })
+}
+
+function cancelDeleteBrush() {
+  emit('route-delete-brush-cancelled')
+}
+
+watch(
+  () => props.deleteBrushActive,
+  (active, wasActive) => {
+    if (wasActive) deactivateDeleteBrush()
+    if (active) nextTick(activateDeleteBrush)
+  },
+)
+
+watch(
+  () => props.deleteBrushSize,
+  () => {
+    if (!props.deleteBrushActive) return
+    updateDeleteBrushPreviewSource()
+  },
 )
 
 // ── Plot mode: crosshair + ghost marker + click handler ───────────────────────
@@ -2061,7 +2602,7 @@ watch(
     const isStart = mode.field === 'start'
     const markerColor = isDeleteMode ? '#EA580C' : (isStart ? '#2D6A4F' : '#C1121F')
     const el = document.createElement('div')
-    el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${markerColor};border:3px solid white;box-shadow:0 0 0 2px ${markerColor},0 2px 6px rgba(0,0,0,0.4);pointer-events:none;`
+    el.style.cssText = `width:10px;height:10px;border-radius:50%;background:${markerColor};box-shadow:0 1px 4px rgba(0,0,0,0.4);pointer-events:none;`
     plotGhostMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([initCoord[0], initCoord[1]])
       .addTo(mapInstance)
@@ -2162,6 +2703,7 @@ watch(
 onUnmounted(() => {
   for (const inst of interactInstances) inst.unset()
   resizeObserver?.disconnect()
+  deactivateDeleteBrush()
   startMarker?.remove()
   finishMarker?.remove()
   plotGhostMarker?.remove()

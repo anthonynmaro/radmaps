@@ -9,7 +9,7 @@
 // Scoped per layer per the v4 plan §"Two-layer model":
 //
 //   - HASH_VERSION.map fields participate in `map_content_hash`. Bumping
-//     any of these invalidates `render_cache` (the rasterised map images).
+//     any of these invalidates proof/final screenshots that include the map.
 //
 //   - HASH_VERSION.chrome fields participate in `chrome_hash`. Bumping
 //     any of these invalidates `proof_render_hash` and downstream prints
@@ -35,12 +35,12 @@ export const HASH_VERSION = {
     /** DPI tiering policy (currently per-product via maxDpi). */
     dpiPolicy: 'dpi-tiered-v1',
     /** Pixel-density and oversized-viewport math. */
-    printScaling: 'browser-screenshot-dpr-v4',
+    printScaling: 'browser-screenshot-dpr-v5',
     /** Tile fetch + LRU disk-cache pipeline. */
     tilePipeline: 'browser-tiles-v1',
   },
   chrome: {
-    /** SVG/Sharp chrome compositor template. */
+    /** Vue/MapPreview poster chrome template. */
     chromeTemplate: 'vue-map-preview-v1',
     /** Self-hosted font bundle revision. SHA-256 short-hash of fonts/*.ttf
      *  bytes. Auto-computed by scripts/validate-fonts.ts; if you change

@@ -9,17 +9,13 @@ export default defineNuxtConfig({
   // unrelated files (which exhausts the macOS per-process fd limit and
   // floods the dev server with EMFILE errors).
   ignore: [
-    'render-worker/**',
     'render-worker-v4/**',
-    'render-worker-native-spike/**',
     'design_handoff_style_panel/**',
   ],
   watchers: {
     chokidar: {
       ignored: [
-        '**/render-worker/**',
         '**/render-worker-v4/**',
-        '**/render-worker-native-spike/**',
         '**/design_handoff_style_panel/**',
       ],
     },
@@ -53,6 +49,7 @@ export default defineNuxtConfig({
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     gelatoApiKey: process.env.GELATO_API_KEY,
+    gelatoOrderType: process.env.GELATO_ORDER_TYPE === 'draft' ? 'draft' : 'order',
     gelatoWebhookSecret: process.env.GELATO_WEBHOOK_SECRET,
     stravaClientId: process.env.STRAVA_CLIENT_ID,
     stravaClientSecret: process.env.STRAVA_CLIENT_SECRET,
@@ -60,17 +57,10 @@ export default defineNuxtConfig({
     trailforkApiKey: process.env.TRAILFORKS_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     resendApiKey: process.env.RESEND_API_KEY,
-    renderWorkerUrl: process.env.RENDER_WORKER_URL,
-    renderWorkerSecret: process.env.RENDER_WORKER_SECRET,
     browserlessToken: process.env.BROWSERLESS_TOKEN,
     browserlessEndpoint: process.env.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io',
     browserlessTimeoutMs: Number(process.env.BROWSERLESS_TIMEOUT_MS || 60_000),
-    renderTicketSecret: process.env.RENDER_TICKET_SECRET || process.env.RENDER_WORKER_SECRET || 'dev-render-ticket-secret',
-    // Render pipeline v4 — feature-flagged. Defaults OFF. Accept common
-    // truthy spellings so deployment dashboards don't silently fall back
-    // to the legacy worker because of capitalization.
-    renderPipelineV4Enabled: /^(true|1|yes)$/i.test(process.env.RENDER_PIPELINE_V4_ENABLED || ''),
-    renderWorkerV4Url: process.env.RENDER_WORKER_V4_URL ?? '',
+    renderTicketSecret: process.env.RENDER_TICKET_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-render-ticket-secret'),
     public: {
       // Client-accessible vars
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
@@ -118,9 +108,7 @@ export default defineNuxtConfig({
         // per-process fd limit (EMFILE) and serves no purpose — Nuxt only
         // needs to react to changes in the main app.
         ignored: [
-          '**/render-worker/**',
           '**/render-worker-v4/**',
-          '**/render-worker-native-spike/**',
           '**/design_handoff_style_panel/**',
           '**/.git/**',
           '**/.nuxt/**',

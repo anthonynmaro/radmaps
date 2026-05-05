@@ -2,8 +2,7 @@
 //
 // Two clients:
 //   • supabase  — service-role REST client for table reads/writes that don't
-//                 need row-level locking (render_cache, product_renders,
-//                 maps, order_snapshots reads).
+//                 need row-level locking (product_renders and order_snapshots).
 //   • pgPool    — direct Postgres pool, lazily initialised. Required for
 //                 Phase 8 print-queue consumer (SELECT … FOR UPDATE
 //                 SKIP LOCKED) which PostgREST cannot express.

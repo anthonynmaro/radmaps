@@ -18,9 +18,6 @@ import { FIELD_LAYER, type FieldLayer } from './fieldLayer'
 import { HASH_VERSION } from './hashVersion'
 import type { PrintFraming } from '../print/printFraming'
 
-export type RenderClass = 'proof' | 'final'
-export type RenderBackend = 'native' | 'browser'
-
 // ─── Stable JSON serialization ───────────────────────────────────────────────
 //
 // `JSON.stringify` preserves the insertion order of object keys in V8.
@@ -142,34 +139,6 @@ export function computeChromeHash(styleConfig: StyleConfig, stats: RouteStats): 
  */
 export function computeProofRenderHash(mapContentHash: string, chromeHash: string): string {
   return sha256(stableStringify({ mapContentHash, chromeHash }))
-}
-
-/**
- * `render_cache_key` — keys the per-backend rasterised map cache.
- *
- * v4 locked decision #4: `renderBackend` MUST be in the key. Native
- * and Browser caches occupy separate namespaces. Cross-backend cache
- * sharing is a bug — they produce subtly different rasters.
- */
-export function computeRenderCacheKey(input: {
-  mapContentHash: string
-  renderClass: RenderClass
-  width: number
-  height: number
-  dpi: number
-  renderBackend: RenderBackend
-}): string {
-  return sha256(
-    stableStringify({
-      mapContentHash: input.mapContentHash,
-      renderClass: input.renderClass,
-      width: input.width,
-      height: input.height,
-      dpi: input.dpi,
-      renderBackend: input.renderBackend,
-      hashVersion: HASH_VERSION.map,
-    }),
-  )
 }
 
 /**

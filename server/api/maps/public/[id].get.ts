@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: map, error } = await supabase
     .from('maps')
-    .select('id, title, subtitle, geojson, bbox, stats, style_config, render_url, thumbnail_url, status')
+    .select('id, title, subtitle, geojson, bbox, stats, style_config, render_url, thumbnail_url, proof_render_url, proof_render_hash, status')
     .eq('id', id)
     .eq('is_public', true)
     .single()

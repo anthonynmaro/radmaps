@@ -1,8 +1,7 @@
 // render-worker-v4/src/queue/gelato.ts
 //
-// Gelato submission, ported from server/api/orders/webhook.post.ts'
-// `placeGelatoOrder` (lines ~262-330). The Nuxt-flavoured `$fetch` helper
-// is replaced with native fetch since this code runs in plain Node.
+// Gelato submission for queue-processed final print jobs. The Nuxt-flavoured
+// `$fetch` helper is intentionally avoided because this code runs in plain Node.
 //
 // Contract:
 //   • input: { snapshot, order, printFileUrl, gelatoApiKey }
@@ -10,9 +9,8 @@
 //   • throw on non-2xx response; the queue consumer's catch arm decides
 //     retry vs manual_review.
 //
-// Keep the request body shape byte-identical with the legacy webhook so
-// that a manual diff between webhook-placed and queue-placed orders only
-// shows the orderReferenceId / file URL.
+// Keep the request body compact and explicit; the queue always submits the
+// final Browserless render URL, never a mutable proof thumbnail.
 
 export interface GelatoShippingAddress {
   name?: string
@@ -42,6 +40,8 @@ export interface GelatoOrderInput {
   productUid: string
   /** API key — pulled from process.env.GELATO_API_KEY by the caller */
   gelatoApiKey: string
+  /** Gelato order type. Use draft for faux E2E so files validate without production. */
+  orderType?: 'order' | 'draft'
 }
 
 export interface GelatoOrderResult {
@@ -70,7 +70,7 @@ export async function placeGelatoOrder(
   input: GelatoOrderInput,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GelatoOrderResult> {
-  const { order, shippingAddress, printFileUrl, productUid, gelatoApiKey } = input
+  const { order, shippingAddress, printFileUrl, productUid, gelatoApiKey, orderType = 'order' } = input
 
   if (!printFileUrl) {
     throw new GelatoSubmissionError(
@@ -92,6 +92,7 @@ export async function placeGelatoOrder(
   const quantity = Number.isFinite(quantityNum) && quantityNum > 0 ? quantityNum : 1
 
   const body = {
+    orderType,
     orderReferenceId: String(order.id),
     customerReferenceId: String(order.user_id ?? order.guest_email ?? order.id),
     currency: 'USD',

@@ -168,9 +168,10 @@ export function generateFontFaceCss(opts: { fontsUrlBase: string }): string {
   for (const def of Object.values(FONT_REGISTRY)) {
     for (const f of def.files) {
       const url = `${opts.fontsUrlBase}/${f.path.replace(/^fonts\//, '')}`
+      const file = f as FontFile
       lines.push(
         `@font-face { font-family: '${def.family}'; src: url('${url}') format('truetype'); ` +
-          `font-weight: ${f.weight}; font-style: ${f.style ?? 'normal'}; font-display: swap; }`,
+          `font-weight: ${f.weight}; font-style: ${file.style ?? 'normal'}; font-display: swap; }`,
       )
     }
   }
@@ -187,20 +188,18 @@ export function listAllFontFiles(): string[] {
 /** Resolve a CSS font stack for SVG: "'Family Name', generic-fallback". */
 export function fontStack(family: FontFamily): string {
   const def = FONT_REGISTRY[family]
-  return `'${def.family}', ${def.fallback === 'display' ? 'sans-serif' : def.fallback}`
+  const fallback = (def as FontDef).fallback
+  return `'${def.family}', ${fallback === 'display' ? 'sans-serif' : fallback}`
 }
 
 /**
  * Clamp a requested CSS weight to the closest available weight for a
  * font family — by *file* presence, not faux-bold synthesis.
  *
- * Why this exists: browsers (the editor) faux-bold-synthesise when the
- * requested weight isn't available, so a Bebas Neue 700 request yields
- * faux-bold-Bebas-Neue. librsvg/Pango via CoreText DON'T synthesise —
- * they fall back to a different family entirely (e.g. Helvetica Bold).
- * That makes the worker render in the wrong font when the editor
- * requested a weight Bebas Neue lacks. Clamping to the nearest physical
- * weight forces both stacks to use the SAME glyphs.
+ * Why this exists: browsers faux-bold-synthesise when the requested weight is
+ * not available, so a Bebas Neue 700 request yields faux-bold Bebas Neue.
+ * Clamping to a real font file keeps poster typography deterministic across
+ * editor, render pages, and any future non-browser export code.
  *
  * Returns the family's nearest available weight (numerically). Falls
  * through to `requestedWeight` for unknown families so we don't break

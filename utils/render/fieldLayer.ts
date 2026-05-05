@@ -19,27 +19,25 @@
 //
 // ─── Classification rules ────────────────────────────────────────────────────
 //
-// 'map'    — anything that affects the rasterised map image:
+// 'map'    — anything that affects the MapLibre map view:
 //            tiles, route geometry/style, contours, hillshade, pins,
 //            segments, tile post-processing effects, camera state,
 //            preset, color theme (because it drives water/land/contour
 //            colors that bake into the tile raster).
 //
-// 'chrome' — anything composited on top of the map raster by Sharp /
-//            the chrome layer: title bar, footer, stats, location,
+// 'chrome' — anything rendered by the poster chrome in MapPreview.vue:
+//            title bar, footer, stats, location,
 //            border, label position, branding, logo, label band fonts
 //            and colors, print size (drives canvas dimensions but the
-//            map raster is a fixed oversized viewport).
+//            map area is a fixed full-bleed viewport).
 //
-// v4 locked decision #2: `label_position` is CHROME — the map viewport
-// is oversized and label_position is honoured by the compositor.
+// `label_position` is CHROME because it changes poster layout, not route data.
 //
 // `text_overlays` and `trail_legend` are currently 'map' because they
 // burn into the MapLibre style today. They are PENDING reclassification
-// to 'chrome' once interactjs-driven HTML overlays land (see CLAUDE.md
-// "Planned next work"). When that migration happens, bump
-// HASH_VERSION.chrome.chromeTemplate AND HASH_VERSION.map.styleCompiler
-// to invalidate both caches.
+// to 'chrome' once interactjs-driven HTML overlays land. When that migration
+// happens, bump HASH_VERSION.chrome.chromeTemplate and
+// HASH_VERSION.map.styleCompiler to invalidate rendered artifacts.
 
 import type { StyleConfig } from '~/types'
 
@@ -160,6 +158,8 @@ export const FIELD_LAYER = {
   segment_casing_color: 'map',
   segment_dot_size: 'map',
   leader_label_scale: 'map',
+  leader_label_auto_fit: 'map',
+  leader_label_font_family: 'map',
 
   // ── Elevation profile (drawn on the map raster) ───────────────────────────
   show_elevation_profile: 'map',

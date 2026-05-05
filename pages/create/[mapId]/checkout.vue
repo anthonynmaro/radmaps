@@ -46,58 +46,71 @@
     </div>
 
     <!-- Step 1: Product Selection with Live Map Preview -->
-    <div v-else-if="map && step === 'product'" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <div v-else-if="map && step === 'product'" class="flex-1 overflow-y-auto">
+      <div class="min-h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
 
-      <!-- Map Preview Area -->
-      <main class="flex-1 flex flex-col overflow-hidden relative">
-        <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-          <img
-            v-if="previewUrl"
-            :src="previewUrl"
-            class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
-            alt="Print preview"
-          />
-          <ClientOnly v-else>
-            <MapPreview
-              v-if="mapData"
-              :map="mapData"
-              :style-config="currentStyleConfig"
-              :editable="false"
-              class="w-full h-full"
+        <!-- Map Preview Area -->
+        <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
+          <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+            <ClientOnly v-if="showLivePreview">
+              <MapPreview
+                v-if="mapData && currentStyleConfig"
+                :map="mapData"
+                :style-config="currentStyleConfig"
+                :editable="false"
+                class="w-full h-full"
+              />
+            </ClientOnly>
+            <img
+              v-else-if="displayProofImage"
+              :src="previewUrl!"
+              class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
+              alt="Print preview"
             />
-          </ClientOnly>
-        </div>
-
-        <!-- Render status banner -->
-        <div v-if="renderError"
-          class="absolute top-4 left-4 right-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 z-10">
-          <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-          </svg>
-          <div>
-            <p class="text-sm font-semibold text-red-800">Render failed</p>
-            <p class="text-xs text-red-700 mt-0.5">{{ renderError }}</p>
-            <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
           </div>
-        </div>
-        <div v-else-if="renderInFlight && !printReady"
-          class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 z-10">
-          <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-          </svg>
-          <p class="text-xs text-sky-800">Preparing print file — select your product while we get it ready.</p>
-        </div>
 
-        <!-- Product Selector overlay (bottom of map area) -->
-        <MapProductSelector
-          v-model="selectedProduct"
-          :map-center="mapCenter"
-          :map-zoom="mapZoom"
-          @aspect-change="onAspectChange"
-          @confirm="onProductConfirmed"
-        />
-      </main>
+          <!-- Render status banner -->
+          <div v-if="renderError"
+            class="absolute top-4 left-4 right-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 z-10">
+            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-800">Render failed</p>
+              <p class="text-xs text-red-700 mt-0.5">{{ renderError }}</p>
+              <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
+            </div>
+          </div>
+          <div v-else-if="renderInFlight && !printReady"
+            class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 z-10">
+            <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p class="text-xs text-sky-800">Preparing the selected print file. This preview stays live while the proof renders.</p>
+          </div>
+        </main>
+
+        <!-- Product Selector -->
+        <aside class="bg-white border-t lg:border-t-0 lg:border-l border-stone-200">
+          <div class="p-5 sm:p-6 border-b border-stone-200">
+            <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
+            <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
+              Select a product first
+            </h2>
+            <p class="mt-2 text-sm leading-6 text-stone-600">
+              We will render the print-ready proof only for the product you continue with.
+            </p>
+          </div>
+          <MapProductSelector
+            v-model="selectedProduct"
+            :map-center="mapCenter"
+            :map-zoom="mapZoom"
+            @aspect-change="onAspectChange"
+            @confirm="onProductConfirmed"
+          />
+        </aside>
+      </div>
     </div>
 
     <!-- Step 2: Shipping Form -->
@@ -106,9 +119,18 @@
 
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
-          <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center">
-            <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-contain" alt="Preview" />
-            <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+          <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
+            <img v-if="displayProofImage" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" />
+            <ClientOnly v-else>
+              <MapPreview
+                v-if="mapData && currentStyleConfig"
+                :map="mapData"
+                :style-config="currentStyleConfig"
+                :editable="false"
+                class="w-full h-full"
+              />
+            </ClientOnly>
+            <svg v-if="!displayProofImage && !(mapData && currentStyleConfig)" class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
             </svg>
@@ -120,6 +142,36 @@
           <div class="text-right shrink-0">
             <p class="font-bold text-[#2D6A4F]">{{ selectedProduct ? formatPrice(selectedProduct.price_cents) : '' }}</p>
             <button @click="step = 'product'" class="text-xs text-stone-400 hover:text-stone-600 mt-1">Change</button>
+          </div>
+        </div>
+
+        <!-- Full poster preview while the selected proof renders -->
+        <div class="bg-white rounded-2xl border border-stone-200 p-4 sm:p-5">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Poster preview</p>
+              <p class="text-sm text-stone-600 mt-1">
+                {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your saved editor state while the print file renders.' }}
+              </p>
+            </div>
+            <button @click="step = 'product'" class="text-xs font-medium text-stone-500 hover:text-stone-800">Change product</button>
+          </div>
+          <div class="h-[58vh] min-h-[420px] max-h-[720px] bg-[#e8e5e0] flex items-center justify-center overflow-hidden">
+            <img
+              v-if="displayProofImage"
+              :src="previewUrl!"
+              class="max-w-full max-h-full object-contain rounded-none"
+              alt="Print proof"
+            />
+            <ClientOnly v-else>
+              <MapPreview
+                v-if="mapData && currentStyleConfig"
+                :map="mapData"
+                :style-config="currentStyleConfig"
+                :editable="false"
+                class="w-full h-full"
+              />
+            </ClientOnly>
           </div>
         </div>
 
@@ -273,7 +325,7 @@ import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
-import type { TrailMap, PrintProduct, ProductFraming, StyleConfig } from '~/types'
+import type { TrailMap, PrintProduct, ProductFraming, StyleConfig, PrintSize } from '~/types'
 
 definePageMeta({
   middleware: 'auth',
@@ -305,9 +357,32 @@ const isDigital = computed(() => selectedProduct.value?.type === 'digital')
 const mapData = ref<TrailMap | null>(null)
 const currentStyleConfig = ref<StyleConfig | null>(null)
 
+const displayProofImage = computed(() =>
+  !!previewUrl.value
+  && printReady.value
+  && !!selectedProduct.value
+  && renderTargetProductUid.value === selectedProduct.value.product_uid
+)
+
+const showLivePreview = computed(() =>
+  !!mapData.value
+  && !!currentStyleConfig.value
+  && !displayProofImage.value
+)
+
+function productSizeToPrintSize(sizeLabel: string): PrintSize | null {
+  const normalized = sizeLabel.replace('×', 'x').replace(/"/g, '')
+  return ['8x12', '12x18', '16x24', '20x30', '24x36', '32x48'].includes(normalized)
+    ? normalized as PrintSize
+    : null
+}
+
 function onAspectChange(payload: { product: PrintProduct; previousAspect: number | null }) {
   if (!currentStyleConfig.value) return
-  currentStyleConfig.value = { ...currentStyleConfig.value, print_size: '24x36' }
+  currentStyleConfig.value = {
+    ...currentStyleConfig.value,
+    print_size: productSizeToPrintSize(payload.product.size_label) ?? currentStyleConfig.value.print_size,
+  }
 }
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
@@ -552,10 +627,13 @@ watch(selectedProduct, (product, previousProduct) => {
 
   if (previousProduct?.product_uid !== product.product_uid) {
     printReady.value = false
+    renderInFlight.value = false
+    renderTargetProductUid.value = null
+    v4ExpectedHash.value = null
+    v4Cached.value = false
     renderError.value = null
+    stopPolling()
   }
-
-  startRenders()
 }, { flush: 'post' })
 
 // ─── Payment ────────────────────────────────────────────────────────────────
@@ -625,7 +703,6 @@ onMounted(async () => {
       ]
     }
 
-    startRenders()
   } catch (err) {
     console.error('Error fetching map:', err)
   } finally {

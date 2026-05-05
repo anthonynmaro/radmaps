@@ -38,7 +38,7 @@ trailmaps-app/
 │   ├── maps/                       # Map CRUD + render trigger
 │   ├── render/payload.get.ts        # Server-only render payload for signed tickets
 │   ├── orders/checkout.post.ts     # Stripe Checkout
-│   ├── orders/webhook.post.ts      # Stripe webhook → Gelato order creation
+│   ├── orders/webhook.post.ts      # Stripe webhook → print queue / Gelato
 │   ├── gelato/webhook.post.ts      # Gelato webhook → order status updates
 │   ├── strava/callback.get.ts      # Strava OAuth callback
 │   └── agent/style.post.ts         # Claude AI streaming agent
@@ -81,7 +81,7 @@ trailmaps-app/
 
 RadMaps uses Browserless/Chromium to screenshot the real Nuxt poster render. [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the single source of truth for editor, proof, and final print output.
 
-The full operational guide is [docs/RENDERING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/RENDERING.md). Read it before changing renderer code, product sizes, aspect ratio, print framing, or Gelato product UIDs.
+The full operational guide is [docs/RENDERING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/RENDERING.md). The latest renderer cleanup and risk review is [docs/ARCHITECTURE_SECURITY_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/ARCHITECTURE_SECURITY_REVIEW.md). Read both before changing renderer code, product sizes, aspect ratio, print framing, or Gelato product UIDs.
 
 Important invariants:
 
@@ -112,11 +112,28 @@ Bleed, safe margin, provider caps, and concrete product UID normalization live i
 
 See `.env.example` for the full list. Key vars:
 - `GELATO_API_KEY` — get from https://dashboard.gelato.com/settings/api
+- `GELATO_ORDER_TYPE` — use `draft` for local/full E2E tests; use `order` only for intentional physical fulfillment
 - `GELATO_WEBHOOK_SECRET` — from Gelato Dashboard > Settings > Webhooks
-- `STRIPE_WEBHOOK_SECRET` — from Stripe Dashboard > Webhooks
+- `STRIPE_WEBHOOK_SECRET` — from Stripe Dashboard > Webhooks; Stripe's documented sandbox key prefixes are `sk_test_` and `pk_test_`
 - `BROWSERLESS_TOKEN` — Browserless API token
 - `BROWSERLESS_ENDPOINT` — e.g. `https://production-sfo.browserless.io`
 - `BROWSERLESS_TIMEOUT_MS` — currently `60000`
-- `RENDER_PIPELINE_V4_ENABLED` — set to `true` to route proof renders through Browserless
 - `RENDER_TICKET_SECRET` — long random secret for signed render URLs
 - `NUXT_PUBLIC_SITE_URL` — public URL Browserless can reach for render pages
+- `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
+
+For local full E2E, run the queue worker from the repo root with
+`npm run print-worker:dev`; it merges root `.env` with optional
+`render-worker-v4/.env` overrides. The worker is still required for final paid
+orders, but it calls Browserless rather than maintaining a separate renderer.
+
+To validate Browserless final rendering and Gelato draft submission without
+Stripe, run `npm run gelato:draft-bypass -- --map-id=<map-uuid>` with
+`GELATO_ORDER_TYPE=draft`. This creates synthetic order/snapshot/job rows and
+executes the same worker `processJob` path, but it does not validate Stripe
+Checkout or webhook metadata.
+
+To validate the signed local Stripe webhook path without hosted Checkout, run
+`npm run stripe:webhook-sim -- --map-id=<map-uuid>`. This signs a sandbox
+`checkout.session.completed` payload, posts it to `/api/orders/webhook`, and
+lets the normal final queue create a Gelato draft order.

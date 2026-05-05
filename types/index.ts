@@ -176,8 +176,10 @@ export interface StyleConfig {
   trail_label_style?: 'legend' | 'leader-lines'  // default: 'legend'
   segment_casing_width?: number   // casing/border extra px (added to seg width), default: 3
   segment_casing_color?: string   // border/casing line color, default: '#FFFFFF'
-  segment_dot_size?: number       // radius of handle dots at segment endpoints, default: 4
+  segment_dot_size?: number       // radius of handle dots at segment endpoints, default: 1.5
   leader_label_scale?: number     // font size multiplier for leader line labels, default: 1.0
+  leader_label_auto_fit?: boolean  // auto-reduces leader label type so dense labels fit
+  leader_label_font_family?: FontFamily
   // Elevation profile (SVG chart overlaid at bottom of map area)
   show_elevation_profile?: boolean
   elevation_profile_color?: string    // default: route_color
@@ -266,7 +268,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   vignette_intensity: 0.45,
   segment_casing_width: 3,
   segment_casing_color: '#FFFFFF',
-  segment_dot_size: 4,
+  segment_dot_size: 1.5,
+  leader_label_auto_fit: true,
   map_frozen: false,
   show_start_pin: true,
   show_finish_pin: true,
@@ -605,7 +608,12 @@ export interface TrailMap {
   style_config: StyleConfig
   thumbnail_url?: string
   render_url?: string
+  proof_render_url?: string
+  proof_render_hash?: string
+  map_content_hash?: string
+  chrome_hash?: string
   pdf_url?: string
+  is_public?: boolean
   status: MapStatus
   created_at: string
   updated_at: string

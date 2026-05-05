@@ -60,8 +60,8 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── shop/customize.post.ts         — premade map customization
 │   └── strava/                        — Strava OAuth + activity import
 ├── utils/
-│   ├── mapStyle.ts          — builds MapLibre style JSON (shared browser + worker, ~1170 lines)
-│   ├── gpx.ts               — server-side GPX parser (⚠ XML bomb risk — see REMEDIATION.md)
+│   ├── mapStyle.ts          — builds MapLibre style JSON for browser previews/renders
+│   ├── gpx.ts               — GPX parser with size/entity guards
 │   ├── products.ts          — premade map catalog helpers
 │   ├── trail.ts             — trail segment slicing utilities
 │   ├── seo.ts               — SEO metadata helpers
@@ -71,7 +71,6 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   └── premade-maps.ts      — static premade map catalog
 ├── types/index.ts           — all shared types (StyleConfig, TrailMap, Order, etc.)
 ├── pages/render/            — Browserless-only render pages for proof/final screenshots
-├── render-worker/           — legacy renderer; do not build new work here
 ├── render-worker-v4/        — Railway queue worker for final Browserless renders
 ├── supabase/
 │   ├── schema.sql           — full DB schema
@@ -131,9 +130,11 @@ Final path:
 5. Browserless screenshots `/render/session/[stripeSessionId]?ticket=...`.
 6. The worker validates, uploads, inserts `product_renders`, and submits to Gelato.
 
+`render-worker-v4` is not a separate poster renderer; it is the final print queue consumer/orchestrator. It still must run for paid custom orders because it bounds Browserless concurrency, writes final artifacts, and submits Gelato orders.
+
 Readiness is explicit. Browserless waits for `window.__RENDER_READY === true` and checks `window.__RADMAPS_RENDER_STATUS`; do not replace this with a fixed sleep or selector-only wait.
 
-The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes.
+The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes. The cleanup/security review lives in `docs/ARCHITECTURE_SECURITY_REVIEW.md`; update it when removing renderer paths, changing queue boundaries, or accepting/defering renderer-adjacent security risks.
 
 ## mapStyle.ts patterns
 - CARTO tiles used for minimalist preset (free, no auth required)
@@ -203,7 +204,6 @@ Changing aspect ratio later is a product project, not a catalog tweak. Add expli
 **CRITICAL (fix before next user-facing release):**
 - `maps/public/[id].get.ts` — **IDOR**: public endpoint uses service key, bypasses RLS, returns any user's private map data. Fix: add `is_public` column + query only public maps.
 - Logo/image rendering — **SSRF / remote asset risk**: logos and future user-provided images must be whitelisted or copied to trusted storage before print rendering.
-- `utils/gpx.ts` — **XML bomb DoS**: `DOMParser` has no entity expansion limits. Fix: add 5MB size cap + switch to `fast-xml-parser`.
 - `orders/webhook.post.ts` — **Duplicate orders**: no Stripe event deduplication; webhook retries place duplicate Gelato orders. Fix: `processed_stripe_events` table.
 
 **HIGH:**
@@ -221,11 +221,13 @@ See `.env.example` for the full list with comments. Key ones:
 - `STADIA_API_KEY` / optional `NUXT_PUBLIC_STADIA_API_KEY` — Stadia/Stamen raster tiles for Watercolor/Toner presets; client-visible, restrict by domain in Stadia
 - `STRIPE_*` — payments (live keys)
 - `GELATO_API_KEY` — print fulfillment
+- `GELATO_ORDER_TYPE` — use `draft` for local/full E2E tests; use `order` only for intentional physical fulfillment
 - `BROWSERLESS_TOKEN` / `BROWSERLESS_ENDPOINT` / `BROWSERLESS_TIMEOUT_MS` — screenshot provider
-- `RENDER_PIPELINE_V4_ENABLED=true` — routes proof renders through Browserless instead of legacy worker
 - `RENDER_TICKET_SECRET` — short-lived signed render URL secret
-- `RENDER_WORKER_*` — legacy worker / Railway queue compatibility depending on deployment path
+- `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
 - `ANTHROPIC_API_KEY` — AI styling agent
+
+For local full E2E, run the final queue from the repo root with `npm run print-worker:dev`. That launcher merges root `.env` with optional `render-worker-v4/.env` overrides so Browserless/Gelato/render-ticket secrets do not need to be duplicated locally. Standalone Railway worker deployments still need their own service env configured.
 
 ## Known gotchas
 - MapLibre does NOT resolve `mapbox://` scheme URLs — always use explicit `https://api.mapbox.com/...` endpoints
@@ -239,7 +241,6 @@ See `.env.example` for the full list with comments. Key ones:
 - Supabase `serverSupabaseUser` vs `serverSupabaseClient` — always use these in server routes, never raw env vars
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
-- **Legacy `render-worker/` is retired for new work** — it remains in the tree for history/compatibility, but the active render direction is Browserless screenshot rendering
 - **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato. State and remaining work are documented in `render-worker-v4/HANDOFF.md`.
 - `useStyleAgent` composable is built but NOT wired into any UI yet
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

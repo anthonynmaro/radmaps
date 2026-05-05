@@ -1,19 +1,29 @@
 import { gpx } from '@tmcw/togeojson'
+import { DOMParser as NodeDOMParser } from '@xmldom/xmldom'
 import type { RouteStats } from '~/types'
 
-/**
- * Parse a GPX string into GeoJSON and compute basic route stats.
- */
-export function parseGpx(gpxString: string): {
+export const GPX_MAX_BYTES = 5 * 1024 * 1024
+
+function assertSafeGpxText(gpxString: string) {
+  const bytes = new TextEncoder().encode(gpxString).byteLength
+  if (bytes > GPX_MAX_BYTES) {
+    throw new Error('GPX file too large (max 5 MB)')
+  }
+  if (/<!DOCTYPE|<!ENTITY/i.test(gpxString)) {
+    throw new Error('GPX files with DOCTYPE or ENTITY declarations are not supported')
+  }
+}
+
+function hasParserError(dom: Document): boolean {
+  return dom.getElementsByTagName('parsererror').length > 0
+}
+
+function finishParsedGpx(geojson: GeoJSON.FeatureCollection): {
   geojson: GeoJSON.FeatureCollection
   bbox: [number, number, number, number]
   stats: RouteStats
   trackName?: string
 } {
-  const parser = new DOMParser()
-  const dom = parser.parseFromString(gpxString, 'text/xml')
-  const geojson = gpx(dom)
-
   const coords: [number, number, number][] = []
 
   for (const feature of geojson.features) {
@@ -73,6 +83,25 @@ export function parseGpx(gpxString: string): {
   }
 }
 
+/**
+ * Parse a GPX string into GeoJSON and compute basic route stats.
+ */
+export function parseGpx(gpxString: string): {
+  geojson: GeoJSON.FeatureCollection
+  bbox: [number, number, number, number]
+  stats: RouteStats
+  trackName?: string
+} {
+  assertSafeGpxText(gpxString)
+  const parser = new DOMParser()
+  const dom = parser.parseFromString(gpxString, 'text/xml')
+  if (hasParserError(dom)) {
+    throw new Error('Malformed GPX XML')
+  }
+  const geojson = gpx(dom)
+  return finishParsedGpx(geojson)
+}
+
 function haversineKm(
   [lng1, lat1]: [number, number, number],
   [lng2, lat2]: [number, number, number],
@@ -91,58 +120,28 @@ function toRad(deg: number): number {
 }
 
 /**
- * Server-side GPX parsing using the Node.js DOMParser polyfill.
+ * Server-side GPX parsing using the maintained Node.js DOMParser polyfill.
  * Use in server API routes. Client should call parseGpx() above.
  */
 export function parseGpxServer(gpxString: string) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-  const { DOMParser } = require('xmldom') as any
-  const parser = new DOMParser()
-  const dom = parser.parseFromString(gpxString, 'text/xml')
-  const geojson = gpx(dom as unknown as Document)
-
-  // Same logic as parseGpx — kept server-safe (no browser APIs)
-  const coords: [number, number, number][] = []
-  for (const feature of geojson.features) {
-    if (feature.geometry.type === 'LineString') {
-      coords.push(...(feature.geometry.coordinates as [number, number, number][]))
-    } else if (feature.geometry.type === 'MultiLineString') {
-      for (const line of feature.geometry.coordinates) {
-        coords.push(...(line as [number, number, number][]))
+  assertSafeGpxText(gpxString)
+  let parseError: string | null = null
+  const parser = new NodeDOMParser({
+    onError: (level, message) => {
+      if (level !== 'warning') {
+        parseError = message
       }
-    }
+    },
+  })
+  let dom: Document
+  try {
+    dom = parser.parseFromString(gpxString, 'text/xml') as unknown as Document
+  } catch (err) {
+    throw new Error(`Malformed GPX XML: ${(err as Error).message}`)
   }
-
-  if (coords.length === 0) throw new Error('No track coordinates found in GPX file')
-
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-  for (const [lng, lat] of coords) {
-    if (lng < minLng) minLng = lng; if (lat < minLat) minLat = lat
-    if (lng > maxLng) maxLng = lng; if (lat > maxLat) maxLat = lat
+  if (parseError || hasParserError(dom)) {
+    throw new Error(`Malformed GPX XML${parseError ? `: ${parseError}` : ''}`)
   }
-
-  let distanceKm = 0
-  for (let i = 1; i < coords.length; i++) distanceKm += haversineKm(coords[i - 1], coords[i])
-
-  const elevations = coords.map(c => c[2] ?? 0).filter(e => e !== 0)
-  let elevationGain = 0, elevationLoss = 0
-  for (let i = 1; i < elevations.length; i++) {
-    const diff = elevations[i] - elevations[i - 1]
-    if (diff > 0) elevationGain += diff; else elevationLoss += Math.abs(diff)
-  }
-
-  const trackName = (geojson.features[0]?.properties?.name as string | undefined)?.trim() || undefined
-
-  return {
-    geojson,
-    bbox: [minLng, minLat, maxLng, maxLat] as [number, number, number, number],
-    stats: {
-      distance_km: Math.round(distanceKm * 100) / 100,
-      elevation_gain_m: Math.round(elevationGain),
-      elevation_loss_m: Math.round(elevationLoss),
-      max_elevation_m: elevations.length ? Math.round(Math.max(...elevations)) : 0,
-      min_elevation_m: elevations.length ? Math.round(Math.min(...elevations)) : 0,
-    } as RouteStats,
-    trackName,
-  }
+  const geojson = gpx(dom as unknown as Document)
+  return finishParsedGpx(geojson)
 }

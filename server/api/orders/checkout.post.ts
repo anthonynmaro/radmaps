@@ -67,9 +67,12 @@ export default defineEventHandler(async (event) => {
 
   const totalCents = unitPrice * quantity
   const stripe = new Stripe(config.stripeSecretKey)
-  const baseUrl = process.env.NODE_ENV === 'production'
+  const configuredSiteUrl = typeof config.public.siteUrl === 'string'
+    ? config.public.siteUrl
+    : ''
+  const baseUrl = configuredSiteUrl || (process.env.NODE_ENV === 'production'
     ? 'https://radmaps.studio'
-    : 'http://localhost:3001'
+    : 'http://localhost:3001')
 
   // Create Stripe Checkout session
   const session = await stripe.checkout.sessions.create({
@@ -107,11 +110,10 @@ export default defineEventHandler(async (event) => {
     cancel_url: `${baseUrl}/create/${map_id}/checkout`,
   })
 
-  // Plan v4 §"Snapshot lifecycle": freeze the design at session creation.
-  // The webhook handler will read this back by stripe_session_id rather
-  // than re-reading the (mutable) maps row.  Failure here would leave a
-  // Stripe session without a snapshot, so the webhook would have to fall
-  // back to the legacy flow — log the failure but do NOT block checkout.
+  // Freeze the design at session creation. The webhook reads this immutable
+  // snapshot by stripe_session_id instead of the mutable maps row. If freezing
+  // fails, fail closed and expire the open Stripe session; physical orders have
+  // no legacy proof-render fallback.
   if (!digital_only) {
     try {
       await freezeOrderSnapshot(supabase, {
@@ -122,7 +124,16 @@ export default defineEventHandler(async (event) => {
       })
     } catch (err) {
       console.error('[orders/checkout] snapshot freeze failed:', (err as Error).message)
-      // Webhook will fall back to legacy (live-map-read) path.
+      await stripe.checkout.sessions.expire(session.id).catch((expireErr) => {
+        console.error(
+          '[orders/checkout] failed to expire checkout session after snapshot error:',
+          (expireErr as Error).message,
+        )
+      })
+      throw createError({
+        statusCode: 500,
+        message: 'Unable to prepare print checkout. Please try again.',
+      })
     }
   }
 

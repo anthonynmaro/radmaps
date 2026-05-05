@@ -29,13 +29,14 @@
         <!-- Share — icon only on mobile -->
         <button
           class="flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 px-2 py-2 sm:px-2.5 rounded-lg hover:bg-stone-100 transition-colors min-h-[36px]"
+          :disabled="sharePreparing"
           @click="copyShareLink"
           title="Copy share link"
         >
           <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
             <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"/>
           </svg>
-          <span class="hidden sm:inline">Share</span>
+          <span class="hidden sm:inline">{{ sharePreparing ? 'Preparing…' : 'Share' }}</span>
         </button>
 
         <!-- Save version — icon only on mobile -->
@@ -78,6 +79,8 @@
               :style-config="styleConfig"
               :editable="true"
               :plot-mode="plotMode"
+              :delete-brush-active="deleteBrushActive"
+              :delete-brush-size="deleteBrushSize"
               :can-undo="canUndo"
               :can-redo="canRedo"
               class="w-full h-full"
@@ -88,11 +91,16 @@
               @overlay-selected="onOverlaySelected"
               @overlay-deleted="onOverlayDeleted"
               @overlay-resized="onOverlayResized"
+              @edit-requested="onEditRequested"
               @freeze-changed="onFreezeChanged"
               @segment-plotted="onSegmentPlotted"
               @plot-cancelled="plotMode = null"
+              @route-delete-brush-applied="onRouteDeleteBrushApplied"
+              @route-delete-brush-cancelled="deleteBrushActive = false"
               @label-moved="onLabelMoved"
+              @segment-label-edit-started="onSegmentLabelEditStarted"
               @segment-label-moved="onSegmentLabelMoved"
+              @segment-labels-moved="onSegmentLabelsMoved"
               @view-changed="onViewChanged"
               @undo="undo"
               @redo="redo"
@@ -131,6 +139,9 @@
           :has-elevation-data="hasElevationData"
           :total-distance-km="mapData?.stats?.distance_km"
           :active-plot-mode="plotMode"
+          :active-delete-brush="deleteBrushActive"
+          :delete-brush-size="deleteBrushSize"
+          :active-text-target="activeTextTarget"
           @reset="resetStyle"
           @logo-upload="handleLogoUpload"
           @toggle-sheet="toggleSheet"
@@ -138,6 +149,8 @@
           @swipe-down="onSwipeDown"
           @request-plot="onRequestPlot"
           @request-detect-disconnected="onDetectDisconnected"
+          @request-brush-delete="onRequestBrushDelete"
+          @update-brush-size="deleteBrushSize = $event"
         />
         <div v-else class="flex-1 bg-white animate-pulse" />
       </aside>
@@ -213,18 +226,30 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig } from '~/types'
+import type { DeletedRange, StyleConfig } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
-import { buildElevationProfile, detectDisconnectedRanges } from '~/utils/trail'
+import { buildElevationProfile, detectDisconnectedRanges, mergeDeletedRanges } from '~/utils/trail'
 
 definePageMeta({ middleware: 'auth', layout: false })
+
+type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
+type ActiveTextTarget =
+  | { type: 'poster-text'; field: PosterTextField }
+  | { type: 'text-overlay'; id: string }
 
 const route = useRoute()
 const mapId = computed(() => route.params.mapId as string)
 
 const { map: mapData, saving, updateStyle, saveNow } = useMap(mapId)
+const {
+  triggerRender: triggerThumbnailRender,
+  renderUrl: latestThumbnailUrl,
+  error: thumbnailRenderError,
+  isRendering: thumbnailRendering,
+} = useMapRenderer(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
+const activeTextTarget = ref<ActiveTextTarget | null>(null)
 
 const hasElevationData = computed(() => {
   if (!mapData.value?.geojson) return false
@@ -259,6 +284,7 @@ function onMapAreaClick(e: MouseEvent) {
   // Only on mobile, and only when the sheet is open and we're not actively plotting
   if (typeof window === 'undefined' || window.innerWidth >= 768) return
   if (plotMode.value) return
+  if (deleteBrushActive.value) return
   if (sheetState.value === 'closed') return
   // Only dismiss on direct map canvas taps, not on poster controls / overlays / text
   const target = e.target as HTMLElement | null
@@ -336,6 +362,7 @@ watch(styleConfig, (newConfig) => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => updateStyle(newConfig), 600)
   recordHistory(newConfig)
+  scheduleEditorThumbnailSnapshot()
 }, { deep: true })
 
 // Keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z or Ctrl+Y = redo
@@ -349,7 +376,10 @@ function onKeyDown(e: KeyboardEvent) {
 }
 
 onMounted(() => document.addEventListener('keydown', onKeyDown))
-onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeyDown)
+  clearThumbnailTimer()
+})
 
 function resetStyle() {
   styleConfig.value = { ...DEFAULT_STYLE_CONFIG }
@@ -359,11 +389,14 @@ function resetStyle() {
 
 const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
 const pendingDeleteStart = ref<number | null>(null)
+const deleteBrushActive = ref(false)
+const deleteBrushSize = ref(18)
 
 // Reset pending delete state if plot mode is cancelled externally (Escape / toggle-off)
 watch(plotMode, (mode) => { if (!mode) pendingDeleteStart.value = null })
 
 function onRequestPlot(payload: { segId: string; field: 'start' | 'end' }) {
+  deleteBrushActive.value = false
   // Toggle off if clicking the same button again
   if (plotMode.value?.segId === payload.segId && plotMode.value?.field === payload.field) {
     plotMode.value = null
@@ -390,7 +423,7 @@ function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start'
       if (end - start > 0.1) {
         styleConfig.value = {
           ...styleConfig.value,
-          route_deleted_ranges: [...(styleConfig.value.route_deleted_ranges ?? []), { start, end }],
+          route_deleted_ranges: mergeDeletedRanges([...(styleConfig.value.route_deleted_ranges ?? []), { start, end }]),
         }
       }
       pendingDeleteStart.value = null
@@ -409,33 +442,173 @@ function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start'
   plotMode.value = null
 }
 
+function onRequestBrushDelete() {
+  deleteBrushActive.value = !deleteBrushActive.value
+  if (deleteBrushActive.value) {
+    plotMode.value = null
+    pendingDeleteStart.value = null
+  }
+}
+
+function onRouteDeleteBrushApplied({ ranges }: { ranges: DeletedRange[] }) {
+  if (!ranges.length) {
+    deleteBrushActive.value = false
+    return
+  }
+  styleConfig.value = {
+    ...styleConfig.value,
+    route_deleted_ranges: mergeDeletedRanges([...(styleConfig.value.route_deleted_ranges ?? []), ...ranges]),
+  }
+  deleteBrushActive.value = false
+}
+
 function onDetectDisconnected() {
   if (!mapData.value?.geojson) return
   const detected = detectDisconnectedRanges(mapData.value.geojson as GeoJSON.FeatureCollection, 50)
   if (!detected.length) return
   styleConfig.value = {
     ...styleConfig.value,
-    route_deleted_ranges: [...(styleConfig.value.route_deleted_ranges ?? []), ...detected],
+    route_deleted_ranges: mergeDeletedRanges([...(styleConfig.value.route_deleted_ranges ?? []), ...detected]),
   }
 }
 
 // ─── Share link ───────────────────────────────────────────────────────────────
 
 const toast = useToast()
+const sharePreparing = ref(false)
+
+const THUMBNAIL_RENDER_IDLE_DELAY_MS = 7000
+const THUMBNAIL_RENDER_MIN_INTERVAL_MS = 30_000
+
+let thumbnailTimer: ReturnType<typeof setTimeout> | null = null
+let thumbnailLastRenderedAt = 0
+let thumbnailRenderRunning = false
+let thumbnailRenderQueued = false
+
+function clearThumbnailTimer() {
+  if (thumbnailTimer) {
+    clearTimeout(thumbnailTimer)
+    thumbnailTimer = null
+  }
+}
+
+function scheduleEditorThumbnailSnapshot(delayMs = THUMBNAIL_RENDER_IDLE_DELAY_MS) {
+  if (!historyReady || !mapData.value) return
+  clearThumbnailTimer()
+  thumbnailTimer = setTimeout(() => {
+    refreshEditorThumbnailSnapshot('idle').catch((err) => {
+      console.warn('[thumbnail] idle refresh failed:', err instanceof Error ? err.message : err)
+    })
+  }, delayMs)
+}
+
+async function persistCurrentStyleNow() {
+  clearTimeout(saveTimer)
+  if (mapData.value) {
+    mapData.value.style_config = { ...styleConfig.value }
+  }
+  await saveNow()
+}
+
+async function waitForThumbnailRender(timeoutMs = 120_000) {
+  const started = Date.now()
+  while (thumbnailRendering.value && Date.now() - started < timeoutMs) {
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+  if (thumbnailRendering.value) {
+    throw new Error('Thumbnail render timed out')
+  }
+  if (thumbnailRenderError.value) {
+    throw new Error(thumbnailRenderError.value)
+  }
+  if (!latestThumbnailUrl.value) {
+    throw new Error('Thumbnail render completed without a URL')
+  }
+}
+
+async function refreshEditorThumbnailSnapshot(reason: 'idle' | 'share') {
+  if (!mapData.value) return
+  clearThumbnailTimer()
+
+  if (thumbnailRenderRunning || thumbnailRendering.value) {
+    if (reason === 'share') {
+      const started = Date.now()
+      while ((thumbnailRenderRunning || thumbnailRendering.value) && Date.now() - started < 120_000) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      if (thumbnailRenderRunning || thumbnailRendering.value) {
+        throw new Error('Thumbnail render timed out')
+      }
+      return refreshEditorThumbnailSnapshot('share')
+    }
+    thumbnailRenderQueued = true
+    return
+  }
+
+  const minInterval = reason === 'share' ? 0 : THUMBNAIL_RENDER_MIN_INTERVAL_MS
+  const waitMs = thumbnailLastRenderedAt + minInterval - Date.now()
+  if (waitMs > 0) {
+    scheduleEditorThumbnailSnapshot(waitMs)
+    return
+  }
+
+  thumbnailRenderRunning = true
+  thumbnailRenderQueued = false
+  thumbnailRenderError.value = null
+  try {
+    await persistCurrentStyleNow()
+    await triggerThumbnailRender()
+    await waitForThumbnailRender()
+    if (latestThumbnailUrl.value && mapData.value) {
+      mapData.value.thumbnail_url = latestThumbnailUrl.value
+      mapData.value.proof_render_url = latestThumbnailUrl.value
+      mapData.value.render_url = latestThumbnailUrl.value
+    }
+    thumbnailLastRenderedAt = Date.now()
+  } finally {
+    thumbnailRenderRunning = false
+    if (thumbnailRenderQueued) {
+      thumbnailRenderQueued = false
+      scheduleEditorThumbnailSnapshot()
+    }
+  }
+}
 
 async function copyShareLink() {
   const shareUrl = `${window.location.origin}/map/${mapId.value}`
+  sharePreparing.value = true
   try {
-    await navigator.clipboard.writeText(shareUrl)
+    await refreshEditorThumbnailSnapshot('share')
+    const supabase = useSupabaseClient() as any
+    const { error } = await supabase
+      .from('maps')
+      .update({ is_public: true, updated_at: new Date().toISOString() })
+      .eq('id', mapId.value)
+    if (error) throw error
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+    } catch {
+      window.prompt('Copy this link:', shareUrl)
+    }
     toast.add({
       title: 'Link copied',
-      description: 'Anyone with this link can view your map.',
+      description: 'The shared preview now matches your latest saved design.',
       icon: 'i-heroicons-link',
       color: 'green',
       timeout: 3000,
     })
-  } catch {
-    window.prompt('Copy this link:', shareUrl)
+  } catch (err) {
+    console.error('Share preparation failed:', err)
+    toast.add({
+      title: 'Share preview failed',
+      description: 'We could not prepare the latest thumbnail. Please try again.',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+      timeout: 5000,
+    })
+  } finally {
+    sharePreparing.value = false
   }
 }
 
@@ -484,11 +657,23 @@ function onOverlayMoved(payload: { id: string; x: number; y: number }) {
   }
 }
 
-function onOverlaySelected(_id: string) {
+function openTextPanelForTarget(target: ActiveTextTarget) {
+  activeTextTarget.value = target
   if (window.innerWidth < 768) sheetState.value = 'full'
 }
 
+function onEditRequested(payload: { field: PosterTextField; value: string }) {
+  openTextPanelForTarget({ type: 'poster-text', field: payload.field })
+}
+
+function onOverlaySelected(id: string) {
+  openTextPanelForTarget({ type: 'text-overlay', id })
+}
+
 function onOverlayDeleted(id: string) {
+  if (activeTextTarget.value?.type === 'text-overlay' && activeTextTarget.value.id === id) {
+    activeTextTarget.value = null
+  }
   styleConfig.value = {
     ...styleConfig.value,
     text_overlays: (styleConfig.value.text_overlays ?? []).filter(o => o.id !== id),
@@ -523,10 +708,28 @@ function onLabelMoved({ pin, lnglat }: { pin: 'start' | 'finish'; lnglat: [numbe
   }
 }
 
+function onSegmentLabelEditStarted({ labels }: { labels: Array<{ id: string; lnglat: [number, number] }> }) {
+  const byId = new Map(labels.map(label => [label.id, label.lnglat]))
+  const segments = (styleConfig.value.trail_segments ?? []).map(s => {
+    const lnglat = byId.get(s.id)
+    return lnglat ? { ...s, label_lnglat: lnglat } : s
+  })
+  styleConfig.value = { ...styleConfig.value, trail_segments: segments }
+}
+
 function onSegmentLabelMoved({ id, lnglat }: { id: string; lnglat: [number, number] }) {
   const segments = (styleConfig.value.trail_segments ?? []).map(s =>
     s.id === id ? { ...s, label_lnglat: lnglat } : s,
   )
+  styleConfig.value = { ...styleConfig.value, trail_segments: segments }
+}
+
+function onSegmentLabelsMoved({ labels }: { labels: Array<{ id: string; lnglat: [number, number] }> }) {
+  const byId = new Map(labels.map(label => [label.id, label.lnglat]))
+  const segments = (styleConfig.value.trail_segments ?? []).map(s => {
+    const lnglat = byId.get(s.id)
+    return lnglat ? { ...s, label_lnglat: lnglat } : s
+  })
   styleConfig.value = { ...styleConfig.value, trail_segments: segments }
 }
 
@@ -535,10 +738,7 @@ function onViewChanged({ map_zoom, map_center, map_editor_width }: { map_zoom: n
 }
 
 async function goToCheckout() {
-  if (mapData.value) {
-    mapData.value.style_config = { ...styleConfig.value }
-  }
-  await saveNow()
+  await persistCurrentStyleNow()
   await navigateTo(`/create/${mapId.value}/checkout`)
 }
 

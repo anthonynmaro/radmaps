@@ -1,86 +1,9 @@
 // render-worker-v4/src/cache.ts
 //
-// Read/write helpers around `render_cache` and `product_renders`.
-//
-// `render_cache_key` includes `render_backend` per locked decision #4:
-// Native and Browser caches are separate namespaces.
+// Read/write helpers around `product_renders` and `order_snapshots`.
 
 import { getSupabase } from './db.js'
-import { logCacheLookup } from './log.js'
-import type { RenderBackend, RenderClass, ValidationResult } from './types.js'
-
-// ─── render_cache ───────────────────────────────────────────────────────────
-
-export interface RenderCacheRow {
-  render_cache_key: string
-  map_content_hash: string
-  render_class: RenderClass
-  render_backend: RenderBackend
-  map_image_path: string
-  width_px: number
-  height_px: number
-  dpi: number
-  render_ms: number | null
-  created_at: string
-  last_used_at: string
-  use_count: number
-}
-
-export async function lookupRenderCache(renderCacheKey: string): Promise<RenderCacheRow | null> {
-  const supabase = getSupabase()
-  const { data, error } = await supabase
-    .from('render_cache')
-    .select('*')
-    .eq('render_cache_key', renderCacheKey)
-    .maybeSingle()
-  if (error) {
-    throw new Error(`render_cache lookup failed: ${error.message}`)
-  }
-  logCacheLookup({ cache: 'render_cache', hit: !!data, key: renderCacheKey })
-  return data as RenderCacheRow | null
-}
-
-export async function touchRenderCache(renderCacheKey: string): Promise<void> {
-  const supabase = getSupabase()
-  // Atomically bump last_used_at and use_count on a hit so the LRU eviction
-  // job has a usable signal.
-  const { error } = await supabase.rpc('touch_render_cache', {
-    p_key: renderCacheKey,
-  })
-  if (error) {
-    // Soft-fail: a missing RPC shouldn't abort the render. Fall back to a
-    // direct UPDATE.
-    const { error: updateError } = await supabase
-      .from('render_cache')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('render_cache_key', renderCacheKey)
-    if (updateError) {
-      // Log but don't throw — the cache is best-effort, not authoritative.
-      // Caller already has the row content.
-    }
-  }
-}
-
-export async function insertRenderCache(row: {
-  render_cache_key: string
-  map_content_hash: string
-  render_class: RenderClass
-  render_backend: RenderBackend
-  map_image_path: string
-  width_px: number
-  height_px: number
-  dpi: number
-  render_ms: number
-}): Promise<void> {
-  const supabase = getSupabase()
-  // ON CONFLICT DO NOTHING semantics via upsert + ignoreDuplicates.
-  const { error } = await supabase
-    .from('render_cache')
-    .upsert(row, { onConflict: 'render_cache_key', ignoreDuplicates: true })
-  if (error) {
-    throw new Error(`render_cache insert failed: ${error.message}`)
-  }
-}
+import type { ValidationResult } from './types.js'
 
 // ─── product_renders ────────────────────────────────────────────────────────
 
@@ -92,7 +15,7 @@ export interface ProductRenderRow {
   trim_height_in: number
   dpi: number
   bleed_mm: number
-  render_backend: RenderBackend
+  render_backend: 'browser'
   map_content_hash: string
   chrome_hash: string
   print_hash: string
@@ -130,30 +53,6 @@ export async function insertProductRender(row: Omit<ProductRenderRow, 'id' | 'cr
     })
   if (error) {
     throw new Error(`product_renders insert failed: ${error.message}`)
-  }
-}
-
-// ─── maps row updater (proof URL + hashes) ──────────────────────────────────
-
-export async function updateMapProofUrl(input: {
-  map_id: string
-  proof_render_url: string
-  proof_render_hash: string
-  map_content_hash: string
-  chrome_hash: string
-}): Promise<void> {
-  const supabase = getSupabase()
-  const { error } = await supabase
-    .from('maps')
-    .update({
-      proof_render_url: input.proof_render_url,
-      proof_render_hash: input.proof_render_hash,
-      map_content_hash: input.map_content_hash,
-      chrome_hash: input.chrome_hash,
-    })
-    .eq('id', input.map_id)
-  if (error) {
-    throw new Error(`maps proof update failed: ${error.message}`)
   }
 }
 

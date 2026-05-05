@@ -1,109 +1,15 @@
-import sharp from 'sharp'
-import type { Metadata } from 'sharp'
-
 import { insertProductRender, loadOrderSnapshot, lookupProductRender } from '../cache.js'
 import { CONFIG } from '../config.js'
 import { uploadBuffer } from '../storage.js'
 import { takeBrowserlessScreenshot } from '../browserless.js'
 import type { RenderFinalResponse } from './processJob.js'
-import { getPrintFraming } from '../../../utils/print/printFraming.js'
-import { getProviderProfile } from '../../../utils/print/providerProfile.js'
-import { computePrintHash } from '../../../utils/render/hash.js'
-import { getFinalPrintPath } from '../../../utils/render/storagePaths.js'
-import { createRenderTicket } from '../../../utils/render/renderTicket.js'
-import type { ValidationIssue, ValidationResult } from '../types.js'
-
-const VALIDATOR_VERSION = 'print-validator-v1' as const
-
-async function validateBrowserScreenshot(input: {
-  jpegBuffer: Buffer
-  expectedWidth: number
-  expectedHeight: number
-  maxFileSizeMb: number
-}): Promise<ValidationResult> {
-  const errors: ValidationIssue[] = []
-  const warnings: ValidationIssue[] = []
-  const push = (issue: ValidationIssue) => {
-    if (issue.severity === 'error') errors.push(issue)
-    else warnings.push(issue)
-  }
-
-  let meta: Metadata
-  try {
-    meta = await sharp(input.jpegBuffer).metadata()
-  } catch (err) {
-    push({ check: 'jpeg_readable', severity: 'error', message: `JPEG unreadable: ${(err as Error).message}` })
-    return {
-      errors,
-      warnings,
-      checked_at: new Date().toISOString(),
-      validator_version: VALIDATOR_VERSION,
-      passed: false,
-    }
-  }
-
-  if (meta.format !== 'jpeg') {
-    push({ check: 'jpeg_format', severity: 'error', message: `expected jpeg, got ${meta.format ?? 'unknown'}` })
-  }
-  if (meta.width !== input.expectedWidth || meta.height !== input.expectedHeight) {
-    push({
-      check: 'dimensions',
-      severity: 'error',
-      message: `dimensions mismatch: got ${meta.width}x${meta.height}, expected ${input.expectedWidth}x${input.expectedHeight}`,
-    })
-  }
-
-  const sizeMb = input.jpegBuffer.byteLength / (1024 * 1024)
-  if (input.jpegBuffer.byteLength < 100_000) {
-    push({ check: 'minimum_file_size', severity: 'error', message: `file is only ${input.jpegBuffer.byteLength} bytes` })
-  }
-  if (sizeMb > input.maxFileSizeMb) {
-    push({ check: 'file_size', severity: 'error', message: `file size ${sizeMb.toFixed(1)} MB exceeds cap ${input.maxFileSizeMb} MB` })
-  }
-  if (meta.space && meta.space !== 'srgb') {
-    push({ check: 'icc_srgb', severity: 'warning', message: `colour space is "${meta.space}", expected sRGB` })
-  }
-
-  try {
-    const sample = await sharp(input.jpegBuffer)
-      .resize(96, 96, { fit: 'inside' })
-      .removeAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-    const px = sample.data
-    const channels = sample.info.channels
-    let sum = 0
-    let sumSq = 0
-    const colours = new Set<number>()
-    let count = 0
-    for (let i = 0; i < px.length; i += channels) {
-      const r = px[i]!
-      const g = px[i + 1]!
-      const b = px[i + 2]!
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b
-      sum += lum
-      sumSq += lum * lum
-      colours.add(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4))
-      count++
-    }
-    const mean = sum / Math.max(1, count)
-    const stdev = Math.sqrt(Math.max(0, sumSq / Math.max(1, count) - mean * mean))
-    if (colours.size < 8 || stdev < 3) {
-      push({ check: 'blank_canvas', severity: 'error', message: `low visual variation (colours=${colours.size}, stdev=${stdev.toFixed(1)})` })
-    }
-  } catch (err) {
-    push({ check: 'blank_canvas', severity: 'warning', message: `blank-canvas sampling failed: ${(err as Error).message}` })
-  }
-
-  return {
-    errors,
-    warnings,
-    checked_at: new Date().toISOString(),
-    validator_version: VALIDATOR_VERSION,
-    passed: errors.length === 0,
-  }
-}
-
+import { normalizeFinalScreenshot } from './normalizeFinalScreenshot.js'
+import { validateBrowserScreenshot } from './validateBrowserScreenshot.js'
+import { getPrintFraming } from '~/utils/print/printFraming'
+import { getProviderProfile } from '~/utils/print/providerProfile'
+import { computePrintHash } from '~/utils/render/hash'
+import { getFinalPrintPath } from '~/utils/render/storagePaths'
+import { createRenderTicket } from '~/utils/render/renderTicket'
 export async function renderFinalWithScreenshot(input: {
   stripeSessionId: string
   printHash: string
@@ -143,9 +49,12 @@ export async function renderFinalWithScreenshot(input: {
     }
   }
 
-  // Use exact final pixel dimensions. 24×36 with 3mm bleed is 7271×10871,
-  // so DPR 2 half-viewports would require post-capture crop/pad correction.
-  const deviceScaleFactor = 1
+  // Browserless caps screenshot timeouts at 60s on the current plan. Keep the
+  // physical output exact by rendering a half-size CSS viewport at DPR 2, then
+  // cropping any one-pixel bleed rounding surplus before validation/upload.
+  const deviceScaleFactor = 2
+  const viewportWidthPx = Math.ceil(framing.fullWidthPx / deviceScaleFactor)
+  const viewportHeightPx = Math.ceil(framing.fullHeightPx / deviceScaleFactor)
   const ticket = createRenderTicket({
     kind: 'session',
     subject: input.stripeSessionId,
@@ -163,8 +72,8 @@ export async function renderFinalWithScreenshot(input: {
 
   const screenshot = await takeBrowserlessScreenshot({
     url: url.toString(),
-    widthPx: Math.round(framing.fullWidthPx / deviceScaleFactor),
-    heightPx: Math.round(framing.fullHeightPx / deviceScaleFactor),
+    widthPx: viewportWidthPx,
+    heightPx: viewportHeightPx,
     deviceScaleFactor,
     format: 'jpeg',
     quality: 95,
@@ -172,8 +81,16 @@ export async function renderFinalWithScreenshot(input: {
     timeoutMs: CONFIG.browserlessTimeoutMs,
   })
 
+  const finalBuffer = await normalizeFinalScreenshot({
+    buffer: screenshot.buffer,
+    expectedWidth: framing.fullWidthPx,
+    expectedHeight: framing.fullHeightPx,
+    maxOversizePx: deviceScaleFactor,
+    quality: 95,
+  })
+
   const validation = await validateBrowserScreenshot({
-    jpegBuffer: screenshot.buffer,
+    jpegBuffer: finalBuffer,
     expectedWidth: framing.fullWidthPx,
     expectedHeight: framing.fullHeightPx,
     maxFileSizeMb: profile.maxFileSizeMb,
@@ -188,7 +105,7 @@ export async function renderFinalWithScreenshot(input: {
   }
 
   const artifactPath = getFinalPrintPath(input.stripeSessionId, productUid, input.printHash)
-  const renderUrl = await uploadBuffer(artifactPath, screenshot.buffer, {
+  const renderUrl = await uploadBuffer(artifactPath, finalBuffer, {
     contentType: screenshot.contentType,
     cacheControl: '3600',
   })

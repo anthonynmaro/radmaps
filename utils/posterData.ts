@@ -1,10 +1,9 @@
 /**
  * Shared poster typography and layout data.
- * Single source of truth for both MapPreview.vue (browser) and render-worker/index.js (Node).
+ * Single source of truth for MapPreview.vue in editor and Browserless render pages.
  *
  * Sizes are stored as plain numbers — consumers append the appropriate CSS unit:
- *   Browser (MapPreview.vue):  `${profile.titleSize}cqh`
- *   Render worker:             `${profile.titleSize}vh`
+ *   MapPreview.vue: `${profile.titleSize}cqh`
  */
 
 import type { StyleConfig } from '~/types'

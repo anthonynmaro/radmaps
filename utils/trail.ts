@@ -1,9 +1,141 @@
 import type { TrailSegment, DeletedRange } from '~/types'
 
+const DEFAULT_COORD_GAP_THRESHOLD_METERS = 50
+
 const SEGMENT_COLORS = [
   '#2D6A4F', '#3A7CA5', '#C1121F', '#E87722',
   '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E',
 ]
+
+function distanceMeters(a: number[], b: number[]): number {
+  const [lng1, lat1] = a
+  const [lng2, lat2] = b
+  const dlat = (lat2 - lat1) * 111320
+  const dlng = (lng2 - lng1) * 111320 * Math.cos((lat1 * Math.PI) / 180)
+  return Math.sqrt(dlat * dlat + dlng * dlng)
+}
+
+function splitCoordsOnGaps(coords: number[][], gapThresholdMeters = DEFAULT_COORD_GAP_THRESHOLD_METERS): number[][][] {
+  if (coords.length < 2) return []
+
+  const lines: number[][][] = []
+  let current: number[][] = [coords[0]]
+
+  for (let i = 1; i < coords.length; i++) {
+    if (distanceMeters(coords[i - 1], coords[i]) > gapThresholdMeters) {
+      if (current.length >= 2) lines.push(current)
+      current = [coords[i]]
+    } else {
+      current.push(coords[i])
+    }
+  }
+
+  if (current.length >= 2) lines.push(current)
+  return lines
+}
+
+function pctToIndexRange(total: number, startPct: number, endPct: number): [number, number] {
+  const start = Math.floor(total * Math.max(0, startPct) / 100)
+  const end = Math.ceil(total * Math.min(100, endPct) / 100)
+  return [Math.max(0, Math.min(total, start)), Math.max(0, Math.min(total, end))]
+}
+
+export function mergeDeletedRanges(ranges: DeletedRange[]): DeletedRange[] {
+  const sorted = ranges
+    .map(r => ({
+      start: Math.max(0, Math.min(100, Math.min(r.start, r.end))),
+      end: Math.max(0, Math.min(100, Math.max(r.start, r.end))),
+    }))
+    .filter(r => r.end > r.start)
+    .sort((a, b) => a.start - b.start)
+
+  const merged: DeletedRange[] = []
+  for (const range of sorted) {
+    const prev = merged[merged.length - 1]
+    if (prev && range.start <= prev.end) {
+      prev.end = Math.max(prev.end, range.end)
+    } else {
+      merged.push({ ...range })
+    }
+  }
+  return merged
+}
+
+export function deletedRangesFromIndexes(
+  indexes: Iterable<number>,
+  totalCoords: number,
+  paddingIndexes = 2,
+): DeletedRange[] {
+  if (totalCoords <= 1) return []
+
+  const sorted = Array.from(new Set(indexes))
+    .filter(i => Number.isFinite(i))
+    .map(i => Math.round(i))
+    .filter(i => i >= 0 && i < totalCoords)
+    .sort((a, b) => a - b)
+
+  if (!sorted.length) return []
+
+  const ranges: DeletedRange[] = []
+  let start = sorted[0]
+  let end = sorted[0]
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] <= end + 1) {
+      end = sorted[i]
+    } else {
+      ranges.push(indexRangeToDeletedRange(start, end, totalCoords, paddingIndexes))
+      start = sorted[i]
+      end = sorted[i]
+    }
+  }
+  ranges.push(indexRangeToDeletedRange(start, end, totalCoords, paddingIndexes))
+
+  return mergeDeletedRanges(ranges)
+}
+
+function indexRangeToDeletedRange(start: number, end: number, totalCoords: number, paddingIndexes: number): DeletedRange {
+  const paddedStart = Math.max(0, start - paddingIndexes)
+  const paddedEnd = Math.min(totalCoords - 1, end + paddingIndexes)
+  return {
+    start: (paddedStart / totalCoords) * 100,
+    end: ((paddedEnd + 1) / totalCoords) * 100,
+  }
+}
+
+export function routeRangesToGeojson(
+  geojson: GeoJSON.FeatureCollection,
+  ranges: DeletedRange[],
+  cropStart = 0,
+  cropEnd = 100,
+): GeoJSON.FeatureCollection {
+  const allCoords = getAllRouteCoords(geojson)
+  if (!allCoords.length) return { type: 'FeatureCollection', features: [] }
+
+  const [cropStartIdx, cropEndIdx] = pctToIndexRange(allCoords.length, cropStart, cropEnd)
+  const lineCoords: number[][][] = []
+
+  for (const range of mergeDeletedRanges(ranges)) {
+    const [rawStart, rawEnd] = pctToIndexRange(allCoords.length, range.start, range.end)
+    const start = Math.max(cropStartIdx, rawStart)
+    const end = Math.min(cropEndIdx, rawEnd)
+    if (end - start < 2) continue
+    lineCoords.push(...splitCoordsOnGaps(allCoords.slice(start, end)))
+  }
+
+  if (!lineCoords.length) return { type: 'FeatureCollection', features: [] }
+
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: {},
+      geometry: lineCoords.length === 1
+        ? { type: 'LineString', coordinates: lineCoords[0] }
+        : { type: 'MultiLineString', coordinates: lineCoords },
+    }],
+  }
+}
 
 /**
  * Extract named tracks from a multi-track GeoJSON (produced by @tmcw/togeojson).
@@ -49,8 +181,8 @@ export function extractNamedTrackSegments(geojson: GeoJSON.FeatureCollection): T
 /**
  * Slice a primary route GeoJSON FeatureCollection by start/end percentage.
  * Flattens all LineString/MultiLineString coordinates into one array,
- * then returns a new FeatureCollection with a single LineString covering
- * the requested range.
+ * slices the requested range, then splits large coordinate gaps back into
+ * MultiLineString parts so GPS dropouts do not render as straight chords.
  *
  * Used by MapPreview.vue (browser) and the render worker.
  */
@@ -58,25 +190,39 @@ export function sliceRouteByPercent(
   geojson: GeoJSON.FeatureCollection,
   startPct: number,
   endPct: number,
+  deletedRanges: DeletedRange[] = [],
 ): GeoJSON.FeatureCollection {
-  const allCoords: number[][] = []
-
-  for (const f of geojson.features) {
-    const g = f.geometry
-    if (g.type === 'LineString') {
-      allCoords.push(...g.coordinates)
-    } else if (g.type === 'MultiLineString') {
-      for (const line of g.coordinates) allCoords.push(...line)
-    }
-  }
+  const allCoords = getAllRouteCoords(geojson)
 
   if (allCoords.length === 0) {
     return { type: 'FeatureCollection', features: [] }
   }
 
-  const start = Math.floor(allCoords.length * Math.max(0, startPct) / 100)
-  const end = Math.ceil(allCoords.length * Math.min(100, endPct) / 100)
-  const sliced = allCoords.slice(start, Math.max(end, start + 2))
+  const [start, rawEnd] = pctToIndexRange(allCoords.length, startPct, endPct)
+  const end = Math.max(rawEnd, start + 2)
+  const blocked = mergeDeletedRanges(deletedRanges)
+    .map(range => {
+      const [blockStart, blockEnd] = pctToIndexRange(allCoords.length, range.start, range.end)
+      return [Math.max(start, blockStart), Math.min(end, blockEnd)] as [number, number]
+    })
+    .filter(([blockStart, blockEnd]) => blockEnd > blockStart)
+    .sort((a, b) => a[0] - b[0])
+
+  const lines: number[][][] = []
+  let cursor = start
+  for (const [blockStart, blockEnd] of blocked) {
+    if (blockStart > cursor) {
+      lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, blockStart)))
+    }
+    cursor = Math.max(cursor, blockEnd)
+  }
+  if (cursor < end) {
+    lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, end)))
+  }
+
+  if (lines.length === 0) {
+    return { type: 'FeatureCollection', features: [] }
+  }
 
   return {
     type: 'FeatureCollection',
@@ -84,7 +230,9 @@ export function sliceRouteByPercent(
       {
         type: 'Feature',
         properties: {},
-        geometry: { type: 'LineString', coordinates: sliced },
+        geometry: lines.length === 1
+          ? { type: 'LineString', coordinates: lines[0] }
+          : { type: 'MultiLineString', coordinates: lines },
       },
     ],
   }
@@ -104,22 +252,16 @@ export function excludeRangesFromRoute(
   cropEnd: number,
   deletedRanges: DeletedRange[],
 ): GeoJSON.FeatureCollection {
-  const allCoords: number[][] = []
-  for (const f of geojson.features) {
-    const g = f.geometry
-    if (g.type === 'LineString') allCoords.push(...g.coordinates)
-    else if (g.type === 'MultiLineString') for (const line of g.coordinates) allCoords.push(...line)
-  }
+  const allCoords = getAllRouteCoords(geojson)
   if (allCoords.length === 0) return { type: 'FeatureCollection', features: [] }
 
   const total = allCoords.length
-  const cropStartIdx = Math.floor(total * Math.max(0, cropStart) / 100)
-  const cropEndIdx = Math.ceil(total * Math.min(100, cropEnd) / 100)
+  const [cropStartIdx, cropEndIdx] = pctToIndexRange(total, cropStart, cropEnd)
 
   // Convert % ranges to index pairs, clamp to crop window, drop zero-width ranges
-  let blocked = deletedRanges.map(r => [
-    Math.max(cropStartIdx, Math.floor(total * r.start / 100)),
-    Math.min(cropEndIdx, Math.ceil(total * r.end / 100)),
+  let blocked = mergeDeletedRanges(deletedRanges).map(r => [
+    Math.max(cropStartIdx, pctToIndexRange(total, r.start, r.end)[0]),
+    Math.min(cropEndIdx, pctToIndexRange(total, r.start, r.end)[1]),
   ] as [number, number]).filter(([s, e]) => e > s)
   blocked.sort((a, b) => a[0] - b[0])
 
@@ -184,10 +326,7 @@ export function detectDisconnectedRanges(
   for (let i = 0; i < total - 1; i++) {
     const [lng1, lat1] = allCoords[i]
     const [lng2, lat2] = allCoords[i + 1]
-    const dlat = (lat2 - lat1) * 111320
-    const dlng = (lng2 - lng1) * 111320 * Math.cos((lat1 * Math.PI) / 180)
-    const dist = Math.sqrt(dlat * dlat + dlng * dlng)
-    if (dist > gapThresholdMeters) {
+    if (distanceMeters([lng1, lat1], [lng2, lat2]) > gapThresholdMeters) {
       ranges.push({
         start: (i / (total - 1)) * 100,
         end: ((i + 1) / (total - 1)) * 100,

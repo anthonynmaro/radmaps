@@ -1,14 +1,7 @@
 // render-worker-v4/queue.ts
 //
-// Print queue consumer entry point. Run with `node queue.js` (or `tsx
-// queue.ts` in dev). This is intentionally a separate process from the
-// Express HTTP server in `index.ts` — see processJob.ts for the rationale
-// (process isolation around long, OOM-prone Native renders).
-//
-// In single-process deployments the HTTP server can be started in this
-// same Node program by setting PRINT_WORKER_HTTP=embedded — but the
-// default is "queue only", paired with a separate Railway service that
-// runs `node index.js`.
+// Print queue consumer entry point. It claims final-print jobs from Postgres,
+// calls Browserless, validates/uploads the artifact, and submits Gelato orders.
 //
 // Graceful shutdown:
 //   • SIGINT / SIGTERM → AbortController → consumer loop drains.

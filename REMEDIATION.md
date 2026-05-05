@@ -10,10 +10,10 @@
 
 The core product loop (GPX upload → style → order) is solid. The biggest structural risks are:
 1. **IDOR on the public map API** — any authenticated user can read any other user's private map data.
-2. **SSRF in the render worker** — `logo_url` is embedded into Puppeteer HTML without domain validation.
-3. **XML bomb vulnerability** in GPX parsing — a crafted upload can exhaust server memory.
+2. **SSRF / remote asset risk in render pages** — Browserless will fetch images/logos referenced by the poster unless inputs are trusted or copied to storage first.
+3. **Webhook/idempotency gaps** — Stripe and Gelato retries need stronger durable stage tracking.
 4. **No state management layer** — StyleConfig exists in three places simultaneously (DB, composable, component), causing race conditions.
-5. **Render worker is a single point of failure** — in-memory job queue, no retries, no rate limiting.
+5. **Render capacity and observability** — final jobs are queued, but proof renders still need throttling and queue/operator alerts need hardening.
 
 ---
 
@@ -42,9 +42,10 @@ Switch to anon client instead of service key for this endpoint — RLS handles t
 
 ---
 
-### SEC-2 · SSRF: Render Worker Embeds logo_url Without Validation
-**File:** `render-worker/index.js` (logoHtml function)  
-**Risk:** Authenticated user sets `logo_url` to `http://169.254.169.254/...` → headless Chrome fetches internal AWS metadata.
+### SEC-2 · SSRF: User-Provided Render Assets Need a Trust Boundary
+**File:** Browserless render pages / future logo and image inputs
+**Status:** The legacy `render-worker/` Puppeteer path has been removed. Keep this issue open for current/future Browserless-rendered logos and user images.
+**Risk:** Authenticated user sets an image/logo URL to `http://169.254.169.254/...` or another internal URL and the renderer fetches it.
 
 **Fix:**
 ```javascript
@@ -71,24 +72,14 @@ return `<img src="${safeUrl}" ... />`
 
 ---
 
-### SEC-3 · DoS: GPX Parser Vulnerable to XML Bomb (Billion Laughs)
+### SEC-3 · DoS: GPX Parser Vulnerable to XML Bomb (Billion Laughs) — Resolved
 **File:** `utils/gpx.ts`, `server/api/maps/index.post.ts`  
-**Risk:** Crafted GPX with recursive entity expansion exhausts server memory, crashing the Vercel function.
+**Status:** Implemented 2026-05-05. GPX uploads are capped at 5 MB, client and
+server reject `DOCTYPE`/`ENTITY` declarations, server parsing uses maintained
+`@xmldom/xmldom`, and parser behavior is covered by `tests/gpx.test.ts`.
 
-**Fix:**
-```typescript
-// Add file size guard before parsing (maps/index.post.ts)
-const gpxText = await gpxFile.text()
-if (gpxText.length > 5 * 1024 * 1024) {  // 5MB cap
-  throw createError({ statusCode: 413, message: 'GPX file too large (max 5 MB)' })
-}
-
-// In gpx.ts, replace DOMParser with fast-xml-parser (no entity expansion by default)
-// npm install fast-xml-parser
-import { XMLParser } from 'fast-xml-parser'
-const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' })
-const dom = parser.parse(gpxText)
-```
+Residual note: keep this covered by `npm audit` because XML parser advisories
+are high-impact for upload endpoints.
 
 ---
 
@@ -597,8 +588,8 @@ Add secondary sort by `id` to prevent non-deterministic results when two version
 | ID | Severity | Category | File | Description |
 |----|----------|----------|------|-------------|
 | SEC-1 | **CRITICAL** | Security/IDOR | `maps/public/[id].get.ts` | Any UUID reads any private map |
-| SEC-2 | **CRITICAL** | Security/SSRF | `render-worker/index.js` | logo_url embeds arbitrary URLs in Puppeteer |
-| SEC-3 | **CRITICAL** | Security/DoS | `utils/gpx.ts` | XML bomb in GPX upload |
+| SEC-2 | **CRITICAL** | Security/SSRF | Browserless render assets | User-provided logos/images need trusted storage or strict allowlist |
+| SEC-3 | **DONE** | Security/DoS | `utils/gpx.ts` | XML bomb guards added |
 | SEC-4 | **CRITICAL** | Backend | `orders/webhook.post.ts` | Duplicate Gelato orders on Stripe retry |
 | SEC-5 | **HIGH** | Security | `gelato/webhook.post.ts` | Conditional secret check — may accept unsigned webhooks |
 | BE-1 | **HIGH** | Backend | `maps/[id]/render.post.ts` | Map never transitions to 'rendering' status |
@@ -633,7 +624,7 @@ Add secondary sort by `id` to prevent non-deterministic results when two version
 **Week 1 — Security Hardening**
 - [ ] SEC-1: Add `is_public` flag, fix public map IDOR
 - [ ] SEC-2: Validate `logo_url` domain in render worker
-- [ ] SEC-3: Add GPX size cap + switch to safe XML parser
+- [x] SEC-3: Add GPX size/entity guards + maintained XML parser
 - [ ] SEC-4: Stripe event deduplication table
 - [ ] SEC-5: Hard-fail if Gelato webhook secret not set
 

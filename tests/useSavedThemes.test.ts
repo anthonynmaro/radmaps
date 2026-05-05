@@ -5,10 +5,11 @@ import {
   SAVED_THEME_EXCLUDED_KEYS,
   type SavedTheme,
 } from '../composables/useSavedThemes'
-import type { StyleConfig } from '../types'
+import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
 
 // Minimal StyleConfig with both style fields and content fields populated
 const mockConfig: StyleConfig = {
+  ...DEFAULT_STYLE_CONFIG,
   preset: 'minimalist',
   base_tile_style: 'carto-light',
   color_theme: 'chalk',
@@ -62,7 +63,13 @@ const mockConfig: StyleConfig = {
   map_frozen: true,
   map_zoom: 12.5,
   map_center: [22.35, 40.09],
-  labels: { distance: true, elevation: true, duration: false, date: false, pace: false, speed: false, calories: false, heartrate: false },
+  labels: {
+    show_title: true,
+    show_distance: true,
+    show_elevation_gain: true,
+    show_date: false,
+    show_location: true,
+  },
 }
 
 describe('createSavedTheme', () => {

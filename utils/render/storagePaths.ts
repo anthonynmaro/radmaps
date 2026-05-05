@@ -4,7 +4,6 @@
 //
 // The exact path layout (per v4 §"Storage paths"):
 //
-//   renders/cache/map/{render_cache_key}.png
 //   renders/proof/{map_id}/{proof_render_hash}.jpg
 //   renders/final/{stripe_session_id}/{product_uid}/{print_hash}.jpg
 //
@@ -13,11 +12,6 @@
 // gets its own immutable snapshot (including its own final artifact)
 // so that historical sessions remain valid when a customer creates a
 // new session for the same order.
-
-/** `renders/cache/map/{render_cache_key}.png` — raw map (oversized, no chrome). */
-export function getMapCachePath(renderCacheKey: string): string {
-  return `renders/cache/map/${renderCacheKey}.png`
-}
 
 /** `renders/proof/{map_id}/{proof_render_hash}.jpg` — proof composite. */
 export function getProofPath(mapId: string, proofRenderHash: string): string {

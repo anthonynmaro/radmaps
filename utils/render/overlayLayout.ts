@@ -291,14 +291,10 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
     const left = candidates.filter((c) => c.dotX <= W / 2).sort((a, b) => a.dotY - b.dotY)
     const right = candidates.filter((c) => c.dotX > W / 2).sort((a, b) => a.dotY - b.dotY)
 
-    // Editor parity (MapPreview.vue:1196-1199): fixed left/right column
-    // X positions and vertical margin. The editor accepts that long
-    // label text extends past the canvas edge with overflow:visible —
-    // the customer's approved proof shows that same clipping, so the
-    // worker must reproduce it identically. Don't try to be smarter
-    // than the editor: that produces the wrong proof.
-    const leftX = W * 0.13
-    const rightX = W * 0.87
+    // Editor parity: leader labels sit in side columns, then pack near
+    // their route anchors instead of spreading across the full map height.
+    const leftX = W * 0.16
+    const rightX = W * 0.84
     // Stay inside the map area: above the footer band and below the
     // header band. Without headerH/footerH passed, we fall back to the
     // editor's vMargin = H*0.08. The editor renders its leader-label
@@ -313,39 +309,33 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
     function distribute(
       cands: Candidate[],
     ): number[] {
-      // Editor parity (MapPreview.vue:1201-1205 evenY): pure even
-      // distribution between top and bottom margins. The editor does
-      // NOT do pin-collision avoidance — leader labels and pin labels
-      // can overlap in the editor and the customer accepts that layout.
       const count = cands.length
       if (count === 0) return []
       const minY = topMargin
       const maxY = H - bottomMargin
-      if (count === 1) return [(minY + maxY) / 2]
-      const segments: Array<[number, number]> = [[minY, maxY]]
-      const totalLength = maxY - minY
 
-      // Multi-candidate: even spacing across the union of available
-      // segments. Each label maps to a target distance into the union;
-      // walk the segments to translate distance → Y. Labels stay in
-      // order and never land inside a reserved zone.
-      const step = totalLength / (count - 1)
-      const ys: number[] = []
-      for (let i = 0; i < count; i++) {
-        let remaining = step * i
-        let placed = false
-        for (const [a, b] of segments) {
-          const len = b - a
-          if (remaining <= len) {
-            ys.push(a + remaining)
-            placed = true
-            break
-          }
-          remaining -= len
-        }
-        if (!placed) ys.push(segments[segments.length - 1][1])
+      const minGap = Math.max(15, H * 0.018)
+      const ys = cands.map((c) => Math.min(Math.max(c.dotY, minY), maxY))
+
+      for (let i = 1; i < ys.length; i++) {
+        ys[i] = Math.max(ys[i], ys[i - 1] + minGap)
       }
-      return ys
+
+      const overflow = ys[ys.length - 1] - maxY
+      if (overflow > 0) {
+        for (let i = 0; i < ys.length; i++) ys[i] -= overflow
+      }
+
+      for (let i = ys.length - 2; i >= 0; i--) {
+        ys[i] = Math.min(ys[i], ys[i + 1] - minGap)
+      }
+
+      const underflow = minY - ys[0]
+      if (underflow > 0) {
+        for (let i = 0; i < ys.length; i++) ys[i] += underflow
+      }
+
+      return ys.map((y) => Math.min(Math.max(y, minY), maxY))
     }
 
     // Custom-positioned labels (saved via drag in the editor) take their

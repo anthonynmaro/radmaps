@@ -5,8 +5,8 @@
  *
  * On payment success:
  *   1. Create Order record in Supabase
- *   2. Place print order via Gelato POST /v4/orders
- *   3. Generate signed digital download URL
+ *   2. Queue custom print renders, or place premade/digital orders
+ *   3. Generate signed digital download URL when needed
  *   4. Send confirmation email via Resend
  */
 import Stripe from 'stripe'
@@ -62,23 +62,15 @@ export default defineEventHandler(async (event) => {
     const isDigital = productUid === 'digital'
     const isPremade = meta.kind === 'premade'
 
-    // ── Plan v4: look up the immutable design snapshot (if one was frozen
-    //    at checkout session creation).  If present, the snapshot is the
-    //    source of truth for the print render — never re-read the live
-    //    `maps` row for design fields.  Sessions created before the v4
-    //    deploy will not have a snapshot; they fall through to the legacy
-    //    flow below.
+    // Immutable design snapshot frozen at checkout. For custom physical
+    // orders this is required; final print renders never re-read the live map.
     const { data: snapshot } = await supabase
       .from('order_snapshots')
       .select('*')
       .eq('stripe_session_id', session.id)
       .maybeSingle()
 
-    // Feature flag: when true, skip the legacy Gelato call here and let
-    // the print render queue consumer (Phase 8) handle submission.
-    // Default false — we're rolling out cautiously.
-    const queueEnabled =
-      process.env.RENDER_PIPELINE_V4_QUEUE_ENABLED === 'true' && !!snapshot && !isPremade && !isDigital
+    const shouldQueueFinalRender = !!snapshot && !isPremade && !isDigital
 
     // Import premade catalog lazily to keep custom-order hot path small
     let premade: Awaited<ReturnType<typeof import('~/data/premade-maps').getPremadeBySlug>> = undefined
@@ -87,9 +79,9 @@ export default defineEventHandler(async (event) => {
       premade = getPremadeBySlug(meta.premade_slug)
     }
 
-    // Build the order row. For premade orders, `map_id` is null and
-    // `premade_slug` / `premade_title` identify the product. For guests,
-    // `user_id` is null and `guest_email` identifies the customer.
+    // Build the order row. Keep custom print orders compatible with older
+    // production schemas that have not yet applied the guest/premade columns.
+    // Premade/guest checkout still requires the guest-orders migration.
     const orderPayload: Record<string, unknown> = {
       stripe_pi_id: session.payment_intent as string,
       product_uid: productUid,
@@ -101,16 +93,17 @@ export default defineEventHandler(async (event) => {
       status: 'paid',
       user_id: meta.user_id || null,
       map_id: isPremade ? null : (meta.map_id || null),
-      guest_email: meta.guest_email || null,
-      premade_slug: isPremade ? meta.premade_slug : null,
-      premade_title: isPremade ? meta.premade_title : null,
     }
 
-    // v4: tag the new order with the active session and the v4 fulfillment
-    // status if the new pipeline is enabled and we have a snapshot.
+    if (meta.guest_email) orderPayload.guest_email = meta.guest_email
+    if (isPremade) {
+      orderPayload.premade_slug = meta.premade_slug
+      orderPayload.premade_title = meta.premade_title
+    }
+
     if (snapshot) {
       orderPayload.active_stripe_session_id = session.id
-      orderPayload.fulfillment_status = queueEnabled ? 'rendering_print' : 'paid'
+      orderPayload.fulfillment_status = shouldQueueFinalRender ? 'rendering_print' : 'paid'
     }
 
     const { data: order, error: orderError } = await supabase
@@ -138,10 +131,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // v4: if the queue path is enabled, insert a print_render_jobs row and
-    // return early — the queue consumer will render and submit to Gelato
-    // asynchronously.  The legacy Gelato call below is skipped.
-    if (queueEnabled && snapshot) {
+    // Custom physical orders must go through the final print queue. The old
+    // fallback of sending map.render_url directly to Gelato is intentionally
+    // gone: map.render_url is a proof, not the final print artifact.
+    if (shouldQueueFinalRender && snapshot) {
       const printHash = computePrintHash({
         mapContentHash: snapshot.map_content_hash,
         chromeHash: snapshot.chrome_hash,
@@ -161,9 +154,24 @@ export default defineEventHandler(async (event) => {
         )
       if (jobError) {
         console.error('[stripe/webhook] Failed to enqueue print_render_jobs:', jobError)
-        // If queueing fails, fall back to the legacy Gelato call below.
+        await supabase.from('orders').update({
+          fulfillment_status: 'render_queue_failed',
+          status: 'fulfillment_failed',
+        }).eq('id', order.id)
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
+          to: shippingAddress.email,
+          subject: `Your RadMaps order is confirmed! 🗺️`,
+          html: buildConfirmationEmail({
+            order,
+            productTitle: meta.map_title || 'RadMaps Print',
+            digitalUrl: undefined,
+            isDigital: false,
+            isGuest: !meta.user_id,
+          }),
+        })
+        return { received: true, queued: false, error: 'render_queue_failed' }
       } else {
-        // Send the same confirmation email the legacy path would have sent.
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
           to: shippingAddress.email,
@@ -178,6 +186,30 @@ export default defineEventHandler(async (event) => {
         })
         return { received: true, queued: true }
       }
+    }
+
+    if (!isPremade && !isDigital && !snapshot) {
+      console.error('[stripe/webhook] Missing order snapshot for custom print order:', {
+        stripe_session_id: session.id,
+        map_id: meta.map_id,
+      })
+      await supabase.from('orders').update({
+        fulfillment_status: 'snapshot_missing',
+        status: 'fulfillment_failed',
+      }).eq('id', order.id)
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
+        to: shippingAddress.email,
+        subject: `Your RadMaps order is confirmed! 🗺️`,
+        html: buildConfirmationEmail({
+          order,
+          productTitle: meta.map_title || 'RadMaps Print',
+          digitalUrl: undefined,
+          isDigital: false,
+          isGuest: !meta.user_id,
+        }),
+      })
+      return { received: true, queued: false, error: 'snapshot_missing' }
     }
 
     // Resolve the print file URL.
@@ -225,6 +257,7 @@ export default defineEventHandler(async (event) => {
           printFileUrl,
           productUid,
           gelatoApiKey: config.gelatoApiKey,
+          orderType: config.gelatoOrderType as 'order' | 'draft',
         })
         finalStatus = 'in_production'
       } catch (err) {
@@ -266,12 +299,14 @@ async function placeGelatoOrder({
   printFileUrl,
   productUid,
   gelatoApiKey,
+  orderType = 'order',
 }: {
   order: Record<string, unknown>
   shippingAddress: Record<string, string>
   printFileUrl: string | undefined
   productUid: string
   gelatoApiKey: string
+  orderType?: 'order' | 'draft'
 }): Promise<string> {
   if (!printFileUrl) {
     throw createError({ statusCode: 422, message: 'Print file URL is not available for this order.' })
@@ -286,6 +321,7 @@ async function placeGelatoOrder({
   const lastName = nameParts.slice(1).join(' ') || firstName
 
   const gelatoOrder = {
+    orderType,
     orderReferenceId: String(order.id),
     customerReferenceId: String(order.user_id ?? order.guest_email ?? order.id),
     currency: 'USD',

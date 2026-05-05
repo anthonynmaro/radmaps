@@ -162,7 +162,7 @@ async function copyLink() {
 }
 
 const ogImage = computed(() =>
-  map.value?.render_url ?? map.value?.thumbnail_url ?? undefined
+  map.value?.proof_render_url ?? map.value?.thumbnail_url ?? map.value?.render_url ?? undefined
 )
 
 const pageDescription = computed(() => {

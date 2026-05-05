@@ -258,12 +258,17 @@
               >↗ End</button>
             </div>
           </div>
-          <SliderRow label="Start" :value="local.route_crop_start ?? 0" :min="0" :max="100" :step="0.1" :display="segmentPctDisplay" @change="set('route_crop_start', Math.min($event, (local.route_crop_end ?? 100) - 0.1))" />
-          <SliderRow label="End" :value="local.route_crop_end ?? 100" :min="0" :max="100" :step="0.1" :display="segmentPctDisplay" @change="set('route_crop_end', Math.max($event, (local.route_crop_start ?? 0) + 0.1))" />
+          <SliderRow label="Start" :value="local.route_crop_start ?? 0" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="set('route_crop_start', Math.min($event, (local.route_crop_end ?? 100) - segmentDistanceStepPct))" />
+          <SliderRow label="End" :value="local.route_crop_end ?? 100" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="set('route_crop_end', Math.max($event, (local.route_crop_start ?? 0) + segmentDistanceStepPct))" />
           <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
           <div class="flex items-center justify-between mb-2">
             <p class="text-[10px] font-semibold uppercase" style="letter-spacing: 0.14em; color: #A8A29E;">Delete sections</p>
             <div class="flex gap-1">
+              <button
+                @click="emit('request-brush-delete')"
+                class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
+                :style="activeDeleteBrush ? 'background:#FEE2E2;color:#991B1B;border:1px solid #EF4444;' : 'background:white;color:#78716C;border:1px solid #E7E5E4;'"
+              >Brush erase</button>
               <button
                 @click="emit('request-plot', { segId: 'route-delete-pending', field: 'start' })"
                 class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
@@ -279,6 +284,17 @@
           </div>
           <div v-if="isDeletePlotActive" class="mb-2 px-2 py-1.5 rounded-lg text-[10px]" style="background:#FEF9C3;color:#78350F;">
             {{ activePlotMode?.field === 'start' ? 'Click route: mark delete start…' : 'Click route: mark delete end…' }}
+          </div>
+          <div v-if="activeDeleteBrush" class="mb-2">
+            <SliderRow
+              label="Brush size"
+              :value="deleteBrushSize ?? 18"
+              :min="8"
+              :max="48"
+              :step="2"
+              :display="(v: number) => Math.round(v) + ' px'"
+              @change="emit('update-brush-size', $event)"
+            />
           </div>
           <div v-if="(local.route_deleted_ranges ?? []).length > 0" class="space-y-1 mb-2">
             <div
@@ -520,51 +536,6 @@
           </div>
         </div>
 
-      </template>
-
-      <!-- ─── STYLE TAB ─────────────────────────────────────────────────────── -->
-      <template v-else-if="activeTab === 'style'">
-
-        <V4Card title="Colors" hint="Auto-set by theme · override below" :default-open="true">
-          <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
-          <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
-          <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
-          <ColorRow label="Water" :value="local.water_color" @change="set('water_color', $event)" />
-        </V4Card>
-
-        <V4Card title="Typography" :default-open="false">
-          <div class="flex items-center gap-2 mb-3 px-2.5 py-2 rounded-lg" style="background: #F5F5F4;">
-            <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
-            <p class="text-[10px] leading-snug" style="color: #57534E;">
-              <span class="font-semibold" style="color: #1C1917;">{{ activeThemeTypography }}</span> is set by your theme. Pick below to override.
-            </p>
-          </div>
-          <template v-for="group in fontGroups" :key="group.label">
-            <p class="text-[9px] font-semibold uppercase mb-1.5 mt-3 first:mt-0" style="letter-spacing: 0.14em; color: #A8A29E;">{{ group.label }}</p>
-            <div class="grid grid-cols-2 gap-1.5">
-              <FontButton
-                v-for="fontName in group.fonts"
-                :key="fontName"
-                :label="fontName"
-                :font="fontName"
-                :active="local.font_family === fontName"
-                @click="selectFont(fontName)"
-              />
-            </div>
-          </template>
-        </V4Card>
-
-        <V4Card title="Frame & padding" :default-open="false">
-          <div class="mb-3">
-            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Border</p>
-            <div class="grid grid-cols-3 gap-1.5">
-              <SegmentButton v-for="b in BORDERS" :key="b.value" :label="b.label" :active="local.border_style === b.value" @click="set('border_style', b.value)" />
-            </div>
-          </div>
-          <SliderRow label="Map padding" :value="local.padding_factor" :min="0.05" :max="0.35" :step="0.01"
-            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('padding_factor', $event)" />
-        </V4Card>
-
         <V4Card v-if="sections.trailSegmentsCard" title="Trail segments" :default-open="false">
           <p class="text-[10px] mb-3" style="color: #A8A29E;">Name and color sections of your route to build a map legend</p>
 
@@ -599,10 +570,10 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Dot size</span>
-                  <input type="range" min="1" max="10" step="0.5" :value="local.segment_dot_size ?? 4"
+                  <input type="range" min="0.5" max="2.5" step="0.25" :value="Math.min(local.segment_dot_size ?? 1.5, 2.5)"
                     class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
                     @change="set('segment_dot_size', parseFloat(($event.target as HTMLInputElement).value))" />
-                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ local.segment_dot_size ?? 4 }}px</span>
+                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ Math.min(local.segment_dot_size ?? 1.5, 2.5) }}px</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Labels</span>
@@ -611,6 +582,25 @@
                     @change="set('leader_label_scale', parseFloat(($event.target as HTMLInputElement).value))" />
                   <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 28px;">{{ Math.round((local.leader_label_scale ?? 1.0) * 100) }}%</span>
                 </div>
+                <ToggleRow label="Auto-fit labels" :value="local.leader_label_auto_fit !== false" @change="set('leader_label_auto_fit', $event)" />
+                <div>
+                  <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.12em; color: #A8A29E;">Label font</p>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <SegmentButton label="Poster" :active="!local.leader_label_font_family" @click="set('leader_label_font_family', undefined)" />
+                    <SegmentButton
+                      v-for="font in PIN_FONTS"
+                      :key="font.id"
+                      :label="font.label"
+                      :active="local.leader_label_font_family === font.id"
+                      @click="set('leader_label_font_family', font.id)"
+                    />
+                  </div>
+                </div>
+                <button
+                  class="w-full py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer"
+                  style="border: 1px solid #E7E5E4; color: #78716C; background: white;"
+                  @click="applyTrailLabelTypographyAuto"
+                >Auto select typography</button>
                 <div class="flex items-center justify-between pt-1">
                   <span class="text-xs" style="color: #44403C;">Color</span>
                   <label class="relative flex items-center gap-1.5 cursor-pointer">
@@ -679,8 +669,8 @@
                       >↗ End</button>
                     </div>
                   </div>
-                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="0.1" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - 0.1) })" />
-                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="0.1" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + 0.1) })" />
+                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentDistanceStepPct) })" />
+                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentDistanceStepPct) })" />
                 </div>
                 <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
                 <div class="flex items-center justify-between">
@@ -720,10 +710,98 @@
 
       </template>
 
+      <!-- ─── STYLE TAB ─────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'style'">
+
+        <V4Card title="Colors" hint="Auto-set by theme · override below" :default-open="true">
+          <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
+          <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
+          <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
+          <ColorRow label="Water" :value="local.water_color" @change="set('water_color', $event)" />
+        </V4Card>
+
+        <V4Card title="Typography" :default-open="false">
+          <div class="flex items-center gap-2 mb-3 px-2.5 py-2 rounded-lg" style="background: #F5F5F4;">
+            <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
+            <p class="text-[10px] leading-snug" style="color: #57534E;">
+              <span class="font-semibold" style="color: #1C1917;">{{ activeThemeTypography }}</span> is set by your theme. Pick below to override.
+            </p>
+          </div>
+          <template v-for="group in fontGroups" :key="group.label">
+            <p class="text-[9px] font-semibold uppercase mb-1.5 mt-3 first:mt-0" style="letter-spacing: 0.14em; color: #A8A29E;">{{ group.label }}</p>
+            <div class="grid grid-cols-2 gap-1.5">
+              <FontButton
+                v-for="fontName in group.fonts"
+                :key="fontName"
+                :label="fontName"
+                :font="fontName"
+                :active="local.font_family === fontName"
+                @click="selectFont(fontName)"
+              />
+            </div>
+          </template>
+        </V4Card>
+
+        <V4Card title="Frame & padding" :default-open="false">
+          <div class="mb-3">
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Border</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <SegmentButton v-for="b in BORDERS" :key="b.value" :label="b.label" :active="local.border_style === b.value" @click="set('border_style', b.value)" />
+            </div>
+          </div>
+          <SliderRow label="Map padding" :value="local.padding_factor" :min="0.05" :max="0.35" :step="0.01"
+            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('padding_factor', $event)" />
+        </V4Card>
+
+
+
+      </template>
+
       <!-- ─── TEXT TAB ──────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'text'">
 
-        <V4Card title="Poster text" :default-open="true">
+        <V4Card
+          v-if="activePosterTextMeta"
+          :key="`poster-text-${activePosterTextMeta.field}`"
+          :title="activePosterTextMeta.title"
+          hint="Selected poster text"
+          :default-open="true"
+        >
+          <TextRow
+            :label="activePosterTextMeta.inputLabel"
+            :value="activePosterTextValue"
+            :placeholder="activePosterTextMeta.placeholder"
+            @change="setActivePosterTextValue($event)"
+          />
+          <SliderRow
+            :label="`${activePosterTextMeta.title} size`"
+            :value="activePosterTextScale"
+            :min="0.5"
+            :max="2.0"
+            :step="0.05"
+            :display="(v: number) => Math.round(v * 100) + '%'"
+            @change="setActivePosterTextScale($event)"
+          />
+          <ColorRow label="Text color" :value="local.label_text_color" @change="set('label_text_color', $event)" />
+          <div>
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Font</p>
+            <template v-for="group in fontGroups" :key="group.label">
+              <p class="text-[9px] font-semibold uppercase mb-1 mt-2 first:mt-0" style="letter-spacing: 0.12em; color: #C5C0BB;">{{ group.label }}</p>
+              <div class="grid grid-cols-2 gap-1">
+                <FontButton
+                  v-for="fontName in group.fonts"
+                  :key="fontName"
+                  :label="fontName"
+                  :font="fontName"
+                  :active="local.font_family === fontName"
+                  @click="selectFont(fontName)"
+                />
+              </div>
+            </template>
+          </div>
+        </V4Card>
+
+        <V4Card v-else-if="activeTextTarget?.type !== 'text-overlay'" title="Poster text" :default-open="true">
           <TextRow label="Trail name" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
           <SliderRow label="Trail name size" :value="local.title_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('title_scale', $event)" />
@@ -737,7 +815,7 @@
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('subtitle_scale', $event)" />
         </V4Card>
 
-        <V4Card title="Stats & labels" :default-open="false">
+        <V4Card v-if="activeTextTarget?.type !== 'text-overlay'" title="Stats & labels" :default-open="false">
           <ToggleRow label="Trail name" :value="local.labels.show_title" @change="setLabel('show_title', $event)" />
           <ToggleRow label="Distance" :value="local.labels.show_distance" @change="setLabel('show_distance', $event)" />
           <ToggleRow label="Elevation gain" :value="local.labels.show_elevation_gain" @change="setLabel('show_elevation_gain', $event)" />
@@ -747,7 +825,7 @@
           <ToggleRow label="RadMaps credit" :value="local.show_branding ?? true" @change="set('show_branding', $event)" />
         </V4Card>
 
-        <V4Card title="Logo" :default-open="false">
+        <V4Card v-if="activeTextTarget?.type !== 'text-overlay'" title="Logo" :default-open="false">
           <div v-if="sections.logoUploadArea"
             class="cursor-pointer"
             style="padding: 20px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
@@ -779,10 +857,16 @@
           </div>
         </V4Card>
 
-        <V4Card title="Text overlays" :default-open="false">
+        <V4Card title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
-            <div v-for="overlay in (local.text_overlays ?? [])" :key="overlay.id" class="overflow-hidden" style="border: 1px solid #F5F5F4; border-radius: 12px;">
-              <div class="flex items-center gap-2 px-3 py-2.5" style="background: #FAFAF9;">
+            <div
+              v-for="overlay in (local.text_overlays ?? [])"
+              :key="overlay.id"
+              class="overflow-hidden"
+              style="border: 1px solid #F5F5F4; border-radius: 12px;"
+              :style="activeOverlayId === overlay.id ? 'border-color: #2D6A4F; box-shadow: 0 0 0 1px #2D6A4F;' : undefined"
+            >
+              <div class="flex items-center gap-2 px-3 py-2.5" :style="activeOverlayId === overlay.id ? 'background: #DCEBE2;' : 'background: #FAFAF9;'">
                 <div class="w-3 h-3 rounded-full shrink-0" style="border: 1px solid white; box-shadow: 0 0 0 1px #E7E5E4;" :style="{ backgroundColor: overlay.color }" />
                 <span class="flex-1 text-xs truncate min-w-0" style="color: #1C1917;">{{ overlay.content || 'Empty text' }}</span>
                 <button class="transition-colors ml-1 shrink-0" style="color: #D6D3D1; background: none; border: none; cursor: pointer; padding: 0;" @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id">
@@ -902,6 +986,13 @@
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset } from '~/types'
 import { COLOR_THEMES } from '~/types'
+import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
+import { computeSectionVisibility } from '~/utils/stylePanelGating'
+
+type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
+type ActiveTextTarget =
+  | { type: 'poster-text'; field: PosterTextField }
+  | { type: 'text-overlay'; id: string }
 
 const THEME_THUMB: Record<string, {
   titlePosition: 'top' | 'bottom'
@@ -929,7 +1020,6 @@ const THEME_THUMB: Record<string, {
   'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
   'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
 }
-import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -942,9 +1032,13 @@ const props = defineProps<{
   totalDistanceKm?: number
   /** Which segment/crop field is currently being plotted on the map */
   activePlotMode?: { segId: string; field: 'start' | 'end' } | null
+  /** True while the map preview is in route brush erase mode */
+  activeDeleteBrush?: boolean
+  /** Brush radius in screen pixels for route erase mode */
+  deleteBrushSize?: number
+  /** Text element selected from the poster preview */
+  activeTextTarget?: ActiveTextTarget | null
 }>()
-
-import { computeSectionVisibility } from '~/utils/stylePanelGating'
 
 const sections = computed(() => computeSectionVisibility({
   hasRoute: props.hasRoute ?? false,
@@ -974,6 +1068,10 @@ const emit = defineEmits<{
   'request-plot': [payload: { segId: string; field: 'start' | 'end' }]
   /** User wants to auto-detect and hide GPS-dropout gaps */
   'request-detect-disconnected': []
+  /** User wants to paint-select route sections for deletion */
+  'request-brush-delete': []
+  /** User changed the paint-select brush radius */
+  'update-brush-size': [value: number]
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1038,6 +1136,69 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'text',  label: 'Text' },
 ]
 
+const POSTER_TEXT_FIELD_META: Record<PosterTextField, {
+  field: PosterTextField
+  title: string
+  inputLabel: string
+  placeholder: string
+  scaleKey: 'title_scale' | 'occasion_scale' | 'subtitle_scale'
+}> = {
+  trail_name: {
+    field: 'trail_name',
+    title: 'Trail Name',
+    inputLabel: 'Text',
+    placeholder: 'Defaults to map title',
+    scaleKey: 'title_scale',
+  },
+  occasion_text: {
+    field: 'occasion_text',
+    title: 'Occasion',
+    inputLabel: 'Text',
+    placeholder: 'e.g. Summit Day 2024',
+    scaleKey: 'occasion_scale',
+  },
+  location_text: {
+    field: 'location_text',
+    title: 'Subtitle',
+    inputLabel: 'Text',
+    placeholder: 'e.g. Moab, Utah',
+    scaleKey: 'subtitle_scale',
+  },
+}
+
+const activePosterTextMeta = computed(() => {
+  if (props.activeTextTarget?.type !== 'poster-text') return null
+  return POSTER_TEXT_FIELD_META[props.activeTextTarget.field]
+})
+
+const activePosterTextValue = computed(() => {
+  const meta = activePosterTextMeta.value
+  return meta ? (local[meta.field] ?? '') : ''
+})
+
+const activePosterTextScale = computed(() => {
+  const meta = activePosterTextMeta.value
+  return meta ? (local[meta.scaleKey] ?? 1.0) : 1.0
+})
+
+const activeOverlayId = computed(() =>
+  props.activeTextTarget?.type === 'text-overlay' ? props.activeTextTarget.id : null,
+)
+
+const textOverlayCardKey = computed(() =>
+  props.activeTextTarget?.type === 'text-overlay'
+    ? `text-overlays-${props.activeTextTarget.id}`
+    : 'text-overlays',
+)
+
+watch(() => props.activeTextTarget, (target) => {
+  if (!target) return
+  activeTab.value = 'text'
+  if (target.type === 'text-overlay') {
+    expandedOverlayId.value = target.id
+  }
+}, { deep: true })
+
 // ── Saved themes ───────────────────────────────────────────────────────────────
 const { themes: savedThemes, saveTheme, removeTheme } = useSavedThemes()
 
@@ -1066,6 +1227,18 @@ function applySavedTheme(saved: SavedTheme) {
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
   emit('update:modelValue', { ...local })
+}
+
+function setActivePosterTextValue(value: string) {
+  const meta = activePosterTextMeta.value
+  if (!meta) return
+  set(meta.field, value)
+}
+
+function setActivePosterTextScale(value: number) {
+  const meta = activePosterTextMeta.value
+  if (!meta) return
+  set(meta.scaleKey, value)
 }
 
 function setLabel(key: keyof StyleLabels, value: boolean) {
@@ -1121,6 +1294,14 @@ const PIN_FONTS: Array<{ id: FontFamily; label: string }> = [
   { id: 'Big Shoulders Display', label: 'Big Shoulders' },
 ]
 
+const SEGMENT_DISTANCE_STEP_MI = 0.05
+
+const segmentDistanceStepPct = computed(() => {
+  const totalMi = props.totalDistanceKm ? props.totalDistanceKm * 0.621371 : 0
+  if (!totalMi) return 0.01
+  return Math.max(0.001, Math.min(1, (SEGMENT_DISTANCE_STEP_MI / totalMi) * 100))
+})
+
 function addSegment() {
   const usedColors = (local.trail_segments ?? []).map(s => s.color)
   const nextColor = SEGMENT_COLORS.find(c => !usedColors.includes(c)) ?? SEGMENT_COLORS[0]
@@ -1147,6 +1328,13 @@ function applyToAll(patch: Partial<TrailSegment>) {
   set('trail_segments', (local.trail_segments ?? []).map(s => ({ ...s, ...patch })))
 }
 
+function applyTrailLabelTypographyAuto() {
+  local.leader_label_auto_fit = true
+  local.leader_label_scale = 1
+  local.leader_label_font_family = 'Big Shoulders Display'
+  emit('update:modelValue', { ...local })
+}
+
 function resetLabelPositions() {
   set('trail_segments', (local.trail_segments ?? []).map(({ label_lnglat: _, ...s }) => s))
 }
@@ -1155,9 +1343,9 @@ function segmentPctDisplay(pct: number): string {
   const km = props.totalDistanceKm
   if (km) {
     const mi = ((km * pct) / 100 * 0.621371)
-    return mi < 10 ? mi.toFixed(1) + ' mi' : Math.round(mi) + ' mi'
+    return mi < 100 ? mi.toFixed(2) + ' mi' : mi.toFixed(1) + ' mi'
   }
-  return pct.toFixed(1) + '%'
+  return pct.toFixed(2) + '%'
 }
 
 const isDeletePlotActive = computed(() => props.activePlotMode?.segId === 'route-delete-pending')

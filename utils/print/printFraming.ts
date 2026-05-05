@@ -4,14 +4,12 @@
 //
 // PrintFraming converts a (productUid, renderClass) pair into the full
 // pixel geometry the render pipeline needs:
-//   - the full bleed canvas (the *map viewport* — v4 oversized model)
+//   - the full bleed canvas (the Browserless viewport)
 //   - the trim box (where the paper will be cut)
 //   - the safe box (where chrome text MUST live)
 //
-// v4 locked decision #2: the map renders at the oversized full-bleed
-// viewport regardless of `label_position`. The compositor overlays the
-// chrome (title band / stats) on top of the map in chrome stage; the
-// map raster doesn't change shape based on label position.
+// The real Vue poster renders at the full-bleed viewport. Header/footer,
+// border, logo, and text live in MapPreview.vue.
 //
 // v4 locked decision #13: per-product DPI tiering uses
 // providerProfile.maxDpi rather than render-worker logic.
@@ -59,9 +57,8 @@ export interface PrintFraming {
   /** Safe box (text/chrome safe area): inset from trim by `safeMarginIn`. */
   safeBox: Box
   /**
-   * Map viewport in pixels. v4 model: this equals `bleedBox`. The map
-   * always fills the full bleed canvas; the chrome compositor handles
-   * label_position by drawing on top.
+   * Map viewport in pixels. Current model: this equals `bleedBox`; MapPreview
+   * handles all poster chrome inside that full Browserless viewport.
    */
   mapViewportPx: Box
 }

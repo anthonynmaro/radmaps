@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "github": {
+      "description": "GitHub API access for repository operations",
+      "toolsets": ["default"]
+    }
+  }
+}

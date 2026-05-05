@@ -15,7 +15,7 @@
 //   4. Set status='validating', capture the dedicated Nuxt render page via
 //      Browserless/Chromium.
 //   5. If response.status === 'invalid', throw ValidationFailedError.
-//   6. status='ready', orders.{print_file_url, fulfillment_status, print_render_id}.
+//   6. status='ready', orders.{print_file_url, fulfillment_status}.
 //   7. Submit to Gelato; on success status='submitted', orders.{gelato_order_id,
 //      fulfillment_status='submitted_to_gelato', status='in_production'}.
 //
@@ -55,7 +55,7 @@ export interface ProcessJobResult {
   error?: string
 }
 
-// HTTP response from /render-final.
+// Browserless final render response.
 export interface RenderFinalSuccess {
   status: 'rendered'
   artifact_path: string
@@ -106,8 +106,7 @@ export interface ProcessJobDeps {
 
 /**
  * Default renderFinal: capture the real Nuxt/MapPreview render page in
- * Browserless. Tests can still inject a fake renderFinal; production no
- * longer calls the old native/SVG compositor endpoint.
+ * Browserless. Tests can still inject a fake renderFinal.
  */
 function defaultRenderFinal(): ProcessJobDeps['renderFinal'] {
   return async ({ stripeSessionId, printHash }) => {
@@ -162,7 +161,7 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
 
     // ── 2. Load order ──────────────────────────────────────────────────────
     const orderRes = await client.query(
-      `SELECT id, user_id, guest_email, quantity, shipping_address,
+      `SELECT id, user_id, quantity, shipping_address,
               gelato_order_id, fulfillment_status, status,
               active_stripe_session_id
          FROM orders
@@ -176,7 +175,6 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
     const order = orderRes.rows[0] as {
       id: string
       user_id: string | null
-      guest_email: string | null
       quantity: number | string | null
       shipping_address: GelatoShippingAddress | null
       gelato_order_id: string | null
@@ -237,17 +235,6 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
     }
 
     // ── 5. Persist artifact URL on the order, mark print_ready ─────────────
-    // We don't have product_renders.id directly; look it up by the unique
-    // (stripe_session_id, product_uid, print_hash) triple that /render-final
-    // just inserted.
-    const renderRowRes = await client.query(
-      `SELECT id FROM product_renders
-        WHERE stripe_session_id = $1 AND product_uid = $2 AND print_hash = $3
-        LIMIT 1`,
-      [job.stripe_session_id, snapshot.product_uid, job.print_hash],
-    )
-    const productRenderId = (renderRowRes.rows[0] as { id?: string } | undefined)?.id ?? null
-
     await client.query(
       `UPDATE print_render_jobs
           SET status = 'ready', completed_at = now()
@@ -257,10 +244,9 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
     await client.query(
       `UPDATE orders
           SET print_file_url = $1,
-              fulfillment_status = 'print_ready',
-              print_render_id = $2
-        WHERE id = $3`,
-      [renderResp.render_url, productRenderId, order.id],
+              fulfillment_status = 'print_ready'
+        WHERE id = $2`,
+      [renderResp.render_url, order.id],
     )
 
     // ── 6. Submit to Gelato ────────────────────────────────────────────────
@@ -268,17 +254,18 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
       throw new Error(`orders.shipping_address is null for order_id=${order.id}`)
     }
     const gelatoApiKey = process.env.GELATO_API_KEY ?? ''
+    const gelatoOrderType = process.env.GELATO_ORDER_TYPE === 'draft' ? 'draft' : 'order'
     const gelato = await deps.gelatoPlace({
       order: {
         id: order.id,
         quantity: order.quantity,
         user_id: order.user_id,
-        guest_email: order.guest_email,
       },
       shippingAddress: order.shipping_address,
       printFileUrl: renderResp.render_url,
       productUid: snapshot.product_uid,
       gelatoApiKey,
+      orderType: gelatoOrderType,
     })
 
     // ── 7. Terminal success ────────────────────────────────────────────────

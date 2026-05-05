@@ -727,7 +727,9 @@ async function geocodePlace() {
   placeResults.value = []
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeQuery.value)}&format=json&limit=5`
-    const data: GeoResult[] = await $fetch(url, { headers: { 'Accept-Language': 'en' } })
+    const response = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+    if (!response.ok) throw new Error(`Geocoding failed with ${response.status}`)
+    const data = await response.json() as GeoResult[]
     placeResults.value = data
   } catch { /* ignore */ } finally {
     placeSearching.value = false
@@ -1085,9 +1087,15 @@ const parseFile = async (file: File) => {
   isParsing.value = true
   parseError.value = null
   try {
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Route file too large (max 5 MB)')
+    }
     const text = await file.text()
     let geojson: GeoJSON.FeatureCollection
     if (file.name.endsWith('.gpx')) {
+      if (/<!DOCTYPE|<!ENTITY/i.test(text)) {
+        throw new Error('GPX files with DOCTYPE or ENTITY declarations are not supported')
+      }
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(text, 'text/xml')
       if (xmlDoc.documentElement.tagName === 'parseerror') throw new Error('Invalid GPX file format')

@@ -7,7 +7,7 @@ import { existsSync } from 'fs'
 // their env must be populated before vitest collects suites. Node 20.12+
 // `loadEnvFile` is a no-op for missing files and never overrides existing
 // process.env keys, so layering is safe.
-for (const envPath of ['.env', 'render-worker/.env', 'render-worker-v4/.env']) {
+for (const envPath of ['.env', 'render-worker-v4/.env']) {
   if (existsSync(envPath)) {
     try { process.loadEnvFile(envPath) } catch { /* malformed — let tests fail loudly */ }
   }
@@ -34,8 +34,6 @@ export default defineConfig({
     tsconfigRaw: {
       compilerOptions: {
         target: 'ES2022',
-        module: 'ESNext',
-        moduleResolution: 'bundler',
         strict: true,
       },
     },

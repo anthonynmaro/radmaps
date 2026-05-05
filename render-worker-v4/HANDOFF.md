@@ -4,10 +4,10 @@
 **Status date:** 2026-05-04
 **Audience:** engineers and agents maintaining the final print render path.
 
-This file describes the current queue worker after the renderer course correction:
-RadMaps now captures the real Nuxt/Vue/MapLibre poster in Chromium through
-Browserless. The older MapLibre Native + Sharp/librsvg compositor plan is no
-longer the active direction.
+This file describes the current queue worker after the renderer course
+correction: RadMaps captures the real Nuxt/Vue/MapLibre poster in Chromium
+through Browserless. The old Puppeteer worker and alternate native/SVG spike
+have been removed.
 
 For the complete renderer and print-size guide, read
 [docs/RENDERING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/RENDERING.md).
@@ -19,6 +19,7 @@ For the complete renderer and print-size guide, read
 - `MapPreview.vue` is the only poster renderer.
 - Browserless screenshots `/render/map/[id]` for proofs and `/render/session/[stripeSessionId]` for final order renders.
 - Nuxt owns proof rendering; `render-worker-v4` owns final queued render orchestration.
+- The worker is not a separate poster renderer; it calls Browserless and handles queue/validation/upload/Gelato submission.
 - Final jobs remain queued in Postgres so Browserless concurrency is bounded.
 - Print geometry comes from `utils/print/printFraming.ts`; provider/product details come from `utils/print/providerProfile.ts`.
 - Sellable product sizes are locked to 2:3: `8x12`, `12x18`, `16x24`, `20x30`, `24x36`, `32x48`.
@@ -29,9 +30,10 @@ For the complete renderer and print-size guide, read
 
 ## Why The Direction Changed
 
-The native/SVG plan aimed to avoid Chromium instability, but it recreated the
-poster outside the editor. That brought back the exact drift problem RadMaps
-needed to eliminate: editor output and final print output could look different.
+The removed alternate-renderer plan aimed to avoid Chromium instability, but it
+recreated the poster outside the editor. That brought back the exact drift
+problem RadMaps needed to eliminate: editor output and final print output could
+look different.
 
 The active plan favors parity:
 
@@ -42,8 +44,8 @@ The active plan favors parity:
 
 This means DOM text is rasterized, but at 300 DPI that is acceptable for launch
 pending physical samples. If typography artifacts show up in samples, capture
-PNG first or investigate PDF support, but do not silently reintroduce a separate
-poster compositor.
+PNG first or investigate PDF support, but do not silently reintroduce a second
+poster renderer.
 
 ---
 
@@ -69,16 +71,15 @@ Important worker-side files:
 - `render-worker-v4/src/queue/consumer.ts` — Postgres queue polling and job claiming.
 - `render-worker-v4/src/queue/processJob.ts` — per-job orchestration.
 - `render-worker-v4/src/queue/renderFinalScreenshot.ts` — final Browserless screenshot implementation.
+- `render-worker-v4/src/queue/normalizeFinalScreenshot.ts` — DPR rounding crop back to exact provider pixels.
+- `render-worker-v4/src/queue/validateBrowserScreenshot.ts` — final artifact validation.
 - `render-worker-v4/src/browserless.ts` — worker-side Browserless client.
-- `render-worker-v4/src/validation.ts` — output sanity checks.
 - `render-worker-v4/src/storage.ts` — Supabase Storage uploads.
 - `render-worker-v4/src/queue/gelato.ts` — Gelato submission.
 - `render-worker-v4/src/config.ts` — env parsing.
 
-Legacy/native files still exist in `render-worker-v4/src/chrome` and
-`render-worker-v4/src/renderer`. Treat them as historical unless a future
-decision explicitly revives them. New work should not extend the SVG/librsvg
-poster path.
+The worker intentionally has no HTTP render endpoint, alternate poster renderer,
+tile cache, or legacy Puppeteer fallback.
 
 ---
 
@@ -92,10 +93,11 @@ flowchart TD
   D --> E["processJob loads snapshot"]
   E --> F["renderFinalScreenshot creates signed ticket"]
   F --> G["Browserless screenshots /render/session/[stripeSessionId]"]
-  G --> H["Validate dimensions, file, color, readiness, route/map health"]
-  H --> I["Upload artifact to Supabase Storage"]
-  I --> J["Insert or reuse product_renders"]
-  J --> K["Submit to Gelato"]
+  G --> H["Normalize DPR crop to exact final pixels"]
+  H --> I["Validate dimensions, file, color, readiness, route/map health"]
+  I --> J["Upload artifact to Supabase Storage"]
+  J --> K["Insert or reuse product_renders"]
+  K --> L["Submit to Gelato"]
 ```
 
 The render page never reads service-role data in browser code. It receives a
@@ -173,11 +175,11 @@ Important behavior:
 - `mapViewportPx` equals the full bleed canvas.
 
 Odd dimensions are expected. Example: `24x36` plus 3 mm bleed at 300 DPI is
-approximately `7271x10871`. This is why final renders currently use an exact
-viewport with `deviceScaleFactor: 1`.
-
-Do not switch final renders to half-size CSS + DPR 2 unless you implement
-explicit crop/pad handling and update validation accordingly.
+approximately `7271x10871`. Final renders use a half-size CSS viewport with
+`deviceScaleFactor: 2` to keep large Browserless captures under the current
+60 second timeout cap. The worker then crops any one-pixel DPR rounding surplus
+from the right/bottom edge before validation and upload. Never validate or
+upload the raw Browserless buffer for final prints.
 
 ---
 
@@ -190,8 +192,7 @@ SUPABASE_URL=...
 SUPABASE_SERVICE_KEY=...
 DATABASE_URL=...
 GELATO_API_KEY=...
-MAPBOX_TOKEN=...
-MAPTILER_TOKEN=...
+GELATO_ORDER_TYPE=draft
 
 BROWSERLESS_TOKEN=...
 BROWSERLESS_ENDPOINT=https://production-sfo.browserless.io
@@ -199,6 +200,19 @@ BROWSERLESS_TIMEOUT_MS=60000
 RENDER_TICKET_SECRET=...
 APP_URL=https://radmaps.studio
 ```
+
+For local E2E, prefer running from the repo root:
+
+```bash
+npm run print-worker:dev
+```
+
+That launcher merges root `.env` with optional `render-worker-v4/.env`
+overrides and sets `APP_URL` from `NUXT_PUBLIC_SITE_URL`. Standalone Railway
+deployments still need the worker service variables configured directly.
+
+Use `GELATO_ORDER_TYPE=draft` for faux orders. Gelato draft orders validate and
+appear in the dashboard without going into production until converted.
 
 `RENDER_TICKET_SECRET` must match the Nuxt app. Generate with:
 
@@ -278,6 +292,15 @@ Local Browserless smoke test shape:
 5. Trigger a proof render or insert a final test job.
 6. Confirm dimensions, file size, visual content, and readiness diagnostics.
 
+Full checkout E2E shape:
+
+1. Use Stripe `sk_test_...` and `pk_test_...` keys.
+2. Run `stripe listen --forward-to localhost:3001/api/orders/webhook` and copy the printed `whsec_...` into `.env`.
+3. Set `DATABASE_URL`, Browserless vars, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, and `GELATO_ORDER_TYPE=draft`.
+4. Run `npm run e2e:readiness`.
+5. Run `npm run print-worker:dev`.
+6. Pay in Checkout with Stripe test card `4242 4242 4242 4242`.
+
 For Google font-heavy tests through ngrok, prefer a bot User-Agent approach over
 the `ngrok-skip-browser-warning` request header. The header can trigger CORS
 preflight behavior that breaks font loading.
@@ -317,7 +340,6 @@ Until then, keep sellable products at 2:3.
 - Proof rendering still needs abuse/rate limiting.
 - Browserless timeout behavior should be monitored under real load.
 - Logo and future uploaded image sources must remain whitelisted or copied into trusted storage.
-- The old native/SVG files may confuse future maintainers; avoid extending them unless the architecture changes again.
 - Typecheck currently has broader repo issues outside this renderer handoff; keep renderer tests and builds green while those are cleaned up.
 
 ---

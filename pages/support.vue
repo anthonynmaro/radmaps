@@ -163,11 +163,12 @@ definePageMeta({ layout: 'default' })
 const lookupEmail = ref('')
 const lookupOrderId = ref('')
 const lookupLoading = ref(false)
-const lookupResult = ref<Array<{
+type OrderLookupRow = {
   id: string; status: string; product: string
   tracking_code?: string; carrier?: string
   has_digital: boolean; created_at: string; title?: string
-}> | null>(null)
+}
+const lookupResult = ref<OrderLookupRow[] | null>(null)
 const lookupError = ref<string | null>(null)
 
 async function lookupOrder() {
@@ -179,8 +180,9 @@ async function lookupOrder() {
       method: 'POST',
       body: { email: lookupEmail.value, order_id: lookupOrderId.value },
     })
-    lookupResult.value = data as typeof lookupResult.value
-    if (!lookupResult.value?.length) {
+    const rows = data as OrderLookupRow[]
+    lookupResult.value = rows
+    if (rows.length === 0) {
       lookupError.value = 'No order found with that email and order ID.'
     }
   } catch (err: unknown) {

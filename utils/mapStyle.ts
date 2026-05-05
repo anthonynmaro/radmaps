@@ -559,20 +559,16 @@ function segmentHandleSource(): object {
   }
 }
 
+export function effectiveSegmentDotRadius(config: StyleConfig): number {
+  const configured = typeof config.segment_dot_size === 'number' && Number.isFinite(config.segment_dot_size)
+    ? config.segment_dot_size
+    : 1.5
+  return Math.min(Math.max(configured, 0.5), 2.5)
+}
+
 function segmentHandleLayers(config: StyleConfig): object[] {
-  const dotR = config.segment_dot_size ?? 4
+  const dotR = effectiveSegmentDotRadius(config)
   return [
-    {
-      id: 'segment-handle-halo',
-      type: 'circle',
-      source: 'segment-handles',
-      paint: {
-        'circle-radius': dotR + 3,
-        'circle-color': config.segment_casing_color ?? '#FFFFFF',
-        'circle-opacity': 0.88,
-        'circle-blur': 0.15,
-      },
-    },
     {
       id: 'segment-handle-dot',
       type: 'circle',
@@ -580,8 +576,6 @@ function segmentHandleLayers(config: StyleConfig): object[] {
       paint: {
         'circle-radius': dotR,
         'circle-color': ['get', 'color'],
-        'circle-stroke-color': config.segment_casing_color ?? '#FFFFFF',
-        'circle-stroke-width': 1.5,
         'circle-opacity': 1,
       },
     },

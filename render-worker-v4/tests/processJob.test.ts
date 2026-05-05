@@ -5,7 +5,7 @@
 // method routes by SQL substring to scripted responses. That's enough to
 // drive the lifecycle deterministically.
 //
-// HTTP calls (/render-final and Gelato) are dependency-injected via
+// Browserless final rendering and Gelato calls are dependency-injected via
 // `processJob({ deps })` so neither is reached over the wire.
 
 import { describe, expect, it, beforeEach, vi } from 'vitest'
@@ -40,7 +40,6 @@ interface FakeRowState {
         status: string | null
         active_stripe_session_id: string
         print_file_url?: string
-        print_render_id?: string | null
       }
     | null
   /** product_renders rows keyed by (session, print_hash). */
@@ -126,7 +125,6 @@ function createFakeClient(state: FakeRowState): {
             ...state.order,
             fulfillment_status: 'print_ready',
             print_file_url: values?.[0] as string,
-            print_render_id: (values?.[1] as string | null) ?? null,
           }
         } else if (/fulfillment_status = 'submitted_to_gelato'/i.test(sql)) {
           state.order = {
@@ -224,59 +222,24 @@ const SUCCESS_RESPONSE: RenderFinalResponse = {
 beforeEach(() => {
   // Make sure fetch isn't accidentally reachable through default impl.
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('processJob: happy path', () => {
   it('renders, persists, and submits to Gelato', async () => {
-    const state = baseState({
-      // After /render-final the worker would have inserted a product_renders
-      // row; the lookup-by-id step needs to find it.
-      productRenders: [
-        {
-          id: 'pr-1',
-          stripe_session_id: 'cs_test_1',
-          product_uid: 'poster_18x24',
-          print_hash: 'PH1',
-          artifact_path: 'final/cs_test_1/poster_18x24/PH1.jpg',
-          validation_result: { passed: true },
-        },
-      ],
-    })
-    // Don't expose this row to the *initial* idempotency check — the test
-    // wants to walk the render+submit path. We strip it for the first
-    // product_renders SELECT and re-inject for the post-render lookup.
-    let rendersCallCount = 0
-    const stripState = baseState() // empty productRenders, used initially
-    stripState.productRenders = []
-    const stateWithToggling = stripState as FakeRowState
+    vi.stubEnv('GELATO_ORDER_TYPE', 'draft')
 
-    const { client, log } = createFakeClient(stateWithToggling)
-
-    // Wrap query to swap in the post-render product_renders row on the
-    // second product_renders SELECT (the id lookup).
-    const origQuery = client.query.bind(client)
-    ;(client as unknown as { query: typeof client.query }).query = (async (
-      text: string,
-      values?: unknown[],
-    ) => {
-      const sql = text.replace(/\s+/g, ' ').trim()
-      if (/FROM product_renders/i.test(sql) && /SELECT/i.test(sql)) {
-        rendersCallCount += 1
-        if (rendersCallCount >= 2) {
-          stateWithToggling.productRenders = state.productRenders
-        }
-      }
-      return origQuery(text, values)
-    }) as PoolClient['query']
+    const state = baseState()
+    const { client, log } = createFakeClient(state)
 
     const renderFinal = vi.fn().mockResolvedValue(SUCCESS_RESPONSE)
     const gelatoPlace = vi.fn().mockResolvedValue({ gelato_order_id: 'gelato-xyz' })
 
     const result = await processJob({
       client,
-      job: stateWithToggling.job,
+      job: state.job,
       workerId: 'test/1',
       deps: { renderFinal, gelatoPlace },
     })
@@ -291,11 +254,12 @@ describe('processJob: happy path', () => {
     expect(gelatoPlace.mock.calls[0][0]).toMatchObject({
       productUid: 'poster_18x24',
       printFileUrl: 'https://example.com/final.jpg',
+      orderType: 'draft',
     })
-    expect(stateWithToggling.job.status).toBe('submitted')
-    expect(stateWithToggling.order?.status).toBe('in_production')
-    expect(stateWithToggling.order?.fulfillment_status).toBe('submitted_to_gelato')
-    expect(stateWithToggling.order?.gelato_order_id).toBe('gelato-xyz')
+    expect(state.job.status).toBe('submitted')
+    expect(state.order?.status).toBe('in_production')
+    expect(state.order?.fulfillment_status).toBe('submitted_to_gelato')
+    expect(state.order?.gelato_order_id).toBe('gelato-xyz')
     // Sanity: at least one orders update happened.
     expect(log.some((q) => /UPDATE orders/i.test(q.text))).toBe(true)
   })

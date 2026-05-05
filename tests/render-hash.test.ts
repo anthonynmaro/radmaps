@@ -3,7 +3,6 @@ import {
   computeMapContentHash,
   computeChromeHash,
   computeProofRenderHash,
-  computeRenderCacheKey,
   computePrintHash,
   stableStringify,
 } from '../utils/render/hash'
@@ -100,50 +99,6 @@ describe('two-layer isolation', () => {
     const chromeB = computeChromeHash(next, stats)
     expect(mapA).toBe(mapB)
     expect(chromeA).not.toBe(chromeB)
-  })
-})
-
-describe('render_cache_key includes render_backend (v4 cache-isolation fix)', () => {
-  const mapContentHash = computeMapContentHash(baseConfig, geojson, framing)
-
-  it('native and browser produce distinct render_cache_keys for identical inputs', () => {
-    const native = computeRenderCacheKey({
-      mapContentHash,
-      renderClass: 'final',
-      width: framing.fullWidthPx,
-      height: framing.fullHeightPx,
-      dpi: framing.dpi,
-      renderBackend: 'native',
-    })
-    const browser = computeRenderCacheKey({
-      mapContentHash,
-      renderClass: 'final',
-      width: framing.fullWidthPx,
-      height: framing.fullHeightPx,
-      dpi: framing.dpi,
-      renderBackend: 'browser',
-    })
-    expect(native).not.toBe(browser)
-  })
-
-  it('same backend + same inputs → same key', () => {
-    const a = computeRenderCacheKey({
-      mapContentHash,
-      renderClass: 'final',
-      width: 100,
-      height: 200,
-      dpi: 300,
-      renderBackend: 'native',
-    })
-    const b = computeRenderCacheKey({
-      mapContentHash,
-      renderClass: 'final',
-      width: 100,
-      height: 200,
-      dpi: 300,
-      renderBackend: 'native',
-    })
-    expect(a).toBe(b)
   })
 })
 

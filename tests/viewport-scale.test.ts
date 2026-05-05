@@ -4,10 +4,16 @@ import {
   getViewportVisualScale,
 } from '../utils/render/viewportScale'
 
-function layerById(style: { layers?: Array<Record<string, unknown>> }, id: string) {
+function layerById(style: { layers?: Array<Record<string, unknown>> }, id: string): {
+  paint: Record<string, unknown>
+  layout: Record<string, unknown>
+} {
   const layer = style.layers?.find(item => item.id === id)
   if (!layer) throw new Error(`Missing layer ${id}`)
-  return layer
+  return {
+    paint: (layer.paint as Record<string, unknown> | undefined) ?? {},
+    layout: (layer.layout as Record<string, unknown> | undefined) ?? {},
+  }
 }
 
 describe('getViewportVisualScale', () => {

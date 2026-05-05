@@ -60,8 +60,8 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── shop/customize.post.ts         — premade map customization
 │   └── strava/                        — Strava OAuth + activity import
 ├── utils/
-│   ├── mapStyle.ts          — builds MapLibre style JSON (shared browser + worker, ~1170 lines)
-│   ├── gpx.ts               — server-side GPX parser (⚠ XML bomb risk — see REMEDIATION.md)
+│   ├── mapStyle.ts          — builds MapLibre style JSON for browser previews/renders
+│   ├── gpx.ts               — GPX parser with size/entity guards
 │   ├── products.ts          — premade map catalog helpers
 │   ├── trail.ts             — trail segment slicing utilities
 │   ├── seo.ts               — SEO metadata helpers
@@ -71,7 +71,6 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   └── premade-maps.ts      — static premade map catalog
 ├── types/index.ts           — all shared types (StyleConfig, TrailMap, Order, etc.)
 ├── pages/render/            — Browserless-only render pages for proof/final screenshots
-├── render-worker/           — legacy renderer; do not build new work here
 ├── render-worker-v4/        — Railway queue worker for final Browserless renders
 ├── supabase/
 │   ├── schema.sql           — full DB schema
@@ -122,7 +121,7 @@ Proof path:
 2. It signs a short-lived render ticket with `utils/render/renderTicket.ts`.
 3. Browserless screenshots `/render/map/[id]?ticket=...`.
 4. `/api/render/payload` validates the ticket and returns only the exact map payload the page may render.
-5. The proof image is validated, uploaded, and stored on the map row.
+5. The proof image is validated, uploaded, and stored on the map row as `proof_render_url`, `thumbnail_url`, and `render_url`.
 
 Final path:
 1. Checkout stores the selected concrete Gelato `product_uid`.
@@ -132,9 +131,18 @@ Final path:
 5. Browserless screenshots `/render/session/[stripeSessionId]?ticket=...`.
 6. The worker validates, uploads, inserts `product_renders`, and submits to Gelato.
 
+`render-worker-v4` is not a separate poster renderer; it is the final print queue consumer/orchestrator. It still must run for paid custom orders because it bounds Browserless concurrency, writes final artifacts, and submits Gelato orders.
+
 Readiness is explicit. Browserless waits for `window.__RENDER_READY === true` and checks `window.__RADMAPS_RENDER_STATUS`; do not replace this with a fixed sleep or selector-only wait.
 
-The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes.
+The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes. The cleanup/security review lives in `docs/ARCHITECTURE_SECURITY_REVIEW.md`; update it when removing renderer paths, changing queue boundaries, or accepting/defering renderer-adjacent security risks.
+
+### Thumbnail/share preview policy
+Proof renders are the canonical thumbnails. Dashboard/home previews, checkout previews, Stripe checkout images, and public share metadata should prefer `proof_render_url → thumbnail_url → render_url`.
+
+The editor schedules thumbnail refreshes only after style changes sit idle for 7 seconds, throttled to once every 30 seconds during continuous editing. Clicking Share forces a latest-state proof render first, then marks the map public and copies the link. Do not build a second thumbnail renderer; use the signed Browserless proof path so shared/social images match the approved editor state.
+
+Checkout is product-first: users choose size/material before Browserless proof rendering starts. While that selected proof is rendering, checkout should show the live `MapPreview.vue` poster state and hide older proof/thumbnail URLs until the current product render is ready.
 
 ## mapStyle.ts patterns
 - CARTO tiles used for minimalist preset (free, no auth required)
@@ -164,7 +172,7 @@ Important details:
 - `24x36` is the default style size.
 - `32x48` is capped at 200 DPI.
 - final renders include bleed; `24x36` with 3 mm bleed at 300 DPI is about `7271x10871`, not `7200x10800`.
-- final renders use exact viewport pixels with `deviceScaleFactor: 1`; do not switch to DPR 2 without crop/pad validation for odd bleed pixels.
+- final renders use half-size CSS viewport pixels with `deviceScaleFactor: 2`; `render-worker-v4/src/queue/normalizeFinalScreenshot.ts` crops DPR rounding surplus back to exact provider pixels before validation/upload.
 - legacy aliases exist only for old rows and stale requests: `8x10→8x12`, `11x14→12x18`, `16x20→16x24`, `18x24→24x36`.
 
 Changing aspect ratio later is a product project, not a catalog tweak. Add explicit editor aspect state, update MapPreview/editor frozen camera/overlays/thumbnails/checkout, separate aspect family from size if needed, update hashes, build visual regression fixtures, and order physical samples before enabling production sales.
@@ -204,7 +212,6 @@ Changing aspect ratio later is a product project, not a catalog tweak. Add expli
 **CRITICAL (fix before next user-facing release):**
 - `maps/public/[id].get.ts` — **IDOR**: public endpoint uses service key, bypasses RLS, returns any user's private map data. Fix: add `is_public` column + query only public maps.
 - Logo/image rendering — **SSRF / remote asset risk**: logos and future user-provided images must be whitelisted or copied to trusted storage before print rendering.
-- `utils/gpx.ts` — **XML bomb DoS**: `DOMParser` has no entity expansion limits. Fix: add 5MB size cap + switch to `fast-xml-parser`.
 - `orders/webhook.post.ts` — **Duplicate orders**: no Stripe event deduplication; webhook retries place duplicate Gelato orders. Fix: `processed_stripe_events` table.
 
 **HIGH:**
@@ -220,13 +227,15 @@ See `.env.example` for the full list with comments. Key ones:
 - `SUPABASE_*` — database + auth
 - `MAPBOX_TOKEN` — Mapbox terrain tiles (must have terrain + raster scopes)
 - `STADIA_API_KEY` / optional `NUXT_PUBLIC_STADIA_API_KEY` — Stadia/Stamen raster tiles for Watercolor/Toner presets; client-visible, restrict by domain in Stadia
-- `STRIPE_*` — payments (live keys)
+- `STRIPE_*` — payments; Stripe's documented sandbox prefixes are `sk_test_` and `pk_test_`
 - `GELATO_API_KEY` — print fulfillment
+- `GELATO_ORDER_TYPE` — use `draft` for local/full E2E tests; use `order` only for intentional physical fulfillment
 - `BROWSERLESS_TOKEN` / `BROWSERLESS_ENDPOINT` / `BROWSERLESS_TIMEOUT_MS` — screenshot provider
-- `RENDER_PIPELINE_V4_ENABLED=true` — routes proof renders through Browserless instead of legacy worker
 - `RENDER_TICKET_SECRET` — short-lived signed render URL secret
-- `RENDER_WORKER_*` — legacy worker / Railway queue compatibility depending on deployment path
+- `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
 - `ANTHROPIC_API_KEY` — AI styling agent
+
+For local full E2E, run the final queue from the repo root with `npm run print-worker:dev`. That launcher merges root `.env` with optional `render-worker-v4/.env` overrides so Browserless/Gelato/render-ticket secrets do not need to be duplicated locally. Standalone Railway worker deployments still need their own service env configured.
 
 ## Known gotchas
 - MapLibre does NOT resolve `mapbox://` scheme URLs — always use explicit `https://api.mapbox.com/...` endpoints
@@ -235,12 +244,15 @@ See `.env.example` for the full list with comments. Key ones:
 - `height: 100%` (not `max-height: 100%`) is needed on the poster canvas div so `aspect-ratio` has a concrete dimension to derive from
 - The editor aspect ratio is deliberately fixed to 2:3; do not reintroduce mixed-aspect product choices without rebuilding the editor aspect flow
 - Use `getPrintFraming(productUid, renderClass)` for every print/proof dimension; never hand-compute size tables in routes or workers
+- Proof renders double as thumbnails and social previews; keep `proof_render_url`, `thumbnail_url`, and `render_url` aligned for user-facing map previews
 - Signed render tickets protect server-only payloads; never put shared secrets directly in third-party screenshot URLs
 - Browserless render readiness must wait on `window.__RENDER_READY`, not a fixed delay
+- For Gelato draft preflight without Stripe, use `npm run gelato:draft-bypass -- --map-id=<map-uuid>` with `GELATO_ORDER_TYPE=draft`; this exercises the same `render-worker-v4` `processJob` path but does not validate Stripe Checkout/webhooks
+- For signed webhook smoke tests without hosted Checkout, use `npm run stripe:webhook-sim -- --map-id=<map-uuid>`; this creates a snapshot, signs a local `checkout.session.completed` payload, and lets the normal final queue submit a Gelato draft
+- Browserless timeout is capped at `BROWSERLESS_TIMEOUT_MS=60000` on the current plan; large final renders rely on DPR 2 screenshot normalization to stay under that cap
 - Supabase `serverSupabaseUser` vs `serverSupabaseClient` — always use these in server routes, never raw env vars
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
-- **Legacy `render-worker/` is retired for new work** — it remains in the tree for history/compatibility, but the active render direction is Browserless screenshot rendering
 - **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato
 - `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
 - `useStyleAgent` composable is built but NOT wired into any UI yet

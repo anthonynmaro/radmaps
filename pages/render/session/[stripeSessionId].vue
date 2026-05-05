@@ -40,8 +40,8 @@ const { data: payload, pending, error } = await useFetch<RenderPayload>('/api/re
   query: { ticket: route.query.ticket },
 })
 
-const cssWidth = computed(() => Math.round((payload.value?.ticket.widthPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
-const cssHeight = computed(() => Math.round((payload.value?.ticket.heightPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
+const cssWidth = computed(() => Math.ceil((payload.value?.ticket.widthPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
+const cssHeight = computed(() => Math.ceil((payload.value?.ticket.heightPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
 
 const printContext = computed(() => payload.value
   ? {
