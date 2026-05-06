@@ -247,15 +247,15 @@
 import { h, defineComponent, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
-import { getPremadeBySlug } from '~/data/premade-maps'
 import { getProduct, formatPrice, PRODUCTS } from '~/utils/products'
+import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const user = useSupabaseUser()
 const slug = route.params.slug as string
-const premade = getPremadeBySlug(slug)
+const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 const currentPath = computed(() => `/shop/${slug}/checkout${route.query.size ? `?size=${route.query.size}` : ''}${route.query.qty ? `&qty=${route.query.qty}` : ''}`)
 
 // Read size + qty from query (set by detail page)
@@ -285,14 +285,14 @@ const submitting = ref(false)
 const errorMessage = ref('')
 
 async function checkout() {
-  if (!premade) return
+  if (!premade.value) return
   errorMessage.value = ''
   submitting.value = true
   try {
     const resp = await $fetch<{ url: string }>('/api/shop/checkout', {
       method: 'POST',
       body: {
-        slug: premade.slug,
+        slug: premade.value.slug,
         product_uid: selectedProductUid.value,
         print_size: selectedProduct.value?.size_label ?? '',
         quantity: quantity.value,
@@ -321,7 +321,7 @@ async function checkout() {
 }
 
 useSeo({
-  title: premade ? `Checkout — ${premade.title}` : 'Checkout',
+  title: premade.value ? `Checkout — ${premade.value.title}` : 'Checkout',
   description: 'Secure checkout for your RadMaps trail poster.',
   path: route.fullPath,
   noindex: true,
@@ -329,14 +329,14 @@ useSeo({
 
 // ─── Route SVG for summary thumbnail ────────────────────────────────────
 function projectCoords() {
-  if (!premade) return null
-  const feat = premade.geojson?.features?.[0]
+  if (!premade.value) return null
+  const feat = premade.value.geojson?.features?.[0]
   const g = feat?.geometry as any
   const coords: number[][] | undefined =
     g?.type === 'LineString' ? g.coordinates :
     g?.type === 'MultiLineString' ? (g.coordinates as number[][][]).flat() : undefined
   if (!coords || coords.length < 2) return null
-  const [minLng, minLat, maxLng, maxLat] = premade.bbox
+  const [minLng, minLat, maxLng, maxLat] = premade.value.bbox
   const lngRange = (maxLng - minLng) || 0.0001
   const latRange = (maxLat - minLat) || 0.0001
   const padX = 6, padY = 14

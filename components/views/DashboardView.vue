@@ -229,14 +229,14 @@
 
       <!-- GRID VIEW -->
       <div v-else-if="view === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-8">
-        <NuxtLink
+        <div
           v-for="map in filteredMaps"
           :key="map.id"
-          :to="`/create/${map.id}/style`"
           class="group block"
         >
           <!-- Poster card -->
-          <div
+          <NuxtLink
+            :to="`/create/${map.id}/style`"
             class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
             style="aspect-ratio:2/3"
             :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
@@ -344,15 +344,28 @@
                 </span>
               </div>
             </div>
-          </div>
+          </NuxtLink>
 
           <!-- Metadata below card -->
           <div class="mt-4 px-0.5">
             <div class="flex items-start justify-between gap-2 mb-1">
-              <h3
+              <NuxtLink
+                :to="`/create/${map.id}/style`"
                 class="font-semibold text-stone-900 text-[15px] leading-tight truncate tracking-tight"
                 style="font-family:'Space Grotesk',sans-serif"
-              >{{ map.title }}</h3>
+              >{{ map.title }}</NuxtLink>
+              <button
+                type="button"
+                class="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full text-stone-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-colors"
+                :disabled="deletingMapId === map.id"
+                :title="map.status === 'ordered' ? 'Ordered maps are kept with order history' : `Delete ${map.title}`"
+                :aria-label="`Delete ${map.title}`"
+                @click="requestDeleteMap(map)"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8 2a1 1 0 00-.894.553L6.382 4H3a1 1 0 000 2h.293l.853 10.24A2 2 0 006.139 18h7.722a2 2 0 001.993-1.76L16.707 6H17a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0012 2H8zm1.618 2h4.764l-.5-1h-3.764l-.5 1zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+              </button>
             </div>
             <p class="text-[12px] text-stone-500 font-medium tracking-wide">
               {{ formatKm(map.stats?.distance_km) }}
@@ -362,7 +375,7 @@
               {{ formatDate(map.created_at) }}
             </p>
           </div>
-        </NuxtLink>
+        </div>
       </div>
 
       <!-- LIST VIEW -->
@@ -445,6 +458,18 @@
               class="text-sm font-medium text-stone-300 border border-stone-100 rounded-lg px-3 py-2 cursor-not-allowed"
             >
               Order
+            </button>
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-stone-200 text-stone-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              :disabled="deletingMapId === map.id"
+              :title="map.status === 'ordered' ? 'Ordered maps are kept with order history' : `Delete ${map.title}`"
+              :aria-label="`Delete ${map.title}`"
+              @click="requestDeleteMap(map)"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 2a1 1 0 00-.894.553L6.382 4H3a1 1 0 000 2h.293l.853 10.24A2 2 0 006.139 18h7.722a2 2 0 001.993-1.76L16.707 6H17a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0012 2H8zm1.618 2h4.764l-.5-1h-3.764l-.5 1zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -607,6 +632,60 @@
       </section>
 
     </div>
+
+    <!-- Delete confirmation modal -->
+    <UModal v-model="showDeleteModal">
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="text-[10px] font-semibold tracking-[0.2em] uppercase text-red-500">Delete map</p>
+              <h3 class="text-base font-semibold text-stone-900 mt-1">Remove from your collection?</h3>
+            </div>
+            <button
+              class="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 transition-colors"
+              :disabled="!!deletingMapId"
+              @click="closeDeleteModal"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <p class="text-sm text-stone-600 leading-relaxed">
+            <span class="font-semibold text-stone-900">{{ mapPendingDelete?.title }}</span>
+            will be permanently deleted along with its saved style snapshots. This cannot be undone.
+          </p>
+          <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p class="text-xs text-amber-800 leading-relaxed">
+              Ordered maps are kept with order history and will not be deleted.
+            </p>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <button
+              class="text-sm text-stone-600 px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors disabled:opacity-50"
+              :disabled="!!deletingMapId"
+              @click="closeDeleteModal"
+            >
+              Cancel
+            </button>
+            <button
+              class="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              :disabled="!!deletingMapId"
+              @click="confirmDeleteMap"
+            >
+              {{ deletingMapId ? 'Deleting…' : 'Delete map' }}
+            </button>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
@@ -615,14 +694,16 @@ import { h, defineComponent, ref, computed, onMounted } from 'vue'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import type { TrailMap, Order, MapStatus, PremadeMap } from '~/types'
 import { formatPrice } from '~/utils/products'
-import { PREMADE_MAPS } from '~/data/premade-maps'
+const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+  default: () => [],
+})
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
 // Featured shop picks to surface inside the dashboard (up to 4)
 const featuredPremades = computed<PremadeMap[]>(() =>
-  [...PREMADE_MAPS].sort((a, b) => Number(b.featured) - Number(a.featured)).slice(0, 4)
+  [...premadeMaps.value].sort((a, b) => Number(b.featured) - Number(a.featured)).slice(0, 4)
 )
 
 function premadeRoutePath(map: PremadeMap): string {
@@ -655,12 +736,16 @@ function premadeRoutePath(map: PremadeMap): string {
 const maps = ref<TrailMap[]>([])
 const orders = ref<Order[]>([])
 const loading = ref(true)
+const toast = useToast()
 
 // UI state
 type FilterId = 'all' | MapStatus
 const activeFilter = ref<FilterId>('all')
 const sortBy = ref<'newest' | 'oldest' | 'az' | 'distance'>('newest')
 const view = ref<'grid' | 'list'>('grid')
+const showDeleteModal = ref(false)
+const mapPendingDelete = ref<TrailMap | null>(null)
+const deletingMapId = ref<string | null>(null)
 
 const filters: { id: FilterId; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -755,6 +840,71 @@ const formatM = (m?: number) => {
 
 const posterThumbnailUrl = (map: TrailMap) =>
   map.proof_render_url ?? map.thumbnail_url ?? map.render_url ?? null
+
+// ─── Delete maps ───────────────────────────────────────────────────────────
+function requestDeleteMap(map: TrailMap) {
+  if (map.status === 'ordered') {
+    toast.add({
+      title: 'Map kept with order history',
+      description: 'Ordered maps cannot be deleted from your collection yet.',
+      icon: 'i-heroicons-lock-closed',
+      color: 'amber',
+      timeout: 6000,
+    })
+    return
+  }
+
+  mapPendingDelete.value = map
+  showDeleteModal.value = true
+}
+
+function closeDeleteModal() {
+  if (deletingMapId.value) return
+  showDeleteModal.value = false
+  mapPendingDelete.value = null
+}
+
+function apiErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const candidate = err as {
+      data?: { message?: string }
+      statusMessage?: string
+      message?: string
+    }
+    return candidate.data?.message || candidate.statusMessage || candidate.message || 'Could not delete this map.'
+  }
+  return 'Could not delete this map.'
+}
+
+async function confirmDeleteMap() {
+  const map = mapPendingDelete.value
+  if (!map) return
+
+  deletingMapId.value = map.id
+  try {
+    await $fetch(`/api/maps/${map.id}`, { method: 'DELETE' })
+    maps.value = maps.value.filter((item) => item.id !== map.id)
+    showDeleteModal.value = false
+    mapPendingDelete.value = null
+    toast.add({
+      title: 'Map deleted',
+      description: `${map.title} was removed from your collection.`,
+      icon: 'i-heroicons-trash',
+      color: 'green',
+      timeout: 5000,
+    })
+  } catch (err) {
+    toast.add({
+      title: 'Could not delete map',
+      description: apiErrorMessage(err),
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+      timeout: 7000,
+    })
+  } finally {
+    deletingMapId.value = null
+  }
+}
 
 // ─── Route geometry → SVG path ────────────────────────────────────────────
 function extractCoords(map: TrailMap): number[][] | null {

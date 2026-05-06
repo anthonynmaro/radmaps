@@ -9,8 +9,8 @@
  * Requires auth — guests can only purchase, not customize.
  */
 import { z } from 'zod'
-import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
-import { getPremadeBySlug } from '~/data/premade-maps'
+import { serverSupabaseUser, serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
+import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 
 const Body = z.object({
   slug: z.string().min(1),
@@ -26,7 +26,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: parsed.error.message })
   }
 
-  const premade = getPremadeBySlug(parsed.data.slug)
+  const adminClient = await serverSupabaseServiceRole(event)
+  const premade = await getPublishedPremadeBySlug(adminClient, parsed.data.slug)
   if (!premade) throw createError({ statusCode: 404, message: 'Premade map not found' })
 
   const supabase = await serverSupabaseClient(event)

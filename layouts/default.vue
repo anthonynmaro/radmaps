@@ -35,6 +35,7 @@
           <NavLink to="/shop" label="Shop Prints" />
           <NavLink to="/create" label="Create" />
           <NavLink to="/" label="My Maps" exact />
+          <NavLink v-if="isStaff" to="/admin" label="Admin" />
         </div>
         <div v-else class="hidden md:flex items-center gap-1 flex-1">
           <!-- Shop Prints is the only link guests can follow directly -->
@@ -190,6 +191,11 @@
                 class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-900/5 transition-colors">
                 <UIcon name="i-heroicons-squares-2x2" class="w-4.5 h-4.5 text-stone-400"/>
                 My Maps
+              </NuxtLink>
+              <NuxtLink v-if="isStaff" to="/admin" @click="mobileMenuOpen = false"
+                class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-900/5 transition-colors">
+                <UIcon name="i-heroicons-command-line" class="w-4.5 h-4.5 text-stone-400"/>
+                Admin
               </NuxtLink>
             </div>
             <div class="border-t border-stone-200/70 px-4 py-3">
@@ -359,9 +365,13 @@ import { h, defineComponent, computed, ref, onMounted, onBeforeUnmount, watch, r
 
 const user = useSupabaseUser()
 const supabase = useSupabaseClient()
+const { data: adminMe } = await useFetch<{ staff: null | { role: string } }>('/api/admin/me', {
+  default: () => ({ staff: null }),
+})
 const mobileMenuOpen = ref(false)
 const userInitial = computed(() => (user.value?.email ?? 'U').charAt(0).toUpperCase())
 const scrolled = ref(false)
+const isStaff = computed(() => Boolean(adminMe.value?.staff))
 
 // Close mobile menu on route change
 const route = useRoute()
@@ -390,6 +400,7 @@ const userMenuItems = computed(() => [[
   { label: 'Shop Prints', icon: 'i-heroicons-shopping-bag', to: '/shop' },
   { label: 'Create new map', icon: 'i-heroicons-plus', to: '/create' },
   { label: 'My Maps', icon: 'i-heroicons-squares-2x2', to: '/' },
+  ...(isStaff.value ? [{ label: 'Admin', icon: 'i-heroicons-command-line', to: '/admin' }] : []),
 ], [
   { label: 'Sign out', icon: 'i-heroicons-arrow-right-on-rectangle', click: signOut },
 ]])

@@ -666,7 +666,24 @@ export interface Order {
   updated_at: string
 }
 
+// ─── Admin / Staff Roles ─────────────────────────────────────────────────────
+
+export type AdminRole = 'admin' | 'curator' | 'designer' | 'support'
+
+export interface AdminUser {
+  id: string
+  user_id: string
+  role: AdminRole
+  active: boolean
+  created_by?: string | null
+  updated_by?: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Premade Map Catalog ─────────────────────────────────────────────────────
+
+export type PremadeStatus = 'draft' | 'published' | 'archived'
 
 export type PremadeCategory =
   | 'national-park'
@@ -677,6 +694,8 @@ export type PremadeCategory =
   | 'adventure'
 
 export interface PremadeMap {
+  id?: string
+  source_map_id?: string | null
   slug: string                    // URL-safe unique identifier, e.g. 'john-muir-trail'
   title: string                   // Poster title
   subtitle: string                // Short secondary line for the poster / card
@@ -691,6 +710,10 @@ export interface PremadeMap {
   geojson: GeoJSON.FeatureCollection
   style_config: StyleConfig
   featured: boolean               // Show in featured strip
+  status?: PremadeStatus
+  homepage_visible?: boolean
+  homepage_sort_order?: number
+  needs_preview?: boolean
   base_price_cents: number        // Starting price (smallest size)
   // Visual presentation
   cover_gradient?: [string, string]

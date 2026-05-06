@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   if (!mapId) throw createError({ statusCode: 400, message: 'Map ID required' })
 
   const config = useRuntimeConfig()
-  return await handleRender({ event, mapId, userId: user.id, config })
+  return await renderMapProof({ event, mapId, userId: user.id, config })
 })
 
 interface V4Args {
@@ -32,10 +32,11 @@ interface V4Args {
   mapId: string
   userId: string
   config: ReturnType<typeof useRuntimeConfig>
+  allowServiceRead?: boolean
 }
 
-async function handleRender(args: V4Args) {
-  const { event, mapId, userId, config } = args
+export async function renderMapProof(args: V4Args) {
+  const { event, mapId, userId, config, allowServiceRead = false } = args
   const supabase = await serverSupabaseClient(event)
   const adminClient = await serverSupabaseServiceRole(event)
 
@@ -44,7 +45,8 @@ async function handleRender(args: V4Args) {
   }
 
   // 1. Load map row with everything we need to hash + dispatch.
-  const { data: map, error: fetchError } = await supabase
+  const readClient = allowServiceRead ? adminClient : supabase
+  const { data: map, error: fetchError } = await readClient
     .from('maps')
     .select('id, user_id, geojson, style_config, stats, bbox, render_url, thumbnail_url, proof_render_hash, proof_render_url')
     .eq('id', mapId)

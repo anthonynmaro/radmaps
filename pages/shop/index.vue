@@ -5,9 +5,12 @@
 <script setup lang="ts">
 import ShopView from '~/components/views/ShopView.vue'
 import { useSeo } from '~/composables/useSeo'
-import { absoluteUrl, breadcrumbSchema, SITE_URL } from '~/utils/seo'
-import { PREMADE_MAPS } from '~/data/premade-maps'
-import { formatPrice } from '~/utils/products'
+import { breadcrumbSchema, SITE_URL } from '~/utils/seo'
+import type { PremadeMap } from '~/types'
+
+const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+  default: () => [],
+})
 
 definePageMeta({
   layout: 'default',
@@ -21,8 +24,8 @@ const collectionSchema = {
   description: 'A curated collection of iconic trail posters — printed on archival paper and shipped worldwide.',
   mainEntity: {
     '@type': 'ItemList',
-    numberOfItems: PREMADE_MAPS.length,
-    itemListElement: PREMADE_MAPS.map((m, idx) => ({
+    numberOfItems: premadeMaps.value.length,
+    itemListElement: premadeMaps.value.map((m, idx) => ({
       '@type': 'ListItem',
       position: idx + 1,
       url: `${SITE_URL}/shop/${m.slug}`,

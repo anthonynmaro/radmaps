@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { getProduct } from '~/utils/products'
 import { computePrintHash } from '~/utils/render/hash'
+import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -72,11 +73,9 @@ export default defineEventHandler(async (event) => {
 
     const shouldQueueFinalRender = !!snapshot && !isPremade && !isDigital
 
-    // Import premade catalog lazily to keep custom-order hot path small
-    let premade: Awaited<ReturnType<typeof import('~/data/premade-maps').getPremadeBySlug>> = undefined
+    let premade: Awaited<ReturnType<typeof getPublishedPremadeBySlug>> = undefined
     if (isPremade && meta.premade_slug) {
-      const { getPremadeBySlug } = await import('~/data/premade-maps')
-      premade = getPremadeBySlug(meta.premade_slug)
+      premade = await getPublishedPremadeBySlug(supabase, meta.premade_slug)
     }
 
     // Build the order row. Keep custom print orders compatible with older

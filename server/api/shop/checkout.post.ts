@@ -11,9 +11,9 @@
  */
 import Stripe from 'stripe'
 import { z } from 'zod'
-import { serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import { getProduct } from '~/utils/products'
-import { getPremadeBySlug } from '~/data/premade-maps'
+import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 
 const ShopCheckoutBody = z.object({
   slug: z.string().min(1),
@@ -44,8 +44,8 @@ export default defineEventHandler(async (event) => {
   const { slug, product_uid, print_size, quantity, shipping_address, digital_only } = parsed.data
   const config = useRuntimeConfig()
 
-  // Resolve premade from the static catalog
-  const premade = getPremadeBySlug(slug)
+  const adminClient = await serverSupabaseServiceRole(event)
+  const premade = await getPublishedPremadeBySlug(adminClient, slug)
   if (!premade) {
     throw createError({ statusCode: 404, message: 'Premade map not found' })
   }

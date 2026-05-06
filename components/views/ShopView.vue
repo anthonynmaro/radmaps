@@ -288,25 +288,28 @@
 import { ref, computed } from 'vue'
 import { useSupabaseUser } from '#imports'
 import type { PremadeMap } from '~/types'
-import { PREMADE_MAPS, PREMADE_CATEGORIES } from '~/data/premade-maps'
+import { PREMADE_CATEGORIES } from '~/utils/premadeCatalog'
 import { formatPrice } from '~/utils/products'
 
 const user = useSupabaseUser()
+const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+  default: () => [],
+})
 
 const activeCategory = ref<PremadeMap['category'] | null>(null)
 
-const allCount = computed(() => PREMADE_MAPS.length)
+const allCount = computed(() => premadeMaps.value.length)
 
 const filteredMaps = computed(() => {
   if (!activeCategory.value) {
     // Sort featured first, then by title
-    return [...PREMADE_MAPS].sort((a, b) => Number(b.featured) - Number(a.featured))
+    return [...premadeMaps.value].sort((a, b) => Number(b.featured) - Number(a.featured))
   }
-  return PREMADE_MAPS.filter((m) => m.category === activeCategory.value)
+  return premadeMaps.value.filter((m) => m.category === activeCategory.value)
 })
 
 function countByCategory(id: PremadeMap['category']) {
-  return PREMADE_MAPS.filter((m) => m.category === id).length
+  return premadeMaps.value.filter((m) => m.category === id).length
 }
 
 const formatKm = (km?: number) => {

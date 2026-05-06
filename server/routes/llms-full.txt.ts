@@ -6,11 +6,12 @@
  * brand context — designed so AI assistants can give specific, accurate
  * answers when asked about RadMaps.
  */
-import { PREMADE_MAPS } from '~/data/premade-maps'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import { listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
 import { PRODUCTS, formatPrice } from '~/utils/products'
 import { SITE_URL } from '~/utils/seo'
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Type', 'text/plain; charset=utf-8')
   setHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600')
 
@@ -22,7 +23,10 @@ export default defineEventHandler((event) => {
   const productRow = (p: typeof PRODUCTS[number]) =>
     `- ${p.size_label} ${p.name.replace(/^.*?Poster|Framed Print|Canvas/i, '').trim()}: ${formatPrice(p.price_cents)}`
 
-  const premadeBlocks = PREMADE_MAPS.map(
+  const supabase = await serverSupabaseServiceRole(event)
+  const premadeMaps = await listPublishedPremadeMaps(supabase)
+
+  const premadeBlocks = premadeMaps.map(
     (m) => `### ${m.title}
 - URL: ${SITE_URL}/shop/${m.slug}
 - Subtitle: ${m.subtitle}
@@ -108,7 +112,7 @@ When designing a custom poster, you can adjust:
 
 ## Premade catalog
 
-The curated catalog at ${SITE_URL}/shop currently includes ${PREMADE_MAPS.length} iconic trails. Each is purchasable as a guest (no signup required) or can be cloned and customized by signed-in users.
+The curated catalog at ${SITE_URL}/shop currently includes ${premadeMaps.length} iconic trails. Each is purchasable as a guest (no signup required) or can be cloned and customized by signed-in users.
 
 ${premadeBlocks}
 

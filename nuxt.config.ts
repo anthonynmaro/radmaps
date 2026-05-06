@@ -61,6 +61,8 @@ export default defineNuxtConfig({
     browserlessEndpoint: process.env.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io',
     browserlessTimeoutMs: Number(process.env.BROWSERLESS_TIMEOUT_MS || 60_000),
     renderTicketSecret: process.env.RENDER_TICKET_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-render-ticket-secret'),
+    adminSuperAdminEmails: process.env.ADMIN_SUPER_ADMIN_EMAILS || 'anthonynmaro@gmail.com',
+    adminBootstrapEmails: process.env.ADMIN_BOOTSTRAP_EMAILS || process.env.ADMIN_SUPER_ADMIN_EMAILS || 'anthonynmaro@gmail.com',
     public: {
       // Client-accessible vars
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,

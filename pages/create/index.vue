@@ -282,7 +282,7 @@
 
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             <button
-              v-for="premade in PREMADE_MAPS"
+              v-for="premade in premadeMaps"
               :key="premade.slug"
               @click="selectedPremadeSlug = premade.slug"
               :class="[
@@ -567,8 +567,11 @@ import { useRouter, useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import * as toGeoJSON from '@tmcw/togeojson'
 import type { RouteStats, PremadeMap } from '~/types'
-import { PREMADE_MAPS } from '~/data/premade-maps'
 import { extractNamedTrackSegments } from '~/utils/trail'
+
+const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+  default: () => [],
+})
 
 definePageMeta({
   middleware: 'auth',

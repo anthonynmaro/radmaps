@@ -294,7 +294,8 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
-import { getPremadeBySlug } from '~/data/premade-maps'
+import { useSeo } from '~/composables/useSeo'
+import { breadcrumbSchema, SITE_URL } from '~/utils/seo'
 import { PRODUCTS, getProduct, formatPrice } from '~/utils/products'
 import type { PremadeMap } from '~/types'
 
@@ -305,7 +306,7 @@ definePageMeta({
 const route = useRoute()
 const user = useSupabaseUser()
 const slug = route.params.slug as string
-const premade = getPremadeBySlug(slug) as PremadeMap | undefined
+const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 
 // Poster products only for shop (no framed/canvas/digital for this flow)
 const posterOptions = PRODUCTS.filter((p) => p.type === 'poster' && p.size_label !== '5×7"')
@@ -331,20 +332,17 @@ const posterAspect = computed(() => {
   return `${p.width_in} / ${p.height_in}`
 })
 
-// ─── SEO + structured data ──────────────────────────────────────────────
-import { useSeo } from '~/composables/useSeo'
-import { absoluteUrl, breadcrumbSchema, SITE_URL } from '~/utils/seo'
-
-if (premade) {
+const premadeMap = premade.value
+if (premadeMap) {
   // Build a Product schema with one Offer per available size.
   const offers = posterOptions.map((p) => ({
     '@type': 'Offer',
     sku: p.product_uid,
-    name: `${premade.title} — ${p.size_label} Poster`,
+    name: `${premadeMap.title} — ${p.size_label} Poster`,
     price: (p.price_cents / 100).toFixed(2),
     priceCurrency: 'USD',
     availability: 'https://schema.org/InStock',
-    url: `${SITE_URL}/shop/${premade.slug}`,
+    url: `${SITE_URL}/shop/${premadeMap.slug}`,
     itemCondition: 'https://schema.org/NewCondition',
     shippingDetails: {
       '@type': 'OfferShippingDetails',
@@ -360,13 +358,13 @@ if (premade) {
   const productSchema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: `${premade.title} — Trail Poster`,
-    description: premade.description,
-    image: premade.preview_image_url ?? undefined,
+    name: `${premadeMap.title} — Trail Poster`,
+    description: premadeMap.description,
+    image: premadeMap.preview_image_url ?? undefined,
     brand: { '@type': 'Brand', name: 'RadMaps Studio' },
     category: 'Wall Art > Posters > Maps',
-    sku: premade.slug,
-    url: `${SITE_URL}/shop/${premade.slug}`,
+    sku: premadeMap.slug,
+    url: `${SITE_URL}/shop/${premadeMap.slug}`,
     offers: {
       '@type': 'AggregateOffer',
       offerCount: offers.length,
@@ -376,28 +374,28 @@ if (premade) {
       offers,
     },
     additionalProperty: [
-      { '@type': 'PropertyValue', name: 'Distance', value: `${premade.stats.distance_km} km` },
-      { '@type': 'PropertyValue', name: 'Elevation gain', value: `${premade.stats.elevation_gain_m} m` },
-      { '@type': 'PropertyValue', name: 'Region', value: premade.region },
-      { '@type': 'PropertyValue', name: 'Country', value: premade.country },
-      { '@type': 'PropertyValue', name: 'Activity', value: premade.stats.activity_type ?? 'hiking' },
+      { '@type': 'PropertyValue', name: 'Distance', value: `${premadeMap.stats.distance_km} km` },
+      { '@type': 'PropertyValue', name: 'Elevation gain', value: `${premadeMap.stats.elevation_gain_m} m` },
+      { '@type': 'PropertyValue', name: 'Region', value: premadeMap.region },
+      { '@type': 'PropertyValue', name: 'Country', value: premadeMap.country },
+      { '@type': 'PropertyValue', name: 'Activity', value: premadeMap.stats.activity_type ?? 'hiking' },
       { '@type': 'PropertyValue', name: 'Paper', value: '170 gsm archival matte' },
       { '@type': 'PropertyValue', name: 'Print resolution', value: '300 DPI' },
     ],
   }
 
   useSeo({
-    title: `${premade.title} Poster`,
-    description: `${premade.tagline} ${premade.description.slice(0, 130)}…`,
-    path: `/shop/${premade.slug}`,
-    image: premade.preview_image_url,
+    title: `${premadeMap.title} Poster`,
+    description: `${premadeMap.tagline} ${premadeMap.description.slice(0, 130)}…`,
+    path: `/shop/${premadeMap.slug}`,
+    image: premadeMap.preview_image_url,
     ogType: 'product',
     jsonLd: [
       productSchema,
       breadcrumbSchema([
         { name: 'Home', path: '/' },
         { name: 'Shop', path: '/shop' },
-        { name: premade.title, path: `/shop/${premade.slug}` },
+        { name: premadeMap.title, path: `/shop/${premadeMap.slug}` },
       ]),
     ],
   })
@@ -443,8 +441,8 @@ const formatM = (m?: number) => {
 
 // ─── Route SVG (same logic as dashboard / shop grid) ───────────────────
 function extractCoords(): number[][] | null {
-  if (!premade) return null
-  const feat = premade.geojson?.features?.[0]
+  if (!premade.value) return null
+  const feat = premade.value.geojson?.features?.[0]
   if (!feat) return null
   const g = feat.geometry as any
   if (g?.type === 'LineString') return g.coordinates
@@ -452,10 +450,10 @@ function extractCoords(): number[][] | null {
   return null
 }
 function projectCoords() {
-  if (!premade) return null
+  if (!premade.value) return null
   const coords = extractCoords()
   if (!coords || coords.length < 2) return null
-  const [minLng, minLat, maxLng, maxLat] = premade.bbox
+  const [minLng, minLat, maxLng, maxLat] = premade.value.bbox
   const lngRange = (maxLng - minLng) || 0.0001
   const latRange = (maxLat - minLat) || 0.0001
   const padX = 5, padTop = 22, padBottom = 22

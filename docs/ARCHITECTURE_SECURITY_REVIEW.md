@@ -1,7 +1,7 @@
 # Architecture And Security Review
 
 **Date:** 2026-05-05
-**Scope:** Browserless renderer, print queue, checkout/order flow, renderer-adjacent security.
+**Scope:** Browserless renderer, print queue, checkout/order flow, admin premade catalog, renderer-adjacent security.
 
 ## Summary
 
@@ -9,6 +9,10 @@ RadMaps now has one canonical poster renderer: `components/map/MapPreview.vue`.
 Proof and final print files are Chromium screenshots of dedicated Nuxt render
 pages. The old separate renderer paths have been removed or retired so editor
 parity is the default behavior instead of a best-effort comparison target.
+
+The premade shop catalog is now database-backed. Staff can create draft premades
+from a source `map_id`, generate missing preview assets through the same signed
+proof render path, and publish only complete rows for checkout/customization.
 
 ## Cleanup Completed
 
@@ -25,6 +29,13 @@ parity is the default behavior instead of a best-effort comparison target.
   Stripe Checkout session.
 - GPX parsing now uses maintained `@xmldom/xmldom`, rejects oversized uploads,
   and rejects `DOCTYPE`/`ENTITY` declarations before XML parsing.
+- Admin and premade catalog writes now sit behind server-only Nitro APIs with
+  explicit staff role checks.
+- Public premade catalog APIs return only published database rows; the old
+  static catalog is seed/reference fallback only while the table is missing or
+  empty.
+- Admin/support search no longer interpolates user input into raw PostgREST
+  filter strings.
 
 ## Current Architecture
 
@@ -35,6 +46,10 @@ flowchart TD
   C --> D["Browserless screenshot of /render/map/[id]"]
   D --> E["Proof URL on maps row"]
   B --> F["Stripe Checkout session"]
+  N["Admin /admin/premade"] --> O["Draft from source map_id"]
+  O --> C
+  O --> P["premade_maps draft/published rows"]
+  P --> F
   F --> G["Immutable order_snapshots row"]
   G --> H["Stripe webhook queues print_render_jobs"]
   H --> I["Railway render-worker-v4"]
@@ -54,6 +69,9 @@ flowchart TD
   URLs. Do not put shared secrets directly into Browserless URLs.
 - The queue worker should stay boring. It should not know how to draw a map; it
   only knows how to request, validate, upload, and submit an artifact.
+- `utils/premadeCatalog.ts` owns draft defaults, asset fallback order, and
+  publish validation for premade maps. Keep checkout/customization dependent on
+  published database rows, not static seed data.
 
 ## Safe Changes Implemented
 
@@ -68,9 +86,15 @@ flowchart TD
   container size and attack surface.
 - Removed the unused `ai` package and upgraded test tooling so `npm audit`
   reports zero known vulnerabilities for the app and worker.
+- `anthonynmaro@gmail.com` is configured as a protected super-admin locally and
+  in production. Super-admin rows are upserted as active `admin` users and
+  cannot be demoted from the staff UI.
 
 ## Remaining Risks
 
+- **Admin audit trail:** `created_by`/`updated_by` capture who changed staff and
+  premade rows, but there is no append-only audit event table yet. Add one
+  before scaling admin access beyond a small trusted team.
 - **Stripe webhook idempotency:** `processed_stripe_events` prevents duplicate
   processing, but marking an event processed before all downstream work succeeds
   can hide retryable failures. A follow-up should move event finalization after

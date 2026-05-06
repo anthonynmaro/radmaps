@@ -5,14 +5,18 @@
  * LLM consumption. Lists key URLs with short descriptions so AI assistants
  * can cite the right page when answering trail-poster / map-print questions.
  */
-import { PREMADE_MAPS } from '~/data/premade-maps'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import { listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
 import { SITE_URL } from '~/utils/seo'
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Type', 'text/plain; charset=utf-8')
   setHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600')
 
-  const premadeLines = PREMADE_MAPS.map(
+  const supabase = await serverSupabaseServiceRole(event)
+  const premadeMaps = await listPublishedPremadeMaps(supabase)
+
+  const premadeLines = premadeMaps.map(
     (m) => `- [${m.title}](${SITE_URL}/shop/${m.slug}): ${m.tagline} ${m.region}. ${Math.round(m.stats.distance_km)} km, ${m.stats.elevation_gain_m.toLocaleString()} m of elevation gain.`,
   ).join('\n')
 

@@ -35,7 +35,9 @@ trailmaps-app/
 │   ├── create/[mapId]/style.vue   # Main styling page (map + agent chat)
 │   └── ...
 ├── server/api/
+│   ├── admin/                      # Staff RBAC, premade catalog, homepage, support APIs
 │   ├── maps/                       # Map CRUD + render trigger
+│   ├── premade/                    # Public database-backed premade catalog APIs
 │   ├── render/payload.get.ts        # Server-only render payload for signed tickets
 │   ├── orders/checkout.post.ts     # Stripe Checkout
 │   ├── orders/webhook.post.ts      # Stripe webhook → print queue / Gelato
@@ -46,6 +48,8 @@ trailmaps-app/
 │   └── schema.sql                  # Full database schema + RLS policies
 ├── types/index.ts                  # Shared TypeScript types
 ├── utils/
+│   ├── adminPermissions.ts         # Staff role matrix
+│   ├── premadeCatalog.ts           # Premade defaults and publish validation
 │   ├── gpx.ts                      # GPX → GeoJSON parser
 │   ├── mapStyle.ts                 # StyleConfig → MapLibre Style JSON
 │   ├── products.ts                 # 2:3 Gelato product catalogue + pricing
@@ -91,6 +95,23 @@ Important invariants:
 - Final `24x36` with 3 mm bleed is roughly `7271x10871` pixels, not `7200x10800`.
 - Final renders are queued through `render-worker-v4`; do not launch unbounded paid-order screenshots from a Vercel request.
 
+## Admin And Premade Catalog
+
+The staff admin section lives at `/admin`. See
+[docs/ADMIN.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/ADMIN.md)
+for the role matrix, super-admin bootstrap, database migration, and premade map
+publishing checklist.
+
+Premade shop/catalog runtime now reads from the `premade_maps` table through
+`GET /api/premade` and `GET /api/premade/:slug`. The static
+`data/premade-maps.ts` file remains as seed/reference data during migration and
+is only used as a fallback while the database table is missing or empty.
+
+For purchasable premades, staff should create drafts from a real `map_id`. The
+server copies the source map payload and generates defaults, so a map ID is the
+only required draft input. Publishing requires complete route/style/stats data,
+a preview image, and a render URL.
+
 ## Gelato Print Formats
 
 Gelato handles printing and global shipping via 130+ fulfilment facilities in 32 countries. Product UIDs must be verified from your Gelato dashboard or `/api/gelato/catalog` before enabling a product for production.
@@ -121,6 +142,8 @@ See `.env.example` for the full list. Key vars:
 - `RENDER_TICKET_SECRET` — long random secret for signed render URLs
 - `NUXT_PUBLIC_SITE_URL` — public URL Browserless can reach for render pages
 - `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
+- `ADMIN_SUPER_ADMIN_EMAILS` — comma-separated immutable super-admin emails; defaults to `anthonynmaro@gmail.com`
+- `ADMIN_BOOTSTRAP_EMAILS` — comma-separated first-admin bootstrap emails; defaults to the super-admin list
 
 For local full E2E, run the queue worker from the repo root with
 `npm run print-worker:dev`; it merges root `.env` with optional

@@ -146,18 +146,18 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
-import { getPremadeBySlug } from '~/data/premade-maps'
+import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const user = useSupabaseUser()
 const slug = route.params.slug as string
-const premade = getPremadeBySlug(slug)
+const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 const sessionId = route.query.session_id as string | undefined
 
 useSeo({
-  title: premade ? `Order confirmed — ${premade.title}` : 'Order confirmed',
+  title: premade.value ? `Order confirmed — ${premade.value.title}` : 'Order confirmed',
   description: 'Your RadMaps trail poster order has been confirmed.',
   path: route.fullPath,
   noindex: true,
@@ -174,14 +174,14 @@ const formatM = (m?: number) => {
 
 // Summary thumbnail route
 const routePath = computed(() => {
-  if (!premade) return ''
-  const feat = premade.geojson?.features?.[0]
+  if (!premade.value) return ''
+  const feat = premade.value.geojson?.features?.[0]
   const g = feat?.geometry as any
   const coords: number[][] | undefined =
     g?.type === 'LineString' ? g.coordinates :
     g?.type === 'MultiLineString' ? (g.coordinates as number[][][]).flat() : undefined
   if (!coords || coords.length < 2) return ''
-  const [minLng, minLat, maxLng, maxLat] = premade.bbox
+  const [minLng, minLat, maxLng, maxLat] = premade.value.bbox
   const lngRange = (maxLng - minLng) || 0.0001
   const latRange = (maxLat - minLat) || 0.0001
   const padX = 6, padY = 14
