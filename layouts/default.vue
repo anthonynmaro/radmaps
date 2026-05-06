@@ -38,7 +38,7 @@
         </div>
         <div v-else class="hidden md:flex items-center gap-1 flex-1">
           <!-- Shop Prints is the only link guests can follow directly -->
-          <NavLink to="/" label="Shop Prints" exact />
+          <NavLink to="/shop" label="Shop Prints" />
 
           <!-- Create → popover callout (sign in / create account) -->
           <UPopover
@@ -211,7 +211,7 @@
           <!-- Guest -->
           <template v-else>
             <div class="px-4 py-3 space-y-1">
-              <NuxtLink to="/" @click="mobileMenuOpen = false"
+              <NuxtLink to="/shop" @click="mobileMenuOpen = false"
                 class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-900/5 transition-colors">
                 <UIcon name="i-heroicons-shopping-bag" class="w-4.5 h-4.5 text-stone-400"/>
                 Shop Prints
