@@ -27,7 +27,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const adminClient = await serverSupabaseServiceRole(event)
-  const premade = await getPublishedPremadeBySlug(adminClient, parsed.data.slug)
+  const premade = await getPublishedPremadeBySlug(adminClient, parsed.data.slug, {
+    staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
+  })
   if (!premade) throw createError({ statusCode: 404, message: 'Premade map not found' })
 
   const supabase = await serverSupabaseClient(event)

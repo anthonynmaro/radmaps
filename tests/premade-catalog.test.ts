@@ -167,13 +167,22 @@ describe('database-backed premade catalog reads', () => {
     await expect(listPublishedPremadeMaps(client)).resolves.toEqual(PREMADE_MAPS)
   })
 
-  it('uses static seed data only while the premade table is empty', async () => {
+  it('uses static seed data while the premade table is empty and fallback is enabled', async () => {
     const client = createMockClient([
       { data: [], error: null },
       { count: 0, error: null },
     ])
 
-    await expect(listPublishedPremadeMaps(client)).resolves.toEqual(PREMADE_MAPS)
+    await expect(listPublishedPremadeMaps(client, { staticFallbackWhenNoPublished: true })).resolves.toEqual(PREMADE_MAPS)
+  })
+
+  it('does not expose static maps when the table is empty and fallback is disabled', async () => {
+    const client = createMockClient([
+      { data: [], error: null },
+      { count: 0, error: null },
+    ])
+
+    await expect(listPublishedPremadeMaps(client, { staticFallbackWhenNoPublished: false })).resolves.toEqual([])
   })
 
   it('does not expose static maps once draft database rows exist', async () => {
@@ -192,6 +201,17 @@ describe('database-backed premade catalog reads', () => {
     ])
 
     await expect(getPublishedPremadeBySlug(client, PREMADE_MAPS[0].slug)).resolves.toBeUndefined()
+  })
+
+  it('does not return static detail pages when the table is empty and fallback is disabled', async () => {
+    const client = createMockClient([
+      { data: null, error: null },
+      { count: 0, error: null },
+    ])
+
+    await expect(
+      getPublishedPremadeBySlug(client, PREMADE_MAPS[0].slug, { staticFallbackWhenNoPublished: false }),
+    ).resolves.toBeUndefined()
   })
 
   it('maps location metadata and nearby distance from database rows', () => {

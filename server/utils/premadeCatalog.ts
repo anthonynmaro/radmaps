@@ -81,7 +81,7 @@ export async function listPublishedPremadeMaps(
   }
 
   if (!data || data.length === 0) {
-    if (await premadeTableIsEmpty(client)) return PREMADE_MAPS
+    if (await premadeTableIsEmpty(client)) return options.staticFallbackWhenNoPublished ? PREMADE_MAPS : []
     return options.staticFallbackWhenNoPublished ? PREMADE_MAPS : []
   }
   return data.map(premadeRowToMap)
@@ -141,6 +141,8 @@ export async function getPublishedPremadeBySlug(
 
   if (data) return premadeRowToMap(data)
 
-  if (await premadeTableIsEmpty(client)) return PREMADE_MAPS.find((map) => map.slug === slug)
+  if (await premadeTableIsEmpty(client)) {
+    return options.staticFallbackWhenNoPublished ? PREMADE_MAPS.find((map) => map.slug === slug) : undefined
+  }
   return options.staticFallbackWhenNoPublished ? PREMADE_MAPS.find((map) => map.slug === slug) : undefined
 }

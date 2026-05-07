@@ -67,17 +67,28 @@ export default defineEventHandler(async (event) => {
 
     // Immutable design snapshot frozen at checkout. For custom physical
     // orders this is required; final print renders never re-read the live map.
-    const { data: snapshot } = await supabase
+    const { data: snapshot, error: snapshotError } = await supabase
       .from('order_snapshots')
       .select('*')
       .eq('stripe_session_id', session.id)
       .maybeSingle()
+    if (snapshotError) {
+      await releaseProcessedStripeEvent(supabase, stripeEvent.id, 'snapshot lookup failed')
+      throw createError({ statusCode: 500, message: snapshotError.message })
+    }
 
     const shouldQueueFinalRender = !!snapshot && !isPremade && !isDigital
 
     let premade: Awaited<ReturnType<typeof getPublishedPremadeBySlug>> = undefined
     if (isPremade && meta.premade_slug) {
-      premade = await getPublishedPremadeBySlug(supabase, meta.premade_slug)
+      try {
+        premade = await getPublishedPremadeBySlug(supabase, meta.premade_slug, {
+          staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
+        })
+      } catch (err) {
+        await releaseProcessedStripeEvent(supabase, stripeEvent.id, 'premade lookup failed')
+        throw err
+      }
     }
 
     // Build the order row. Keep custom print orders compatible with older
@@ -119,6 +130,7 @@ export default defineEventHandler(async (event) => {
 
     if (orderError || !order) {
       console.error('Failed to create order:', orderError)
+      await releaseProcessedStripeEvent(supabase, stripeEvent.id, 'order creation failed')
       throw createError({ statusCode: 500, message: 'Order creation failed' })
     }
 
@@ -331,6 +343,24 @@ export default defineEventHandler(async (event) => {
   return { received: true }
 })
 
+async function releaseProcessedStripeEvent(
+  supabase: any,
+  eventId: string,
+  reason: string,
+) {
+  const { error } = await supabase
+    .from('processed_stripe_events')
+    .delete()
+    .eq('event_id', eventId)
+  if (error) {
+    console.error('[stripe/webhook] Failed to release event dedup marker:', {
+      eventId,
+      reason,
+      error,
+    })
+  }
+}
+
 // ─── Gelato: Place print order ────────────────────────────────────────────────
 
 async function placeGelatoOrder({
@@ -359,6 +389,7 @@ async function placeGelatoOrder({
   const nameParts = (shippingAddress.name ?? '').split(' ')
   const firstName = nameParts[0] ?? ''
   const lastName = nameParts.slice(1).join(' ') || firstName
+  const quantity = Number(order.quantity)
 
   const gelatoOrder = {
     orderType,
@@ -375,7 +406,7 @@ async function placeGelatoOrder({
             url: printFileUrl,
           },
         ],
-        quantity: Number(order.quantity) ?? 1,
+        quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
       },
     ],
     shipmentMethodUid: 'standard',
@@ -407,6 +438,16 @@ async function placeGelatoOrder({
 
 // ─── Email template ───────────────────────────────────────────────────────────
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char] ?? char))
+}
+
 function buildConfirmationEmail({
   order,
   productTitle,
@@ -422,25 +463,29 @@ function buildConfirmationEmail({
 }) {
   const productInfo = getProduct(String(order.product_uid))
   const productName = productInfo ? productInfo.name : 'Print'
+  const safeProductTitle = escapeHtml(productTitle)
+  const safeProductName = escapeHtml(productName)
+  const safeOrderId = escapeHtml(order.id)
+  const safeDigitalUrl = escapeHtml(digitalUrl)
 
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <h1 style="color: #2D6A4F;">Your order is confirmed! 🗺️</h1>
-      <p>Thanks for ordering <strong>${productTitle}</strong> from RadMaps.</p>
+      <p>Thanks for ordering <strong>${safeProductTitle}</strong> from RadMaps.</p>
 
       <div style="background:#F7F4EF;border-radius:8px;padding:16px;margin:16px 0;">
         <p style="margin:0 0 4px;font-size:13px;color:#666;">Order details</p>
-        <p style="margin:0;font-size:15px;font-weight:600;color:#1C1917;">${productName}</p>
-        <p style="margin:4px 0 0;font-size:12px;color:#999;">Order ID: ${order.id}</p>
+        <p style="margin:0;font-size:15px;font-weight:600;color:#1C1917;">${safeProductName}</p>
+        <p style="margin:4px 0 0;font-size:12px;color:#999;">Order ID: ${safeOrderId}</p>
       </div>
 
       ${isDigital
         ? `<p>Your <strong>digital download</strong> is ready:</p>
-           <p><a href="${digitalUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Download Your Map</a></p>
+           <p><a href="${safeDigitalUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Download Your Map</a></p>
            <p><em>This link expires in 48 hours. Save the files to your device.</em></p>`
         : `<p>Your map is being printed and shipped by our global print partner. Estimated delivery is 5–10 business days depending on your location.</p>
            <p>You'll receive a shipping notification with tracking details once your order is dispatched.</p>
-           ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${digitalUrl}" style="color:#2D6A4F;font-weight:600;">Download</a></p>` : ''}`
+           ${digitalUrl ? `<p>Your digital copy is also ready: <a href="${safeDigitalUrl}" style="color:#2D6A4F;font-weight:600;">Download</a></p>` : ''}`
       }
 
       ${isGuest ? `<p style="margin-top:24px;padding:16px;background:#F7F4EF;border-radius:8px;font-size:14px;">Want to design your own custom trail poster next time? <a href="https://radmaps.studio/auth/login" style="color:#2D6A4F;font-weight:600;">Create a free account</a> to bring in routes from Strava, your watch, or any trail app.</p>` : ''}

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { DEFAULT_STYLE_CONFIG, type RouteStats, type StyleConfig } from '~/types'
+import type { RouteStats } from '~/types'
 import { stableStringify } from '~/utils/render/hash'
 import { createRenderTicket } from '~/utils/render/renderTicket'
 import { getPremadeThumbnailPath } from '~/utils/render/storagePaths'
@@ -45,7 +45,6 @@ export async function renderPremadeThumbnail(args: RenderPremadeThumbnailArgs): 
   }
 
   const framing = getPremadeThumbnailFraming()
-  const styleConfig = { ...DEFAULT_STYLE_CONFIG, ...(premade.style_config ?? {}) } as StyleConfig
   const geojson = premade.geojson as GeoJSON.FeatureCollection
   const stats = (premade.stats ?? {}) as RouteStats
   const thumbnailHash = createHash('sha256').update(stableStringify({

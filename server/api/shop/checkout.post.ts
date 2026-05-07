@@ -47,7 +47,9 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
   const adminClient = await serverSupabaseServiceRole(event)
-  const premade = await getPublishedPremadeBySlug(adminClient, slug)
+  const premade = await getPublishedPremadeBySlug(adminClient, slug, {
+    staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
+  })
   if (!premade) {
     throw createError({ statusCode: 404, message: 'Premade map not found' })
   }
@@ -81,10 +83,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const stripe = new Stripe(config.stripeSecretKey)
-  const baseUrl =
-    process.env.NODE_ENV === 'production'
-      ? 'https://radmaps.studio'
-      : 'http://localhost:3001'
+  const configuredSiteUrl = typeof config.public.siteUrl === 'string'
+    ? config.public.siteUrl
+    : ''
+  const baseUrl = configuredSiteUrl || (process.env.NODE_ENV === 'production'
+    ? 'https://radmaps.studio'
+    : 'http://localhost:3001')
 
   let session: Stripe.Checkout.Session | null = null
   try {
