@@ -262,6 +262,28 @@
 
         <!-- Proceed to payment -->
         <div class="pt-4 border-t border-stone-200">
+          <div class="mb-5 rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
+            <div class="flex items-end gap-2">
+              <label class="block flex-1">
+                <span class="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">Coupon</span>
+                <input v-model="couponCode" class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]" placeholder="TRAIL-25" />
+              </label>
+              <button
+                type="button"
+                class="px-4 py-3 rounded-xl border border-stone-300 text-sm font-semibold text-stone-700 min-h-[48px] disabled:opacity-50"
+                :disabled="couponBusy || !couponCode.trim() || !shippingAddress.email || !selectedProduct"
+                @click="applyCoupon"
+              >
+                {{ couponBusy ? 'Checking...' : 'Apply' }}
+              </button>
+            </div>
+            <div v-if="couponPreview" class="flex items-center justify-between text-sm text-green-700">
+              <span>{{ couponPreview.slug }} applied</span>
+              <button type="button" class="font-semibold underline" @click="removeCoupon">Remove</button>
+            </div>
+            <p v-if="couponError" class="text-xs text-red-600">{{ couponError }}</p>
+          </div>
+
           <div v-if="renderError && !isDigital"
             class="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -284,9 +306,13 @@
 
           <div class="flex justify-between items-center mb-4">
             <span class="text-base font-bold text-stone-900">Total</span>
-            <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
-              {{ selectedProduct ? formatPrice(selectedProduct.price_cents) : '' }}
-            </span>
+            <div class="text-right">
+              <p v-if="couponPreview" class="text-sm text-stone-500 line-through">{{ formatPrice(subtotalCents) }}</p>
+              <p v-if="couponPreview" class="text-sm font-semibold text-green-700">-{{ formatPrice(couponPreview.discount_cents) }}</p>
+              <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
+                {{ selectedProduct ? formatPrice(totalCents) : '' }}
+              </span>
+            </div>
           </div>
           <button
             @click="proceedToPayment"
@@ -325,6 +351,7 @@ import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
+import { normalizeCouponSlug } from '~/utils/coupons'
 import type { TrailMap, PrintProduct, ProductFraming, StyleConfig, PrintSize } from '~/types'
 
 definePageMeta({
@@ -352,6 +379,18 @@ const mapCenter = ref<[number, number]>([0, 0])
 const mapZoom = ref(10)
 
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
+const couponCode = ref('')
+const couponBusy = ref(false)
+const couponError = ref('')
+const couponPreview = ref<null | {
+  slug: string
+  percent_off: number
+  discount_cents: number
+  subtotal_cents: number
+  total_cents: number
+}>(null)
+const subtotalCents = computed(() => selectedProduct.value ? selectedProduct.value.price_cents : 0)
+const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0)))
 
 // ─── Style config for live preview (fixed 2:3 poster shape) ─────────────────
 const mapData = ref<TrailMap | null>(null)
@@ -423,6 +462,37 @@ const canProceed = computed(() => {
   if (isDigital.value) return !!shippingAddress.email
   const { name, email, address1, city, state_code, zip, phone } = shippingAddress
   return !!(name && email && address1 && city && state_code && zip && phone)
+})
+
+async function applyCoupon() {
+  couponError.value = ''
+  couponBusy.value = true
+  try {
+    const preview = await $fetch<typeof couponPreview.value>('/api/coupons/validate', {
+      method: 'POST',
+      body: {
+        coupon_slug: normalizeCouponSlug(couponCode.value),
+        email: shippingAddress.email,
+        subtotal_cents: subtotalCents.value,
+      },
+    })
+    couponPreview.value = preview
+    couponCode.value = preview?.slug || couponCode.value
+  } catch (err: any) {
+    couponPreview.value = null
+    couponError.value = err?.data?.message || err?.message || 'Could not apply coupon.'
+  } finally {
+    couponBusy.value = false
+  }
+}
+
+function removeCoupon() {
+  couponPreview.value = null
+  couponError.value = ''
+}
+
+watch([() => shippingAddress.email, selectedProduct], () => {
+  if (couponPreview.value) removeCoupon()
 })
 
 // ─── Render state ───────────────────────────────────────────────────────────
@@ -652,6 +722,7 @@ const proceedToPayment = async () => {
         ? { name: 'Digital', email: shippingAddress.email, address1: '-', city: '-', state_code: '--', zip: '-', country_code: 'US' }
         : shippingAddress,
       digital_only: isDigital.value,
+      coupon_slug: couponPreview.value?.slug,
     }
     const response = await fetch('/api/orders/checkout', {
       method: 'POST',

@@ -25,11 +25,14 @@ Proof renders:
 5. The JPEG is validated, uploaded to Supabase Storage, and the map row is updated with proof render metadata.
 6. The same proof URL is written to `proof_render_url`, `thumbnail_url`, and `render_url`. In the current Browserless pipeline, the proof render is the canonical user-facing thumbnail.
 
-Admin premade preview generation reuses this proof path. If a staff-created
-premade draft has `needs_preview = true`, `/admin/premade` calls
-`POST /api/admin/premade/:id/generate-preview`, which renders the source map
-with service-role read access and writes the resulting URL back to the
-`premade_maps` row. Do not add a separate premade thumbnail renderer.
+Admin premade preview generation uses the same signed Nuxt/MapLibre render
+component at web-thumbnail dimensions. If a staff-created premade draft has
+`needs_preview = true`, `/admin/premade` calls
+`POST /api/admin/premade/:id/generate-preview`, which screenshots
+`/render/premade/:id` at `720x1080` and writes the resulting low-res JPEG to
+`premade_maps.preview_image_url`. This renders directly from the `premade_maps`
+row so each style variant gets its own correct thumbnail. It does not write to
+`premade_maps.render_url`, which is reserved for print-ready premade assets.
 
 Final order renders:
 
@@ -72,10 +75,13 @@ Do not create a separate thumbnail renderer or crop a dashboard thumbnail from
 editor DOM. Thumbnail drift is avoided by routing all preview artifacts through
 the same signed Browserless proof render path.
 
-Premade draft creation uses the same asset preference:
+Premade draft creation uses source-map assets only as an initial preview seed:
 `proof_render_url -> thumbnail_url -> render_url`. Drafts without any source
-preview remain unpublished until a preview is generated and publish validation
-passes.
+preview are immediately eligible for low-res premade thumbnail generation. Admin
+creation, premade style saves, the "Generate preview" action, and
+`npm run premade:backfill-thumbnails` all use the signed `/render/premade/:id`
+thumbnail path. Print-ready premade files remain separate from catalog
+thumbnails.
 
 Checkout is intentionally product-first. The product selector must be visible
 beside or below the live poster preview, not floating over it. Do not start the

@@ -40,7 +40,7 @@ export async function renderMapProof(args: V4Args) {
   const supabase = await serverSupabaseClient(event)
   const adminClient = await serverSupabaseServiceRole(event)
 
-  const body = await readBody(event).catch(() => ({})) as {
+  const body = ((await readBody(event).catch(() => ({}))) ?? {}) as {
     product_uid?: string
   }
 
@@ -60,7 +60,6 @@ export async function renderMapProof(args: V4Args) {
   const styleConfig = (map.style_config ?? DEFAULT_STYLE_CONFIG) as StyleConfig
   const stats = (map.stats ?? {}) as RouteStats
   const geojson = (map.geojson ?? { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection
-  const bbox = map.bbox as [number, number, number, number] | null
 
   // Resolve product UID. Checkout pins the concrete Gelato product UID;
   // editor proofs fall back to the canonical 2:3 style size.

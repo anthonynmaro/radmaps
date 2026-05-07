@@ -47,6 +47,9 @@ const fullConfig: StyleConfig = {
   tile_midtone_color: '#888',
   tile_highlight_color: '#fff',
   map_3d: false,
+  map_pitch: 0,
+  map_bearing: 0,
+  terrain_exaggeration: 1.5,
   map_zoom: 12,
   map_center: [0, 0],
   // Optional chrome fields
@@ -58,6 +61,9 @@ const fullConfig: StyleConfig = {
   title_scale: 1,
   occasion_scale: 1,
   subtitle_scale: 1,
+  poster_text_overrides: {
+    distance: { text: '26.2 miles', scale: 1.1, bold: true },
+  },
 }
 
 describe('FIELD_LAYER — coverage', () => {
@@ -94,6 +100,10 @@ describe('FIELD_LAYER — locked decisions', () => {
 
   it('print_size is "chrome" (canvas dims are a chrome concern; map raster is oversized)', () => {
     expect(FIELD_LAYER.print_size).toBe('chrome')
+  })
+
+  it('poster_text_overrides is "chrome" (editable imported text slots live in poster chrome)', () => {
+    expect(FIELD_LAYER.poster_text_overrides).toBe('chrome')
   })
 
   it('preset and base_tile_style are "map"', () => {

@@ -55,8 +55,10 @@ const { data, pending } = await useFetch<{
 const staff = computed(() => data.value?.staff || null)
 const navItems = [
   { to: '/admin/premade', label: 'Premade', icon: 'i-heroicons-map', action: 'premade:edit' as const },
+  { to: '/admin/coupons', label: 'Coupons', icon: 'i-heroicons-ticket', action: 'coupon:manage' as const },
   { to: '/admin/homepage', label: 'Homepage', icon: 'i-heroicons-star', action: 'homepage:manage' as const },
   { to: '/admin/staff', label: 'Staff', icon: 'i-heroicons-users', action: 'staff:manage' as const },
+  { to: '/admin/flags', label: 'Flags', icon: 'i-heroicons-adjustments-horizontal', action: 'flags:manage' as const },
   { to: '/admin/support', label: 'Support', icon: 'i-heroicons-lifebuoy', action: 'support:read' as const },
 ]
 

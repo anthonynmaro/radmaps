@@ -25,9 +25,9 @@
     <div class="px-3 pb-2 shrink-0">
       <div class="flex bg-[#F5F5F4] rounded-lg p-[3px] gap-0.5">
         <button
-          v-for="t in TABS"
+          v-for="t in visibleTabs"
           :key="t.id"
-          @click="activeTab = t.id as typeof activeTab"
+          @click="activeTab = t.id"
           class="flex-1 text-[11px] font-semibold rounded-md leading-none py-[6px] transition-all duration-150 border-none cursor-pointer"
           :style="activeTab === t.id
             ? 'background: white; color: #1C1917; box-shadow: 0 1px 2px rgba(0,0,0,0.06);'
@@ -183,7 +183,7 @@
             <button
               v-for="p in MAP_PRESETS"
               :key="p.id"
-              @click="set('preset', p.id)"
+              @click="applyMapPreset(p)"
               class="flex flex-col items-center gap-1 cursor-pointer transition-all overflow-hidden border-none"
               style="padding: 6px; border-radius: 8px; border: 1.5px solid;"
               :style="local.preset === p.id
@@ -191,8 +191,13 @@
                 : 'background: white; border-color: #E7E5E4;'"
               :title="p.title"
             >
-              <div class="w-full rounded overflow-hidden" style="aspect-ratio: 3/2">
+              <div class="w-full rounded overflow-hidden relative" style="aspect-ratio: 3/2">
                 <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
+                <span
+                  v-if="p.beta"
+                  class="absolute top-1 right-1"
+                  style="font-size: 7px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #9A6700; background: rgba(254, 243, 199, 0.92); border: 1px solid #FDE68A; border-radius: 4px; padding: 1px 4px; line-height: 1;"
+                >Beta</span>
               </div>
               <span class="text-[9px] leading-none font-semibold"
                 :style="local.preset === p.id ? 'color: #1F4D38;' : 'color: #78716C;'"
@@ -229,6 +234,77 @@
             <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
             <p class="text-[10px] leading-snug flex-1" style="color: #1F4D38;">View frozen at Z{{ local.map_zoom?.toFixed(1) }} · position locked</p>
           </div>
+        </V4Card>
+
+        <V4Card title="Viewpoint" :default-open="true">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold" :style="local.map_frozen ? 'color: #1F4D38;' : 'color: #78716C;'">
+              {{ local.map_frozen ? `Locked at Z${local.map_zoom?.toFixed(1) ?? '—'}` : 'Editable view' }}
+            </span>
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :style="local.map_frozen ? 'background: #2D6A4F;' : 'background: #A8A29E;'"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 mt-3">
+            <button
+              v-if="local.map_frozen"
+              class="text-[10px] font-semibold rounded-lg cursor-pointer transition-colors"
+              style="padding: 8px 10px; border: 1.5px solid #2D6A4F; background: #DCEBE2; color: #1F4D38;"
+              @click="emit('request-view-edit')"
+            >Edit view</button>
+            <button
+              v-else
+              class="text-[10px] font-semibold rounded-lg cursor-pointer transition-colors"
+              style="padding: 8px 10px; border: 1.5px solid #2D6A4F; background: #DCEBE2; color: #1F4D38;"
+              @click="emit('request-view-lock')"
+            >Set view</button>
+            <button
+              class="text-[10px] font-semibold rounded-lg cursor-pointer transition-colors"
+              style="padding: 8px 10px; border: 1.5px solid #E7E5E4; background: white; color: #57534E;"
+              @click="emit('request-view-reset')"
+            >Reset route</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Map detail" :default-open="true">
+          <ToggleRow label="Roads" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
+          <template v-if="sections.roadsExpanded">
+            <div class="flex items-center justify-between mb-2 mt-2">
+              <span class="text-xs" style="color: #44403C;">Road color</span>
+              <ColorSwatch :value="local.roads_color ?? local.label_text_color" @change="set('roads_color', $event)" />
+            </div>
+            <SliderRow label="Road opacity" :value="local.roads_opacity ?? 0.6" :min="0.05" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('roads_opacity', $event)" />
+            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
+            <ToggleRow label="Map labels" :value="local.show_place_labels !== false" @change="set('show_place_labels', $event)" />
+            <template v-if="local.show_place_labels !== false">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs" style="color: #44403C;">Label color</span>
+                <ColorSwatch :value="local.place_labels_color ?? local.label_text_color" @change="set('place_labels_color', $event)" />
+              </div>
+              <SliderRow label="Label opacity" :value="local.place_labels_opacity ?? 0.75" :min="0.05" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('place_labels_opacity', $event)" />
+              <div>
+                <p class="text-xs mb-1.5" style="color: #44403C;">Density</p>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <SegmentButton label="Cities" :active="local.place_labels_scale === 'city'" @click="set('place_labels_scale', 'city')" />
+                  <SegmentButton label="+ Towns" :active="(local.place_labels_scale ?? 'town') === 'town'" @click="set('place_labels_scale', 'town')" />
+                  <SegmentButton label="+ Villages" :active="local.place_labels_scale === 'village'" @click="set('place_labels_scale', 'village')" />
+                </div>
+              </div>
+            </template>
+            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
+            <ToggleRow label="Points of interest" :value="local.show_poi_labels ?? false" @change="set('show_poi_labels', $event)" />
+            <template v-if="local.show_poi_labels">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs" style="color: #44403C;">POI color</span>
+                <ColorSwatch :value="local.poi_labels_color ?? local.label_text_color" @change="set('poi_labels_color', $event)" />
+              </div>
+              <SliderRow label="POI opacity" :value="local.poi_labels_opacity ?? 0.65" :min="0.05" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('poi_labels_opacity', $event)" />
+            </template>
+          </template>
         </V4Card>
 
         <V4Card v-if="sections.routeMapCard" title="Route" :default-open="false">
@@ -288,10 +364,10 @@
           <div v-if="activeDeleteBrush" class="mb-2">
             <SliderRow
               label="Brush size"
-              :value="deleteBrushSize ?? 18"
-              :min="8"
-              :max="48"
-              :step="2"
+              :value="deleteBrushSize ?? 8"
+              :min="3"
+              :max="24"
+              :step="1"
               :display="(v: number) => Math.round(v) + ' px'"
               @change="emit('update-brush-size', $event)"
             />
@@ -326,50 +402,26 @@
             <ToggleRow label="Show finish" :value="local.show_finish_pin ?? true" @change="set('show_finish_pin', $event)" />
           </div>
           <template v-if="sections.pinControls">
-            <div class="flex gap-3 mt-2">
-              <div class="flex-1">
-                <label class="text-[10px] block mb-1" style="color: #A8A29E;">Start label</label>
-                <input
-                  :value="local.start_pin_label ?? 'Start'"
-                  @input="set('start_pin_label', ($event.target as HTMLInputElement).value)"
-                  class="w-full text-xs px-2 py-1.5 rounded-lg border border-stone-200 focus:outline-none focus:border-[#2D6A4F]"
-                  placeholder="Start"
-                />
-              </div>
-              <div class="flex-1">
-                <label class="text-[10px] block mb-1" style="color: #A8A29E;">Finish label</label>
-                <input
-                  :value="local.finish_pin_label ?? 'Finish'"
-                  @input="set('finish_pin_label', ($event.target as HTMLInputElement).value)"
-                  class="w-full text-xs px-2 py-1.5 rounded-lg border border-stone-200 focus:outline-none focus:border-[#2D6A4F]"
-                  placeholder="Finish"
-                />
-              </div>
-            </div>
             <div class="flex items-center justify-between mt-2">
               <span class="text-xs" style="color: #44403C;">Pin color</span>
               <ColorSwatch :value="local.pin_color ?? local.label_text_color" @change="set('pin_color', $event)" />
             </div>
             <SliderRow label="Pin opacity" :value="local.pin_opacity ?? 0.9" :min="0.1" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('pin_opacity', $event)" />
-            <div>
-              <p class="text-[10px] mb-1.5" style="color: #A8A29E;">Label font</p>
-              <div class="grid grid-cols-2 gap-1.5">
-                <FontButton
-                  v-for="f in PIN_FONTS"
-                  :key="f.id"
-                  :label="f.label"
-                  :font="f.id"
-                  :active="(local.pin_font_family ?? local.body_font_family) === f.id"
-                  @click="set('pin_font_family', f.id)"
-                />
-              </div>
-            </div>
           </template>
         </V4Card>
 
         <V4Card title="Terrain" :default-open="false">
-          <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set('map_3d', $event)" />
+          <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set3DTerrain($event)" />
+          <template v-if="local.map_3d">
+            <SliderRow label="Perspective" :value="local.map_pitch ?? 45" :min="0" :max="70" :step="1"
+              :display="(v: number) => Math.round(v) + '°'" @change="set('map_pitch', $event)" />
+            <SliderRow label="Rotation" :value="local.map_bearing ?? 0" :min="-180" :max="180" :step="1"
+              :display="(v: number) => Math.round(v) + '°'" @change="set('map_bearing', $event)" />
+            <SliderRow label="Relief" :value="local.terrain_exaggeration ?? 1.5" :min="0.5" :max="3" :step="0.1"
+              :display="(v: number) => v.toFixed(1) + '×'" @change="set('terrain_exaggeration', $event)" />
+            <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
+          </template>
           <ToggleRow label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
           <template v-if="sections.hillshadeDetails">
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
@@ -397,45 +449,6 @@
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
           </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <ToggleRow label="Roads &amp; Labels" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
-          <template v-if="sections.roadsExpanded">
-            <div class="flex items-center justify-between mb-2 mt-2">
-              <span class="text-xs" style="color: #44403C;">Road color</span>
-              <ColorSwatch :value="local.roads_color ?? local.label_text_color" @change="set('roads_color', $event)" />
-            </div>
-            <SliderRow label="Road opacity" :value="local.roads_opacity ?? 0.6" :min="0.05" :max="1" :step="0.05"
-              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('roads_opacity', $event)" />
-            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
-            <ToggleRow label="Place names" :value="local.show_place_labels !== false" @change="set('show_place_labels', $event)" />
-            <template v-if="local.show_place_labels !== false">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs" style="color: #44403C;">Label color</span>
-                <ColorSwatch :value="local.place_labels_color ?? local.label_text_color" @change="set('place_labels_color', $event)" />
-              </div>
-              <SliderRow label="Label opacity" :value="local.place_labels_opacity ?? 0.75" :min="0.05" :max="1" :step="0.05"
-                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('place_labels_opacity', $event)" />
-              <div>
-                <p class="text-xs mb-1.5" style="color: #44403C;">Density</p>
-                <div class="grid grid-cols-3 gap-1.5">
-                  <SegmentButton label="Cities" :active="local.place_labels_scale === 'city'" @click="set('place_labels_scale', 'city')" />
-                  <SegmentButton label="+ Towns" :active="(local.place_labels_scale ?? 'town') === 'town'" @click="set('place_labels_scale', 'town')" />
-                  <SegmentButton label="+ Villages" :active="local.place_labels_scale === 'village'" @click="set('place_labels_scale', 'village')" />
-                </div>
-              </div>
-            </template>
-            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
-            <ToggleRow label="Points of interest" :value="local.show_poi_labels ?? false" @change="set('show_poi_labels', $event)" />
-            <template v-if="local.show_poi_labels">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs" style="color: #44403C;">POI color</span>
-                <ColorSwatch :value="local.poi_labels_color ?? local.label_text_color" @change="set('poi_labels_color', $event)" />
-              </div>
-              <SliderRow label="POI opacity" :value="local.poi_labels_opacity ?? 0.65" :min="0.05" :max="1" :step="0.05"
-                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('poi_labels_opacity', $event)" />
-            </template>
-          </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <template v-if="sections.elevationProfileToggle">
             <ToggleRow label="Elevation profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
           </template>
@@ -451,11 +464,12 @@
           </template>
         </V4Card>
 
-        <V4Card title="Effects" hint="Advanced — duotone, posterize, grain" :default-open="false">
+        <V4Card title="Effects" hint="Advanced — invert, duotone, posterize, grain" :default-open="false">
           <div class="mb-3">
             <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Tile effect</p>
             <div class="grid grid-cols-2 gap-1.5">
               <SegmentButton label="None"        :active="(local.tile_effect ?? 'none') === 'none'"   @click="set('tile_effect', 'none')" />
+              <SegmentButton label="Invert"      :active="local.tile_effect === 'invert'"             @click="set('tile_effect', 'invert')" />
               <SegmentButton label="Duotone"     :active="local.tile_effect === 'duotone'"             @click="set('tile_effect', 'duotone')" />
               <SegmentButton label="Posterize"   :active="local.tile_effect === 'posterize'"           @click="set('tile_effect', 'posterize')" />
               <SegmentButton label="Layer Color" :active="local.tile_effect === 'layer-color'"         @click="set('tile_effect', 'layer-color')" />
@@ -493,48 +507,6 @@
           <SliderRow label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
             :display="(v: number) => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
         </V4Card>
-
-        <!-- ─── Beta presets ──────────────────────────────────────────────── -->
-        <div style="margin: 0 12px 4px; border-radius: 14px; border: 1px solid #F5F5F4; overflow: hidden;">
-          <button
-            class="w-full flex items-center justify-between cursor-pointer border-none"
-            style="padding: 12px 14px; background: #FAFAF9; user-select: none;"
-            @click="betaSectionOpen = !betaSectionOpen"
-          >
-            <div class="flex items-center gap-2">
-              <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.01em; color: #1C1917;">Native presets</span>
-              <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9A6700; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 4px; padding: 1px 5px;">Beta</span>
-            </div>
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"
-              :style="`color: #A8A29E; transition: transform 0.2s; transform: ${betaSectionOpen ? 'rotate(180deg)' : 'rotate(0deg)'};`"
-            >
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-          <div v-if="betaSectionOpen" style="padding: 4px 14px 14px; background: #FAFAF9; border-top: 1px solid #F5F5F4;">
-            <p style="font-size: 10px; color: #A8A29E; margin: 8px 0 10px;">No Stadia Maps dependency · works without external tile CDN</p>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                v-for="p in BETA_PRESETS"
-                :key="p.id"
-                @click="applyBetaPreset(p)"
-                class="flex flex-col items-center gap-1 cursor-pointer transition-all overflow-hidden border-none"
-                style="padding: 6px; border-radius: 8px; border: 1.5px solid;"
-                :style="local.preset === p.id
-                  ? 'background: #DCEBE2; border-color: #2D6A4F;'
-                  : 'background: white; border-color: #E7E5E4;'"
-                :title="p.title"
-              >
-                <div class="w-full rounded overflow-hidden" style="aspect-ratio: 3/2;">
-                  <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
-                </div>
-                <span class="text-[9px] leading-none font-semibold"
-                  :style="local.preset === p.id ? 'color: #1F4D38;' : 'color: #78716C;'"
-                >{{ p.label }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
 
         <V4Card v-if="sections.trailSegmentsCard" title="Trail segments" :default-open="false">
           <p class="text-[10px] mb-3" style="color: #A8A29E;">Name and color sections of your route to build a map legend</p>
@@ -766,6 +738,7 @@
           :title="activePosterTextMeta.title"
           hint="Selected poster text"
           :default-open="true"
+          style="display: none;"
         >
           <TextRow
             :label="activePosterTextMeta.inputLabel"
@@ -801,7 +774,7 @@
           </div>
         </V4Card>
 
-        <V4Card v-else-if="activeTextTarget?.type !== 'text-overlay'" title="Poster text" :default-open="true">
+        <V4Card v-else-if="false && activeTextTarget?.type !== 'text-overlay'" title="Poster text" :default-open="true">
           <TextRow label="Trail name" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
           <SliderRow label="Trail name size" :value="local.title_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('title_scale', $event)" />
@@ -813,6 +786,27 @@
           <TextRow label="Subtitle" :value="local.location_text" placeholder="e.g. Moab, Utah" @change="set('location_text', $event)" />
           <SliderRow label="Subtitle size" :value="local.subtitle_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('subtitle_scale', $event)" />
+        </V4Card>
+
+        <V4Card title="Global typography" hint="Selected poster text edits inline" :default-open="true">
+          <ColorRow label="Text color" :value="local.label_text_color" @change="set('label_text_color', $event)" />
+          <ColorRow label="Band background" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
+          <div>
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Font</p>
+            <template v-for="group in fontGroups" :key="group.label">
+              <p class="text-[9px] font-semibold uppercase mb-1 mt-2 first:mt-0" style="letter-spacing: 0.12em; color: #C5C0BB;">{{ group.label }}</p>
+              <div class="grid grid-cols-2 gap-1">
+                <FontButton
+                  v-for="fontName in group.fonts"
+                  :key="fontName"
+                  :label="fontName"
+                  :font="fontName"
+                  :active="local.font_family === fontName"
+                  @click="selectFont(fontName)"
+                />
+              </div>
+            </template>
+          </div>
         </V4Card>
 
         <V4Card v-if="activeTextTarget?.type !== 'text-overlay'" title="Stats & labels" :default-open="false">
@@ -879,7 +873,7 @@
                   <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
               </div>
-              <div v-if="expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
+              <div v-if="false && expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
                 <div class="space-y-1">
                   <span class="text-xs" style="color: #44403C;">Content</span>
                   <textarea
@@ -977,6 +971,15 @@
 
       </template>
 
+      <!-- ─── SCOUT TAB ─────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'scout' && showScoutTab">
+        <ScoutChat
+          :style-config="local"
+          :route-stats="scoutRouteStats"
+          @update-style="applyScoutUpdate"
+        />
+      </template>
+
       <div class="h-8" />
     </div>
 
@@ -984,10 +987,11 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats } from '~/types'
 import { COLOR_THEMES } from '~/types'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
+import { FLAGS } from '~/utils/knownFlags'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type ActiveTextTarget =
@@ -1038,6 +1042,10 @@ const props = defineProps<{
   deleteBrushSize?: number
   /** Text element selected from the poster preview */
   activeTextTarget?: ActiveTextTarget | null
+  /** Enable the staff-only Scout tab when the feature flag resolves true */
+  scoutAvailable?: boolean
+  /** Route stats passed to Scout for style context */
+  routeStats?: RouteStats
 }>()
 
 const sections = computed(() => computeSectionVisibility({
@@ -1072,6 +1080,12 @@ const emit = defineEmits<{
   'request-brush-delete': []
   /** User changed the paint-select brush radius */
   'update-brush-size': [value: number]
+  /** User wants to save the current map camera */
+  'request-view-lock': []
+  /** User wants to unlock pan/zoom for the map camera */
+  'request-view-edit': []
+  /** User wants to refit the route in the map camera */
+  'request-view-reset': []
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1125,16 +1139,34 @@ watch(() => props.modelValue, (v) => {
 }, { deep: true })
 
 // ── Tab state ──────────────────────────────────────────────────────────────────
-type TabId = 'quick' | 'map' | 'style' | 'text'
+type TabId = 'quick' | 'map' | 'style' | 'text' | 'scout'
 const activeTab = ref<TabId>('quick')
-const betaSectionOpen = ref(false)
 
-const TABS: Array<{ id: TabId; label: string }> = [
+const BASE_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'quick', label: 'Quick' },
   { id: 'map',   label: 'Map' },
   { id: 'style', label: 'Style' },
   { id: 'text',  label: 'Text' },
 ]
+
+const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
+const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
+const visibleTabs = computed(() => showScoutTab.value
+  ? [...BASE_TABS, { id: 'scout' as const, label: 'Scout' }]
+  : BASE_TABS,
+)
+
+watch(showScoutTab, (visible) => {
+  if (!visible && activeTab.value === 'scout') activeTab.value = 'quick'
+})
+
+const scoutRouteStats = computed<RouteStats>(() => props.routeStats ?? {
+  distance_km: props.totalDistanceKm ?? 0,
+  elevation_gain_m: 0,
+  elevation_loss_m: 0,
+  max_elevation_m: 0,
+  min_elevation_m: 0,
+})
 
 const POSTER_TEXT_FIELD_META: Record<PosterTextField, {
   field: PosterTextField
@@ -1193,7 +1225,6 @@ const textOverlayCardKey = computed(() =>
 
 watch(() => props.activeTextTarget, (target) => {
   if (!target) return
-  activeTab.value = 'text'
   if (target.type === 'text-overlay') {
     expandedOverlayId.value = target.id
   }
@@ -1226,6 +1257,19 @@ function applySavedTheme(saved: SavedTheme) {
 
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
+  emit('update:modelValue', { ...local })
+}
+
+function applyScoutUpdate(updates: Partial<StyleConfig>) {
+  Object.assign(local, updates)
+  emit('update:modelValue', { ...local })
+}
+
+function set3DTerrain(enabled: boolean) {
+  local.map_3d = enabled
+  local.map_pitch = enabled ? ((local.map_pitch ?? 0) > 0 ? local.map_pitch : 45) : 0
+  local.map_bearing = enabled ? (local.map_bearing ?? 0) : 0
+  local.terrain_exaggeration = local.terrain_exaggeration ?? 1.5
   emit('update:modelValue', { ...local })
 }
 
@@ -1506,7 +1550,17 @@ function blendForPreview(a: string | undefined, b: string | undefined): string {
   return `#${r}${g}${bh}`
 }
 
-const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBox: string; svg: string }> = [
+type MapPresetOption = {
+  id: StylePreset
+  label: string
+  title: string
+  viewBox: string
+  svg: string
+  beta?: boolean
+  defaults?: Partial<StyleConfig>
+}
+
+const CORE_MAP_PRESETS: MapPresetOption[] = [
   {
     id: 'minimalist', label: 'Minimalist', title: 'Clean raster tiles — CARTO light or dark',
     viewBox: '0 0 48 32',
@@ -1550,6 +1604,7 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
   {
     id: 'contour-art', label: 'Contour Art', title: 'Topographic contours as standalone art',
     viewBox: '0 0 48 32',
+    defaults: { show_contours: true, contour_detail: 4 },
     svg: `<rect width="48" height="32" fill="#fafafa"/>
       <ellipse cx="24" cy="18" rx="20" ry="12" stroke="#9e9082" stroke-width="0.6" fill="none"/>
       <ellipse cx="24" cy="18" rx="16" ry="9" stroke="#9e9082" stroke-width="0.6" fill="none"/>
@@ -1577,7 +1632,7 @@ const MAP_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBo
   },
 ]
 
-const BETA_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewBox: string; svg: string; defaults: Partial<StyleConfig> }> = [
+const BETA_MAP_PRESETS: MapPresetOption[] = [
   {
     id: 'native-toner', label: 'Toner',
     title: 'B&W vector look — Mapbox Streets roads as ink on paper',
@@ -1589,6 +1644,7 @@ const BETA_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewB
       <path d="M8 0 Q7 8 8 20 Q9 26 8 32" stroke="#111" stroke-width="1.1" fill="none" opacity="0.65"/>
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
     defaults: { background_color: '#FFFFFF', label_text_color: '#111111', label_bg_color: '#FFFFFF' },
+    beta: true,
   },
   {
     id: 'native-watercolor', label: 'Watercolor',
@@ -1600,6 +1656,7 @@ const BETA_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewB
       <rect x="0" y="22" width="48" height="10" fill="#A8B8C0" opacity="0.38"/>
       <path d="M4 18 Q16 13 28 16 Q38 18 46 13" stroke="#B5451B" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
     defaults: { background_color: '#F0E8DC', label_bg_color: '#F0E8DC', label_text_color: '#2A1A0A' },
+    beta: true,
   },
   {
     id: 'alidade-smooth', label: 'Alidade',
@@ -1612,6 +1669,7 @@ const BETA_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewB
       <path d="M8 0 Q7 10 8 21 Q9 28 8 32" stroke="#B8B0A8" stroke-width="0.7" fill="none" opacity="0.50"/>
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#e63946" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
     defaults: { background_color: '#F5F3EE', label_bg_color: '#F5F3EE', label_text_color: '#1C1917' },
+    beta: true,
   },
   {
     id: 'alidade-smooth-dark', label: 'Alidade Dark',
@@ -1624,11 +1682,17 @@ const BETA_PRESETS: Array<{ id: StylePreset; label: string; title: string; viewB
       <path d="M8 0 Q7 10 8 20 Q9 28 8 32" stroke="#383838" stroke-width="0.7" fill="none" opacity="0.50"/>
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FB923C" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
     defaults: { background_color: '#141414', label_bg_color: '#141414', label_text_color: '#F0F0F0' },
+    beta: true,
   },
 ]
 
-function applyBetaPreset(p: typeof BETA_PRESETS[number]) {
-  Object.assign(local, { preset: p.id, ...p.defaults })
+const MAP_PRESETS: MapPresetOption[] = [
+  ...CORE_MAP_PRESETS,
+  ...BETA_MAP_PRESETS,
+]
+
+function applyMapPreset(p: MapPresetOption) {
+  Object.assign(local, { preset: p.id, ...(p.defaults ?? {}) })
   emit('update:modelValue', { ...local })
 }
 </script>

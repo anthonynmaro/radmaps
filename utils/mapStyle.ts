@@ -58,6 +58,10 @@ export function buildMapStyle(
   return buildMinimalistStyle(config, mapboxToken, maptilerToken, contourTileUrl)
 }
 
+export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
+  return config.preset === 'contour-art' || config.show_contours === true
+}
+
 // ─── Contour thresholds for maplibre-contour ─────────────────────────────────
 // Per-detail-level thresholds: { mapZoom: [minorIntervalMeters, majorIntervalMeters] }
 // These are used in MapPreview.vue to generate the contourTileUrl.
@@ -103,6 +107,10 @@ function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
   const effect = config.tile_effect ?? 'none'
   if (effect === 'none') return urls
 
+  if (effect === 'invert') {
+    return urls.map(u => `styledtile://invert|${u}`)
+  }
+
   if (effect === 'duotone') {
     // Shadow → label_text_color (dark), Highlight → background_color (light).
     // Together they remap any tile's luminance into the poster's own palette.
@@ -130,6 +138,18 @@ function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
   }
 
   return urls
+}
+
+export function mapBackgroundColor(config: StyleConfig): string {
+  return config.tile_effect === 'invert'
+    ? (config.label_text_color ?? '#1C1917')
+    : (config.background_color ?? '#F7F4EF')
+}
+
+export function mapInkColor(config: StyleConfig): string {
+  return config.tile_effect === 'invert'
+    ? (config.background_color ?? '#F7F4EF')
+    : (config.label_text_color ?? '#1C1917')
 }
 
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
@@ -467,8 +487,8 @@ function roadsLayers(config: StyleConfig): object[] {
       source: 'mapbox-streets',
       'source-layer': 'poi_label',
       filter: ['all',
+        ['has', 'name'],
         ['<=', ['to-number', ['get', 'filterrank'], 5], 3],
-        ['!=', ['get', 'maki'], 'marker'],
       ],
       layout: {
         'text-field': ['get', 'name'],
@@ -477,7 +497,6 @@ function roadsLayers(config: StyleConfig): object[] {
         'text-anchor': 'top',
         'text-offset': [0, 0.6],
         'text-max-width': 6,
-        'icon-image': '',
       },
       paint: {
         'text-color': poiColor,
@@ -609,7 +628,7 @@ function routeLayers(config: StyleConfig) {
     source: 'route',
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': config.background_color ?? '#F7F4EF',
+      'line-color': mapBackgroundColor(config),
       'line-width': config.route_width + 4,
       'line-opacity': config.route_opacity,
     },
@@ -719,7 +738,7 @@ function buildMinimalistStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -768,7 +787,7 @@ function buildRouteOnlyStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
@@ -791,8 +810,10 @@ function buildRoadNetworkStyle(
 ): object {
   const token = mapboxToken || ''
   const usingMlContour = !!contourTileUrl
-  const bg = config.background_color
-  const ink = config.label_text_color
+  const bg = mapBackgroundColor(config)
+  const ink = mapInkColor(config)
+  const roadColor = config.roads_color ?? ink
+  const roadOpacity = config.roads_opacity ?? 1
 
   const sources: Record<string, object> = {
     ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
@@ -834,7 +855,9 @@ function buildRoadNetworkStyle(
       filter: ['in', ['get', 'class'], ['literal', ['park', 'grass', 'wood', 'forest', 'scrub']]],
       paint: { 'fill-color': ink, 'fill-opacity': 0.04 },
     })
+  }
 
+  if (token && config.show_roads) {
     // Service / footpath (thinnest)
     roadLineLayers.push({
       id: 'rn-service',
@@ -844,8 +867,8 @@ function buildRoadNetworkStyle(
       filter: ['in', ['get', 'class'], ['literal', ['service', 'path', 'pedestrian', 'track']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': ink,
-        'line-opacity': 0.18,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.18,
         'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 15, 0.8],
       },
     })
@@ -859,8 +882,8 @@ function buildRoadNetworkStyle(
       filter: ['in', ['get', 'class'], ['literal', ['street', 'street_limited', 'tertiary']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': ink,
-        'line-opacity': 0.32,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.32,
         'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.4, 14, 1.2],
       },
     })
@@ -874,8 +897,8 @@ function buildRoadNetworkStyle(
       filter: ['in', ['get', 'class'], ['literal', ['secondary', 'primary']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': ink,
-        'line-opacity': 0.55,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.55,
         'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 14, 2.0],
       },
     })
@@ -889,8 +912,8 @@ function buildRoadNetworkStyle(
       filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': ink,
-        'line-opacity': 0.75,
+        'line-color': roadColor,
+        'line-opacity': roadOpacity * 0.75,
         'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 3.0],
       },
     })
@@ -941,12 +964,25 @@ function buildContourArtStyle(
     sources: {
       ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...contourSource(token, contourTileUrl),
+      ...(token ? roadsSource(token) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
+      ...(token
+        ? [{
+            id: 'contour-art-water',
+            type: 'fill',
+            source: 'mapbox-streets',
+            'source-layer': 'water',
+            paint: {
+              'fill-color': config.water_color ?? '#B8D8E8',
+              'fill-opacity': 0.62,
+            },
+          }]
+        : []),
       // Hillshade at very low opacity for subtle topographic depth
       ...(config.show_hillshade
         ? [{
@@ -1070,7 +1106,7 @@ function buildNaturalTopoStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles',
         type: 'raster',
@@ -1162,6 +1198,9 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
   const usingMlContour = !!contourTileUrl
   const keyParam = stadiaToken ? `?api_key=${stadiaToken}` : ''
   const mapboxTk = mapboxToken || ''
+  const tonerLayerGroup = config.show_place_labels === false
+    ? 'stamen_toner_background'
+    : 'stamen_toner'
 
   return {
     version: 8,
@@ -1174,7 +1213,7 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
         type: 'raster' as const,
         // @2x for HiDPI print rendering — see watercolor source comment.
         tiles: styledTileUrls(config, [
-          `https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}@2x.png${keyParam}`,
+          `https://tiles.stadiamaps.com/tiles/${tonerLayerGroup}/{z}/{x}/{y}@2x.png${keyParam}`,
         ]),
         tileSize: 512,
         attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a> / <a href="https://stadiamaps.com">Stadia Maps</a>, CC BY 3.0. Data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
@@ -1187,7 +1226,7 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': '#ffffff' } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -1218,7 +1257,9 @@ function buildNativeTonerStyle(
 ): object {
   const token = mapboxToken || ''
   const usingMlContour = !!contourTileUrl
-  const ink = config.label_text_color
+  const ink = mapInkColor(config)
+  const roadColor = config.roads_color ?? ink
+  const roadOpacity = config.roads_opacity ?? 1
 
   const sources: Record<string, object> = {
     ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
@@ -1250,32 +1291,37 @@ function buildNativeTonerStyle(
       { id: 'nt-buildings', type: 'fill', source: 'mapbox-streets', 'source-layer': 'building',
         paint: { 'fill-color': ink, 'fill-opacity': 0.06 } },
     )
+  }
+
+  if (token && config.show_roads) {
     roadLineLayers.push(
       { id: 'nt-service', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
         filter: ['in', ['get', 'class'], ['literal', ['service', 'path', 'pedestrian', 'track']]],
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': ink, 'line-opacity': 0.25,
+        paint: { 'line-color': roadColor, 'line-opacity': roadOpacity * 0.25,
           'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.4, 15, 1.0] } },
       { id: 'nt-street', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
         filter: ['in', ['get', 'class'], ['literal', ['street', 'street_limited', 'tertiary']]],
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': ink, 'line-opacity': 0.55,
+        paint: { 'line-color': roadColor, 'line-opacity': roadOpacity * 0.55,
           'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 14, 1.6] } },
       { id: 'nt-secondary', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
         filter: ['in', ['get', 'class'], ['literal', ['secondary', 'primary']]],
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': ink, 'line-opacity': 0.80,
+        paint: { 'line-color': roadColor, 'line-opacity': roadOpacity * 0.80,
           'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.8, 14, 2.8] } },
       { id: 'nt-motorway', type: 'line', source: 'mapbox-streets', 'source-layer': 'road',
         filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': ink, 'line-opacity': 1.0,
+        paint: { 'line-color': roadColor, 'line-opacity': roadOpacity * 1.0,
           'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.0, 14, 4.0] } },
     )
-  } else {
+  }
+
+  if (!token) {
     sources['base-tiles'] = {
       type: 'raster' as const,
-      tiles: ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png`),
+      tiles: styledTileUrls(config, ['a', 'b', 'c', 'd'].map(p => `https://${p}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png`)),
       tileSize: 512,
       attribution: '© CARTO © OpenStreetMap contributors',
     }
@@ -1293,7 +1339,7 @@ function buildNativeTonerStyle(
       : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources,
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       ...baseLayers,
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
@@ -1343,7 +1389,7 @@ function buildNativeWatercolorStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -1397,7 +1443,7 @@ function buildAlidadeSmoothStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -1452,7 +1498,7 @@ function buildAlidadeSmoothDarkStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'base-tiles', type: 'raster', source: 'base-tiles',
         paint: {
@@ -1501,7 +1547,7 @@ function buildTopographicStyle(
       ...segmentHandleSource(),
     },
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': config.background_color } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackgroundColor(config) } },
       {
         id: 'outdoors-tiles',
         type: 'raster',

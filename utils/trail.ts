@@ -1,13 +1,13 @@
 import type { TrailSegment, DeletedRange } from '~/types'
 
-const DEFAULT_COORD_GAP_THRESHOLD_METERS = 50
+export const DEFAULT_COORD_GAP_THRESHOLD_METERS = 50
 
 const SEGMENT_COLORS = [
   '#2D6A4F', '#3A7CA5', '#C1121F', '#E87722',
   '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E',
 ]
 
-function distanceMeters(a: number[], b: number[]): number {
+export function distanceMeters(a: number[], b: number[]): number {
   const [lng1, lat1] = a
   const [lng2, lat2] = b
   const dlat = (lat2 - lat1) * 111320
@@ -40,6 +40,21 @@ function pctToIndexRange(total: number, startPct: number, endPct: number): [numb
   return [Math.max(0, Math.min(total, start)), Math.max(0, Math.min(total, end))]
 }
 
+function rangeToIndexRange(total: number, range: DeletedRange, minIndex = 0, maxIndex = total): [number, number] {
+  if (
+    typeof range.start_index === 'number' &&
+    typeof range.end_index === 'number' &&
+    Number.isFinite(range.start_index) &&
+    Number.isFinite(range.end_index)
+  ) {
+    const start = Math.floor(Math.min(range.start_index, range.end_index))
+    const end = Math.ceil(Math.max(range.start_index, range.end_index))
+    return [Math.max(minIndex, Math.min(total, start)), Math.min(maxIndex, Math.max(0, end))]
+  }
+  const [rawStart, rawEnd] = pctToIndexRange(total, range.start, range.end)
+  return [Math.max(minIndex, rawStart), Math.min(maxIndex, rawEnd)]
+}
+
 export function mergeDeletedRanges(ranges: DeletedRange[]): DeletedRange[] {
   const sorted = ranges
     .map(r => ({
@@ -65,6 +80,7 @@ export function deletedRangesFromIndexes(
   indexes: Iterable<number>,
   totalCoords: number,
   paddingIndexes = 2,
+  maxIndexGap = 0,
 ): DeletedRange[] {
   if (totalCoords <= 1) return []
 
@@ -81,7 +97,7 @@ export function deletedRangesFromIndexes(
   let end = sorted[0]
 
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] <= end + 1) {
+    if (sorted[i] <= end + 1 + maxIndexGap) {
       end = sorted[i]
     } else {
       ranges.push(indexRangeToDeletedRange(start, end, totalCoords, paddingIndexes))
@@ -94,12 +110,198 @@ export function deletedRangesFromIndexes(
   return mergeDeletedRanges(ranges)
 }
 
-function indexRangeToDeletedRange(start: number, end: number, totalCoords: number, paddingIndexes: number): DeletedRange {
-  const paddedStart = Math.max(0, start - paddingIndexes)
-  const paddedEnd = Math.min(totalCoords - 1, end + paddingIndexes)
+export function deletedRangesFromRouteIndexes(
+  indexes: Iterable<number>,
+  coords: number[][],
+  paddingIndexes = 0,
+  maxIndexGap = 0,
+  gapThresholdMeters = DEFAULT_COORD_GAP_THRESHOLD_METERS,
+): DeletedRange[] {
+  if (coords.length <= 1) return []
+
+  const sorted = Array.from(new Set(indexes))
+    .filter(i => Number.isFinite(i))
+    .map(i => Math.round(i))
+    .filter(i => i >= 0 && i < coords.length)
+    .sort((a, b) => a - b)
+
+  if (!sorted.length) return []
+
+  const ranges: DeletedRange[] = []
+  let start = sorted[0]
+  let end = sorted[0]
+
+  for (let i = 1; i < sorted.length; i++) {
+    const next = sorted[i]
+    const closeEnoughByIndex = next <= end + 1 + maxIndexGap
+    const hasGapBetween = routeHasGapBetween(coords, end, next, gapThresholdMeters)
+
+    if (closeEnoughByIndex && !hasGapBetween) {
+      end = next
+    } else {
+      ranges.push(indexRangeToDeletedRange(start, end, coords, paddingIndexes, gapThresholdMeters))
+      start = next
+      end = next
+    }
+  }
+  ranges.push(indexRangeToDeletedRange(start, end, coords, paddingIndexes, gapThresholdMeters))
+
+  return mergeOverlappingDeletedRanges(ranges).filter(range => {
+    const [startIndex, endIndex] = rangeToIndexRange(coords.length, range)
+    return endIndex - startIndex >= 2 && !routeHasGapBetween(coords, startIndex, endIndex - 1, gapThresholdMeters)
+  })
+}
+
+export function mergeDeletedRangesForRoute(
+  geojson: GeoJSON.FeatureCollection,
+  ranges: DeletedRange[],
+  gapThresholdMeters = DEFAULT_COORD_GAP_THRESHOLD_METERS,
+): DeletedRange[] {
+  const coords = getAllRouteCoords(geojson)
+  if (coords.length <= 1) return []
+
+  return mergeIndexRangesForRoute(
+    ranges.map(range => rangeToIndexRange(coords.length, range)).filter(([start, end]) => end > start),
+    coords,
+    gapThresholdMeters,
+  ).map(([start, end]) => indexRangeToExactDeletedRange(start, end, coords.length))
+}
+
+function mergeOverlappingDeletedRanges(ranges: DeletedRange[]): DeletedRange[] {
+  const sorted = ranges
+    .map(r => {
+      const start = Math.max(0, Math.min(100, Math.min(r.start, r.end)))
+      const end = Math.max(0, Math.min(100, Math.max(r.start, r.end)))
+      const startIndex = typeof r.start_index === 'number' && Number.isFinite(r.start_index) ? Math.floor(r.start_index) : undefined
+      const endIndex = typeof r.end_index === 'number' && Number.isFinite(r.end_index) ? Math.ceil(r.end_index) : undefined
+      return {
+        start,
+        end,
+        ...(startIndex !== undefined && endIndex !== undefined
+          ? {
+              start_index: Math.min(startIndex, endIndex),
+              end_index: Math.max(startIndex, endIndex),
+            }
+          : {}),
+      }
+    })
+    .filter(r => r.end > r.start)
+    .sort((a, b) => a.start - b.start)
+
+  const merged: DeletedRange[] = []
+  for (const range of sorted) {
+    const prev = merged[merged.length - 1]
+    if (prev && range.start < prev.end) {
+      prev.end = Math.max(prev.end, range.end)
+      if (prev.start_index !== undefined && prev.end_index !== undefined && range.start_index !== undefined && range.end_index !== undefined) {
+        prev.start_index = Math.min(prev.start_index, range.start_index)
+        prev.end_index = Math.max(prev.end_index, range.end_index)
+      } else {
+        delete prev.start_index
+        delete prev.end_index
+      }
+    } else {
+      merged.push({ ...range })
+    }
+  }
+  return merged
+}
+
+function mergeIndexRangesForRoute(
+  ranges: Array<[number, number]>,
+  coords: number[][],
+  gapThresholdMeters: number,
+): Array<[number, number]> {
+  const sorted = ranges
+    .map(([start, end]) => [
+      Math.max(0, Math.min(coords.length, Math.min(start, end))),
+      Math.max(0, Math.min(coords.length, Math.max(start, end))),
+    ] as [number, number])
+    .filter(([start, end]) => end > start)
+    .sort((a, b) => a[0] - b[0])
+
+  const merged: Array<[number, number]> = []
+  for (const [start, end] of sorted) {
+    const prev = merged[merged.length - 1]
+    if (!prev) {
+      merged.push([start, end])
+      continue
+    }
+
+    const overlaps = start < prev[1]
+    const touchesWithoutRouteGap = start === prev[1] && !routeHasGapBetween(coords, prev[1] - 1, start, gapThresholdMeters)
+    if (overlaps || touchesWithoutRouteGap) {
+      prev[1] = Math.max(prev[1], end)
+    } else {
+      merged.push([start, end])
+    }
+  }
+  return merged
+}
+
+function routeHasGapBetween(coords: number[][], startIndex: number, endIndex: number, gapThresholdMeters: number): boolean {
+  const start = Math.max(0, Math.min(coords.length - 1, Math.min(startIndex, endIndex)))
+  const end = Math.max(0, Math.min(coords.length - 1, Math.max(startIndex, endIndex)))
+  for (let i = start; i < end; i++) {
+    if (distanceMeters(coords[i], coords[i + 1]) > gapThresholdMeters) return true
+  }
+  return false
+}
+
+function paddedRouteStartIndex(coords: number[][], start: number, paddingIndexes: number, gapThresholdMeters: number): number {
+  let padded = start
+  for (let i = 0; i < paddingIndexes && padded > 0; i++) {
+    if (distanceMeters(coords[padded - 1], coords[padded]) > gapThresholdMeters) break
+    padded--
+  }
+  return padded
+}
+
+function paddedRouteEndIndex(coords: number[][], end: number, paddingIndexes: number, gapThresholdMeters: number): number {
+  let padded = end
+  for (let i = 0; i < paddingIndexes && padded < coords.length - 1; i++) {
+    if (distanceMeters(coords[padded], coords[padded + 1]) > gapThresholdMeters) break
+    padded++
+  }
+  return padded
+}
+
+function indexRangeToDeletedRange(start: number, end: number, totalCoordsOrCoords: number | number[][], paddingIndexes: number, gapThresholdMeters = DEFAULT_COORD_GAP_THRESHOLD_METERS): DeletedRange {
+  const totalCoords = Array.isArray(totalCoordsOrCoords) ? totalCoordsOrCoords.length : totalCoordsOrCoords
+  const paddedStart = Array.isArray(totalCoordsOrCoords)
+    ? paddedRouteStartIndex(totalCoordsOrCoords, start, paddingIndexes, gapThresholdMeters)
+    : Math.max(0, start - paddingIndexes)
+  const paddedEnd = Array.isArray(totalCoordsOrCoords)
+    ? paddedRouteEndIndex(totalCoordsOrCoords, end, paddingIndexes, gapThresholdMeters)
+    : Math.min(totalCoords - 1, end + paddingIndexes)
   return {
     start: (paddedStart / totalCoords) * 100,
     end: ((paddedEnd + 1) / totalCoords) * 100,
+    ...(Array.isArray(totalCoordsOrCoords)
+      ? { start_index: paddedStart, end_index: paddedEnd + 1 }
+      : {}),
+  }
+}
+
+function indexRangeToExactDeletedRange(start: number, end: number, totalCoords: number): DeletedRange {
+  const startIndex = Math.max(0, Math.min(totalCoords, Math.floor(start)))
+  const endIndex = Math.max(0, Math.min(totalCoords, Math.ceil(end)))
+  return {
+    start: (startIndex / totalCoords) * 100,
+    end: (endIndex / totalCoords) * 100,
+    start_index: startIndex,
+    end_index: endIndex,
+  }
+}
+
+function featureCollectionFromLines(lineCoords: number[][][]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: lineCoords.map(coords => ({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: coords },
+    })),
   }
 }
 
@@ -115,26 +317,20 @@ export function routeRangesToGeojson(
   const [cropStartIdx, cropEndIdx] = pctToIndexRange(allCoords.length, cropStart, cropEnd)
   const lineCoords: number[][][] = []
 
-  for (const range of mergeDeletedRanges(ranges)) {
-    const [rawStart, rawEnd] = pctToIndexRange(allCoords.length, range.start, range.end)
-    const start = Math.max(cropStartIdx, rawStart)
-    const end = Math.min(cropEndIdx, rawEnd)
+  const blocked = mergeIndexRangesForRoute(
+    ranges.map(range => rangeToIndexRange(allCoords.length, range, cropStartIdx, cropEndIdx)),
+    allCoords,
+    DEFAULT_COORD_GAP_THRESHOLD_METERS,
+  )
+
+  for (const [start, end] of blocked) {
     if (end - start < 2) continue
     lineCoords.push(...splitCoordsOnGaps(allCoords.slice(start, end)))
   }
 
   if (!lineCoords.length) return { type: 'FeatureCollection', features: [] }
 
-  return {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: lineCoords.length === 1
-        ? { type: 'LineString', coordinates: lineCoords[0] }
-        : { type: 'MultiLineString', coordinates: lineCoords },
-    }],
-  }
+  return featureCollectionFromLines(lineCoords)
 }
 
 /**
@@ -200,13 +396,11 @@ export function sliceRouteByPercent(
 
   const [start, rawEnd] = pctToIndexRange(allCoords.length, startPct, endPct)
   const end = Math.max(rawEnd, start + 2)
-  const blocked = mergeDeletedRanges(deletedRanges)
-    .map(range => {
-      const [blockStart, blockEnd] = pctToIndexRange(allCoords.length, range.start, range.end)
-      return [Math.max(start, blockStart), Math.min(end, blockEnd)] as [number, number]
-    })
-    .filter(([blockStart, blockEnd]) => blockEnd > blockStart)
-    .sort((a, b) => a[0] - b[0])
+  const blocked = mergeIndexRangesForRoute(
+    deletedRanges.map(range => rangeToIndexRange(allCoords.length, range, start, end)),
+    allCoords,
+    DEFAULT_COORD_GAP_THRESHOLD_METERS,
+  )
 
   const lines: number[][][] = []
   let cursor = start
@@ -224,18 +418,7 @@ export function sliceRouteByPercent(
     return { type: 'FeatureCollection', features: [] }
   }
 
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: lines.length === 1
-          ? { type: 'LineString', coordinates: lines[0] }
-          : { type: 'MultiLineString', coordinates: lines },
-      },
-    ],
-  }
+  return featureCollectionFromLines(lines)
 }
 
 /**
@@ -258,50 +441,30 @@ export function excludeRangesFromRoute(
   const total = allCoords.length
   const [cropStartIdx, cropEndIdx] = pctToIndexRange(total, cropStart, cropEnd)
 
-  // Convert % ranges to index pairs, clamp to crop window, drop zero-width ranges
-  let blocked = mergeDeletedRanges(deletedRanges).map(r => [
-    Math.max(cropStartIdx, pctToIndexRange(total, r.start, r.end)[0]),
-    Math.min(cropEndIdx, pctToIndexRange(total, r.start, r.end)[1]),
-  ] as [number, number]).filter(([s, e]) => e > s)
-  blocked.sort((a, b) => a[0] - b[0])
-
-  // Merge overlapping blocked ranges
-  const merged: [number, number][] = []
-  for (const [s, e] of blocked) {
-    if (merged.length && s <= merged[merged.length - 1][1]) {
-      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e)
-    } else {
-      merged.push([s, e])
-    }
-  }
+  const blocked = mergeIndexRangesForRoute(
+    deletedRanges.map(range => rangeToIndexRange(total, range, cropStartIdx, cropEndIdx)),
+    allCoords,
+    DEFAULT_COORD_GAP_THRESHOLD_METERS,
+  )
 
   // Collect surviving coordinate arrays
   const lineCoords: number[][][] = []
   let cursor = cropStartIdx
-  for (const [blockStart, blockEnd] of merged) {
+  for (const [blockStart, blockEnd] of blocked) {
     if (blockStart > cursor) {
       const coords = allCoords.slice(cursor, blockStart)
-      if (coords.length >= 2) lineCoords.push(coords)
+      lineCoords.push(...splitCoordsOnGaps(coords))
     }
     cursor = blockEnd
   }
   if (cursor < cropEndIdx) {
     const coords = allCoords.slice(cursor, cropEndIdx)
-    if (coords.length >= 2) lineCoords.push(coords)
+    lineCoords.push(...splitCoordsOnGaps(coords))
   }
 
   if (lineCoords.length === 0) return { type: 'FeatureCollection', features: [] }
 
-  return {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: lineCoords.length === 1
-        ? { type: 'LineString', coordinates: lineCoords[0] }
-        : { type: 'MultiLineString', coordinates: lineCoords },
-    }],
-  }
+  return featureCollectionFromLines(lineCoords)
 }
 
 /**

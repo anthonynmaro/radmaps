@@ -171,6 +171,7 @@ describe('duotoneControls', () => {
 
   it('hides for other effects', () => {
     expect(compute({ tileEffect: 'none' }).duotoneControls).toBe(false)
+    expect(compute({ tileEffect: 'invert' }).duotoneControls).toBe(false)
     expect(compute({ tileEffect: 'posterize' }).duotoneControls).toBe(false)
     expect(compute({ tileEffect: 'layer-color' }).duotoneControls).toBe(false)
   })
@@ -187,6 +188,7 @@ describe('posterizeControls', () => {
 
   it('hides for other effects', () => {
     expect(compute({ tileEffect: 'none' }).posterizeControls).toBe(false)
+    expect(compute({ tileEffect: 'invert' }).posterizeControls).toBe(false)
     expect(compute({ tileEffect: 'duotone' }).posterizeControls).toBe(false)
     expect(compute({ tileEffect: 'layer-color' }).posterizeControls).toBe(false)
   })
@@ -199,6 +201,7 @@ describe('layerColorControls', () => {
 
   it('hides for other effects', () => {
     expect(compute({ tileEffect: 'none' }).layerColorControls).toBe(false)
+    expect(compute({ tileEffect: 'invert' }).layerColorControls).toBe(false)
     expect(compute({ tileEffect: 'duotone' }).layerColorControls).toBe(false)
     expect(compute({ tileEffect: 'posterize' }).layerColorControls).toBe(false)
   })
@@ -206,11 +209,11 @@ describe('layerColorControls', () => {
 
 describe('tile effect sections — mutual exclusivity', () => {
   it('only one effect sub-section is visible at a time', () => {
-    const effects = ['none', 'duotone', 'posterize', 'layer-color'] as const
+    const effects = ['none', 'invert', 'duotone', 'posterize', 'layer-color'] as const
     for (const active of effects) {
       const s = compute({ tileEffect: active })
       const activeCount = [s.duotoneControls, s.posterizeControls, s.layerColorControls].filter(Boolean).length
-      expect(activeCount).toBe(active === 'none' ? 0 : 1)
+      expect(activeCount).toBe(active === 'none' || active === 'invert' ? 0 : 1)
     }
   })
 })

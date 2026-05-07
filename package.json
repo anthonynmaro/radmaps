@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .ts,.vue",
     "test": "vitest",
     "e2e:readiness": "node scripts/e2e-readiness.mjs",
+    "premade:backfill-thumbnails": "node scripts/backfill-premade-thumbnails.mjs",
     "print-worker:dev": "node scripts/print-worker-dev.mjs",
     "gelato:draft-bypass": "cd render-worker-v4 && npx tsx scripts/gelato-draft-bypass.ts",
     "stripe:webhook-sim": "cd render-worker-v4 && npx tsx scripts/stripe-webhook-sim.ts"

@@ -4,8 +4,10 @@
  * Uses Vercel AI SDK to stream responses and emit tool calls that update StyleConfig.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { serverSupabaseUser } from '#supabase/server'
-import type { StyleConfig, RouteStats, AgentStep } from '~/types'
+import type { StyleConfig, RouteStats } from '~/types'
+import { requireStaff } from '~/server/utils/adminAuth'
+import { isFeatureEnabled } from '~/server/utils/featureFlags'
+import { FLAGS } from '~/utils/knownFlags'
 
 const STYLE_AGENT_SYSTEM_PROMPT = `You are a friendly map design assistant helping users create beautiful,
 personalised trail maps. Your job is to guide them through styling their map step by step.
@@ -51,8 +53,9 @@ const tools: Anthropic.Tool[] = [
 ]
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
+  const session = await requireStaff(event)
+  const enabled = await isFeatureEnabled(event, FLAGS.SCOUT_STYLE_AGENT, { staffSession: session })
+  if (!enabled) throw createError({ statusCode: 404, message: 'Not found' })
 
   const body = await readBody(event)
   const { messages, style_config, route_stats } = body as {

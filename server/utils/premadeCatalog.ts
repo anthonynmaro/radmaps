@@ -1,10 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { PREMADE_MAPS } from '~/data/premade-maps'
 import type { PremadeMap } from '~/types'
+import { sortPremadeMapsByDistance } from '~/server/utils/premadeSearch'
 
 type AnyClient = SupabaseClient | any
+interface PremadeCatalogReadOptions {
+  staticFallbackWhenNoPublished?: boolean
+}
 
 export function premadeRowToMap(row: Record<string, any>): PremadeMap {
+  const distance = row.distance_meters ?? row.dist_meters
+
   return {
     id: row.id,
     source_map_id: row.source_map_id,
@@ -13,6 +19,12 @@ export function premadeRowToMap(row: Record<string, any>): PremadeMap {
     subtitle: row.subtitle || '',
     region: row.region || 'Region TBD',
     country: row.country || 'United States',
+    location_label: row.location_label || row.stats?.location || row.region || null,
+    location_city: row.location_city || null,
+    location_region: row.location_region || row.region || null,
+    location_country: row.location_country || row.country || null,
+    location_lng: row.location_lng ?? null,
+    location_lat: row.location_lat ?? null,
     category: row.category || 'adventure',
     tagline: row.tagline || '',
     description: row.description || '',
@@ -30,11 +42,12 @@ export function premadeRowToMap(row: Record<string, any>): PremadeMap {
     cover_gradient: row.cover_gradient,
     preview_image_url: row.preview_image_url || undefined,
     render_url: row.render_url || undefined,
+    distance_meters: typeof distance === 'number' ? distance : undefined,
   }
 }
 
 function shouldUseStaticFallback(error: any): boolean {
-  return error?.code === '42P01' || /premade_maps/i.test(error?.message || '')
+  return error?.code === '42P01' || /premade_maps|nearby_published_premade_maps/i.test(error?.message || '')
 }
 
 async function premadeTableIsEmpty(client: AnyClient): Promise<boolean> {
@@ -50,7 +63,10 @@ async function premadeTableIsEmpty(client: AnyClient): Promise<boolean> {
   return count === 0
 }
 
-export async function listPublishedPremadeMaps(client: AnyClient): Promise<PremadeMap[]> {
+export async function listPublishedPremadeMaps(
+  client: AnyClient,
+  options: PremadeCatalogReadOptions = {},
+): Promise<PremadeMap[]> {
   const { data, error } = await client
     .from('premade_maps')
     .select('*')
@@ -65,12 +81,52 @@ export async function listPublishedPremadeMaps(client: AnyClient): Promise<Prema
   }
 
   if (!data || data.length === 0) {
-    return await premadeTableIsEmpty(client) ? PREMADE_MAPS : []
+    if (await premadeTableIsEmpty(client)) return PREMADE_MAPS
+    return options.staticFallbackWhenNoPublished ? PREMADE_MAPS : []
   }
   return data.map(premadeRowToMap)
 }
 
-export async function getPublishedPremadeBySlug(client: AnyClient, slug: string): Promise<PremadeMap | undefined> {
+export interface NearbyPremadeSearchOptions extends PremadeCatalogReadOptions {
+  lat: number
+  lng: number
+  radiusKm?: number
+  limit?: number
+}
+
+export async function listNearbyPublishedPremadeMaps(
+  client: AnyClient,
+  options: NearbyPremadeSearchOptions,
+): Promise<PremadeMap[]> {
+  const radiusKm = options.radiusKm ?? 250
+  const limit = options.limit ?? 48
+  const { data, error } = await client.rpc('nearby_published_premade_maps', {
+    p_lat: options.lat,
+    p_lng: options.lng,
+    p_radius_meters: radiusKm * 1000,
+    p_limit: limit,
+  })
+
+  if (error) {
+    if (shouldUseStaticFallback(error)) {
+      const maps = await listPublishedPremadeMaps(client, options)
+      return sortPremadeMapsByDistance(maps, {
+        lat: options.lat,
+        lng: options.lng,
+        radiusKm,
+      })
+    }
+    throw createError({ statusCode: 500, message: error.message })
+  }
+
+  return (data || []).map(premadeRowToMap)
+}
+
+export async function getPublishedPremadeBySlug(
+  client: AnyClient,
+  slug: string,
+  options: PremadeCatalogReadOptions = {},
+): Promise<PremadeMap | undefined> {
   const { data, error } = await client
     .from('premade_maps')
     .select('*')
@@ -85,5 +141,6 @@ export async function getPublishedPremadeBySlug(client: AnyClient, slug: string)
 
   if (data) return premadeRowToMap(data)
 
-  return await premadeTableIsEmpty(client) ? PREMADE_MAPS.find((map) => map.slug === slug) : undefined
+  if (await premadeTableIsEmpty(client)) return PREMADE_MAPS.find((map) => map.slug === slug)
+  return options.staticFallbackWhenNoPublished ? PREMADE_MAPS.find((map) => map.slug === slug) : undefined
 }

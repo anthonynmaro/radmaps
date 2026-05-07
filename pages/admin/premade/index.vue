@@ -21,6 +21,18 @@
             Drafts can start from only a map ID. Publishing requires route data, style config, preview image, and print-ready render URL.
           </p>
         </div>
+
+        <div class="rounded-xl border border-stone-200 bg-white p-4 space-y-3">
+          <div>
+            <p class="admin-label mb-2">Thumbnail backfill</p>
+            <p class="text-xs text-stone-500 leading-relaxed">
+              Generates realistic low-res MapLibre poster thumbnails for drafts missing previews.
+            </p>
+          </div>
+          <button class="admin-secondary w-full" :disabled="backfilling" @click="backfillThumbnails">
+            {{ backfilling ? 'Generating…' : 'Generate next 5 previews' }}
+          </button>
+        </div>
       </div>
 
       <div class="rounded-xl border border-stone-200 bg-white overflow-hidden">
@@ -32,10 +44,14 @@
         <div class="divide-y divide-stone-100">
           <article v-for="map in premades" :key="map.id" class="p-4">
             <div class="grid gap-4 lg:grid-cols-[96px_1fr_220px]">
-              <div class="rounded-lg overflow-hidden border border-stone-200 bg-stone-100" style="aspect-ratio:2/3">
+              <NuxtLink
+                :to="`/admin/premade/${map.id}/style`"
+                class="block rounded-lg overflow-hidden border border-stone-200 bg-stone-100 transition hover:border-stone-400 hover:shadow-sm"
+                style="aspect-ratio:2/3"
+              >
                 <img v-if="map.preview_image_url" :src="map.preview_image_url" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full flex items-center justify-center text-[10px] text-stone-400 text-center px-2">No preview</div>
-              </div>
+              </NuxtLink>
 
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="block">
@@ -55,6 +71,34 @@
                 <label class="block">
                   <span class="admin-label">Region</span>
                   <input v-model="drafts[map.id!].region" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Country</span>
+                  <input v-model="drafts[map.id!].country" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Location label</span>
+                  <input v-model="drafts[map.id!].location_label" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">City</span>
+                  <input v-model="drafts[map.id!].location_city" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Search region</span>
+                  <input v-model="drafts[map.id!].location_region" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Search country</span>
+                  <input v-model="drafts[map.id!].location_country" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Longitude</span>
+                  <input v-model.number="drafts[map.id!].location_lng" type="number" step="0.000001" min="-180" max="180" class="admin-input" />
+                </label>
+                <label class="block">
+                  <span class="admin-label">Latitude</span>
+                  <input v-model.number="drafts[map.id!].location_lat" type="number" step="0.000001" min="-90" max="90" class="admin-input" />
                 </label>
                 <label class="block sm:col-span-2">
                   <span class="admin-label">Tagline</span>
@@ -79,6 +123,7 @@
                   {{ map.status || 'draft' }}
                 </span>
                 <span v-if="map.needs_preview" class="text-xs text-amber-700">Needs preview</span>
+                <NuxtLink :to="`/admin/premade/${map.id}/style`" class="admin-secondary text-center">Style / edit</NuxtLink>
                 <button class="admin-secondary" @click="savePremade(map.id!)">Save</button>
                 <button class="admin-secondary" @click="generatePreview(map.id!)">Generate preview</button>
                 <button class="admin-button" @click="publishPremade(map.id!)">Publish</button>
@@ -102,6 +147,7 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const mapId = ref('')
 const creating = ref(false)
+const backfilling = ref(false)
 const notice = ref('')
 const noticeType = ref<'success' | 'error'>('success')
 const { data: premades, refresh } = await useFetch<PremadeMap[]>('/api/admin/premade', {
@@ -118,6 +164,13 @@ watchEffect(() => {
       slug: map.slug,
       category: map.category,
       region: map.region,
+      country: map.country,
+      location_label: map.location_label,
+      location_city: map.location_city,
+      location_region: map.location_region,
+      location_country: map.location_country,
+      location_lng: map.location_lng,
+      location_lat: map.location_lat,
       tagline: map.tagline,
       description: map.description,
       preview_image_url: map.preview_image_url,
@@ -150,13 +203,32 @@ async function createFromMap() {
 }
 
 async function savePremade(id: string) {
-  await $fetch('/api/admin/premade', { method: 'PATCH', body: { id, ...drafts[id] } })
+  const draft = { ...drafts[id] }
+  for (const key of ['location_label', 'location_city', 'location_region', 'location_country'] as const) {
+    if (draft[key] === '') draft[key] = null
+  }
+  if ((draft as any).location_lng === '') draft.location_lng = null
+  if ((draft as any).location_lat === '') draft.location_lat = null
+  await $fetch('/api/admin/premade', { method: 'PATCH', body: { id, ...draft } })
   await refresh()
 }
 
 async function generatePreview(id: string) {
   await $fetch(`/api/admin/premade/${id}/generate-preview`, { method: 'POST' })
   await refresh()
+}
+
+async function backfillThumbnails() {
+  backfilling.value = true
+  try {
+    await $fetch('/api/admin/premade/backfill-thumbnails', {
+      method: 'POST',
+      body: { limit: 5 },
+    })
+    await refresh()
+  } finally {
+    backfilling.value = false
+  }
 }
 
 async function publishPremade(id: string) {

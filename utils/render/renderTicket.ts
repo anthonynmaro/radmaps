@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-export type RenderTicketKind = 'map' | 'session'
-export type RenderTicketClass = 'proof' | 'final'
+export type RenderTicketKind = 'map' | 'premade' | 'session'
+export type RenderTicketClass = 'thumbnail' | 'proof' | 'final'
 
 export interface RenderTicketPayload {
   kind: RenderTicketKind
@@ -52,8 +52,8 @@ export function verifyRenderTicket(ticket: string, secret: string, nowMs = Date.
 
   const payload = JSON.parse(fromBase64url(body).toString('utf8')) as RenderTicketPayload
   if (!payload.expiresAt || payload.expiresAt < nowMs) throw new Error('Render ticket expired')
-  if (!['map', 'session'].includes(payload.kind)) throw new Error('Invalid render ticket kind')
-  if (!['proof', 'final'].includes(payload.renderClass)) throw new Error('Invalid render ticket class')
+  if (!['map', 'premade', 'session'].includes(payload.kind)) throw new Error('Invalid render ticket kind')
+  if (!['thumbnail', 'proof', 'final'].includes(payload.renderClass)) throw new Error('Invalid render ticket class')
   if (!payload.subject || !payload.productUid) throw new Error('Render ticket missing subject')
   if (!Number.isFinite(payload.widthPx) || !Number.isFinite(payload.heightPx)) {
     throw new Error('Render ticket missing dimensions')

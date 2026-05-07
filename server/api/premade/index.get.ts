@@ -1,8 +1,42 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
+import { listNearbyPublishedPremadeMaps, listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
+import {
+  DEFAULT_PREMADE_SEARCH_RADIUS_KM,
+  geocodePremadeSearchText,
+  parseNearbyPremadeQuery,
+  parsePremadeSearchText,
+  sortPremadeMapsByDistance,
+} from '~/server/utils/premadeSearch'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=300')
   const supabase = await serverSupabaseServiceRole(event)
-  return await listPublishedPremadeMaps(supabase)
+  const fallbackOptions = {
+    staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
+  }
+  const query = getQuery(event)
+  const textSearch = parsePremadeSearchText(query)
+  const directNearby = parseNearbyPremadeQuery(query)
+  const textNearby = textSearch && !directNearby ? await geocodePremadeSearchText(textSearch) : null
+  const nearby = directNearby || (textNearby
+    ? { lat: textNearby.lat, lng: textNearby.lng, radiusKm: DEFAULT_PREMADE_SEARCH_RADIUS_KM }
+    : null)
+
+  if (!nearby) {
+    return await listPublishedPremadeMaps(supabase, fallbackOptions)
+  }
+
+  if (textSearch && !textNearby && !directNearby) {
+    return await listPublishedPremadeMaps(supabase, fallbackOptions)
+  }
+
+  const maps = await listNearbyPublishedPremadeMaps(supabase, {
+    ...nearby,
+    ...fallbackOptions,
+  })
+
+  if (maps.length > 0 || process.env.NODE_ENV === 'production') return maps
+
+  const fallbackMaps = await listPublishedPremadeMaps(supabase, fallbackOptions)
+  return sortPremadeMapsByDistance(fallbackMaps, nearby)
 })

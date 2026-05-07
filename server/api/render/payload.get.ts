@@ -2,6 +2,7 @@ import { serverSupabaseServiceRole } from '#supabase/server'
 import { DEFAULT_STYLE_CONFIG, type TrailMap } from '~/types'
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { verifyRenderTicket } from '~/utils/render/renderTicket'
+import { getPremadeThumbnailFraming } from '~/utils/render/thumbnailFraming'
 
 export default defineEventHandler(async (event) => {
   setHeader(event, 'X-Robots-Tag', 'noindex, nofollow')
@@ -14,7 +15,9 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const payload = verifyRenderTicket(ticket, config.renderTicketSecret)
   const supabase = await serverSupabaseServiceRole(event)
-  const framing = getPrintFraming(payload.productUid, payload.renderClass)
+  const framing = payload.renderClass === 'thumbnail'
+    ? getPremadeThumbnailFraming()
+    : getPrintFraming(payload.productUid, payload.renderClass)
 
   if (payload.kind === 'map') {
     const { data: map, error } = await supabase
@@ -29,6 +32,41 @@ export default defineEventHandler(async (event) => {
     const trailMap = {
       ...map,
       style_config: map.style_config ?? DEFAULT_STYLE_CONFIG,
+    } as TrailMap
+
+    return {
+      ticket: payload,
+      framing,
+      map: trailMap,
+      styleConfig: trailMap.style_config,
+    }
+  }
+
+  if (payload.kind === 'premade') {
+    const { data: premade, error } = await supabase
+      .from('premade_maps')
+      .select('id, title, subtitle, geojson, bbox, stats, style_config, status, created_at, updated_at, preview_image_url')
+      .eq('id', payload.subject)
+      .single()
+    if (error || !premade) {
+      throw createError({ statusCode: 404, message: 'Premade map not found' })
+    }
+
+    const trailMap = {
+      id: premade.id,
+      user_id: 'premade',
+      title: premade.title,
+      subtitle: premade.subtitle ?? '',
+      geojson: premade.geojson,
+      bbox: premade.bbox,
+      stats: premade.stats ?? {},
+      style_config: { ...DEFAULT_STYLE_CONFIG, ...(premade.style_config ?? {}) },
+      status: 'draft',
+      thumbnail_url: premade.preview_image_url ?? undefined,
+      render_url: undefined,
+      proof_render_url: premade.preview_image_url ?? undefined,
+      created_at: premade.created_at,
+      updated_at: premade.updated_at,
     } as TrailMap
 
     return {

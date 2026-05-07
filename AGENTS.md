@@ -35,7 +35,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── useMapRenderer.ts    — trigger + poll proof render jobs (3s flat interval)
 │   ├── useSavedThemes.ts    — localStorage-backed theme presets
 │   ├── useSeo.ts            — meta tag helpers
-│   └── useStyleAgent.ts     — Codex AI style assistant (SSE streaming, NOT wired in UI)
+│   └── useStyleAgent.ts     — Codex AI style assistant (SSE streaming, gated by feature flag)
 ├── pages/
 │   ├── index.vue            — landing page
 │   ├── dashboard/           — user's map list
@@ -190,6 +190,41 @@ Changing aspect ratio later is a product project, not a catalog tweak. Add expli
 - `useMap()` composable handles fetch + `updateStyle()` optimistic saves
 - Layout: `h-screen flex flex-col` → header (sticky) + `flex-1 flex` → main (MapPreview) + aside (StylePanel, w-[320px])
 
+## Feature flags and admin gating
+RadMaps has a first-party Supabase-backed feature flag system. Use it for new
+feature rollout, beta access, staff-only previews, environment-scoped behavior,
+and reversible UI/API gates.
+
+Source-of-truth files:
+- `utils/knownFlags.ts` — typed flag constants. Add keys here and use
+  `FLAGS.SOME_FLAG`, never raw string literals like `'some_flag'` in app code.
+- `utils/featureFlags.ts` — pure validation/evaluation logic.
+- `server/utils/featureFlags.ts` — server-side Supabase lookup/cache and
+  `isFeatureEnabled(event, flagKey, opts)`.
+- `composables/useFeatureFlags.ts` + `plugins/feature-flags.ts` — Nuxt
+  server-prefetched client state and `useFeatureFlag(flagKey)`.
+- `/admin/flags` + `/api/admin/flags/*` — admin management surface, gated by
+  `flags:manage`.
+
+Default rule: **do not hardcode role checks for feature visibility or rollout**.
+If the question is "who should see this feature while we test or launch it?",
+use a feature flag. Client UI should call `useFeatureFlag(FLAGS.X)` and server
+handlers should call `requireStaff`/auth first, then `isFeatureEnabled`.
+
+Feature flags are **not authorization boundaries**. Keep hardcoded business
+permissions in code for critical admin/security invariants: staff management,
+super-admin bootstrap/protection, `requireStaff(event, 'action')` checks,
+payment/webhook/order ownership, render-ticket validation, and destructive or
+privileged mutations. In short: permissions decide whether an operation is
+allowed; feature flags decide whether an otherwise-allowed feature is available.
+
+Flag behavior details:
+- Runtime environment resolves `FEATURE_FLAG_ENV → VERCEL_ENV → NODE_ENV`.
+- Public `/api/flags` returns only enabled flags as `Record<string, true>`;
+  disabled/missing/archived all mean false.
+- Archived flags are ignored but kept for history; do not delete flag rows.
+- Every admin mutation writes `feature_flag_events` audit history.
+
 ## Webhook URLs (production)
 | Service | URL |
 |---|---|
@@ -204,7 +239,7 @@ Changing aspect ratio later is a product project, not a catalog tweak. Add expli
 - **UTabs** top-level panel split: Map Style / Text / Export
 - **`@nuxtjs/google-fonts`** for self-hosted fonts (removes Google CDN dep from render worker)
 - **Rate limiting + queue tuning** for Browserless proof/final render concurrency
-- **`useStyleAgent`** wire-up in the editor UI (currently built but unused)
+- **Scout / `useStyleAgent`** enhancements beyond the current feature-flagged admin entry point
 
 ## Open Security & Reliability Issues
 > Full details and sprint plan: `REMEDIATION.md`
@@ -255,5 +290,5 @@ For local full E2E, run the final queue from the repo root with `npm run print-w
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
 - **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato
 - `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
-- `useStyleAgent` composable is built but NOT wired into any UI yet
+- `useStyleAgent` is available through the feature-flagged Scout admin surface; keep server auth + feature flag checks together
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

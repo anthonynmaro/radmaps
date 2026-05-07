@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { fileURLToPath } from 'node:url'
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   compatibilityDate: '2024-11-01',
@@ -40,6 +42,11 @@ export default defineNuxtConfig({
       callback: '/auth/confirm',
       exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support', '/render/**'],
     },
+    cookieOptions: {
+      maxAge: 60 * 60 * 8,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    },
   },
 
   // Runtime config — public vars available client-side, private server-only
@@ -63,6 +70,7 @@ export default defineNuxtConfig({
     renderTicketSecret: process.env.RENDER_TICKET_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-render-ticket-secret'),
     adminSuperAdminEmails: process.env.ADMIN_SUPER_ADMIN_EMAILS || 'anthonynmaro@gmail.com',
     adminBootstrapEmails: process.env.ADMIN_BOOTSTRAP_EMAILS || process.env.ADMIN_SUPER_ADMIN_EMAILS || 'anthonynmaro@gmail.com',
+    featureFlagEnvironment: process.env.FEATURE_FLAG_ENV || process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
     public: {
       // Client-accessible vars
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
@@ -89,8 +97,13 @@ export default defineNuxtConfig({
 
   // Vite config
   vite: {
+    resolve: {
+      alias: {
+        cookie: fileURLToPath(new URL('./utils/shims/cookie.ts', import.meta.url)),
+      },
+    },
     optimizeDeps: {
-      include: ['cookie', '@supabase/ssr'],
+      include: ['@supabase/ssr'],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
       // exclude it so it's served as-is and initialises correctly in the browser.

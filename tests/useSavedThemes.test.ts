@@ -57,6 +57,7 @@ const mockConfig: StyleConfig = {
   trail_name: 'Mount Olympus Loop',
   occasion_text: 'Summer 2024',
   location_text: 'Greece',
+  poster_text_overrides: { distance: { text: 'Ultra day', color: '#111111' } },
   text_overlays: [{ id: 'x', content: 'Test', x: 50, y: 50, font_size: 2, color: '#000', font_family: 'Work Sans', alignment: 'center', opacity: 1, bold: false }],
   trail_segments: [{ id: 's1', name: 'Ascent', color: '#C1121F', visible: true, section_start: 0, section_end: 50 }],
   trail_legend: { show: true, position: 'bottom-left' },

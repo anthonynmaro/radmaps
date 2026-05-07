@@ -102,6 +102,7 @@ export const FIELD_LAYER = {
   trail_name: 'chrome',
   occasion_text: 'chrome',
   location_text: 'chrome',
+  poster_text_overrides: 'chrome',
   label_text_color: 'chrome',
   label_bg_color: 'chrome',
 
@@ -190,6 +191,9 @@ export const FIELD_LAYER = {
   // and map_zoom are persisted to StyleConfig and consumed verbatim.
   // These are obviously 'map' fields.
   map_3d: 'map',
+  map_pitch: 'map',
+  map_bearing: 'map',
+  terrain_exaggeration: 'map',
   map_zoom: 'map',
   map_center: 'map',
   map_frozen: 'map',

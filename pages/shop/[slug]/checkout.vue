@@ -200,7 +200,11 @@
           <div class="space-y-2 text-sm pt-5">
             <div class="flex justify-between text-stone-600">
               <span>Subtotal</span>
-              <span class="tabular-nums">{{ formatPrice(totalCents) }}</span>
+              <span class="tabular-nums">{{ formatPrice(subtotalCents) }}</span>
+            </div>
+            <div v-if="couponPreview" class="flex justify-between text-green-700">
+              <span>{{ couponPreview.slug }}</span>
+              <span class="tabular-nums">-{{ formatPrice(couponPreview.discount_cents) }}</span>
             </div>
             <div class="flex justify-between text-stone-600">
               <span>Shipping</span>
@@ -213,6 +217,25 @@
             <span class="text-2xl font-semibold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">
               {{ formatPrice(totalCents) }}
             </span>
+          </div>
+
+          <div class="mt-5 pt-5 border-t border-stone-200 space-y-3">
+            <div class="flex gap-2">
+              <input v-model="couponCode" class="form-input uppercase" placeholder="Coupon code" />
+              <button
+                type="button"
+                class="rounded-full border border-stone-300 px-4 text-xs font-semibold text-stone-700 disabled:opacity-50"
+                :disabled="couponBusy || !couponCode.trim() || !form.email"
+                @click="applyCoupon"
+              >
+                {{ couponBusy ? 'Checking...' : 'Apply' }}
+              </button>
+            </div>
+            <div v-if="couponPreview" class="flex items-center justify-between text-xs text-green-700">
+              <span>{{ couponPreview.percent_off }}% off applied</span>
+              <button type="button" class="font-semibold underline" @click="removeCoupon">Remove</button>
+            </div>
+            <p v-if="couponError" class="text-xs text-red-600">{{ couponError }}</p>
           </div>
 
           <!-- Tiny reassurance -->
@@ -244,10 +267,11 @@
 </template>
 
 <script setup lang="ts">
-import { h, defineComponent, ref, computed } from 'vue'
+import { h, defineComponent, ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import { getProduct, formatPrice, PRODUCTS } from '~/utils/products'
+import { normalizeCouponSlug } from '~/utils/coupons'
 import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: 'default' })
@@ -267,7 +291,19 @@ const selectedProductUid = ref(
 const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as string) || '1', 10) || 1)))
 
 const selectedProduct = computed(() => getProduct(selectedProductUid.value))
-const totalCents = computed(() => (selectedProduct.value?.price_cents ?? 0) * quantity.value)
+const isDigital = computed(() => selectedProduct.value?.type === 'digital')
+const couponCode = ref('')
+const couponBusy = ref(false)
+const couponError = ref('')
+const couponPreview = ref<null | {
+  slug: string
+  percent_off: number
+  discount_cents: number
+  subtotal_cents: number
+  total_cents: number
+}>(null)
+const subtotalCents = computed(() => (selectedProduct.value?.price_cents ?? 0) * quantity.value)
+const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0)))
 
 const form = ref({
   email: user.value?.email ?? '',
@@ -283,6 +319,37 @@ const form = ref({
 
 const submitting = ref(false)
 const errorMessage = ref('')
+
+async function applyCoupon() {
+  couponError.value = ''
+  couponBusy.value = true
+  try {
+    const preview = await $fetch<typeof couponPreview.value>('/api/coupons/validate', {
+      method: 'POST',
+      body: {
+        coupon_slug: normalizeCouponSlug(couponCode.value),
+        email: form.value.email,
+        subtotal_cents: subtotalCents.value,
+      },
+    })
+    couponPreview.value = preview
+    couponCode.value = preview?.slug || couponCode.value
+  } catch (err: any) {
+    couponPreview.value = null
+    couponError.value = err?.data?.message || err?.message || 'Could not apply coupon.'
+  } finally {
+    couponBusy.value = false
+  }
+}
+
+function removeCoupon() {
+  couponPreview.value = null
+  couponError.value = ''
+}
+
+watch([() => form.value.email, selectedProduct, quantity], () => {
+  if (couponPreview.value) removeCoupon()
+})
 
 async function checkout() {
   if (!premade.value) return
@@ -307,6 +374,8 @@ async function checkout() {
           email: form.value.email.trim(),
           phone: form.value.phone.trim() || undefined,
         },
+        digital_only: isDigital.value,
+        coupon_slug: couponPreview.value?.slug,
       },
     })
     if (resp?.url) {

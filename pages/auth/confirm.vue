@@ -26,7 +26,7 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h1>
-          <p class="text-gray-600 mb-6">We couldn't log you in. This magic link may have expired.</p>
+          <p class="text-gray-600 mb-6">{{ errorMessage }}</p>
         </div>
         <div class="space-y-3">
           <NuxtLink to="/auth/login">
@@ -80,8 +80,22 @@ const router = useRouter()
 
 const isLoading = ref(true)
 const hasError = ref(false)
+const errorMessage = ref("We couldn't log you in. This magic link may have expired.")
+
+function fail(message?: string) {
+  errorMessage.value = message || "We couldn't log you in. This magic link may have expired."
+  hasError.value = true
+  isLoading.value = false
+}
 
 onMounted(async () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const callbackError = urlParams.get('error_description') || urlParams.get('error')
+  if (callbackError) {
+    fail(decodeURIComponent(callbackError).replace(/\+/g, ' '))
+    return
+  }
+
   // Extract tokens directly from the URL hash — the most reliable approach
   // in an SSR context where auto-detection timing is unpredictable.
   const hash = window.location.hash.slice(1)
@@ -98,8 +112,21 @@ onMounted(async () => {
 
     if (error) {
       console.error('Strava confirm setSession error:', error.message)
-      hasError.value = true
-      isLoading.value = false
+      fail(error.message)
+      return
+    }
+
+    await router.push('/')
+    return
+  }
+
+  const code = urlParams.get('code')
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (error) {
+      console.error('Confirm exchangeCodeForSession error:', error.message)
+      fail(error.message)
       return
     }
 
@@ -112,8 +139,7 @@ onMounted(async () => {
   if (session) {
     await router.push('/')
   } else {
-    hasError.value = true
-    isLoading.value = false
+    fail()
   }
 })
 </script>

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type RouteStats } from '~/types'
 import {
+  bboxCenter,
   draftPremadeFromMap,
   defaultPremadeBasePriceCents,
+  hasValidLocationCoordinates,
   missingPublishFields,
   previewUrlForSourceMap,
   slugifyPremadeTitle,
 } from '~/utils/premadeCatalog'
-import { getPublishedPremadeBySlug, listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
+import { getPublishedPremadeBySlug, listNearbyPublishedPremadeMaps, listPublishedPremadeMaps, premadeRowToMap } from '~/server/utils/premadeCatalog'
+import { parseNearbyPremadeQuery, parsePremadeSearchText, sortPremadeMapsByDistance } from '~/server/utils/premadeSearch'
 import { PREMADE_MAPS } from '~/data/premade-maps'
 
 const stats: RouteStats = {
@@ -41,6 +44,11 @@ describe('premade catalog helpers', () => {
     expect(previewUrlForSourceMap({})).toBeNull()
   })
 
+  it('derives bbox centers for searchable location defaults', () => {
+    expect(bboxCenter([-105.1, 40, -105, 40.1])).toEqual([-105.05, 40.05])
+    expect(bboxCenter([-181, 40, -105, 40.1])).toBeNull()
+  })
+
   it('creates a draft premade map from only a source map and slug', () => {
     const draft = draftPremadeFromMap({
       id: 'map-1',
@@ -58,8 +66,13 @@ describe('premade catalog helpers', () => {
     expect(draft.region).toBe('Boulder, Colorado')
     expect(draft.category).toBe('adventure')
     expect(draft.preview_image_url).toBe('https://example.com/proof.jpg')
+    expect(draft.render_url).toBeUndefined()
     expect(draft.needs_preview).toBe(false)
     expect(draft.base_price_cents).toBe(defaultPremadeBasePriceCents())
+    expect(draft.location_label).toBe('Boulder, Colorado')
+    expect(draft.location_lng).toBe(-105.05)
+    expect(draft.location_lat).toBe(40.05)
+    expect(hasValidLocationCoordinates(draft)).toBe(true)
   })
 
   it('reports publish blockers for incomplete maps', () => {
@@ -68,6 +81,7 @@ describe('premade catalog helpers', () => {
       'category',
       'stats',
       'bbox',
+      'location_coordinates',
       'geojson',
       'style_config',
       'preview_image_url',
@@ -82,11 +96,30 @@ describe('premade catalog helpers', () => {
       category: 'adventure',
       stats,
       bbox: [-105.1, 40, -105, 40.1],
+      location_lng: -105.05,
+      location_lat: 40.05,
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
       render_url: 'https://example.com/render.jpg',
     })).toEqual([])
+  })
+
+  it('requires a fresh preview before publishing after style edits', () => {
+    expect(missingPublishFields({
+      slug: 'evening-ridge',
+      title: 'Evening Ridge',
+      category: 'adventure',
+      stats,
+      bbox: [-105.1, 40, -105, 40.1],
+      location_lng: -105.05,
+      location_lat: 40.05,
+      geojson,
+      style_config: DEFAULT_STYLE_CONFIG,
+      preview_image_url: 'https://example.com/preview.jpg',
+      render_url: 'https://example.com/render.jpg',
+      needs_preview: true,
+    })).toEqual(['fresh_preview'])
   })
 
   it('marks drafts without source preview assets as needing preview generation', () => {
@@ -104,9 +137,13 @@ describe('premade catalog helpers', () => {
   })
 })
 
-function createMockClient(results: any[]) {
+function createMockClient(results: any[], rpcResults: any[] = []) {
   let index = 0
+  let rpcIndex = 0
   return {
+    rpc() {
+      return Promise.resolve(rpcResults[rpcIndex++])
+    },
     from() {
       const result = results[index++]
       const builder = {
@@ -155,5 +192,67 @@ describe('database-backed premade catalog reads', () => {
     ])
 
     await expect(getPublishedPremadeBySlug(client, PREMADE_MAPS[0].slug)).resolves.toBeUndefined()
+  })
+
+  it('maps location metadata and nearby distance from database rows', () => {
+    const mapped = premadeRowToMap({
+      ...PREMADE_MAPS[0],
+      id: '00000000-0000-0000-0000-000000000001',
+      homepage_visible: true,
+      location_label: 'Yosemite Valley, California',
+      location_city: 'Yosemite Valley',
+      location_region: 'California',
+      location_country: 'United States',
+      location_lng: -119.59,
+      location_lat: 37.74,
+      distance_meters: 12345,
+    })
+
+    expect(mapped.location_label).toBe('Yosemite Valley, California')
+    expect(mapped.location_city).toBe('Yosemite Valley')
+    expect(mapped.location_lng).toBe(-119.59)
+    expect(mapped.distance_meters).toBe(12345)
+  })
+
+  it('reads nearby published premades through the RPC', async () => {
+    const client = createMockClient([], [
+      {
+        data: [{ ...PREMADE_MAPS[1], distance_meters: 1000 }],
+        error: null,
+      },
+    ])
+
+    const results = await listNearbyPublishedPremadeMaps(client, {
+      lat: 40.73,
+      lng: -73.98,
+      radiusKm: 50,
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0].slug).toBe('nyc-marathon')
+    expect(results[0].distance_meters).toBe(1000)
+  })
+})
+
+describe('premade location search helpers', () => {
+  it('parses nearby API query coordinates', () => {
+    expect(parseNearbyPremadeQuery({ lat: '40.7', lng: '-73.9', radius_km: '25' })).toEqual({
+      lat: 40.7,
+      lng: -73.9,
+      radiusKm: 25,
+    })
+    expect(parseNearbyPremadeQuery({ q: 'Yosemite' })).toBeNull()
+    expect(parsePremadeSearchText({ q: '  Yosemite  ' })).toBe('Yosemite')
+  })
+
+  it('sorts fallback premade maps by in-memory distance', () => {
+    const results = sortPremadeMapsByDistance(PREMADE_MAPS, {
+      lat: 40.7359,
+      lng: -73.9677,
+      radiusKm: 50,
+    })
+
+    expect(results[0].slug).toBe('nyc-marathon')
+    expect(results[0].distance_meters).toBeLessThan(1000)
   })
 })

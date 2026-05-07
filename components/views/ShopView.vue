@@ -84,6 +84,43 @@
       <!-- ═══════════════════════════════════════════════════════════════
            CATEGORY FILTER
            ═══════════════════════════════════════════════════════════════ -->
+      <form class="mb-4 flex flex-col gap-3 rounded-xl border border-stone-200 bg-white/75 p-3 sm:flex-row sm:items-center" @submit.prevent="searchByPlace">
+        <label class="min-w-0 flex-1">
+          <span class="sr-only">Search by location</span>
+          <input
+            v-model="searchText"
+            class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/15"
+            placeholder="Search by city, park, state, or country"
+          />
+        </label>
+        <div class="flex shrink-0 gap-2">
+          <button
+            class="rounded-lg bg-stone-900 px-3.5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-stone-800 disabled:opacity-60"
+            :disabled="pending"
+            type="submit"
+          >
+            {{ pending && searchMode === 'place' ? 'Searching...' : 'Search' }}
+          </button>
+          <button
+            class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-700 transition-colors hover:border-stone-300 hover:text-stone-900 disabled:opacity-60"
+            :disabled="pending"
+            type="button"
+            @click="useNearbyLocation"
+          >
+            {{ pending && searchMode === 'near-me' ? 'Locating...' : 'Near me' }}
+          </button>
+          <button
+            v-if="locationSearchActive"
+            class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-500 transition-colors hover:border-stone-300 hover:text-stone-900"
+            type="button"
+            @click="clearLocationSearch"
+          >
+            Clear
+          </button>
+        </div>
+      </form>
+      <p v-if="searchNotice" class="mb-4 text-xs text-stone-500">{{ searchNotice }}</p>
+
       <div class="flex flex-wrap items-center gap-2 mb-10">
         <button
           @click="activeCategory = null"
@@ -221,7 +258,7 @@
           <!-- Metadata -->
           <div class="mt-4 px-0.5">
             <p class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 mb-1 truncate">
-              {{ map.region }}
+              {{ map.region }}<span v-if="formatDistance(map)" class="text-[#2D6A4F]"> · {{ formatDistance(map) }}</span>
             </p>
             <h3
               class="text-lg font-semibold text-stone-900 leading-snug tracking-tight truncate group-hover:text-[#2D6A4F] transition-colors"
@@ -292,7 +329,13 @@ import { PREMADE_CATEGORIES } from '~/utils/premadeCatalog'
 import { formatPrice } from '~/utils/products'
 
 const user = useSupabaseUser()
-const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+const searchText = ref('')
+const searchMode = ref<'place' | 'near-me' | null>(null)
+const searchNotice = ref('')
+const locationSearchActive = ref(false)
+const searchParams = ref<Record<string, string | number>>({})
+const { data: premadeMaps, pending, refresh } = await useFetch<PremadeMap[]>('/api/premade', {
+  query: searchParams,
   default: () => [],
 })
 
@@ -301,11 +344,17 @@ const activeCategory = ref<PremadeMap['category'] | null>(null)
 const allCount = computed(() => premadeMaps.value.length)
 
 const filteredMaps = computed(() => {
+  if (activeCategory.value) {
+    return premadeMaps.value.filter((m) => m.category === activeCategory.value)
+  }
+  if (locationSearchActive.value) {
+    return premadeMaps.value
+  }
   if (!activeCategory.value) {
     // Sort featured first, then by title
     return [...premadeMaps.value].sort((a, b) => Number(b.featured) - Number(a.featured))
   }
-  return premadeMaps.value.filter((m) => m.category === activeCategory.value)
+  return premadeMaps.value
 })
 
 function countByCategory(id: PremadeMap['category']) {
@@ -320,6 +369,73 @@ const formatKm = (km?: number) => {
 const formatM = (m?: number) => {
   if (m == null) return '—'
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`
+}
+
+const formatDistance = (map: PremadeMap) => {
+  if (typeof map.distance_meters !== 'number') return ''
+  const miles = map.distance_meters / 1609.344
+  return miles < 10 ? `${miles.toFixed(1)} mi away` : `${Math.round(miles)} mi away`
+}
+
+async function searchByPlace() {
+  const q = searchText.value.trim()
+  if (!q) {
+    await clearLocationSearch()
+    return
+  }
+  searchMode.value = 'place'
+  searchNotice.value = ''
+  locationSearchActive.value = true
+  searchParams.value = { q }
+  await refresh()
+  if (premadeMaps.value.length === 0) {
+    searchNotice.value = 'No nearby premade maps found for that location yet.'
+  } else if (!premadeMaps.value.some((map) => typeof map.distance_meters === 'number')) {
+    searchNotice.value = 'Could not locate that place precisely, so the full catalog is shown.'
+  }
+}
+
+async function useNearbyLocation() {
+  if (!navigator.geolocation) {
+    searchNotice.value = 'Location access is not available in this browser.'
+    return
+  }
+  searchMode.value = 'near-me'
+  searchNotice.value = ''
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 300000,
+      })
+    })
+    locationSearchActive.value = true
+    searchParams.value = {
+      lat: Number(position.coords.latitude.toFixed(6)),
+      lng: Number(position.coords.longitude.toFixed(6)),
+      radius_km: 250,
+    }
+    await refresh()
+    if (premadeMaps.value.length === 0) {
+      searchNotice.value = 'No premade maps found near your location yet.'
+    }
+  } catch {
+    searchMode.value = null
+    searchNotice.value = 'Could not access your location. The full catalog is still shown.'
+    searchParams.value = {}
+    locationSearchActive.value = false
+    await refresh()
+  }
+}
+
+async function clearLocationSearch() {
+  searchText.value = ''
+  searchMode.value = null
+  searchNotice.value = ''
+  locationSearchActive.value = false
+  searchParams.value = {}
+  await refresh()
 }
 
 // ─── Route path SVG helpers ──────────────────────────────────────────────

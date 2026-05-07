@@ -35,6 +35,22 @@ Production Vercel has both admin email variables set for `Production` and
 The shared permission matrix is in
 [`utils/adminPermissions.ts`](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/adminPermissions.ts).
 
+## Feature Flags
+
+Feature flags live at `/admin/flags` and require the admin-only `flags:manage`
+permission. Flags are environment-scoped (`development`, `preview`,
+`production`, or `all`) and the runtime environment resolves from
+`FEATURE_FLAG_ENV`, then `VERCEL_ENV`, then `NODE_ENV`.
+
+Code must reference keys through
+[`utils/knownFlags.ts`](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/knownFlags.ts).
+The public client receives only enabled flags as `{ flags: Record<string, true>
+}`; missing, disabled, and archived flags all default to false. Archive flags
+instead of deleting them so rollout history and audit context remain available.
+
+Each create, update, archive, and restore writes a `feature_flag_events` row.
+Use this history when investigating unexpected rollout changes.
+
 ## Database
 
 The admin migration is
@@ -63,12 +79,24 @@ thumbnail URL, and render URL into an immutable draft. It also generates:
 - Region from `stats.location` when available.
 - Category default: `adventure`.
 - Base price from the smallest poster product.
-- Preview image by `proof_render_url -> thumbnail_url -> render_url`.
+- Preview image by `proof_render_url -> thumbnail_url -> render_url` when the
+  source map already has one.
 
 If the source map has no preview asset, the draft is created with
-`needs_preview = true`. Use "Generate preview" to call the existing signed
-Browserless proof render path. Publishing still requires a complete map payload,
-preview image, and render URL.
+`needs_preview = true`. Use "Generate preview" or "Generate next 5 previews" to
+call the signed Browserless thumbnail path. Premade thumbnails render directly
+from the premade row at `720x1080`, update `preview_image_url`, and do not write
+to `render_url`. Publishing still requires a complete map payload, preview
+image, and print-ready render URL.
+
+For batch work, run:
+
+```bash
+npm run premade:backfill-thumbnails -- --limit 25 --concurrency 2
+```
+
+Use `--dry-run` first to inspect which rows would be processed, and `--ids` to
+resume a known subset.
 
 Preview-image-only drafts can exist for homepage planning, but checkout and
 customization only resolve published premade maps with route/render payloads.
@@ -93,8 +121,9 @@ row exists, unpublished static maps are not exposed.
    `anthonynmaro@gmail.com`.
 3. Sign in as `anthonynmaro@gmail.com` and open `/admin`.
 4. Assign staff roles from `/admin/staff`.
-5. Create a draft from a real `map_id`.
-6. Generate a preview if the source map has none.
-7. Fill metadata, publish, then feature/order it from `/admin/homepage`.
-8. Verify `/api/premade` and guest checkout/customize flows use the published
+5. Open `/admin/flags` and confirm the seeded `scout_style_agent` flag exists.
+6. Create a draft from a real `map_id`.
+7. Generate a preview if the source map has none.
+8. Fill metadata, publish, then feature/order it from `/admin/homepage`.
+9. Verify `/api/premade` and guest checkout/customize flows use the published
    database row.

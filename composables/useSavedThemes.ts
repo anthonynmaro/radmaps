@@ -12,6 +12,7 @@ const STORAGE_KEY = 'radmaps_saved_themes'
 // Style-only keys — excludes content (text, overlays) and transient map state
 export const SAVED_THEME_EXCLUDED_KEYS: (keyof StyleConfig)[] = [
   'trail_name', 'occasion_text', 'location_text',
+  'poster_text_overrides',
   'text_overlays', 'trail_segments', 'trail_legend',
   'map_frozen', 'map_zoom', 'map_center',
 ]

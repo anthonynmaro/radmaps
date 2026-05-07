@@ -1,7 +1,7 @@
 /**
  * POST /api/orders/webhook
  * Stripe webhook handler — raw body required (no JSON parsing).
- * Handles: checkout.session.completed, payment_intent.payment_failed
+ * Handles: checkout.session.completed, checkout.session.expired, payment_intent.payment_failed
  *
  * On payment success:
  *   1. Create Order record in Supabase
@@ -62,6 +62,8 @@ export default defineEventHandler(async (event) => {
     const printSize = meta.print_size
     const isDigital = productUid === 'digital'
     const isPremade = meta.kind === 'premade'
+    const subtotalCents = session.amount_subtotal ?? session.amount_total ?? 0
+    const discountCents = session.total_details?.amount_discount ?? 0
 
     // Immutable design snapshot frozen at checkout. For custom physical
     // orders this is required; final print renders never re-read the live map.
@@ -87,11 +89,15 @@ export default defineEventHandler(async (event) => {
       print_size: printSize,
       quantity: parseInt(meta.quantity),
       shipping_address: shippingAddress,
+      subtotal_cents: subtotalCents,
+      discount_cents: discountCents,
       total_cents: session.amount_total ?? 0,
       currency: session.currency ?? 'usd',
       status: 'paid',
       user_id: meta.user_id || null,
       map_id: isPremade ? null : (meta.map_id || null),
+      coupon_id: meta.coupon_id || null,
+      coupon_slug: meta.coupon_slug || null,
     }
 
     if (meta.guest_email) orderPayload.guest_email = meta.guest_email
@@ -114,6 +120,24 @@ export default defineEventHandler(async (event) => {
     if (orderError || !order) {
       console.error('Failed to create order:', orderError)
       throw createError({ statusCode: 500, message: 'Order creation failed' })
+    }
+
+    if (meta.coupon_redemption_id) {
+      const { error: redemptionError } = await supabase
+        .from('coupon_redemptions')
+        .update({
+          order_id: order.id,
+          stripe_session_id: session.id,
+          status: 'redeemed',
+          redeemed_at: new Date().toISOString(),
+          subtotal_cents: subtotalCents,
+          discount_cents: discountCents,
+        })
+        .eq('id', meta.coupon_redemption_id)
+        .eq('status', 'reserved')
+      if (redemptionError) {
+        console.error('[stripe/webhook] Failed to mark coupon redemption:', redemptionError)
+      }
     }
 
     // v4: link the snapshot to the newly-created order.  This is the
@@ -280,6 +304,23 @@ export default defineEventHandler(async (event) => {
       subject: `Your RadMaps order is confirmed! 🗺️`,
       html: buildConfirmationEmail({ order, productTitle, digitalUrl, isDigital, isGuest: !meta.user_id }),
     })
+  }
+
+  if (stripeEvent.type === 'checkout.session.expired') {
+    const session = stripeEvent.data.object as Stripe.Checkout.Session
+    const meta = session.metadata || {}
+    const query = supabase
+      .from('coupon_redemptions')
+      .update({ status: 'released', released_at: new Date().toISOString() })
+      .eq('status', 'reserved')
+
+    const { error } = meta.coupon_redemption_id
+      ? await query.eq('id', meta.coupon_redemption_id)
+      : await query.eq('stripe_session_id', session.id)
+
+    if (error) {
+      console.error('[stripe/webhook] Failed to release expired coupon reservation:', error)
+    }
   }
 
   if (stripeEvent.type === 'payment_intent.payment_failed') {

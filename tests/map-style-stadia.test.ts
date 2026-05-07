@@ -35,4 +35,18 @@ describe('Stadia tile authentication', () => {
       'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}@2x.png?api_key=stadia-test-token',
     )
   })
+
+  it('uses Toner background tiles when place labels are hidden', () => {
+    const config: StyleConfig = {
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'stadia-toner',
+      show_place_labels: false,
+    }
+
+    const style = buildMapStyle(config, undefined, undefined, undefined, 'stadia-test-token')
+
+    expect(baseTileUrl(style)).toBe(
+      'https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}@2x.png?api_key=stadia-test-token',
+    )
+  })
 })

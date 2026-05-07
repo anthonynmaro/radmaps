@@ -7,7 +7,9 @@ export default defineEventHandler(async (event) => {
 
   setHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=300')
   const supabase = await serverSupabaseServiceRole(event)
-  const premade = await getPublishedPremadeBySlug(supabase, slug)
+  const premade = await getPublishedPremadeBySlug(supabase, slug, {
+    staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
+  })
   if (!premade) throw createError({ statusCode: 404, message: 'Premade map not found' })
   return premade
 })

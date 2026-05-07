@@ -2,11 +2,11 @@
   <button
     class="freeze-pill"
     :class="{ 'is-frozen': frozen, 'map-hovered': mapHovered }"
-    :title="frozen ? 'Unlock to reposition' : 'Lock map view'"
+    :title="frozen ? 'Edit map view' : 'Set current map view'"
     @click="toggleFreeze"
     style="position: static;"
   >
-    <span class="zoom-label">Zoom</span>
+    <span class="zoom-label">View</span>
 
     <!-- Open lock — unlocked state -->
     <svg v-if="!frozen" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">

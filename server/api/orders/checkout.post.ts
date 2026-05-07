@@ -5,9 +5,10 @@
  */
 import Stripe from 'stripe'
 import { z } from 'zod'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { getProduct, formatPrice } from '~/utils/products'
+import { serverSupabaseClient, serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
+import { getProduct } from '~/utils/products'
 import { freezeOrderSnapshot } from '~/server/utils/snapshot'
+import { attachStripeSessionToCouponReservation, releaseCouponReservation, reserveCouponForCheckout } from '~/server/utils/coupons'
 
 const CheckoutBody = z.object({
   map_id: z.string().uuid(),
@@ -26,6 +27,7 @@ const CheckoutBody = z.object({
     phone: z.string().optional(),
   }),
   digital_only: z.boolean().default(false),
+  coupon_slug: z.string().max(80).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -38,10 +40,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: parsed.error.message })
   }
 
-  const { map_id, product_uid, print_size, quantity, shipping_address, digital_only } = parsed.data
+  const { map_id, product_uid, print_size, quantity, shipping_address, digital_only, coupon_slug } = parsed.data
 
   const config = useRuntimeConfig()
   const supabase = await serverSupabaseClient(event)
+  const adminClient = await serverSupabaseServiceRole(event)
 
   // Verify map ownership and that it has been rendered
   const { data: map } = await supabase
@@ -65,7 +68,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Invalid product UID' })
   }
 
-  const totalCents = unitPrice * quantity
+  const subtotalCents = unitPrice * quantity
+  const couponReservation = coupon_slug
+    ? await reserveCouponForCheckout(adminClient, {
+        slug: coupon_slug,
+        buyerEmail: shipping_address.email,
+        cartSource: 'custom',
+        productUid: digital_only ? 'digital' : product_uid,
+        subtotalCents,
+        mapId: map_id,
+      })
+    : null
   const stripe = new Stripe(config.stripeSecretKey)
   const configuredSiteUrl = typeof config.public.siteUrl === 'string'
     ? config.public.siteUrl
@@ -75,40 +88,62 @@ export default defineEventHandler(async (event) => {
     : 'http://localhost:3001')
 
   // Create Stripe Checkout session
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    payment_method_types: ['card'],
-    customer_email: shipping_address.email,
-    line_items: [
-      {
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: digital_only
-              ? `${map.title} — Digital Download`
-              : `${map.title} — ${product?.name ?? print_size}`,
-            images: map.render_url ? [map.render_url] : [],
+  let session: Stripe.Checkout.Session | null = null
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      customer_email: shipping_address.email,
+      discounts: couponReservation ? [{ coupon: couponReservation.stripe_coupon_id }] : undefined,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: digital_only
+                ? `${map.title} — Digital Download`
+                : `${map.title} — ${product?.name ?? print_size}`,
+              images: map.render_url ? [map.render_url] : [],
+            },
+            unit_amount: unitPrice,
           },
-          unit_amount: unitPrice,
+          quantity,
         },
-        quantity,
+      ],
+      metadata: {
+        user_id: user.id,
+        map_id,
+        map_title: map.title,
+        product_uid: digital_only ? 'digital' : product_uid,
+        print_size: digital_only ? 'digital' : print_size,
+        quantity: String(quantity),
+        shipping_address: JSON.stringify(shipping_address),
+        digital_only: String(digital_only),
+        coupon_id: couponReservation?.coupon_id || '',
+        coupon_slug: couponReservation?.slug || '',
+        coupon_redemption_id: couponReservation?.redemption_id || '',
       },
-    ],
-    metadata: {
-      user_id: user.id,
-      map_id,
-      product_uid: digital_only ? 'digital' : product_uid,
-      print_size: digital_only ? 'digital' : print_size,
-      quantity: String(quantity),
-      shipping_address: JSON.stringify(shipping_address),
-      digital_only: String(digital_only),
-    },
-    shipping_address_collection: digital_only
-      ? undefined
-      : { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'SE', 'NO'] },
-    success_url: `${baseUrl}/create/${map_id}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/create/${map_id}/checkout`,
-  })
+      shipping_address_collection: digital_only
+        ? undefined
+        : { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'SE', 'NO'] },
+      success_url: `${baseUrl}/create/${map_id}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/create/${map_id}/checkout`,
+    })
+    if (couponReservation) {
+      await attachStripeSessionToCouponReservation(adminClient, couponReservation.redemption_id, session.id)
+    }
+  } catch (err) {
+    if (session?.id) {
+      await stripe.checkout.sessions.expire(session.id).catch((expireErr) => {
+        console.error('[orders/checkout] failed to expire checkout session after coupon error:', (expireErr as Error).message)
+      })
+    }
+    await releaseCouponReservation(adminClient, couponReservation?.redemption_id).catch((releaseErr) => {
+      console.error('[orders/checkout] failed to release coupon reservation:', (releaseErr as Error).message)
+    })
+    throw err
+  }
+  if (!session) throw createError({ statusCode: 500, message: 'Unable to create checkout session' })
 
   // Freeze the design at session creation. The webhook reads this immutable
   // snapshot by stripe_session_id instead of the mutable maps row. If freezing
@@ -129,6 +164,9 @@ export default defineEventHandler(async (event) => {
           '[orders/checkout] failed to expire checkout session after snapshot error:',
           (expireErr as Error).message,
         )
+      })
+      await releaseCouponReservation(adminClient, couponReservation?.redemption_id).catch((releaseErr) => {
+        console.error('[orders/checkout] failed to release coupon reservation after snapshot error:', (releaseErr as Error).message)
       })
       throw createError({
         statusCode: 500,

@@ -2,20 +2,24 @@ import type { AdminRole } from '~/types'
 
 export type AdminAction =
   | 'staff:manage'
+  | 'coupon:manage'
   | 'premade:create'
   | 'premade:edit'
   | 'premade:publish'
   | 'homepage:manage'
   | 'support:read'
+  | 'flags:manage'
 
 const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
   admin: [
     'staff:manage',
+    'coupon:manage',
     'premade:create',
     'premade:edit',
     'premade:publish',
     'homepage:manage',
     'support:read',
+    'flags:manage',
   ],
   curator: [
     'premade:create',

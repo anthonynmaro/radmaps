@@ -4,14 +4,20 @@
     :class="previewRootClass"
     :style="previewRootStyle"
   >
-
-    <!-- Inline text edit sheet (mobile only) -->
-    <InlineEditSheet
-      v-if="activeEditField"
-      :field="activeEditField.field"
-      :value="activeEditField.value"
-      @update:value="applyInlineEdit"
-      @close="activeEditField = null"
+    <InlineTextToolbar
+      v-if="editable && activeToolbarState"
+      :label="activeToolbarState.label"
+      :anchor-rect="activeTextAnchor"
+      :font-family="activeToolbarState.fontFamily"
+      :color="activeToolbarState.color"
+      :scale="activeToolbarState.scale"
+      :bold="activeToolbarState.bold"
+      :italic="activeToolbarState.italic"
+      :can-reset="activeToolbarState.canReset"
+      :text-value="activeToolbarState.textValue"
+      @patch="applyToolbarPatch"
+      @reset="resetActiveText"
+      @done="finishActiveTextEdit"
     />
 
     <!-- Poster canvas — maintains print aspect ratio -->
@@ -92,12 +98,18 @@
         <h1
           v-else-if="editable"
           class="poster-trail-name editable-text"
+          :class="{ 'is-selected-text': isSlotActive('trail_name') }"
           :style="trailNameStyle"
-          :contenteditable="!isMobile"
+          contenteditable="true"
           :suppressContentEditableWarning="true"
-          @focus="onTextFocus('trail_name', trailName)"
-          @blur="onTrailNameBlur"
-          @click="onTextClick('trail_name', trailName)"
+          role="textbox"
+          aria-label="Trail name"
+          enterkeyhint="done"
+          spellcheck="true"
+          @focus="onSlotFocus($event, 'trail_name')"
+          @blur="onSlotBlur($event, 'trail_name')"
+          @click="onSlotClick($event, 'trail_name')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ trailName }}</h1>
 
         <!-- Location / elevation line -->
@@ -109,12 +121,18 @@
         <p
           v-else-if="locationLine && editable"
           class="poster-location-line editable-text"
+          :class="{ 'is-selected-text': isSlotActive('location_text') }"
           :style="locationLineStyle"
-          :contenteditable="!isMobile"
+          contenteditable="true"
           :suppressContentEditableWarning="true"
-          @focus="onTextFocus('location_text', styleConfig.location_text)"
-          @blur="onLocationBlur"
-          @click="onTextClick('location_text', styleConfig.location_text)"
+          role="textbox"
+          aria-label="Location"
+          enterkeyhint="done"
+          spellcheck="true"
+          @focus="onSlotFocus($event, 'location_text')"
+          @blur="onSlotBlur($event, 'location_text')"
+          @click="onSlotClick($event, 'location_text')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ locationLine }}</p>
 
         <!-- Thin rule at bottom — only for top-positioned header -->
@@ -235,17 +253,20 @@
               <text
                 :x="pin.labelX" :y="pin.labelY"
                 :text-anchor="pin.anchor"
-                :font-size="svgPinFontSize"
-                :font-family="styleConfig.pin_font_family ? `'${styleConfig.pin_font_family}', sans-serif` : typography.statsFont"
-                :fill="pin.color"
+                :font-size="pinLabelFontSize(pin.id)"
+                :font-family="pinLabelFontFamily(pin.id)"
+                :fill="pinLabelColor(pin.id)"
                 :opacity="pin.opacity"
                 :stroke="styleConfig.background_color ?? '#FFFFFF'"
                 stroke-width="3"
                 paint-order="stroke fill"
-                font-weight="600"
+                :font-weight="pinLabelWeight(pin.id)"
+                :font-style="pinLabelItalic(pin.id)"
                 letter-spacing="0.12em"
                 dominant-baseline="middle"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
+                :class="{ 'is-selected-svg-text': activeTextTarget?.type === 'slot' && activeTextTarget.slot === pinSlot(pin.id) }"
+                @click.stop="onPinLabelClick($event, pin.id)"
                 @pointerdown.stop="editable && startLabelDrag($event, pin.id as 'start' | 'finish')"
                 @pointermove="draggingPin === pin.id && onLabelDragMove($event)"
                 @pointerup="draggingPin === pin.id && onLabelDragEnd($event)"
@@ -323,27 +344,98 @@
 
         <!-- Stat blocks (left) -->
         <div class="poster-stats">
-          <div v-if="styleConfig.labels.show_distance && formattedDistance" class="stat-block">
-            <span class="stat-number" :style="statNumberStyle">{{ formattedDistance }}</span>
-            <span class="stat-unit" :style="statUnitStyle">miles</span>
+          <div
+            v-if="showDistanceSlot"
+            class="stat-block editable-text"
+            :class="{ 'is-selected-text': isSlotActive('distance') }"
+            :contenteditable="editable ? 'true' : 'false'"
+            :suppressContentEditableWarning="true"
+            role="textbox"
+            aria-label="Distance"
+            enterkeyhint="done"
+            spellcheck="true"
+            @focus="onSlotFocus($event, 'distance')"
+            @blur="onSlotBlur($event, 'distance')"
+            @click="onSlotClick($event, 'distance')"
+            @keydown.enter.exact.prevent="finishActiveTextEdit"
+          >
+            <span v-if="hasTextOverride('distance')" class="stat-custom-text" :style="statCustomTextStyle('distance')">{{ distanceText }}</span>
+            <template v-else>
+              <span class="stat-number" :style="statNumberStyleFor('distance')">{{ formattedDistance }}</span>
+              <span class="stat-unit" :style="statUnitStyleFor('distance')">miles</span>
+            </template>
           </div>
 
           <div
-            v-if="styleConfig.labels.show_distance && styleConfig.labels.show_elevation_gain && formattedDistance && formattedGain"
+            v-if="showDistanceSlot && showElevationGainSlot"
             class="stat-divider"
             :style="dividerStyle"
           />
 
-          <div v-if="styleConfig.labels.show_elevation_gain && formattedGain" class="stat-block">
-            <span class="stat-number" :style="statNumberStyle">{{ formattedGain }}</span>
-            <span class="stat-unit" :style="statUnitStyle">ft gain</span>
+          <div
+            v-if="showElevationGainSlot"
+            class="stat-block editable-text"
+            :class="{ 'is-selected-text': isSlotActive('elevation_gain') }"
+            :contenteditable="editable ? 'true' : 'false'"
+            :suppressContentEditableWarning="true"
+            role="textbox"
+            aria-label="Elevation gain"
+            enterkeyhint="done"
+            spellcheck="true"
+            @focus="onSlotFocus($event, 'elevation_gain')"
+            @blur="onSlotBlur($event, 'elevation_gain')"
+            @click="onSlotClick($event, 'elevation_gain')"
+            @keydown.enter.exact.prevent="finishActiveTextEdit"
+          >
+            <span v-if="hasTextOverride('elevation_gain')" class="stat-custom-text" :style="statCustomTextStyle('elevation_gain')">{{ elevationGainText }}</span>
+            <template v-else>
+              <span class="stat-number" :style="statNumberStyleFor('elevation_gain')">{{ formattedGain }}</span>
+              <span class="stat-unit" :style="statUnitStyleFor('elevation_gain')">ft gain</span>
+            </template>
           </div>
 
-          <div v-if="coords && styleConfig.labels?.show_location !== false" class="stat-divider" :style="dividerStyle" />
+          <div v-if="showDateSlot && (showDistanceSlot || showElevationGainSlot)" class="stat-divider" :style="dividerStyle" />
 
-          <div v-if="coords && styleConfig.labels?.show_location !== false" class="stat-block stat-block--coords">
-            <span :style="coordStyle">{{ coords.lat }}</span>
-            <span :style="coordStyle">{{ coords.lng }}</span>
+          <div
+            v-if="showDateSlot"
+            class="stat-block editable-text"
+            :class="{ 'is-selected-text': isSlotActive('date') }"
+            :contenteditable="editable ? 'true' : 'false'"
+            :suppressContentEditableWarning="true"
+            role="textbox"
+            aria-label="Date"
+            enterkeyhint="done"
+            spellcheck="true"
+            @focus="onSlotFocus($event, 'date')"
+            @blur="onSlotBlur($event, 'date')"
+            @click="onSlotClick($event, 'date')"
+            @keydown.enter.exact.prevent="finishActiveTextEdit"
+          >
+            <span class="stat-custom-text" :style="statCustomTextStyle('date')">{{ dateText }}</span>
+          </div>
+
+          <div v-if="showCoordinatesSlot && (showDistanceSlot || showElevationGainSlot || showDateSlot)" class="stat-divider" :style="dividerStyle" />
+
+          <div
+            v-if="showCoordinatesSlot"
+            class="stat-block stat-block--coords editable-text"
+            :class="{ 'is-selected-text': isSlotActive('coordinates') }"
+            :contenteditable="editable ? 'true' : 'false'"
+            :suppressContentEditableWarning="true"
+            role="textbox"
+            aria-label="Coordinates"
+            enterkeyhint="done"
+            spellcheck="true"
+            @focus="onSlotFocus($event, 'coordinates')"
+            @blur="onSlotBlur($event, 'coordinates')"
+            @click="onSlotClick($event, 'coordinates')"
+            @keydown.enter.exact.prevent="finishActiveTextEdit"
+          >
+            <span v-if="hasTextOverride('coordinates')" class="stat-custom-text" :style="coordStyleFor('coordinates')">{{ coordinatesText }}</span>
+            <template v-else-if="coords">
+              <span :style="coordStyleFor('coordinates')">{{ coords.lat }}</span>
+              <span :style="coordStyleFor('coordinates')">{{ coords.lng }}</span>
+            </template>
           </div>
         </div>
 
@@ -356,12 +448,18 @@
         <p
           v-else-if="editable"
           class="poster-occasion editable-text"
+          :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
-          :contenteditable="!isMobile"
+          contenteditable="true"
           :suppressContentEditableWarning="true"
-          @focus="onTextFocus('occasion_text', styleConfig.occasion_text)"
-          @blur="onOccasionBlur"
-          @click="onTextClick('occasion_text', styleConfig.occasion_text)"
+          role="textbox"
+          aria-label="Occasion"
+          enterkeyhint="done"
+          spellcheck="true"
+          @focus="onSlotFocus($event, 'occasion_text')"
+          @blur="onSlotBlur($event, 'occasion_text')"
+          @click="onSlotClick($event, 'occasion_text')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ occasionText }}</p>
 
         <!-- Rad Maps mark (right) -->
@@ -395,8 +493,29 @@
           :style="overlayStyle(overlay)"
           @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
         >
-          {{ overlay.content }}
+          <span
+            class="overlay-content editable-text"
+            contenteditable="true"
+            :suppressContentEditableWarning="true"
+            role="textbox"
+            aria-label="Text overlay"
+            enterkeyhint="done"
+            spellcheck="true"
+            @focus="onOverlayTextFocus($event, overlay.id)"
+            @blur="onOverlayTextBlur($event, overlay.id)"
+            @click.stop="onOverlayTextClick($event, overlay.id)"
+            @keydown.enter.exact.prevent="finishActiveTextEdit"
+          >{{ overlay.content }}</span>
           <template v-if="editable">
+            <div
+              class="overlay-move-handle"
+              title="Drag to move"
+              @pointerdown.stop
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
+                <path d="M10 2l2.5 2.5h-2V8h3.5V6l2.5 2.5L14 11v-2h-3.5v3.5h2L10 15l-2.5-2.5h2V9H6v2L3.5 8.5 6 6v2h3.5V4.5h-2L10 2z"/>
+              </svg>
+            </div>
             <button
               class="overlay-delete-btn"
               title="Remove"
@@ -432,15 +551,15 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
-import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromIndexes, routeRangesToGeojson } from '~/utils/trail'
+import { buildMapStyle, CONTOUR_THRESHOLDS, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
+import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
-import type { DeletedRange, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import type { DeletedRange, FontFamily, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
-import InlineEditSheet from '~/components/map/InlineEditSheet.vue'
+import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
 
 interface PrintContext {
   framing: PrintFraming
@@ -473,8 +592,11 @@ const emit = defineEmits<{
   'overlay-selected': [id: string]
   'overlay-deleted': [id: string]
   'overlay-resized': [payload: { id: string; font_size: number }]
+  'overlay-updated': [payload: { id: string; patch: Partial<TextOverlay> }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
-  'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number }]
+  'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
+  'poster-text-reset': [slot: PosterTextSlot]
+  'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
   /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
   /** Fired when user cancels plot mode (Escape key or cancel button) */
@@ -492,7 +614,7 @@ const emit = defineEmits<{
   /** Fired when a selected group of trail segment labels moves together */
   'segment-labels-moved': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
-  'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number }]
+  'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number; map_pitch: number; map_bearing: number }]
   'undo': []
   'redo': []
 }>()
@@ -508,15 +630,18 @@ const mapHovered = ref(false)
 const BRUSH_PREVIEW_SOURCE_ID = 'route-delete-brush-preview'
 const BRUSH_PREVIEW_CASING_LAYER_ID = 'route-delete-brush-preview-casing'
 const BRUSH_PREVIEW_LAYER_ID = 'route-delete-brush-preview-line'
+const BRUSH_ROUTE_SEGMENT_MAX_METERS = DEFAULT_COORD_GAP_THRESHOLD_METERS
 
 const brushCursor = ref<{ x: number; y: number } | null>(null)
 const brushPreviewRanges = ref<DeletedRange[]>([])
 const brushSelectedIndexes = ref<Set<number>>(new Set())
 const brushPointerDown = ref(false)
 let brushPointCache: Array<{ index: number; x: number; y: number }> = []
+let brushSegmentCache: Array<{ startIndex: number; endIndex: number; x1: number; y1: number; x2: number; y2: number }> = []
+let lastBrushPoint: { x: number; y: number } | null = null
 
 const brushCursorStyle = computed(() => {
-  const radius = props.deleteBrushSize ?? 18
+  const radius = props.deleteBrushSize ?? 8
   const cursor = brushCursor.value
   if (!cursor) return {}
   return {
@@ -542,6 +667,7 @@ let plotRouteCoords: number[][] = []
 
 // ── Tile effect protocol (styledtile://) ──────────────────────────────────────
 // Intercepts raster tile fetches and applies per-pixel colour transforms:
+//   invert    — flips RGB channels for black/white map variants
 //   duotone   — remaps luminance to the poster's shadow + highlight colours
 //   posterize — quantises each channel to N discrete levels
 //
@@ -591,7 +717,13 @@ function ensureTileEffectProtocol() {
     const imgData = ctx.getImageData(0, 0, img.width, img.height)
     const d = imgData.data
 
-    if (effect === 'duotone') {
+    if (effect === 'invert') {
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = 255 - d[i]
+        d[i + 1] = 255 - d[i + 1]
+        d[i + 2] = 255 - d[i + 2]
+      }
+    } else if (effect === 'duotone') {
       // args: [shadowHex, highlightHex, strengthPercent]
       const sh = args[0], hi = args[1]
       const strength = parseInt(args[2]) / 100
@@ -669,7 +801,7 @@ async function ensureContourProtocol() {
 }
 
 function getContourTileUrl(cfg: StyleConfig): string | undefined {
-  if (!cfg.show_contours || !mlDemSource) return undefined
+  if (!styleUsesContours(cfg) || !mlDemSource) return undefined
   const detail = Math.round(cfg.contour_detail ?? 3)
   const thresholds = CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
   // overzoom: 2 — fetch DEM tiles 2 zoom levels higher than the map zoom,
@@ -677,44 +809,129 @@ function getContourTileUrl(cfg: StyleConfig): string | undefined {
   return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 2 })
 }
 
-// Detect mobile for conditional contenteditable behavior
-const isMobile = ref(false)
-onMounted(() => {
-  isMobile.value = window.matchMedia('(max-width: 767px)').matches
-  const mq = window.matchMedia('(max-width: 767px)')
-  mq.addEventListener('change', (e) => { isMobile.value = e.matches })
-})
+type ActiveTextTarget =
+  | { type: 'slot'; slot: PosterTextSlot }
+  | { type: 'overlay'; id: string }
 
-// Mobile text editing sheet state
-const activeEditField = ref<{ field: 'trail_name' | 'occasion_text' | 'location_text'; value: string } | null>(null)
+const activeTextTarget = ref<ActiveTextTarget | null>(null)
+const activeTextAnchor = ref<DOMRect | null>(null)
 
-function onTextFocus(field: 'trail_name' | 'occasion_text' | 'location_text', value: string) {
-  emit('edit-requested', { field, value })
+const SLOT_LABELS: Record<PosterTextSlot, string> = {
+  trail_name: 'Trail name',
+  occasion_text: 'Occasion',
+  location_text: 'Location',
+  distance: 'Distance',
+  elevation_gain: 'Elevation gain',
+  date: 'Date',
+  coordinates: 'Coordinates',
+  start_pin_label: 'Start label',
+  finish_pin_label: 'Finish label',
 }
 
-function onTextClick(field: 'trail_name' | 'occasion_text' | 'location_text', value: string) {
-  emit('edit-requested', { field, value })
-  if (!isMobile.value) return // desktop uses contenteditable directly
-  activeEditField.value = { field, value }
+function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
+  activeTextTarget.value = target
+  activeTextAnchor.value = el.getBoundingClientRect()
 }
 
-function applyInlineEdit(value: string) {
-  if (!activeEditField.value) return
-  const field = activeEditField.value.field
-  if (field === 'trail_name') emit('update:trailName', value)
-  else if (field === 'occasion_text') emit('update:occasionText', value)
-  else if (field === 'location_text') emit('update:locationText', value)
-  activeEditField.value = null
+function isSlotActive(slot: PosterTextSlot) {
+  return activeTextTarget.value?.type === 'slot' && activeTextTarget.value.slot === slot
 }
 
-function onTrailNameBlur(e: FocusEvent) {
-  emit('update:trailName', (e.target as HTMLElement).innerText.trim())
+function slotOverride(slot: PosterTextSlot): PosterTextOverride {
+  return props.styleConfig.poster_text_overrides?.[slot] ?? {}
 }
-function onLocationBlur(e: FocusEvent) {
-  emit('update:locationText', (e.target as HTMLElement).innerText.trim())
+
+function hasTextOverride(slot: PosterTextSlot) {
+  return slotOverride(slot).text != null
 }
-function onOccasionBlur(e: FocusEvent) {
-  emit('update:occasionText', (e.target as HTMLElement).innerText.trim())
+
+function textWithOverride(slot: PosterTextSlot, fallback: string) {
+  return slotOverride(slot).text ?? fallback
+}
+
+function defaultSlotText(slot: PosterTextSlot) {
+  if (slot === 'trail_name') return props.styleConfig.trail_name || props.map.title || 'Your Trail'
+  if (slot === 'location_text') {
+    const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
+    return text ? text.toUpperCase() : ''
+  }
+  if (slot === 'occasion_text') return props.styleConfig.occasion_text || ''
+  if (slot === 'distance') return formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''
+  if (slot === 'elevation_gain') return formattedGain.value ? `${formattedGain.value}\nft gain` : ''
+  if (slot === 'date') return formattedDate.value
+  if (slot === 'start_pin_label') return props.styleConfig.start_pin_label ?? 'Start'
+  if (slot === 'finish_pin_label') return props.styleConfig.finish_pin_label ?? 'Finish'
+  return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''
+}
+
+function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
+  const el = e.currentTarget as HTMLElement
+  selectTextTarget({ type: 'slot', slot }, el)
+  if (slot === 'trail_name' || slot === 'occasion_text' || slot === 'location_text') {
+    emit('edit-requested', { field: slot, value: el.innerText.trim() })
+  }
+}
+
+function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
+  selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
+}
+
+function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
+  const nextText = (e.currentTarget as HTMLElement).innerText.trim()
+  if (nextText === defaultSlotText(slot)) {
+    if (hasTextOverride(slot)) emit('poster-text-reset', slot)
+    return
+  }
+  emit('poster-text-override', { slot, patch: { text: nextText } })
+}
+
+function onOverlayTextFocus(e: FocusEvent, id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedOverlayId.value = id
+  selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
+  emit('overlay-selected', id)
+}
+
+function onOverlayTextClick(e: MouseEvent, id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedOverlayId.value = id
+  selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
+  emit('overlay-selected', id)
+}
+
+function onOverlayTextBlur(e: FocusEvent, id: string) {
+  emit('overlay-updated', { id, patch: { content: (e.currentTarget as HTMLElement).innerText.trim() } })
+}
+
+function finishActiveTextEdit() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+}
+
+function resetActiveText() {
+  const target = activeTextTarget.value
+  if (!target) return
+  if (target.type === 'slot') emit('poster-text-reset', target.slot)
+  else {
+    const overlay = props.styleConfig.text_overlays?.find(o => o.id === target.id)
+    if (overlay) {
+      emit('overlay-updated', {
+        id: target.id,
+        patch: {
+          font_family: props.styleConfig.font_family,
+          color: props.styleConfig.label_text_color,
+          bold: false,
+          italic: false,
+        },
+      })
+    }
+  }
+}
+
+function onPinLabelClick(e: MouseEvent, pin: 'start' | 'finish') {
+  if (!props.editable) return
+  selectTextTarget({ type: 'slot', slot: pinSlot(pin) }, e.currentTarget as HTMLElement)
 }
 
 const selectedOverlayId = ref<string | null>(null)
@@ -729,8 +946,9 @@ function scheduleDeselect() {
 function onOverlayClick(id: string) {
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
+  const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${id}"] .overlay-content`)
+  if (el) selectTextTarget({ type: 'overlay', id }, el)
   emit('overlay-selected', id)
-  scheduleDeselect()
 }
 
 function onOverlayDelete(id: string) {
@@ -810,15 +1028,16 @@ const layout = computed(() => getPosterLayout(props.styleConfig))
 // ── Poster content ────────────────────────────────────────────────────────────
 
 const trailName = computed(() =>
-  props.styleConfig.trail_name || props.map.title || 'Your Trail',
+  textWithOverride('trail_name', props.styleConfig.trail_name || props.map.title || 'Your Trail'),
 )
 
 const locationLine = computed(() => {
   const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
-  return text ? text.toUpperCase() : ''
+  const display = textWithOverride('location_text', text)
+  return display ? display.toUpperCase() : ''
 })
 
-const occasionText = computed(() => props.styleConfig.occasion_text || '')
+const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
 
 const coords = computed(() => {
   const b = props.map.bbox
@@ -843,6 +1062,38 @@ const formattedGain = computed(() => {
   return m ? Math.round(m * 3.28084).toLocaleString() : ''
 })
 
+const formattedDate = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+})
+
+const distanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''))
+const elevationGainText = computed(() => textWithOverride('elevation_gain', formattedGain.value ? `${formattedGain.value}\nft gain` : ''))
+const dateText = computed(() => textWithOverride('date', formattedDate.value))
+const coordinatesText = computed(() => textWithOverride('coordinates', coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''))
+const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
+const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
+
+const showDistanceSlot = computed(() =>
+  props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
+)
+const showElevationGainSlot = computed(() =>
+  props.styleConfig.labels.show_elevation_gain && (editableTextVisible(elevationGainText.value)),
+)
+const showDateSlot = computed(() =>
+  props.styleConfig.labels.show_date && editableTextVisible(dateText.value),
+)
+const showCoordinatesSlot = computed(() =>
+  props.styleConfig.labels?.show_location !== false && editableTextVisible(coordinatesText.value),
+)
+
+function editableTextVisible(text: string) {
+  return !!text || !!props.editable
+}
+
 // ── Style objects ─────────────────────────────────────────────────────────────
 
 const fg = computed(() => props.styleConfig.label_text_color || '#1C1917')
@@ -854,6 +1105,29 @@ const borderW = computed(() =>
 const printBleedCssPx = computed(() =>
   props.printContext ? props.printContext.framing.trimBox.x / props.printContext.deviceScaleFactor : 0,
 )
+
+function effectiveSlotFont(slot: PosterTextSlot, fallbackStack: string): string {
+  const family = slotOverride(slot).font_family
+  return family ? toFontStack(family) : fallbackStack
+}
+
+function effectiveSlotColor(slot: PosterTextSlot, fallback: string): string {
+  return slotOverride(slot).color ?? fallback
+}
+
+function effectiveSlotScale(slot: PosterTextSlot, fallback: number): number {
+  return slotOverride(slot).scale ?? fallback
+}
+
+function effectiveSlotWeight(slot: PosterTextSlot, fallback: string): string {
+  const bold = slotOverride(slot).bold
+  if (bold == null) return fallback
+  return bold ? '700' : '400'
+}
+
+function effectiveSlotItalic(slot: PosterTextSlot): string {
+  return slotOverride(slot).italic ? 'italic' : 'normal'
+}
 
 function getTextHalo() {
   const bg = props.styleConfig.background_color ?? '#FFF'
@@ -882,13 +1156,14 @@ const headerBandStyle = computed(() => ({
 }))
 
 const trailNameStyle = computed(() => ({
-  fontFamily: typography.value.titleFont,
-  fontWeight: typography.value.titleWeight,
+  fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
+  fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
+  fontStyle: effectiveSlotItalic('trail_name'),
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${typography.value.titleSize * (props.styleConfig.title_scale ?? 1.0)}cqh`,
+  fontSize: `${typography.value.titleSize * effectiveSlotScale('trail_name', props.styleConfig.title_scale ?? 1.0)}cqh`,
   lineHeight: typography.value.titleLineHeight,
-  color: fg.value,
+  color: effectiveSlotColor('trail_name', fg.value),
   textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
@@ -897,11 +1172,12 @@ const trailNameStyle = computed(() => ({
 }))
 
 const locationLineStyle = computed(() => ({
-  fontFamily: typography.value.subFont,
-  fontWeight: typography.value.subWeight,
+  fontFamily: effectiveSlotFont('location_text', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `${typography.value.subSize * (props.styleConfig.subtitle_scale ?? 1.0)}cqh`,
-  color: fg.value,
+  fontSize: `${typography.value.subSize * effectiveSlotScale('location_text', props.styleConfig.subtitle_scale ?? 1.0)}cqh`,
+  color: effectiveSlotColor('location_text', fg.value),
   opacity: '0.5',
   textTransform: 'uppercase' as const,
   textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
@@ -941,38 +1217,82 @@ const mapAreaStyle = computed(() => ({
   order: layout.value.titlePosition === 'top' ? '1' : '0',
 }))
 
-const statNumberStyle = computed(() => ({
-  fontFamily: typography.value.statsFont,
-  fontWeight: typography.value.statsWeight,
-  fontSize: '2.6cqh',
+function statNumberStyleFor(slot: PosterTextSlot) {
+  return {
+  fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
+  fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
+  fontStyle: effectiveSlotItalic(slot),
+  fontSize: `${2.6 * effectiveSlotScale(slot, 1)}cqh`,
   letterSpacing: '-0.01em',
   lineHeight: '1',
-  color: fg.value,
+  color: effectiveSlotColor(slot, fg.value),
   display: 'block',
-}))
+  }
+}
 
-const statUnitStyle = computed(() => ({
-  fontFamily: typography.value.statsFont,
-  fontWeight: '400',
-  fontSize: '0.8cqh',
+function statUnitStyleFor(slot: PosterTextSlot) {
+  return {
+  fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
+  fontWeight: effectiveSlotWeight(slot, '400'),
+  fontStyle: effectiveSlotItalic(slot),
+  fontSize: `${0.8 * effectiveSlotScale(slot, 1)}cqh`,
   letterSpacing: '0.18em',
   textTransform: 'uppercase' as const,
-  color: fg.value,
+  color: effectiveSlotColor(slot, fg.value),
   opacity: '0.45',
   display: 'block',
   marginTop: '0.55cqh',
-}))
+  }
+}
 
-const coordStyle = computed(() => ({
-  fontFamily: typography.value.statsFont,
-  fontWeight: typography.value.statsWeight,
-  fontSize: '1.2cqh',
+function coordStyleFor(slot: PosterTextSlot) {
+  return {
+  fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
+  fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
+  fontStyle: effectiveSlotItalic(slot),
+  fontSize: `${1.2 * effectiveSlotScale(slot, 1)}cqh`,
   letterSpacing: '0.04em',
   lineHeight: '1.45',
-  color: fg.value,
+  color: effectiveSlotColor(slot, fg.value),
   opacity: '0.65',
   display: 'block',
-}))
+  whiteSpace: 'pre-line' as const,
+  }
+}
+
+function statCustomTextStyle(slot: PosterTextSlot) {
+  return {
+    ...statNumberStyleFor(slot),
+    fontSize: `${1.6 * effectiveSlotScale(slot, 1)}cqh`,
+    whiteSpace: 'pre-line' as const,
+  }
+}
+
+function pinSlot(pin: 'start' | 'finish'): PosterTextSlot {
+  return pin === 'start' ? 'start_pin_label' : 'finish_pin_label'
+}
+
+function pinLabelFontFamily(pin: 'start' | 'finish') {
+  const slot = pinSlot(pin)
+  const family = slotOverride(slot).font_family ?? props.styleConfig.pin_font_family
+  return family ? toFontStack(family) : typography.value.statsFont
+}
+
+function pinLabelColor(pin: 'start' | 'finish') {
+  return effectiveSlotColor(pinSlot(pin), props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917')
+}
+
+function pinLabelFontSize(pin: 'start' | 'finish') {
+  return svgPinFontSize.value * effectiveSlotScale(pinSlot(pin), 1)
+}
+
+function pinLabelWeight(pin: 'start' | 'finish') {
+  return effectiveSlotWeight(pinSlot(pin), '600')
+}
+
+function pinLabelItalic(pin: 'start' | 'finish') {
+  return effectiveSlotItalic(pinSlot(pin))
+}
 
 const dividerStyle = computed(() => ({
   width: '1px',
@@ -984,12 +1304,13 @@ const dividerStyle = computed(() => ({
 }))
 
 const occasionStyle = computed(() => ({
-  fontFamily: typography.value.subFont,
-  fontWeight: typography.value.subWeight,
-  fontSize: `${0.95 * (props.styleConfig.occasion_scale ?? 1.0)}cqh`,
+  fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('occasion_text'),
+  fontSize: `${0.95 * effectiveSlotScale('occasion_text', props.styleConfig.occasion_scale ?? 1.0)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
-  color: fg.value,
+  color: effectiveSlotColor('occasion_text', fg.value),
   opacity: '0.5',
   textAlign: 'center' as const,
   position: 'absolute' as const,
@@ -1196,6 +1517,78 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
       borderRadius: '0.4cqh',
     } : {}),
   }
+}
+
+const activeToolbarState = computed(() => {
+  const target = activeTextTarget.value
+  if (!target) return null
+
+  if (target.type === 'overlay') {
+    const overlay = props.styleConfig.text_overlays?.find(o => o.id === target.id)
+    if (!overlay) return null
+    return {
+      label: 'Text overlay',
+      textValue: overlay.content,
+      fontFamily: overlay.font_family,
+      color: overlay.color,
+      scale: Math.max(0.5, Math.min(2, overlay.font_size / 2)),
+      bold: overlay.bold,
+      italic: overlay.italic ?? false,
+      canReset: false,
+    }
+  }
+
+  const slot = target.slot
+  const override = slotOverride(slot)
+  const defaultFont = slot === 'trail_name'
+    ? props.styleConfig.font_family
+    : slot === 'start_pin_label' || slot === 'finish_pin_label'
+      ? (props.styleConfig.pin_font_family ?? props.styleConfig.body_font_family)
+      : props.styleConfig.body_font_family
+  const defaultWeight = slot === 'trail_name'
+    ? typography.value.titleWeight
+    : slot === 'start_pin_label' || slot === 'finish_pin_label'
+      ? '600'
+    : slot === 'occasion_text' || slot === 'location_text'
+      ? typography.value.subWeight
+      : typography.value.statsWeight
+
+  return {
+    label: SLOT_LABELS[slot],
+    textValue: textWithOverride(slot, defaultSlotText(slot)),
+    fontFamily: override.font_family ?? defaultFont,
+    color: override.color ?? fg.value,
+    scale: effectiveSlotScale(slot, legacySlotScale(slot)),
+    bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,
+    italic: override.italic ?? false,
+    canReset: !!props.styleConfig.poster_text_overrides?.[slot],
+  }
+})
+
+function legacySlotScale(slot: PosterTextSlot) {
+  if (slot === 'trail_name') return props.styleConfig.title_scale ?? 1
+  if (slot === 'occasion_text') return props.styleConfig.occasion_scale ?? 1
+  if (slot === 'location_text') return props.styleConfig.subtitle_scale ?? 1
+  if (slot === 'start_pin_label' || slot === 'finish_pin_label') return 1
+  return 1
+}
+
+function applyToolbarPatch(patch: PosterTextOverride) {
+  const target = activeTextTarget.value
+  if (!target) return
+  if (target.type === 'slot') {
+    emit('poster-text-override', { slot: target.slot, patch })
+    return
+  }
+
+  const overlayPatch: Partial<TextOverlay> = {}
+  if (patch.text != null) overlayPatch.content = patch.text
+  if (patch.font_family) overlayPatch.font_family = patch.font_family
+  if (patch.color) overlayPatch.color = patch.color
+  if (patch.scale != null) overlayPatch.font_size = Number((patch.scale * 2).toFixed(2))
+  if (patch.bold != null) overlayPatch.bold = patch.bold
+  if (patch.italic != null) overlayPatch.italic = patch.italic
+  emit('overlay-updated', { id: target.id, patch: overlayPatch })
 }
 
 // ── Trail legend ──────────────────────────────────────────────────────────────
@@ -1431,8 +1824,8 @@ function recomputeOverlays() {
       if (pt.x < -offset * 2 || pt.x > W + offset * 2 || pt.y < -offset * 2 || pt.y > H + offset * 2) continue
 
       const label = which === 'start'
-        ? (props.styleConfig.start_pin_label ?? 'Start')
-        : (props.styleConfig.finish_pin_label ?? 'Finish')
+        ? startPinLabel.value
+        : finishPinLabel.value
 
       // Use saved label lnglat (from prior drag) or auto-offset from dot
       const savedLabelLnglat = which === 'start'
@@ -1823,6 +2216,9 @@ function effectiveTileKey(cfg: StyleConfig): string {
   if (effect === 'posterize') {
     return `post:${cfg.tile_posterize_levels ?? 4}`
   }
+  if (effect === 'invert') {
+    return 'invert'
+  }
   if (effect === 'layer-color') {
     const shadow    = cfg.tile_shadow_color    ?? cfg.label_text_color  ?? '#1C1917'
     const highlight = cfg.tile_highlight_color ?? cfg.background_color  ?? '#F7F4EF'
@@ -1832,6 +2228,14 @@ function effectiveTileKey(cfg: StyleConfig): string {
   return 'none'
 }
 
+function effectivePitch(cfg: StyleConfig = props.styleConfig): number {
+  return cfg.map_3d ? (cfg.map_pitch ?? 45) : 0
+}
+
+function effectiveBearing(cfg: StyleConfig = props.styleConfig): number {
+  return cfg.map_3d ? (cfg.map_bearing ?? 0) : 0
+}
+
 onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
@@ -1839,7 +2243,7 @@ onMounted(async () => {
   // Register tile effect protocol unconditionally — cheap and avoids
   // conditional logic when the user enables duotone/posterize later.
   ensureTileEffectProtocol()
-  if (props.styleConfig.show_contours) await ensureContourProtocol()
+  if (styleUsesContours(props.styleConfig)) await ensureContourProtocol()
   const style = buildScaledMapStyle(props.styleConfig)
 
   // Restore saved zoom/center whenever they exist (user panned/zoomed before).
@@ -1857,6 +2261,8 @@ onMounted(async () => {
     ...(hasSavedView
       ? { center: props.styleConfig.map_center as [number, number], zoom: savedZoom as number }
       : { bounds: props.map.bbox, fitBoundsOptions: { padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)) } }),
+    pitch: effectivePitch(),
+    bearing: effectiveBearing(),
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
   })
@@ -1872,7 +2278,13 @@ onMounted(async () => {
       const z = mapInstance.getZoom()
       const c = mapInstance.getCenter()
       const w = mapContainer.value?.offsetWidth ?? 0
-      emit('view-changed', { map_zoom: z, map_center: [c.lng, c.lat], map_editor_width: w })
+      emit('view-changed', {
+        map_zoom: z,
+        map_center: [c.lng, c.lat],
+        map_editor_width: w,
+        map_pitch: mapInstance.getPitch(),
+        map_bearing: mapInstance.getBearing(),
+      })
     }, 800)
   }
 
@@ -1887,6 +2299,8 @@ onMounted(async () => {
       mapInstance.jumpTo({
         zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
         center: props.styleConfig.map_center as [number, number],
+        pitch: effectivePitch(),
+        bearing: effectiveBearing(),
       })
     } else if (!props.styleConfig.map_frozen) {
       mapInstance.fitBounds(props.map.bbox as maplibregl.LngLatBoundsLike, {
@@ -2028,12 +2442,12 @@ function populateSegmentSources() {
     if (src) src.setData(sliced)
 
     // Collect start + end handle dots for this segment
-    const geometry = sliced.features[0]?.geometry as GeoJSON.LineString | GeoJSON.MultiLineString | undefined
-    const coords = geometry?.type === 'LineString'
-      ? geometry.coordinates
-      : geometry?.type === 'MultiLineString'
-        ? geometry.coordinates.flat()
-        : undefined
+    const coords = sliced.features.flatMap(feature => {
+      const geometry = feature.geometry
+      if (geometry.type === 'LineString') return geometry.coordinates
+      if (geometry.type === 'MultiLineString') return geometry.coordinates.flat()
+      return []
+    })
     if (coords && coords.length >= 2) {
       handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color: seg.color } })
       handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color: seg.color } })
@@ -2093,18 +2507,23 @@ function placePinMarkers() {
 
 function apply3DTerrain() {
   if (!mapInstance) return
+  const pitch = effectivePitch()
+  const bearing = effectiveBearing()
   if (props.styleConfig.map_3d && mapInstance.getSource('mapbox-dem')) {
-    mapInstance.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 })
-    mapInstance.easeTo({ pitch: 45, duration: 600 })
+    mapInstance.setTerrain({
+      source: 'mapbox-dem',
+      exaggeration: props.styleConfig.terrain_exaggeration ?? 1.5,
+    })
   } else {
     try { mapInstance.setTerrain(null as any) } catch {}
   }
+  mapInstance.easeTo({ pitch, bearing, duration: props.editable === false ? 0 : 600 })
 }
 
 function setPaintBackground() {
   if (!mapInstance) return
   if (mapInstance.getLayer('background')) {
-    mapInstance.setPaintProperty('background', 'background-color', props.styleConfig.background_color)
+    mapInstance.setPaintProperty('background', 'background-color', mapBackgroundColor(props.styleConfig))
   }
 }
 
@@ -2124,7 +2543,7 @@ async function initOverlayDrag() {
   const overlays = container.querySelectorAll<HTMLElement>('.text-overlay.is-editable')
   overlays.forEach(el => {
     const inst = interact(el).draggable({
-      ignoreFrom: '.overlay-delete-btn, .overlay-resize-handle',
+      allowFrom: '.overlay-move-handle',
       listeners: {
         move(event: { dx: number; dy: number; target: HTMLElement }) {
           const containerRect = container.getBoundingClientRect()
@@ -2176,7 +2595,7 @@ watch(
       // Clear tile cache when effect params change so stale processed tiles aren't reused
       if (tileKeyChanged) _tileCache.clear()
       mapReady.value = false
-      if (newConfig.show_contours) await ensureContourProtocol()
+      if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
       mapInstance.setStyle(newStyle)
       mapInstance.once('styledata', () => {
@@ -2189,6 +2608,8 @@ watch(
           mapInstance!.jumpTo({
             zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
             center: props.styleConfig.map_center as [number, number],
+            pitch: effectivePitch(),
+            bearing: effectiveBearing(),
           })
         }
         applyViewportScaledLayerProperties(newConfig)
@@ -2221,6 +2642,14 @@ watch(
         }
       }
       nextTick(recomputeOverlays)
+    }
+
+    if (
+      newConfig.map_pitch !== oldConfig?.map_pitch ||
+      newConfig.map_bearing !== oldConfig?.map_bearing ||
+      newConfig.terrain_exaggeration !== oldConfig?.terrain_exaggeration
+    ) {
+      apply3DTerrain()
     }
 
     if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
@@ -2266,6 +2695,7 @@ watch(
       mapInstance.setPaintProperty('route-line', 'line-opacity', newConfig.route_opacity)
       mapInstance.setPaintProperty('route-line-casing', 'line-width', newConfig.route_width + 4)
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
+      mapInstance.setPaintProperty('route-line-casing', 'line-color', mapBackgroundColor(newConfig))
     }
     applyViewportScaledLayerProperties(newConfig)
 
@@ -2287,6 +2717,7 @@ watch(
       newConfig.start_pin_label     !== oldConfig?.start_pin_label     ||
       newConfig.finish_pin_label    !== oldConfig?.finish_pin_label    ||
       newConfig.pin_font_family     !== oldConfig?.pin_font_family     ||
+      JSON.stringify(newConfig.poster_text_overrides) !== JSON.stringify(oldConfig?.poster_text_overrides) ||
       JSON.stringify(newConfig.start_label_lnglat)  !== JSON.stringify(oldConfig?.start_label_lnglat)  ||
       JSON.stringify(newConfig.finish_label_lnglat) !== JSON.stringify(oldConfig?.finish_label_lnglat)
     ) {
@@ -2326,7 +2757,12 @@ watch(
         placePinMarkers()
         apply3DTerrain()
         if (props.styleConfig.map_frozen && canUseSavedCamera()) {
-          mapInstance!.jumpTo({ zoom: correctedFrameZoom(props.styleConfig.map_zoom as number), center: props.styleConfig.map_center as [number, number] })
+          mapInstance!.jumpTo({
+            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
+            center: props.styleConfig.map_center as [number, number],
+            pitch: effectivePitch(),
+            bearing: effectiveBearing(),
+          })
         }
         applyViewportScaledLayerProperties()
         mapReady.value = true
@@ -2366,6 +2802,23 @@ function rebuildBrushPointCache() {
       const p = mapInstance!.project([coord[0], coord[1]])
       return { index, x: p.x, y: p.y }
     })
+
+  const byIndex = new Map(brushPointCache.map(point => [point.index, point]))
+  brushSegmentCache = []
+  for (let index = 0; index < coords.length - 1; index++) {
+    if (distanceMeters(coords[index], coords[index + 1]) > BRUSH_ROUTE_SEGMENT_MAX_METERS) continue
+    const a = byIndex.get(index)
+    const b = byIndex.get(index + 1)
+    if (!a || !b) continue
+    brushSegmentCache.push({
+      startIndex: index,
+      endIndex: index + 1,
+      x1: a.x,
+      y1: a.y,
+      x2: b.x,
+      y2: b.y,
+    })
+  }
 }
 
 function ensureDeleteBrushPreviewLayer() {
@@ -2423,18 +2876,68 @@ function updateDeleteBrushPreviewSource() {
   ))
 }
 
-function addDeleteBrushSelection(x: number, y: number) {
-  const radius = props.deleteBrushSize ?? 18
-  const radiusSq = radius * radius
-  const next = new Set(brushSelectedIndexes.value)
-  for (const point of brushPointCache) {
-    const dx = point.x - x
-    const dy = point.y - y
-    if (dx * dx + dy * dy <= radiusSq) next.add(point.index)
+function pointToSegmentDistanceSq(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) {
+    const ex = px - x1
+    const ey = py - y1
+    return ex * ex + ey * ey
   }
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq))
+  const x = x1 + t * dx
+  const y = y1 + t * dy
+  const ex = px - x
+  const ey = py - y
+  return ex * ex + ey * ey
+}
+
+function selectDeleteBrushPoint(x: number, y: number, selected: Set<number>) {
+  const radius = props.deleteBrushSize ?? 8
+  const radiusSq = radius * radius
+
+  // Select rendered route geometry, not standalone coordinates. Selecting points
+  // can delete tiny disconnected coordinate runs that never read as a red preview
+  // line, which breaks the "red preview equals applied deletion" contract.
+  for (const segment of brushSegmentCache) {
+    if (pointToSegmentDistanceSq(x, y, segment.x1, segment.y1, segment.x2, segment.y2) <= radiusSq) {
+      selected.add(segment.startIndex)
+      selected.add(segment.endIndex)
+    }
+  }
+}
+
+function refreshDeleteBrushRanges(next: Set<number>) {
+  const coords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
   brushSelectedIndexes.value = next
-  brushPreviewRanges.value = deletedRangesFromIndexes(next, getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection).length, 2)
+  brushPreviewRanges.value = deletedRangesFromRouteIndexes(
+    next,
+    coords,
+    0,
+    0,
+    BRUSH_ROUTE_SEGMENT_MAX_METERS,
+  )
   updateDeleteBrushPreviewSource()
+}
+
+function addDeleteBrushSelection(x: number, y: number) {
+  const next = new Set(brushSelectedIndexes.value)
+  if (lastBrushPoint) {
+    const dx = x - lastBrushPoint.x
+    const dy = y - lastBrushPoint.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    const step = Math.max(2, (props.deleteBrushSize ?? 8) * 0.45)
+    const samples = Math.max(1, Math.ceil(distance / step))
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples
+      selectDeleteBrushPoint(lastBrushPoint.x + dx * t, lastBrushPoint.y + dy * t, next)
+    }
+  } else {
+    selectDeleteBrushPoint(x, y, next)
+  }
+  lastBrushPoint = { x, y }
+  refreshDeleteBrushRanges(next)
 }
 
 function onDeleteBrushMouseDown(e: maplibregl.MapMouseEvent) {
@@ -2442,6 +2945,7 @@ function onDeleteBrushMouseDown(e: maplibregl.MapMouseEvent) {
   e.preventDefault()
   brushPointerDown.value = true
   brushCursor.value = { x: e.point.x, y: e.point.y }
+  lastBrushPoint = null
   addDeleteBrushSelection(e.point.x, e.point.y)
 }
 
@@ -2453,6 +2957,7 @@ function onDeleteBrushMouseMove(e: maplibregl.MapMouseEvent) {
 
 function onDeleteBrushMouseUp() {
   brushPointerDown.value = false
+  lastBrushPoint = null
 }
 
 function onDeleteBrushKeydown(e: KeyboardEvent) {
@@ -2505,6 +3010,8 @@ function deactivateDeleteBrush() {
   brushSelectedIndexes.value = new Set()
   brushPreviewRanges.value = []
   brushPointCache = []
+  brushSegmentCache = []
+  lastBrushPoint = null
 }
 
 function applyDeleteBrush() {
@@ -2677,6 +3184,8 @@ function freezeView() {
     map_zoom: zoom,
     map_center: [center.lng, center.lat],
     map_editor_width: mapContainer.value?.offsetWidth ?? 0,
+    map_pitch: mapInstance.getPitch(),
+    map_bearing: mapInstance.getBearing(),
   })
 }
 
@@ -2690,7 +3199,52 @@ function unfreezeView() {
   emit('freeze-changed', { map_frozen: false })
 }
 
-defineExpose({ freezeView, unfreezeView })
+function resetViewToRoute() {
+  if (!mapInstance || !mapContainer.value) {
+    emit('freeze-changed', {
+      map_frozen: false,
+      map_zoom: undefined,
+      map_center: undefined,
+      map_editor_width: undefined,
+      map_pitch: 0,
+      map_bearing: 0,
+    })
+    return
+  }
+
+  mapInstance.dragPan.enable()
+  mapInstance.scrollZoom.enable()
+  mapInstance.doubleClickZoom.enable()
+  mapInstance.touchZoomRotate.enable()
+  mapInstance.keyboard.enable()
+
+  let emitted = false
+  const emitCamera = () => {
+    if (emitted || !mapInstance) return
+    emitted = true
+    const zoom = mapInstance.getZoom()
+    const center = mapInstance.getCenter()
+    emit('freeze-changed', {
+      map_frozen: false,
+      map_zoom: zoom,
+      map_center: [center.lng, center.lat],
+      map_editor_width: mapContainer.value?.offsetWidth ?? 0,
+      map_pitch: mapInstance.getPitch(),
+      map_bearing: mapInstance.getBearing(),
+    })
+  }
+
+  mapInstance.once('moveend', emitCamera)
+  mapInstance.fitBounds(props.map.bbox as maplibregl.LngLatBoundsLike, {
+    padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
+    pitch: 0,
+    bearing: 0,
+    duration: props.editable === false ? 0 : 250,
+  } as maplibregl.FitBoundsOptions)
+  window.setTimeout(emitCamera, 320)
+}
+
+defineExpose({ freezeView, unfreezeView, resetViewToRoute })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(
@@ -2769,6 +3323,17 @@ onUnmounted(() => {
   outline: 1.5px dashed rgba(45, 106, 79, 0.6);
   border-radius: 2px;
 }
+.editable-text.is-selected-text {
+  outline: 1.5px solid rgba(45, 106, 79, 0.72);
+  border-radius: 2px;
+}
+.editable-text[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.stat-custom-text {
+  display: block;
+}
 
 /* Text overlay layer */
 .overlay-layer {
@@ -2780,11 +3345,19 @@ onUnmounted(() => {
 
 .text-overlay.is-editable {
   pointer-events: auto !important;
-  cursor: move !important;
+  cursor: text !important;
   position: relative;
   border-radius: 2px;
   outline: 1.5px dashed transparent;
   transition: outline-color 0.2s;
+}
+
+.overlay-content {
+  display: inline-block;
+  min-width: 1.5cqh;
+  min-height: 1em;
+  outline: none;
+  white-space: pre;
 }
 
 .text-overlay.is-editable:hover {
@@ -2796,6 +3369,7 @@ onUnmounted(() => {
 }
 
 /* Delete + resize buttons: hidden by default, revealed on hover/selected */
+.overlay-move-handle,
 .overlay-delete-btn,
 .overlay-resize-handle {
   opacity: 0;
@@ -2804,13 +3378,34 @@ onUnmounted(() => {
   transition: opacity 0.18s, transform 0.18s;
 }
 
+.text-overlay.is-editable:hover .overlay-move-handle,
 .text-overlay.is-editable:hover .overlay-delete-btn,
 .text-overlay.is-editable:hover .overlay-resize-handle,
+.text-overlay.is-editable.is-selected .overlay-move-handle,
 .text-overlay.is-editable.is-selected .overlay-delete-btn,
 .text-overlay.is-editable.is-selected .overlay-resize-handle {
   opacity: 1;
   transform: scale(1);
   pointer-events: auto !important;
+}
+
+.overlay-move-handle {
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(28, 25, 23, 0.78);
+  color: white;
+  border: 1.5px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 
 /* Delete button — top-right corner */

@@ -5,8 +5,8 @@
 import type { StyleConfig, RouteStats, AgentMessage, AgentStep } from '~/types'
 
 export function useStyleAgent(
-  styleConfig: Ref<StyleConfig>,
-  routeStats: Ref<RouteStats>,
+  styleConfig: Readonly<Ref<StyleConfig>>,
+  routeStats: Readonly<Ref<RouteStats>>,
   onStyleUpdate: (updates: Partial<StyleConfig>) => void,
 ) {
   const messages = ref<AgentMessage[]>([])

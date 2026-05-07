@@ -9,6 +9,7 @@ import { parseGpxServer } from '~/utils/gpx'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats, TrailSegment } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
+import { bboxCenter } from '~/utils/premadeCatalog'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -106,6 +107,10 @@ export default defineEventHandler(async (event) => {
   }
 
   // Insert map record
+  const locationCenter = bboxCenter(bbox)
+  const locationLabel = typeof stats.location === 'string' && stats.location.trim()
+    ? stats.location.trim()
+    : null
   const { data: map, error } = await supabase
     .from('maps')
     .insert({
@@ -115,6 +120,10 @@ export default defineEventHandler(async (event) => {
       geojson,
       bbox,
       stats,
+      location_label: locationLabel,
+      location_region: locationLabel,
+      location_lng: locationCenter?.[0] ?? null,
+      location_lat: locationCenter?.[1] ?? null,
       style_config: trailSegments.length > 0
         ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
         : DEFAULT_STYLE_CONFIG,

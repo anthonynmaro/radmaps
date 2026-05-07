@@ -3,6 +3,7 @@ import { serverSupabaseServiceRole } from '#supabase/server'
 import { requireStaff } from '~/server/utils/adminAuth'
 import { draftPremadeFromMap, slugifyPremadeTitle } from '~/utils/premadeCatalog'
 import { premadeRowToMap } from '~/server/utils/premadeCatalog'
+import { renderPremadeThumbnail } from '~/server/utils/premadeThumbnail'
 
 const Body = z.object({
   map_id: z.string().uuid(),
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: map, error: mapError } = await supabase
     .from('maps')
-    .select('id, title, subtitle, geojson, bbox, stats, style_config, proof_render_url, thumbnail_url, render_url')
+    .select('id, title, subtitle, geojson, bbox, stats, style_config, proof_render_url, thumbnail_url, render_url, location_label, location_city, location_region, location_country, location_lng, location_lat')
     .eq('id', body.map_id)
     .maybeSingle()
 
@@ -54,5 +55,22 @@ export default defineEventHandler(async (event) => {
     .single()
 
   if (error) throw createError({ statusCode: 500, message: error.message })
-  return premadeRowToMap(data)
+
+  try {
+    await renderPremadeThumbnail({
+      event,
+      premadeId: data.id,
+      updatedBy: session.user!.id,
+    })
+  } catch (err) {
+    console.warn('[premade] automatic preview generation failed:', err instanceof Error ? err.message : err)
+  }
+
+  const { data: refreshed, error: refreshError } = await supabase
+    .from('premade_maps')
+    .select('*')
+    .eq('id', data.id)
+    .single()
+  if (refreshError) throw createError({ statusCode: 500, message: refreshError.message })
+  return premadeRowToMap(refreshed)
 })

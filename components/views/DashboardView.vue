@@ -237,7 +237,7 @@
           <!-- Poster card -->
           <NuxtLink
             :to="`/create/${map.id}/style`"
-            class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
+            class="block relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
             style="aspect-ratio:2/3"
             :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
           >
@@ -321,19 +321,6 @@
                   {{ formatKm(map.stats?.distance_km) }} · {{ formatM(map.stats?.elevation_gain_m) }} ↑
                 </p>
               </div>
-            </div>
-
-            <!-- Status badge (corner) -->
-            <div class="absolute top-3 left-3 z-10">
-              <span :class="[
-                'inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur-md',
-                map.status === 'rendered' ? 'bg-emerald-500/90 text-white' :
-                map.status === 'ordered'  ? 'bg-sky-500/90 text-white' :
-                'bg-white/85 text-stone-700'
-              ]">
-                <span class="w-1 h-1 rounded-full bg-current" />
-                {{ map.status }}
-              </span>
             </div>
 
             <!-- Hover overlay actions -->
@@ -424,12 +411,6 @@
                 class="font-semibold text-stone-900 truncate text-sm leading-tight hover:text-[#2D6A4F] transition-colors"
                 style="font-family:'Space Grotesk',sans-serif"
               >{{ map.title }}</NuxtLink>
-              <span :class="[
-                'shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide',
-                map.status === 'rendered' ? 'bg-emerald-100 text-emerald-700' :
-                map.status === 'ordered'  ? 'bg-sky-100 text-sky-700' :
-                'bg-stone-100 text-stone-500'
-              ]">{{ map.status }}</span>
             </div>
             <p class="text-xs text-stone-400">
               {{ formatKm(map.stats?.distance_km) }}
@@ -692,7 +673,7 @@
 <script setup lang="ts">
 import { h, defineComponent, ref, computed, onMounted } from 'vue'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
-import type { TrailMap, Order, MapStatus, PremadeMap } from '~/types'
+import type { TrailMap, Order, PremadeMap } from '~/types'
 import { formatPrice } from '~/utils/products'
 const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
   default: () => [],
@@ -739,7 +720,7 @@ const loading = ref(true)
 const toast = useToast()
 
 // UI state
-type FilterId = 'all' | MapStatus
+type FilterId = 'all' | 'ordered'
 const activeFilter = ref<FilterId>('all')
 const sortBy = ref<'newest' | 'oldest' | 'az' | 'distance'>('newest')
 const view = ref<'grid' | 'list'>('grid')
@@ -749,8 +730,6 @@ const deletingMapId = ref<string | null>(null)
 
 const filters: { id: FilterId; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'draft', label: 'Drafts' },
-  { id: 'rendered', label: 'Rendered' },
   { id: 'ordered', label: 'Ordered' },
 ]
 
@@ -797,7 +776,7 @@ const countByStatus = (id: FilterId) => {
 }
 
 const filteredMaps = computed(() => {
-  let list = activeFilter.value === 'all'
+  const list = activeFilter.value === 'all'
     ? [...maps.value]
     : maps.value.filter((m) => m.status === activeFilter.value)
 

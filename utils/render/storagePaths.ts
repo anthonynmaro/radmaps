@@ -5,6 +5,7 @@
 // The exact path layout (per v4 §"Storage paths"):
 //
 //   renders/proof/{map_id}/{proof_render_hash}.jpg
+//   renders/thumb/premade/{premade_id}/{thumbnail_hash}.jpg
 //   renders/final/{stripe_session_id}/{product_uid}/{print_hash}.jpg
 //
 // v4 locked decision #5: final-print path is keyed on
@@ -16,6 +17,11 @@
 /** `renders/proof/{map_id}/{proof_render_hash}.jpg` — proof composite. */
 export function getProofPath(mapId: string, proofRenderHash: string): string {
   return `renders/proof/${mapId}/${proofRenderHash}.jpg`
+}
+
+/** `renders/thumb/premade/{premade_id}/{thumbnail_hash}.jpg` — web catalog thumbnail. */
+export function getPremadeThumbnailPath(premadeId: string, thumbnailHash: string): string {
+  return `renders/thumb/premade/${premadeId}/${thumbnailHash}.jpg`
 }
 
 /**

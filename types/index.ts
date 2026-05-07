@@ -46,6 +46,30 @@ export interface StyleLabels {
   show_location: boolean
 }
 
+// ─── Poster Text Slots ───────────────────────────────────────────────────────
+
+export type PosterTextSlot =
+  | 'trail_name'
+  | 'occasion_text'
+  | 'location_text'
+  | 'distance'
+  | 'elevation_gain'
+  | 'date'
+  | 'coordinates'
+  | 'start_pin_label'
+  | 'finish_pin_label'
+
+export interface PosterTextOverride {
+  text?: string
+  font_family?: FontFamily
+  color?: string
+  scale?: number
+  bold?: boolean
+  italic?: boolean
+}
+
+export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
+
 // ─── Text Overlays ────────────────────────────────────────────────────────────
 
 export type TextOverlayAlignment = 'left' | 'center' | 'right'
@@ -88,6 +112,8 @@ export interface TrailLegend {
 export interface DeletedRange {
   start: number  // 0–100, % of coordinate array
   end: number    // 0–100
+  start_index?: number // exact coordinate index, inclusive; used by brush eraser
+  end_index?: number   // exact coordinate index, exclusive; used by brush eraser
 }
 
 export interface StyleConfig {
@@ -134,6 +160,7 @@ export interface StyleConfig {
   location_text: string     // overrides stats.location
   label_text_color: string  // poster label band text colour
   label_bg_color: string    // poster label band background colour
+  poster_text_overrides?: PosterTextOverrides // user edits for imported/theme text slots
   // Branding
   show_branding?: boolean         // show "radmaps.studio" credit in footer (default: true)
   // Logo
@@ -186,7 +213,7 @@ export interface StyleConfig {
   elevation_profile_opacity?: number  // 0–1, default: 0.65
   elevation_profile_height?: number   // % of map area height, 8–40, default: 22
   // Tile post-processing effects
-  tile_effect?: 'none' | 'duotone' | 'posterize' | 'layer-color'
+  tile_effect?: 'none' | 'duotone' | 'posterize' | 'layer-color' | 'invert'
   tile_duotone_strength?: number    // 0–1, blend strength (default 0.9)
   tile_posterize_levels?: number    // 2–8, colour quantisation levels (default 4)
   tile_grain?: number               // 0–1, film grain overlay intensity
@@ -202,8 +229,11 @@ export interface StyleConfig {
   vignette_intensity?: number       // 0–1 (default 0.45)
   // Route gradient coloring — color the route by position along its length
   route_color_mode?: 'solid' | 'gradient'
-  // 3D terrain — applies MapLibre terrain extrusion and 45° pitch
+  // 3D terrain + camera perspective
   map_3d?: boolean
+  map_pitch?: number                // camera pitch in degrees, 0–70
+  map_bearing?: number              // camera rotation in degrees, -180–180
+  terrain_exaggeration?: number     // MapLibre terrain exaggeration, 0.5–3
   // Frozen view state — locks zoom + center for deterministic tile processing
   map_zoom?: number                 // locked zoom level (undefined = auto-fit from bounds)
   map_center?: [number, number]     // locked center [lng, lat] (undefined = auto-fit)
@@ -270,6 +300,10 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   segment_casing_color: '#FFFFFF',
   segment_dot_size: 1.5,
   leader_label_auto_fit: true,
+  map_3d: false,
+  map_pitch: 0,
+  map_bearing: 0,
+  terrain_exaggeration: 1.5,
   map_frozen: false,
   show_start_pin: true,
   show_finish_pin: true,
@@ -593,11 +627,22 @@ export interface RouteStats {
   location?: string
 }
 
+// ─── Searchable Location Metadata ────────────────────────────────────────────
+
+export interface LocationMetadata {
+  location_label?: string | null
+  location_city?: string | null
+  location_region?: string | null
+  location_country?: string | null
+  location_lng?: number | null
+  location_lat?: number | null
+}
+
 // ─── Map Record ───────────────────────────────────────────────────────────────
 
 export type MapStatus = 'draft' | 'rendering' | 'rendered' | 'ordered'
 
-export interface TrailMap {
+export interface TrailMap extends LocationMetadata {
   id: string
   user_id: string
   title: string
@@ -652,6 +697,8 @@ export interface Order {
   print_size: string
   quantity: number
   shipping_address: ShippingAddress
+  subtotal_cents: number
+  discount_cents: number
   total_cents: number
   currency: string
   status: OrderStatus
@@ -662,9 +709,28 @@ export interface Order {
   guest_email?: string | null
   premade_slug?: string | null
   premade_title?: string | null
+  coupon_id?: string | null
+  coupon_slug?: string | null
   created_at: string
   updated_at: string
 }
+
+export interface Coupon {
+  id: string
+  slug: string
+  percent_off: number
+  expires_at?: string | null
+  max_redemptions?: number | null
+  email?: string | null
+  active: boolean
+  stripe_coupon_id?: string
+  created_by?: string | null
+  updated_by?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CouponRedemptionStatus = 'reserved' | 'redeemed' | 'released' | 'expired'
 
 // ─── Admin / Staff Roles ─────────────────────────────────────────────────────
 
@@ -681,6 +747,54 @@ export interface AdminUser {
   updated_at: string
 }
 
+// ─── Feature Flags ──────────────────────────────────────────────────────────
+
+export type FeatureFlagEnvironment = 'development' | 'preview' | 'production' | 'all'
+export type FeatureFlagRuleType = 'user_list' | 'admin_role' | 'all_staff' | 'percentage' | 'everyone'
+
+export interface FeatureFlagRule {
+  type: FeatureFlagRuleType
+  enabled: boolean
+  roles?: AdminRole[]
+  user_ids?: string[]
+  emails?: string[]
+  percentage?: number
+}
+
+export interface FeatureFlag {
+  id: string
+  key: string
+  name: string
+  description?: string | null
+  environment: FeatureFlagEnvironment
+  enabled: boolean
+  rules: FeatureFlagRule[]
+  archived_at?: string | null
+  created_by?: string | null
+  updated_by?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FeatureFlagEvent {
+  id: string
+  feature_flag_id?: string | null
+  flag_key: string
+  environment: FeatureFlagEnvironment
+  action: 'create' | 'update' | 'archive' | 'restore'
+  actor_id?: string | null
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface FeatureFlagContext {
+  userId?: string
+  email?: string
+  adminRole?: AdminRole | null
+  isStaff?: boolean
+}
+
 // ─── Premade Map Catalog ─────────────────────────────────────────────────────
 
 export type PremadeStatus = 'draft' | 'published' | 'archived'
@@ -693,7 +807,7 @@ export type PremadeCategory =
   | 'pilgrimage'
   | 'adventure'
 
-export interface PremadeMap {
+export interface PremadeMap extends LocationMetadata {
   id?: string
   source_map_id?: string | null
   slug: string                    // URL-safe unique identifier, e.g. 'john-muir-trail'
@@ -720,6 +834,7 @@ export interface PremadeMap {
   // Pre-rendered assets (point these at Supabase Storage URLs in production)
   preview_image_url?: string      // High-quality JPG for card/detail hero
   render_url?: string             // 300 DPI print-ready file for Gelato
+  distance_meters?: number        // Present when returned from a nearby search
 }
 
 // ─── Gelato Product Catalogue ─────────────────────────────────────────────────

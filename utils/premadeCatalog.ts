@@ -1,5 +1,5 @@
 import { PRODUCTS } from '~/utils/products'
-import type { PremadeCategory, PremadeMap, RouteStats, StyleConfig } from '~/types'
+import type { LocationMetadata, PremadeCategory, PremadeMap, RouteStats, StyleConfig } from '~/types'
 
 export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
   { id: 'national-park', label: 'National Parks' },
@@ -10,7 +10,7 @@ export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
   { id: 'adventure', label: 'Adventure' },
 ]
 
-export interface SourceMapForPremade {
+export interface SourceMapForPremade extends LocationMetadata {
   id: string
   title: string
   subtitle?: string | null
@@ -47,9 +47,36 @@ export function defaultPremadeBasePriceCents(): number {
   return Number.isFinite(lowest) ? lowest : 0
 }
 
+export function bboxCenter(bbox?: [number, number, number, number] | null): [number, number] | null {
+  if (!Array.isArray(bbox) || bbox.length !== 4) return null
+  const [minLng, minLat, maxLng, maxLat] = bbox
+  if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null
+  if (minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90) return null
+  if (minLng > maxLng || minLat > maxLat) return null
+  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+}
+
+export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'location_lng' | 'location_lat'>): boolean {
+  const lng = map.location_lng
+  const lat = map.location_lat
+  return (
+    typeof lng === 'number' &&
+    typeof lat === 'number' &&
+    Number.isFinite(lng) &&
+    Number.isFinite(lat) &&
+    lng >= -180 &&
+    lng <= 180 &&
+    lat >= -90 &&
+    lat <= 90
+  )
+}
+
 export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omit<PremadeMap, 'id'> {
   const preview = previewUrlForSourceMap(map)
   const location = (map.stats?.location || '').trim()
+  const center = bboxCenter(map.bbox)
+  const locationLng = typeof map.location_lng === 'number' ? map.location_lng : center?.[0] ?? null
+  const locationLat = typeof map.location_lat === 'number' ? map.location_lat : center?.[1] ?? null
 
   return {
     source_map_id: map.id,
@@ -58,6 +85,12 @@ export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omi
     subtitle: map.subtitle || map.style_config?.occasion_text || '',
     region: location || 'Region TBD',
     country: 'United States',
+    location_label: map.location_label || location || map.style_config?.location_text || null,
+    location_city: map.location_city || null,
+    location_region: map.location_region || location || null,
+    location_country: map.location_country || 'United States',
+    location_lng: locationLng,
+    location_lat: locationLat,
     category: 'adventure',
     tagline: map.subtitle || map.style_config?.location_text || 'A curated RadMaps route.',
     description: '',
@@ -73,7 +106,7 @@ export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omi
     needs_preview: !preview,
     base_price_cents: defaultPremadeBasePriceCents(),
     preview_image_url: preview || undefined,
-    render_url: map.render_url || preview || undefined,
+    render_url: undefined,
   }
 }
 
@@ -84,9 +117,11 @@ export function missingPublishFields(map: Partial<PremadeMap>): string[] {
   if (!map.category) missing.push('category')
   if (!map.stats || Object.keys(map.stats).length === 0) missing.push('stats')
   if (!Array.isArray(map.bbox) || map.bbox.length !== 4) missing.push('bbox')
+  if (!hasValidLocationCoordinates(map)) missing.push('location_coordinates')
   if (!map.geojson?.features?.length) missing.push('geojson')
   if (!map.style_config) missing.push('style_config')
   if (!map.preview_image_url?.trim()) missing.push('preview_image_url')
   if (!map.render_url?.trim()) missing.push('render_url')
+  if (map.needs_preview) missing.push('fresh_preview')
   return missing
 }
