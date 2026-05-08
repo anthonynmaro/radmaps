@@ -706,13 +706,31 @@ async function handleLogoUpload(file: File) {
   try {
     const formData = new FormData()
     formData.append('image', file)
-    const result = await $fetch<{ url: string }>(`/api/maps/${mapId.value}/logo`, {
+    const result = await $fetch<{ url: string; style_config?: StyleConfig }>(`/api/maps/${mapId.value}/logo`, {
       method: 'POST',
       body: formData,
     })
-    styleConfig.value = { ...styleConfig.value, logo_url: result.url, show_logo: true }
+    styleConfig.value = result.style_config
+      ? { ...DEFAULT_STYLE_CONFIG, ...result.style_config }
+      : {
+          ...styleConfig.value,
+          logo_url: result.url,
+          show_logo: true,
+          logo_position: styleConfig.value.logo_url ? (styleConfig.value.logo_position ?? 'footer-left') : 'footer-left',
+          show_branding: false,
+        }
+    if (mapData.value) {
+      mapData.value.style_config = { ...styleConfig.value }
+    }
   } catch (err) {
     console.error('Logo upload failed', err)
+    toast.add({
+      title: 'Logo upload failed',
+      description: err instanceof Error ? err.message : 'Could not upload this logo. Please try a PNG, JPG, or WebP under 5 MB.',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+      timeout: 6000,
+    })
   }
 }
 </script>
