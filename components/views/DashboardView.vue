@@ -232,7 +232,12 @@
         <div
           v-for="map in filteredMaps"
           :key="map.id"
-          class="group block"
+          class="group block cursor-pointer"
+          role="link"
+          tabindex="0"
+          @click="openMap(map)"
+          @keydown.enter.prevent="openMap(map)"
+          @keydown.space.prevent="openMap(map)"
         >
           <!-- Poster card -->
           <NuxtLink
@@ -347,7 +352,7 @@
                 :disabled="deletingMapId === map.id"
                 :title="map.status === 'ordered' ? 'Ordered maps are kept with order history' : `Delete ${map.title}`"
                 :aria-label="`Delete ${map.title}`"
-                @click="requestDeleteMap(map)"
+                @click.stop="requestDeleteMap(map)"
               >
                 <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M8 2a1 1 0 00-.894.553L6.382 4H3a1 1 0 000 2h.293l.853 10.24A2 2 0 006.139 18h7.722a2 2 0 001.993-1.76L16.707 6H17a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0012 2H8zm1.618 2h4.764l-.5-1h-3.764l-.5 1zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -370,7 +375,12 @@
         <div
           v-for="map in filteredMaps"
           :key="map.id"
-          class="group bg-white rounded-2xl border border-stone-200 p-4 flex items-center gap-4 hover:border-stone-300 hover:shadow-sm transition-all"
+          class="group bg-white rounded-2xl border border-stone-200 p-4 flex items-center gap-4 hover:border-stone-300 hover:shadow-sm transition-all cursor-pointer"
+          role="link"
+          tabindex="0"
+          @click="openMap(map)"
+          @keydown.enter.prevent="openMap(map)"
+          @keydown.space.prevent="openMap(map)"
         >
           <!-- Mini poster thumbnail -->
           <NuxtLink
@@ -423,12 +433,12 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-2 shrink-0">
-            <NuxtLink :to="`/create/${map.id}/style`">
+            <NuxtLink :to="`/create/${map.id}/style`" @click.stop>
               <button class="text-sm font-medium text-stone-600 border border-stone-200 rounded-lg px-3 py-2 hover:bg-stone-50 transition-colors">
                 Style
               </button>
             </NuxtLink>
-            <NuxtLink v-if="map.status === 'rendered'" :to="`/create/${map.id}/checkout`">
+            <NuxtLink v-if="map.status === 'rendered'" :to="`/create/${map.id}/checkout`" @click.stop>
               <button class="text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] rounded-lg px-3 py-2 transition-colors">
                 Order
               </button>
@@ -446,7 +456,7 @@
               :disabled="deletingMapId === map.id"
               :title="map.status === 'ordered' ? 'Ordered maps are kept with order history' : `Delete ${map.title}`"
               :aria-label="`Delete ${map.title}`"
-              @click="requestDeleteMap(map)"
+              @click.stop="requestDeleteMap(map)"
             >
               <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M8 2a1 1 0 00-.894.553L6.382 4H3a1 1 0 000 2h.293l.853 10.24A2 2 0 006.139 18h7.722a2 2 0 001.993-1.76L16.707 6H17a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0012 2H8zm1.618 2h4.764l-.5-1h-3.764l-.5 1zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -672,7 +682,7 @@
 
 <script setup lang="ts">
 import { h, defineComponent, ref, computed, onMounted } from 'vue'
-import { useSupabaseClient, useSupabaseUser } from '#imports'
+import { useRouter, useSupabaseClient, useSupabaseUser } from '#imports'
 import type { TrailMap, Order, PremadeMap } from '~/types'
 import { formatPrice } from '~/utils/products'
 const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
@@ -681,6 +691,7 @@ const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const router = useRouter()
 
 // Featured shop picks to surface inside the dashboard (up to 4)
 const featuredPremades = computed<PremadeMap[]>(() =>
@@ -819,6 +830,11 @@ const formatM = (m?: number) => {
 
 const posterThumbnailUrl = (map: TrailMap) =>
   map.proof_render_url ?? map.thumbnail_url ?? map.render_url ?? null
+
+function openMap(map: TrailMap) {
+  if (!map.id) return
+  router.push(`/create/${map.id}/style`)
+}
 
 // ─── Delete maps ───────────────────────────────────────────────────────────
 function requestDeleteMap(map: TrailMap) {
