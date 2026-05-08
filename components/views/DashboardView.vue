@@ -284,10 +284,9 @@
                     <path d="M-5 90 Q25 84 50 92 T105 88" />
                     <path d="M-5 110 Q30 104 50 112 T105 108" />
                   </g>
-                  <!-- route path drawn from geojson -->
+                  <!-- Lightweight fallback mark. Real route geometry is intentionally not loaded in the dashboard list. -->
                   <path
-                    v-if="routePath(map)"
-                    :d="routePath(map)"
+                    d="M22 91 C31 75 43 82 50 65 S66 38 80 43"
                     fill="none"
                     :stroke="map.style_config?.route_color || '#C1121F'"
                     stroke-width="1.3"
@@ -296,22 +295,8 @@
                     :opacity="map.style_config?.route_opacity ?? 0.95"
                   />
                   <!-- start / finish pins -->
-                  <template v-if="routeEndpoints(map)">
-                    <circle
-                      :cx="routeEndpoints(map)!.start[0]"
-                      :cy="routeEndpoints(map)!.start[1]"
-                      r="1.2"
-                      :fill="map.style_config?.route_color || '#C1121F'"
-                    />
-                    <circle
-                      :cx="routeEndpoints(map)!.end[0]"
-                      :cy="routeEndpoints(map)!.end[1]"
-                      r="1.2"
-                      fill="white"
-                      :stroke="map.style_config?.route_color || '#C1121F'"
-                      stroke-width="0.6"
-                    />
-                  </template>
+                  <circle cx="22" cy="91" r="1.2" :fill="map.style_config?.route_color || '#C1121F'" />
+                  <circle cx="80" cy="43" r="1.2" fill="white" :stroke="map.style_config?.route_color || '#C1121F'" stroke-width="0.6" />
                 </svg>
               </div>
               <!-- footer band -->
@@ -401,8 +386,7 @@
             >
               <svg viewBox="0 0 100 133" class="w-full h-full">
                 <path
-                  v-if="routePath(map)"
-                  :d="routePath(map)"
+                  d="M22 91 C31 75 43 82 50 65 S66 38 80 43"
                   fill="none"
                   :stroke="map.style_config?.route_color || '#C1121F'"
                   stroke-width="1.6"
@@ -500,7 +484,7 @@
             <div
               class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-300 border border-stone-900/5"
               style="aspect-ratio:2/3"
-              :style="{ backgroundColor: premade.style_config.background_color }"
+              :style="{ backgroundColor: premade.style_config?.background_color || '#F7F4EF' }"
             >
               <img
                 v-if="premade.preview_image_url"
@@ -512,22 +496,21 @@
                 <div
                   class="px-2 pt-2 pb-1 text-center shrink-0"
                   :style="{
-                    backgroundColor: premade.style_config.label_bg_color || premade.style_config.background_color,
-                    color: premade.style_config.label_text_color,
+                    backgroundColor: premade.style_config?.label_bg_color || premade.style_config?.background_color || '#F7F4EF',
+                    color: premade.style_config?.label_text_color || '#1C1917',
                   }"
                 >
                   <p
                     class="text-[8px] font-bold tracking-[0.16em] uppercase truncate leading-tight"
-                    :style="{ fontFamily: `'${premade.style_config.font_family}', sans-serif` }"
+                    :style="{ fontFamily: `'${premade.style_config?.font_family || 'Space Grotesk'}', sans-serif` }"
                   >{{ premade.title }}</p>
                 </div>
                 <div class="flex-1 relative overflow-hidden">
                   <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full">
                     <path
-                      v-if="premadeRoutePath(premade)"
-                      :d="premadeRoutePath(premade)"
+                      d="M22 91 C31 75 43 82 50 65 S66 38 80 43"
                       fill="none"
-                      :stroke="premade.style_config.route_color"
+                      :stroke="premade.style_config?.route_color || '#C1121F'"
                       stroke-width="1.3"
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -683,9 +666,51 @@
 <script setup lang="ts">
 import { h, defineComponent, ref, computed, onMounted } from 'vue'
 import { useRouter, useSupabaseClient, useSupabaseUser } from '#imports'
-import type { TrailMap, Order, PremadeMap } from '~/types'
+import type { Order, PremadeMap, TrailMap } from '~/types'
 import { formatPrice } from '~/utils/products'
-const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+
+type DashboardMap = Pick<
+  TrailMap,
+  | 'id'
+  | 'user_id'
+  | 'title'
+  | 'subtitle'
+  | 'stats'
+  | 'style_config'
+  | 'thumbnail_url'
+  | 'render_url'
+  | 'proof_render_url'
+  | 'status'
+  | 'created_at'
+  | 'updated_at'
+>
+
+type DashboardPremadeMap = Pick<
+  PremadeMap,
+  | 'slug'
+  | 'title'
+  | 'region'
+  | 'style_config'
+  | 'preview_image_url'
+  | 'base_price_cents'
+>
+
+type DashboardOrder = Pick<
+  Order,
+  | 'id'
+  | 'print_size'
+  | 'total_cents'
+  | 'currency'
+  | 'status'
+  | 'tracking_code'
+  | 'carrier'
+  | 'created_at'
+> & {
+  maps?: { title?: string | null } | null
+}
+
+const { data: premadeMaps } = await useFetch<DashboardPremadeMap[]>('/api/premade', {
+  query: { view: 'cards', limit: 4 },
   default: () => [],
 })
 
@@ -694,39 +719,12 @@ const user = useSupabaseUser()
 const router = useRouter()
 
 // Featured shop picks to surface inside the dashboard (up to 4)
-const featuredPremades = computed<PremadeMap[]>(() =>
-  [...premadeMaps.value].sort((a, b) => Number(b.featured) - Number(a.featured)).slice(0, 4)
+const featuredPremades = computed<DashboardPremadeMap[]>(() =>
+  premadeMaps.value
 )
 
-function premadeRoutePath(map: PremadeMap): string {
-  const feat = map.geojson?.features?.[0]
-  const g = feat?.geometry as any
-  const coords: number[][] | undefined =
-    g?.type === 'LineString' ? g.coordinates :
-    g?.type === 'MultiLineString' ? (g.coordinates as number[][][]).flat() : undefined
-  if (!coords || coords.length < 2) return ''
-  const [minLng, minLat, maxLng, maxLat] = map.bbox
-  const lngRange = (maxLng - minLng) || 0.0001
-  const latRange = (maxLat - minLat) || 0.0001
-  const padX = 5, padTop = 18, padBottom = 18
-  const availW = 100 - padX * 2
-  const availH = 133 - padTop - padBottom
-  const scale = Math.min(availW / lngRange, availH / latRange)
-  const offsetX = padX + (availW - lngRange * scale) / 2
-  const offsetY = padTop + (availH - latRange * scale) / 2
-  const stride = Math.max(1, Math.floor(coords.length / 100))
-  const parts: string[] = []
-  for (let i = 0; i < coords.length; i += stride) {
-    const [lng, lat] = coords[i]
-    const x = offsetX + (lng - minLng) * scale
-    const y = offsetY + (maxLat - lat) * scale
-    parts.push(`${parts.length === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`)
-  }
-  return parts.join(' ')
-}
-
-const maps = ref<TrailMap[]>([])
-const orders = ref<Order[]>([])
+const maps = ref<DashboardMap[]>([])
+const orders = ref<DashboardOrder[]>([])
 const loading = ref(true)
 const toast = useToast()
 
@@ -736,7 +734,7 @@ const activeFilter = ref<FilterId>('all')
 const sortBy = ref<'newest' | 'oldest' | 'az' | 'distance'>('newest')
 const view = ref<'grid' | 'list'>('grid')
 const showDeleteModal = ref(false)
-const mapPendingDelete = ref<TrailMap | null>(null)
+const mapPendingDelete = ref<DashboardMap | null>(null)
 const deletingMapId = ref<string | null>(null)
 
 const filters: { id: FilterId; label: string }[] = [
@@ -828,16 +826,16 @@ const formatM = (m?: number) => {
   return `${(m / 1000).toFixed(1)} km`
 }
 
-const posterThumbnailUrl = (map: TrailMap) =>
+const posterThumbnailUrl = (map: DashboardMap) =>
   map.proof_render_url ?? map.thumbnail_url ?? map.render_url ?? null
 
-function openMap(map: TrailMap) {
+function openMap(map: DashboardMap) {
   if (!map.id) return
   router.push(`/create/${map.id}/style`)
 }
 
 // ─── Delete maps ───────────────────────────────────────────────────────────
-function requestDeleteMap(map: TrailMap) {
+function requestDeleteMap(map: DashboardMap) {
   if (map.status === 'ordered') {
     toast.add({
       title: 'Map kept with order history',
@@ -901,83 +899,11 @@ async function confirmDeleteMap() {
   }
 }
 
-// ─── Route geometry → SVG path ────────────────────────────────────────────
-function extractCoords(map: TrailMap): number[][] | null {
-  const feat = map.geojson?.features?.[0]
-  if (!feat) return null
-  const g = feat.geometry as any
-  if (!g) return null
-  if (g.type === 'LineString') return g.coordinates as number[][]
-  if (g.type === 'MultiLineString') return (g.coordinates as number[][][]).flat()
-  return null
-}
-
-function projectCoords(map: TrailMap): { x: number; y: number }[] | null {
-  const coords = extractCoords(map)
-  if (!coords || coords.length < 2) return null
-  const bbox = map.bbox
-  if (!bbox) return null
-  const [minLng, minLat, maxLng, maxLat] = bbox
-  const lngRange = (maxLng - minLng) || 0.0001
-  const latRange = (maxLat - minLat) || 0.0001
-  // card viewBox is 100x133, with vertical space for title/footer bands
-  // target drawable area: x 5..95, y 20..113
-  const padX = 5
-  const padTop = 20
-  const padBottom = 20
-  const availW = 100 - padX * 2
-  const availH = 133 - padTop - padBottom
-  const scale = Math.min(availW / lngRange, availH / latRange)
-  const offsetX = padX + (availW - lngRange * scale) / 2
-  const offsetY = padTop + (availH - latRange * scale) / 2
-
-  // Simplify to ~120 points max for performance
-  const stride = Math.max(1, Math.floor(coords.length / 120))
-  const result: { x: number; y: number }[] = []
-  for (let i = 0; i < coords.length; i += stride) {
-    const [lng, lat] = coords[i]
-    result.push({
-      x: offsetX + (lng - minLng) * scale,
-      y: offsetY + (maxLat - lat) * scale, // flip Y
-    })
-  }
-  // always include the last point
-  const last = coords[coords.length - 1]
-  result.push({
-    x: offsetX + (last[0] - minLng) * scale,
-    y: offsetY + (maxLat - last[1]) * scale,
-  })
-  return result
-}
-
-function routePath(map: TrailMap): string {
-  const pts = projectCoords(map)
-  if (!pts) return ''
-  return pts
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(' ')
-}
-
-function routeEndpoints(map: TrailMap): { start: [number, number]; end: [number, number] } | null {
-  const pts = projectCoords(map)
-  if (!pts || pts.length < 2) return null
-  return {
-    start: [pts[0].x, pts[0].y],
-    end: [pts[pts.length - 1].x, pts[pts.length - 1].y],
-  }
-}
-
 // ─── Data fetch ───────────────────────────────────────────────────────────
 const fetchMaps = async () => {
   if (!user.value?.id) return
   try {
-    const { data, error } = await supabase
-      .from('maps')
-      .select('*')
-      .eq('user_id', user.value.id)
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    maps.value = data || []
+    maps.value = await $fetch<DashboardMap[]>('/api/maps')
   } catch (err) {
     console.error('Error fetching maps:', err)
   }
@@ -988,12 +914,12 @@ const fetchOrders = async () => {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, maps(title)')
+      .select('id, print_size, total_cents, currency, status, tracking_code, carrier, created_at, maps(title)')
       .eq('user_id', user.value.id)
       .order('created_at', { ascending: false })
       .limit(10)
     if (error) throw error
-    orders.value = data || []
+    orders.value = (data || []) as unknown as DashboardOrder[]
   } catch (err) {
     console.error('Error fetching orders:', err)
   }

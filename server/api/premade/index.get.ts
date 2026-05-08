@@ -1,5 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { listNearbyPublishedPremadeMaps, listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
+import { listNearbyPublishedPremadeMaps, listPublishedPremadeCardMaps, listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
 import {
   DEFAULT_PREMADE_SEARCH_RADIUS_KM,
   geocodePremadeSearchText,
@@ -15,6 +15,13 @@ export default defineEventHandler(async (event) => {
     staticFallbackWhenNoPublished: process.env.NODE_ENV !== 'production',
   }
   const query = getQuery(event)
+  if (query.view === 'cards') {
+    const limit = Math.max(1, Math.min(Number(query.limit) || 4, 24))
+    return await listPublishedPremadeCardMaps(supabase, {
+      ...fallbackOptions,
+      limit,
+    })
+  }
   const textSearch = parsePremadeSearchText(query)
   const directNearby = parseNearbyPremadeQuery(query)
   const textNearby = textSearch && !directNearby ? await geocodePremadeSearchText(textSearch) : null

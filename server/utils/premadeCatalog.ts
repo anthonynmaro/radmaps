@@ -8,6 +8,24 @@ interface PremadeCatalogReadOptions {
   staticFallbackWhenNoPublished?: boolean
 }
 
+const PREMADE_CARD_SELECT = [
+  'id',
+  'slug',
+  'title',
+  'subtitle',
+  'region',
+  'country',
+  'category',
+  'tagline',
+  'stats',
+  'style_config',
+  'homepage_visible',
+  'homepage_sort_order',
+  'base_price_cents',
+  'cover_gradient',
+  'preview_image_url',
+].join(',')
+
 export function premadeRowToMap(row: Record<string, any>): PremadeMap {
   const distance = row.distance_meters ?? row.dist_meters
 
@@ -83,6 +101,34 @@ export async function listPublishedPremadeMaps(
   if (!data || data.length === 0) {
     if (await premadeTableIsEmpty(client)) return options.staticFallbackWhenNoPublished ? PREMADE_MAPS : []
     return options.staticFallbackWhenNoPublished ? PREMADE_MAPS : []
+  }
+  return data.map(premadeRowToMap)
+}
+
+export async function listPublishedPremadeCardMaps(
+  client: AnyClient,
+  options: PremadeCatalogReadOptions & { limit?: number } = {},
+): Promise<PremadeMap[]> {
+  const limit = options.limit ?? 4
+  const { data, error } = await client
+    .from('premade_maps')
+    .select(PREMADE_CARD_SELECT)
+    .eq('status', 'published')
+    .order('homepage_visible', { ascending: false })
+    .order('homepage_sort_order', { ascending: true })
+    .order('title', { ascending: true })
+    .limit(limit)
+
+  if (error) {
+    if (shouldUseStaticFallback(error)) return PREMADE_MAPS.slice(0, limit)
+    throw createError({ statusCode: 500, message: error.message })
+  }
+
+  if (!data || data.length === 0) {
+    if (await premadeTableIsEmpty(client)) {
+      return options.staticFallbackWhenNoPublished ? PREMADE_MAPS.slice(0, limit) : []
+    }
+    return options.staticFallbackWhenNoPublished ? PREMADE_MAPS.slice(0, limit) : []
   }
   return data.map(premadeRowToMap)
 }

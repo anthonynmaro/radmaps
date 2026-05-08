@@ -4,8 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import DashboardView from '~/components/views/DashboardView.vue'
-import ShopView from '~/components/views/ShopView.vue'
+import { defineAsyncComponent } from 'vue'
 import { useSeo } from '~/composables/useSeo'
 import { orgSchema, websiteSchema } from '~/utils/seo'
 
@@ -13,6 +12,8 @@ definePageMeta({
   layout: 'default',
 })
 
+const DashboardView = defineAsyncComponent(() => import('~/components/views/DashboardView.vue'))
+const ShopView = defineAsyncComponent(() => import('~/components/views/ShopView.vue'))
 const user = useSupabaseUser()
 
 if (user.value) {

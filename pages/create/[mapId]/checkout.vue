@@ -52,21 +52,18 @@
         <!-- Map Preview Area -->
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-            <ClientOnly v-if="showLivePreview">
-              <MapPreview
-                v-if="mapData && currentStyleConfig"
-                :map="mapData"
-                :style-config="currentStyleConfig"
-                :editable="false"
-                class="w-full h-full"
-              />
-            </ClientOnly>
             <img
-              v-else-if="displayProofImage"
+              v-if="previewUrl"
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
               alt="Print preview"
             />
+            <div v-else class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 flex items-center justify-center">
+              <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+                <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+              </svg>
+            </div>
           </div>
 
           <!-- Render status banner -->
@@ -106,7 +103,6 @@
             v-model="selectedProduct"
             :map-center="mapCenter"
             :map-zoom="mapZoom"
-            @aspect-change="onAspectChange"
             @confirm="onProductConfirmed"
           />
         </aside>
@@ -120,17 +116,8 @@
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
           <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
-            <img v-if="displayProofImage" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" />
-            <ClientOnly v-else>
-              <MapPreview
-                v-if="mapData && currentStyleConfig"
-                :map="mapData"
-                :style-config="currentStyleConfig"
-                :editable="false"
-                class="w-full h-full"
-              />
-            </ClientOnly>
-            <svg v-if="!displayProofImage && !(mapData && currentStyleConfig)" class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+            <img v-if="previewUrl" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" />
+            <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
             </svg>
@@ -151,27 +138,22 @@
             <div>
               <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Poster preview</p>
               <p class="text-sm text-stone-600 mt-1">
-                {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your saved editor state while the print file renders.' }}
+                {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your last saved proof while the print file renders.' }}
               </p>
             </div>
             <button @click="step = 'product'" class="text-xs font-medium text-stone-500 hover:text-stone-800">Change product</button>
           </div>
           <div class="h-[58vh] min-h-[420px] max-h-[720px] bg-[#e8e5e0] flex items-center justify-center overflow-hidden">
             <img
-              v-if="displayProofImage"
+              v-if="previewUrl"
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain rounded-none"
               alt="Print proof"
             />
-            <ClientOnly v-else>
-              <MapPreview
-                v-if="mapData && currentStyleConfig"
-                :map="mapData"
-                :style-config="currentStyleConfig"
-                :editable="false"
-                class="w-full h-full"
-              />
-            </ClientOnly>
+            <svg v-else class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+              <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+            </svg>
           </div>
         </div>
 
@@ -352,12 +334,22 @@ import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
-import type { TrailMap, PrintProduct, ProductFraming, StyleConfig, PrintSize } from '~/types'
+import type { TrailMap, PrintProduct, ProductFraming } from '~/types'
 
 definePageMeta({
   middleware: 'auth',
   layout: false, // Full-screen layout for the map preview step
 })
+
+type CheckoutMap = Pick<TrailMap,
+  | 'id'
+  | 'user_id'
+  | 'title'
+  | 'bbox'
+  | 'thumbnail_url'
+  | 'render_url'
+  | 'proof_render_url'
+>
 
 const route = useRoute()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,7 +357,7 @@ const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
 
 const mapId = route.params.mapId as string
-const map = ref<TrailMap | null>(null)
+const map = ref<CheckoutMap | null>(null)
 const loading = ref(true)
 const isSubmitting = ref(false)
 
@@ -392,37 +384,12 @@ const couponPreview = ref<null | {
 const subtotalCents = computed(() => selectedProduct.value ? selectedProduct.value.price_cents : 0)
 const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0)))
 
-// ─── Style config for live preview (fixed 2:3 poster shape) ─────────────────
-const mapData = ref<TrailMap | null>(null)
-const currentStyleConfig = ref<StyleConfig | null>(null)
-
 const displayProofImage = computed(() =>
   !!previewUrl.value
   && printReady.value
   && !!selectedProduct.value
   && renderTargetProductUid.value === selectedProduct.value.product_uid
 )
-
-const showLivePreview = computed(() =>
-  !!mapData.value
-  && !!currentStyleConfig.value
-  && !displayProofImage.value
-)
-
-function productSizeToPrintSize(sizeLabel: string): PrintSize | null {
-  const normalized = sizeLabel.replace('×', 'x').replace(/"/g, '')
-  return ['8x12', '12x18', '16x24', '20x30', '24x36', '32x48'].includes(normalized)
-    ? normalized as PrintSize
-    : null
-}
-
-function onAspectChange(payload: { product: PrintProduct; previousAspect: number | null }) {
-  if (!currentStyleConfig.value) return
-  currentStyleConfig.value = {
-    ...currentStyleConfig.value,
-    print_size: productSizeToPrintSize(payload.product.size_label) ?? currentStyleConfig.value.print_size,
-  }
-}
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
   selectedProduct.value = payload.product
@@ -747,14 +714,12 @@ onMounted(async () => {
   try {
     const { data, error } = await supabase
       .from('maps')
-      .select('*')
+      .select('id, user_id, title, bbox, thumbnail_url, render_url, proof_render_url')
       .eq('id', mapId)
       .eq('user_id', user.value?.id)
       .single()
     if (error) throw error
-    map.value = data as TrailMap
-    mapData.value = data as TrailMap
-    currentStyleConfig.value = { ...(data.style_config as StyleConfig) }
+    map.value = data as CheckoutMap
 
     // Seed preview URL
     const seedUrl = data.proof_render_url && !data.proof_render_url.startsWith('error:')
