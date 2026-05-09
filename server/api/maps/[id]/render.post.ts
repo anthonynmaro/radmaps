@@ -15,10 +15,12 @@ import { createRenderTicket } from '~/utils/render/renderTicket'
 import { getProofPath } from '~/utils/render/storagePaths'
 import { takeScreenshot } from '~/server/utils/screenshotService'
 import { validateJpegBasics } from '~/server/utils/jpegMeta'
+import { assertRateLimit } from '~/server/utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
+  assertRateLimit(event, { key: 'map-render', userId: user.id, limit: 10, windowMs: 60 * 60_000 })
 
   const mapId = getRouterParam(event, 'id')
   if (!mapId) throw createError({ statusCode: 400, message: 'Map ID required' })

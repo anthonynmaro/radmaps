@@ -83,6 +83,9 @@
               </svg>
               Connect Strava
             </a>
+            <a href="/api/strava/connect?private=1" class="text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
+              Include private activities
+            </a>
           </div>
 
           <!-- Loading -->
@@ -1254,6 +1257,10 @@ onMounted(async () => {
   if (route.query.strava_error === 'access_denied') {
     activeMethod.value = 'strava'
     stravaError.value = 'Strava access was denied. Connect your account to import activities.'
+  }
+  if (route.query.strava_error === 'invalid_state') {
+    activeMethod.value = 'strava'
+    stravaError.value = 'Strava sign-in expired. Please try connecting again.'
   }
   if (route.query.strava_connected || route.query.strava_error) {
     router.replace({ query: {} })

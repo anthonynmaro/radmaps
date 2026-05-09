@@ -5,9 +5,11 @@
  * No auth required — uses email + order ID as verification.
  */
 import { createClient } from '@supabase/supabase-js'
+import { assertRateLimit } from '~/server/utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  assertRateLimit(event, { key: 'order-lookup', limit: 10, windowMs: 15 * 60_000 })
   const body = await readBody(event)
 
   const email = (body.email ?? '').toLowerCase().trim()

@@ -103,7 +103,9 @@ export default defineEventHandler(async (event) => {
               name: digital_only
                 ? `${map.title} — Digital Download`
                 : `${map.title} — ${product?.name ?? print_size}`,
-              images: map.render_url ? [map.render_url] : [],
+              // Custom route previews can contain sensitive location data. Do
+              // not copy private map render URLs into Stripe-hosted product
+              // metadata; show the preview only inside the authenticated app.
             },
             unit_amount: unitPrice,
           },

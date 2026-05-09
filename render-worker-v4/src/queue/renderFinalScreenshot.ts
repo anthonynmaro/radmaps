@@ -1,6 +1,6 @@
 import { insertProductRender, loadOrderSnapshot, lookupProductRender } from '../cache.js'
 import { CONFIG } from '../config.js'
-import { uploadBuffer } from '../storage.js'
+import { createSignedStorageUrl, uploadBuffer } from '../storage.js'
 import { takeBrowserlessScreenshot } from '../browserless.js'
 import type { RenderFinalResponse } from './processJob.js'
 import { normalizeFinalScreenshot } from './normalizeFinalScreenshot.js'
@@ -43,7 +43,7 @@ export async function renderFinalWithScreenshot(input: {
     return {
       status: 'rendered',
       artifact_path: existing.artifact_path,
-      render_url: `${CONFIG.supabaseUrl}/storage/v1/object/public/maps/${existing.artifact_path}`,
+      render_url: await createSignedStorageUrl(existing.artifact_path),
       validation_result: existing.validation_result,
       render_ms: Date.now() - started,
     }

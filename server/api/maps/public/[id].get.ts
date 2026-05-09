@@ -5,10 +5,14 @@
  * status are never exposed here regardless of who requests them.
  */
 import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+
+const MapIdSchema = z.string().uuid()
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'Missing map ID' })
+  if (!MapIdSchema.safeParse(id).success) throw createError({ statusCode: 400, message: 'Invalid map ID' })
 
   const config = useRuntimeConfig()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: map, error } = await supabase
     .from('maps')
-    .select('id, title, subtitle, geojson, bbox, stats, style_config, render_url, thumbnail_url, proof_render_url, proof_render_hash, status')
+    .select('id, title, subtitle, stats, render_url, thumbnail_url, proof_render_url, proof_render_hash, status, updated_at')
     .eq('id', id)
     .eq('is_public', true)
     .single()

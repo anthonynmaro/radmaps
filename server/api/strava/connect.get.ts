@@ -1,7 +1,8 @@
 /**
  * GET /api/strava/connect
  * Initiates Strava OAuth — redirects the user to Strava's authorization page.
- * Scope: activity:read_all (needed to read GPS data from activities)
+ * Scope: activity:read by default. Add ?private=1 for an explicit private
+ * activity import consent flow, which requests activity:read_all.
  *
  * The redirect_uri is derived dynamically from the incoming request so that
  * it works correctly on localhost in dev and on the production domain without
@@ -12,14 +13,31 @@
  * and redirect straight to the create page.
  */
 import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
+import { randomBytes } from 'node:crypto'
+import type { H3Event } from 'h3'
+
+const STATE_COOKIE = 'radmaps_strava_oauth_state'
+
+function requestOrigin(event: H3Event) {
+  const config = useRuntimeConfig()
+  const configuredSiteUrl = String(config.public.siteUrl || '')
+  if (process.env.NODE_ENV === 'production' && configuredSiteUrl) {
+    return configuredSiteUrl.replace(/\/$/, '')
+  }
+  const proto = getRequestHeader(event, 'x-forwarded-proto') ?? 'http'
+  const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? 'localhost:3000'
+  return `${proto}://${host}`
+}
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  const query = getQuery(event)
+  const includePrivate = query.private === '1' || query.scope === 'private'
 
   // Short-circuit: if the user is already logged in and has tokens, skip OAuth.
   try {
     const user = await serverSupabaseUser(event)
-    if (user) {
+    if (user && !includePrivate) {
       const client = await serverSupabaseClient(event)
       const { data: token } = await client
         .from('strava_tokens')
@@ -34,20 +52,24 @@ export default defineEventHandler(async (event) => {
     // No session or DB error — fall through to normal OAuth flow
   }
 
-  // Build the redirect URI from the actual request origin.
-  // x-forwarded-proto / x-forwarded-host are set by Vercel's edge proxy,
-  // so this resolves to https://radmaps.studio in production and
-  // http://localhost:3000 in local dev automatically.
-  const proto = getRequestHeader(event, 'x-forwarded-proto') ?? 'http'
-  const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? 'localhost:3000'
-  const redirectUri = `${proto}://${host}/api/strava/callback`
+  const origin = requestOrigin(event)
+  const redirectUri = `${origin}/api/strava/callback`
+  const state = randomBytes(24).toString('base64url')
+  setCookie(event, STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 10 * 60,
+  })
 
   const params = new URLSearchParams({
     client_id: config.stravaClientId as string,
     redirect_uri: redirectUri,
     response_type: 'code',
     approval_prompt: 'auto',
-    scope: 'activity:read_all',
+    scope: includePrivate ? 'activity:read_all' : 'activity:read',
+    state,
   })
 
   const authUrl = `https://www.strava.com/oauth/authorize?${params.toString()}`

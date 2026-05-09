@@ -59,14 +59,19 @@
         </div>
 
         <!-- Poster preview -->
-        <div class="w-full max-w-2xl" style="height: 70vh">
-          <ClientOnly>
-            <MapPreview
-              :map="map"
-              :style-config="map.style_config"
-              class="w-full h-full"
-            />
-          </ClientOnly>
+        <div class="w-full max-w-2xl">
+          <img
+            v-if="posterImage"
+            :src="posterImage"
+            :alt="`${map.title} poster preview`"
+            class="w-full max-h-[70vh] object-contain rounded border border-gray-200 bg-white"
+          >
+          <div
+            v-else
+            class="flex h-[70vh] items-center justify-center rounded border border-gray-200 bg-white text-sm text-gray-500"
+          >
+            Preview unavailable.
+          </div>
         </div>
 
         <!-- Stats strip -->
@@ -130,8 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import type { TrailMap } from '~/types'
-import { DEFAULT_STYLE_CONFIG } from '~/types'
+import type { RouteStats } from '~/types'
 
 definePageMeta({ layout: false })
 
@@ -139,14 +143,18 @@ const route = useRoute()
 const user = useSupabaseUser()
 const id = computed(() => route.params.id as string)
 
-const { data: map, pending, error } = await useFetch<TrailMap>(
+interface PublicMapPreview {
+  id: string
+  title: string
+  subtitle?: string | null
+  stats?: RouteStats
+  proof_render_url?: string | null
+  thumbnail_url?: string | null
+  render_url?: string | null
+}
+
+const { data: map, pending, error } = await useFetch<PublicMapPreview>(
   () => `/api/maps/public/${id.value}`,
-  {
-    transform: (raw: any) => ({
-      ...raw,
-      style_config: { ...DEFAULT_STYLE_CONFIG, ...(raw.style_config ?? {}) },
-    }),
-  },
 )
 
 const copied = ref(false)
@@ -161,9 +169,10 @@ async function copyLink() {
   }
 }
 
-const ogImage = computed(() =>
+const posterImage = computed(() =>
   map.value?.proof_render_url ?? map.value?.thumbnail_url ?? map.value?.render_url ?? undefined
 )
+const ogImage = posterImage
 
 const pageDescription = computed(() => {
   const s = map.value?.stats

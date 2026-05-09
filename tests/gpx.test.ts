@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseGpxServer } from '../utils/gpx'
+import { validateRouteGeojson } from '../server/utils/routeValidation'
 
 const validGpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="radmaps-test" xmlns="http://www.topografix.com/GPX/1/1">
@@ -25,6 +26,18 @@ describe('parseGpxServer', () => {
     expect(result.stats.distance_km).toBeGreaterThan(0)
     expect(result.stats.elevation_gain_m).toBe(15)
     expect(result.stats.elevation_loss_m).toBe(25)
+  })
+
+  it('allows waypoint features alongside a valid track route', () => {
+    const withWaypoint = validGpx.replace(
+      '<trk>',
+      '<wpt lat="39.7390" lon="-104.9900"><name>Trailhead</name></wpt><trk>',
+    )
+
+    const result = parseGpxServer(withWaypoint)
+
+    expect(result.geojson.features.some(feature => feature.geometry.type === 'Point')).toBe(true)
+    expect(() => validateRouteGeojson(result.geojson)).not.toThrow()
   })
 
   it('rejects XML entity declarations before parsing', () => {
