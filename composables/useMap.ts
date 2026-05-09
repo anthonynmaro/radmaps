@@ -20,18 +20,26 @@ export function useMap(mapId: Ref<string> | string) {
     loading.value = true
     error.value = null
 
-    const { data, error: fetchError } = await supabase
-      .from('maps')
-      .select('*')
-      .eq('id', id.value)
-      .single()
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('maps')
+        .select('*')
+        .eq('id', id.value)
+        .single()
 
-    if (fetchError) {
-      error.value = fetchError.message
-    } else {
-      map.value = data as TrailMap
+      if (fetchError) {
+        error.value = fetchError.message
+      } else if (data) {
+        map.value = data as TrailMap
+      } else {
+        error.value = 'Map not found'
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to load map'
+      console.error('[useMap] fetch failed:', err)
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   })
 
   // Debounced style update — saves 500ms after the last change

@@ -65,7 +65,27 @@
       </div>
     </header>
 
+    <div
+      v-if="mapLoadError && !mapData"
+      class="flex-1 flex items-center justify-center p-6"
+    >
+      <div class="max-w-md text-center space-y-4">
+        <h2 class="text-lg font-semibold text-stone-800">We couldn't load this map</h2>
+        <p class="text-sm text-stone-500">{{ mapLoadError }}</p>
+        <div class="flex justify-center gap-3">
+          <NuxtLink
+            to="/dashboard"
+            class="text-sm font-medium text-stone-600 hover:text-stone-900 px-3 py-2 rounded-lg hover:bg-stone-100"
+          >Back to dashboard</NuxtLink>
+          <button
+            class="text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] px-3 py-2 rounded-lg"
+            @click="reloadPage"
+          >Retry</button>
+        </div>
+      </div>
+    </div>
     <MapEditorSurface
+      v-else
       v-model="styleConfig"
       :map="mapData"
       :saving="saving"
@@ -161,7 +181,7 @@ type MapPreviewHandle = {
 const route = useRoute()
 const mapId = computed(() => route.params.mapId as string)
 
-const { map: mapData, saving, updateStyle, saveNow } = useMap(mapId)
+const { map: mapData, saving, error: mapLoadError, updateStyle, saveNow } = useMap(mapId)
 const {
   triggerRender: triggerThumbnailRender,
   renderUrl: latestThumbnailUrl,
@@ -698,6 +718,10 @@ function onViewChanged({ map_zoom, map_center, map_editor_width, map_pitch, map_
 async function goToCheckout() {
   await persistCurrentStyleNow()
   await navigateTo(`/create/${mapId.value}/checkout`)
+}
+
+function reloadPage() {
+  if (typeof window !== 'undefined') window.location.reload()
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────
