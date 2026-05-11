@@ -11,21 +11,39 @@
  * No prior Supabase session is required — this IS the sign-in step.
  */
 import { serverSupabaseServiceRole } from '#supabase/server'
+import { encryptedStravaTokenPayload } from '~/server/utils/stravaTokens'
+import type { H3Event } from 'h3'
+
+const STATE_COOKIE = 'radmaps_strava_oauth_state'
+
+function requestOrigin(event: H3Event) {
+  const config = useRuntimeConfig()
+  const configuredSiteUrl = String(config.public.siteUrl || '')
+  if (process.env.NODE_ENV === 'production' && configuredSiteUrl) {
+    return configuredSiteUrl.replace(/\/$/, '')
+  }
+  const proto = getRequestHeader(event, 'x-forwarded-proto') ?? 'http'
+  const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? 'localhost:3000'
+  return `${proto}://${host}`
+}
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const code = query.code as string
   const error = query.error as string | undefined
+  const state = query.state as string | undefined
 
   if (error) return sendRedirect(event, '/auth/login?strava_error=access_denied')
   if (!code) throw createError({ statusCode: 400, message: 'Missing authorization code' })
+  const expectedState = getCookie(event, STATE_COOKIE)
+  deleteCookie(event, STATE_COOKIE, { path: '/' })
+  if (!state || !expectedState || state !== expectedState) {
+    return sendRedirect(event, '/auth/login?strava_error=invalid_state')
+  }
 
   const config = useRuntimeConfig()
 
-  // Derive origin the same way connect.get.ts does
-  const proto = getRequestHeader(event, 'x-forwarded-proto') ?? 'http'
-  const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? 'localhost:3000'
-  const origin = `${proto}://${host}`
+  const origin = requestOrigin(event)
 
   // 1. Exchange code for Strava tokens + athlete info
   const tokenResponse = await $fetch<{
@@ -92,9 +110,12 @@ export default defineEventHandler(async (event) => {
   // 3. Store / refresh Strava tokens
   const { error: dbError } = await adminClient.from('strava_tokens').upsert({
     user_id: userId,
-    access_token: tokenResponse.access_token,
-    refresh_token: tokenResponse.refresh_token,
-    expires_at: tokenResponse.expires_at,
+    ...encryptedStravaTokenPayload({
+      access_token: tokenResponse.access_token,
+      refresh_token: tokenResponse.refresh_token,
+      expires_at: tokenResponse.expires_at,
+      athlete_id: athleteId,
+    }, config),
     athlete_id: athleteId,
   })
   if (dbError) throw createError({ statusCode: 500, message: 'Failed to store Strava tokens' })

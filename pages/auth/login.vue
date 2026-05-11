@@ -182,6 +182,9 @@
           </svg>
           Continue with Strava
         </a>
+        <a href="/api/strava/connect?private=1" class="block text-center text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
+          Connect Strava with private activities
+        </a>
 
         <!-- Mode switcher -->
         <div class="text-center mt-8">

@@ -10,6 +10,8 @@ import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats, TrailSegment } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
 import { bboxCenter } from '~/utils/premadeCatalog'
+import { validateRouteGeojson } from '~/server/utils/routeValidation'
+import { assertRateLimit } from '~/server/utils/rateLimit'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -19,6 +21,7 @@ const CreateMapBody = z.object({
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
+  assertRateLimit(event, { key: 'map-create', userId: user.id, limit: 20, windowMs: 60 * 60_000 })
 
   const supabase = await serverSupabaseClient(event)
   const contentType = getHeader(event, 'content-type') ?? ''
@@ -61,6 +64,7 @@ export default defineEventHandler(async (event) => {
     title = parsed.data.title
     subtitle = parsed.data.subtitle
     geojson = body.geojson
+    validateRouteGeojson(geojson)
     bbox = body.bbox
     stats = body.stats
     // Client-side parsed GPX may include auto-detected named track segments
@@ -87,17 +91,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const gpxText = await gpxFile.text()
-    const { error: storageError } = await supabase.storage
-      .from('gpx-uploads')
-      .upload(`${user.id}/${Date.now()}.gpx`, gpxFile, { contentType: 'application/gpx+xml' })
-
-    if (storageError) {
-      throw createError({ statusCode: 500, message: `GPX storage error: ${storageError.message}` })
-    }
-
     try {
       const result = parseGpxServer(gpxText)
       geojson = result.geojson
+      validateRouteGeojson(geojson)
       bbox = result.bbox
       stats = result.stats
       trailSegments = extractNamedTrackSegments(result.geojson)

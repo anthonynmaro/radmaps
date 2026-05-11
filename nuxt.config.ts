@@ -61,6 +61,7 @@ export default defineNuxtConfig({
     stravaClientId: process.env.STRAVA_CLIENT_ID,
     stravaClientSecret: process.env.STRAVA_CLIENT_SECRET,
     stravaRedirectUri: process.env.STRAVA_REDIRECT_URI,
+    stravaTokenEncryptionKey: process.env.STRAVA_TOKEN_ENCRYPTION_KEY,
     trailforkApiKey: process.env.TRAILFORKS_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     resendApiKey: process.env.RESEND_API_KEY,

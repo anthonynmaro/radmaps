@@ -5,23 +5,13 @@
  * creates a map record so the user can immediately start styling.
  */
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { createClient } from '@supabase/supabase-js'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats } from '~/types'
+import { getValidStravaAccessToken } from '~/server/utils/stravaTokens'
+import { validateRouteGeojson } from '~/server/utils/routeValidation'
+import { assertRateLimit } from '~/server/utils/rateLimit'
 
 // ─── Strava types ─────────────────────────────────────────────────────────────
-
-interface StravaTokenRow {
-  access_token: string
-  refresh_token: string
-  expires_at: number
-}
-
-interface StravaRefreshResponse {
-  access_token: string
-  refresh_token: string
-  expires_at: number
-}
 
 interface StravaActivity {
   name: string
@@ -30,7 +20,6 @@ interface StravaActivity {
   total_elevation_gain: number
   elapsed_time: number
   start_date: string
-  start_latlng: [number, number] | []
 }
 
 interface StravaStreams {
@@ -39,68 +28,35 @@ interface StravaStreams {
   time?: { data: number[] }
 }
 
-// ─── Token helper ─────────────────────────────────────────────────────────────
-
-async function getValidAccessToken(
-  userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  config: ReturnType<typeof useRuntimeConfig>,
-): Promise<string> {
-  const { data: tokenRow, error } = await supabase
-    .from('strava_tokens')
-    .select('access_token, refresh_token, expires_at')
-    .eq('user_id', userId)
-    .single()
-
-  if (error || !tokenRow) {
-    throw createError({ statusCode: 403, message: 'Strava account not connected' })
-  }
-
-  let { access_token, refresh_token, expires_at } = tokenRow as StravaTokenRow
-
-  const nowSec = Math.floor(Date.now() / 1000)
-  if (expires_at < nowSec + 300) {
-    const refreshed = await $fetch<StravaRefreshResponse>('https://www.strava.com/oauth/token', {
-      method: 'POST',
-      body: {
-        client_id: config.stravaClientId,
-        client_secret: config.stravaClientSecret,
-        grant_type: 'refresh_token',
-        refresh_token,
-      },
-    })
-
-    access_token = refreshed.access_token
-    refresh_token = refreshed.refresh_token
-    expires_at = refreshed.expires_at
-
-    await supabase
-      .from('strava_tokens')
-      .update({ access_token, refresh_token, expires_at })
-      .eq('user_id', userId)
-  }
-
-  return access_token
-}
+const importLocks = new Map<string, number>()
+const IMPORT_LOCK_TTL_MS = 5 * 60_000
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
+  assertRateLimit(event, { key: 'strava-import', userId: user.id, limit: 20, windowMs: 60 * 60_000 })
 
   const activityId = getRouterParam(event, 'id')
   if (!activityId) throw createError({ statusCode: 400, message: 'Activity ID required' })
+  if (!/^\d+$/.test(activityId)) throw createError({ statusCode: 400, message: 'Invalid activity ID' })
+  const lockKey = `${user.id}:${activityId}`
+  const existingLock = importLocks.get(lockKey)
+  if (existingLock && existingLock > Date.now()) {
+    throw createError({ statusCode: 409, message: 'This activity import is already in progress' })
+  }
+  importLocks.set(lockKey, Date.now() + IMPORT_LOCK_TTL_MS)
 
-  const body = await readBody(event).catch(() => ({}))
-  const customTitle = body?.title as string | undefined
+  try {
+    const body = await readBody(event).catch(() => ({}))
+    const customTitle = body?.title as string | undefined
 
-  const supabase = await serverSupabaseClient(event)
-  const config = useRuntimeConfig()
+    const supabase = await serverSupabaseClient(event)
+    const config = useRuntimeConfig()
 
   // Get a valid (possibly refreshed) access token
-  const accessToken = await getValidAccessToken(user.id, supabase, config)
+  const accessToken = await getValidStravaAccessToken(user.id, supabase, config)
 
   const authHeaders = { Authorization: `Bearer ${accessToken}` }
 
@@ -155,6 +111,7 @@ export default defineEventHandler(async (event) => {
       },
     ],
   }
+  validateRouteGeojson(geojson)
 
   // 4. Compute bounding box [minLng, minLat, maxLng, maxLat]
   let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
@@ -186,34 +143,11 @@ export default defineEventHandler(async (event) => {
     activity_type: activity.sport_type,
   }
 
-  // Reverse geocode start position → human-readable location for the poster
-  if (Array.isArray(activity.start_latlng) && activity.start_latlng.length === 2) {
-    const [lat, lng] = activity.start_latlng as [number, number]
-    try {
-      const geo = await $fetch<{
-        address?: { city?: string; town?: string; village?: string; state?: string; country?: string }
-      }>('https://nominatim.openstreetmap.org/reverse', {
-        query: { lat, lon: lng, format: 'json', zoom: 10 },
-        headers: { 'User-Agent': 'RadMaps/1.0 (radmaps.studio)' },
-      })
-      const city = geo.address?.city ?? geo.address?.town ?? geo.address?.village
-      const state = geo.address?.state
-      if (city && state) stats.location = `${city}, ${state}`
-      else if (city) stats.location = city
-      else if (state) stats.location = state
-    } catch {
-      // non-critical — poster will just omit the location line
-    }
-  }
+  // Avoid reverse-geocoding exact Strava start coordinates here. Location labels
+  // should come from a coarse, cached geocoding path rather than disclosing every
+  // import to a third party.
 
-  // 6. Insert map record using service-key client (bypasses RLS for server-side inserts)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const adminSupabase = createClient(
-    config.public.supabaseUrl as string,
-    config.supabaseServiceKey as string,
-  ) as any
-
-  const { data: map, error: insertError } = await adminSupabase
+  const { data: map, error: insertError } = await supabase
     .from('maps')
     .insert({
       user_id: user.id,
@@ -231,5 +165,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: insertError?.message ?? 'Failed to create map' })
   }
 
-  return { id: map.id }
+    return { id: map.id }
+  } finally {
+    importLocks.delete(lockKey)
+  }
 })

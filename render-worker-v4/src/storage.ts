@@ -7,6 +7,7 @@
 import { getSupabase } from './db.js'
 
 const BUCKET = 'maps'
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 7 * 24 * 60 * 60
 
 interface UploadOpts {
   contentType: string
@@ -15,7 +16,8 @@ interface UploadOpts {
 }
 
 /**
- * Upload a buffer to Supabase Storage and return its public URL.
+ * Upload a buffer to Supabase Storage and return a signed URL suitable for
+ * short-lived provider handoff. Store `path` for durable references.
  *
  * @param path  Storage object path (e.g. `renders/cache/map/abc.png`).
  * @param body  Image buffer.
@@ -35,8 +37,19 @@ export async function uploadBuffer(
   if (error) {
     throw new Error(`Storage upload failed at ${path}: ${error.message}`)
   }
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
-  return data.publicUrl
+  return await createSignedStorageUrl(path)
+}
+
+export async function createSignedStorageUrl(
+  path: string,
+  expiresInSeconds = DEFAULT_SIGNED_URL_TTL_SECONDS,
+): Promise<string> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, expiresInSeconds)
+  if (error || !data?.signedUrl) {
+    throw new Error(`Storage signed URL failed at ${path}: ${error?.message ?? 'no signed URL'}`)
+  }
+  return data.signedUrl
 }
 
 /**
