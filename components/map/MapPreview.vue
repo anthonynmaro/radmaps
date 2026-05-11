@@ -76,7 +76,7 @@
 
       <!-- ── Logo: header-right position ──────────────────────────────────── -->
       <img
-        v-if="styleConfig.show_logo && styleConfig.logo_url && styleConfig.logo_position === 'header-right'"
+        v-if="showLegacyLogo && styleConfig.logo_position === 'header-right'"
         :src="styleConfig.logo_url"
         alt=""
         class="logo-header-right"
@@ -204,7 +204,7 @@
 
         <!-- ── Logo: map-top-right position ─────────────────────────────── -->
         <img
-          v-if="styleConfig.show_logo && styleConfig.logo_url && (styleConfig.logo_position === 'map-top-right' || !styleConfig.logo_position)"
+          v-if="showLegacyLogo && (styleConfig.logo_position === 'map-top-right' || !styleConfig.logo_position)"
           :src="styleConfig.logo_url"
           alt=""
           class="logo-map"
@@ -336,7 +336,7 @@
 
         <!-- Logo: footer-left position -->
         <img
-          v-if="styleConfig.show_logo && styleConfig.logo_url && styleConfig.logo_position === 'footer-left'"
+          v-if="showLegacyLogo && styleConfig.logo_position === 'footer-left'"
           :src="styleConfig.logo_url"
           alt=""
           :style="logoFooterStyle"
@@ -477,6 +477,61 @@
 
       </div>
 
+      <!-- ── Image overlays (poster-level — can span header, map, footer) ─── -->
+      <div
+        v-if="(styleConfig.image_overlays ?? []).length > 0"
+        class="asset-layer"
+        style="pointer-events: none;"
+        @click.self="selectedAssetId = null"
+      >
+        <div
+          v-for="asset in visibleImageAssets"
+          :key="asset.id"
+          :data-asset-id="asset.id"
+          class="image-asset"
+          :class="{ 'is-editable': editable, 'is-selected': editable && selectedAssetId === asset.id }"
+          :style="imageAssetStyle(asset)"
+          @click.stop="editable ? onAssetClick(asset.id) : undefined"
+        >
+          <img :src="asset.render_url" alt="" draggable="false" />
+          <span
+            v-if="editable && selectedAssetId === asset.id"
+            class="asset-quality-badge"
+            :class="`asset-quality-${asset.quality_status}`"
+          >{{ assetQualityLabel(asset) }}</span>
+          <template v-if="editable">
+            <div
+              class="overlay-move-handle"
+              title="Drag to move"
+              @pointerdown.stop
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
+                <path d="M10 2l2.5 2.5h-2V8h3.5V6l2.5 2.5L14 11v-2h-3.5v3.5h2L10 15l-2.5-2.5h2V9H6v2L3.5 8.5 6 6v2h3.5V4.5h-2L10 2z"/>
+              </svg>
+            </div>
+            <button
+              class="overlay-delete-btn"
+              title="Remove"
+              @click.stop="onAssetDelete(asset.id)"
+              @pointerdown.stop
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div
+              class="overlay-resize-handle"
+              title="Drag to resize"
+              @pointerdown.stop.prevent="onAssetResizeStart($event, asset.id)"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" width="9" height="9">
+                <path d="M13.5 6.5L17 10l-3.5 3.5V6.5zM6.5 13.5L3 10l3.5-3.5v7z" opacity="0.8"/>
+              </svg>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- ── Text overlays (poster-level — can span header, map, footer) ──── -->
       <div
         v-if="(styleConfig.text_overlays ?? []).length > 0"
@@ -555,7 +610,8 @@ import { buildMapStyle, CONTOUR_THRESHOLDS, mapBackgroundColor, styleUsesContour
 import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
-import type { DeletedRange, FontFamily, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import type { DeletedRange, FontFamily, MapAsset, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
@@ -593,6 +649,10 @@ const emit = defineEmits<{
   'overlay-deleted': [id: string]
   'overlay-resized': [payload: { id: string; font_size: number }]
   'overlay-updated': [payload: { id: string; patch: Partial<TextOverlay> }]
+  'asset-moved': [payload: { id: string; x: number; y: number }]
+  'asset-selected': [id: string]
+  'asset-deleted': [id: string]
+  'asset-resized': [payload: { id: string; width: number; height: number }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
@@ -935,17 +995,37 @@ function onPinLabelClick(e: MouseEvent, pin: 'start' | 'finish') {
 }
 
 const selectedOverlayId = ref<string | null>(null)
+const selectedAssetId = ref<string | null>(null)
 const resizePreview = ref<{ id: string; font_size: number } | null>(null)
+const assetResizePreview = ref<{ id: string; width: number; height: number } | null>(null)
 let deselectTimer: ReturnType<typeof setTimeout> | null = null
+
+const visibleImageAssets = computed(() => {
+  return (props.styleConfig.image_overlays ?? [])
+    .filter(asset => asset.kind !== 'logo' || props.styleConfig.show_logo !== false)
+    .map(asset => ({
+      ...asset,
+      quality_status: classifyAssetQuality(computeEffectiveDpi(asset, props.styleConfig.print_size)),
+    }))
+})
+
+const showLegacyLogo = computed(() => {
+  const hasLogoAsset = (props.styleConfig.image_overlays ?? []).some(asset => asset.kind === 'logo')
+  return Boolean(props.styleConfig.show_logo && props.styleConfig.logo_url && !hasLogoAsset)
+})
 
 function scheduleDeselect() {
   if (deselectTimer) clearTimeout(deselectTimer)
-  deselectTimer = setTimeout(() => { selectedOverlayId.value = null }, 2000)
+  deselectTimer = setTimeout(() => {
+    selectedOverlayId.value = null
+    selectedAssetId.value = null
+  }, 2000)
 }
 
 function onOverlayClick(id: string) {
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
+  selectedAssetId.value = null
   const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${id}"] .overlay-content`)
   if (el) selectTextTarget({ type: 'overlay', id }, el)
   emit('overlay-selected', id)
@@ -954,6 +1034,20 @@ function onOverlayClick(id: string) {
 function onOverlayDelete(id: string) {
   selectedOverlayId.value = null
   emit('overlay-deleted', id)
+}
+
+function onAssetClick(id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedAssetId.value = id
+  selectedOverlayId.value = null
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+  emit('asset-selected', id)
+}
+
+function onAssetDelete(id: string) {
+  selectedAssetId.value = null
+  emit('asset-deleted', id)
 }
 
 function onResizeStart(e: PointerEvent, id: string) {
@@ -978,6 +1072,46 @@ function onResizeStart(e: PointerEvent, id: string) {
       emit('overlay-resized', { id, font_size: parseFloat(resizePreview.value.font_size.toFixed(2)) })
     }
     resizePreview.value = null
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    scheduleDeselect()
+  }
+
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+}
+
+function onAssetResizeStart(e: PointerEvent, id: string) {
+  const asset = props.styleConfig.image_overlays?.find(a => a.id === id)
+  if (!asset || !posterCanvasEl.value) return
+  e.preventDefault()
+
+  const startX = e.clientX
+  const startWidth = asset.width
+  const startHeight = asset.height
+  const containerW = posterCanvasEl.value.offsetWidth
+
+  assetResizePreview.value = { id, width: startWidth, height: startHeight }
+
+  function onMove(e: PointerEvent) {
+    const dx = e.clientX - startX
+    const scale = Math.max(0.15, 1 + (dx / Math.max(1, containerW)) * 3)
+    assetResizePreview.value = {
+      id,
+      width: Math.max(2, Math.min(95, startWidth * scale)),
+      height: Math.max(2, Math.min(95, startHeight * scale)),
+    }
+  }
+
+  function onUp() {
+    if (assetResizePreview.value) {
+      emit('asset-resized', {
+        id,
+        width: parseFloat(assetResizePreview.value.width.toFixed(2)),
+        height: parseFloat(assetResizePreview.value.height.toFixed(2)),
+      })
+    }
+    assetResizePreview.value = null
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
     scheduleDeselect()
@@ -1517,6 +1651,28 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
       borderRadius: '0.4cqh',
     } : {}),
   }
+}
+
+function imageAssetStyle(asset: MapAsset): Record<string, string> {
+  const preview = assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
+  return {
+    position: 'absolute',
+    left: `${asset.x}%`,
+    top: `${asset.y}%`,
+    width: `${preview?.width ?? asset.width}%`,
+    height: `${preview?.height ?? asset.height}%`,
+    opacity: String(asset.opacity),
+    transform: `rotate(${asset.rotation}deg)`,
+    transformOrigin: 'center center',
+    pointerEvents: props.editable ? 'auto' : 'none',
+    cursor: props.editable ? 'move' : 'default',
+    userSelect: 'none',
+    zIndex: String(asset.z_index),
+  }
+}
+
+function assetQualityLabel(asset: MapAsset): string {
+  return `${qualityLabel(asset.quality_status)} · ${computeEffectiveDpi(asset, props.styleConfig.print_size)} DPI`
 }
 
 const activeToolbarState = computed(() => {
@@ -2570,6 +2726,33 @@ async function initOverlayDrag() {
     })
     interactInstances.push(inst)
   })
+
+  const assets = container.querySelectorAll<HTMLElement>('.image-asset.is-editable')
+  assets.forEach(el => {
+    const inst = interact(el).draggable({
+      allowFrom: '.overlay-move-handle',
+      listeners: {
+        move(event: { dx: number; dy: number; target: HTMLElement }) {
+          const containerRect = container.getBoundingClientRect()
+          const currentLeft = parseFloat(el.style.left) || 0
+          const currentTop = parseFloat(el.style.top) || 0
+          const newLeft = currentLeft + (event.dx / containerRect.width) * 100
+          const newTop = currentTop + (event.dy / containerRect.height) * 100
+          el.style.left = `${Math.max(0, Math.min(100, newLeft))}%`
+          el.style.top = `${Math.max(0, Math.min(100, newTop))}%`
+        },
+        end(event: { target: HTMLElement }) {
+          const id = event.target.dataset.assetId
+          if (!id) return
+          const x = Math.round(parseFloat(el.style.left) || 0)
+          const y = Math.round(parseFloat(el.style.top) || 0)
+          emit('asset-moved', { id, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
+          scheduleDeselect()
+        },
+      },
+    })
+    interactInstances.push(inst)
+  })
 }
 
 // ── Style config watcher ──────────────────────────────────────────────────────
@@ -3248,7 +3431,7 @@ defineExpose({ freezeView, unfreezeView, resetViewToRoute })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(
-  () => (props.styleConfig.text_overlays ?? []).length,
+  () => [(props.styleConfig.text_overlays ?? []).length, (props.styleConfig.image_overlays ?? []).length],
   () => {
     if (props.editable && mapReady.value) nextTick(() => initOverlayDrag())
   },
@@ -3336,11 +3519,32 @@ onUnmounted(() => {
 }
 
 /* Text overlay layer */
-.overlay-layer {
+.overlay-layer,
+.asset-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 25;
+}
+
+.image-asset {
+  position: absolute;
+}
+
+.image-asset img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.image-asset.is-editable {
+  pointer-events: auto !important;
+  border-radius: 2px;
+  outline: 1.5px dashed transparent;
+  transition: outline-color 0.2s;
 }
 
 .text-overlay.is-editable {
@@ -3360,11 +3564,13 @@ onUnmounted(() => {
   white-space: pre;
 }
 
-.text-overlay.is-editable:hover {
+.text-overlay.is-editable:hover,
+.image-asset.is-editable:hover {
   outline-color: rgba(45, 106, 79, 0.35);
 }
 
-.text-overlay.is-editable.is-selected {
+.text-overlay.is-editable.is-selected,
+.image-asset.is-editable.is-selected {
   outline-color: rgba(45, 106, 79, 0.65);
 }
 
@@ -3383,10 +3589,48 @@ onUnmounted(() => {
 .text-overlay.is-editable:hover .overlay-resize-handle,
 .text-overlay.is-editable.is-selected .overlay-move-handle,
 .text-overlay.is-editable.is-selected .overlay-delete-btn,
-.text-overlay.is-editable.is-selected .overlay-resize-handle {
+.text-overlay.is-editable.is-selected .overlay-resize-handle,
+.image-asset.is-editable:hover .overlay-move-handle,
+.image-asset.is-editable:hover .overlay-delete-btn,
+.image-asset.is-editable:hover .overlay-resize-handle,
+.image-asset.is-editable.is-selected .overlay-move-handle,
+.image-asset.is-editable.is-selected .overlay-delete-btn,
+.image-asset.is-editable.is-selected .overlay-resize-handle {
   opacity: 1;
   transform: scale(1);
   pointer-events: auto !important;
+}
+
+.asset-quality-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 10px;
+  line-height: 1;
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  background: rgba(28, 25, 23, 0.84);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+
+.asset-quality-excellent,
+.asset-quality-good {
+  background: rgba(45, 106, 79, 0.9);
+}
+
+.asset-quality-warning {
+  background: rgba(180, 83, 9, 0.92);
+}
+
+.asset-quality-poor {
+  background: rgba(185, 28, 28, 0.92);
 }
 
 .overlay-move-handle {

@@ -826,29 +826,71 @@
             @click="logoInputRef?.click()"
           >
             <p class="text-[11px]" style="color: #A8A29E;">Tap to upload logo</p>
-            <input ref="logoInputRef" type="file" accept="image/*" class="sr-only" @change="handleLogoUpload" />
+            <input ref="logoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleLogoUpload" />
           </div>
           <div v-if="sections.logoExistingControls" class="space-y-3">
             <div class="flex items-center gap-3">
-              <img :src="local.logo_url" alt="Logo" class="h-10 w-auto rounded object-contain bg-white p-0.5" style="border: 1px solid #E7E5E4;" />
+              <img :src="logoPreviewUrl" alt="Logo" class="h-10 w-auto rounded object-contain bg-white p-0.5" style="border: 1px solid #E7E5E4;" />
               <div class="flex-1 min-w-0">
                 <ToggleRow label="Show logo" :value="local.show_logo ?? false" @change="set('show_logo', $event)" />
               </div>
-              <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="set('logo_url', undefined); set('show_logo', false)">Remove</button>
+              <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="removeLogoAsset">Remove</button>
             </div>
-            <template v-if="sections.logoPositionControls">
-              <div>
-                <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Position</p>
-                <div class="grid grid-cols-3 gap-1.5">
-                  <SegmentButton label="Map"    :active="(local.logo_position ?? 'map-top-right') === 'map-top-right'" @click="set('logo_position', 'map-top-right')" />
-                  <SegmentButton label="Header" :active="local.logo_position === 'header-right'"                       @click="set('logo_position', 'header-right')" />
-                  <SegmentButton label="Footer" :active="local.logo_position === 'footer-left'"                        @click="set('logo_position', 'footer-left')" />
-                </div>
-              </div>
+            <template v-if="logoAsset">
+              <div class="text-[10px] font-semibold uppercase" style="letter-spacing: 0.14em;" :style="{ color: qualityColor(logoAsset) }">{{ assetQualityText(logoAsset) }}</div>
+              <SliderRow label="Size" :value="logoAsset.width" :min="4" :max="60" :step="1"
+                :display="(v: number) => Math.round(v) + '%'" @change="resizeAssetWidth(logoAsset!.id, $event)" />
+              <SliderRow label="Rotation" :value="logoAsset.rotation" :min="-180" :max="180" :step="1"
+                :display="(v: number) => Math.round(v) + '°'" @change="setAsset(logoAsset!.id, { rotation: $event })" />
+              <SliderRow label="Opacity" :value="logoAsset.opacity" :min="0.1" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="setAsset(logoAsset!.id, { opacity: $event })" />
+              <button class="w-full text-xs font-semibold rounded-lg border border-[#E7E5E4] bg-white py-2 text-[#44403C] hover:bg-[#FAFAF9]" @click="replaceLogoInputRef?.click()">Replace logo</button>
+              <input ref="replaceLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleAssetReplace($event, logoAsset!.id, 'logo')" />
+            </template>
+            <template v-else-if="sections.logoPositionControls">
               <SliderRow label="Size" :value="local.logo_size ?? 8" :min="4" :max="18" :step="1"
                 :display="(v: number) => v + 'u'" @change="set('logo_size', $event)" />
             </template>
           </div>
+        </V4Card>
+
+        <V4Card title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
+          <div
+            class="cursor-pointer"
+            style="padding: 18px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
+            @click="imageInputRef?.click()"
+          >
+            <p class="text-[11px]" style="color: #A8A29E;">Drop in PNG, JPG, or WebP artwork</p>
+            <input ref="imageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleImageUpload" />
+          </div>
+          <div v-if="(local.image_overlays ?? []).filter(a => a.kind === 'image').length" class="space-y-2 mt-3">
+            <div
+              v-for="asset in (local.image_overlays ?? []).filter(a => a.kind === 'image')"
+              :key="asset.id"
+              class="overflow-hidden"
+              style="border: 1px solid #F5F5F4; border-radius: 12px;"
+              :style="activeAssetId === asset.id ? 'border-color: #2D6A4F; box-shadow: 0 0 0 1px #2D6A4F;' : undefined"
+            >
+              <div class="flex items-center gap-2 px-3 py-2.5" :style="activeAssetId === asset.id ? 'background: #DCEBE2;' : 'background: #FAFAF9;'">
+                <img :src="asset.render_url" alt="" class="w-8 h-8 object-contain rounded bg-white" style="border: 1px solid #E7E5E4;" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs truncate" style="color: #1C1917;">Image</p>
+                  <p class="text-[10px] font-semibold uppercase" style="letter-spacing: 0.08em;" :style="{ color: qualityColor(asset) }">{{ assetQualityText(asset) }}</p>
+                </div>
+                <button class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0" @click="removeAsset(asset.id)">Remove</button>
+              </div>
+              <div v-if="activeAssetId === asset.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
+                <SliderRow label="Size" :value="asset.width" :min="4" :max="95" :step="1"
+                  :display="(v: number) => Math.round(v) + '%'" @change="resizeAssetWidth(asset.id, $event)" />
+                <SliderRow label="Rotation" :value="asset.rotation" :min="-180" :max="180" :step="1"
+                  :display="(v: number) => Math.round(v) + '°'" @change="setAsset(asset.id, { rotation: $event })" />
+                <SliderRow label="Opacity" :value="asset.opacity" :min="0.1" :max="1" :step="0.05"
+                  :display="(v: number) => Math.round(v * 100) + '%'" @change="setAsset(asset.id, { opacity: $event })" />
+                <button class="w-full text-xs font-semibold rounded-lg border border-[#E7E5E4] bg-white py-2 text-[#44403C] hover:bg-[#FAFAF9]" @click="setReplaceAsset(asset.id, 'image')">Replace image</button>
+              </div>
+            </div>
+          </div>
+          <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
         <V4Card title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
@@ -987,16 +1029,18 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats } from '~/types'
+import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
 import { COLOR_THEMES } from '~/types'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
+import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
+  | { type: 'image-overlay'; id: string }
 
 const THEME_THUMB: Record<string, {
   titlePosition: 'top' | 'bottom'
@@ -1058,6 +1102,7 @@ const sections = computed(() => computeSectionVisibility({
   showVignette: local.show_vignette ?? false,
   logoUrl: local.logo_url,
   showLogo: local.show_logo ?? false,
+  logoAssetCount: (local.image_overlays ?? []).filter(asset => asset.kind === 'logo').length,
   trailSegmentCount: (local.trail_segments ?? []).length,
   showRoads: local.show_roads ?? false,
   showElevationProfile: local.show_elevation_profile ?? false,
@@ -1069,6 +1114,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
   'reset': []
   'logo-upload': [file: File]
+  'image-upload': [payload: { file: File; kind: MapAssetKind; replaceAssetId?: string }]
   'toggle-sheet': []
   'swipe-up': []
   'swipe-down': []
@@ -1217,6 +1263,13 @@ const activeOverlayId = computed(() =>
   props.activeTextTarget?.type === 'text-overlay' ? props.activeTextTarget.id : null,
 )
 
+const activeAssetId = computed(() =>
+  props.activeTextTarget?.type === 'image-overlay' ? props.activeTextTarget.id : null,
+)
+
+const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asset.kind === 'logo') ?? null)
+const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
+
 const textOverlayCardKey = computed(() =>
   props.activeTextTarget?.type === 'text-overlay'
     ? `text-overlays-${props.activeTextTarget.id}`
@@ -1326,6 +1379,87 @@ const OVERLAY_POSITIONS = [
   { label: '←', x: 10, y: 50 }, { label: '·', x: 50, y: 50 }, { label: '→', x: 90, y: 50 },
   { label: '↙', x: 10, y: 85 }, { label: '↓', x: 50, y: 85 }, { label: '↘', x: 90, y: 85 },
 ]
+
+// ── Image asset helpers ───────────────────────────────────────────────────────
+
+function assetWithQuality(asset: MapAsset): MapAsset {
+  return {
+    ...asset,
+    quality_status: classifyAssetQuality(computeEffectiveDpi(asset, local.print_size)),
+  }
+}
+
+function assetQualityText(asset: MapAsset): string {
+  const withQuality = assetWithQuality(asset)
+  return `${qualityLabel(withQuality.quality_status)} · ${computeEffectiveDpi(withQuality, local.print_size)} DPI`
+}
+
+function qualityColor(asset: MapAsset): string {
+  const status = assetWithQuality(asset).quality_status
+  if (status === 'excellent' || status === 'good') return '#2D6A4F'
+  if (status === 'warning') return '#B45309'
+  return '#B91C1C'
+}
+
+function setAsset(id: string, patch: Partial<MapAsset>) {
+  set('image_overlays', (local.image_overlays ?? []).map(asset => asset.id === id ? assetWithQuality({ ...asset, ...patch }) : asset))
+}
+
+function resizeAssetWidth(id: string, width: number) {
+  const asset = (local.image_overlays ?? []).find(a => a.id === id)
+  if (!asset) return
+  const aspectHeight = asset.height / Math.max(1, asset.width)
+  setAsset(id, {
+    width,
+    height: Number(Math.max(1, Math.min(95, width * aspectHeight)).toFixed(2)),
+  })
+}
+
+function removeAsset(id: string) {
+  set('image_overlays', (local.image_overlays ?? []).filter(asset => asset.id !== id))
+}
+
+function removeLogoAsset() {
+  const logo = logoAsset.value
+  if (logo) removeAsset(logo.id)
+  set('logo_url', undefined)
+  set('show_logo', false)
+}
+
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const replaceLogoInputRef = ref<HTMLInputElement | null>(null)
+const replaceImageInputRef = ref<HTMLInputElement | null>(null)
+const pendingReplaceAsset = ref<{ id: string; kind: MapAssetKind } | null>(null)
+
+function emitImageUpload(file: File, kind: MapAssetKind, replaceAssetId?: string) {
+  emit('image-upload', { file, kind, replaceAssetId })
+}
+
+function handleImageUpload(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) emitImageUpload(file, 'image')
+  if (imageInputRef.value) imageInputRef.value.value = ''
+}
+
+function handleAssetReplace(e: Event, id: string, kind: MapAssetKind) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) emitImageUpload(file, kind, id)
+  input.value = ''
+}
+
+function setReplaceAsset(id: string, kind: MapAssetKind) {
+  pendingReplaceAsset.value = { id, kind }
+  replaceImageInputRef.value?.click()
+}
+
+function handlePendingAssetReplace(e: Event) {
+  const pending = pendingReplaceAsset.value
+  if (!pending) return
+  handleAssetReplace(e, pending.id, pending.kind)
+  pendingReplaceAsset.value = null
+}
 
 // ── Trail segment helpers ──────────────────────────────────────────────────────
 

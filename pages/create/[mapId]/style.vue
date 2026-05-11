@@ -70,6 +70,7 @@
       :map="mapData"
       :saving="saving"
       @logo-upload="handleLogoUpload"
+      @image-upload="handleImageAssetUpload"
       @freeze-changed="onFreezeChanged"
     />
 
@@ -142,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import type { DeletedRange, PosterTextOverride, PosterTextSlot, StyleConfig, TextOverlay } from '~/types'
+import type { DeletedRange, MapAsset, MapAssetKind, PosterTextOverride, PosterTextSlot, StyleConfig, TextOverlay } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import { buildElevationProfile, detectDisconnectedRanges, mergeDeletedRanges, mergeDeletedRangesForRoute } from '~/utils/trail'
 
@@ -152,6 +153,7 @@ type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
+  | { type: 'image-overlay'; id: string }
 type MapPreviewHandle = {
   freezeView: () => void
   unfreezeView: () => void
@@ -702,31 +704,60 @@ async function goToCheckout() {
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────
 
+type AssetUploadResult = { asset?: MapAsset; url: string; style_config?: StyleConfig }
+
+function applyUploadedStyle(result: AssetUploadResult) {
+  styleConfig.value = result.style_config
+    ? { ...DEFAULT_STYLE_CONFIG, ...result.style_config }
+    : {
+        ...styleConfig.value,
+        logo_url: result.url,
+        show_logo: true,
+        logo_position: styleConfig.value.logo_url ? (styleConfig.value.logo_position ?? 'footer-left') : 'footer-left',
+        show_branding: false,
+      }
+  if (mapData.value) {
+    mapData.value.style_config = { ...styleConfig.value }
+  }
+}
+
 async function handleLogoUpload(file: File) {
   try {
     const formData = new FormData()
     formData.append('image', file)
-    const result = await $fetch<{ url: string; style_config?: StyleConfig }>(`/api/maps/${mapId.value}/logo`, {
+    const result = await $fetch<AssetUploadResult>(`/api/maps/${mapId.value}/logo`, {
       method: 'POST',
       body: formData,
     })
-    styleConfig.value = result.style_config
-      ? { ...DEFAULT_STYLE_CONFIG, ...result.style_config }
-      : {
-          ...styleConfig.value,
-          logo_url: result.url,
-          show_logo: true,
-          logo_position: styleConfig.value.logo_url ? (styleConfig.value.logo_position ?? 'footer-left') : 'footer-left',
-          show_branding: false,
-        }
-    if (mapData.value) {
-      mapData.value.style_config = { ...styleConfig.value }
-    }
+    applyUploadedStyle(result)
   } catch (err) {
     console.error('Logo upload failed', err)
     toast.add({
       title: 'Logo upload failed',
       description: err instanceof Error ? err.message : 'Could not upload this logo. Please try a PNG, JPG, or WebP under 5 MB.',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+      timeout: 6000,
+    })
+  }
+}
+
+async function handleImageAssetUpload(payload: { file: File; kind: MapAssetKind; replaceAssetId?: string }) {
+  try {
+    const formData = new FormData()
+    formData.append('image', payload.file)
+    formData.append('kind', payload.kind)
+    if (payload.replaceAssetId) formData.append('replace_asset_id', payload.replaceAssetId)
+    const result = await $fetch<AssetUploadResult>(`/api/maps/${mapId.value}/assets`, {
+      method: 'POST',
+      body: formData,
+    })
+    applyUploadedStyle(result)
+  } catch (err) {
+    console.error('Image upload failed', err)
+    toast.add({
+      title: payload.kind === 'logo' ? 'Logo upload failed' : 'Image upload failed',
+      description: err instanceof Error ? err.message : 'Could not upload this image. Please try a PNG, JPG, or WebP within the size limit.',
       icon: 'i-heroicons-exclamation-triangle',
       color: 'red',
       timeout: 6000,

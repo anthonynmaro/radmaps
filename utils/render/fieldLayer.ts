@@ -114,6 +114,7 @@ export const FIELD_LAYER = {
   logo_url: 'chrome',
   logo_position: 'chrome',
   logo_size: 'chrome',
+  image_overlays: 'chrome',
 
   // ── Roads / place / POI labels (rendered into the map raster) ─────────────
   show_roads: 'map',

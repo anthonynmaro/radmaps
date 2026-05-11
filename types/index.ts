@@ -89,6 +89,30 @@ export interface TextOverlay {
   bg_color?: string               // optional frosted pill background
 }
 
+// ─── Uploaded Image Assets ──────────────────────────────────────────────────
+
+export type MapAssetKind = 'logo' | 'image'
+export type MapAssetQualityStatus = 'excellent' | 'good' | 'warning' | 'poor'
+
+export interface MapAsset {
+  id: string
+  kind: MapAssetKind
+  source_url: string
+  render_url: string
+  mime_type: 'image/jpeg' | 'image/png' | 'image/webp'
+  width_px: number
+  height_px: number
+  file_size_bytes: number
+  x: number                       // 0–100, % from left of poster canvas
+  y: number                       // 0–100, % from top of poster canvas
+  width: number                   // 1–100, % of poster canvas width
+  height: number                  // 1–100, % of poster canvas height
+  rotation: number                // degrees
+  opacity: number                 // 0–1
+  z_index: number
+  quality_status: MapAssetQualityStatus
+}
+
 // ─── Trail Segments ───────────────────────────────────────────────────────────
 
 export interface TrailSegment {
@@ -197,6 +221,8 @@ export interface StyleConfig {
   subtitle_scale?: number
   // Text overlays (floating text on map)
   text_overlays?: TextOverlay[]
+  // Uploaded image/logo overlays (floating poster-level images)
+  image_overlays?: MapAsset[]
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
   trail_legend?: TrailLegend
@@ -311,6 +337,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   logo_position: 'map-top-right',
   logo_size: 8,
   text_overlays: [],
+  image_overlays: [],
   trail_segments: [],
   trail_legend: { show: true, position: 'bottom-left' },
 }

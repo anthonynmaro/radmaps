@@ -23,6 +23,10 @@
             @overlay-deleted="onOverlayDeleted"
             @overlay-resized="onOverlayResized"
             @overlay-updated="onOverlayUpdated"
+            @asset-moved="onAssetMoved"
+            @asset-selected="onAssetSelected"
+            @asset-deleted="onAssetDeleted"
+            @asset-resized="onAssetResized"
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
@@ -75,6 +79,7 @@
         :route-stats="routeStats ?? map.stats"
         @reset="resetStyle"
         @logo-upload="emit('logo-upload', $event)"
+        @image-upload="emit('image-upload', $event)"
         @toggle-sheet="toggleSheet"
         @swipe-up="onSwipeUp"
         @swipe-down="onSwipeDown"
@@ -94,6 +99,8 @@
 <script setup lang="ts">
 import type {
   DeletedRange,
+  MapAsset,
+  MapAssetKind,
   PosterTextOverride,
   PosterTextSlot,
   StyleConfig,
@@ -112,6 +119,7 @@ type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
+  | { type: 'image-overlay'; id: string }
 type MapPreviewHandle = {
   freezeView: () => void
   unfreezeView: () => void
@@ -129,6 +137,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
   'logo-upload': [file: File]
+  'image-upload': [payload: { file: File; kind: MapAssetKind; replaceAssetId?: string }]
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
 }>()
 
@@ -349,6 +358,10 @@ function onOverlaySelected(id: string) {
   openTextPanelForTarget({ type: 'text-overlay', id })
 }
 
+function onAssetSelected(id: string) {
+  openTextPanelForTarget({ type: 'image-overlay', id })
+}
+
 function onOverlayMoved(payload: { id: string; x: number; y: number }) {
   updateOverlay(payload.id, { x: payload.x, y: payload.y })
 }
@@ -374,6 +387,33 @@ function updateOverlay(id: string, patch: Partial<TextOverlay>) {
   styleConfig.value = {
     ...styleConfig.value,
     text_overlays: overlays.map(o => o.id === id ? { ...o, ...patch } : o),
+  }
+}
+
+function onAssetMoved(payload: { id: string; x: number; y: number }) {
+  updateAsset(payload.id, { x: payload.x, y: payload.y })
+}
+
+function onAssetDeleted(id: string) {
+  const asset = styleConfig.value.image_overlays?.find(a => a.id === id)
+  if (activeTextTarget.value?.type === 'image-overlay' && activeTextTarget.value.id === id) activeTextTarget.value = null
+  const nextAssets = (styleConfig.value.image_overlays ?? []).filter(a => a.id !== id)
+  styleConfig.value = {
+    ...styleConfig.value,
+    image_overlays: nextAssets,
+    ...(asset?.kind === 'logo' ? { logo_url: undefined, show_logo: false } : {}),
+  }
+}
+
+function onAssetResized(payload: { id: string; width: number; height: number }) {
+  updateAsset(payload.id, { width: payload.width, height: payload.height })
+}
+
+function updateAsset(id: string, patch: Partial<MapAsset>) {
+  const assets = styleConfig.value.image_overlays ?? []
+  styleConfig.value = {
+    ...styleConfig.value,
+    image_overlays: assets.map(asset => asset.id === id ? { ...asset, ...patch } : asset),
   }
 }
 

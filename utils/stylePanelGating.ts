@@ -16,6 +16,7 @@ export interface GatingInput {
   showVignette: boolean
   logoUrl: string | undefined
   showLogo: boolean
+  logoAssetCount?: number
   trailSegmentCount: number
   showRoads: boolean
   showElevationProfile: boolean
@@ -50,7 +51,7 @@ export interface SectionVisibility {
 }
 
 export function computeSectionVisibility(input: GatingInput): SectionVisibility {
-  const hasLogo = !!(input.logoUrl && input.logoUrl.length > 0)
+  const hasLogo = !!(input.logoUrl && input.logoUrl.length > 0) || (input.logoAssetCount ?? 0) > 0
 
   return {
     // Quick tab
