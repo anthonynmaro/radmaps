@@ -7,6 +7,7 @@
         :editable="editable"
         :render-mode="renderMode"
         :print-context="printContext"
+        @overlay-updated="onOverlayUpdated"
         @poster-text-override="onPosterTextOverride"
         @poster-text-reset="onPosterTextReset"
       />
@@ -16,7 +17,7 @@
 
 <script setup lang="ts">
 import MapPreview from '~/components/map/MapPreview.vue'
-import { DEFAULT_STYLE_CONFIG, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
@@ -42,6 +43,7 @@ const height = typeof route.query.height === 'string' ? Number.parseInt(route.qu
 const renderMode = route.query.print === 'final' ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
+const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -92,9 +94,34 @@ const initialStyleConfig: StyleConfig = {
     : {}),
   composition: selectedComposition,
   ...(gridScope ? { show_grid: true, grid_scope: gridScope } : {}),
+  ...(withOverlay
+    ? {
+        text_overlays: [{
+          id: 'fixture-overlay-label',
+          content: 'Concrete',
+          x: 12,
+          y: 65,
+          font_size: 1.4,
+          color: theme?.route_color ?? '#E85D75',
+          font_family: theme?.body_font_family ?? baseConfig.body_font_family,
+          alignment: 'left',
+          opacity: 1,
+          bold: true,
+          italic: false,
+        }],
+      }
+    : {}),
 }
 
 const styleConfig = ref<StyleConfig>(initialStyleConfig)
+
+function onOverlayUpdated(payload: { id: string; patch: Partial<TextOverlay> }) {
+  const overlays = styleConfig.value.text_overlays ?? []
+  styleConfig.value = {
+    ...styleConfig.value,
+    text_overlays: overlays.map(overlay => overlay.id === payload.id ? { ...overlay, ...payload.patch } : overlay),
+  }
+}
 
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
   const current = styleConfig.value.poster_text_overrides ?? {}

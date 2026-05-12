@@ -86,6 +86,7 @@ export interface PosterTextOverride {
   text?: string
   font_family?: FontFamily
   color?: string
+  bg_color?: string
   scale?: number
   bold?: boolean
   italic?: boolean

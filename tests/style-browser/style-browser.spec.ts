@@ -78,6 +78,43 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-map-badges')).toHaveCount(0)
   })
 
+  test('keeps footer divider aligned with the inset title rule', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
+
+    const boxes = await page.evaluate(() => {
+      const titleRule = document.querySelector<HTMLElement>('.poster-rule')
+      const footerRule = document.querySelector<HTMLElement>('[data-testid="poster-footer-rule"]')
+      return {
+        titleRule: titleRule?.getBoundingClientRect().toJSON(),
+        footerRule: footerRule?.getBoundingClientRect().toJSON(),
+        footerRuleStyle: footerRule ? getComputedStyle(footerRule).height : '',
+      }
+    })
+
+    expect(boxes.titleRule).toBeTruthy()
+    expect(boxes.footerRule).toBeTruthy()
+    expect(Math.abs(boxes.footerRule!.x - boxes.titleRule!.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(boxes.footerRule!.width - boxes.titleRule!.width)).toBeLessThanOrEqual(2)
+    expect(boxes.footerRuleStyle).toBe('1px')
+  })
+
+  test('lets text overlays use a highlight background from the inline toolbar', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist&editable=1&overlay=1')
+
+    const overlay = page.locator('[data-overlay-id="fixture-overlay-label"]')
+    await expect(overlay).toBeVisible()
+    await expect.poll(async () => {
+      await overlay.click({ position: { x: 8, y: 8 } })
+      return page.locator('.inline-text-toolbar').count()
+    }).toBe(1)
+    await expect(page.getByTitle('Text highlight')).toBeVisible()
+    await page.getByTitle('Text highlight').click()
+
+    await expect.poll(async () => overlay.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(232, 93, 117)')
+    await page.getByTitle('Text highlight').click()
+    await expect.poll(async () => overlay.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+  })
+
   test('makes every composition text cue editable and removable', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
 

@@ -10,6 +10,8 @@
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
       :color="activeToolbarState.color"
+      :background-color="activeToolbarState.backgroundColor"
+      :supports-highlight="activeToolbarState.supportsHighlight"
       :scale="activeToolbarState.scale"
       :bold="activeToolbarState.bold"
       :italic="activeToolbarState.italic"
@@ -416,6 +418,7 @@
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div class="poster-footer shrink-0" :style="footerBandStyle" data-testid="poster-footer">
+        <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
           v-if="compositionDecor.footerNote"
           class="composition-footer-note"
@@ -657,6 +660,7 @@
             spellcheck="true"
             @focus="onOverlayTextFocus($event, overlay.id)"
             @blur="onOverlayTextBlur($event, overlay.id)"
+            @pointerdown.stop="onOverlayTextPointerDown($event, overlay.id)"
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >{{ overlay.content }}</span>
@@ -1062,6 +1066,13 @@ function onOverlayTextFocus(e: FocusEvent, id: string) {
   emit('overlay-selected', id)
 }
 
+function onOverlayTextPointerDown(e: PointerEvent, id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedOverlayId.value = id
+  selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
+  emit('overlay-selected', id)
+}
+
 function onOverlayTextClick(e: MouseEvent, id: string) {
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
@@ -1263,6 +1274,8 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
       '--composition-body-font': typography.value.subFont,
+      '--composition-rule-left': compositionRuleInset.value.left,
+      '--composition-rule-right': compositionRuleInset.value.right,
       '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
       '--route-color': props.styleConfig.route_color,
     }
@@ -1277,6 +1290,8 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
       '--composition-body-font': typography.value.subFont,
+      '--composition-rule-left': compositionRuleInset.value.left,
+      '--composition-rule-right': compositionRuleInset.value.right,
       '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
       '--route-color': props.styleConfig.route_color,
     })
@@ -1594,6 +1609,37 @@ const ruleStyle = computed(() => ({
   flexShrink: '0',
 }))
 
+const compositionRuleInset = computed(() => {
+  const bleed = 'var(--print-bleed, 0px)'
+  switch (composition.value.id) {
+    case 'editorial-tall':
+    case 'riso-stack':
+      return { left: `calc(8cqw + ${bleed})`, right: `calc(8cqw + ${bleed})` }
+    case 'park-quad':
+    case 'botanical-plate':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'blueprint-strava':
+    case 'splits-grid':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'modernist-block':
+      return { left: `calc(9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
+    case 'brutalist-slab':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'travel-banner':
+    case 'darksky-stars':
+      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+    default:
+      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+  }
+})
+
+const footerRuleStyle = computed(() => ({
+  left: 'var(--composition-rule-left)',
+  right: 'var(--composition-rule-right)',
+  backgroundColor: fg.value,
+  opacity: composition.value.id === 'brutalist-slab' ? '0.12' : '0.1',
+}))
+
 const footerBandStyle = computed(() => ({
   backgroundColor: bg.value,
   color: fg.value,
@@ -1606,7 +1652,7 @@ const footerBandStyle = computed(() => ({
   alignItems: 'center',
   justifyContent: 'space-between',
   position: 'relative' as const,
-  borderTop: borderW.value !== '0' ? `${borderW.value} solid ${fg.value}1a` : `1px solid ${fg.value}0d`,
+  borderTop: '0',
   order: String(composition.value.footerOrder),
   zIndex: 3,
 }))
@@ -1983,9 +2029,11 @@ const activeToolbarState = computed(() => {
       textValue: overlay.content,
       fontFamily: overlay.font_family,
       color: overlay.color,
+      backgroundColor: overlay.bg_color || '',
       scale: Math.max(0.5, Math.min(2, overlay.font_size / 2)),
       bold: overlay.bold,
       italic: overlay.italic ?? false,
+      supportsHighlight: true,
       canReset: false,
     }
   }
@@ -2015,9 +2063,11 @@ const activeToolbarState = computed(() => {
     textValue: textWithOverride(slot, defaultSlotText(slot)),
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
+    backgroundColor: override.bg_color ?? '',
     scale: effectiveSlotScale(slot, legacySlotScale(slot)),
     bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,
     italic: override.italic ?? false,
+    supportsHighlight: false,
     canReset: !!props.styleConfig.poster_text_overrides?.[slot],
   }
 })
@@ -2042,6 +2092,7 @@ function applyToolbarPatch(patch: PosterTextOverride) {
   if (patch.text != null) overlayPatch.content = patch.text
   if (patch.font_family) overlayPatch.font_family = patch.font_family
   if (patch.color) overlayPatch.color = patch.color
+  if (patch.bg_color != null) overlayPatch.bg_color = patch.bg_color || undefined
   if (patch.scale != null) overlayPatch.font_size = Number((patch.scale * 2).toFixed(2))
   if (patch.bold != null) overlayPatch.bold = patch.bold
   if (patch.italic != null) overlayPatch.italic = patch.italic
@@ -3885,10 +3936,18 @@ onUnmounted(() => {
   margin-top: -0.2cqh;
 }
 
+.poster-footer-rule {
+  position: absolute;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .composition-footer-note {
   position: absolute;
-  left: calc(5cqw + var(--print-bleed, 0px));
-  right: calc(5cqw + var(--print-bleed, 0px));
+  left: var(--composition-rule-left);
+  right: var(--composition-rule-right);
   top: 0.65cqh;
   overflow: hidden;
   color: currentColor;
@@ -3909,19 +3968,12 @@ onUnmounted(() => {
   mix-blend-mode: normal;
 }
 
-.poster-composition--splits-grid .poster-footer,
-.poster-composition--blueprint-strava .poster-footer {
-  border-top-style: dashed !important;
-}
-
-.poster-composition--bib-numerals .poster-footer {
-  border-top-width: 2px !important;
-  border-top-style: dashed !important;
-}
-
-.poster-composition--brutalist-slab .poster-footer,
-.poster-composition--modernist-block .poster-footer {
-  border-top-width: 3px !important;
+.poster-composition--splits-grid .poster-footer-rule,
+.poster-composition--blueprint-strava .poster-footer-rule,
+.poster-composition--bib-numerals .poster-footer-rule {
+  height: 0;
+  background: transparent !important;
+  border-top: 1px dashed currentColor;
 }
 
 .poster-composition--riso-stack .poster-header::before {

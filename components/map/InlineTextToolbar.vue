@@ -56,6 +56,19 @@
         </label>
       </div>
 
+      <div v-if="supportsHighlight" class="toolbar-row highlight-row">
+        <button
+          class="toolbar-highlight-toggle"
+          :class="{ active: !!backgroundColor }"
+          title="Text highlight"
+          @click="toggleHighlight"
+        >Highlight</button>
+
+        <label v-if="backgroundColor" class="toolbar-color" title="Highlight color">
+          <input type="color" :value="backgroundColor" @input="emitPatch({ bg_color: ($event.target as HTMLInputElement).value })" />
+        </label>
+      </div>
+
       <div class="toolbar-row size-row">
         <span class="size-label">Size</span>
         <input
@@ -98,6 +111,8 @@ const props = defineProps<{
   anchorRect: DOMRect | null
   fontFamily: FontFamily
   color: string
+  backgroundColor?: string
+  supportsHighlight?: boolean
   scale: number
   bold: boolean
   italic: boolean
@@ -163,6 +178,10 @@ const toolbarStyle = computed(() => {
 function emitPatch(patch: PosterTextOverride) {
   emit('patch', patch)
 }
+
+function toggleHighlight() {
+  emitPatch({ bg_color: props.backgroundColor ? '' : '#E85D75' })
+}
 </script>
 
 <style scoped>
@@ -204,7 +223,8 @@ function emitPatch(patch: PosterTextOverride) {
 }
 
 .toolbar-icon-btn,
-.toolbar-toggle {
+.toolbar-toggle,
+.toolbar-highlight-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -222,11 +242,19 @@ function emitPatch(patch: PosterTextOverride) {
   font-weight: 800;
 }
 
+.toolbar-highlight-toggle {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .toolbar-toggle.italic {
   font-style: italic;
 }
 
-.toolbar-toggle.active {
+.toolbar-toggle.active,
+.toolbar-highlight-toggle.active {
   border-color: #2D6A4F;
   background: #DCEBE2;
   color: #1F4D38;
