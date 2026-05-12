@@ -1442,10 +1442,8 @@ function buildNativeWatercolorStyle(
         tileSize: 512,
         attribution: '© CARTO © OpenStreetMap contributors',
       },
-      ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
-      ...(config.show_contours && contourTileUrl
-        ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } }
-        : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
@@ -1463,7 +1461,7 @@ function buildNativeWatercolorStyle(
         },
       },
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
-      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
       ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),

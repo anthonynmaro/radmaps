@@ -126,7 +126,6 @@ const contourFields: Array<keyof StyleConfig> = [
 const hillshadeFields: Array<keyof StyleConfig> = [
   'show_hillshade',
   'hillshade_intensity',
-  'hillshade_highlight',
 ]
 
 const roadFields: Array<keyof StyleConfig> = [
@@ -185,6 +184,9 @@ function baseControls(): Partial<Record<keyof StyleConfig, LayerGraphControl>> {
     route_color_mode: { visible: true, update: 'full-reload' },
     map_3d: { visible: true, update: 'full-reload' },
     map_pitch: { visible: true, update: 'paint' },
+    map_bearing: { visible: true, update: 'paint' },
+    terrain_exaggeration: { visible: true, update: 'paint' },
+    hillshade_highlight: { visible: false, update: 'ignored', reason: 'Hillshade highlight is stored legacy intent but is not currently rendered.' },
     ...Object.fromEntries(segmentFields.map(field => [field, { visible: true, update: 'full-reload' as const }])),
     ...Object.fromEntries(chromeEffectFields.map(field => [field, { visible: true, update: 'chrome' as const }])),
   }
@@ -204,40 +206,53 @@ function featureControls(opts: {
 
   const waterVisible = opts.water === 'editable-vector'
   controls.water_color = waterVisible
-    ? { visible: true, update: 'full-reload' }
+    ? { visible: true, update: 'paint' }
     : { visible: false, update: 'ignored', reason: `Water color is ${opts.water ?? 'unsupported'} for this preset.` }
   controls.land_color = { visible: false, update: 'ignored', reason: 'Land color is not exposed as an editable map-layer control.' }
 
   const roadsVisible = opts.roads === 'editable-vector'
-  for (const field of roadFields) {
-    controls[field] = roadsVisible
-      ? { visible: true, update: 'full-reload' }
-      : { visible: false, update: 'ignored', reason: `Road styling is ${opts.roads ?? 'unsupported'} for this preset.` }
-  }
+  controls.show_roads = roadsVisible
+    ? { visible: true, update: 'full-reload' }
+    : { visible: false, update: 'ignored', reason: `Road styling is ${opts.roads ?? 'unsupported'} for this preset.` }
+  controls.roads_color = roadsVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `Road styling is ${opts.roads ?? 'unsupported'} for this preset.` }
+  controls.roads_opacity = roadsVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `Road styling is ${opts.roads ?? 'unsupported'} for this preset.` }
 
   const labelsVisible = opts.labels === 'editable-vector'
   const labelToggleVisible = labelsVisible || opts.labelToggleCanSwitchBakedTiles === true
   controls.show_place_labels = labelToggleVisible
     ? { visible: true, update: 'full-reload' }
     : { visible: false, update: 'ignored', reason: `Place labels are ${opts.labels ?? 'unsupported'} for this preset.` }
-  for (const field of labelFields.filter(field => field !== 'show_place_labels')) {
-    controls[field] = labelsVisible
-      ? { visible: true, update: 'full-reload' }
-      : { visible: false, update: 'ignored', reason: `Place-label styling is ${opts.labels ?? 'unsupported'} for this preset.` }
-  }
+  controls.place_labels_color = labelsVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `Place-label styling is ${opts.labels ?? 'unsupported'} for this preset.` }
+  controls.place_labels_opacity = labelsVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `Place-label styling is ${opts.labels ?? 'unsupported'} for this preset.` }
+  controls.place_labels_scale = labelsVisible
+    ? { visible: true, update: 'full-reload' }
+    : { visible: false, update: 'ignored', reason: `Place-label styling is ${opts.labels ?? 'unsupported'} for this preset.` }
 
   const poiVisible = opts.pois === 'editable-vector'
-  for (const field of poiFields) {
-    controls[field] = poiVisible
-      ? { visible: true, update: 'full-reload' }
-      : { visible: false, update: 'ignored', reason: `POIs are ${opts.pois ?? 'unsupported'} for this preset.` }
-  }
+  controls.show_poi_labels = poiVisible
+    ? { visible: true, update: 'full-reload' }
+    : { visible: false, update: 'ignored', reason: `POIs are ${opts.pois ?? 'unsupported'} for this preset.` }
+  controls.poi_labels_color = poiVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `POIs are ${opts.pois ?? 'unsupported'} for this preset.` }
+  controls.poi_labels_opacity = poiVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: `POIs are ${opts.pois ?? 'unsupported'} for this preset.` }
 
   const contoursSupported = opts.contours === 'editable-vector' || opts.contours === 'required'
   for (const field of contourFields) {
     const isRequiredToggle = field === 'show_contours' && opts.contours === 'required'
+    const paintOnly = field === 'contour_color' || field === 'contour_major_color' || field === 'contour_opacity'
     controls[field] = contoursSupported && !isRequiredToggle
-      ? { visible: true, update: 'full-reload' }
+      ? { visible: true, update: paintOnly ? 'paint' : 'full-reload' }
       : contoursSupported
         ? { visible: false, update: 'ignored', reason: 'Contours are required by this preset.' }
         : { visible: false, update: 'ignored', reason: 'Contours are not available for this preset.' }
@@ -248,16 +263,18 @@ function featureControls(opts: {
   }
 
   const hillshadeVisible = opts.hillshade === 'editable-vector'
-  for (const field of hillshadeFields) {
-    controls[field] = hillshadeVisible
-      ? { visible: true, update: 'full-reload' }
-      : { visible: false, update: 'ignored', reason: 'Hillshade is not available for this preset.' }
-  }
+  controls.show_hillshade = hillshadeVisible
+    ? { visible: true, update: 'full-reload' }
+    : { visible: false, update: 'ignored', reason: 'Hillshade is not available for this preset.' }
+  controls.hillshade_intensity = hillshadeVisible
+    ? { visible: true, update: 'paint' }
+    : { visible: false, update: 'ignored', reason: 'Hillshade is not available for this preset.' }
 
   const rasterEffectsVisible = opts.rasterEffects === 'editable-vector'
   for (const field of rasterEffectFields) {
+    const paintOnly = field === 'tile_contrast' || field === 'tile_saturation' || field === 'tile_hue_rotate'
     controls[field] = rasterEffectsVisible
-      ? { visible: true, update: 'full-reload' }
+      ? { visible: true, update: paintOnly ? 'paint' : 'full-reload' }
       : { visible: false, update: 'ignored', reason: 'Tile effects require an editable raster tile layer.' }
   }
 
@@ -315,6 +332,7 @@ function makeGraph(opts: {
   sources: string[]
   controls?: Partial<Record<keyof StyleConfig, LayerGraphControl>>
   layers?: LayerGraphLayer[]
+  includeDefaultRoadLayers?: boolean
   requiredFields?: LayerGraph['requiredFields']
 }): LayerGraph {
   const controls = {
@@ -334,7 +352,7 @@ function makeGraph(opts: {
   const layers = [
     ...(opts.layers ?? []),
     ...optionalTerrainLayers(opts.features.contours, opts.features.hillshade),
-    ...(opts.features.roads === 'editable-vector' || opts.features.placeLabels === 'editable-vector' || opts.features.pois === 'editable-vector'
+    ...((opts.includeDefaultRoadLayers ?? true) && (opts.features.roads === 'editable-vector' || opts.features.placeLabels === 'editable-vector' || opts.features.pois === 'editable-vector')
       ? editableRoadLayers(opts.features)
       : []),
     ...commonRouteLayers(),
@@ -416,6 +434,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
       hillshade: 'unsupported',
     },
     sources: ['mapbox-streets', 'route'],
+    includeDefaultRoadLayers: false,
     layers: [
       { id: 'rn-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'] },
       { id: 'rn-landuse', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['land_color'] },
@@ -469,6 +488,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
       rasterEffects: 'unsupported',
     },
     sources: ['mapbox-streets', 'route'],
+    includeDefaultRoadLayers: false,
     layers: [
       { id: 'nt-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'] },
       { id: 'nt-landuse', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'] },

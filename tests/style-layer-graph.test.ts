@@ -69,6 +69,10 @@ describe('style layer graph contracts', () => {
     const controls = getVisibleStyleControls('contour-art')
     expect(controls.show_hillshade?.visible).toBe(true)
     expect(styleFieldUpdateMode('contour-art', 'show_hillshade')).toBe('full-reload')
+    expect(controls.hillshade_intensity?.visible).toBe(true)
+    expect(styleFieldUpdateMode('contour-art', 'hillshade_intensity')).toBe('paint')
+    expect(controls.hillshade_highlight?.visible).toBe(false)
+    expect(styleFieldUpdateMode('contour-art', 'hillshade_highlight')).toBe('ignored')
   })
 
   it('ignores unsupported saved values without deleting the stored intent', () => {
@@ -89,10 +93,47 @@ describe('style layer graph contracts', () => {
   })
 
   it('resolves dependency update modes from the graph', () => {
-    expect(styleFieldUpdateMode('native-toner', 'roads_opacity')).toBe('full-reload')
+    expect(styleFieldUpdateMode('native-toner', 'show_roads')).toBe('full-reload')
+    expect(styleFieldUpdateMode('native-toner', 'roads_opacity')).toBe('paint')
     expect(styleFieldUpdateMode('native-toner', 'tile_effect')).toBe('ignored')
     expect(styleFieldUpdateMode('minimalist', 'route_width')).toBe('paint')
-    expect(getGraphFullReloadFields('contour-art')).toContain('contour_color')
+    expect(styleFieldUpdateMode('natural-topo', 'hillshade_intensity')).toBe('paint')
+    expect(styleFieldUpdateMode('contour-art', 'contour_color')).toBe('paint')
+    expect(styleFieldUpdateMode('contour-art', 'contour_major_color')).toBe('paint')
+    expect(styleFieldUpdateMode('contour-art', 'contour_opacity')).toBe('paint')
+    expect(styleFieldUpdateMode('contour-art', 'contour_detail')).toBe('full-reload')
+    expect(getGraphFullReloadFields('contour-art')).not.toContain('hillshade_intensity')
+    expect(getGraphFullReloadFields('contour-art')).not.toContain('contour_color')
+  })
+
+  it('keeps paint-only controls out of full reload dependencies', () => {
+    const paintOnlyFields: Array<keyof StyleConfig> = [
+      'roads_color',
+      'roads_opacity',
+      'place_labels_color',
+      'place_labels_opacity',
+      'poi_labels_color',
+      'poi_labels_opacity',
+      'water_color',
+      'contour_color',
+      'contour_major_color',
+      'contour_opacity',
+      'contour_minor_width',
+      'contour_major_width',
+      'hillshade_intensity',
+      'tile_contrast',
+      'tile_saturation',
+      'tile_hue_rotate',
+    ]
+
+    for (const preset of ALL_STYLE_PRESETS) {
+      const reloadFields = getGraphFullReloadFields(preset)
+      for (const field of paintOnlyFields) {
+        if (styleFieldUpdateMode(preset, field) === 'paint') {
+          expect(reloadFields, `${preset}.${field}`).not.toContain(field)
+        }
+      }
+    }
   })
 })
 
@@ -171,6 +212,40 @@ describe('style JSON matrix', () => {
     }, 'mapbox-token')
 
     expect(layerIds(style)).toContain('hillshade')
+  })
+
+  it('keeps graph hillshade support in sync with generated style layers', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      const graph = getPresetGraph(preset)
+      const style = buildMapStyle({
+        ...DEFAULT_STYLE_CONFIG,
+        preset,
+        show_hillshade: true,
+      }, 'mapbox-token')
+      const rendersHillshade = layerIds(style).includes('hillshade')
+      expect(rendersHillshade, preset).toBe(graph.features.hillshade === 'editable-vector')
+    }
+  })
+
+  it('keeps declared graph layers in sync with generated style layers', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      const graph = getPresetGraph(preset)
+      const style = buildMapStyle({
+        ...DEFAULT_STYLE_CONFIG,
+        preset,
+        show_contours: true,
+        show_hillshade: true,
+        show_roads: true,
+        show_place_labels: true,
+        show_poi_labels: true,
+        show_elevation_labels: true,
+      }, 'mapbox-token')
+      const generatedLayerIds = layerIds(style)
+      for (const graphLayer of graph.layers) {
+        if (graphLayer.source === 'route') continue
+        expect(generatedLayerIds, `${preset}.${graphLayer.id}`).toContain(graphLayer.id)
+      }
+    }
   })
 
   it('writes viewport scale metadata from graph layer declarations', () => {

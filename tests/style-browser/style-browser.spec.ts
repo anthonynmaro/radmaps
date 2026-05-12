@@ -141,7 +141,10 @@ test.describe('style browser visual harness', () => {
     await expect(meta).toBeVisible()
     const before = await meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))
 
-    await meta.click({ force: true })
+    await expect.poll(async () => {
+      await meta.click({ force: true })
+      return page.locator('.inline-text-toolbar .size-slider').count()
+    }).toBe(1)
     const slider = page.locator('.inline-text-toolbar .size-slider')
     await expect(slider).toBeVisible()
     await slider.evaluate((input) => {
@@ -205,6 +208,87 @@ test.describe('style browser visual harness', () => {
     expect(after.zoom).toBeCloseTo(before.zoom, 3)
     expect(after.center[0]).toBeCloseTo(before.center[0], 5)
     expect(after.center[1]).toBeCloseTo(before.center[1], 5)
+  })
+
+  test('preserves 3D map camera when paint-only map settings change', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { get: () => unknown; jumpTo: (camera: unknown) => void }
+        __RADMAPS_STYLE_FIXTURE__?: { setStyle: (patch: unknown) => void }
+      }
+      return Boolean(win.__RADMAPS_MAP_CAMERA__ && win.__RADMAPS_STYLE_FIXTURE__)
+    })).toBe(true)
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__: { setStyle: (patch: Record<string, unknown>) => void }
+      }
+      win.__RADMAPS_STYLE_FIXTURE__.setStyle({
+        preset: 'contour-art',
+        map_3d: true,
+        show_hillshade: true,
+        show_roads: true,
+        show_place_labels: true,
+        show_poi_labels: true,
+        map_pitch: 45,
+        map_bearing: 12,
+        terrain_exaggeration: 1.6,
+        hillshade_intensity: 0.25,
+        roads_opacity: 0.45,
+        contour_opacity: 0.5,
+      })
+    })
+    await page.waitForTimeout(1_000)
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { jumpTo: (camera: { center: [number, number]; zoom: number; pitch: number; bearing: number }) => void }
+      }
+      win.__RADMAPS_MAP_CAMERA__.jumpTo({ center: [-87.66, 41.875], zoom: 12.25, pitch: 45, bearing: 12 })
+    })
+    await page.waitForTimeout(100)
+    const before = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number; pitch: number; bearing: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__: { setStyle: (patch: Record<string, unknown>) => void }
+      }
+      win.__RADMAPS_STYLE_FIXTURE__.setStyle({
+        hillshade_intensity: 0.5,
+        roads_color: '#243B53',
+        roads_opacity: 0.2,
+        place_labels_color: '#102A43',
+        place_labels_opacity: 0.35,
+        poi_labels_color: '#334E68',
+        poi_labels_opacity: 0.3,
+        water_color: '#9CCFD8',
+        contour_color: '#52738B',
+        contour_major_color: '#1F425B',
+        contour_opacity: 0.25,
+        tile_contrast: 0.2,
+        tile_saturation: -0.25,
+        tile_hue_rotate: 15,
+      })
+    })
+    await page.waitForTimeout(1_000)
+
+    const after = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number; pitch: number; bearing: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+    expect(after.zoom).toBeCloseTo(before.zoom, 3)
+    expect(after.center[0]).toBeCloseTo(before.center[0], 5)
+    expect(after.center[1]).toBeCloseTo(before.center[1], 5)
+    expect(after.pitch).toBeCloseTo(before.pitch, 2)
+    expect(after.bearing).toBeCloseTo(before.bearing, 2)
   })
 
   test('renders thumbnail and final-print geometries from the same poster component', async ({ page }) => {

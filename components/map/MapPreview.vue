@@ -2827,6 +2827,11 @@ function effectiveBearing(cfg: StyleConfig = props.styleConfig): number {
   return cfg.map_3d ? (cfg.map_bearing ?? 0) : 0
 }
 
+function effectiveHillshadeExaggeration(cfg: StyleConfig = props.styleConfig): number {
+  const intensity = cfg.hillshade_intensity ?? 0.3
+  return cfg.preset === 'contour-art' ? Math.min(intensity, 0.25) : intensity
+}
+
 type MapCameraSnapshot = {
   center: [number, number]
   zoom: number
@@ -3152,7 +3157,7 @@ function placePinMarkers() {
   nextTick(recomputeOverlays)
 }
 
-function apply3DTerrain() {
+function apply3DTerrain(options: { animate?: boolean } = {}) {
   if (!mapInstance) return
   const pitch = effectivePitch()
   const bearing = effectiveBearing()
@@ -3164,7 +3169,14 @@ function apply3DTerrain() {
   } else {
     try { mapInstance.setTerrain(null as any) } catch {}
   }
-  mapInstance.easeTo({ pitch, bearing, duration: props.editable === false ? 0 : 600 })
+  const shouldAnimate = options.animate !== false &&
+    props.editable !== false &&
+    (Math.abs(mapInstance.getPitch() - pitch) > 0.01 || Math.abs(mapInstance.getBearing() - bearing) > 0.01)
+  if (shouldAnimate) {
+    mapInstance.easeTo({ pitch, bearing, duration: 600 })
+  } else {
+    mapInstance.jumpTo({ pitch, bearing })
+  }
 }
 
 function setPaintBackground() {
@@ -3172,6 +3184,75 @@ function setPaintBackground() {
   if (mapInstance.getLayer('background')) {
     mapInstance.setPaintProperty('background', 'background-color', mapBackgroundColor(props.styleConfig))
   }
+}
+
+function setLayerPaint(layerId: string, property: string, value: unknown) {
+  if (!mapInstance?.getLayer(layerId)) return
+  mapInstance.setPaintProperty(layerId, property, value)
+}
+
+function applyRoadPaint(config: StyleConfig) {
+  const color = config.roads_color ?? config.label_text_color
+  const opacity = config.roads_opacity ?? 0.6
+  for (const [layerId, multiplier] of [
+    ['roads-major', 0.50],
+    ['roads-primary', 0.37],
+    ['roads-minor', 0.23],
+    ['rn-service', 0.18],
+    ['rn-street', 0.32],
+    ['rn-secondary', 0.55],
+    ['rn-motorway', 0.75],
+    ['nt-service', 0.25],
+    ['nt-street', 0.55],
+    ['nt-secondary', 0.80],
+    ['nt-motorway', 1.0],
+  ] as const) {
+    setLayerPaint(layerId, 'line-color', color)
+    setLayerPaint(layerId, 'line-opacity', opacity * multiplier)
+  }
+}
+
+function applyPlaceLabelPaint(config: StyleConfig) {
+  setLayerPaint('roads-place-labels', 'text-color', config.place_labels_color ?? config.label_text_color)
+  setLayerPaint('roads-place-labels', 'text-opacity', config.place_labels_opacity ?? 0.75)
+  setLayerPaint('roads-place-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyPoiLabelPaint(config: StyleConfig) {
+  setLayerPaint('roads-poi-labels', 'text-color', config.poi_labels_color ?? config.label_text_color)
+  setLayerPaint('roads-poi-labels', 'text-opacity', config.poi_labels_opacity ?? 0.65)
+  setLayerPaint('roads-poi-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyWaterPaint(config: StyleConfig) {
+  setLayerPaint('contour-art-water', 'fill-color', config.water_color ?? '#9CCFD8')
+  setLayerPaint('rn-water', 'fill-color', config.water_color ?? '#7FB3C8')
+}
+
+function applyContourPaint(config: StyleConfig) {
+  const contourOpacity = config.contour_opacity ?? 0.65
+  const minorColor = config.contour_color ?? config.label_text_color ?? '#64748B'
+  const majorColor = config.contour_major_color ?? minorColor
+  setLayerPaint('contours-minor', 'line-color', minorColor)
+  setLayerPaint('contours-minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 5, contourOpacity, 14, contourOpacity * 0.9])
+  setLayerPaint('contours-mid', 'line-color', minorColor)
+  setLayerPaint('contours-mid', 'line-opacity', contourOpacity)
+  setLayerPaint('contours-major', 'line-color', majorColor)
+  setLayerPaint('contours-major', 'line-opacity', contourOpacity)
+  setLayerPaint('contours-labels', 'text-color', majorColor)
+  setLayerPaint('contours-labels', 'text-opacity', contourOpacity)
+  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyHillshadePaint(config: StyleConfig) {
+  setLayerPaint('hillshade', 'hillshade-exaggeration', effectiveHillshadeExaggeration(config))
+}
+
+function applyRasterPaint(config: StyleConfig) {
+  const rasterLayerId = config.preset === 'topographic' ? 'outdoors-tiles' : 'base-tiles'
+  setLayerPaint(rasterLayerId, 'raster-contrast', config.tile_contrast ?? 0)
+  setLayerPaint(rasterLayerId, 'raster-saturation', config.tile_saturation ?? 0)
+  setLayerPaint(rasterLayerId, 'raster-hue-rotate', config.tile_hue_rotate ?? 0)
 }
 
 // ── interactjs drag for text overlays ────────────────────────────────────────
@@ -3269,6 +3350,9 @@ watch(
       // Clear tile cache when effect params change so stale processed tiles aren't reused
       if (tileKeyChanged) _tileCache.clear()
       const cameraBeforeReload = snapshotCurrentCamera()
+      const cameraAfterReload = cameraBeforeReload
+        ? { ...cameraBeforeReload, pitch: effectivePitch(newConfig), bearing: effectiveBearing(newConfig) }
+        : null
       mapReady.value = false
       if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
@@ -3277,9 +3361,9 @@ watch(
         populateRouteSource()
         populateSegmentSources()
         placePinMarkers()
-        apply3DTerrain()
+        apply3DTerrain({ animate: false })
         // setStyle() can reset the viewport; layer toggles must not reframe the poster.
-        restoreCameraAfterStyleReload(cameraBeforeReload)
+        restoreCameraAfterStyleReload(cameraAfterReload)
         applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -3320,9 +3404,49 @@ watch(
       apply3DTerrain()
     }
 
-    if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
+    if (newConfig.hillshade_intensity !== oldConfig?.hillshade_intensity) applyHillshadePaint(newConfig)
+
+    if (newConfig.background_color !== oldConfig?.background_color) {
+      setPaintBackground()
+      applyPlaceLabelPaint(newConfig)
+      applyPoiLabelPaint(newConfig)
+      applyContourPaint(newConfig)
+    }
+
+    if (
+      newConfig.roads_color !== oldConfig?.roads_color ||
+      newConfig.roads_opacity !== oldConfig?.roads_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyRoadPaint(newConfig)
+    }
+
+    if (
+      newConfig.place_labels_color !== oldConfig?.place_labels_color ||
+      newConfig.place_labels_opacity !== oldConfig?.place_labels_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyPlaceLabelPaint(newConfig)
+    }
+
+    if (
+      newConfig.poi_labels_color !== oldConfig?.poi_labels_color ||
+      newConfig.poi_labels_opacity !== oldConfig?.poi_labels_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyPoiLabelPaint(newConfig)
+    }
+
+    if (newConfig.water_color !== oldConfig?.water_color) applyWaterPaint(newConfig)
 
     // Contour line-width fast path — avoids full reload for width multiplier changes
+    if (
+      newConfig.contour_color !== oldConfig?.contour_color ||
+      newConfig.contour_major_color !== oldConfig?.contour_major_color ||
+      newConfig.contour_opacity !== oldConfig?.contour_opacity
+    ) {
+      applyContourPaint(newConfig)
+    }
     if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
       if (mapInstance.getLayer('contours-minor'))
         mapInstance.setPaintProperty('contours-minor', 'line-width',
@@ -3339,18 +3463,12 @@ watch(
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
     // these are MapLibre paint properties and don't need a tile re-fetch.
-    const rasterLayerId = newConfig.preset === 'topographic' ? 'outdoors-tiles' : 'base-tiles'
-    if (newConfig.tile_contrast !== oldConfig?.tile_contrast) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-contrast', newConfig.tile_contrast ?? 0)
-    }
-    if (newConfig.tile_saturation !== oldConfig?.tile_saturation) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-saturation', newConfig.tile_saturation ?? 0)
-    }
-    if (newConfig.tile_hue_rotate !== oldConfig?.tile_hue_rotate) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-hue-rotate', newConfig.tile_hue_rotate ?? 0)
+    if (
+      newConfig.tile_contrast !== oldConfig?.tile_contrast ||
+      newConfig.tile_saturation !== oldConfig?.tile_saturation ||
+      newConfig.tile_hue_rotate !== oldConfig?.tile_hue_rotate
+    ) {
+      applyRasterPaint(newConfig)
     }
 
     if (mapInstance.getLayer('route-line')) {
@@ -3422,7 +3540,7 @@ watch(
         populateRouteSource()
         populateSegmentSources()
         placePinMarkers()
-        apply3DTerrain()
+        apply3DTerrain({ animate: false })
         restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties()
         mapReady.value = true
