@@ -21,10 +21,6 @@ const base: GatingInput = {
   showFinishPin: true,
 }
 
-function vis(overrides: Partial<GatingInput>) {
-  return computeSectionVisibility({ ...base, overrides } as unknown as GatingInput)
-}
-
 // Proper override helper
 function compute(overrides: Partial<GatingInput>) {
   return computeSectionVisibility({ ...base, ...overrides })
@@ -125,6 +121,10 @@ describe('naturalTopoTileStyles', () => {
 // ── Terrain sub-sections ───────────────────────────────────────────────────────
 
 describe('hillshadeDetails', () => {
+  it('hides the hillshade toggle for presets without hillshade support', () => {
+    expect(compute({ preset: 'road-network' }).hillshadeToggle).toBe(false)
+  })
+
   it('shows when showHillshade is true', () => {
     expect(compute({ showHillshade: true }).hillshadeDetails).toBe(true)
   })
@@ -135,6 +135,12 @@ describe('hillshadeDetails', () => {
 })
 
 describe('contourDetails', () => {
+  it('hides the contour toggle when contours are required by the preset', () => {
+    const s = compute({ preset: 'contour-art', showContours: false })
+    expect(s.contourToggle).toBe(false)
+    expect(s.contourDetails).toBe(true)
+  })
+
   it('shows when showContours is true', () => {
     expect(compute({ showContours: true }).contourDetails).toBe(true)
   })
@@ -159,6 +165,41 @@ describe('contourDetails', () => {
     const onlyContours = compute({ showHillshade: false, showContours: true })
     expect(onlyContours.hillshadeDetails).toBe(false)
     expect(onlyContours.contourDetails).toBe(true)
+  })
+})
+
+describe('map detail controls', () => {
+  it('hides baked raster road and label controls', () => {
+    const s = compute({ preset: 'topographic', showRoads: true })
+    expect(s.mapDetailCard).toBe(false)
+    expect(s.roadsToggle).toBe(false)
+    expect(s.roadOpacityControl).toBe(false)
+    expect(s.placeLabelDetails).toBe(false)
+    expect(s.poiToggle).toBe(false)
+    expect(s.waterColorControl).toBe(false)
+  })
+
+  it('shows editable vector road controls only for supported presets', () => {
+    const s = compute({ preset: 'native-toner', showRoads: true })
+    expect(s.mapDetailCard).toBe(true)
+    expect(s.roadsToggle).toBe(true)
+    expect(s.roadColorControl).toBe(true)
+    expect(s.roadOpacityControl).toBe(true)
+    expect(s.placeLabelsToggle).toBe(false)
+    expect(s.poiToggle).toBe(false)
+  })
+
+  it('shows water color only for vector-water presets', () => {
+    expect(compute({ preset: 'contour-art' }).waterColorControl).toBe(true)
+    expect(compute({ preset: 'road-network' }).waterColorControl).toBe(true)
+    expect(compute({ preset: 'minimalist' }).waterColorControl).toBe(false)
+  })
+
+  it('allows Stadia Toner label toggling without exposing fake label styling', () => {
+    const s = compute({ preset: 'stadia-toner', showRoads: false })
+    expect(s.mapDetailCard).toBe(true)
+    expect(s.placeLabelsToggle).toBe(true)
+    expect(s.placeLabelDetails).toBe(false)
   })
 })
 

@@ -26,14 +26,45 @@
       class="poster-canvas relative flex flex-col"
       :class="posterCanvasClass"
       :style="posterCanvasStyle"
+      :data-composition="composition.id"
+      :data-theme="styleConfig.color_theme"
+      data-testid="poster-canvas"
     >
 
       <!-- ── Inset frame (optional) ───────────────────────────────────────── -->
       <div
         v-if="styleConfig.border_style !== 'none'"
-        class="absolute z-20 pointer-events-none"
+        class="poster-inset-frame absolute z-20 pointer-events-none"
         :style="frameStyle"
+        data-testid="poster-inset-frame"
       />
+
+      <div
+        v-if="composition.showPaperTexture"
+        class="composition-paper-texture"
+        data-testid="composition-paper-texture"
+      />
+      <div
+        v-if="showPosterGrid"
+        class="composition-grid-overlay"
+        :style="gridOverlayStyle"
+        data-testid="composition-grid-overlay"
+      />
+      <div
+        v-if="composition.showStarField"
+        class="composition-star-field"
+        data-testid="composition-star-field"
+      />
+      <div
+        v-if="composition.showSideRail"
+        class="composition-side-rail"
+        data-testid="composition-side-rail"
+      />
+      <div
+        v-if="compositionDecor.sideRailLabel"
+        class="composition-side-rail-label"
+        data-testid="composition-side-rail-label"
+      >{{ compositionDecor.sideRailLabel }}</div>
 
       <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
       <div
@@ -84,7 +115,13 @@
       />
 
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
-      <div class="poster-header shrink-0" :style="headerBandStyle">
+      <div class="poster-header shrink-0" :style="headerBandStyle" data-testid="poster-header">
+        <div
+          v-if="compositionDecor.kicker"
+          class="composition-kicker"
+          :style="compositionKickerStyle"
+          data-testid="composition-kicker"
+        >{{ compositionDecor.kicker }}</div>
 
         <!-- Thin rule at top — only for bottom-positioned header -->
         <div v-if="layout.titlePosition === 'bottom'" class="poster-rule" :style="ruleStyle" />
@@ -135,14 +172,39 @@
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ locationLine }}</p>
 
+        <div
+          v-if="compositionDecor.meta"
+          class="composition-meta-line"
+          :style="compositionMetaStyle"
+          data-testid="composition-meta-line"
+        >{{ compositionDecor.meta }}</div>
+
         <!-- Thin rule at bottom — only for top-positioned header -->
         <div v-if="layout.titlePosition === 'top'" class="poster-rule" :style="ruleStyle" />
       </div>
 
       <!-- ── MAP (hero — takes all remaining height) ─────────────────────── -->
-      <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle"
+      <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle" data-testid="poster-map"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+        <div
+          v-if="showMapGrid"
+          class="composition-grid-overlay composition-grid-overlay--map"
+          :style="gridOverlayStyle"
+          data-testid="composition-map-grid-overlay"
+        />
+        <div
+          v-if="compositionDecor.mapBadges.length"
+          class="composition-map-badges"
+          :class="`composition-map-badges--${composition.id}`"
+          data-testid="composition-map-badges"
+        >
+          <span
+            v-for="badge in compositionDecor.mapBadges"
+            :key="badge"
+            class="composition-map-badge"
+          >{{ badge }}</span>
+        </div>
 
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
@@ -332,7 +394,12 @@
       </div>
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
-      <div class="poster-footer shrink-0" :style="footerBandStyle">
+      <div class="poster-footer shrink-0" :style="footerBandStyle" data-testid="poster-footer">
+        <div
+          v-if="compositionDecor.footerNote"
+          class="composition-footer-note"
+          data-testid="composition-footer-note"
+        >{{ compositionDecor.footerNote }}</div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -343,7 +410,7 @@
         />
 
         <!-- Stat blocks (left) -->
-        <div class="poster-stats">
+        <div class="poster-stats" :style="posterStatsStyle">
           <div
             v-if="showDistanceSlot"
             class="stat-block editable-text"
@@ -606,11 +673,14 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
 import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
+import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
-import type { DeletedRange, FontFamily, MapAsset, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
+import { pickContrastSafeColor } from '~/utils/colorContrast'
+import type { DeletedRange, MapAsset, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -1136,6 +1206,8 @@ const previewRootStyle = computed(() => ({
 const posterCanvasClass = computed(() => ({
   'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
   'poster-canvas--print': isPrintRender.value,
+  'poster-composition': true,
+  [posterCompositionClassName(composition.value.id)]: true,
 }))
 
 const posterCanvasStyle = computed(() => isPrintRender.value
@@ -1146,6 +1218,13 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       aspectRatio: 'auto',
       backgroundColor: props.styleConfig.background_color,
       containerType: 'size',
+      '--print-bleed': `${printBleedCssPx.value}px`,
+      '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--composition-ink': props.styleConfig.label_text_color,
+      '--composition-paper': props.styleConfig.background_color,
+      '--composition-body-font': typography.value.subFont,
+      '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+      '--route-color': props.styleConfig.route_color,
     }
   : {
       aspectRatio: '2 / 3',
@@ -1153,11 +1232,28 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       height: '100%',
       maxWidth: '100%',
       containerType: 'size',
+      '--print-bleed': '0px',
+      '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--composition-ink': props.styleConfig.label_text_color,
+      '--composition-paper': props.styleConfig.background_color,
+      '--composition-body-font': typography.value.subFont,
+      '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+      '--route-color': props.styleConfig.route_color,
     })
 
 const typography = computed(() => getPosterTypography(props.styleConfig))
 
 const layout = computed(() => getPosterLayout(props.styleConfig))
+
+const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
+
+interface CompositionDecor {
+  kicker?: string
+  meta?: string
+  mapBadges: string[]
+  footerNote?: string
+  sideRailLabel?: string
+}
 
 // ── Poster content ────────────────────────────────────────────────────────────
 
@@ -1211,6 +1307,110 @@ const coordinatesText = computed(() => textWithOverride('coordinates', coords.va
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 
+const compositionDecor = computed<CompositionDecor>(() => {
+  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
+  const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
+  const date = dateText.value || 'undated'
+  const location = locationLine.value || 'trail record'
+
+  switch (composition.value.id) {
+    case 'editorial-tall':
+      return {
+        kicker: 'No. 01 — A field record',
+        meta: `${location} · ${date}`,
+        mapBadges: [],
+        footerNote: 'Drawn from route telemetry and terrain data',
+      }
+    case 'park-quad':
+      return {
+        kicker: 'United States · Department of the Interior',
+        meta: 'Geological Survey · 7.5-minute series',
+        mapBadges: ['SCALE 1:24,000', 'CONTOUR INTERVAL'],
+        footerNote: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
+      }
+    case 'travel-banner':
+      return {
+        kicker: 'Visit · Explore · Return',
+        meta: 'Souvenir route poster',
+        mapBadges: ['VISIT', 'No. 12 / 50'],
+      }
+    case 'riso-stack':
+      return {
+        kicker: 'Edition 01 / 50',
+        meta: 'Two-color trail print',
+        mapBadges: ['RISOGRAPH'],
+        footerNote: 'Overprint grain · limited run',
+      }
+    case 'blueprint-grid':
+      return {
+        kicker: 'DWG · RM-001',
+        meta: 'SHEET 01 / 01 · DATUM WGS84',
+        mapBadges: ['SCALE', 'REV A.0'],
+        footerNote: 'Grid overlay · route geometry locked to print frame',
+      }
+    case 'blueprint-strava':
+      return {
+        kicker: 'STRAVA FILE · ACTIVITY',
+        meta: `${date} · SHEET 01 / 01`,
+        mapBadges: ['MOVING TIME', 'ELEVATION'],
+        footerNote: 'Distance · gain · coordinates · route trace',
+      }
+    case 'journal-spread':
+      return {
+        kicker: 'IX · MMXXVI — A field study',
+        meta: 'Annotated trail specimen',
+        mapBadges: ['FIELD NOTE'],
+        footerNote: `${distance} · ${gain} · fair / clear`,
+        sideRailLabel: 'FIELD NOTES',
+      }
+    case 'modernist-block':
+      return {
+        kicker: 'RADMAPS / ROUTE OBJECT',
+        meta: `${distance} · ${gain}`,
+        mapBadges: [],
+        footerNote: 'Form follows route',
+        sideRailLabel: 'RAD',
+      }
+    case 'splits-grid':
+      return {
+        kicker: 'MORNING RUN / DATA SHEET',
+        meta: `${distance} · ${date}`,
+        mapBadges: ['AVG PACE', 'SPLITS'],
+        footerNote: 'Segment stats normalized for print',
+      }
+    case 'bib-numerals':
+      return {
+        kicker: 'The forty-first',
+        meta: 'Race commemorative',
+        mapBadges: ['BIB', '4 · 1 8 7'],
+        footerNote: `${distance} / ${gain}`,
+      }
+    case 'darksky-stars':
+      return {
+        kicker: 'Dark · sky · reserve',
+        meta: 'New moon route plate',
+        mapBadges: ['BORTLE 2'],
+        footerNote: 'Zodiacal light · clear sky window',
+      }
+    case 'botanical-plate':
+      return {
+        kicker: 'Plate XLI — Cordillera Cascadia',
+        meta: 'Observed along the route transect',
+        mapBadges: ['SPECIMEN'],
+        footerNote: 'Drawn from life · elevation and terrain survey',
+      }
+    case 'brutalist-slab':
+      return {
+        kicker: 'RADMAPS · 001',
+        meta: 'LOT 12 / 50',
+        mapBadges: ['CONCRETE', 'OFFSET'],
+        footerNote: '250 GSM · UNCOATED · ROUTE SLAB',
+      }
+    default:
+      return { mapBadges: [] }
+  }
+})
+
 const showDistanceSlot = computed(() =>
   props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
 )
@@ -1232,6 +1432,11 @@ function editableTextVisible(text: string) {
 
 const fg = computed(() => props.styleConfig.label_text_color || '#1C1917')
 const bg = computed(() => props.styleConfig.label_bg_color || props.styleConfig.background_color)
+const headerBg = computed(() =>
+  composition.value.headerBackground === 'label'
+    ? (props.styleConfig.label_bg_color || props.styleConfig.background_color)
+    : props.styleConfig.background_color,
+)
 const borderW = computed(() =>
   props.styleConfig.border_style === 'thick' ? '2px'
   : props.styleConfig.border_style === 'thin' ? '1px' : '0',
@@ -1263,30 +1468,32 @@ function effectiveSlotItalic(slot: PosterTextSlot): string {
   return slotOverride(slot).italic ? 'italic' : 'normal'
 }
 
-function getTextHalo() {
-  const bg = props.styleConfig.background_color ?? '#FFF'
+function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
   // 8-direction solid offsets create a crisp outline; blur fills any gaps
   return [
-    `-2px -2px 0 ${bg}`, `0 -2px 0 ${bg}`, `2px -2px 0 ${bg}`,
-    `-2px 0 0 ${bg}`,                        `2px 0 0 ${bg}`,
-    `-2px 2px 0 ${bg}`,  `0 2px 0 ${bg}`,  `2px 2px 0 ${bg}`,
-    `0 0 4px ${bg}`,
+    `-2px -2px 0 ${color}`, `0 -2px 0 ${color}`, `2px -2px 0 ${color}`,
+    `-2px 0 0 ${color}`,                           `2px 0 0 ${color}`,
+    `-2px 2px 0 ${color}`,  `0 2px 0 ${color}`,  `2px 2px 0 ${color}`,
+    `0 0 4px ${color}`,
   ].join(', ')
 }
 
 const headerBandStyle = computed(() => ({
-  backgroundColor: props.styleConfig.background_color,
+  backgroundColor: headerBg.value,
   color: fg.value,
-  padding: layout.value.titlePosition === 'bottom'
-    ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
-    : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`,
+  padding: composition.value.id === 'legacy-classic'
+    ? (layout.value.titlePosition === 'bottom'
+        ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
+        : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
+    : composition.value.headerPadding,
   display: 'flex',
   flexDirection: 'column' as const,
-  alignItems: layout.value.titleAlign === 'left' ? 'flex-start' : 'center',
+  alignItems: composition.value.titleAlign === 'left' ? 'flex-start' : 'center',
   justifyContent: 'center',
   gap: '1.1cqh',
   position: 'relative' as const,
-  order: layout.value.titlePosition === 'top' ? '0' : '1',
+  order: String(composition.value.headerOrder),
+  zIndex: 3,
 }))
 
 const trailNameStyle = computed(() => ({
@@ -1298,11 +1505,11 @@ const trailNameStyle = computed(() => ({
   fontSize: `${typography.value.titleSize * effectiveSlotScale('trail_name', props.styleConfig.title_scale ?? 1.0)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
-  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
+  textAlign: composition.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(headerBg.value),
 }))
 
 const locationLineStyle = computed(() => ({
@@ -1314,11 +1521,29 @@ const locationLineStyle = computed(() => ({
   color: effectiveSlotColor('location_text', fg.value),
   opacity: '0.5',
   textTransform: 'uppercase' as const,
-  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
+  textAlign: composition.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(headerBg.value),
+}))
+
+const compositionKickerStyle = computed(() => ({
+  fontFamily: typography.value.subFont,
+  fontWeight: typography.value.subWeight,
+  letterSpacing: composition.value.id === 'editorial-tall' || composition.value.id === 'botanical-plate'
+    ? '0.08em'
+    : '0.24em',
+  color: fg.value,
+  opacity: composition.value.id === 'brutalist-slab' ? '0.92' : '0.64',
+}))
+
+const compositionMetaStyle = computed(() => ({
+  fontFamily: typography.value.subFont,
+  fontWeight: typography.value.subWeight,
+  letterSpacing: '0.18em',
+  color: fg.value,
+  opacity: '0.52',
 }))
 
 const ruleStyle = computed(() => ({
@@ -1333,22 +1558,49 @@ const ruleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: bg.value,
   color: fg.value,
-  paddingTop: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
-  paddingBottom: props.styleConfig.border_style !== 'none'
-    ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
-    : `calc(1.8cqh + ${printBleedCssPx.value}px)`,
-  paddingLeft: `calc(7cqw + ${printBleedCssPx.value}px)`,
-  paddingRight: `calc(7cqw + ${printBleedCssPx.value}px)`,
+  padding: composition.value.id === 'legacy-classic'
+    ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
+        ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
+        : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
+    : composition.value.footerPadding,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   position: 'relative' as const,
   borderTop: borderW.value !== '0' ? `${borderW.value} solid ${fg.value}1a` : `1px solid ${fg.value}0d`,
-  order: '2',
+  order: String(composition.value.footerOrder),
+  zIndex: 3,
 }))
 
 const mapAreaStyle = computed(() => ({
-  order: layout.value.titlePosition === 'top' ? '1' : '0',
+  order: String(composition.value.mapOrder),
+  margin: composition.value.mapMargin,
+  border: composition.value.mapBorder,
+  boxShadow: composition.value.mapShadow,
+  minHeight: '0',
+  zIndex: 2,
+  color: fg.value,
+}))
+
+const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
+const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
+const showMapGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'map')
+const gridOverlayStyle = computed(() => {
+  const color = props.styleConfig.grid_color ?? props.styleConfig.label_text_color ?? '#1C1917'
+  const weight = props.styleConfig.grid_weight ?? 1
+  return {
+    opacity: String(props.styleConfig.grid_opacity ?? 0.2),
+    backgroundImage: [
+      `linear-gradient(to right, ${color} 0 ${weight}px, transparent ${weight}px)`,
+      `linear-gradient(to bottom, ${color} 0 ${weight}px, transparent ${weight}px)`,
+    ].join(', '),
+  }
+})
+
+const posterStatsStyle = computed(() => ({
+  gap: composition.value.statsEmphasis === 'numeric' ? '1.6cqw' : '2.4cqw',
+  transform: composition.value.statsEmphasis === 'large' ? 'scale(1.12)' : 'none',
+  transformOrigin: 'left center',
 }))
 
 function statNumberStyleFor(slot: PosterTextSlot) {
@@ -1413,7 +1665,7 @@ function pinLabelFontFamily(pin: 'start' | 'finish') {
 }
 
 function pinLabelColor(pin: 'start' | 'finish') {
-  return effectiveSlotColor(pinSlot(pin), props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917')
+  return effectiveSlotColor(pinSlot(pin), contrastSafePinColor.value)
 }
 
 function pinLabelFontSize(pin: 'start' | 'finish') {
@@ -1452,7 +1704,7 @@ const occasionStyle = computed(() => ({
   transform: 'translateX(-50%)',
   whiteSpace: 'nowrap' as const,
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(bg.value),
 }))
 
 const markLabelStyle = computed(() => ({
@@ -1476,7 +1728,12 @@ const brandingNoteStyle = computed(() => ({
 }))
 
 const frameStyle = computed(() => ({
-  inset: `${14 + printBleedCssPx.value}px`,
+  top: `${14 + printBleedCssPx.value}px`,
+  right: `${14 + printBleedCssPx.value}px`,
+  bottom: `${14 + printBleedCssPx.value}px`,
+  left: composition.value.showSideRail
+    ? `calc(9cqw + ${14 + printBleedCssPx.value}px)`
+    : `${14 + printBleedCssPx.value}px`,
   border: `${borderW.value !== '0' ? borderW.value : '1px'} solid ${fg.value}`,
   opacity: '0.18',
 }))
@@ -1942,6 +2199,18 @@ const showPinOverlay = computed(() =>
   ),
 )
 
+const contrastSafePinColor = computed(() =>
+  props.styleConfig.pin_color ?? pickContrastSafeColor(
+    mapBackgroundColor(props.styleConfig),
+    [
+      props.styleConfig.route_color,
+      props.styleConfig.label_bg_color,
+      props.styleConfig.label_text_color,
+      props.styleConfig.background_color,
+    ],
+  )
+)
+
 function recomputeOverlays() {
   if (!mapInstance || !mapContainer.value) return
   const W = mapContainer.value.offsetWidth
@@ -1963,7 +2232,7 @@ function recomputeOverlays() {
     }
   } else {
     const newPins: PinItem[] = []
-    const pinColor   = props.styleConfig.pin_color   ?? props.styleConfig.label_text_color ?? '#1C1917'
+    const pinColor   = contrastSafePinColor.value
     const pinOpacity = props.styleConfig.pin_opacity ?? 0.9
 
     for (const which of ['start', 'finish'] as const) {
@@ -2341,23 +2610,11 @@ function cancelLeaderDrag() {
 
 // ── Map lifecycle ─────────────────────────────────────────────────────────────
 
-const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
-  'preset', 'base_tile_style',
-  'show_contours', 'show_hillshade', 'show_elevation_labels',
-  'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
-  'hillshade_intensity', 'hillshade_highlight',
-  'show_roads', 'roads_color', 'roads_opacity',
-  'show_place_labels', 'place_labels_color', 'place_labels_opacity', 'place_labels_scale',
-  'show_poi_labels', 'poi_labels_color', 'poi_labels_opacity',
-  // trail_segments intentionally absent — segment ID changes are detected below,
-  // and data-only changes (section_start/end, color, width) use the fast path.
-  'tile_effect',
-  'route_color_mode',
-  'map_3d',
-  'segment_casing_width',
-  'segment_casing_color',
-  'segment_dot_size',
-]
+function fullReloadKeysFor(cfg: StyleConfig): Array<keyof StyleConfig> {
+  // trail_segments intentionally stay structural/data-driven below: segment ID
+  // changes rebuild sources/layers, while geometry/color/width use fast paths.
+  return getGraphFullReloadFields(cfg).filter(key => key !== 'trail_segments')
+}
 
 // Computes a cache key for all parameters baked into the styledtile:// URL.
 // When this key changes, MapLibre needs a full style reload to re-fetch tiles.
@@ -2622,7 +2879,7 @@ let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
 function makePinDotEl(): HTMLElement {
-  const color   = props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917'
+  const color   = contrastSafePinColor.value
   const opacity = props.styleConfig.pin_opacity ?? 0.9
   const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
@@ -2770,7 +3027,7 @@ watch(
     const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => s.id).join(',')
     const segStructureChanged = newSegIds !== oldSegIds
 
-    const needsFullReload = tileKeyChanged || segStructureChanged || FULL_RELOAD_KEYS.some(
+    const needsFullReload = tileKeyChanged || segStructureChanged || fullReloadKeysFor(newConfig).some(
       key => JSON.stringify(newConfig[key]) !== JSON.stringify(oldConfig?.[key]),
     )
 
@@ -2839,19 +3096,17 @@ watch(
 
     // Contour line-width fast path — avoids full reload for width multiplier changes
     if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
-      const w = newConfig.contour_minor_width ?? 1
       if (mapInstance.getLayer('contours-minor'))
         mapInstance.setPaintProperty('contours-minor', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 0.8 * w, 14, 1.0 * w])
+          contourMinorLineWidthExpression(newConfig))
       if (mapInstance.getLayer('contours-mid'))
         mapInstance.setPaintProperty('contours-mid', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 1.1 * w, 14, 1.5 * w])
+          contourMidLineWidthExpression(newConfig))
     }
     if (newConfig.contour_major_width !== oldConfig?.contour_major_width) {
-      const w = newConfig.contour_major_width ?? 1
       if (mapInstance.getLayer('contours-major'))
         mapInstance.setPaintProperty('contours-major', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 1.5 * w, 14, 2.5 * w])
+          contourMajorLineWidthExpression(newConfig))
     }
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
@@ -2929,7 +3184,7 @@ watch(
     const hasRanges = (newRanges ?? []).length > 0
     // In gradient mode, crossing the empty↔non-empty boundary changes both the
     // source lineMetrics flag and the layer paint (line-gradient vs line-color).
-    // A full style reload is required — same path as FULL_RELOAD_KEYS.
+    // A full style reload is required — same path as graph full-reload dependencies.
     if (isGradient && hadRanges !== hasRanges) {
       mapReady.value = false
       const newStyle = buildScaledMapStyle(props.styleConfig)
@@ -3454,6 +3709,7 @@ onUnmounted(() => {
 <style scoped>
 .poster-canvas {
   container-type: size;
+  color: var(--composition-ink, currentColor);
 }
 
 .radmaps-print-root {
@@ -3494,6 +3750,224 @@ onUnmounted(() => {
 .mark-svg {
   width: 4cqh;
   height: 4cqh;
+}
+
+.poster-composition {
+  isolation: isolate;
+}
+
+.composition-paper-texture,
+.composition-grid-overlay,
+.composition-star-field,
+.composition-side-rail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.composition-paper-texture {
+  z-index: 1;
+  opacity: 0.22;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.035) 0 1px, transparent 1px 5px),
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.18), transparent 20%),
+    radial-gradient(circle at 82% 76%, rgba(0, 0, 0, 0.07), transparent 24%);
+  mix-blend-mode: multiply;
+}
+
+.composition-grid-overlay {
+  z-index: 4;
+  background-size: 8cqw 8cqw;
+}
+
+.composition-grid-overlay--map {
+  inset: 0;
+}
+
+.composition-star-field {
+  z-index: 1;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(circle at 16% 18%, currentColor 0 0.08cqw, transparent 0.1cqw),
+    radial-gradient(circle at 74% 11%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 88% 34%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(circle at 28% 69%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 54% 82%, currentColor 0 0.05cqw, transparent 0.08cqw);
+}
+
+.composition-side-rail {
+  z-index: 3;
+  right: auto;
+  width: 7cqw;
+  border-right: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  opacity: 0.72;
+}
+
+.composition-side-rail-label {
+  position: absolute;
+  left: 2.15cqw;
+  top: 50%;
+  z-index: 5;
+  color: currentColor;
+  opacity: 0.32;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  font-family: var(--composition-body-font, inherit);
+  font-size: 0.82cqh;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.composition-kicker,
+.composition-meta-line,
+.composition-footer-note {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.composition-kicker {
+  font-size: 0.88cqh;
+  line-height: 1.2;
+}
+
+.composition-meta-line {
+  font-size: 0.72cqh;
+  line-height: 1.3;
+  margin-top: -0.2cqh;
+}
+
+.composition-map-badges {
+  position: absolute;
+  left: 1.6cqw;
+  right: 1.6cqw;
+  top: 1.5cqh;
+  z-index: 13;
+  display: flex;
+  justify-content: space-between;
+  gap: 1cqw;
+  color: currentColor;
+  pointer-events: none;
+}
+
+.composition-map-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2cqh;
+  max-width: 42%;
+  padding: 0.45cqh 0.7cqw;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  background: color-mix(in srgb, var(--composition-paper, transparent) 72%, transparent);
+  color: currentColor;
+  font-family: var(--composition-body-font, inherit);
+  font-size: 0.76cqh;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
+.composition-footer-note {
+  position: absolute;
+  left: calc(5cqw + var(--print-bleed, 0px));
+  right: calc(5cqw + var(--print-bleed, 0px));
+  top: 0.65cqh;
+  overflow: hidden;
+  color: currentColor;
+  font-family: var(--composition-body-font, inherit);
+  font-size: 0.62cqh;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  opacity: 0.36;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-composition--modernist-block .composition-side-rail {
+  background: var(--label-bg-color, currentColor);
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+.poster-composition--blueprint-grid .composition-map-badge,
+.poster-composition--blueprint-strava .composition-map-badge {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  background: transparent;
+  opacity: 0.72;
+}
+
+.poster-composition--travel-banner .composition-map-badge {
+  background: var(--label-bg-color, currentColor);
+  color: var(--composition-paper, currentColor);
+  border-color: transparent;
+  opacity: 0.9;
+}
+
+.poster-composition--brutalist-slab .composition-map-badges {
+  top: auto;
+  bottom: 1.8cqh;
+}
+
+.poster-composition--brutalist-slab .composition-map-badge,
+.poster-composition--riso-stack .composition-map-badge {
+  background: var(--route-color, currentColor);
+  color: var(--composition-paper, currentColor);
+  border-color: transparent;
+  opacity: 0.92;
+}
+
+.poster-composition--splits-grid .poster-footer,
+.poster-composition--blueprint-strava .poster-footer {
+  border-top-style: dashed !important;
+}
+
+.poster-composition--bib-numerals .poster-footer {
+  border-top-width: 2px !important;
+  border-top-style: dashed !important;
+}
+
+.poster-composition--brutalist-slab .poster-footer,
+.poster-composition--modernist-block .poster-footer {
+  border-top-width: 3px !important;
+}
+
+.poster-composition--riso-stack .poster-header::before {
+  content: "";
+  position: absolute;
+  top: 3cqh;
+  right: 7cqw;
+  width: 7cqw;
+  height: 7cqw;
+  background: var(--water-color, currentColor);
+  opacity: 0.85;
+  mix-blend-mode: multiply;
+}
+
+.poster-composition--botanical-plate .poster-header::before,
+.poster-composition--botanical-plate .poster-header::after {
+  content: "";
+  position: absolute;
+  top: calc(2.8cqh + var(--print-bleed, 0px));
+  width: 6cqw;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.22;
+}
+
+.poster-composition--botanical-plate .poster-header::before {
+  left: 7cqw;
+}
+
+.poster-composition--botanical-plate .poster-header::after {
+  right: 7cqw;
 }
 
 /* Editable text: subtle hover indicator */

@@ -7,6 +7,7 @@
  */
 
 import type { StyleConfig } from '~/types'
+import { getPosterCompositionProfile } from '~/utils/posterCompositions'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -297,10 +298,116 @@ const THEME_LAYOUT: Record<string, PosterLayoutProfile> = {
   'dark-sky':    { titleAlign: 'center', titlePosition: 'bottom' },
 }
 
+Object.assign(THEME_TYPOGRAPHY, {
+  'editorial-minimal': {
+    ...THEME_TYPOGRAPHY.editorial,
+    titleTracking: '-0.01em',
+    titleSize: 5.2,
+    titleLineHeight: '0.96',
+    subFont: "'Libre Baskerville', serif",
+    subTracking: '0.2em',
+  },
+  'usgs-vintage': {
+    ...THEME_TYPOGRAPHY.vintage,
+    titleTracking: '0.01em',
+    titleSize: 4.8,
+    subFont: "'Libre Baskerville', serif",
+    subTracking: '0.28em',
+  },
+  'midcentury-travel': {
+    ...THEME_TYPOGRAPHY['mid-century'],
+    titleWeight: '500',
+    titleTracking: '0.01em',
+    titleSize: 6.0,
+    titleLineHeight: '0.92',
+    subTracking: '0.32em',
+  },
+  risograph: {
+    ...THEME_TYPOGRAPHY.risograph,
+    titleWeight: '600',
+    titleTracking: '0.02em',
+    titleSize: 5.6,
+    subTracking: '0.18em',
+  },
+  blueprint: {
+    ...THEME_TYPOGRAPHY.blueprint,
+    titleTracking: '0.02em',
+    titleSize: 4.0,
+    subTracking: '0.2em',
+  },
+  'blueprint-strava': {
+    ...THEME_TYPOGRAPHY.blueprint,
+    titleTracking: '0.02em',
+    titleSize: 3.6,
+    subTracking: '0.2em',
+  },
+  'field-journal': {
+    ...THEME_TYPOGRAPHY.kertok,
+    titleFont: "'Cormorant Garamond', serif",
+    titleWeight: '400',
+    titleTracking: '0.01em',
+    titleCase: 'none',
+    titleSize: 5.4,
+    titleLineHeight: '0.98',
+    subFont: "'Libre Baskerville', serif",
+    subTracking: '0.08em',
+    statsFont: "'Libre Baskerville', serif",
+  },
+  'bold-modern': {
+    ...THEME_TYPOGRAPHY.bauhaus,
+    titleWeight: '800',
+    titleTracking: '-0.02em',
+    titleSize: 7.4,
+    titleLineHeight: '0.85',
+  },
+  'splits-stats': {
+    ...THEME_TYPOGRAPHY.blueprint,
+    titleTracking: '0.04em',
+    titleSize: 3.8,
+    subTracking: '0.18em',
+  },
+  'marathon-bib': {
+    ...THEME_TYPOGRAPHY.brutalist,
+    titleTracking: '0.02em',
+    titleSize: 6.4,
+    titleLineHeight: '0.92',
+    subFont: "'DM Sans', sans-serif",
+  },
+  'dark-sky': {
+    ...THEME_TYPOGRAPHY['dark-sky'],
+    titleTracking: '0.04em',
+    titleSize: 5.5,
+    subFont: "'Work Sans', sans-serif",
+    subTracking: '0.2em',
+  },
+  botanical: {
+    ...THEME_TYPOGRAPHY.kertok,
+    titleFont: "'Cormorant Garamond', serif",
+    titleWeight: '400',
+    titleTracking: '0.01em',
+    titleCase: 'none',
+    titleSize: 4.8,
+    titleLineHeight: '1.04',
+    subFont: "'Libre Baskerville', serif",
+    subTracking: '0.06em',
+    statsFont: "'Libre Baskerville', serif",
+  },
+  brutalist: {
+    ...THEME_TYPOGRAPHY.brutalist,
+    titleTracking: '0.02em',
+    titleSize: 7.8,
+    titleLineHeight: '0.9',
+    subFont: "'Space Grotesk', sans-serif",
+    subTracking: '0.2em',
+    statsFont: "'Space Grotesk', sans-serif",
+    statsWeight: '700',
+  },
+})
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function getPosterTypography(
-  styleConfig: Pick<StyleConfig, 'color_theme' | 'font_family' | 'body_font_family'>,
+  styleConfig: Pick<StyleConfig, 'color_theme'> & Partial<Pick<StyleConfig, 'font_family' | 'body_font_family'>>,
 ): PosterTypographyProfile {
   const base = THEME_TYPOGRAPHY[styleConfig.color_theme ?? 'chalk'] ?? THEME_TYPOGRAPHY.chalk
   const titleOverride = styleConfig.font_family
@@ -317,7 +424,14 @@ export function getPosterTypography(
 }
 
 export function getPosterLayout(
-  styleConfig: Pick<StyleConfig, 'color_theme'>,
+  styleConfig: Pick<StyleConfig, 'color_theme' | 'composition'>,
 ): PosterLayoutProfile {
+  const composition = getPosterCompositionProfile(styleConfig)
+  if (composition.id !== 'legacy-classic') {
+    return {
+      titleAlign: composition.titleAlign,
+      titlePosition: composition.titlePosition,
+    }
+  }
   return THEME_LAYOUT[styleConfig.color_theme ?? 'chalk'] ?? THEME_LAYOUT.chalk
 }

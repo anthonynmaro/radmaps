@@ -1,4 +1,47 @@
 import type { StyleConfig, TrailSegment } from '~/types'
+import {
+  CIRCLE_SCALE_PROPERTIES,
+  LINE_SCALE_PROPERTIES,
+  ROUTE_SCALE_PROPERTIES,
+  effectiveStyleConfig,
+  getPresetGraph,
+  styleGraphUsesContours,
+  type ScaledMapLibreProperty,
+} from '~/utils/styleLayerGraph'
+
+type MapStyleObject = Record<string, unknown> & {
+  layers?: Array<Record<string, unknown>>
+}
+
+function withScaleMetadata<T extends Record<string, unknown>>(layer: T, scale: ScaledMapLibreProperty[]): T {
+  const metadata = (layer.metadata && typeof layer.metadata === 'object')
+    ? layer.metadata as Record<string, unknown>
+    : {}
+  const radmaps = (metadata.radmaps && typeof metadata.radmaps === 'object')
+    ? metadata.radmaps as Record<string, unknown>
+    : {}
+  return {
+    ...layer,
+    metadata: {
+      ...metadata,
+      radmaps: {
+        ...radmaps,
+        scale,
+      },
+    },
+  }
+}
+
+function applyGraphLayerMetadata<T extends object>(style: T, config: StyleConfig): T {
+  const mapStyle = style as MapStyleObject
+  if (!Array.isArray(mapStyle.layers)) return style
+  const graphLayers = new Map(getPresetGraph(config.preset).layers.map(layer => [layer.id, layer]))
+  mapStyle.layers = mapStyle.layers.map((layer) => {
+    const graphLayer = graphLayers.get(String(layer.id ?? ''))
+    return graphLayer?.scale?.length ? withScaleMetadata(layer, graphLayer.scale) : layer
+  })
+  return mapStyle as T
+}
 
 /**
  * Build a MapLibre GL Style JSON object from a StyleConfig.
@@ -22,44 +65,38 @@ export function buildMapStyle(
   contourTileUrl?: string,
   stadiaToken?: string,
 ): object {
-  if (config.preset === 'topographic') {
-    return buildTopographicStyle(config, mapboxToken, contourTileUrl)
+  const effectiveConfig = effectiveStyleConfig(config)
+  let style: object
+  if (effectiveConfig.preset === 'topographic') {
+    style = buildTopographicStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'route-only') {
+    style = buildRouteOnlyStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'road-network') {
+    style = buildRoadNetworkStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'contour-art') {
+    style = buildContourArtStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'natural-topo') {
+    style = buildNaturalTopoStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'stadia-watercolor') {
+    style = buildStadiaWatercolorStyle(effectiveConfig, contourTileUrl, stadiaToken, mapboxToken)
+  } else if (effectiveConfig.preset === 'stadia-toner') {
+    style = buildStadiaTonerStyle(effectiveConfig, contourTileUrl, stadiaToken, mapboxToken)
+  } else if (effectiveConfig.preset === 'native-toner') {
+    style = buildNativeTonerStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'native-watercolor') {
+    style = buildNativeWatercolorStyle(effectiveConfig, contourTileUrl, mapboxToken)
+  } else if (effectiveConfig.preset === 'alidade-smooth') {
+    style = buildAlidadeSmoothStyle(effectiveConfig, maptilerToken, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'alidade-smooth-dark') {
+    style = buildAlidadeSmoothDarkStyle(effectiveConfig, maptilerToken, mapboxToken, contourTileUrl)
+  } else {
+    style = buildMinimalistStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   }
-  if (config.preset === 'route-only') {
-    return buildRouteOnlyStyle(config, mapboxToken, maptilerToken, contourTileUrl)
-  }
-  if (config.preset === 'road-network') {
-    return buildRoadNetworkStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'contour-art') {
-    return buildContourArtStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'natural-topo') {
-    return buildNaturalTopoStyle(config, mapboxToken, maptilerToken, contourTileUrl)
-  }
-  if (config.preset === 'stadia-watercolor') {
-    return buildStadiaWatercolorStyle(config, contourTileUrl, stadiaToken, mapboxToken)
-  }
-  if (config.preset === 'stadia-toner') {
-    return buildStadiaTonerStyle(config, contourTileUrl, stadiaToken, mapboxToken)
-  }
-  if (config.preset === 'native-toner') {
-    return buildNativeTonerStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'native-watercolor') {
-    return buildNativeWatercolorStyle(config, contourTileUrl, mapboxToken)
-  }
-  if (config.preset === 'alidade-smooth') {
-    return buildAlidadeSmoothStyle(config, maptilerToken, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'alidade-smooth-dark') {
-    return buildAlidadeSmoothDarkStyle(config, maptilerToken, mapboxToken, contourTileUrl)
-  }
-  return buildMinimalistStyle(config, mapboxToken, maptilerToken, contourTileUrl)
+  return applyGraphLayerMetadata(style, effectiveConfig)
 }
 
 export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
-  return config.preset === 'contour-art' || config.show_contours === true
+  return styleGraphUsesContours(config)
 }
 
 // ─── Contour thresholds for maplibre-contour ─────────────────────────────────
@@ -154,7 +191,6 @@ export function mapInkColor(config: StyleConfig): string {
 
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
 // AWS Terrain Tiles (Tilezen/Terrarium) — free, no auth, terrarium encoding.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function demSource(_token: string) {
   return {
     'mapbox-dem': {
@@ -222,6 +258,27 @@ function hillshadeLayers(config: StyleConfig) {
 
 // ─── Contour line layers ──────────────────────────────────────────────────────
 
+export function contourMinorLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_minor_width ?? 1
+  if (config.preset === 'contour-art') {
+    return ['interpolate', ['linear'], ['zoom'], 5, 0.75 * weight, 14, 1.4 * weight]
+  }
+  return ['interpolate', ['linear'], ['zoom'], 5, 0.8 * weight, 14, 1.0 * weight]
+}
+
+export function contourMidLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_minor_width ?? 1
+  return ['interpolate', ['linear'], ['zoom'], 5, 1.1 * weight, 14, 1.5 * weight]
+}
+
+export function contourMajorLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_major_width ?? 1
+  if (config.preset === 'contour-art') {
+    return ['interpolate', ['linear'], ['zoom'], 5, 1.3 * weight, 14, 2.8 * weight]
+  }
+  return ['interpolate', ['linear'], ['zoom'], 5, 1.5 * weight, 14, 2.5 * weight]
+}
+
 function contourLayers(config: StyleConfig, usingMlContour: boolean) {
   if (!config.show_contours) return []
 
@@ -242,7 +299,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
             5, config.contour_opacity,
             14, config.contour_opacity * 0.9,
           ],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
+          'line-width': contourMinorLineWidthExpression(config),
         },
       },
       {
@@ -255,7 +312,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         paint: {
           'line-color': config.contour_major_color,
           'line-opacity': config.contour_opacity,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
+          'line-width': contourMajorLineWidthExpression(config),
         },
       },
     ]
@@ -313,7 +370,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
           5, config.contour_opacity,
           14, config.contour_opacity * 0.9,
         ],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
+        'line-width': contourMinorLineWidthExpression(config),
       },
     })
   }
@@ -329,7 +386,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
       paint: {
         'line-color': config.contour_color,
         'line-opacity': config.contour_opacity,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1 * (config.contour_minor_width ?? 1), 14, 1.5 * (config.contour_minor_width ?? 1)],
+        'line-width': contourMidLineWidthExpression(config),
       },
     })
   }
@@ -344,7 +401,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
     paint: {
       'line-color': config.contour_major_color,
       'line-opacity': config.contour_opacity,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
+      'line-width': contourMajorLineWidthExpression(config),
     },
   })
 
@@ -532,7 +589,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
     const opacity = seg.opacity ?? 0.9
     const dashArray = seg.dash ? [4, 3] : undefined
 
-    layers.push({
+    layers.push(withScaleMetadata({
       id: `trail-seg-casing-${seg.id}`,
       type: 'line',
       source: `trail-seg-${seg.id}`,
@@ -542,7 +599,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
         'line-width': width + (config.segment_casing_width ?? 3),
         'line-opacity': opacity,
       },
-    })
+    }, LINE_SCALE_PROPERTIES))
 
     const lineLayer: Record<string, unknown> = {
       id: `trail-seg-line-${seg.id}`,
@@ -559,7 +616,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
         ...(dashArray ? { 'line-dasharray': dashArray } : {}),
       },
     }
-    layers.push(lineLayer)
+    layers.push(withScaleMetadata(lineLayer, LINE_SCALE_PROPERTIES))
   }
   return layers
 }
@@ -588,7 +645,7 @@ export function effectiveSegmentDotRadius(config: StyleConfig): number {
 function segmentHandleLayers(config: StyleConfig): object[] {
   const dotR = effectiveSegmentDotRadius(config)
   return [
-    {
+    withScaleMetadata({
       id: 'segment-handle-dot',
       type: 'circle',
       source: 'segment-handles',
@@ -597,7 +654,7 @@ function segmentHandleLayers(config: StyleConfig): object[] {
         'circle-color': ['get', 'color'],
         'circle-opacity': 1,
       },
-    },
+    }, CIRCLE_SCALE_PROPERTIES),
   ]
 }
 
@@ -622,7 +679,7 @@ function routeSource(config: StyleConfig): object {
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
-  const casing = {
+  const casing = withScaleMetadata({
     id: 'route-line-casing',
     type: 'line',
     source: 'route',
@@ -632,13 +689,13 @@ function routeLayers(config: StyleConfig) {
       'line-width': config.route_width + 4,
       'line-opacity': config.route_opacity,
     },
-  }
+  }, ROUTE_SCALE_PROPERTIES)
 
   const useGradient = config.route_color_mode === 'gradient' && !(config.route_deleted_ranges ?? []).length
   if (useGradient) {
     return [
       casing,
-      {
+      withScaleMetadata({
         id: 'route-line',
         type: 'line',
         source: 'route',
@@ -655,13 +712,13 @@ function routeLayers(config: StyleConfig) {
           'line-width': config.route_width,
           'line-opacity': config.route_opacity,
         },
-      },
+      }, ROUTE_SCALE_PROPERTIES),
     ]
   }
 
   return [
     casing,
-    {
+    withScaleMetadata({
       id: 'route-line',
       type: 'line',
       source: 'route',
@@ -671,7 +728,7 @@ function routeLayers(config: StyleConfig) {
         'line-width': config.route_width,
         'line-opacity': config.route_opacity,
       },
-    },
+    }, ROUTE_SCALE_PROPERTIES),
   ]
 }
 
@@ -951,8 +1008,7 @@ function buildContourArtStyle(
 ): object {
   const token = mapboxToken || ''
   const usingMlContour = !!contourTileUrl
-  // Force maximum detail when used as the primary visual layer
-  const artConfig = { ...config, show_contours: true, contour_detail: 4 }
+  const artConfig = { ...config, show_contours: true, contour_detail: config.contour_detail ?? 4 }
   const glyphs = token
     ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
     : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
@@ -1012,7 +1068,7 @@ function buildContourArtStyle(
               paint: {
                 'line-color': artConfig.contour_color,
                 'line-opacity': artConfig.contour_opacity,
-                'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 14, 0.9],
+                'line-width': contourMinorLineWidthExpression(artConfig),
               },
             },
             {
@@ -1025,7 +1081,7 @@ function buildContourArtStyle(
               paint: {
                 'line-color': artConfig.contour_major_color,
                 'line-opacity': artConfig.contour_opacity,
-                'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 14, 2.0],
+                'line-width': contourMajorLineWidthExpression(artConfig),
               },
             },
             ...(config.show_elevation_labels ? [{

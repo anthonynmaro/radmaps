@@ -61,6 +61,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   └── strava/                        — Strava OAuth + activity import
 ├── utils/
 │   ├── mapStyle.ts          — builds MapLibre style JSON for browser previews/renders
+│   ├── styleLayerGraph.ts   — preset capability graph for layers, controls, dependencies
 │   ├── gpx.ts               — GPX parser with size/entity guards
 │   ├── products.ts          — premade map catalog helpers
 │   ├── trail.ts             — trail segment slicing utilities
@@ -75,15 +76,22 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 ├── supabase/
 │   ├── schema.sql           — full DB schema
 │   └── migrations/          — incremental migrations
-├── tests/                   — vitest unit tests (only 2 files exist today)
-├── REMEDIATION.md           — full security + architecture remediation plan
-└── design_handoff_style_panel/  — ⚠ DEAD CODE: old JSX mockups, scheduled for deletion
+├── tests/                   — vitest/playwright tests, including style graph contracts
+└── REMEDIATION.md           — full security + architecture remediation plan
 ```
+
+## Database change policy
+- Any DB change must include both the forward migration/change script and a matching rollback script in the same PR/change set.
+- Rollback scripts should be executable SQL wherever possible, named so they clearly pair with the forward migration, and should undo schema, policy, index, trigger, function, and data backfill changes made by the forward script.
+- If a DB change is intentionally irreversible, document why in the migration notes and provide the safest practical mitigation script instead of leaving rollback behavior unspecified.
+- Keep `supabase/schema.sql` in sync with applied migrations whenever the canonical schema changes.
 
 ## Core data model
 
 ### StyleConfig (types/index.ts)
-Everything that controls the poster's appearance. Serialized as JSONB in the `maps.style_config` column.
+Everything that records the user's poster intent. Serialized as JSONB in the `maps.style_config` column.
+
+`StyleConfig` is not direct renderer truth. [utils/styleLayerGraph.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleLayerGraph.ts) interprets that intent for the active preset and decides which fields are supported, consumed, required, ignored, or hidden. Unsupported saved fields must be preserved in JSON and ignored through `effectiveStyleConfig()`, not deleted.
 
 Key fields:
 - `preset`: `'minimalist' | 'topographic'` — which map style builder to use
@@ -96,6 +104,12 @@ Key fields:
 - `label_text_color / label_bg_color`: poster band colors
 - `route_color / route_width / route_opacity`: GPX track styling
 - `text_overlays: TextOverlay[]`: **planned** — draggable text elements (not yet built)
+- `composition?: CompositionId`, `audience?: string`, `dark?: boolean`, plus grid controls (`show_grid`, `grid_scope`, `grid_color`, `grid_opacity`, `grid_weight`): additive refined-theme fields. Grid defaults to 20% opacity and can target the whole poster or map only. These are optional during Phase 0 and must not change current defaults.
+
+### Refined themes
+The refined design registry lives in [utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts). It defines 13 new theme recipes with composition, audience, palette, typography, and graph-friendly map defaults. Existing theme IDs stay valid; legacy theme definitions declare `migration_target` but user maps are not migrated in Phase 0.
+
+Poster composition routing lives in [utils/posterCompositions.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/posterCompositions.ts). `MapPreview.vue` uses those profiles for real editor/render chrome; do not add a second poster renderer for refined themes. The dev-only `/style-browser-fixture` route exists for Playwright coverage and should remain excluded from production behavior.
 
 ### TrailMap record
 Stored in `maps` table. `geojson` (route), `bbox`, `stats` (distance/elevation), `style_config`, `status` (draft/rendered/ordered).
@@ -106,12 +120,15 @@ Stored in `maps` table. `geojson` (route), `bbox`, `stats` (distance/elevation),
 1. `buildMapStyle(styleConfig, token)` → MapLibre style JSON
 2. `new maplibregl.Map({ bounds: map.bbox, fitBoundsOptions: { padding } })`
 3. On load: `populateRouteSource()` → `source.setData(geojson)`
-4. Style config watcher: `FULL_RELOAD_KEYS` → `mapInstance.setStyle(newStyle)`, otherwise `setPaintProperty()` for paint-only changes (route color/width, background)
+4. Style config watcher asks the layer graph for reload dependencies, then uses `mapInstance.setStyle(newStyle)` only when required; route geometry/source updates and segment updates remain explicit data paths.
 
-### FULL_RELOAD_KEYS (triggers full MapLibre style rebuild)
-`preset, base_tile_style, show_contours, show_hillshade, show_elevation_labels, contour_color, contour_major_color, contour_opacity, hillshade_intensity, hillshade_highlight`
+### Style layer graph
+[utils/styleLayerGraph.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleLayerGraph.ts) has one graph per `StylePreset`. The graph declares feature support, required fields, ignored fields, consumed fields, sources, canonical layer slots, update modes, and viewport scaling metadata.
 
-Paint-only (no reload): `route_color, route_width, route_opacity, background_color`
+Canonical slot order:
+`background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`
+
+Map controls must be graph-gated. Do not show controls for baked-only or unsupported features, and do not expose destructive toggles for required features. Use `getVisibleStyleControls()`, `styleUsesField()`, `effectiveStyleConfig()`, and `getGraphFullReloadFields()` instead of hardcoded preset checks.
 
 ### Screenshot render (Browserless + render-worker-v4)
 The current renderer screenshots the real Nuxt/Vue/MapLibre poster in Chromium. `MapPreview.vue` is the only poster renderer.
@@ -145,6 +162,9 @@ The editor schedules thumbnail refreshes only after style changes sit idle for 7
 Checkout is product-first: users choose size/material before Browserless proof rendering starts. While that selected proof is rendering, checkout should show the live `MapPreview.vue` poster state and hide older proof/thumbnail URLs until the current product render is ready.
 
 ## mapStyle.ts patterns
+- `buildMapStyle()` keeps the public API but renders from `effectiveStyleConfig(config)` so saved unsupported fields are ignored without migration.
+- Layer order follows the graph's canonical slots: `background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`.
+- Viewport scaling is graph metadata-driven through `metadata.radmaps.scale`; do not reintroduce layer-ID regex scaling.
 - CARTO tiles used for minimalist preset (free, no auth required)
 - Mapbox DEM/terrain sources only included in style when their feature is enabled (avoid unnecessary TileJSON fetches and 401s)
 - `mapboxTerrainV2Source` has `minzoom: 9` — MapLibre uses those tiles underzoomed so contours appear at any zoom level
@@ -180,6 +200,8 @@ Changing aspect ratio later is a product project, not a catalog tweak. Add expli
 ## StylePanel.vue patterns
 - Local reactive copy of `modelValue` (StyleConfig)
 - All changes go through `set(key, value)` which emits `update:modelValue`
+- Map-style controls are shown only when `computeSectionVisibility()` and the layer graph say the active preset consumes them.
+- Baked raster features, such as labels in CARTO/Mapbox/Stadia raster tiles, must not expose fake color/opacity/density controls. `stadia-toner` may expose its label toggle because it switches tile families.
 - Sub-components defined as `defineComponent` render functions at bottom of `<script setup>`
 - `applyTheme(theme)` batch-applies all theme colors at once
 - Section accordion via hand-rolled `Section` component with `ref(true)` toggle
@@ -289,6 +311,5 @@ For local full E2E, run the final queue from the repo root with `npm run print-w
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
 - **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato
-- `design_handoff_style_panel/` is dead code (old JSX mockups) — do not reference or import from it; scheduled for deletion
 - `useStyleAgent` is available through the feature-flagged Scout admin surface; keep server auth + feature flag checks together
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

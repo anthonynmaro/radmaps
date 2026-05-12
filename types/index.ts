@@ -30,6 +30,25 @@ export type ColorTheme =
   // Family B — distinct visual languages
   | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
   | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
+  // Refined design-update themes. Additive only: old ids stay renderable.
+  | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
+  | 'blueprint-strava' | 'field-journal' | 'bold-modern'
+  | 'splits-stats' | 'marathon-bib' | 'botanical'
+
+export type CompositionId =
+  | 'editorial-tall'
+  | 'park-quad'
+  | 'travel-banner'
+  | 'riso-stack'
+  | 'blueprint-grid'
+  | 'blueprint-strava'
+  | 'journal-spread'
+  | 'modernist-block'
+  | 'splits-grid'
+  | 'bib-numerals'
+  | 'darksky-stars'
+  | 'botanical-plate'
+  | 'brutalist-slab'
 export type PrintSize = '8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'
 export type BaseTileStyle =
   | 'carto-light'
@@ -178,6 +197,14 @@ export interface StyleConfig {
   color_theme: ColorTheme
   print_size: PrintSize
   base_tile_style: BaseTileStyle
+  composition?: CompositionId
+  audience?: string
+  dark?: boolean
+  show_grid?: boolean
+  grid_scope?: 'poster' | 'map'
+  grid_color?: string
+  grid_opacity?: number
+  grid_weight?: number
   // Poster text
   trail_name: string        // overrides map.title in the poster label band
   occasion_text: string     // e.g. "Anthony's 40th", "Summit Ridge 2024"
@@ -313,6 +340,10 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   label_bg_color: '#F4EFE6',
   show_branding: true,
   show_roads: true,
+  show_grid: false,
+  grid_scope: 'poster',
+  grid_opacity: 0.2,
+  grid_weight: 1,
   tile_effect: 'none',
   tile_duotone_strength: 0.9,
   tile_posterize_levels: 4,
@@ -347,6 +378,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
 export interface ThemeDefinition {
   id: ColorTheme
   label: string
+  family?: string
+  audience?: string
   dark: boolean
   background_color: string
   label_bg_color: string
@@ -358,8 +391,14 @@ export interface ThemeDefinition {
   contour_color: string
   contour_major_color: string
   font_family?: FontFamily
+  body_font_family?: FontFamily
   border_style?: BorderStyle
   tile_grain?: number
+  composition?: CompositionId
+  show_grid?: boolean
+  legacy?: boolean
+  migration_target?: ColorTheme
+  map_defaults?: Partial<StyleConfig>
 }
 
 export const COLOR_THEMES: ThemeDefinition[] = [
@@ -377,6 +416,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#C8BDB0',
     contour_major_color: '#9E9082',
+    legacy: true,
+    migration_target: 'editorial-minimal',
   },
   {
     id: 'topaz',
@@ -391,6 +432,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#C8A478',
     contour_major_color: '#A07850',
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'dusk',
@@ -405,6 +448,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#7070A0',
     contour_major_color: '#A0A0C8',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   // ── Dark themes ───────────────────────────────────────────────────────────
   {
@@ -420,6 +465,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#8A8A8A',
     contour_major_color: '#BABABA',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   {
     id: 'forest',
@@ -434,6 +481,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#A8A870',
     contour_major_color: '#787848',
+    legacy: true,
+    migration_target: 'botanical',
   },
   {
     id: 'midnight',
@@ -448,6 +497,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#4A80A8',
     contour_major_color: '#72B0D8',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   // ── Family B — distinct visual languages ──────────────────────────────────
   {
@@ -466,6 +517,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Playfair Display',
     border_style: 'none',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'editorial-minimal',
   },
   {
     id: 'bauhaus',
@@ -483,6 +536,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Big Shoulders Display',
     border_style: 'thick',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'bold-modern',
   },
   {
     id: 'vintage',
@@ -500,6 +555,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'DM Serif Display',
     border_style: 'none',
     tile_grain: 0.28,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'brutalist',
@@ -568,6 +625,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Work Sans',
     border_style: 'thin',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'mid-century',
@@ -585,6 +644,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Oswald',
     border_style: 'none',
     tile_grain: 0.08,
+    legacy: true,
+    migration_target: 'midcentury-travel',
   },
   {
     id: 'topo-art',
@@ -602,6 +663,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Work Sans',
     border_style: 'thin',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'dark-sky',

@@ -48,11 +48,17 @@ async function probeRenderPayload(siteUrl) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 5_000)
   try {
-    const res = await fetch(probeUrl, { signal: controller.signal })
+    const res = await fetch(probeUrl, {
+      signal: controller.signal,
+      headers: siteUrl.hostname.endsWith('.ngrok-free.dev')
+        ? { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }
+        : undefined,
+    })
     const text = await res.text().catch(() => '')
+    const ngrokMessage = text.match(/<noscript>(.*?)<\/noscript>/i)?.[1]
     return {
       ok: res.status === 400 && /Render ticket required/i.test(text),
-      detail: `${probeUrl.toString()} returned ${res.status}`,
+      detail: `${probeUrl.toString()} returned ${res.status}${ngrokMessage ? ` (${ngrokMessage})` : ''}`,
     }
   } catch (err) {
     return {

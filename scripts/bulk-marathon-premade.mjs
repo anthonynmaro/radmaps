@@ -209,23 +209,28 @@ const THEMES = {
   chalk:        { dark: false, background_color: '#F4EFE6', label_bg_color: '#F4EFE6', label_text_color: '#1C1917', route_color: '#C1121F', water_color: '#B8D8E8', land_color: '#EBE6DC', base_tile_style: 'carto-light', contour_color: '#C8BDB0', contour_major_color: '#9E9082' },
   obsidian:     { dark: true,  background_color: '#161616', label_bg_color: '#161616', label_text_color: '#FAFAFA', route_color: '#FB923C', water_color: '#1A3A4A', land_color: '#1E1E1E', base_tile_style: 'carto-dark',  contour_color: '#8A8A8A', contour_major_color: '#BABABA' },
   editorial:    { dark: false, background_color: '#F8F6F2', label_bg_color: '#F8F6F2', label_text_color: '#1A1A1A', route_color: '#C1121F', water_color: '#C4D8E4', land_color: '#EEE8E0', base_tile_style: 'carto-light', contour_color: '#C8C0B0', contour_major_color: '#A09888', font_family: 'Playfair Display', border_style: 'none', tile_grain: 0 },
-  blueprint:    { dark: true,  background_color: '#1B3A6B', label_bg_color: '#1B3A6B', label_text_color: '#D4E8FF', route_color: '#60B8FF', water_color: '#0A2040', land_color: '#1F4080', base_tile_style: 'carto-dark',  contour_color: '#4080C0', contour_major_color: '#60A0E0', font_family: 'Space Grotesk', border_style: 'thin', tile_grain: 0.06 },
   vintage:      { dark: false, background_color: '#E8D5A0', label_bg_color: '#E8D5A0', label_text_color: '#2A1A0A', route_color: '#B5451B', water_color: '#8EB0BA', land_color: '#EDE0B8', base_tile_style: 'carto-light', contour_color: '#C0A070', contour_major_color: '#907040', font_family: 'DM Serif Display', border_style: 'none', tile_grain: 0.28 },
   'dark-sky':   { dark: true,  background_color: '#161616', label_bg_color: '#161616', label_text_color: '#F0F0F0', route_color: '#FF4444', water_color: '#0A1820', land_color: '#202020', base_tile_style: 'carto-dark',  contour_color: '#404040', contour_major_color: '#686868', font_family: 'Fjalla One', border_style: 'none', tile_grain: 0.14 },
   midnight:     { dark: true,  background_color: '#0F1B2D', label_bg_color: '#0F1B2D', label_text_color: '#E8EDF5', route_color: '#60A5FA', water_color: '#0A1F35', land_color: '#111A25', base_tile_style: 'carto-dark',  contour_color: '#4A80A8', contour_major_color: '#72B0D8' },
   bauhaus:      { dark: false, background_color: '#FFFFFF', label_bg_color: '#FFFFFF', label_text_color: '#111111', route_color: '#E52727', water_color: '#C8D8E8', land_color: '#F5F5F5', base_tile_style: 'carto-light', contour_color: '#D0D0D0', contour_major_color: '#A0A0A0', font_family: 'Big Shoulders Display', border_style: 'thick', tile_grain: 0 },
+  'editorial-minimal': { audience: 'Gallery / collector', composition: 'editorial-tall', dark: false, background_color: '#F6F2EA', label_bg_color: '#F6F2EA', label_text_color: '#171513', route_color: '#B5251D', water_color: '#D6DCE0', land_color: '#EFE9DD', base_tile_style: 'carto-light', contour_color: '#CFC6B6', contour_major_color: '#A89C86', font_family: 'Playfair Display', body_font_family: 'Libre Baskerville', border_style: 'none', tile_grain: 0, map_defaults: { preset: 'contour-art', show_roads: false, show_place_labels: false, show_contours: true, show_hillshade: false, tile_effect: 'none', show_grid: false } },
+  'usgs-vintage': { audience: 'National Park / tourist', composition: 'park-quad', dark: false, background_color: '#EDE3CC', label_bg_color: '#EDE3CC', label_text_color: '#3A2A14', route_color: '#B43A1F', water_color: '#9CB7C0', land_color: '#E8DCBE', base_tile_style: 'maptiler-topo', contour_color: '#9C7A48', contour_major_color: '#6B4D26', font_family: 'DM Serif Display', body_font_family: 'Libre Baskerville', border_style: 'thin', tile_grain: 0.32, map_defaults: { preset: 'natural-topo', show_roads: false, show_place_labels: true, show_contours: true, show_hillshade: false, tile_effect: 'none', show_grid: false } },
+  blueprint:    { audience: 'Engineer / surveyor', composition: 'blueprint-grid', dark: true, background_color: '#0F2D52', label_bg_color: '#0F2D52', label_text_color: '#D0E4FF', route_color: '#FFD046', water_color: '#091F3A', land_color: '#143664', base_tile_style: 'carto-dark', contour_color: '#3D7AC2', contour_major_color: '#7CB0E8', font_family: 'Space Grotesk', body_font_family: 'Space Grotesk', border_style: 'thin', tile_grain: 0.04, show_grid: true, map_defaults: { preset: 'route-only', show_roads: false, show_place_labels: false, show_contours: true, show_hillshade: false, tile_effect: 'none', show_grid: true } },
+  'splits-stats': { audience: 'Runner / cyclist', composition: 'splits-grid', dark: true, background_color: '#0E0E10', label_bg_color: '#0E0E10', label_text_color: '#F4F2EE', route_color: '#FC4C02', water_color: '#101820', land_color: '#161618', base_tile_style: 'carto-dark', contour_color: '#2A2A2E', contour_major_color: '#56565E', font_family: 'Space Grotesk', body_font_family: 'Space Grotesk', border_style: 'none', tile_grain: 0.08, map_defaults: { preset: 'road-network', show_roads: true, show_place_labels: false, show_contours: false, show_hillshade: false, tile_effect: 'none', show_grid: false } },
+  'marathon-bib': { audience: 'Marathon / event', composition: 'bib-numerals', dark: false, background_color: '#FAFAF7', label_bg_color: '#FAFAF7', label_text_color: '#0A0A0A', route_color: '#1A4D8F', water_color: '#D8E2EC', land_color: '#F0EDE7', base_tile_style: 'carto-light', contour_color: '#D6CFC2', contour_major_color: '#A39A88', font_family: 'Bebas Neue', body_font_family: 'DM Sans', border_style: 'thick', tile_grain: 0, map_defaults: { preset: 'road-network', show_roads: true, show_place_labels: false, show_contours: false, show_hillshade: false, tile_effect: 'none', show_grid: false } },
+  brutalist:    { audience: 'Urban runner / cyclist', composition: 'brutalist-slab', dark: false, background_color: '#E5E1D8', label_bg_color: '#E5E1D8', label_text_color: '#0A0A0A', route_color: '#FF1F1F', water_color: '#B8B8B0', land_color: '#D8D4CB', base_tile_style: 'carto-light', contour_color: '#9A968E', contour_major_color: '#4C4844', font_family: 'Bebas Neue', body_font_family: 'Space Grotesk', border_style: 'thick', tile_grain: 0.06, map_defaults: { preset: 'route-only', show_roads: false, show_place_labels: false, show_contours: false, show_hillshade: false, tile_effect: 'invert', show_grid: false } },
 }
 
 // ─── Poster Recipes: curated theme + preset combos ──────────────────────────
 // Each recipe produces a visually distinct poster variant.
 
 const POSTER_RECIPES = [
-  { id: 'classic',    theme: 'chalk',     preset: 'minimalist',    label: 'Classic' },
-  { id: 'dark',       theme: 'obsidian',  preset: 'minimalist',    label: 'Dark Mode' },
-  { id: 'editorial',  theme: 'editorial', preset: 'minimalist',    label: 'Editorial' },
-  { id: 'blueprint',  theme: 'blueprint', preset: 'route-only',    label: 'Blueprint' },
-  { id: 'vintage',    theme: 'vintage',   preset: 'topographic',   label: 'Vintage Topo' },
-  { id: 'night',      theme: 'dark-sky',  preset: 'contour-art',   label: 'Night Sky' },
+  { id: 'editorial',  theme: 'editorial-minimal', preset: 'contour-art',  composition: 'editorial-tall', label: 'Editorial' },
+  { id: 'usgs',       theme: 'usgs-vintage',      preset: 'natural-topo', composition: 'park-quad',       label: 'USGS Vintage' },
+  { id: 'blueprint',  theme: 'blueprint',         preset: 'route-only',   composition: 'blueprint-grid',  label: 'Blueprint' },
+  { id: 'splits',     theme: 'splits-stats',      preset: 'road-network', composition: 'splits-grid',     label: 'Splits' },
+  { id: 'bib',        theme: 'marathon-bib',      preset: 'road-network', composition: 'bib-numerals',    label: 'Marathon Bib' },
+  { id: 'brutalist',  theme: 'brutalist',         preset: 'route-only',   composition: 'brutalist-slab',  label: 'Brutalist' },
 ]
 
 // ─── Marathon Metadata ──────────────────────────────────────────────────────
@@ -319,8 +324,14 @@ function buildStyledConfig(recipe, marathonMeta) {
     contour_color: theme.contour_color,
     contour_major_color: theme.contour_major_color,
     color_theme: recipe.theme,
+    composition: recipe.composition ?? theme.composition ?? 'editorial-tall',
+    audience: theme.audience,
+    dark: theme.dark,
+    show_grid: theme.show_grid ?? theme.map_defaults?.show_grid ?? false,
+    ...theme.map_defaults,
     // Theme-specific overrides
     ...(theme.font_family ? { font_family: theme.font_family } : {}),
+    ...(theme.body_font_family ? { body_font_family: theme.body_font_family } : {}),
     ...(theme.border_style ? { border_style: theme.border_style } : {}),
     ...(theme.tile_grain != null ? { tile_grain: theme.tile_grain } : {}),
     // Preset

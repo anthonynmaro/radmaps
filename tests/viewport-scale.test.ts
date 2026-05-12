@@ -35,26 +35,31 @@ describe('applyViewportScaleToStyle', () => {
       {
         id: 'route-line-casing',
         type: 'line',
+        metadata: { radmaps: { scale: ['line-width'] } },
         paint: { 'line-width': 8 },
       },
       {
         id: 'route-line',
         type: 'line',
+        metadata: { radmaps: { scale: ['line-width'] } },
         paint: { 'line-width': 4 },
       },
       {
         id: 'trail-seg-line-a',
         type: 'line',
+        metadata: { radmaps: { scale: ['line-width', 'line-dasharray'] } },
         paint: { 'line-width': 3, 'line-dasharray': [4, 3] },
       },
       {
         id: 'segment-handle-dot',
         type: 'circle',
+        metadata: { radmaps: { scale: ['circle-radius', 'circle-stroke-width'] } },
         paint: { 'circle-radius': 4, 'circle-stroke-width': 1.5 },
       },
       {
         id: 'contours-minor',
         type: 'line',
+        metadata: { radmaps: { scale: ['line-width'] } },
         paint: {
           'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8, 14, 1],
         },
@@ -62,6 +67,7 @@ describe('applyViewportScaleToStyle', () => {
       {
         id: 'contours-labels',
         type: 'symbol',
+        metadata: { radmaps: { scale: ['text-size', 'text-halo-width'] } },
         layout: {
           'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
         },
@@ -70,6 +76,7 @@ describe('applyViewportScaleToStyle', () => {
       {
         id: 'roads-place-labels',
         type: 'symbol',
+        metadata: { radmaps: { scale: ['text-size', 'text-halo-width'] } },
         layout: { 'text-size': ['interpolate', ['linear'], ['zoom'], 8, 9, 14, 13] },
         paint: { 'text-halo-width': 1.5 },
       },
@@ -102,11 +109,25 @@ describe('applyViewportScaleToStyle', () => {
     ])
   })
 
-  it('scales place/POI/contour text halos and leaves unrelated layers alone', () => {
+  it('scales graph-marked text halos and leaves unrelated layers alone', () => {
     const scaled = applyViewportScaleToStyle(style, 2)
     expect(layerById(scaled, 'contours-labels').paint['text-halo-width']).toBe(4)
     expect(layerById(scaled, 'roads-place-labels').paint['text-halo-width']).toBe(3)
     expect(layerById(scaled, 'background').paint['background-color']).toBe('#fff')
+  })
+
+  it('does not scale layers that only happen to match historical ID patterns', () => {
+    const scaled = applyViewportScaleToStyle({
+      version: 8,
+      layers: [
+        { id: 'route-looking-layer', type: 'line', paint: { 'line-width': 9 } },
+        { id: 'roads-looking-layer', type: 'symbol', layout: { 'text-size': 12 }, paint: { 'text-halo-width': 1 } },
+      ],
+    }, 2)
+
+    expect(layerById(scaled, 'route-looking-layer').paint['line-width']).toBe(9)
+    expect(layerById(scaled, 'roads-looking-layer').layout['text-size']).toBe(12)
+    expect(layerById(scaled, 'roads-looking-layer').paint['text-halo-width']).toBe(1)
   })
 
   it('does not mutate the source style and scale 1 is equivalent', () => {

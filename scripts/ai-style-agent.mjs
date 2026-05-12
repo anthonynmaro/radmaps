@@ -37,6 +37,34 @@ if (!ANTHROPIC_API_KEY) {
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
 
+const VALID_PRESETS = ['minimalist','topographic','route-only','road-network','contour-art','natural-topo','stadia-watercolor','stadia-toner','native-toner','native-watercolor','alidade-smooth','alidade-smooth-dark']
+const VALID_THEMES = ['chalk','topaz','dusk','obsidian','forest','midnight','editorial','bauhaus','vintage','brutalist','risograph','blueprint','kertok','mid-century','topo-art','dark-sky','editorial-minimal','usgs-vintage','midcentury-travel','blueprint-strava','field-journal','bold-modern','splits-stats','marathon-bib','botanical']
+const VALID_COMPOSITIONS = ['editorial-tall','park-quad','travel-banner','riso-stack','blueprint-grid','blueprint-strava','journal-spread','modernist-block','splits-grid','bib-numerals','darksky-stars','botanical-plate','brutalist-slab']
+const VALID_TILES = ['carto-light','carto-dark','maptiler-outdoor','maptiler-topo','maptiler-winter']
+const VALID_FONTS = ['Big Shoulders Display','Fjalla One','Oswald','Bebas Neue','DM Sans','Space Grotesk','Outfit','Work Sans','Playfair Display','Cormorant Garamond','Libre Baskerville','DM Serif Display']
+const VALID_BORDERS = ['thin','thick','none']
+const VALID_LABEL_POS = ['bottom','top','overlay']
+const VALID_SIZES = ['8x12','12x18','16x24','20x30','24x36','32x48']
+const VALID_EFFECTS = ['none','duotone','posterize','layer-color','invert']
+
+const THEME_COMPOSITIONS = {
+  'editorial-minimal': 'editorial-tall',
+  'usgs-vintage': 'park-quad',
+  'midcentury-travel': 'travel-banner',
+  risograph: 'riso-stack',
+  blueprint: 'blueprint-grid',
+  'blueprint-strava': 'blueprint-strava',
+  'field-journal': 'journal-spread',
+  'bold-modern': 'modernist-block',
+  'splits-stats': 'splits-grid',
+  'marathon-bib': 'bib-numerals',
+  'dark-sky': 'darksky-stars',
+  botanical: 'botanical-plate',
+  brutalist: 'brutalist-slab',
+}
+
+const DARK_THEMES = ['dusk','obsidian','midnight','blueprint','blueprint-strava','dark-sky','splits-stats']
+
 // ─── The Style Schema (what the AI can tune) ────────────────────────────────
 // We give the agent the full schema with descriptions so it understands each knob.
 
@@ -45,11 +73,15 @@ const STYLE_SCHEMA = {
   description: 'Complete RadMaps StyleConfig for a poster map. Every field is tunable.',
   properties: {
     // ── Preset & Base ──
-    preset:           { type: 'string', enum: ['minimalist','topographic','route-only','road-network','contour-art','natural-topo','stadia-watercolor','stadia-toner','native-toner','native-watercolor','alidade-smooth','alidade-smooth-dark'], description: 'Base map style preset. minimalist = clean/sparse, topographic = contour-rich, route-only = just the route on solid background, road-network = shows streets, contour-art = artistic contour emphasis, natural-topo = terrain focus.' },
-    base_tile_style:  { type: 'string', enum: ['carto-light','carto-dark','maptiler-outdoor','maptiler-topo','maptiler-winter'], description: 'Underlying raster tile style. carto-light for light themes, carto-dark for dark themes.' },
+    preset:           { type: 'string', enum: VALID_PRESETS, description: 'Base map style preset. minimalist = clean/sparse, topographic = contour-rich, route-only = just the route on solid background, road-network = shows streets, contour-art = artistic contour emphasis, natural-topo = terrain focus.' },
+    base_tile_style:  { type: 'string', enum: VALID_TILES, description: 'Underlying raster tile style. carto-light for light themes, carto-dark for dark themes.' },
 
     // ── Colors ──
-    color_theme:      { type: 'string', enum: ['chalk','topaz','dusk','obsidian','forest','midnight','editorial','bauhaus','vintage','brutalist','risograph','blueprint','kertok','mid-century','topo-art','dark-sky'], description: 'Named color theme — sets the overall palette mood.' },
+    color_theme:      { type: 'string', enum: VALID_THEMES, description: 'Named color theme — sets the overall palette mood.' },
+    composition:      { type: 'string', enum: VALID_COMPOSITIONS, description: 'Poster composition/layout recipe. Defaults from the chosen refined theme.' },
+    audience:         { type: 'string', description: 'Short audience descriptor for the theme/picker, not poster copy.' },
+    dark:             { type: 'boolean', description: 'True when the theme is visually dark.' },
+    show_grid:        { type: 'boolean', description: 'Show blueprint/USGS-style graticule/grid overlay when supported.' },
     background_color: { type: 'string', description: 'Hex color for the poster background/border area.' },
     route_color:      { type: 'string', description: 'Hex color for the route line. Should contrast strongly with land_color.' },
     water_color:      { type: 'string', description: 'Hex color for water features (lakes, rivers, ocean).' },
@@ -78,14 +110,14 @@ const STYLE_SCHEMA = {
     show_place_labels: { type: 'boolean', description: 'Show city/town place labels on the map.' },
 
     // ── Typography ──
-    font_family:      { type: 'string', enum: ['Big Shoulders Display','Fjalla One','Oswald','Bebas Neue','DM Sans','Space Grotesk','Outfit','Work Sans','Playfair Display','Cormorant Garamond','Libre Baskerville','DM Serif Display'], description: 'Title font. Editorial = Playfair Display, modern = DM Sans/Space Grotesk, bold = Big Shoulders/Bebas Neue, classic = DM Serif Display.' },
-    body_font_family: { type: 'string', enum: ['Big Shoulders Display','Fjalla One','Oswald','Bebas Neue','DM Sans','Space Grotesk','Outfit','Work Sans','Playfair Display','Cormorant Garamond','Libre Baskerville','DM Serif Display'], description: 'Body/stats font. Usually a clean sans-serif like DM Sans or Work Sans.' },
+    font_family:      { type: 'string', enum: VALID_FONTS, description: 'Title font. Editorial = Playfair Display, modern = DM Sans/Space Grotesk, bold = Big Shoulders/Bebas Neue, classic = DM Serif Display.' },
+    body_font_family: { type: 'string', enum: VALID_FONTS, description: 'Body/stats font. Usually a clean sans-serif like DM Sans or Work Sans.' },
 
     // ── Layout & Chrome ──
-    label_position:   { type: 'string', enum: ['bottom','top','overlay'], description: 'Where the text label band goes.' },
-    border_style:     { type: 'string', enum: ['thin','thick','none'], description: 'Poster border style.' },
+    label_position:   { type: 'string', enum: VALID_LABEL_POS, description: 'Where the text label band goes.' },
+    border_style:     { type: 'string', enum: VALID_BORDERS, description: 'Poster border style.' },
     padding_factor:   { type: 'number', description: 'Map padding 0.05-0.3. Lower = tighter crop. 0.08-0.12 for city networks, 0.15-0.2 for linear trails.' },
-    print_size:       { type: 'string', enum: ['8x12','12x18','16x24','20x30','24x36','32x48'], description: 'Print size (portrait orientation).' },
+    print_size:       { type: 'string', enum: VALID_SIZES, description: 'Print size (portrait orientation).' },
 
     // ── Poster Text ──
     trail_name:       { type: 'string', description: 'Override title text on the poster. Leave empty to use map title.' },
@@ -115,7 +147,7 @@ const STYLE_SCHEMA = {
     elevation_profile_height: { type: 'number', description: 'Profile chart height as % of map area (8-40). Default 22.' },
 
     // ── Tile Effects (post-processing) ──
-    tile_effect:      { type: 'string', enum: ['none','duotone','posterize','layer-color'], description: 'Post-processing effect on base tiles. duotone = two-tone wash, posterize = reduced colors, layer-color = tint shadow/mid/highlight independently.' },
+    tile_effect:      { type: 'string', enum: VALID_EFFECTS, description: 'Post-processing effect on base tiles. duotone = two-tone wash, posterize = reduced colors, layer-color = tint shadow/mid/highlight independently.' },
     tile_grain:       { type: 'number', description: 'Film grain overlay 0-1. Subtle grain (0.05-0.15) adds texture.' },
     tile_contrast:    { type: 'number', description: 'Tile contrast adjustment -1 to 1.' },
     tile_saturation:  { type: 'number', description: 'Tile saturation adjustment -1 to 1. Negative = more muted.' },
@@ -158,15 +190,16 @@ Given a route's geographic context, you return a complete StyleConfig that produ
 
 ## STRICT Value Constraints (you MUST use these exact strings)
 
-preset MUST be one of: "minimalist", "topographic", "route-only", "road-network", "contour-art", "natural-topo"
-color_theme MUST be one of: "chalk", "topaz", "dusk", "obsidian", "forest", "midnight", "editorial", "bauhaus", "vintage", "brutalist", "risograph", "blueprint", "kertok", "mid-century", "topo-art", "dark-sky"
-base_tile_style MUST be one of: "carto-light", "carto-dark"
-font_family MUST be one of: "Big Shoulders Display", "Fjalla One", "Oswald", "Bebas Neue", "DM Sans", "Space Grotesk", "Outfit", "Work Sans", "Playfair Display", "Cormorant Garamond", "Libre Baskerville", "DM Serif Display"
+preset MUST be one of: ${VALID_PRESETS.map(value => `"${value}"`).join(', ')}
+color_theme MUST be one of: ${VALID_THEMES.map(value => `"${value}"`).join(', ')}
+composition MUST be one of: ${VALID_COMPOSITIONS.map(value => `"${value}"`).join(', ')}
+base_tile_style MUST be one of: ${VALID_TILES.map(value => `"${value}"`).join(', ')}
+font_family MUST be one of: ${VALID_FONTS.map(value => `"${value}"`).join(', ')}
 body_font_family: same enum as font_family
-border_style MUST be one of: "thin", "thick", "none"
-label_position MUST be one of: "bottom", "top", "overlay"
-print_size MUST be one of: "8x12", "12x18", "16x24", "20x30", "24x36", "32x48"
-tile_effect MUST be one of: "none", "duotone", "posterize", "layer-color"
+border_style MUST be one of: ${VALID_BORDERS.map(value => `"${value}"`).join(', ')}
+label_position MUST be one of: ${VALID_LABEL_POS.map(value => `"${value}"`).join(', ')}
+print_size MUST be one of: ${VALID_SIZES.map(value => `"${value}"`).join(', ')}
+tile_effect MUST be one of: ${VALID_EFFECTS.map(value => `"${value}"`).join(', ')}
 
 Numeric ranges:
 - route_width: 1-6 (float)
@@ -267,15 +300,6 @@ Return a JSON array of 3 StyleConfig objects. Each should have a fundamentally d
 
 // ─── Sanitization / Validation ──────────────────────────────────────────────
 
-const VALID_PRESETS = ['minimalist','topographic','route-only','road-network','contour-art','natural-topo','stadia-watercolor','stadia-toner','native-toner','native-watercolor','alidade-smooth','alidade-smooth-dark']
-const VALID_THEMES = ['chalk','topaz','dusk','obsidian','forest','midnight','editorial','bauhaus','vintage','brutalist','risograph','blueprint','kertok','mid-century','topo-art','dark-sky']
-const VALID_TILES = ['carto-light','carto-dark','maptiler-outdoor','maptiler-topo','maptiler-winter']
-const VALID_FONTS = ['Big Shoulders Display','Fjalla One','Oswald','Bebas Neue','DM Sans','Space Grotesk','Outfit','Work Sans','Playfair Display','Cormorant Garamond','Libre Baskerville','DM Serif Display']
-const VALID_BORDERS = ['thin','thick','none']
-const VALID_LABEL_POS = ['bottom','top','overlay']
-const VALID_SIZES = ['8x12','12x18','16x24','20x30','24x36','32x48']
-const VALID_EFFECTS = ['none','duotone','posterize','layer-color']
-
 function clamp(val, min, max) { return Math.max(min, Math.min(max, val)) }
 
 function sanitizeStyleConfig(s) {
@@ -284,10 +308,12 @@ function sanitizeStyleConfig(s) {
   // Enum fields — fix or fall back to default
   if (!VALID_PRESETS.includes(out.preset)) out.preset = 'minimalist'
   if (!VALID_THEMES.includes(out.color_theme)) out.color_theme = 'chalk'
+  if (!VALID_COMPOSITIONS.includes(out.composition)) out.composition = THEME_COMPOSITIONS[out.color_theme] ?? 'editorial-tall'
+  if (typeof out.dark !== 'boolean') out.dark = DARK_THEMES.includes(out.color_theme)
+  if (typeof out.show_grid !== 'boolean') out.show_grid = out.color_theme === 'blueprint' || out.color_theme === 'blueprint-strava'
   if (!VALID_TILES.includes(out.base_tile_style)) {
     // Infer from theme darkness
-    const darkThemes = ['dusk','obsidian','midnight','blueprint','dark-sky']
-    out.base_tile_style = darkThemes.includes(out.color_theme) ? 'carto-dark' : 'carto-light'
+    out.base_tile_style = DARK_THEMES.includes(out.color_theme) ? 'carto-dark' : 'carto-light'
   }
   if (!VALID_FONTS.includes(out.font_family)) out.font_family = 'Big Shoulders Display'
   if (!VALID_FONTS.includes(out.body_font_family)) out.body_font_family = 'DM Sans'

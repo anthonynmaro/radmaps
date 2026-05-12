@@ -252,6 +252,7 @@
               :src="posterThumbnailUrl(map)!"
               :alt="map.title"
               class="w-full h-full object-cover"
+              @error="markPosterThumbnailFailed(map, posterThumbnailUrl(map))"
             />
 
             <!-- Otherwise: render a stylised poster preview -->
@@ -378,6 +379,7 @@
               :src="posterThumbnailUrl(map)!"
               :alt="map.title"
               class="w-full h-full object-cover"
+              @error="markPosterThumbnailFailed(map, posterThumbnailUrl(map))"
             />
             <div
               v-else
@@ -664,10 +666,15 @@
 </template>
 
 <script setup lang="ts">
-import { h, defineComponent, ref, computed, onMounted } from 'vue'
+import { h, defineComponent, ref, computed, onMounted, reactive } from 'vue'
 import { useRouter, useSupabaseClient, useSupabaseUser } from '#imports'
 import type { Order, PremadeMap, TrailMap } from '~/types'
 import { formatPrice } from '~/utils/products'
+import {
+  posterThumbnailFailureKey,
+  posterThumbnailUrl as resolvePosterThumbnailUrl,
+  type PosterThumbnailFailures,
+} from '~/utils/posterThumbnail'
 
 type DashboardMap = Pick<
   TrailMap,
@@ -736,6 +743,7 @@ const view = ref<'grid' | 'list'>('grid')
 const showDeleteModal = ref(false)
 const mapPendingDelete = ref<DashboardMap | null>(null)
 const deletingMapId = ref<string | null>(null)
+const failedPosterThumbnailUrls = reactive<PosterThumbnailFailures>({})
 
 const filters: { id: FilterId; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -827,7 +835,12 @@ const formatM = (m?: number) => {
 }
 
 const posterThumbnailUrl = (map: DashboardMap) =>
-  map.proof_render_url ?? map.thumbnail_url ?? map.render_url ?? null
+  resolvePosterThumbnailUrl(map, failedPosterThumbnailUrls)
+
+function markPosterThumbnailFailed(map: DashboardMap, url: string | null) {
+  if (!url) return
+  failedPosterThumbnailUrls[posterThumbnailFailureKey(map.id, url)] = true
+}
 
 function openMap(map: DashboardMap) {
   if (!map.id) return

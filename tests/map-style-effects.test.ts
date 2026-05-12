@@ -43,19 +43,20 @@ describe('map tile effects', () => {
     )
   })
 
-  it('swaps native toner background and ink colors for vector maps', () => {
+  it('ignores saved raster tile effects on native vector toner maps', () => {
     const config: StyleConfig = {
       ...DEFAULT_STYLE_CONFIG,
       preset: 'native-toner',
       background_color: '#FFFFFF',
       label_text_color: '#111111',
       tile_effect: 'invert',
+      show_roads: true,
     }
 
     const style = buildMapStyle(config, 'mapbox-test-token')
 
-    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#111111')
-    expect(layerById(style, 'nt-street')?.paint?.['line-color']).toBe('#FFFFFF')
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#FFFFFF')
+    expect(layerById(style, 'nt-street')?.paint?.['line-color']).toBe('#111111')
   })
 
   it('uses configured road color and opacity in Native Toner maps', () => {
@@ -113,6 +114,22 @@ describe('contour style requirements', () => {
     }, 'mapbox-test-token')
 
     expect(layerById(style, 'contour-art-water')?.paint?.['fill-color']).toBe('#0A2040')
+  })
+
+  it('applies contour-art major and minor weight controls in the browser contour path', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'contour-art',
+      contour_minor_width: 2,
+      contour_major_width: 2,
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 1.5, 14, 2.8,
+    ])
+    expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 2.6, 14, 5.6,
+    ])
   })
 
   it('treats contour art as contour-dependent even when a saved contour toggle is false', () => {
