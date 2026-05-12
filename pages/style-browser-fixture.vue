@@ -4,9 +4,11 @@
       <MapPreview
         :map="sampleMap"
         :style-config="styleConfig"
-        :editable="false"
+        :editable="editable"
         :render-mode="renderMode"
         :print-context="printContext"
+        @poster-text-override="onPosterTextOverride"
+        @poster-text-reset="onPosterTextReset"
       />
     </div>
   </main>
@@ -14,7 +16,7 @@
 
 <script setup lang="ts">
 import MapPreview from '~/components/map/MapPreview.vue'
-import { DEFAULT_STYLE_CONFIG, type StyleConfig, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
@@ -39,6 +41,7 @@ const width = typeof route.query.width === 'string' ? Number.parseInt(route.quer
 const height = typeof route.query.height === 'string' ? Number.parseInt(route.query.height, 10) : 780
 const renderMode = route.query.print === 'final' ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
+const editable = route.query.editable === 'true' || route.query.editable === '1'
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -62,7 +65,7 @@ const baseConfig: StyleConfig = {
   map_frozen: false,
 }
 
-const styleConfig: StyleConfig = {
+const initialStyleConfig: StyleConfig = {
   ...baseConfig,
   ...(theme
     ? {
@@ -91,7 +94,30 @@ const styleConfig: StyleConfig = {
   ...(gridScope ? { show_grid: true, grid_scope: gridScope } : {}),
 }
 
-const finalFraming = getPrintFraming(styleConfig.print_size ?? '24x36', 'final')
+const styleConfig = ref<StyleConfig>(initialStyleConfig)
+
+function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
+  const current = styleConfig.value.poster_text_overrides ?? {}
+  const existing = current[payload.slot] ?? {}
+  styleConfig.value = {
+    ...styleConfig.value,
+    poster_text_overrides: {
+      ...current,
+      [payload.slot]: { ...existing, ...payload.patch },
+    },
+  }
+}
+
+function onPosterTextReset(slot: PosterTextSlot) {
+  const current = { ...(styleConfig.value.poster_text_overrides ?? {}) }
+  delete current[slot]
+  styleConfig.value = {
+    ...styleConfig.value,
+    poster_text_overrides: Object.keys(current).length ? current : undefined,
+  }
+}
+
+const finalFraming = getPrintFraming(styleConfig.value.print_size ?? '24x36', 'final')
 const printContext = renderMode === 'print'
   ? {
       framing: finalFraming,
@@ -152,7 +178,7 @@ const sampleMap: TrailMap = {
     date: '2026-05-11',
     location: 'Kickapoo State Park',
   },
-  style_config: styleConfig,
+  style_config: initialStyleConfig,
   status: 'draft',
   created_at: '2026-05-11T00:00:00.000Z',
   updated_at: '2026-05-11T00:00:00.000Z',

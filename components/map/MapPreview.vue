@@ -63,7 +63,18 @@
       <div
         v-if="compositionDecor.sideRailLabel"
         class="composition-side-rail-label"
+        :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+        :contenteditable="editable ? 'true' : 'false'"
+        :suppressContentEditableWarning="true"
+        role="textbox"
+        aria-label="Side rail label"
+        enterkeyhint="done"
+        spellcheck="true"
         data-testid="composition-side-rail-label"
+        @focus="onSlotFocus($event, 'composition_side_rail')"
+        @blur="onSlotBlur($event, 'composition_side_rail')"
+        @click="onSlotClick($event, 'composition_side_rail')"
+        @keydown.enter.exact.prevent="finishActiveTextEdit"
       >{{ compositionDecor.sideRailLabel }}</div>
 
       <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
@@ -119,8 +130,19 @@
         <div
           v-if="compositionDecor.kicker"
           class="composition-kicker"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_kicker') }"
           :style="compositionKickerStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition kicker"
+          enterkeyhint="done"
+          spellcheck="true"
           data-testid="composition-kicker"
+          @focus="onSlotFocus($event, 'composition_kicker')"
+          @blur="onSlotBlur($event, 'composition_kicker')"
+          @click="onSlotClick($event, 'composition_kicker')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.kicker }}</div>
 
         <!-- Thin rule at top — only for bottom-positioned header -->
@@ -175,8 +197,19 @@
         <div
           v-if="compositionDecor.meta"
           class="composition-meta-line"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_meta') }"
           :style="compositionMetaStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition metadata"
+          enterkeyhint="done"
+          spellcheck="true"
           data-testid="composition-meta-line"
+          @focus="onSlotFocus($event, 'composition_meta')"
+          @blur="onSlotBlur($event, 'composition_meta')"
+          @click="onSlotClick($event, 'composition_meta')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.meta }}</div>
 
         <!-- Thin rule at bottom — only for top-positioned header -->
@@ -386,7 +419,18 @@
         <div
           v-if="compositionDecor.footerNote"
           class="composition-footer-note"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_footer') }"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition footer note"
+          enterkeyhint="done"
+          spellcheck="true"
           data-testid="composition-footer-note"
+          @focus="onSlotFocus($event, 'composition_footer')"
+          @blur="onSlotBlur($event, 'composition_footer')"
+          @click="onSlotClick($event, 'composition_footer')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.footerNote }}</div>
 
         <!-- Logo: footer-left position -->
@@ -944,6 +988,10 @@ const SLOT_LABELS: Record<PosterTextSlot, string> = {
   coordinates: 'Coordinates',
   start_pin_label: 'Start label',
   finish_pin_label: 'Finish label',
+  composition_kicker: 'Theme kicker',
+  composition_meta: 'Theme metadata',
+  composition_footer: 'Footer note',
+  composition_side_rail: 'Side rail label',
 }
 
 function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
@@ -979,6 +1027,10 @@ function defaultSlotText(slot: PosterTextSlot) {
   if (slot === 'date') return formattedDate.value
   if (slot === 'start_pin_label') return props.styleConfig.start_pin_label ?? 'Start'
   if (slot === 'finish_pin_label') return props.styleConfig.finish_pin_label ?? 'Finish'
+  if (slot === 'composition_kicker') return compositionDecorDefaults.value.kicker ?? ''
+  if (slot === 'composition_meta') return compositionDecorDefaults.value.meta ?? ''
+  if (slot === 'composition_footer') return compositionDecorDefaults.value.footerNote ?? ''
+  if (slot === 'composition_side_rail') return compositionDecorDefaults.value.sideRailLabel ?? ''
   return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''
 }
 
@@ -1294,7 +1346,7 @@ const coordinatesText = computed(() => textWithOverride('coordinates', coords.va
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 
-const compositionDecor = computed<CompositionDecor>(() => {
+const compositionDecorDefaults = computed<CompositionDecor>(() => {
   const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
   const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
   const date = dateText.value || 'undated'
@@ -1382,6 +1434,16 @@ const compositionDecor = computed<CompositionDecor>(() => {
       }
     default:
       return {}
+  }
+})
+
+const compositionDecor = computed<CompositionDecor>(() => {
+  const defaults = compositionDecorDefaults.value
+  return {
+    kicker: defaults.kicker != null ? textWithOverride('composition_kicker', defaults.kicker) : undefined,
+    meta: defaults.meta != null ? textWithOverride('composition_meta', defaults.meta) : undefined,
+    footerNote: defaults.footerNote != null ? textWithOverride('composition_footer', defaults.footerNote) : undefined,
+    sideRailLabel: defaults.sideRailLabel != null ? textWithOverride('composition_side_rail', defaults.sideRailLabel) : undefined,
   }
 })
 
@@ -1939,7 +2001,12 @@ const activeToolbarState = computed(() => {
     ? typography.value.titleWeight
     : slot === 'start_pin_label' || slot === 'finish_pin_label'
       ? '600'
-    : slot === 'occasion_text' || slot === 'location_text'
+    : slot === 'occasion_text' ||
+        slot === 'location_text' ||
+        slot === 'composition_kicker' ||
+        slot === 'composition_meta' ||
+        slot === 'composition_footer' ||
+        slot === 'composition_side_rail'
       ? typography.value.subWeight
       : typography.value.statsWeight
 
@@ -3904,6 +3971,7 @@ onUnmounted(() => {
 }
 .editable-text[contenteditable="true"] {
   -webkit-user-select: text;
+  pointer-events: auto;
   user-select: text;
 }
 .stat-custom-text {

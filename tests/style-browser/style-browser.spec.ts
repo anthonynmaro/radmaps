@@ -78,6 +78,25 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-map-badges')).toHaveCount(0)
   })
 
+  test('makes every composition text cue editable and removable', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
+
+    await expect(page.getByTestId('composition-kicker')).toHaveAttribute('contenteditable', 'true')
+    await expect(page.getByTestId('composition-meta-line')).toHaveAttribute('contenteditable', 'true')
+    await expect(page.getByTestId('composition-footer-note')).toHaveAttribute('contenteditable', 'true')
+    await expect(page.getByTestId('composition-side-rail-label')).toHaveAttribute('contenteditable', 'true')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(500)
+
+    await page.getByTestId('composition-kicker').fill('Edited field label')
+    await page.keyboard.press('Tab')
+    await expect(page.getByTestId('composition-kicker')).toContainText('EDITED FIELD LABEL')
+
+    await page.getByTestId('composition-footer-note').fill('')
+    await page.keyboard.press('Tab')
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
+  })
+
   test('renders thumbnail and final-print geometries from the same poster component', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 1300 })
     await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&width=720&height=1080')

@@ -77,6 +77,10 @@ export type PosterTextSlot =
   | 'coordinates'
   | 'start_pin_label'
   | 'finish_pin_label'
+  | 'composition_kicker'
+  | 'composition_meta'
+  | 'composition_footer'
+  | 'composition_side_rail'
 
 export interface PosterTextOverride {
   text?: string
