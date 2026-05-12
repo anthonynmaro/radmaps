@@ -854,6 +854,8 @@ let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
+let styleReloadCameraHold: MapCameraSnapshot | null = null
+let styleReloadCameraHoldTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -2798,6 +2800,59 @@ function effectiveBearing(cfg: StyleConfig = props.styleConfig): number {
   return cfg.map_3d ? (cfg.map_bearing ?? 0) : 0
 }
 
+type MapCameraSnapshot = {
+  center: [number, number]
+  zoom: number
+  pitch: number
+  bearing: number
+}
+
+function snapshotCurrentCamera(): MapCameraSnapshot | null {
+  if (!mapInstance) return null
+  const center = mapInstance.getCenter()
+  return {
+    center: [center.lng, center.lat],
+    zoom: mapInstance.getZoom(),
+    pitch: mapInstance.getPitch(),
+    bearing: mapInstance.getBearing(),
+  }
+}
+
+function restoreCameraAfterStyleReload(camera: MapCameraSnapshot | null) {
+  if (!mapInstance) return
+  if (camera) {
+    styleReloadCameraHold = camera
+    if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
+    styleReloadCameraHoldTimer = setTimeout(() => {
+      styleReloadCameraHold = null
+      styleReloadCameraHoldTimer = null
+    }, 1_500)
+    mapInstance.jumpTo(camera)
+    return
+  }
+  if (canUseSavedCamera()) {
+    mapInstance.jumpTo({
+      zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
+      center: props.styleConfig.map_center as [number, number],
+      pitch: effectivePitch(),
+      bearing: effectiveBearing(),
+    })
+  }
+}
+
+function publishDevCameraHandle() {
+  if (!import.meta.dev || typeof window === 'undefined') return
+  ;(window as unknown as {
+    __RADMAPS_MAP_CAMERA__?: {
+      get: () => MapCameraSnapshot | null
+      jumpTo: (camera: Partial<MapCameraSnapshot>) => void
+    }
+  }).__RADMAPS_MAP_CAMERA__ = {
+    get: snapshotCurrentCamera,
+    jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
+  }
+}
+
 onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
@@ -2828,6 +2883,7 @@ onMounted(async () => {
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
   })
+  publishDevCameraHandle()
 
   // Debounced view-change emitter so pan/zoom is auto-saved without flooding saves
   let viewSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -2857,7 +2913,9 @@ onMounted(async () => {
     suppressViewSave = true
     mapInstance.resize()
 
-    if (canUseSavedCamera()) {
+    if (styleReloadCameraHold) {
+      mapInstance.jumpTo(styleReloadCameraHold)
+    } else if (canUseSavedCamera()) {
       mapInstance.jumpTo({
         zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
         center: props.styleConfig.map_center as [number, number],
@@ -3183,6 +3241,7 @@ watch(
     if (needsFullReload) {
       // Clear tile cache when effect params change so stale processed tiles aren't reused
       if (tileKeyChanged) _tileCache.clear()
+      const cameraBeforeReload = snapshotCurrentCamera()
       mapReady.value = false
       if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
@@ -3192,15 +3251,8 @@ watch(
         populateSegmentSources()
         placePinMarkers()
         apply3DTerrain()
-        // setStyle() resets the viewport — restore frozen position before revealing the map
-        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
-          mapInstance!.jumpTo({
-            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
-            center: props.styleConfig.map_center as [number, number],
-            pitch: effectivePitch(),
-            bearing: effectiveBearing(),
-          })
-        }
+        // setStyle() can reset the viewport; layer toggles must not reframe the poster.
+        restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -3335,6 +3387,7 @@ watch(
     // source lineMetrics flag and the layer paint (line-gradient vs line-color).
     // A full style reload is required — same path as graph full-reload dependencies.
     if (isGradient && hadRanges !== hasRanges) {
+      const cameraBeforeReload = snapshotCurrentCamera()
       mapReady.value = false
       const newStyle = buildScaledMapStyle(props.styleConfig)
       mapInstance.setStyle(newStyle)
@@ -3343,14 +3396,7 @@ watch(
         populateSegmentSources()
         placePinMarkers()
         apply3DTerrain()
-        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
-          mapInstance!.jumpTo({
-            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
-            center: props.styleConfig.map_center as [number, number],
-            pitch: effectivePitch(),
-            bearing: effectiveBearing(),
-          })
-        }
+        restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -3850,8 +3896,17 @@ onUnmounted(() => {
   plotGhostMarker?.remove()
   document.removeEventListener('keydown', onPlotKeydown)
   cancelAnimationFrame(plotAnimFrame)
+  if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
   mapInstance?.remove()
   mapInstance = null
+  if (import.meta.dev && typeof window !== 'undefined') {
+    delete (window as unknown as {
+      __RADMAPS_MAP_CAMERA__?: {
+        get: () => MapCameraSnapshot | null
+        jumpTo: (camera: Partial<MapCameraSnapshot>) => void
+      }
+    }).__RADMAPS_MAP_CAMERA__
+  }
 })
 </script>
 

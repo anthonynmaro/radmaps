@@ -115,6 +115,29 @@ const initialStyleConfig: StyleConfig = {
 
 const styleConfig = ref<StyleConfig>(initialStyleConfig)
 
+onMounted(() => {
+  ;(window as unknown as {
+    __RADMAPS_STYLE_FIXTURE__?: {
+      getStyle: () => StyleConfig
+      setStyle: (patch: Partial<StyleConfig>) => void
+    }
+  }).__RADMAPS_STYLE_FIXTURE__ = {
+    getStyle: () => styleConfig.value,
+    setStyle: (patch) => {
+      styleConfig.value = { ...styleConfig.value, ...patch }
+    },
+  }
+})
+
+onUnmounted(() => {
+  delete (window as unknown as {
+    __RADMAPS_STYLE_FIXTURE__?: {
+      getStyle: () => StyleConfig
+      setStyle: (patch: Partial<StyleConfig>) => void
+    }
+  }).__RADMAPS_STYLE_FIXTURE__
+})
+
 function onOverlayUpdated(payload: { id: string; patch: Partial<TextOverlay> }) {
   const overlays = styleConfig.value.text_overlays ?? []
   styleConfig.value = {

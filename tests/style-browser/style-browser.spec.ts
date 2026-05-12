@@ -153,6 +153,50 @@ test.describe('style browser visual harness', () => {
     await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 1.4)
   })
 
+  test('preserves map camera when label toggles rebuild the style', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { get: () => unknown; jumpTo: (camera: unknown) => void }
+        __RADMAPS_STYLE_FIXTURE__?: { getStyle: () => { show_place_labels?: boolean }; setStyle: (patch: unknown) => void }
+      }
+      return Boolean(win.__RADMAPS_MAP_CAMERA__ && win.__RADMAPS_STYLE_FIXTURE__)
+    })).toBe(true)
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { jumpTo: (camera: { center: [number, number]; zoom: number }) => void }
+      }
+      win.__RADMAPS_MAP_CAMERA__.jumpTo({ center: [-87.66, 41.875], zoom: 12.25 })
+    })
+    await page.waitForTimeout(100)
+    const before = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__: { getStyle: () => { show_place_labels?: boolean }; setStyle: (patch: { show_place_labels: boolean }) => void }
+      }
+      win.__RADMAPS_STYLE_FIXTURE__.setStyle({ show_place_labels: !(win.__RADMAPS_STYLE_FIXTURE__.getStyle().show_place_labels !== false) })
+    })
+    await page.waitForTimeout(1_000)
+
+    const after = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+    expect(after.zoom).toBeCloseTo(before.zoom, 3)
+    expect(after.center[0]).toBeCloseTo(before.center[0], 5)
+    expect(after.center[1]).toBeCloseTo(before.center[1], 5)
+  })
+
   test('renders thumbnail and final-print geometries from the same poster component', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 1300 })
     await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&width=720&height=1080')
