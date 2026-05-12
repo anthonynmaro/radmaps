@@ -224,12 +224,17 @@
       >
         <div
           v-if="sideRailInsideMap"
-          class="composition-side-rail"
+          class="composition-side-rail composition-side-rail--left"
           data-testid="composition-side-rail"
         />
         <div
+          v-if="sideRailInsideMap"
+          class="composition-side-rail composition-side-rail--right"
+          data-testid="composition-side-rail-right"
+        />
+        <div
           v-if="compositionDecor.sideRailLabel && sideRailInsideMap"
-          class="composition-side-rail-label"
+          class="composition-side-rail-label composition-side-rail-label--left"
           :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
           :contenteditable="editable ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
@@ -3995,19 +4000,30 @@ onUnmounted(() => {
 
 .poster-composition--modernist-block .composition-side-rail {
   background: var(--label-bg-color, currentColor);
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+.poster-composition--modernist-block .composition-side-rail--left {
+  left: 0;
+  right: auto;
+  width: var(--composition-rule-left);
+  border-right: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-left: 0;
+}
+
+.poster-composition--modernist-block .composition-side-rail--right {
   left: auto;
   right: 0;
   width: var(--composition-rule-right);
   border-right: 0;
   border-left: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  opacity: 1;
-  mix-blend-mode: normal;
 }
 
-.poster-composition--modernist-block .composition-side-rail-label {
-  left: auto;
-  right: 0;
-  width: var(--composition-rule-right);
+.poster-composition--modernist-block .composition-side-rail-label--left {
+  left: 0;
+  right: auto;
+  width: var(--composition-rule-left);
 }
 
 .poster-composition--splits-grid .poster-footer-rule,
