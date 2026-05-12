@@ -430,13 +430,13 @@ const graphs: Record<StylePreset, LayerGraph> = {
     features: {
       ...vectorRouteFeatures,
       water: 'editable-vector',
-      roads: 'unsupported',
-      placeLabels: 'unsupported',
-      pois: 'unsupported',
+      roads: 'editable-vector',
+      placeLabels: 'editable-vector',
+      pois: 'editable-vector',
       contours: 'required',
       hillshade: 'unsupported',
     },
-    sources: ['mapbox-terrain-v2', 'route'],
+    sources: ['mapbox-terrain-v2', 'mapbox-streets', 'route'],
     requiredFields: { show_contours: true },
     layers: [
       { id: 'contour-art-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'] },

@@ -58,12 +58,12 @@
         data-testid="composition-star-field"
       />
       <div
-        v-if="composition.showSideRail"
+        v-if="composition.showSideRail && !sideRailInsideMap"
         class="composition-side-rail"
         data-testid="composition-side-rail"
       />
       <div
-        v-if="compositionDecor.sideRailLabel"
+        v-if="compositionDecor.sideRailLabel && !sideRailInsideMap"
         class="composition-side-rail-label"
         :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
         :contenteditable="editable ? 'true' : 'false'"
@@ -222,6 +222,27 @@
       <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle" data-testid="poster-map"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+        <div
+          v-if="sideRailInsideMap"
+          class="composition-side-rail"
+          data-testid="composition-side-rail"
+        />
+        <div
+          v-if="compositionDecor.sideRailLabel && sideRailInsideMap"
+          class="composition-side-rail-label"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Side rail label"
+          enterkeyhint="done"
+          spellcheck="true"
+          data-testid="composition-side-rail-label"
+          @focus="onSlotFocus($event, 'composition_side_rail')"
+          @blur="onSlotBlur($event, 'composition_side_rail')"
+          @click="onSlotClick($event, 'composition_side_rail')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.sideRailLabel }}</div>
         <div
           v-if="showMapGrid"
           class="composition-grid-overlay composition-grid-overlay--map"
@@ -1301,6 +1322,7 @@ const typography = computed(() => getPosterTypography(props.styleConfig))
 const layout = computed(() => getPosterLayout(props.styleConfig))
 
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
+const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block')
 
 interface CompositionDecor {
   kicker?: string
@@ -3900,18 +3922,27 @@ onUnmounted(() => {
 
 .composition-side-rail-label {
   position: absolute;
-  left: 2.15cqw;
-  top: 50%;
+  left: 0;
+  top: 0;
+  bottom: 0;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7cqw;
+  padding: 2cqh 0;
   color: currentColor;
   opacity: 0.32;
-  transform: translateY(-50%) rotate(-90deg);
+  transform: rotate(180deg);
   transform-origin: center;
   font-family: var(--composition-body-font, inherit);
   font-size: 0.82cqh;
   font-weight: 700;
   letter-spacing: 0.32em;
+  line-height: 1;
+  overflow: hidden;
   white-space: nowrap;
+  writing-mode: vertical-rl;
   pointer-events: none;
 }
 

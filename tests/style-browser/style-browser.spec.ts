@@ -179,16 +179,22 @@ test.describe('style browser visual harness', () => {
     const boxes = await page.evaluate(() => {
       const rail = document.querySelector<HTMLElement>('[data-testid="composition-side-rail"]')
       const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+      const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
       return {
         rail: rail?.getBoundingClientRect().toJSON(),
         map: map?.getBoundingClientRect().toJSON(),
+        poster: poster?.getBoundingClientRect().toJSON(),
         frameCount: document.querySelectorAll('[data-testid="poster-inset-frame"]').length,
       }
     })
 
     expect(boxes.rail).toBeTruthy()
     expect(boxes.map).toBeTruthy()
-    expect(boxes.map!.x).toBeGreaterThan(boxes.rail!.x + boxes.rail!.width)
+    expect(boxes.poster).toBeTruthy()
+    expect(Math.abs(boxes.rail!.x - boxes.map!.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(boxes.rail!.y - boxes.map!.y)).toBeLessThanOrEqual(1)
+    expect(Math.abs((boxes.rail!.y + boxes.rail!.height) - (boxes.map!.y + boxes.map!.height))).toBeLessThanOrEqual(1)
+    expect(Math.abs((boxes.map!.x + boxes.map!.width) - (boxes.poster!.x + boxes.poster!.width))).toBeLessThanOrEqual(1)
     expect(boxes.frameCount).toBe(0)
   })
 
@@ -236,8 +242,10 @@ test.describe('style browser visual harness', () => {
     expect(layout.rail).toBeTruthy()
     expect(layout.map).toBeTruthy()
     expect(layout.hasCanvas).toBe(true)
-    expect(layout.map!.x).toBeGreaterThan(layout.rail!.x + layout.rail!.width)
-    expect(layout.map!.x + layout.map!.width).toBeLessThan(layout.poster!.x + layout.poster!.width - 8)
+    expect(Math.abs(layout.rail!.x - layout.map!.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(layout.rail!.y - layout.map!.y)).toBeLessThanOrEqual(1)
+    expect(Math.abs((layout.rail!.y + layout.rail!.height) - (layout.map!.y + layout.map!.height))).toBeLessThanOrEqual(1)
+    expect(Math.abs((layout.map!.x + layout.map!.width) - (layout.poster!.x + layout.poster!.width))).toBeLessThanOrEqual(1)
 
     const styleSummary = await page.evaluate(() => {
       const nuxt = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
@@ -247,6 +255,30 @@ test.describe('style browser visual harness', () => {
       }
     })
     expect(styleSummary.theme).toBe('bold-modern')
+  })
+
+  test('keeps the Modernist editable side rail label fixed inside the rail', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1')
+
+    const label = page.getByTestId('composition-side-rail-label')
+    await label.fill('RADMAPS ROUTE OBJECT FIELD ARCHIVE')
+    await page.keyboard.press('Tab')
+
+    const boxes = await page.evaluate(() => {
+      const rail = document.querySelector<HTMLElement>('[data-testid="composition-side-rail"]')
+      const labelEl = document.querySelector<HTMLElement>('[data-testid="composition-side-rail-label"]')
+      return {
+        rail: rail?.getBoundingClientRect().toJSON(),
+        label: labelEl?.getBoundingClientRect().toJSON(),
+        writingMode: labelEl ? getComputedStyle(labelEl).writingMode : '',
+      }
+    })
+
+    expect(boxes.rail).toBeTruthy()
+    expect(boxes.label).toBeTruthy()
+    expect(boxes.writingMode).toBe('vertical-rl')
+    expect(boxes.label!.x).toBeGreaterThanOrEqual(boxes.rail!.x - 1)
+    expect(boxes.label!.x + boxes.label!.width).toBeLessThanOrEqual(boxes.rail!.x + boxes.rail!.width + 1)
   })
 
   test('keeps Mid-Century title band high contrast', async ({ page }) => {

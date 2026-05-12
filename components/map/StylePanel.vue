@@ -694,24 +694,6 @@
           <ColorRow v-if="sections.waterColorControl" label="Water" :value="local.water_color" @change="set('water_color', $event)" />
         </V4Card>
 
-        <V4Card title="Layout" hint="Composition controls poster chrome" :default-open="false">
-          <div class="grid grid-cols-2 gap-1.5">
-            <button
-              v-for="option in COMPOSITION_OPTIONS"
-              :key="option.id"
-              class="text-left cursor-pointer transition-all border-none"
-              style="border-radius: 8px; border: 1.5px solid; padding: 7px 8px;"
-              :style="(local.composition ?? activeThemeComposition) === option.id
-                ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
-                : 'background: white; border-color: #E7E5E4; color: #57534E;'"
-              @click="set('composition', option.id)"
-            >
-              <span class="block text-[10px] font-bold leading-tight">{{ option.label }}</span>
-              <span class="block text-[8px] leading-tight mt-1 opacity-60">{{ option.audience }}</span>
-            </button>
-          </div>
-        </V4Card>
-
         <V4Card title="Grid" hint="Optional poster or map overlay" :default-open="false">
           <ToggleRow label="Show grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
           <template v-if="local.show_grid">
@@ -1088,7 +1070,7 @@ import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
-import { COMPOSITION_OPTIONS, getPosterCompositionProfile } from '~/utils/posterCompositions'
+import { getPosterCompositionProfile } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
@@ -1715,8 +1697,6 @@ function themeFontPreview(theme: ThemeDefinition): string {
 }
 
 const activeThemeDefinition = computed(() => getThemeDefinition(local.color_theme ?? 'chalk'))
-const activeThemeComposition = computed(() => activeThemeDefinition.value?.composition ?? 'editorial-tall')
-
 const activeThemeTypography = computed(() =>
   THEME_FONT_NAME[local.color_theme ?? 'chalk'] ?? activeThemeDefinition.value?.font_family ?? 'Work Sans',
 )

@@ -49,7 +49,8 @@ describe('style layer graph contracts', () => {
     expect(getVisibleStyleControls('topographic').place_labels_opacity?.visible).toBe(false)
     expect(getVisibleStyleControls('topographic').water_color?.visible).toBe(false)
     expect(getVisibleStyleControls('native-watercolor').show_poi_labels?.visible).toBe(false)
-    expect(getVisibleStyleControls('contour-art').show_roads?.visible).toBe(false)
+    expect(getVisibleStyleControls('minimalist').show_poi_labels?.visible).toBe(false)
+    expect(getVisibleStyleControls('contour-art').show_roads?.visible).toBe(true)
   })
 
   it('does not expose destructive toggles for required preset features', () => {
@@ -67,7 +68,7 @@ describe('style layer graph contracts', () => {
   it('ignores unsupported saved values without deleting the stored intent', () => {
     const saved: StyleConfig = {
       ...DEFAULT_STYLE_CONFIG,
-      preset: 'contour-art',
+      preset: 'topographic',
       show_roads: true,
       roads_opacity: 0.2,
       show_poi_labels: true,
@@ -125,6 +126,34 @@ describe('style JSON matrix', () => {
 
     expect(layerIds(style)).toContain('contours-minor')
     expect(layerIds(style)).toContain('contours-major')
+  })
+
+  it('keeps optional roads, labels, and POIs editable for contour art presets', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'contour-art',
+      show_roads: true,
+      show_place_labels: true,
+      show_poi_labels: true,
+    }, 'mapbox-token')
+
+    expect(layerIds(style)).toContain('roads-major')
+    expect(layerIds(style)).toContain('roads-place-labels')
+    expect(layerIds(style)).toContain('roads-poi-labels')
+  })
+
+  it('lets contour art labels remain independent from the road-line toggle', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'contour-art',
+      show_roads: false,
+      show_place_labels: true,
+      show_poi_labels: true,
+    }, 'mapbox-token')
+
+    expect(layerIds(style)).not.toContain('roads-major')
+    expect(layerIds(style)).toContain('roads-place-labels')
+    expect(layerIds(style)).toContain('roads-poi-labels')
   })
 
   it('writes viewport scale metadata from graph layer declarations', () => {
