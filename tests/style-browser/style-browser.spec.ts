@@ -146,11 +146,21 @@ test.describe('style browser visual harness', () => {
     await expect(slider).toBeVisible()
     await slider.evaluate((input) => {
       const el = input as HTMLInputElement
-      el.value = '1.5'
+      el.value = '3'
       el.dispatchEvent(new Event('input', { bubbles: true }))
     })
 
-    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 1.4)
+    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 2.8)
+
+    const opacity = page.locator('.inline-text-toolbar .opacity-slider')
+    await expect(opacity).toBeVisible()
+    await opacity.evaluate((input) => {
+      const el = input as HTMLInputElement
+      el.value = '1'
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).opacity))).toBeGreaterThan(0.98)
   })
 
   test('preserves map camera when label toggles rebuild the style', async ({ page }) => {

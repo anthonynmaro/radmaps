@@ -75,12 +75,26 @@
           class="size-slider"
           type="range"
           min="0.5"
-          max="2"
+          max="3"
           step="0.05"
           :value="scale"
           @input="emitPatch({ scale: Number(($event.target as HTMLInputElement).value) })"
         />
         <span class="size-value">{{ Math.round(scale * 100) }}%</span>
+      </div>
+
+      <div class="toolbar-row size-row">
+        <span class="size-label">Opacity</span>
+        <input
+          class="opacity-slider"
+          type="range"
+          min="0.05"
+          max="1"
+          step="0.05"
+          :value="opacity"
+          @input="emitPatch({ opacity: Number(($event.target as HTMLInputElement).value) })"
+        />
+        <span class="size-value">{{ Math.round(opacity * 100) }}%</span>
       </div>
 
       <button v-if="canReset" class="toolbar-reset" @click="$emit('reset')">Reset to imported text</button>
@@ -114,6 +128,7 @@ const props = defineProps<{
   backgroundColor?: string
   supportsHighlight?: boolean
   scale: number
+  opacity: number
   bold: boolean
   italic: boolean
   canReset: boolean

@@ -13,6 +13,7 @@
       :background-color="activeToolbarState.backgroundColor"
       :supports-highlight="activeToolbarState.supportsHighlight"
       :scale="activeToolbarState.scale"
+      :opacity="activeToolbarState.opacity"
       :bold="activeToolbarState.bold"
       :italic="activeToolbarState.italic"
       :can-reset="activeToolbarState.canReset"
@@ -369,7 +370,7 @@
                 :font-size="pinLabelFontSize(pin.id)"
                 :font-family="pinLabelFontFamily(pin.id)"
                 :fill="pinLabelColor(pin.id)"
-                :opacity="pin.opacity"
+                :opacity="pinLabelOpacity(pin.id, pin.opacity)"
                 :stroke="styleConfig.background_color ?? '#FFFFFF'"
                 stroke-width="3"
                 paint-order="stroke fill"
@@ -1544,6 +1545,10 @@ function effectiveSlotScale(slot: PosterTextSlot, fallback: number): number {
   return slotOverride(slot).scale ?? fallback
 }
 
+function effectiveSlotOpacity(slot: PosterTextSlot, fallback: number): number {
+  return slotOverride(slot).opacity ?? fallback
+}
+
 function effectiveSlotWeight(slot: PosterTextSlot, fallback: string): string {
   const bold = slotOverride(slot).bold
   if (bold == null) return fallback
@@ -1591,6 +1596,7 @@ const trailNameStyle = computed(() => ({
   fontSize: `${typography.value.titleSize * effectiveSlotScale('trail_name', props.styleConfig.title_scale ?? 1.0)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
+  opacity: String(effectiveSlotOpacity('trail_name', 1)),
   textAlign: composition.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
   padding: '0',
@@ -1605,7 +1611,7 @@ const locationLineStyle = computed(() => ({
   letterSpacing: typography.value.subTracking,
   fontSize: `${typography.value.subSize * effectiveSlotScale('location_text', props.styleConfig.subtitle_scale ?? 1.0)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
-  opacity: '0.5',
+  opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
   textAlign: composition.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
   margin: '0',
@@ -1624,7 +1630,7 @@ const compositionKickerStyle = computed(() => ({
     : '0.24em',
   color: effectiveSlotColor('composition_kicker', fg.value),
   backgroundColor: slotOverride('composition_kicker').bg_color ?? 'transparent',
-  opacity: composition.value.id === 'brutalist-slab' ? '0.92' : '0.64',
+  opacity: String(effectiveSlotOpacity('composition_kicker', composition.value.id === 'brutalist-slab' ? 0.92 : 0.64)),
 }))
 
 const compositionMetaStyle = computed(() => ({
@@ -1635,7 +1641,7 @@ const compositionMetaStyle = computed(() => ({
   letterSpacing: '0.18em',
   color: effectiveSlotColor('composition_meta', fg.value),
   backgroundColor: slotOverride('composition_meta').bg_color ?? 'transparent',
-  opacity: '0.52',
+  opacity: String(effectiveSlotOpacity('composition_meta', 0.52)),
 }))
 
 const compositionFooterNoteStyle = computed(() => ({
@@ -1645,6 +1651,7 @@ const compositionFooterNoteStyle = computed(() => ({
   fontSize: `${0.62 * effectiveSlotScale('composition_footer', 1)}cqh`,
   color: effectiveSlotColor('composition_footer', fg.value),
   backgroundColor: slotOverride('composition_footer').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_footer', 0.36)),
 }))
 
 const compositionSideRailLabelStyle = computed(() => ({
@@ -1654,6 +1661,7 @@ const compositionSideRailLabelStyle = computed(() => ({
   fontSize: `${0.82 * effectiveSlotScale('composition_side_rail', 1)}cqh`,
   color: effectiveSlotColor('composition_side_rail', fg.value),
   backgroundColor: slotOverride('composition_side_rail').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_side_rail', 0.32)),
 }))
 
 const ruleStyle = computed(() => ({
@@ -1753,6 +1761,7 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   letterSpacing: '-0.01em',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
+  opacity: String(effectiveSlotOpacity(slot, 1)),
   display: 'block',
   }
 }
@@ -1766,7 +1775,7 @@ function statUnitStyleFor(slot: PosterTextSlot) {
   letterSpacing: '0.18em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor(slot, fg.value),
-  opacity: '0.45',
+  opacity: String(effectiveSlotOpacity(slot, 0.45)),
   display: 'block',
   marginTop: '0.55cqh',
   }
@@ -1781,7 +1790,7 @@ function coordStyleFor(slot: PosterTextSlot) {
   letterSpacing: '0.04em',
   lineHeight: '1.45',
   color: effectiveSlotColor(slot, fg.value),
-  opacity: '0.65',
+  opacity: String(effectiveSlotOpacity(slot, 0.65)),
   display: 'block',
   whiteSpace: 'pre-line' as const,
   }
@@ -1821,6 +1830,10 @@ function pinLabelItalic(pin: 'start' | 'finish') {
   return effectiveSlotItalic(pinSlot(pin))
 }
 
+function pinLabelOpacity(pin: 'start' | 'finish', fallback: number) {
+  return effectiveSlotOpacity(pinSlot(pin), fallback)
+}
+
 const dividerStyle = computed(() => ({
   width: '1px',
   height: '3cqh',
@@ -1838,7 +1851,7 @@ const occasionStyle = computed(() => ({
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
-  opacity: '0.5',
+  opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
   textAlign: 'center' as const,
   position: 'absolute' as const,
   left: '50%',
@@ -2086,7 +2099,8 @@ const activeToolbarState = computed(() => {
       fontFamily: overlay.font_family,
       color: overlay.color,
       backgroundColor: overlay.bg_color || '',
-      scale: Math.max(0.5, Math.min(2, overlay.font_size / 2)),
+      scale: Math.max(0.5, Math.min(3, overlay.font_size / 2)),
+      opacity: overlay.opacity,
       bold: overlay.bold,
       italic: overlay.italic ?? false,
       supportsHighlight: true,
@@ -2121,6 +2135,7 @@ const activeToolbarState = computed(() => {
     color: override.color ?? fg.value,
     backgroundColor: override.bg_color ?? '',
     scale: effectiveSlotScale(slot, legacySlotScale(slot)),
+    opacity: effectiveSlotOpacity(slot, legacySlotOpacity(slot)),
     bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,
     italic: override.italic ?? false,
     supportsHighlight: false,
@@ -2133,6 +2148,17 @@ function legacySlotScale(slot: PosterTextSlot) {
   if (slot === 'occasion_text') return props.styleConfig.occasion_scale ?? 1
   if (slot === 'location_text') return props.styleConfig.subtitle_scale ?? 1
   if (slot === 'start_pin_label' || slot === 'finish_pin_label') return 1
+  return 1
+}
+
+function legacySlotOpacity(slot: PosterTextSlot) {
+  if (slot === 'location_text' || slot === 'occasion_text') return 0.5
+  if (slot === 'composition_kicker') return composition.value.id === 'brutalist-slab' ? 0.92 : 0.64
+  if (slot === 'composition_meta') return 0.52
+  if (slot === 'composition_footer') return 0.36
+  if (slot === 'composition_side_rail') return 0.32
+  if (slot === 'date' || slot === 'coordinates') return 0.65
+  if (slot === 'distance' || slot === 'elevation_gain') return 1
   return 1
 }
 
@@ -2150,6 +2176,7 @@ function applyToolbarPatch(patch: PosterTextOverride) {
   if (patch.color) overlayPatch.color = patch.color
   if (patch.bg_color != null) overlayPatch.bg_color = patch.bg_color || undefined
   if (patch.scale != null) overlayPatch.font_size = Number((patch.scale * 2).toFixed(2))
+  if (patch.opacity != null) overlayPatch.opacity = patch.opacity
   if (patch.bold != null) overlayPatch.bold = patch.bold
   if (patch.italic != null) overlayPatch.italic = patch.italic
   emit('overlay-updated', { id: target.id, patch: overlayPatch })

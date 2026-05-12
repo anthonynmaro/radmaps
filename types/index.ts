@@ -88,6 +88,7 @@ export interface PosterTextOverride {
   color?: string
   bg_color?: string
   scale?: number
+  opacity?: number
   bold?: boolean
   italic?: boolean
 }
