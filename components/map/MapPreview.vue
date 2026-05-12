@@ -1422,7 +1422,6 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       return {
         kicker: 'Edition 01 / 50',
         meta: 'Two-color trail print',
-        footerNote: 'Overprint grain · limited run',
       }
     case 'blueprint-grid':
       return {

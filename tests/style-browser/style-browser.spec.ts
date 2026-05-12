@@ -73,6 +73,10 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-kicker')).toContainText('Department')
     await expect(page.getByTestId('composition-footer-note')).toBeVisible()
 
+    await page.goto('/style-browser-fixture?composition=riso-stack&theme=risograph')
+    await expect(page.getByTestId('composition-kicker')).toContainText('Edition')
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
+
     await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
     await expect(page.getByTestId('composition-footer-note')).toContainText('UNCOATED')
     await expect(page.getByTestId('composition-map-badges')).toHaveCount(0)
