@@ -169,6 +169,7 @@ const {
   renderUrl: latestThumbnailUrl,
   error: thumbnailRenderError,
   isRendering: thumbnailRendering,
+  retryAfterSeconds: thumbnailRetryAfterSeconds,
 } = useMapRenderer(mapId)
 
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
@@ -410,6 +411,8 @@ const sharePreparing = ref(false)
 
 const THUMBNAIL_RENDER_IDLE_DELAY_MS = 7000
 const THUMBNAIL_RENDER_MIN_INTERVAL_MS = 30_000
+const THUMBNAIL_RENDER_RATE_LIMIT_FALLBACK_RETRY_MS = 5 * 60_000
+const THUMBNAIL_RENDER_RETRY_BUFFER_MS = 5000
 
 let thumbnailTimer: ReturnType<typeof setTimeout> | null = null
 let thumbnailLastRenderedAt = 0
@@ -428,9 +431,25 @@ function scheduleEditorThumbnailSnapshot(delayMs = THUMBNAIL_RENDER_IDLE_DELAY_M
   clearThumbnailTimer()
   thumbnailTimer = setTimeout(() => {
     refreshEditorThumbnailSnapshot('idle').catch((err) => {
+      const retryDelayMs = thumbnailRetryDelayMs(err)
+      if (retryDelayMs != null) {
+        scheduleEditorThumbnailSnapshot(retryDelayMs)
+      }
       console.warn('[thumbnail] idle refresh failed:', err instanceof Error ? err.message : err)
     })
   }, delayMs)
+}
+
+function thumbnailRetryDelayMs(err: unknown): number | null {
+  const retryAfter = thumbnailRetryAfterSeconds.value
+  if (Number.isFinite(retryAfter) && retryAfter != null && retryAfter > 0) {
+    return retryAfter * 1000 + THUMBNAIL_RENDER_RETRY_BUFFER_MS
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  if (/too many requests|rate limit|429/i.test(message)) {
+    return THUMBNAIL_RENDER_RATE_LIMIT_FALLBACK_RETRY_MS
+  }
+  return null
 }
 
 async function persistCurrentStyleNow() {
@@ -488,7 +507,7 @@ async function refreshEditorThumbnailSnapshot(reason: 'idle' | 'share') {
   thumbnailRenderError.value = null
   try {
     await persistCurrentStyleNow()
-    await triggerThumbnailRender()
+    await triggerThumbnailRender({ intent: reason === 'share' ? 'share' : 'editor-thumbnail' })
     await waitForThumbnailRender()
     if (latestThumbnailUrl.value && mapData.value) {
       mapData.value.thumbnail_url = latestThumbnailUrl.value
