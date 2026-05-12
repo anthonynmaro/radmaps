@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLOR_THEMES, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
+import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
 import {
   ALL_COLOR_THEME_IDS,
   COMPOSITION_IDS,
@@ -27,6 +27,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       expect(typeof theme.map_defaults.show_grid, theme.id).toBe('boolean')
       if (theme.map_defaults.show_contours) {
         expect(theme.map_defaults.contour_detail, theme.id).toBeGreaterThanOrEqual(5)
+        expect(theme.map_defaults.contour_major_width, theme.id).toBe(DEFAULT_CONTOUR_MAJOR_WIDTH)
       }
       if (theme.map_defaults.show_grid) {
         expect(theme.map_defaults.grid_opacity, theme.id).toBe(0.2)

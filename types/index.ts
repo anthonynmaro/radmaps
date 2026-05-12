@@ -94,6 +94,8 @@ export interface PosterTextOverride {
 
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
 
+export const DEFAULT_CONTOUR_MAJOR_WIDTH = 0.5
+
 // ─── Text Overlays ────────────────────────────────────────────────────────────
 
 export type TextOverlayAlignment = 'left' | 'center' | 'right'
@@ -181,7 +183,7 @@ export interface StyleConfig {
   contour_opacity: number
   contour_detail: number       // 0–5 → maplibre-contour threshold level; higher = finer intervals
   contour_minor_width: number  // line width multiplier for minor contours (default 1.0)
-  contour_major_width: number  // line width multiplier for major contours (default 1.0)
+  contour_major_width: number  // line width multiplier for major contours (default 0.5)
   show_elevation_labels: boolean
   // Hillshade (requires Mapbox Terrain DEM v1)
   show_hillshade: boolean
@@ -314,7 +316,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   contour_opacity: 0.75,
   contour_detail: 3,
   contour_minor_width: 1.0,
-  contour_major_width: 1.0,
+  contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
   show_elevation_labels: false,
   show_hillshade: false,
   hillshade_intensity: 0.5,

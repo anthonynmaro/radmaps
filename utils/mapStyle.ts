@@ -1,4 +1,4 @@
-import type { StyleConfig, TrailSegment } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH, type StyleConfig, type TrailSegment } from '~/types'
 import {
   CIRCLE_SCALE_PROPERTIES,
   LINE_SCALE_PROPERTIES,
@@ -272,7 +272,7 @@ export function contourMidLineWidthExpression(config: StyleConfig): unknown[] {
 }
 
 export function contourMajorLineWidthExpression(config: StyleConfig): unknown[] {
-  const weight = config.contour_major_width ?? 1
+  const weight = config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH
   if (config.preset === 'contour-art') {
     return ['interpolate', ['linear'], ['zoom'], 5, 1.3 * weight, 14, 2.8 * weight]
   }

@@ -1,4 +1,4 @@
-import { COLOR_THEMES, type ColorTheme, type CompositionId, type StyleConfig, type ThemeDefinition } from '~/types'
+import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, type ColorTheme, type CompositionId, type StyleConfig, type ThemeDefinition } from '~/types'
 
 export const COMPOSITION_IDS = [
   'editorial-tall',
@@ -24,7 +24,10 @@ type RefinedThemeDefinition = ThemeDefinition & {
 }
 
 function mapDefaults(defaults: Partial<StyleConfig>): Partial<StyleConfig> {
-  return defaults
+  return {
+    ...defaults,
+    ...(defaults.show_contours ? { contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH } : {}),
+  }
 }
 
 export const REFINED_THEMES = [
@@ -213,7 +216,7 @@ export const REFINED_THEMES = [
       contour_detail: 6,
       contour_opacity: 0.38,
       contour_minor_width: 0.85,
-      contour_major_width: 1.15,
+      contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
       show_grid: false,
     }),
   },

@@ -134,6 +134,25 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
   })
 
+  test('applies inline size edits to themed composition text', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&editable=1')
+
+    const meta = page.getByTestId('composition-meta-line')
+    await expect(meta).toBeVisible()
+    const before = await meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))
+
+    await meta.click({ force: true })
+    const slider = page.locator('.inline-text-toolbar .size-slider')
+    await expect(slider).toBeVisible()
+    await slider.evaluate((input) => {
+      const el = input as HTMLInputElement
+      el.value = '1.5'
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 1.4)
+  })
+
   test('renders thumbnail and final-print geometries from the same poster component', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 1300 })
     await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&width=720&height=1080')

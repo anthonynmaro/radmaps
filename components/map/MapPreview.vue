@@ -66,6 +66,7 @@
         v-if="compositionDecor.sideRailLabel && !sideRailInsideMap"
         class="composition-side-rail-label"
         :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+        :style="compositionSideRailLabelStyle"
         :contenteditable="editable ? 'true' : 'false'"
         :suppressContentEditableWarning="true"
         role="textbox"
@@ -236,6 +237,7 @@
           v-if="compositionDecor.sideRailLabel && sideRailInsideMap"
           class="composition-side-rail-label composition-side-rail-label--left"
           :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+          :style="compositionSideRailLabelStyle"
           :contenteditable="editable ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -449,6 +451,7 @@
           v-if="compositionDecor.footerNote"
           class="composition-footer-note"
           :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_footer') }"
+          :style="compositionFooterNoteStyle"
           :contenteditable="editable ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -1610,21 +1613,45 @@ const locationLineStyle = computed(() => ({
 }))
 
 const compositionKickerStyle = computed(() => ({
-  fontFamily: typography.value.subFont,
-  fontWeight: typography.value.subWeight,
+  fontFamily: effectiveSlotFont('composition_kicker', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_kicker', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_kicker'),
+  fontSize: `${0.88 * effectiveSlotScale('composition_kicker', 1)}cqh`,
   letterSpacing: composition.value.id === 'editorial-tall' || composition.value.id === 'botanical-plate'
     ? '0.08em'
     : '0.24em',
-  color: fg.value,
+  color: effectiveSlotColor('composition_kicker', fg.value),
+  backgroundColor: slotOverride('composition_kicker').bg_color ?? 'transparent',
   opacity: composition.value.id === 'brutalist-slab' ? '0.92' : '0.64',
 }))
 
 const compositionMetaStyle = computed(() => ({
-  fontFamily: typography.value.subFont,
-  fontWeight: typography.value.subWeight,
+  fontFamily: effectiveSlotFont('composition_meta', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_meta', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_meta'),
+  fontSize: `${0.72 * effectiveSlotScale('composition_meta', 1)}cqh`,
   letterSpacing: '0.18em',
-  color: fg.value,
+  color: effectiveSlotColor('composition_meta', fg.value),
+  backgroundColor: slotOverride('composition_meta').bg_color ?? 'transparent',
   opacity: '0.52',
+}))
+
+const compositionFooterNoteStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_footer', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_footer', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_footer'),
+  fontSize: `${0.62 * effectiveSlotScale('composition_footer', 1)}cqh`,
+  color: effectiveSlotColor('composition_footer', fg.value),
+  backgroundColor: slotOverride('composition_footer').bg_color ?? 'transparent',
+}))
+
+const compositionSideRailLabelStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_side_rail', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_side_rail', '700'),
+  fontStyle: effectiveSlotItalic('composition_side_rail'),
+  fontSize: `${0.82 * effectiveSlotScale('composition_side_rail', 1)}cqh`,
+  color: effectiveSlotColor('composition_side_rail', fg.value),
+  backgroundColor: slotOverride('composition_side_rail').bg_color ?? 'transparent',
 }))
 
 const ruleStyle = computed(() => ({

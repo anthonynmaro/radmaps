@@ -37,6 +37,7 @@ describe('theme application', () => {
     expect(next.color_theme).toBe('midcentury-travel')
     expect(next.preset).toBe('contour-art')
     expect(next.contour_detail).toBe(5)
+    expect(next.contour_major_width).toBe(0.5)
     expect(next.background_color).toBe('#E8DAB8')
     expect(next.label_bg_color).toBe('#1F3325')
     expect(next.label_text_color).toBe('#F0E5C5')

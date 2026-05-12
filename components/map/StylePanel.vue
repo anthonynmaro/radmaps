@@ -427,8 +427,10 @@
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
           </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <ToggleRow v-if="sections.contourToggle" label="Contour lines" :value="local.show_contours" @change="set('show_contours', $event)" />
+        </V4Card>
+
+        <V4Card v-if="sections.contourToggle || sections.contourDetails || sections.elevationProfileToggle" title="Contour Lines" :default-open="false">
+          <ToggleRow v-if="sections.contourToggle" label="Show contours" :value="local.show_contours" @change="setContours($event)" />
           <template v-if="sections.contourDetails">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs" style="color: #44403C;">Minor / Major color</span>
@@ -444,7 +446,7 @@
               @change="set('contour_detail', $event)" />
             <SliderRow label="Minor weight" :value="local.contour_minor_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
               :display="(v: number) => v + '×'" @change="set('contour_minor_width', $event)" />
-            <SliderRow label="Major weight" :value="local.contour_major_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
+            <SliderRow label="Major weight" :value="local.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH" :min="0.25" :max="2.5" :step="0.25"
               :display="(v: number) => v + '×'" @change="set('contour_major_width', $event)" />
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
@@ -1064,7 +1066,7 @@
 
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
-import { COLOR_THEMES } from '~/types'
+import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
@@ -1379,6 +1381,15 @@ function set3DTerrain(enabled: boolean) {
   local.map_pitch = enabled ? ((local.map_pitch ?? 0) > 0 ? local.map_pitch : 45) : 0
   local.map_bearing = enabled ? (local.map_bearing ?? 0) : 0
   local.terrain_exaggeration = local.terrain_exaggeration ?? 1.5
+  emit('update:modelValue', { ...local })
+}
+
+function setContours(enabled: boolean) {
+  local.show_contours = enabled
+  if (enabled && (local.contour_major_width == null || local.contour_major_width === 1)) {
+    local.contour_major_width = DEFAULT_CONTOUR_MAJOR_WIDTH
+  }
+  local.contour_minor_width = local.contour_minor_width ?? 1
   emit('update:modelValue', { ...local })
 }
 
