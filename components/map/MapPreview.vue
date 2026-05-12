@@ -33,7 +33,7 @@
 
       <!-- ── Inset frame (optional) ───────────────────────────────────────── -->
       <div
-        v-if="styleConfig.border_style !== 'none'"
+        v-if="showPosterInsetFrame"
         class="poster-inset-frame absolute z-20 pointer-events-none"
         :style="frameStyle"
         data-testid="poster-inset-frame"
@@ -193,18 +193,6 @@
           :style="gridOverlayStyle"
           data-testid="composition-map-grid-overlay"
         />
-        <div
-          v-if="compositionDecor.mapBadges.length"
-          class="composition-map-badges"
-          :class="`composition-map-badges--${composition.id}`"
-          data-testid="composition-map-badges"
-        >
-          <span
-            v-for="badge in compositionDecor.mapBadges"
-            :key="badge"
-            class="composition-map-badge"
-          >{{ badge }}</span>
-        </div>
 
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
@@ -1250,7 +1238,6 @@ const composition = computed(() => getPosterCompositionProfile(props.styleConfig
 interface CompositionDecor {
   kicker?: string
   meta?: string
-  mapBadges: string[]
   footerNote?: string
   sideRailLabel?: string
 }
@@ -1318,48 +1305,41 @@ const compositionDecor = computed<CompositionDecor>(() => {
       return {
         kicker: 'No. 01 — A field record',
         meta: `${location} · ${date}`,
-        mapBadges: [],
         footerNote: 'Drawn from route telemetry and terrain data',
       }
     case 'park-quad':
       return {
         kicker: 'United States · Department of the Interior',
         meta: 'Geological Survey · 7.5-minute series',
-        mapBadges: ['SCALE 1:24,000', 'CONTOUR INTERVAL'],
         footerNote: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
       }
     case 'travel-banner':
       return {
         kicker: 'Visit · Explore · Return',
         meta: 'Souvenir route poster',
-        mapBadges: ['VISIT', 'No. 12 / 50'],
       }
     case 'riso-stack':
       return {
         kicker: 'Edition 01 / 50',
         meta: 'Two-color trail print',
-        mapBadges: ['RISOGRAPH'],
         footerNote: 'Overprint grain · limited run',
       }
     case 'blueprint-grid':
       return {
         kicker: 'DWG · RM-001',
         meta: 'SHEET 01 / 01 · DATUM WGS84',
-        mapBadges: ['SCALE', 'REV A.0'],
         footerNote: 'Grid overlay · route geometry locked to print frame',
       }
     case 'blueprint-strava':
       return {
         kicker: 'STRAVA FILE · ACTIVITY',
         meta: `${date} · SHEET 01 / 01`,
-        mapBadges: ['MOVING TIME', 'ELEVATION'],
         footerNote: 'Distance · gain · coordinates · route trace',
       }
     case 'journal-spread':
       return {
         kicker: 'IX · MMXXVI — A field study',
         meta: 'Annotated trail specimen',
-        mapBadges: ['FIELD NOTE'],
         footerNote: `${distance} · ${gain} · fair / clear`,
         sideRailLabel: 'FIELD NOTES',
       }
@@ -1367,7 +1347,6 @@ const compositionDecor = computed<CompositionDecor>(() => {
       return {
         kicker: 'RADMAPS / ROUTE OBJECT',
         meta: `${distance} · ${gain}`,
-        mapBadges: [],
         footerNote: 'Form follows route',
         sideRailLabel: 'RAD',
       }
@@ -1375,39 +1354,34 @@ const compositionDecor = computed<CompositionDecor>(() => {
       return {
         kicker: 'MORNING RUN / DATA SHEET',
         meta: `${distance} · ${date}`,
-        mapBadges: ['AVG PACE', 'SPLITS'],
         footerNote: 'Segment stats normalized for print',
       }
     case 'bib-numerals':
       return {
         kicker: 'The forty-first',
         meta: 'Race commemorative',
-        mapBadges: ['BIB', '4 · 1 8 7'],
         footerNote: `${distance} / ${gain}`,
       }
     case 'darksky-stars':
       return {
         kicker: 'Dark · sky · reserve',
         meta: 'New moon route plate',
-        mapBadges: ['BORTLE 2'],
         footerNote: 'Zodiacal light · clear sky window',
       }
     case 'botanical-plate':
       return {
         kicker: 'Plate XLI — Cordillera Cascadia',
         meta: 'Observed along the route transect',
-        mapBadges: ['SPECIMEN'],
         footerNote: 'Drawn from life · elevation and terrain survey',
       }
     case 'brutalist-slab':
       return {
         kicker: 'RADMAPS · 001',
         meta: 'LOT 12 / 50',
-        mapBadges: ['CONCRETE', 'OFFSET'],
         footerNote: '250 GSM · UNCOATED · ROUTE SLAB',
       }
     default:
-      return { mapBadges: [] }
+      return {}
   }
 })
 
@@ -1440,6 +1414,9 @@ const headerBg = computed(() =>
 const borderW = computed(() =>
   props.styleConfig.border_style === 'thick' ? '2px'
   : props.styleConfig.border_style === 'thin' ? '1px' : '0',
+)
+const showPosterInsetFrame = computed(() =>
+  composition.value.id === 'legacy-classic' && props.styleConfig.border_style !== 'none',
 )
 const printBleedCssPx = computed(() =>
   props.printContext ? props.printContext.framing.trimBox.x / props.printContext.deviceScaleFactor : 0,
@@ -3841,38 +3818,6 @@ onUnmounted(() => {
   margin-top: -0.2cqh;
 }
 
-.composition-map-badges {
-  position: absolute;
-  left: 1.6cqw;
-  right: 1.6cqw;
-  top: 1.5cqh;
-  z-index: 13;
-  display: flex;
-  justify-content: space-between;
-  gap: 1cqw;
-  color: currentColor;
-  pointer-events: none;
-}
-
-.composition-map-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.2cqh;
-  max-width: 42%;
-  padding: 0.45cqh 0.7cqw;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-  background: color-mix(in srgb, var(--composition-paper, transparent) 72%, transparent);
-  color: currentColor;
-  font-family: var(--composition-body-font, inherit);
-  font-size: 0.76cqh;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  line-height: 1;
-  text-transform: uppercase;
-  opacity: 0.62;
-  white-space: nowrap;
-}
-
 .composition-footer-note {
   position: absolute;
   left: calc(5cqw + var(--print-bleed, 0px));
@@ -3895,33 +3840,6 @@ onUnmounted(() => {
   background: var(--label-bg-color, currentColor);
   opacity: 1;
   mix-blend-mode: normal;
-}
-
-.poster-composition--blueprint-grid .composition-map-badge,
-.poster-composition--blueprint-strava .composition-map-badge {
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
-  background: transparent;
-  opacity: 0.72;
-}
-
-.poster-composition--travel-banner .composition-map-badge {
-  background: var(--label-bg-color, currentColor);
-  color: var(--composition-paper, currentColor);
-  border-color: transparent;
-  opacity: 0.9;
-}
-
-.poster-composition--brutalist-slab .composition-map-badges {
-  top: auto;
-  bottom: 1.8cqh;
-}
-
-.poster-composition--brutalist-slab .composition-map-badge,
-.poster-composition--riso-stack .composition-map-badge {
-  background: var(--route-color, currentColor);
-  color: var(--composition-paper, currentColor);
-  border-color: transparent;
-  opacity: 0.92;
 }
 
 .poster-composition--splits-grid .poster-footer,

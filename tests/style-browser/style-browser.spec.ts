@@ -71,12 +71,11 @@ test.describe('style browser visual harness', () => {
   test('renders composition-specific printed cues', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=park-quad&theme=usgs-vintage')
     await expect(page.getByTestId('composition-kicker')).toContainText('Department')
-    await expect(page.getByTestId('composition-map-badges')).toContainText('SCALE')
     await expect(page.getByTestId('composition-footer-note')).toBeVisible()
 
     await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
-    await expect(page.getByTestId('composition-map-badges')).toContainText('CONCRETE')
     await expect(page.getByTestId('composition-footer-note')).toContainText('UNCOATED')
+    await expect(page.getByTestId('composition-map-badges')).toHaveCount(0)
   })
 
   test('renders thumbnail and final-print geometries from the same poster component', async ({ page }) => {
@@ -118,21 +117,23 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-map-grid-overlay')).toBeVisible()
   })
 
-  test('keeps side-rail inset frames aligned with the content area', async ({ page }) => {
+  test('keeps side-rail compositions aligned with the content area', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern')
 
     const boxes = await page.evaluate(() => {
       const rail = document.querySelector<HTMLElement>('[data-testid="composition-side-rail"]')
-      const frame = document.querySelector<HTMLElement>('[data-testid="poster-inset-frame"]')
+      const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
       return {
         rail: rail?.getBoundingClientRect().toJSON(),
-        frame: frame?.getBoundingClientRect().toJSON(),
+        map: map?.getBoundingClientRect().toJSON(),
+        frameCount: document.querySelectorAll('[data-testid="poster-inset-frame"]').length,
       }
     })
 
     expect(boxes.rail).toBeTruthy()
-    expect(boxes.frame).toBeTruthy()
-    expect(boxes.frame!.x).toBeGreaterThan(boxes.rail!.x + boxes.rail!.width)
+    expect(boxes.map).toBeTruthy()
+    expect(boxes.map!.x).toBeGreaterThan(boxes.rail!.x + boxes.rail!.width)
+    expect(boxes.frameCount).toBe(0)
   })
 
   test('keeps Modernist title band and side rail high contrast', async ({ page }) => {
@@ -153,6 +154,43 @@ test.describe('style browser visual harness', () => {
     expect(contrast.headerBg).toBe('rgb(28, 25, 23)')
     expect(contrast.railBg).toBe('rgb(28, 25, 23)')
     expect(contrast.titleColor).toBe('rgb(241, 234, 224)')
+  })
+
+  test('keeps Modernist map framed inside the content column with visible topo detail', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+
+    const layout = await page.evaluate(() => {
+      const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      const rail = document.querySelector<HTMLElement>('[data-testid="composition-side-rail"]')
+      const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+      const route = document.querySelector<HTMLElement>('.maplibregl-canvas')
+      const posterBox = poster?.getBoundingClientRect()
+      const railBox = rail?.getBoundingClientRect()
+      const mapBox = map?.getBoundingClientRect()
+      return {
+        poster: posterBox?.toJSON(),
+        rail: railBox?.toJSON(),
+        map: mapBox?.toJSON(),
+        hasCanvas: !!route,
+      }
+    })
+
+    expect(layout.poster).toBeTruthy()
+    expect(layout.rail).toBeTruthy()
+    expect(layout.map).toBeTruthy()
+    expect(layout.hasCanvas).toBe(true)
+    expect(layout.map!.x).toBeGreaterThan(layout.rail!.x + layout.rail!.width)
+    expect(layout.map!.x + layout.map!.width).toBeLessThan(layout.poster!.x + layout.poster!.width - 8)
+
+    const styleSummary = await page.evaluate(() => {
+      const nuxt = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      return {
+        theme: nuxt?.dataset.theme,
+        layers: (window as unknown as { __RADMAPS_RENDER_STATUS?: unknown }).__RADMAPS_RENDER_STATUS,
+      }
+    })
+    expect(styleSummary.theme).toBe('bold-modern')
   })
 
   test('keeps Mid-Century title band high contrast', async ({ page }) => {
