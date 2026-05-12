@@ -125,6 +125,10 @@ describe('hillshadeDetails', () => {
     expect(compute({ preset: 'road-network' }).hillshadeToggle).toBe(false)
   })
 
+  it('shows the hillshade toggle for contour-art themes', () => {
+    expect(compute({ preset: 'contour-art' }).hillshadeToggle).toBe(true)
+  })
+
   it('shows when showHillshade is true', () => {
     expect(compute({ showHillshade: true }).hillshadeDetails).toBe(true)
   })

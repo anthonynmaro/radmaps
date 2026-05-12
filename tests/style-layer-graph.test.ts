@@ -65,6 +65,12 @@ describe('style layer graph contracts', () => {
     expect(effective.show_contours).toBe(true)
   })
 
+  it('exposes hillshade for contour art presets', () => {
+    const controls = getVisibleStyleControls('contour-art')
+    expect(controls.show_hillshade?.visible).toBe(true)
+    expect(styleFieldUpdateMode('contour-art', 'show_hillshade')).toBe('full-reload')
+  })
+
   it('ignores unsupported saved values without deleting the stored intent', () => {
     const saved: StyleConfig = {
       ...DEFAULT_STYLE_CONFIG,
@@ -154,6 +160,17 @@ describe('style JSON matrix', () => {
     expect(layerIds(style)).not.toContain('roads-major')
     expect(layerIds(style)).toContain('roads-place-labels')
     expect(layerIds(style)).toContain('roads-poi-labels')
+  })
+
+  it('renders contour art hillshade when enabled', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'contour-art',
+      show_hillshade: true,
+      hillshade_intensity: 0.8,
+    }, 'mapbox-token')
+
+    expect(layerIds(style)).toContain('hillshade')
   })
 
   it('writes viewport scale metadata from graph layer declarations', () => {
