@@ -180,10 +180,12 @@ test.describe('style browser visual harness', () => {
       const rail = document.querySelector<HTMLElement>('[data-testid="composition-side-rail"]')
       const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
       const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      const titleRule = document.querySelector<HTMLElement>('.poster-rule')
       return {
         rail: rail?.getBoundingClientRect().toJSON(),
         map: map?.getBoundingClientRect().toJSON(),
         poster: poster?.getBoundingClientRect().toJSON(),
+        titleRule: titleRule?.getBoundingClientRect().toJSON(),
         frameCount: document.querySelectorAll('[data-testid="poster-inset-frame"]').length,
       }
     })
@@ -191,9 +193,11 @@ test.describe('style browser visual harness', () => {
     expect(boxes.rail).toBeTruthy()
     expect(boxes.map).toBeTruthy()
     expect(boxes.poster).toBeTruthy()
-    expect(Math.abs(boxes.rail!.x - boxes.map!.x)).toBeLessThanOrEqual(1)
+    expect(boxes.titleRule).toBeTruthy()
+    expect(Math.abs((boxes.rail!.x + boxes.rail!.width) - (boxes.map!.x + boxes.map!.width))).toBeLessThanOrEqual(1)
     expect(Math.abs(boxes.rail!.y - boxes.map!.y)).toBeLessThanOrEqual(1)
     expect(Math.abs((boxes.rail!.y + boxes.rail!.height) - (boxes.map!.y + boxes.map!.height))).toBeLessThanOrEqual(1)
+    expect(Math.abs(boxes.rail!.x - (boxes.titleRule!.x + boxes.titleRule!.width))).toBeLessThanOrEqual(1)
     expect(Math.abs((boxes.map!.x + boxes.map!.width) - (boxes.poster!.x + boxes.poster!.width))).toBeLessThanOrEqual(1)
     expect(boxes.frameCount).toBe(0)
   })
@@ -242,7 +246,7 @@ test.describe('style browser visual harness', () => {
     expect(layout.rail).toBeTruthy()
     expect(layout.map).toBeTruthy()
     expect(layout.hasCanvas).toBe(true)
-    expect(Math.abs(layout.rail!.x - layout.map!.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs((layout.rail!.x + layout.rail!.width) - (layout.map!.x + layout.map!.width))).toBeLessThanOrEqual(1)
     expect(Math.abs(layout.rail!.y - layout.map!.y)).toBeLessThanOrEqual(1)
     expect(Math.abs((layout.rail!.y + layout.rail!.height) - (layout.map!.y + layout.map!.height))).toBeLessThanOrEqual(1)
     expect(Math.abs((layout.map!.x + layout.map!.width) - (layout.poster!.x + layout.poster!.width))).toBeLessThanOrEqual(1)
