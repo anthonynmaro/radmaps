@@ -14,6 +14,54 @@ Chromium through Browserless.
 
 The key decision is that [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the only poster renderer. The editor and print render path must share the same Vue/MapLibre component instead of maintaining a separate SVG, Sharp, native, or worker-only poster template.
 
+### Graph-Driven Map Styles
+
+[utils/mapStyle.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/mapStyle.ts) keeps the public `buildMapStyle(config, ...)` API, but style construction now flows through [utils/styleLayerGraph.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleLayerGraph.ts).
+
+`StyleConfig` stores user intent. The layer graph decides which intent is
+supported, consumed, required, hidden, or ignored for the active preset. This is
+important for raster tile presets: CARTO, Mapbox Outdoors, Stadia, and MapTiler
+tiles can bake roads, water, place labels, or POIs into the image. A saved field
+like `roads_opacity` must not become a fake UI control when the active preset
+cannot independently style those baked pixels.
+
+MapLibre layers should be assembled in canonical slot order:
+
+```text
+background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> labels-pois -> route-casing -> route -> segments-handles
+```
+
+The editor, render pages, and Browserless output must all use the same
+graph-derived effective config. Do not special-case render pages to show controls
+or layers that the editor graph would hide.
+
+Viewport scaling is also graph-driven. Layers that scale with the saved editor
+viewport carry `metadata.radmaps.scale`, and
+[utils/render/viewportScale.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/viewportScale.ts)
+uses that metadata rather than layer-ID regexes.
+
+### Composition-Driven Poster Chrome
+
+Refined theme layouts are implemented in the same renderer through
+[utils/posterCompositions.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/posterCompositions.ts).
+`StyleConfig.composition` selects a profile that controls poster chrome around
+the MapLibre canvas: title position, alignment, map margins, borders, footer
+style, stat emphasis, paper texture, star fields, and side rails. Grid is a
+style-controlled overlay, not an implicit composition layer; themes can default
+it on, and users can target it to the poster or map only with configurable
+color, opacity, and line weight.
+
+Old maps without `composition` use the internal `legacy-classic` fallback. New
+refined themes resolve their default composition from
+[utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts).
+
+Do not add a separate React/SVG/native composition renderer for print. The
+editor, proof renders, premade thumbnails, and final Browserless renders must
+all screenshot `MapPreview.vue` so map pixels and poster chrome stay in parity.
+
+The dev-only `/style-browser-fixture` route exists for Playwright coverage. It is
+excluded from Supabase auth redirects locally and returns 404 outside dev builds.
+
 ### Render Paths
 
 Proof renders:

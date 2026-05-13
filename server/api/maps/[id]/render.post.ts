@@ -20,14 +20,28 @@ import { assertRateLimit } from '~/server/utils/rateLimit'
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
-  assertRateLimit(event, { key: 'map-render', userId: user.id, limit: 10, windowMs: 60 * 60_000 })
 
   const mapId = getRouterParam(event, 'id')
   if (!mapId) throw createError({ statusCode: 400, message: 'Map ID required' })
 
+  const body = ((await readBody(event).catch(() => ({}))) ?? {}) as RenderMapProofBody
+  const renderIntent = body.render_intent ?? 'checkout'
+  if (renderIntent === 'editor-thumbnail') {
+    assertRateLimit(event, { key: 'map-render-editor-thumbnail', userId: user.id, limit: 120, windowMs: 60 * 60_000 })
+  } else if (renderIntent === 'share') {
+    assertRateLimit(event, { key: 'map-render-share', userId: user.id, limit: 30, windowMs: 60 * 60_000 })
+  } else {
+    assertRateLimit(event, { key: 'map-render', userId: user.id, limit: 10, windowMs: 60 * 60_000 })
+  }
+
   const config = useRuntimeConfig()
-  return await renderMapProof({ event, mapId, userId: user.id, config })
+  return await renderMapProof({ event, mapId, userId: user.id, config, body })
 })
+
+interface RenderMapProofBody {
+  product_uid?: string
+  render_intent?: 'editor-thumbnail' | 'share' | 'checkout'
+}
 
 interface V4Args {
   event: H3Event
@@ -35,6 +49,7 @@ interface V4Args {
   userId: string
   config: ReturnType<typeof useRuntimeConfig>
   allowServiceRead?: boolean
+  body?: RenderMapProofBody
 }
 
 export async function renderMapProof(args: V4Args) {
@@ -42,9 +57,7 @@ export async function renderMapProof(args: V4Args) {
   const supabase = await serverSupabaseClient(event)
   const adminClient = await serverSupabaseServiceRole(event)
 
-  const body = ((await readBody(event).catch(() => ({}))) ?? {}) as {
-    product_uid?: string
-  }
+  const body = args.body ?? ((await readBody(event).catch(() => ({}))) ?? {}) as RenderMapProofBody
 
   // 1. Load map row with everything we need to hash + dispatch.
   const readClient = allowServiceRead ? adminClient : supabase

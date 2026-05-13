@@ -50,7 +50,7 @@
           <!-- All themes -->
           <div class="grid grid-cols-3 gap-2">
             <button
-              v-for="theme in COLOR_THEMES"
+              v-for="theme in THEME_OPTIONS"
               :key="theme.id"
               @click="applyTheme(theme)"
               class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
@@ -65,34 +65,34 @@
               >
                 <!-- Title band: flex order flips for bottom-title themes -->
                 <div :style="{
-                  order: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? 1 : 0,
+                  order: themeThumb(theme).titlePosition === 'bottom' ? 1 : 0,
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: THEME_THUMB[theme.id]?.titleAlign === 'left' ? 'flex-start' : 'center',
-                  padding: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? '4% 9% 9%' : '9% 9% 4%',
+                  alignItems: themeThumb(theme).titleAlign === 'left' ? 'flex-start' : 'center',
+                  padding: themeThumb(theme).titlePosition === 'bottom' ? '4% 9% 9%' : '9% 9% 4%',
                   gap: '7%',
-                  backgroundColor: theme.background_color,
+                  backgroundColor: themeThumb(theme).headerBackground === 'label' ? theme.label_bg_color : theme.background_color,
                 }">
                   <!-- Rule above text for bottom-title themes -->
-                  <div v-if="THEME_THUMB[theme.id]?.titlePosition === 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
+                  <div v-if="themeThumb(theme).titlePosition === 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
                   <span :style="{
                     display: 'block',
                     color: theme.label_text_color,
-                    fontFamily: THEME_FONT_PREVIEW[theme.id] ?? 'system-ui',
-                    fontSize: THEME_THUMB[theme.id]?.fontSize ?? '7px',
-                    fontWeight: THEME_THUMB[theme.id]?.fontWeight ?? '700',
-                    letterSpacing: THEME_THUMB[theme.id]?.letterSpacing ?? '0.1em',
-                    textTransform: THEME_THUMB[theme.id]?.textTransform ?? 'uppercase',
-                    lineHeight: THEME_THUMB[theme.id]?.lineHeight ?? '1.1',
-                    textAlign: THEME_THUMB[theme.id]?.titleAlign === 'left' ? 'left' : 'center',
+                    fontFamily: themeFontPreview(theme),
+                    fontSize: themeThumb(theme).fontSize,
+                    fontWeight: themeThumb(theme).fontWeight,
+                    letterSpacing: themeThumb(theme).letterSpacing,
+                    textTransform: themeThumb(theme).textTransform,
+                    lineHeight: themeThumb(theme).lineHeight,
+                    textAlign: themeThumb(theme).titleAlign === 'left' ? 'left' : 'center',
                   }">SUMMIT<br/>TRAIL</span>
                   <!-- Rule below text for top-title themes -->
-                  <div v-if="THEME_THUMB[theme.id]?.titlePosition !== 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
+                  <div v-if="themeThumb(theme).titlePosition !== 'bottom'" style="width: 100%; height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
                 </div>
 
                 <!-- Map area -->
                 <div :style="{
-                  order: THEME_THUMB[theme.id]?.titlePosition === 'bottom' ? 0 : 1,
+                  order: themeThumb(theme).titlePosition === 'bottom' ? 0 : 1,
                   flex: 1,
                   overflow: 'hidden',
                 }">
@@ -110,7 +110,7 @@
                   display: 'flex',
                   alignItems: 'center',
                   padding: '0 9%',
-                  backgroundColor: theme.background_color,
+                  backgroundColor: themeThumb(theme).footerBackground === 'label' ? theme.label_bg_color : theme.background_color,
                   borderTop: `1px solid ${theme.label_text_color}20`,
                 }">
                   <div style="width: 28%; height: 1px; border-radius: 1px; opacity: 0.25;" :style="{ backgroundColor: theme.label_text_color }" />
@@ -267,18 +267,19 @@
           </div>
         </V4Card>
 
-        <V4Card title="Map detail" :default-open="true">
-          <ToggleRow label="Roads" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
+        <V4Card v-if="sections.mapDetailCard" title="Map detail" :default-open="true">
+          <ToggleRow v-if="sections.roadsToggle" label="Roads" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
           <template v-if="sections.roadsExpanded">
-            <div class="flex items-center justify-between mb-2 mt-2">
+            <div v-if="sections.roadColorControl" class="flex items-center justify-between mb-2 mt-2">
               <span class="text-xs" style="color: #44403C;">Road color</span>
               <ColorSwatch :value="local.roads_color ?? local.label_text_color" @change="set('roads_color', $event)" />
             </div>
-            <SliderRow label="Road opacity" :value="local.roads_opacity ?? 0.6" :min="0.05" :max="1" :step="0.05"
+            <SliderRow v-if="sections.roadOpacityControl" label="Road opacity" :value="local.roads_opacity ?? 0.6" :min="0.05" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('roads_opacity', $event)" />
-            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
-            <ToggleRow label="Map labels" :value="local.show_place_labels !== false" @change="set('show_place_labels', $event)" />
-            <template v-if="local.show_place_labels !== false">
+          </template>
+          <div v-if="sections.roadsExpanded && (sections.placeLabelsToggle || sections.poiToggle)" class="pt-2 border-t border-[#F5F5F4] mt-1" />
+          <ToggleRow v-if="sections.placeLabelsToggle" label="Map labels" :value="local.show_place_labels !== false" @change="set('show_place_labels', $event)" />
+          <template v-if="sections.placeLabelDetails && local.show_place_labels !== false">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs" style="color: #44403C;">Label color</span>
                 <ColorSwatch :value="local.place_labels_color ?? local.label_text_color" @change="set('place_labels_color', $event)" />
@@ -293,17 +294,16 @@
                   <SegmentButton label="+ Villages" :active="local.place_labels_scale === 'village'" @click="set('place_labels_scale', 'village')" />
                 </div>
               </div>
-            </template>
-            <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
-            <ToggleRow label="Points of interest" :value="local.show_poi_labels ?? false" @change="set('show_poi_labels', $event)" />
-            <template v-if="local.show_poi_labels">
+          </template>
+          <div v-if="sections.poiToggle" class="pt-2 border-t border-[#F5F5F4] mt-1" />
+          <ToggleRow v-if="sections.poiToggle" label="Points of interest" :value="local.show_poi_labels ?? false" @change="set('show_poi_labels', $event)" />
+          <template v-if="sections.poiDetails && local.show_poi_labels">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs" style="color: #44403C;">POI color</span>
                 <ColorSwatch :value="local.poi_labels_color ?? local.label_text_color" @change="set('poi_labels_color', $event)" />
               </div>
-              <SliderRow label="POI opacity" :value="local.poi_labels_opacity ?? 0.65" :min="0.05" :max="1" :step="0.05"
-                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('poi_labels_opacity', $event)" />
-            </template>
+            <SliderRow label="POI opacity" :value="local.poi_labels_opacity ?? 0.65" :min="0.05" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('poi_labels_opacity', $event)" />
           </template>
         </V4Card>
 
@@ -404,7 +404,7 @@
           <template v-if="sections.pinControls">
             <div class="flex items-center justify-between mt-2">
               <span class="text-xs" style="color: #44403C;">Pin color</span>
-              <ColorSwatch :value="local.pin_color ?? local.label_text_color" @change="set('pin_color', $event)" />
+              <ColorSwatch :value="local.pin_color ?? contrastSafePinColor" @change="set('pin_color', $event)" />
             </div>
             <SliderRow label="Pin opacity" :value="local.pin_opacity ?? 0.9" :min="0.1" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('pin_opacity', $event)" />
@@ -422,13 +422,15 @@
               :display="(v: number) => v.toFixed(1) + '×'" @change="set('terrain_exaggeration', $event)" />
             <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           </template>
-          <ToggleRow label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
+          <ToggleRow v-if="sections.hillshadeToggle" label="Hillshade" :value="local.show_hillshade" @change="set('show_hillshade', $event)" />
           <template v-if="sections.hillshadeDetails">
             <SliderRow label="Intensity" :value="local.hillshade_intensity" :min="0" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('hillshade_intensity', $event)" />
           </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <ToggleRow label="Contour lines" :value="local.show_contours" @change="set('show_contours', $event)" />
+        </V4Card>
+
+        <V4Card v-if="sections.contourToggle || sections.contourDetails || sections.elevationProfileToggle" title="Contour Lines" :default-open="false">
+          <ToggleRow v-if="sections.contourToggle" label="Show contours" :value="local.show_contours" @change="setContours($event)" />
           <template v-if="sections.contourDetails">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs" style="color: #44403C;">Minor / Major color</span>
@@ -444,7 +446,7 @@
               @change="set('contour_detail', $event)" />
             <SliderRow label="Minor weight" :value="local.contour_minor_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
               :display="(v: number) => v + '×'" @change="set('contour_minor_width', $event)" />
-            <SliderRow label="Major weight" :value="local.contour_major_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
+            <SliderRow label="Major weight" :value="local.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH" :min="0.25" :max="2.5" :step="0.25"
               :display="(v: number) => v + '×'" @change="set('contour_major_width', $event)" />
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
               @change="set('show_elevation_labels', $event)" />
@@ -465,7 +467,7 @@
         </V4Card>
 
         <V4Card title="Effects" hint="Advanced — invert, duotone, posterize, grain" :default-open="false">
-          <div class="mb-3">
+          <div v-if="sections.rasterEffectControls" class="mb-3">
             <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Tile effect</p>
             <div class="grid grid-cols-2 gap-1.5">
               <SegmentButton label="None"        :active="(local.tile_effect ?? 'none') === 'none'"   @click="set('tile_effect', 'none')" />
@@ -491,13 +493,15 @@
             <ColorRow label="Midtone" :value="local.tile_midtone_color ?? blendForPreview(local.tile_shadow_color ?? local.label_text_color, local.tile_highlight_color ?? local.background_color)" @change="set('tile_midtone_color', $event)" />
             <ColorRow label="Highlight (light)" :value="local.tile_highlight_color ?? local.background_color" @change="set('tile_highlight_color', $event)" />
           </template>
-          <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <SliderRow label="Contrast" :value="local.tile_contrast ?? 0" :min="-1" :max="1" :step="0.05"
-            :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_contrast', $event)" />
-          <SliderRow label="Saturation" :value="local.tile_saturation ?? 0" :min="-1" :max="1" :step="0.05"
-            :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_saturation', $event)" />
-          <SliderRow label="Hue shift" :value="local.tile_hue_rotate ?? 0" :min="0" :max="360" :step="5"
-            :display="(v: number) => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
+          <template v-if="sections.rasterEffectControls">
+            <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
+            <SliderRow label="Contrast" :value="local.tile_contrast ?? 0" :min="-1" :max="1" :step="0.05"
+              :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_contrast', $event)" />
+            <SliderRow label="Saturation" :value="local.tile_saturation ?? 0" :min="-1" :max="1" :step="0.05"
+              :display="(v: number) => (v > 0 ? '+' : '') + Math.round(v * 100) + '%'" @change="set('tile_saturation', $event)" />
+            <SliderRow label="Hue shift" :value="local.tile_hue_rotate ?? 0" :min="0" :max="360" :step="5"
+              :display="(v: number) => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
+          </template>
           <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
           <ToggleRow label="Vignette" :value="local.show_vignette ?? false" @change="set('show_vignette', $event)" />
           <template v-if="sections.vignetteIntensity">
@@ -689,7 +693,39 @@
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
-          <ColorRow label="Water" :value="local.water_color" @change="set('water_color', $event)" />
+          <ColorRow v-if="sections.waterColorControl" label="Water" :value="local.water_color" @change="set('water_color', $event)" />
+        </V4Card>
+
+        <V4Card title="Grid" hint="Optional poster or map overlay" :default-open="false">
+          <ToggleRow label="Show grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
+          <template v-if="local.show_grid">
+            <div class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
+              <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Apply to</p>
+              <div class="grid grid-cols-2 gap-1.5 mb-3">
+                <SegmentButton label="Poster" :active="(local.grid_scope ?? 'poster') === 'poster'" @click="set('grid_scope', 'poster')" />
+                <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
+              </div>
+              <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
+              <SliderRow
+                label="Opacity"
+                :value="local.grid_opacity ?? 0.2"
+                :min="0.05"
+                :max="1"
+                :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="set('grid_opacity', $event)"
+              />
+              <SliderRow
+                label="Weight"
+                :value="local.grid_weight ?? 1"
+                :min="0.5"
+                :max="3"
+                :step="0.25"
+                :display="(v: number) => v.toFixed(v % 1 === 0 ? 0 : 2) + 'px'"
+                @change="set('grid_weight', $event)"
+              />
+            </div>
+          </template>
         </V4Card>
 
         <V4Card title="Typography" :default-open="false">
@@ -1030,11 +1066,16 @@
 
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
-import { COLOR_THEMES } from '~/types'
+import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
+import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
+import { getPosterCompositionProfile } from '~/utils/posterCompositions'
+import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import { pickContrastSafeColor } from '~/utils/colorContrast'
+import { mapBackgroundColor } from '~/utils/mapStyle'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type ActiveTextTarget =
@@ -1050,6 +1091,8 @@ const THEME_THUMB: Record<string, {
   letterSpacing: string
   textTransform: string
   lineHeight: string
+  headerBackground?: 'paper' | 'label'
+  footerBackground?: 'paper' | 'label'
 }> = {
   chalk:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '300', fontSize: '5.5px', letterSpacing: '0.32em', textTransform: 'uppercase', lineHeight: '1.2'  },
   topaz:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '700', fontSize: '7.5px', letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: '1.05' },
@@ -1068,6 +1111,21 @@ const THEME_THUMB: Record<string, {
   'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
   'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
 }
+
+const DEFAULT_THEME_THUMB = {
+  titlePosition: 'top',
+  titleAlign: 'center',
+  fontWeight: '700',
+  fontSize: '7px',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  lineHeight: '1.1',
+} as const
+
+const THEME_OPTIONS: ThemeDefinition[] = [
+  ...REFINED_THEMES,
+  ...COLOR_THEMES.filter(theme => !theme.legacy && !REFINED_THEMES.some(refined => refined.id === theme.id)),
+]
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1326,6 +1384,15 @@ function set3DTerrain(enabled: boolean) {
   emit('update:modelValue', { ...local })
 }
 
+function setContours(enabled: boolean) {
+  local.show_contours = enabled
+  if (enabled && (local.contour_major_width == null || local.contour_major_width === 1)) {
+    local.contour_major_width = DEFAULT_CONTOUR_MAJOR_WIDTH
+  }
+  local.contour_minor_width = local.contour_minor_width ?? 1
+  emit('update:modelValue', { ...local })
+}
+
 function setActivePosterTextValue(value: string) {
   const meta = activePosterTextMeta.value
   if (!meta) return
@@ -1563,46 +1630,13 @@ async function handleLogoUpload(e: Event) {
 }
 
 function applyTheme(theme: ThemeDefinition) {
-  const patch: Partial<StyleConfig> = {
-    color_theme: theme.id,
-    background_color: theme.background_color,
-    label_bg_color: theme.label_bg_color,
-    label_text_color: theme.label_text_color,
-    route_color: theme.route_color,
-    water_color: theme.water_color,
-    land_color: theme.land_color,
-    base_tile_style: theme.base_tile_style,
-    contour_color: theme.contour_color,
-    contour_major_color: theme.contour_major_color,
-  }
-  if (theme.font_family) {
-    patch.font_family = theme.font_family
-    patch.body_font_family = FONT_PAIRINGS[theme.font_family] ?? theme.font_family
-  }
-  if (theme.border_style !== undefined) patch.border_style = theme.border_style
-  if (theme.tile_grain !== undefined) patch.tile_grain = theme.tile_grain
-  Object.assign(local, patch)
+  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
   emit('update:modelValue', { ...local })
-}
-
-const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
-  'Big Shoulders Display': 'DM Sans',
-  'Fjalla One': 'Work Sans',
-  'Oswald': 'Work Sans',
-  'Bebas Neue': 'DM Sans',
-  'DM Sans': 'DM Sans',
-  'Space Grotesk': 'Space Grotesk',
-  'Outfit': 'Outfit',
-  'Work Sans': 'Work Sans',
-  'Playfair Display': 'Libre Baskerville',
-  'Cormorant Garamond': 'Libre Baskerville',
-  'Libre Baskerville': 'Libre Baskerville',
-  'DM Serif Display': 'DM Sans',
 }
 
 function selectFont(fontName: FontFamily) {
   local.font_family = fontName
-  local.body_font_family = FONT_PAIRINGS[fontName] ?? fontName
+  local.body_font_family = pairedBodyFont(fontName)
   emit('update:modelValue', { ...local })
 }
 
@@ -1650,8 +1684,44 @@ const THEME_FONT_NAME: Record<string, string> = {
   'dark-sky':  'Fjalla One',
 }
 
+function themeThumb(theme: ThemeDefinition) {
+  const composition = getPosterCompositionProfile({
+    color_theme: theme.id,
+    composition: theme.composition,
+  })
+  const base = THEME_THUMB[theme.id] ?? DEFAULT_THEME_THUMB
+  return {
+    ...base,
+    titlePosition: composition.titlePosition,
+    titleAlign: composition.titleAlign,
+    fontWeight: theme.id === 'brutalist' || theme.id === 'marathon-bib' ? '900' : base.fontWeight,
+    fontSize: theme.id === 'brutalist' || theme.id === 'bold-modern' ? '8px' : base.fontSize,
+    letterSpacing: theme.id === 'editorial-minimal' ? '0.02em' : base.letterSpacing,
+    textTransform: theme.id === 'editorial-minimal' ? 'none' : base.textTransform,
+    headerBackground: composition.headerBackground,
+    footerBackground: 'label',
+  }
+}
+
+function themeFontPreview(theme: ThemeDefinition): string {
+  return THEME_FONT_PREVIEW[theme.id] ?? (theme.font_family ? `'${theme.font_family}', sans-serif` : 'system-ui')
+}
+
+const activeThemeDefinition = computed(() => getThemeDefinition(local.color_theme ?? 'chalk'))
 const activeThemeTypography = computed(() =>
-  THEME_FONT_NAME[local.color_theme ?? 'chalk'] ?? 'Work Sans',
+  THEME_FONT_NAME[local.color_theme ?? 'chalk'] ?? activeThemeDefinition.value?.font_family ?? 'Work Sans',
+)
+
+const contrastSafePinColor = computed(() =>
+  pickContrastSafeColor(
+    mapBackgroundColor(local as StyleConfig),
+    [
+      local.route_color,
+      local.label_bg_color,
+      local.label_text_color,
+      local.background_color,
+    ],
+  )
 )
 
 const BORDERS: Array<{ label: string; value: BorderStyle }> = [

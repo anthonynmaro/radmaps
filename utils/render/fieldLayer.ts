@@ -94,6 +94,15 @@ export const FIELD_LAYER = {
   // ── Theme + sizing ─────────────────────────────────────────────────────────
   // color_theme drives water/land/contour colours which bake into the raster.
   color_theme: 'map',
+  // composition controls poster chrome layout; map preset/layers remain separate.
+  composition: 'chrome',
+  audience: 'chrome',
+  dark: 'map',
+  show_grid: 'chrome',
+  grid_scope: 'chrome',
+  grid_color: 'chrome',
+  grid_opacity: 'chrome',
+  grid_weight: 'chrome',
   // print_size drives canvas dimensions — chrome layer concern (the map
   // raster itself is rendered at an oversized fixed viewport).
   print_size: 'chrome',
@@ -103,6 +112,7 @@ export const FIELD_LAYER = {
   occasion_text: 'chrome',
   location_text: 'chrome',
   poster_text_overrides: 'chrome',
+  poster_layout: 'chrome',
   label_text_color: 'chrome',
   label_bg_color: 'chrome',
 

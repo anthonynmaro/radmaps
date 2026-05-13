@@ -30,6 +30,25 @@ export type ColorTheme =
   // Family B — distinct visual languages
   | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
   | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
+  // Refined design-update themes. Additive only: old ids stay renderable.
+  | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
+  | 'blueprint-strava' | 'field-journal' | 'bold-modern'
+  | 'splits-stats' | 'marathon-bib' | 'botanical'
+
+export type CompositionId =
+  | 'editorial-tall'
+  | 'park-quad'
+  | 'travel-banner'
+  | 'riso-stack'
+  | 'blueprint-grid'
+  | 'blueprint-strava'
+  | 'journal-spread'
+  | 'modernist-block'
+  | 'splits-grid'
+  | 'bib-numerals'
+  | 'darksky-stars'
+  | 'botanical-plate'
+  | 'brutalist-slab'
 export type PrintSize = '8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'
 export type BaseTileStyle =
   | 'carto-light'
@@ -58,17 +77,91 @@ export type PosterTextSlot =
   | 'coordinates'
   | 'start_pin_label'
   | 'finish_pin_label'
+  | 'composition_kicker'
+  | 'composition_meta'
+  | 'composition_footer'
+  | 'composition_side_rail'
 
 export interface PosterTextOverride {
   text?: string
   font_family?: FontFamily
   color?: string
+  bg_color?: string
+  font_size_pt?: number
+  align?: ChromeBlockAlign
   scale?: number
+  opacity?: number
   bold?: boolean
   italic?: boolean
 }
 
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
+
+export const DEFAULT_CONTOUR_MAJOR_WIDTH = 0.5
+
+// ─── Poster Chrome Layout ───────────────────────────────────────────────────
+
+export type ChromeBandId = 'header' | 'footer' | 'railLeft' | 'railRight'
+export type ChromeBlockKind =
+  | 'title'
+  | 'subtitle'
+  | 'eyebrow'
+  | 'occasion'
+  | 'coords'
+  | 'stat'
+  | 'note'
+  | 'brand'
+  | 'vlabel'
+  | 'logo'
+  | 'image'
+  | 'text'
+export type ChromeBlockAlign = 'left' | 'center' | 'right'
+export type ChromeBlockValign = 'top' | 'center' | 'bottom'
+
+export interface ChromeBlock {
+  id: string
+  kind: ChromeBlockKind
+  slot?: PosterTextSlot
+  col: number
+  row: number
+  span: number
+  rowSpan?: number
+  align?: ChromeBlockAlign
+  valign?: ChromeBlockValign
+  deleted?: boolean
+  text?: string
+  label?: string
+  value?: string
+  url?: string
+  font_family?: FontFamily
+  font_size_pt?: number
+  scale?: number
+  color?: string
+  bg_color?: string
+  opacity?: number
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+}
+
+export interface ChromeBand {
+  height?: number
+  width?: number
+  cols?: 4 | 6 | 8 | 12 | 16
+  rows?: number
+  background?: string
+  padding?: [number, number, number, number]
+}
+
+export interface PosterLayout {
+  bands: Record<ChromeBandId, ChromeBand>
+  blocks: Record<ChromeBandId, ChromeBlock[]>
+}
+
+export interface PartialPosterLayout {
+  bands?: Partial<Record<ChromeBandId, ChromeBand>>
+  blocks?: Partial<Record<ChromeBandId, ChromeBlock[]>>
+}
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────
 
@@ -157,7 +250,7 @@ export interface StyleConfig {
   contour_opacity: number
   contour_detail: number       // 0–5 → maplibre-contour threshold level; higher = finer intervals
   contour_minor_width: number  // line width multiplier for minor contours (default 1.0)
-  contour_major_width: number  // line width multiplier for major contours (default 1.0)
+  contour_major_width: number  // line width multiplier for major contours (default 0.5)
   show_elevation_labels: boolean
   // Hillshade (requires Mapbox Terrain DEM v1)
   show_hillshade: boolean
@@ -178,6 +271,14 @@ export interface StyleConfig {
   color_theme: ColorTheme
   print_size: PrintSize
   base_tile_style: BaseTileStyle
+  composition?: CompositionId
+  audience?: string
+  dark?: boolean
+  show_grid?: boolean
+  grid_scope?: 'poster' | 'map'
+  grid_color?: string
+  grid_opacity?: number
+  grid_weight?: number
   // Poster text
   trail_name: string        // overrides map.title in the poster label band
   occasion_text: string     // e.g. "Anthony's 40th", "Summit Ridge 2024"
@@ -185,6 +286,7 @@ export interface StyleConfig {
   label_text_color: string  // poster label band text colour
   label_bg_color: string    // poster label band background colour
   poster_text_overrides?: PosterTextOverrides // user edits for imported/theme text slots
+  poster_layout?: PartialPosterLayout // sparse user edits to composition chrome layout
   // Branding
   show_branding?: boolean         // show "radmaps.studio" credit in footer (default: true)
   // Logo
@@ -282,7 +384,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   contour_opacity: 0.75,
   contour_detail: 3,
   contour_minor_width: 1.0,
-  contour_major_width: 1.0,
+  contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
   show_elevation_labels: false,
   show_hillshade: false,
   hillshade_intensity: 0.5,
@@ -313,6 +415,10 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   label_bg_color: '#F4EFE6',
   show_branding: true,
   show_roads: true,
+  show_grid: false,
+  grid_scope: 'poster',
+  grid_opacity: 0.2,
+  grid_weight: 1,
   tile_effect: 'none',
   tile_duotone_strength: 0.9,
   tile_posterize_levels: 4,
@@ -347,6 +453,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
 export interface ThemeDefinition {
   id: ColorTheme
   label: string
+  family?: string
+  audience?: string
   dark: boolean
   background_color: string
   label_bg_color: string
@@ -358,8 +466,14 @@ export interface ThemeDefinition {
   contour_color: string
   contour_major_color: string
   font_family?: FontFamily
+  body_font_family?: FontFamily
   border_style?: BorderStyle
   tile_grain?: number
+  composition?: CompositionId
+  show_grid?: boolean
+  legacy?: boolean
+  migration_target?: ColorTheme
+  map_defaults?: Partial<StyleConfig>
 }
 
 export const COLOR_THEMES: ThemeDefinition[] = [
@@ -377,6 +491,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#C8BDB0',
     contour_major_color: '#9E9082',
+    legacy: true,
+    migration_target: 'editorial-minimal',
   },
   {
     id: 'topaz',
@@ -391,6 +507,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#C8A478',
     contour_major_color: '#A07850',
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'dusk',
@@ -405,6 +523,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#7070A0',
     contour_major_color: '#A0A0C8',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   // ── Dark themes ───────────────────────────────────────────────────────────
   {
@@ -420,6 +540,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#8A8A8A',
     contour_major_color: '#BABABA',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   {
     id: 'forest',
@@ -434,6 +556,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-light',
     contour_color: '#A8A870',
     contour_major_color: '#787848',
+    legacy: true,
+    migration_target: 'botanical',
   },
   {
     id: 'midnight',
@@ -448,6 +572,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     base_tile_style: 'carto-dark',
     contour_color: '#4A80A8',
     contour_major_color: '#72B0D8',
+    legacy: true,
+    migration_target: 'dark-sky',
   },
   // ── Family B — distinct visual languages ──────────────────────────────────
   {
@@ -466,6 +592,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Playfair Display',
     border_style: 'none',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'editorial-minimal',
   },
   {
     id: 'bauhaus',
@@ -483,6 +611,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Big Shoulders Display',
     border_style: 'thick',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'bold-modern',
   },
   {
     id: 'vintage',
@@ -500,6 +630,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'DM Serif Display',
     border_style: 'none',
     tile_grain: 0.28,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'brutalist',
@@ -568,6 +700,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Work Sans',
     border_style: 'thin',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'mid-century',
@@ -585,6 +719,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Oswald',
     border_style: 'none',
     tile_grain: 0.08,
+    legacy: true,
+    migration_target: 'midcentury-travel',
   },
   {
     id: 'topo-art',
@@ -602,6 +738,8 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     font_family: 'Work Sans',
     border_style: 'thin',
     tile_grain: 0,
+    legacy: true,
+    migration_target: 'usgs-vintage',
   },
   {
     id: 'dark-sky',

@@ -18,6 +18,8 @@
  * `proof_render_hash` in the trigger response, so the consuming UI does
  * not need to know which pipeline served the request.
  */
+export type MapRenderIntent = 'editor-thumbnail' | 'share' | 'checkout'
+
 export function useMapRenderer(mapId: Ref<string> | string) {
   const id = isRef(mapId) ? mapId : ref(mapId)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +30,7 @@ export function useMapRenderer(mapId: Ref<string> | string) {
   const renderUrl   = ref<string | null>(null)
   const pdfUrl      = ref<string | null>(null)
   const error       = ref<string | null>(null)
+  const retryAfterSeconds = ref<number | null>(null)
 
   // Polling state — shared between paths so stopPolling() is one source of truth.
   let nextTimeout: ReturnType<typeof setTimeout> | null = null
@@ -53,12 +56,13 @@ export function useMapRenderer(mapId: Ref<string> | string) {
 
   // ── Trigger ──────────────────────────────────────────────────────────────────
 
-  async function triggerRender() {
+  async function triggerRender(options: { intent?: MapRenderIntent } = {}) {
     if (isRendering.value) return
     isRendering.value = true
     isComplete.value  = false
     error.value       = null
     renderUrl.value   = null
+    retryAfterSeconds.value = null
 
     try {
       const resp = await $fetch<{
@@ -66,7 +70,10 @@ export function useMapRenderer(mapId: Ref<string> | string) {
         render_url?: string
         proof_render_hash?: string
         job_id?: string
-      }>(`/api/maps/${id.value}/render`, { method: 'POST' })
+      }>(`/api/maps/${id.value}/render`, {
+        method: 'POST',
+        body: options.intent ? { render_intent: options.intent } : undefined,
+      })
 
       // v4 path: response includes proof_render_hash.
       if (resp && typeof resp.proof_render_hash === 'string') {
@@ -87,7 +94,14 @@ export function useMapRenderer(mapId: Ref<string> | string) {
       // Legacy path.
       startLegacyPolling()
     } catch (e) {
-      settleError((e as Error).message ?? 'Failed to start render')
+      const err = e as Error & {
+        response?: { status?: number; headers?: Headers }
+        statusCode?: number
+        status?: number
+      }
+      const retryAfter = err.response?.headers?.get?.('Retry-After')
+      retryAfterSeconds.value = retryAfter ? Number.parseInt(retryAfter, 10) : null
+      settleError(err.message ?? 'Failed to start render')
     }
   }
 
@@ -195,5 +209,5 @@ export function useMapRenderer(mapId: Ref<string> | string) {
 
   onUnmounted(stopPolling)
 
-  return { triggerRender, isRendering, isComplete, renderUrl, pdfUrl, error }
+  return { triggerRender, isRendering, isComplete, renderUrl, pdfUrl, error, retryAfterSeconds }
 }

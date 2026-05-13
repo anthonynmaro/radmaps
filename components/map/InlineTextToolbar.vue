@@ -51,23 +51,70 @@
           @click="emitPatch({ italic: !italic })"
         >I</button>
 
+        <div class="toolbar-align-group" aria-label="Text alignment">
+          <button
+            v-for="option in ALIGN_OPTIONS"
+            :key="option.value"
+            class="toolbar-align-btn"
+            :class="{ active: align === option.value }"
+            type="button"
+            :title="option.title"
+            :data-testid="`text-align-${option.value}`"
+            @click="emitPatch({ align: option.value })"
+          >{{ option.label }}</button>
+        </div>
+
         <label class="toolbar-color" title="Text color">
           <input type="color" :value="color" @input="emitPatch({ color: ($event.target as HTMLInputElement).value })" />
+        </label>
+      </div>
+
+      <div v-if="supportsHighlight" class="toolbar-row highlight-row">
+        <button
+          class="toolbar-highlight-toggle"
+          :class="{ active: !!backgroundColor }"
+          title="Text highlight"
+          @click="toggleHighlight"
+        >Highlight</button>
+
+        <label v-if="backgroundColor" class="toolbar-color" title="Highlight color">
+          <input type="color" :value="backgroundColor" @input="emitPatch({ bg_color: ($event.target as HTMLInputElement).value })" />
         </label>
       </div>
 
       <div class="toolbar-row size-row">
         <span class="size-label">Size</span>
         <input
-          class="size-slider"
-          type="range"
-          min="0.5"
-          max="2"
-          step="0.05"
-          :value="scale"
-          @input="emitPatch({ scale: Number(($event.target as HTMLInputElement).value) })"
+          class="size-input"
+          type="number"
+          inputmode="numeric"
+          :min="MIN_TEXT_SIZE_PT"
+          :max="MAX_TEXT_SIZE_PT"
+          step="1"
+          list="inline-text-size-options"
+          :value="fontSizePt"
+          data-testid="text-size-input"
+          @input="emitFontSize(($event.target as HTMLInputElement).value, false)"
+          @change="emitFontSize(($event.target as HTMLInputElement).value, true)"
         />
-        <span class="size-value">{{ Math.round(scale * 100) }}%</span>
+        <datalist id="inline-text-size-options">
+          <option v-for="size in TEXT_SIZE_OPTIONS" :key="size" :value="size" />
+        </datalist>
+        <span class="size-unit">pt</span>
+      </div>
+
+      <div class="toolbar-row size-row">
+        <span class="size-label">Opacity</span>
+        <input
+          class="opacity-slider"
+          type="range"
+          min="0.05"
+          max="1"
+          step="0.05"
+          :value="opacity"
+          @input="emitPatch({ opacity: Number(($event.target as HTMLInputElement).value) })"
+        />
+        <span class="size-value">{{ Math.round(opacity * 100) }}%</span>
       </div>
 
       <button v-if="canReset" class="toolbar-reset" @click="$emit('reset')">Reset to imported text</button>
@@ -76,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FontFamily, PosterTextOverride } from '~/types'
+import type { ChromeBlockAlign, FontFamily, PosterTextOverride } from '~/types'
 
 const FONT_OPTIONS: FontFamily[] = [
   'Big Shoulders Display',
@@ -93,12 +140,25 @@ const FONT_OPTIONS: FontFamily[] = [
   'DM Serif Display',
 ]
 
+const MIN_TEXT_SIZE_PT = 6
+const MAX_TEXT_SIZE_PT = 240
+const TEXT_SIZE_OPTIONS = [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 84, 96, 120, 144, 180, 216, 240]
+const ALIGN_OPTIONS: Array<{ value: ChromeBlockAlign; label: string; title: string }> = [
+  { value: 'left', label: 'L', title: 'Align left' },
+  { value: 'center', label: 'C', title: 'Align center' },
+  { value: 'right', label: 'R', title: 'Align right' },
+]
+
 const props = defineProps<{
   label: string
   anchorRect: DOMRect | null
   fontFamily: FontFamily
   color: string
-  scale: number
+  backgroundColor?: string
+  supportsHighlight?: boolean
+  fontSizePt: number
+  align: ChromeBlockAlign
+  opacity: number
   bold: boolean
   italic: boolean
   canReset: boolean
@@ -163,6 +223,17 @@ const toolbarStyle = computed(() => {
 function emitPatch(patch: PosterTextOverride) {
   emit('patch', patch)
 }
+
+function emitFontSize(value: string, clamp: boolean) {
+  const size = Number(value)
+  if (!Number.isFinite(size)) return
+  if (!clamp && (size < MIN_TEXT_SIZE_PT || size > MAX_TEXT_SIZE_PT)) return
+  emitPatch({ font_size_pt: Math.min(MAX_TEXT_SIZE_PT, Math.max(MIN_TEXT_SIZE_PT, Math.round(size))) })
+}
+
+function toggleHighlight() {
+  emitPatch({ bg_color: props.backgroundColor ? '' : '#E85D75' })
+}
 </script>
 
 <style scoped>
@@ -204,7 +275,9 @@ function emitPatch(patch: PosterTextOverride) {
 }
 
 .toolbar-icon-btn,
-.toolbar-toggle {
+.toolbar-toggle,
+.toolbar-align-btn,
+.toolbar-highlight-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -222,11 +295,37 @@ function emitPatch(patch: PosterTextOverride) {
   font-weight: 800;
 }
 
+.toolbar-align-group {
+  display: inline-flex;
+  border: 1px solid #E7E5E4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.toolbar-align-btn {
+  width: 27px;
+  height: 28px;
+  border: 0;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.toolbar-highlight-toggle {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .toolbar-toggle.italic {
   font-style: italic;
 }
 
-.toolbar-toggle.active {
+.toolbar-toggle.active,
+.toolbar-align-btn.active,
+.toolbar-highlight-toggle.active {
   border-color: #2D6A4F;
   background: #DCEBE2;
   color: #1F4D38;
@@ -291,14 +390,44 @@ function emitPatch(patch: PosterTextOverride) {
   width: 42px;
 }
 
+.size-label {
+  flex-shrink: 0;
+}
+
 .size-value {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.size-slider {
+.size-slider,
+.opacity-slider {
   flex: 1;
   accent-color: #2D6A4F;
+}
+
+.size-input {
+  width: 88px;
+  height: 30px;
+  border: 1px solid #E7E5E4;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #1C1917;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 8px;
+  outline: none;
+}
+
+.size-input:focus {
+  border-color: #2D6A4F;
+  box-shadow: 0 0 0 1px rgba(45, 106, 79, 0.18);
+}
+
+.size-unit {
+  width: 24px;
+  color: #78716C;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .toolbar-reset {

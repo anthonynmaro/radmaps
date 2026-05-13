@@ -44,6 +44,13 @@ const framing = getPrintFraming('24x36', 'final')
 
 const baseConfig: StyleConfig = { ...DEFAULT_STYLE_CONFIG }
 
+function proofHash(config: StyleConfig) {
+  return computeProofRenderHash(
+    computeMapContentHash(config, geojson, framing),
+    computeChromeHash(config, stats),
+  )
+}
+
 describe('hash determinism', () => {
   it('same input produces same map_content_hash', () => {
     const a = computeMapContentHash(baseConfig, geojson, framing)
@@ -82,6 +89,31 @@ describe('two-layer isolation', () => {
     const next = { ...baseConfig, trail_name: 'Different name' }
     const b = computeChromeHash(next, stats)
     expect(a).not.toBe(b)
+  })
+
+  it('changing poster_layout changes chrome_hash but not map_content_hash', () => {
+    const mapA = computeMapContentHash(baseConfig, geojson, framing)
+    const chromeA = computeChromeHash(baseConfig, stats)
+    const next: StyleConfig = {
+      ...baseConfig,
+      poster_layout: {
+        blocks: {
+          header: [{
+            id: 'hdr-title',
+            kind: 'title',
+            slot: 'trail_name',
+            col: 1,
+            row: 1,
+            span: 12,
+            scale: 1.2,
+          }],
+        },
+      },
+    }
+    const mapB = computeMapContentHash(next, geojson, framing)
+    const chromeB = computeChromeHash(next, stats)
+    expect(mapB).toBe(mapA)
+    expect(chromeB).not.toBe(chromeA)
   })
 
   it('changing a map field does NOT change chrome_hash', () => {
@@ -214,5 +246,35 @@ describe('proof + print hashes', () => {
     expect(a).not.toBe(b)
     expect(a).not.toBe(c1)
     expect(a).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('changes proof_render_hash for representative editor-visible style edits', () => {
+    const base = proofHash(baseConfig)
+    const variants: Array<[string, StyleConfig]> = [
+      ['composition', { ...baseConfig, composition: 'riso-stack' }],
+      ['theme color', { ...baseConfig, color_theme: 'risograph', route_color: '#E8533C' }],
+      ['poster text', { ...baseConfig, trail_name: 'Edited Trail Name' }],
+      ['inline text override', {
+        ...baseConfig,
+        poster_text_overrides: {
+          composition_footer: {
+            text: 'Edited footer',
+            scale: 1.4,
+            opacity: 0.8,
+          },
+        },
+      }],
+      ['grid chrome', { ...baseConfig, show_grid: true, grid_scope: 'map', grid_color: '#123456', grid_opacity: 0.2 }],
+      ['terrain paint', { ...baseConfig, map_3d: true, map_pitch: 45, terrain_exaggeration: 2.2 }],
+      ['hillshade paint', { ...baseConfig, show_hillshade: true, hillshade_intensity: 0.85 }],
+      ['road paint', { ...baseConfig, show_roads: true, roads_color: '#223344', roads_opacity: 0.25 }],
+      ['label paint', { ...baseConfig, show_place_labels: true, place_labels_color: '#445566', place_labels_opacity: 0.4 }],
+      ['contour paint', { ...baseConfig, contour_color: '#667788', contour_major_color: '#112233', contour_opacity: 0.35 }],
+      ['camera', { ...baseConfig, map_frozen: true, map_zoom: 12.5, map_center: [-87.66, 41.87], map_editor_width: 720 }],
+    ]
+
+    for (const [name, config] of variants) {
+      expect(proofHash(config), name).not.toBe(base)
+    }
   })
 })

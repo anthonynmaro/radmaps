@@ -41,6 +41,7 @@ describe('road and label overlays', () => {
   it('can hide place labels while leaving road layers enabled', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
+      preset: 'route-only',
       show_roads: true,
       show_place_labels: false,
     }, 'mapbox-test-token')
@@ -52,6 +53,7 @@ describe('road and label overlays', () => {
   it('renders named generic POIs when POI labels are enabled', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
+      preset: 'route-only',
       show_roads: true,
       show_poi_labels: true,
     }, 'mapbox-test-token')

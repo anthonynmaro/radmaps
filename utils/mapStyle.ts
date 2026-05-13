@@ -1,4 +1,47 @@
-import type { StyleConfig, TrailSegment } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH, type StyleConfig, type TrailSegment } from '~/types'
+import {
+  CIRCLE_SCALE_PROPERTIES,
+  LINE_SCALE_PROPERTIES,
+  ROUTE_SCALE_PROPERTIES,
+  effectiveStyleConfig,
+  getPresetGraph,
+  styleGraphUsesContours,
+  type ScaledMapLibreProperty,
+} from '~/utils/styleLayerGraph'
+
+type MapStyleObject = Record<string, unknown> & {
+  layers?: Array<Record<string, unknown>>
+}
+
+function withScaleMetadata<T extends Record<string, unknown>>(layer: T, scale: ScaledMapLibreProperty[]): T {
+  const metadata = (layer.metadata && typeof layer.metadata === 'object')
+    ? layer.metadata as Record<string, unknown>
+    : {}
+  const radmaps = (metadata.radmaps && typeof metadata.radmaps === 'object')
+    ? metadata.radmaps as Record<string, unknown>
+    : {}
+  return {
+    ...layer,
+    metadata: {
+      ...metadata,
+      radmaps: {
+        ...radmaps,
+        scale,
+      },
+    },
+  }
+}
+
+function applyGraphLayerMetadata<T extends object>(style: T, config: StyleConfig): T {
+  const mapStyle = style as MapStyleObject
+  if (!Array.isArray(mapStyle.layers)) return style
+  const graphLayers = new Map(getPresetGraph(config.preset).layers.map(layer => [layer.id, layer]))
+  mapStyle.layers = mapStyle.layers.map((layer) => {
+    const graphLayer = graphLayers.get(String(layer.id ?? ''))
+    return graphLayer?.scale?.length ? withScaleMetadata(layer, graphLayer.scale) : layer
+  })
+  return mapStyle as T
+}
 
 /**
  * Build a MapLibre GL Style JSON object from a StyleConfig.
@@ -22,44 +65,38 @@ export function buildMapStyle(
   contourTileUrl?: string,
   stadiaToken?: string,
 ): object {
-  if (config.preset === 'topographic') {
-    return buildTopographicStyle(config, mapboxToken, contourTileUrl)
+  const effectiveConfig = effectiveStyleConfig(config)
+  let style: object
+  if (effectiveConfig.preset === 'topographic') {
+    style = buildTopographicStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'route-only') {
+    style = buildRouteOnlyStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'road-network') {
+    style = buildRoadNetworkStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'contour-art') {
+    style = buildContourArtStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'natural-topo') {
+    style = buildNaturalTopoStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'stadia-watercolor') {
+    style = buildStadiaWatercolorStyle(effectiveConfig, contourTileUrl, stadiaToken, mapboxToken)
+  } else if (effectiveConfig.preset === 'stadia-toner') {
+    style = buildStadiaTonerStyle(effectiveConfig, contourTileUrl, stadiaToken, mapboxToken)
+  } else if (effectiveConfig.preset === 'native-toner') {
+    style = buildNativeTonerStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'native-watercolor') {
+    style = buildNativeWatercolorStyle(effectiveConfig, contourTileUrl, mapboxToken)
+  } else if (effectiveConfig.preset === 'alidade-smooth') {
+    style = buildAlidadeSmoothStyle(effectiveConfig, maptilerToken, mapboxToken, contourTileUrl)
+  } else if (effectiveConfig.preset === 'alidade-smooth-dark') {
+    style = buildAlidadeSmoothDarkStyle(effectiveConfig, maptilerToken, mapboxToken, contourTileUrl)
+  } else {
+    style = buildMinimalistStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   }
-  if (config.preset === 'route-only') {
-    return buildRouteOnlyStyle(config, mapboxToken, maptilerToken, contourTileUrl)
-  }
-  if (config.preset === 'road-network') {
-    return buildRoadNetworkStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'contour-art') {
-    return buildContourArtStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'natural-topo') {
-    return buildNaturalTopoStyle(config, mapboxToken, maptilerToken, contourTileUrl)
-  }
-  if (config.preset === 'stadia-watercolor') {
-    return buildStadiaWatercolorStyle(config, contourTileUrl, stadiaToken, mapboxToken)
-  }
-  if (config.preset === 'stadia-toner') {
-    return buildStadiaTonerStyle(config, contourTileUrl, stadiaToken, mapboxToken)
-  }
-  if (config.preset === 'native-toner') {
-    return buildNativeTonerStyle(config, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'native-watercolor') {
-    return buildNativeWatercolorStyle(config, contourTileUrl, mapboxToken)
-  }
-  if (config.preset === 'alidade-smooth') {
-    return buildAlidadeSmoothStyle(config, maptilerToken, mapboxToken, contourTileUrl)
-  }
-  if (config.preset === 'alidade-smooth-dark') {
-    return buildAlidadeSmoothDarkStyle(config, maptilerToken, mapboxToken, contourTileUrl)
-  }
-  return buildMinimalistStyle(config, mapboxToken, maptilerToken, contourTileUrl)
+  return applyGraphLayerMetadata(style, effectiveConfig)
 }
 
 export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
-  return config.preset === 'contour-art' || config.show_contours === true
+  return styleGraphUsesContours(config)
 }
 
 // ─── Contour thresholds for maplibre-contour ─────────────────────────────────
@@ -154,7 +191,6 @@ export function mapInkColor(config: StyleConfig): string {
 
 // ─── DEM source (hillshade) ───────────────────────────────────────────────────
 // AWS Terrain Tiles (Tilezen/Terrarium) — free, no auth, terrarium encoding.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function demSource(_token: string) {
   return {
     'mapbox-dem': {
@@ -222,6 +258,27 @@ function hillshadeLayers(config: StyleConfig) {
 
 // ─── Contour line layers ──────────────────────────────────────────────────────
 
+export function contourMinorLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_minor_width ?? 1
+  if (config.preset === 'contour-art') {
+    return ['interpolate', ['linear'], ['zoom'], 5, 0.75 * weight, 14, 1.4 * weight]
+  }
+  return ['interpolate', ['linear'], ['zoom'], 5, 0.8 * weight, 14, 1.0 * weight]
+}
+
+export function contourMidLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_minor_width ?? 1
+  return ['interpolate', ['linear'], ['zoom'], 5, 1.1 * weight, 14, 1.5 * weight]
+}
+
+export function contourMajorLineWidthExpression(config: StyleConfig): unknown[] {
+  const weight = config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH
+  if (config.preset === 'contour-art') {
+    return ['interpolate', ['linear'], ['zoom'], 5, 1.3 * weight, 14, 2.8 * weight]
+  }
+  return ['interpolate', ['linear'], ['zoom'], 5, 1.5 * weight, 14, 2.5 * weight]
+}
+
 function contourLayers(config: StyleConfig, usingMlContour: boolean) {
   if (!config.show_contours) return []
 
@@ -242,7 +299,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
             5, config.contour_opacity,
             14, config.contour_opacity * 0.9,
           ],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
+          'line-width': contourMinorLineWidthExpression(config),
         },
       },
       {
@@ -255,7 +312,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         paint: {
           'line-color': config.contour_major_color,
           'line-opacity': config.contour_opacity,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
+          'line-width': contourMajorLineWidthExpression(config),
         },
       },
     ]
@@ -313,7 +370,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
           5, config.contour_opacity,
           14, config.contour_opacity * 0.9,
         ],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.8 * (config.contour_minor_width ?? 1), 14, 1.0 * (config.contour_minor_width ?? 1)],
+        'line-width': contourMinorLineWidthExpression(config),
       },
     })
   }
@@ -329,7 +386,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
       paint: {
         'line-color': config.contour_color,
         'line-opacity': config.contour_opacity,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.1 * (config.contour_minor_width ?? 1), 14, 1.5 * (config.contour_minor_width ?? 1)],
+        'line-width': contourMidLineWidthExpression(config),
       },
     })
   }
@@ -344,7 +401,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
     paint: {
       'line-color': config.contour_major_color,
       'line-opacity': config.contour_opacity,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5 * (config.contour_major_width ?? 1), 14, 2.5 * (config.contour_major_width ?? 1)],
+      'line-width': contourMajorLineWidthExpression(config),
     },
   })
 
@@ -394,6 +451,28 @@ function roadsSource(token: string) {
   }
 }
 
+const NATURAL_WATERWAY_CLASSES = ['river', 'canal', 'stream', 'stream_intermittent'] as const
+
+function waterwayLayer(id: string, color: string, opacity: number, minWidth: number, maxWidth: number): object {
+  return {
+    id,
+    type: 'line',
+    source: 'mapbox-streets',
+    'source-layer': 'waterway',
+    filter: ['in', ['get', 'class'], ['literal', [...NATURAL_WATERWAY_CLASSES]]],
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': color,
+      'line-opacity': opacity,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 7, minWidth, 14, maxWidth],
+    },
+  }
+}
+
+function usesRoadOverlay(config: StyleConfig): boolean {
+  return config.show_roads === true || config.show_place_labels !== false || config.show_poi_labels === true
+}
+
 function placeLabelTypes(scale: StyleConfig['place_labels_scale']): string[] {
   if (scale === 'city') return ['city']
   if (scale === 'village') return ['city', 'town', 'village']
@@ -401,8 +480,6 @@ function placeLabelTypes(scale: StyleConfig['place_labels_scale']): string[] {
 }
 
 function roadsLayers(config: StyleConfig): object[] {
-  if (!config.show_roads) return []
-
   const roadColor  = config.roads_color  ?? config.label_text_color
   const roadOpacity = config.roads_opacity ?? 0.6
   const labelColor  = config.place_labels_color  ?? config.label_text_color
@@ -410,50 +487,54 @@ function roadsLayers(config: StyleConfig): object[] {
   const poiColor  = config.poi_labels_color  ?? config.label_text_color
   const poiOpacity = config.poi_labels_opacity ?? 0.65
 
-  const layers: object[] = [
-    // Motorways + trunk — widest, most prominent
-    {
-      id: 'roads-major',
-      type: 'line',
-      source: 'mapbox-streets',
-      'source-layer': 'road',
-      filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': roadColor,
-        'line-opacity': roadOpacity * 0.50,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.0, 14, 3.5],
+  const layers: object[] = []
+
+  if (config.show_roads) {
+    layers.push(
+      // Motorways + trunk — widest, most prominent
+      {
+        id: 'roads-major',
+        type: 'line',
+        source: 'mapbox-streets',
+        'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': roadColor,
+          'line-opacity': roadOpacity * 0.50,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.0, 14, 3.5],
+        },
       },
-    },
-    // Primary + secondary
-    {
-      id: 'roads-primary',
-      type: 'line',
-      source: 'mapbox-streets',
-      'source-layer': 'road',
-      filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary']]],
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': roadColor,
-        'line-opacity': roadOpacity * 0.37,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 2.5],
+      // Primary + secondary
+      {
+        id: 'roads-primary',
+        type: 'line',
+        source: 'mapbox-streets',
+        'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': roadColor,
+          'line-opacity': roadOpacity * 0.37,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 2.5],
+        },
       },
-    },
-    // Tertiary + local streets
-    {
-      id: 'roads-minor',
-      type: 'line',
-      source: 'mapbox-streets',
-      'source-layer': 'road',
-      filter: ['in', ['get', 'class'], ['literal', ['tertiary', 'street', 'service', 'path']]],
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': roadColor,
-        'line-opacity': roadOpacity * 0.23,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.5],
+      // Tertiary + local streets
+      {
+        id: 'roads-minor',
+        type: 'line',
+        source: 'mapbox-streets',
+        'source-layer': 'road',
+        filter: ['in', ['get', 'class'], ['literal', ['tertiary', 'street', 'service', 'path']]],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': roadColor,
+          'line-opacity': roadOpacity * 0.23,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.5],
+        },
       },
-    },
-  ]
+    )
+  }
 
   // Place labels (cities, towns, villages) — shown by default
   if (config.show_place_labels !== false) {
@@ -532,7 +613,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
     const opacity = seg.opacity ?? 0.9
     const dashArray = seg.dash ? [4, 3] : undefined
 
-    layers.push({
+    layers.push(withScaleMetadata({
       id: `trail-seg-casing-${seg.id}`,
       type: 'line',
       source: `trail-seg-${seg.id}`,
@@ -542,7 +623,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
         'line-width': width + (config.segment_casing_width ?? 3),
         'line-opacity': opacity,
       },
-    })
+    }, LINE_SCALE_PROPERTIES))
 
     const lineLayer: Record<string, unknown> = {
       id: `trail-seg-line-${seg.id}`,
@@ -559,7 +640,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
         ...(dashArray ? { 'line-dasharray': dashArray } : {}),
       },
     }
-    layers.push(lineLayer)
+    layers.push(withScaleMetadata(lineLayer, LINE_SCALE_PROPERTIES))
   }
   return layers
 }
@@ -588,7 +669,7 @@ export function effectiveSegmentDotRadius(config: StyleConfig): number {
 function segmentHandleLayers(config: StyleConfig): object[] {
   const dotR = effectiveSegmentDotRadius(config)
   return [
-    {
+    withScaleMetadata({
       id: 'segment-handle-dot',
       type: 'circle',
       source: 'segment-handles',
@@ -597,7 +678,7 @@ function segmentHandleLayers(config: StyleConfig): object[] {
         'circle-color': ['get', 'color'],
         'circle-opacity': 1,
       },
-    },
+    }, CIRCLE_SCALE_PROPERTIES),
   ]
 }
 
@@ -622,7 +703,7 @@ function routeSource(config: StyleConfig): object {
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
-  const casing = {
+  const casing = withScaleMetadata({
     id: 'route-line-casing',
     type: 'line',
     source: 'route',
@@ -632,13 +713,13 @@ function routeLayers(config: StyleConfig) {
       'line-width': config.route_width + 4,
       'line-opacity': config.route_opacity,
     },
-  }
+  }, ROUTE_SCALE_PROPERTIES)
 
   const useGradient = config.route_color_mode === 'gradient' && !(config.route_deleted_ranges ?? []).length
   if (useGradient) {
     return [
       casing,
-      {
+      withScaleMetadata({
         id: 'route-line',
         type: 'line',
         source: 'route',
@@ -655,13 +736,13 @@ function routeLayers(config: StyleConfig) {
           'line-width': config.route_width,
           'line-opacity': config.route_opacity,
         },
-      },
+      }, ROUTE_SCALE_PROPERTIES),
     ]
   }
 
   return [
     casing,
-    {
+    withScaleMetadata({
       id: 'route-line',
       type: 'line',
       source: 'route',
@@ -671,7 +752,7 @@ function routeLayers(config: StyleConfig) {
         'line-width': config.route_width,
         'line-opacity': config.route_opacity,
       },
-    },
+    }, ROUTE_SCALE_PROPERTIES),
   ]
 }
 
@@ -732,7 +813,7 @@ function buildMinimalistStyle(
       'base-tiles': { ...baseTileSource, attribution: baseTileAttribution },
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -781,7 +862,7 @@ function buildRouteOnlyStyle(
     sources: {
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -845,6 +926,7 @@ function buildRoadNetworkStyle(
       'source-layer': 'water',
       paint: { 'fill-color': config.water_color ?? '#B8D8E8', 'fill-opacity': 0.6 },
     })
+    fillLayers.push(waterwayLayer('rn-waterways', config.water_color ?? '#B8D8E8', 0.7, 0.45, 1.6))
 
     // Land use — parks / green space
     fillLayers.push({
@@ -951,8 +1033,7 @@ function buildContourArtStyle(
 ): object {
   const token = mapboxToken || ''
   const usingMlContour = !!contourTileUrl
-  // Force maximum detail when used as the primary visual layer
-  const artConfig = { ...config, show_contours: true, contour_detail: 4 }
+  const artConfig = { ...config, show_contours: true, contour_detail: config.contour_detail ?? 4 }
   const glyphs = token
     ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
     : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
@@ -981,7 +1062,8 @@ function buildContourArtStyle(
               'fill-color': config.water_color ?? '#B8D8E8',
               'fill-opacity': 0.62,
             },
-          }]
+          },
+          waterwayLayer('contour-art-waterways', config.water_color ?? '#B8D8E8', 0.85, 0.6, 2.0)]
         : []),
       // Hillshade at very low opacity for subtle topographic depth
       ...(config.show_hillshade
@@ -1012,7 +1094,7 @@ function buildContourArtStyle(
               paint: {
                 'line-color': artConfig.contour_color,
                 'line-opacity': artConfig.contour_opacity,
-                'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 14, 0.9],
+                'line-width': contourMinorLineWidthExpression(artConfig),
               },
             },
             {
@@ -1025,7 +1107,7 @@ function buildContourArtStyle(
               paint: {
                 'line-color': artConfig.contour_major_color,
                 'line-opacity': artConfig.contour_opacity,
-                'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 14, 2.0],
+                'line-width': contourMajorLineWidthExpression(artConfig),
               },
             },
             ...(config.show_elevation_labels ? [{
@@ -1055,6 +1137,7 @@ function buildContourArtStyle(
           ]
         : contourLayers(artConfig, false)
       ),
+      ...(token ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
@@ -1100,7 +1183,7 @@ function buildNaturalTopoStyle(
       },
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1165,7 +1248,7 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1220,7 +1303,7 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
       },
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1285,6 +1368,7 @@ function buildNativeTonerStyle(
     baseLayers.push(
       { id: 'nt-water',     type: 'fill', source: 'mapbox-streets', 'source-layer': 'water',
         paint: { 'fill-color': ink, 'fill-opacity': 0.85 } },
+      waterwayLayer('nt-waterways', ink, 0.85, 0.45, 1.7),
       { id: 'nt-landuse',   type: 'fill', source: 'mapbox-streets', 'source-layer': 'landuse',
         filter: ['in', ['get', 'class'], ['literal', ['park', 'grass', 'wood', 'forest', 'scrub']]],
         paint: { 'fill-color': ink, 'fill-opacity': 0.08 } },
@@ -1379,11 +1463,9 @@ function buildNativeWatercolorStyle(
         tileSize: 512,
         attribution: '© CARTO © OpenStreetMap contributors',
       },
-      ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
-      ...(config.show_contours && contourTileUrl
-        ? { contours: { type: 'vector' as const, tiles: [contourTileUrl], minzoom: 0, maxzoom: 14 } }
-        : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
+      ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1400,7 +1482,7 @@ function buildNativeWatercolorStyle(
         },
       },
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
-      ...(config.show_contours && usingMlContour ? contourLayers(config, true) : []),
+      ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
       ...(mapboxTk ? roadsLayers(config) : []),
       ...routeLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
@@ -1437,7 +1519,7 @@ function buildAlidadeSmoothStyle(
       },
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1492,7 +1574,7 @@ function buildAlidadeSmoothDarkStyle(
       },
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
-      ...(config.show_roads && mapboxTk ? roadsSource(mapboxTk) : {}),
+      ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
@@ -1541,7 +1623,7 @@ function buildTopographicStyle(
       },
       ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
-      ...(config.show_roads && token ? roadsSource(token) : {}),
+      ...(usesRoadOverlay(config) && token ? roadsSource(token) : {}),
       route: routeSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),

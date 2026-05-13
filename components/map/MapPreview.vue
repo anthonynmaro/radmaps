@@ -5,12 +5,16 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState"
+      v-if="editable && activeToolbarState && (!chromeDirectEditing || activeTextTarget?.type === 'overlay')"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
       :color="activeToolbarState.color"
-      :scale="activeToolbarState.scale"
+      :background-color="activeToolbarState.backgroundColor"
+      :supports-highlight="activeToolbarState.supportsHighlight"
+      :font-size-pt="activeToolbarState.fontSizePt"
+      :align="activeToolbarState.align"
+      :opacity="activeToolbarState.opacity"
       :bold="activeToolbarState.bold"
       :italic="activeToolbarState.italic"
       :can-reset="activeToolbarState.canReset"
@@ -20,20 +24,141 @@
       @done="finishActiveTextEdit"
     />
 
+    <div
+      v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
+      class="chrome-selection-toolbar"
+      :class="`chrome-selection-toolbar--${activeChromeBand}`"
+      :style="chromeToolbarStyle"
+      data-testid="chrome-selection-toolbar"
+      @pointerdown.stop
+      @click.stop
+    >
+      <span class="chrome-toolbar-kind">{{ chromeBlockLabel(activeChromeBlock) }}</span>
+      <span class="chrome-toolbar-divider" />
+      <button class="chrome-toolbar-btn" title="Bold" @click="toggleChromeBold">B</button>
+      <button class="chrome-toolbar-btn chrome-toolbar-btn--italic" title="Italic" @click="toggleChromeItalic">I</button>
+      <button class="chrome-toolbar-btn" title="Smaller" @click="nudgeChromeScale(-0.05)">A-</button>
+      <button class="chrome-toolbar-btn" title="Larger" @click="nudgeChromeScale(0.05)">A+</button>
+      <label class="chrome-toolbar-color" title="Text color">
+        <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
+      </label>
+      <span class="chrome-toolbar-divider" />
+      <button class="chrome-toolbar-btn" title="Align left" @click="setChromeAlign('left')">L</button>
+      <button class="chrome-toolbar-btn" title="Align center" @click="setChromeAlign('center')">C</button>
+      <button class="chrome-toolbar-btn" title="Align right" @click="setChromeAlign('right')">R</button>
+      <button class="chrome-toolbar-btn" title="Align top" @click="setChromeValign('top')">T</button>
+      <button class="chrome-toolbar-btn" title="Align middle" @click="setChromeValign('center')">M</button>
+      <button class="chrome-toolbar-btn" title="Align bottom" @click="setChromeValign('bottom')">B</button>
+      <span class="chrome-toolbar-divider" />
+      <button class="chrome-toolbar-btn" title="Duplicate" @click="duplicateChromeBlock">Duplicate</button>
+      <button class="chrome-toolbar-btn chrome-toolbar-btn--danger" title="Delete" data-testid="chrome-delete-block" @click="deleteChromeBlock">Delete</button>
+      <button class="chrome-toolbar-btn" title="Done" @click="finishActiveTextEdit">Done</button>
+      <span class="chrome-toolbar-pointer" :style="chromeToolbarPointerStyle" />
+    </div>
+
+    <div
+      v-if="chromeToolbarVisible && activeChromeBlock && chromeMobile"
+      class="chrome-mobile-drawer"
+      data-testid="chrome-mobile-drawer"
+      @pointerdown.stop
+      @click.stop
+    >
+      <div class="chrome-mobile-handle" />
+      <div class="chrome-mobile-head">
+        <span>{{ chromeBandLabel(activeChromeBand).toUpperCase() }} · {{ chromeBlockLabel(activeChromeBlock).toUpperCase() }}</span>
+        <button @click="finishActiveTextEdit">Done</button>
+      </div>
+      <input
+        v-if="activeChromeTextValue != null"
+        class="chrome-mobile-input"
+        :value="activeChromeTextValue"
+        @input="setActiveChromeText(($event.target as HTMLInputElement).value)"
+      />
+      <div class="chrome-mobile-chip-row">
+        <button :class="{ active: activeChromeBold }" @click="toggleChromeBold">B</button>
+        <button :class="{ active: activeChromeItalic }" @click="toggleChromeItalic">I</button>
+        <button @click="nudgeChromeScale(-0.05)">A-</button>
+        <button @click="nudgeChromeScale(0.05)">A+</button>
+        <button @click="setChromeAlign('left')">L</button>
+        <button @click="setChromeAlign('center')">C</button>
+        <button @click="setChromeAlign('right')">R</button>
+        <label>
+          Color
+          <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
+        </label>
+      </div>
+      <div class="chrome-mobile-actions">
+        <button @click="duplicateChromeBlock">Duplicate</button>
+        <button @click="resetChromeSection(activeChromeBand)">Reset section</button>
+        <button class="danger" @click="deleteChromeBlock">Delete</button>
+      </div>
+    </div>
+
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
       ref="posterCanvasEl"
       class="poster-canvas relative flex flex-col"
       :class="posterCanvasClass"
       :style="posterCanvasStyle"
+      :data-composition="composition.id"
+      :data-theme="styleConfig.color_theme"
+      data-testid="poster-canvas"
+      @pointerdown.self="onChromeCanvasPointerDown"
     >
 
       <!-- ── Inset frame (optional) ───────────────────────────────────────── -->
       <div
-        v-if="styleConfig.border_style !== 'none'"
-        class="absolute z-20 pointer-events-none"
+        v-if="showPosterInsetFrame"
+        class="poster-inset-frame absolute z-20 pointer-events-none"
         :style="frameStyle"
+        data-testid="poster-inset-frame"
       />
+
+      <div
+        v-if="composition.showPaperTexture"
+        class="composition-paper-texture"
+        data-testid="composition-paper-texture"
+      />
+      <div
+        v-if="showPosterGrid"
+        class="composition-grid-overlay"
+        :style="gridOverlayStyle"
+        data-testid="composition-grid-overlay"
+      />
+      <div
+        v-if="composition.showStarField"
+        class="composition-star-field"
+        data-testid="composition-star-field"
+      />
+      <div
+        v-if="composition.showSideRail && !sideRailInsideMap"
+        class="composition-side-rail"
+        data-testid="composition-side-rail"
+        @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'railLeft')"
+        @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+      />
+      <div
+        v-if="compositionDecor.sideRailLabel && !sideRailInsideMap && chromeSlotVisible('composition_side_rail')"
+        class="composition-side-rail-label"
+        :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+        :style="compositionSideRailLabelStyle"
+        :contenteditable="editable ? 'true' : 'false'"
+        :suppressContentEditableWarning="true"
+        role="textbox"
+        aria-label="Side rail label"
+        enterkeyhint="done"
+        spellcheck="true"
+        data-testid="composition-side-rail-label"
+        @focus="onSlotFocus($event, 'composition_side_rail')"
+        @blur="onSlotBlur($event, 'composition_side_rail')"
+        @click="onSlotClick($event, 'composition_side_rail')"
+        @keydown.enter.exact.prevent="finishActiveTextEdit"
+      >{{ compositionDecor.sideRailLabel }}</div>
+      <button
+        v-if="chromeDirectEditing && hoveredChromeBand === 'railLeft' && !sideRailInsideMap"
+        class="chrome-section-chip chrome-section-chip--rail"
+        @click.stop="openChromeSection('railLeft')"
+      >LEFT RAIL</button>
 
       <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
       <div
@@ -84,19 +209,60 @@
       />
 
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
-      <div class="poster-header shrink-0" :style="headerBandStyle">
+      <div
+        class="poster-header shrink-0"
+        :style="headerBandStyle"
+        data-testid="poster-header"
+        @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
+        @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+      >
+        <div
+          v-if="chromeAffordancesVisible"
+          class="chrome-band-layer"
+          :class="{ 'is-active': chromeBandActive('header') }"
+          data-testid="chrome-band-header"
+        >
+          <button
+            v-if="chromeSectionActive('header')"
+            class="chrome-section-chip"
+            @click.stop="openChromeSection('header')"
+          >Header</button>
+          <button
+            v-if="chromeSectionActive('header')"
+            class="chrome-insert-btn"
+            title="Add text block"
+            @click.stop="addChromeTextBlock('header')"
+          >+</button>
+        </div>
+        <div
+          v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
+          class="composition-kicker"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_kicker') }"
+          :style="compositionKickerStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition kicker"
+          enterkeyhint="done"
+          spellcheck="true"
+          data-testid="composition-kicker"
+          @focus="onSlotFocus($event, 'composition_kicker')"
+          @blur="onSlotBlur($event, 'composition_kicker')"
+          @click="onSlotClick($event, 'composition_kicker')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.kicker }}</div>
 
         <!-- Thin rule at top — only for bottom-positioned header -->
         <div v-if="layout.titlePosition === 'bottom'" class="poster-rule" :style="ruleStyle" />
 
         <!-- Trail name — static or editable -->
         <h1
-          v-if="!editable && styleConfig.labels?.show_title !== false"
+          v-if="!editable && styleConfig.labels?.show_title !== false && chromeSlotVisible('trail_name')"
           class="poster-trail-name"
           :style="trailNameStyle"
         >{{ trailName }}</h1>
         <h1
-          v-else-if="editable"
+          v-else-if="editable && chromeSlotVisible('trail_name')"
           class="poster-trail-name editable-text"
           :class="{ 'is-selected-text': isSlotActive('trail_name') }"
           :style="trailNameStyle"
@@ -114,12 +280,12 @@
 
         <!-- Location / elevation line -->
         <p
-          v-if="locationLine && !editable"
+          v-if="locationLine && !editable && chromeSlotVisible('location_text')"
           class="poster-location-line"
           :style="locationLineStyle"
         >{{ locationLine }}</p>
         <p
-          v-else-if="locationLine && editable"
+          v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
           :class="{ 'is-selected-text': isSlotActive('location_text') }"
           :style="locationLineStyle"
@@ -135,14 +301,85 @@
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ locationLine }}</p>
 
+        <div
+          v-if="compositionDecor.meta && chromeSlotVisible('composition_meta')"
+          class="composition-meta-line"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_meta') }"
+          :style="compositionMetaStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition metadata"
+          enterkeyhint="done"
+          spellcheck="true"
+          data-testid="composition-meta-line"
+          @focus="onSlotFocus($event, 'composition_meta')"
+          @blur="onSlotBlur($event, 'composition_meta')"
+          @click="onSlotClick($event, 'composition_meta')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.meta }}</div>
+
         <!-- Thin rule at bottom — only for top-positioned header -->
         <div v-if="layout.titlePosition === 'top'" class="poster-rule" :style="ruleStyle" />
+        <div
+          v-for="block in customChromeBlocks('header')"
+          :key="block.id"
+          class="chrome-custom-block editable-text"
+          :class="{ 'is-selected-text': activeChromeBlockId === block.id }"
+          :style="chromeCustomBlockStyle('header', block)"
+          contenteditable="true"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          :aria-label="chromeBlockLabel(block)"
+          data-testid="chrome-custom-block"
+          @focus="onCustomChromeFocus($event, block.id)"
+          @blur="onCustomChromeBlur($event, block.id)"
+          @click.stop="onCustomChromeClick($event, block.id)"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ chromeBlockText(block) }}</div>
       </div>
 
       <!-- ── MAP (hero — takes all remaining height) ─────────────────────── -->
-      <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle"
+      <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle" data-testid="poster-map"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+        <div
+          v-if="sideRailInsideMap"
+          class="composition-side-rail composition-side-rail--left"
+          data-testid="composition-side-rail"
+          @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'railLeft')"
+          @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        />
+        <div
+          v-if="sideRailInsideMap"
+          class="composition-side-rail composition-side-rail--right"
+          data-testid="composition-side-rail-right"
+          @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'railRight')"
+          @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        />
+        <div
+          v-if="compositionDecor.sideRailLabel && sideRailInsideMap && chromeSlotVisible('composition_side_rail')"
+          class="composition-side-rail-label composition-side-rail-label--left"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+          :style="compositionSideRailLabelStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Side rail label"
+          enterkeyhint="done"
+          spellcheck="true"
+          data-testid="composition-side-rail-label"
+          @focus="onSlotFocus($event, 'composition_side_rail')"
+          @blur="onSlotBlur($event, 'composition_side_rail')"
+          @click="onSlotClick($event, 'composition_side_rail')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.sideRailLabel }}</div>
+        <div
+          v-if="showMapGrid"
+          class="composition-grid-overlay composition-grid-overlay--map"
+          :style="gridOverlayStyle"
+          data-testid="composition-map-grid-overlay"
+        />
 
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
@@ -256,7 +493,7 @@
                 :font-size="pinLabelFontSize(pin.id)"
                 :font-family="pinLabelFontFamily(pin.id)"
                 :fill="pinLabelColor(pin.id)"
-                :opacity="pin.opacity"
+                :opacity="pinLabelOpacity(pin.id, pin.opacity)"
                 :stroke="styleConfig.background_color ?? '#FFFFFF'"
                 stroke-width="3"
                 paint-order="stroke fill"
@@ -332,7 +569,49 @@
       </div>
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
-      <div class="poster-footer shrink-0" :style="footerBandStyle">
+      <div
+        class="poster-footer shrink-0"
+        :style="footerBandStyle"
+        data-testid="poster-footer"
+        @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
+        @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+      >
+        <div
+          v-if="chromeAffordancesVisible"
+          class="chrome-band-layer"
+          :class="{ 'is-active': chromeBandActive('footer') }"
+          data-testid="chrome-band-footer"
+        >
+          <button
+            v-if="chromeSectionActive('footer')"
+            class="chrome-section-chip chrome-section-chip--footer"
+            @click.stop="openChromeSection('footer')"
+          >Footer</button>
+          <button
+            v-if="chromeSectionActive('footer')"
+            class="chrome-insert-btn chrome-insert-btn--footer"
+            title="Add text block"
+            @click.stop="addChromeTextBlock('footer')"
+          >+</button>
+        </div>
+        <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
+        <div
+          v-if="compositionDecor.footerNote && chromeSlotVisible('composition_footer')"
+          class="composition-footer-note"
+          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_footer') }"
+          :style="compositionFooterNoteStyle"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Composition footer note"
+          enterkeyhint="done"
+          spellcheck="true"
+          data-testid="composition-footer-note"
+          @focus="onSlotFocus($event, 'composition_footer')"
+          @blur="onSlotBlur($event, 'composition_footer')"
+          @click="onSlotClick($event, 'composition_footer')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.footerNote }}</div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -343,7 +622,7 @@
         />
 
         <!-- Stat blocks (left) -->
-        <div class="poster-stats">
+        <div class="poster-stats" :style="posterStatsStyle">
           <div
             v-if="showDistanceSlot"
             class="stat-block editable-text"
@@ -441,12 +720,12 @@
 
         <!-- Occasion / subtitle (centre, optional) -->
         <p
-          v-if="occasionText && !editable"
+          v-if="occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
         >{{ occasionText }}</p>
         <p
-          v-else-if="editable"
+          v-else-if="editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
@@ -463,7 +742,7 @@
         >{{ occasionText }}</p>
 
         <!-- Rad Maps mark (right) -->
-        <div v-if="styleConfig.show_branding !== false" class="poster-mark">
+        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
@@ -474,6 +753,23 @@
           <span class="mark-label" :style="markLabelStyle">RAD MAPS</span>
           <span class="branding-note" :style="brandingNoteStyle">radmaps.studio</span>
         </div>
+
+        <div
+          v-for="block in customChromeBlocks('footer')"
+          :key="block.id"
+          class="chrome-custom-block editable-text"
+          :class="{ 'is-selected-text': activeChromeBlockId === block.id }"
+          :style="chromeCustomBlockStyle('footer', block)"
+          contenteditable="true"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          :aria-label="chromeBlockLabel(block)"
+          data-testid="chrome-custom-block"
+          @focus="onCustomChromeFocus($event, block.id)"
+          @blur="onCustomChromeBlur($event, block.id)"
+          @click.stop="onCustomChromeClick($event, block.id)"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ chromeBlockText(block) }}</div>
 
       </div>
 
@@ -503,7 +799,7 @@
             <div
               class="overlay-move-handle"
               title="Drag to move"
-              @pointerdown.stop
+              @pointerdown.prevent
             >
               <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
                 <path d="M10 2l2.5 2.5h-2V8h3.5V6l2.5 2.5L14 11v-2h-3.5v3.5h2L10 15l-2.5-2.5h2V9H6v2L3.5 8.5 6 6v2h3.5V4.5h-2L10 2z"/>
@@ -558,6 +854,7 @@
             spellcheck="true"
             @focus="onOverlayTextFocus($event, overlay.id)"
             @blur="onOverlayTextBlur($event, overlay.id)"
+            @pointerdown.stop="onOverlayTextPointerDown($event, overlay.id)"
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >{{ overlay.content }}</span>
@@ -565,7 +862,7 @@
             <div
               class="overlay-move-handle"
               title="Drag to move"
-              @pointerdown.stop
+              @pointerdown.prevent
             >
               <svg viewBox="0 0 20 20" fill="currentColor" width="10" height="10">
                 <path d="M10 2l2.5 2.5h-2V8h3.5V6l2.5 2.5L14 11v-2h-3.5v3.5h2L10 15l-2.5-2.5h2V9H6v2L3.5 8.5 6 6v2h3.5V4.5h-2L10 2z"/>
@@ -606,11 +903,15 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
 import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
+import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
-import type { DeletedRange, FontFamily, MapAsset, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
+import { pickContrastSafeColor } from '~/utils/colorContrast'
+import type { ChromeBand, ChromeBandId, ChromeBlock, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -630,6 +931,7 @@ const props = defineProps<{
   editable?: boolean
   renderMode?: 'editor' | 'print'
   printContext?: PrintContext
+  chromeEditing?: boolean
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   /** When true, the map enters paint-select mode for route deletion */
@@ -656,6 +958,7 @@ const emit = defineEmits<{
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
+  'poster-layout-updated': [value: PartialPosterLayout | undefined]
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
   /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
@@ -719,6 +1022,8 @@ let mapInstance: maplibregl.Map | null = null
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
+let styleReloadCameraHold: MapCameraSnapshot | null = null
+let styleReloadCameraHoldTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -875,6 +1180,370 @@ type ActiveTextTarget =
 
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const activeTextAnchor = ref<DOMRect | null>(null)
+const activeChromeBlockId = ref<string | null>(null)
+const hoveredChromeBand = ref<ChromeBandId | null>(null)
+const chromeMobile = ref(false)
+const CHROME_COL_STEPS = [4, 6, 8, 12, 16] as const
+const activeChromeBandResize = ref<{
+  band: Extract<ChromeBandId, 'header' | 'footer'>
+  startY: number
+  startHeight: number
+  posterHeight: number
+} | null>(null)
+
+const chromeDirectEditing = computed(() =>
+  false && Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
+)
+const chromeToolbarVisible = computed(() => false)
+const chromeAffordancesVisible = computed(() => false)
+const chromeMobileDrawerOpen = computed(() =>
+  chromeToolbarVisible.value && chromeMobile.value && activeChromeBlock.value != null,
+)
+
+const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
+const defaultLayout = computed(() => defaultPosterLayout(props.styleConfig, props.map.stats))
+
+function syncChromeViewportMode() {
+  if (typeof window === 'undefined') return
+  chromeMobile.value = window.matchMedia('(max-width: 767px)').matches
+}
+
+onMounted(() => {
+  syncChromeViewportMode()
+  window.addEventListener('resize', syncChromeViewportMode)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncChromeViewportMode)
+  teardownChromeBandResize()
+})
+
+function chromeBlocksFor(band: ChromeBandId) {
+  return posterLayout.value.blocks[band] ?? []
+}
+
+function chromeBlockForSlot(slot: PosterTextSlot): ChromeBlock | null {
+  for (const band of CHROME_BANDS) {
+    const found = chromeBlocksFor(band).find(block => block.slot === slot)
+    if (found) return found
+  }
+  return null
+}
+
+function chromeBandForBlock(id: string | null): ChromeBandId | null {
+  if (!id) return null
+  for (const band of CHROME_BANDS) {
+    if (chromeBlocksFor(band).some(block => block.id === id)) return band
+  }
+  return null
+}
+
+const activeChromeBand = computed<ChromeBandId>(() =>
+  chromeBandForBlock(activeChromeBlockId.value) ?? hoveredChromeBand.value ?? 'header',
+)
+
+const activeChromeBlock = computed(() => {
+  const id = activeChromeBlockId.value
+  if (!id) return null
+  for (const band of CHROME_BANDS) {
+    const block = chromeBlocksFor(band).find(block => block.id === id)
+    if (block) return block
+  }
+  return null
+})
+
+function chromeSlotVisible(slot: PosterTextSlot) {
+  return chromeBlockForSlot(slot) != null
+}
+
+const chromeBrandVisible = computed(() =>
+  chromeBlocksFor('footer').some(block => block.kind === 'brand' && !block.slot),
+)
+
+function customChromeBlocks(band: ChromeBandId) {
+  return chromeBlocksFor(band).filter(block => !block.slot && block.kind !== 'brand')
+}
+
+function chromeBandActive(band: ChromeBandId) {
+  return hoveredChromeBand.value === band || activeChromeBand.value === band
+}
+
+function chromeSectionActive(band: ChromeBandId) {
+  return chromeBandActive(band) && activeChromeBlockId.value == null
+}
+
+function chromeBandLabel(band: ChromeBandId) {
+  if (band === 'railLeft') return 'Left rail'
+  if (band === 'railRight') return 'Right rail'
+  return band
+}
+
+function chromeBlockLabel(block: ChromeBlock) {
+  return CHROME_BLOCK_KIND_LABELS[block.kind] ?? 'Text'
+}
+
+function chromeGridStyle(band: ChromeBandId) {
+  const cfg = posterLayout.value.bands[band]
+  const cols = cfg.cols ?? 12
+  const rows = cfg.rows ?? 2
+  return {
+    backgroundImage: [
+      `linear-gradient(to right, rgba(42,91,204,0.24) 1px, transparent 1px)`,
+      `linear-gradient(to bottom, rgba(42,91,204,0.18) 1px, transparent 1px)`,
+    ].join(', '),
+    backgroundSize: `${100 / cols}% 100%, 100% ${100 / rows}%`,
+  }
+}
+
+function chromeBandBackground(band: ChromeBandId) {
+  return posterLayout.value.bands[band].background ?? (band === 'header' ? headerBg.value : bg.value)
+}
+
+function updateChromeBand(band: ChromeBandId, patch: Partial<ChromeBand>) {
+  updatePosterLayout({
+    bands: {
+      [band]: {
+        ...(props.styleConfig.poster_layout?.bands?.[band] ?? {}),
+        ...patch,
+      },
+    },
+  })
+}
+
+function setChromeBandBackground(band: ChromeBandId, background: string) {
+  updateChromeBand(band, { background })
+}
+
+function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
+  const current = posterLayout.value.bands[band].cols ?? 12
+  const currentIndex = Math.max(0, CHROME_COL_STEPS.findIndex(step => step === current))
+  const nextIndex = Math.min(CHROME_COL_STEPS.length - 1, Math.max(0, currentIndex + direction))
+  updateChromeBand(band, { cols: CHROME_COL_STEPS[nextIndex] })
+}
+
+function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
+  const current = posterLayout.value.bands[band].rows ?? (band === 'header' ? 4 : 2)
+  updateChromeBand(band, { rows: Math.min(6, Math.max(1, current + direction)) })
+}
+
+function nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
+  const current = posterLayout.value.bands[band].padding ?? [0, 0, 0, 0]
+  const next = current.map(value => Math.min(12, Math.max(0, value + direction))) as [number, number, number, number]
+  updateChromeBand(band, { padding: next })
+}
+
+function chromeBandPaddingCss(band: ChromeBandId, fallback: string) {
+  const padding = posterLayout.value.bands[band].padding
+  if (!padding) return fallback
+  return `${padding[0]}cqh ${padding[1]}cqw ${padding[2]}cqh ${padding[3]}cqw`
+}
+
+function chromeCustomBlockStyle(band: ChromeBandId, block: ChromeBlock): Record<string, string> {
+  const cfg = posterLayout.value.bands[band]
+  const cols = cfg.cols ?? 12
+  const rows = cfg.rows ?? 2
+  const left = ((block.col - 1) / cols) * 100
+  const top = ((block.row - 1) / rows) * 100
+  const width = (block.span / cols) * 100
+  const height = ((block.rowSpan ?? 1) / rows) * 100
+  return {
+    position: 'absolute',
+    left: `${left}%`,
+    top: `${top}%`,
+    width: `${width}%`,
+    height: `${height}%`,
+    display: 'flex',
+    alignItems: block.valign === 'bottom' ? 'flex-end' : block.valign === 'center' ? 'center' : 'flex-start',
+    justifyContent: block.align === 'right' ? 'flex-end' : block.align === 'center' ? 'center' : 'flex-start',
+    fontFamily: block.font_family ? toFontStack(block.font_family) : typography.value.subFont,
+    fontSize: `${block.font_size_pt != null ? ptToCqh(block.font_size_pt) : 1.1 * (block.scale ?? 1)}cqh`,
+    color: block.color ?? fg.value,
+    opacity: String(block.opacity ?? 1),
+    fontWeight: block.bold ? '700' : '500',
+    fontStyle: block.italic ? 'italic' : 'normal',
+    textAlign: block.align ?? 'left',
+    zIndex: '6',
+    padding: '0.2cqh',
+  }
+}
+
+function chromeBlockText(block: ChromeBlock) {
+  if (block.text != null) return block.text
+  if (block.slot) return textWithOverride(block.slot, defaultSlotText(block.slot))
+  return 'Your text'
+}
+
+function emitPosterLayout(value: PartialPosterLayout | undefined) {
+  emit('poster-layout-updated', value)
+}
+
+function updatePosterLayout(patch: PartialPosterLayout) {
+  emitPosterLayout(patchPosterLayout(props.styleConfig.poster_layout, patch))
+}
+
+function updateChromeBlocks(band: ChromeBandId, blocks: ChromeBlock[]) {
+  updatePosterLayout({ blocks: { [band]: blocks } })
+}
+
+function sparseBlocksFor(band: ChromeBandId) {
+  return props.styleConfig.poster_layout?.blocks?.[band] ?? []
+}
+
+function upsertChromeBlockEdit(band: ChromeBandId, block: ChromeBlock) {
+  const current = sparseBlocksFor(band)
+  const next = current.some(existing => existing.id === block.id)
+    ? current.map(existing => existing.id === block.id ? { ...existing, ...block } : existing)
+    : [...current, block]
+  updateChromeBlocks(band, next)
+}
+
+function selectChromeBlock(id: string) {
+  if (!chromeDirectEditing.value) return
+  activeChromeBlockId.value = id
+  hoveredChromeBand.value = chromeBandForBlock(id)
+}
+
+function activeSlotBlock() {
+  const target = activeTextTarget.value
+  if (target?.type !== 'slot') return null
+  return chromeBlockForSlot(target.slot)
+}
+
+function openChromeSection(band: ChromeBandId) {
+  hoveredChromeBand.value = band
+  activeChromeBlockId.value = null
+  activeTextTarget.value = null
+}
+
+function resetChromeSection(band: ChromeBandId) {
+  const currentBlocks = props.styleConfig.poster_layout?.blocks ?? {}
+  const currentBands = props.styleConfig.poster_layout?.bands ?? {}
+  const { [band]: _removedBlocks, ...blocks } = currentBlocks
+  const { [band]: _removedBand, ...bands } = currentBands
+  emitPosterLayout({
+    blocks: Object.keys(blocks).length ? blocks : undefined,
+    bands: Object.keys(bands).length ? bands : undefined,
+  })
+  activeChromeBlockId.value = null
+}
+
+function startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  if (!chromeDirectEditing.value || typeof window === 'undefined') return
+  const posterBox = posterCanvasEl.value?.getBoundingClientRect()
+  if (!posterBox?.height) return
+  activeChromeBandResize.value = {
+    band,
+    startY: e.clientY,
+    startHeight: posterLayout.value.bands[band].height ?? (band === 'header' ? 22 : 14),
+    posterHeight: posterBox.height,
+  }
+  window.addEventListener('pointermove', onChromeBandResizeMove)
+  window.addEventListener('pointerup', finishChromeBandResize, { once: true })
+  window.addEventListener('pointercancel', finishChromeBandResize, { once: true })
+}
+
+function onChromeBandResizeMove(e: PointerEvent) {
+  const resize = activeChromeBandResize.value
+  if (!resize) return
+  const deltaPct = ((e.clientY - resize.startY) / resize.posterHeight) * 100
+  const rawHeight = resize.band === 'header'
+    ? resize.startHeight + deltaPct
+    : resize.startHeight - deltaPct
+  const height = Math.round(Math.min(34, Math.max(8, rawHeight)) * 10) / 10
+  updatePosterLayout({
+    bands: {
+      [resize.band]: {
+        ...(props.styleConfig.poster_layout?.bands?.[resize.band] ?? {}),
+        height,
+      },
+    },
+  })
+}
+
+function finishChromeBandResize() {
+  teardownChromeBandResize()
+}
+
+function teardownChromeBandResize() {
+  if (typeof window === 'undefined') return
+  activeChromeBandResize.value = null
+  window.removeEventListener('pointermove', onChromeBandResizeMove)
+  window.removeEventListener('pointerup', finishChromeBandResize)
+  window.removeEventListener('pointercancel', finishChromeBandResize)
+}
+
+function addChromeTextBlock(band: ChromeBandId) {
+  const cfg = posterLayout.value.bands[band]
+  const id = `chrome-text-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
+  const block: ChromeBlock = {
+    id,
+    kind: 'text',
+    col: 1,
+    row: cfg.rows ?? 1,
+    span: band === 'header' ? 4 : 3,
+    rowSpan: 1,
+    text: 'Your text',
+    align: 'left',
+    valign: 'center',
+    font_family: props.styleConfig.body_font_family,
+    color: props.styleConfig.label_text_color,
+    scale: 1,
+  }
+  updateChromeBlocks(band, [...sparseBlocksFor(band), block])
+  activeChromeBlockId.value = id
+}
+
+function deleteChromeBlock() {
+  const block = activeChromeBlock.value
+  const band = chromeBandForBlock(activeChromeBlockId.value)
+  if (!block || !band) return
+  if (block.slot) {
+    updateChromeBlocks(band, [...sparseBlocksFor(band).filter(existing => existing.id !== block.id), { ...block, deleted: true }])
+  } else {
+    updateChromeBlocks(band, sparseBlocksFor(band).filter(existing => existing.id !== block.id))
+  }
+  activeChromeBlockId.value = null
+  activeTextTarget.value = null
+}
+
+function duplicateChromeBlock() {
+  const block = activeChromeBlock.value
+  const band = chromeBandForBlock(activeChromeBlockId.value)
+  if (!block || !band) return
+  const id = `chrome-copy-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
+  const copy: ChromeBlock = {
+    ...block,
+    id,
+    slot: undefined,
+    text: chromeBlockText(block),
+    col: Math.min((posterLayout.value.bands[band].cols ?? 12), block.col + 1),
+  }
+  updateChromeBlocks(band, [...sparseBlocksFor(band), copy])
+  activeChromeBlockId.value = id
+}
+
+function onChromeCanvasPointerDown() {
+  if (!chromeDirectEditing.value) return
+  activeChromeBlockId.value = null
+  activeTextTarget.value = null
+}
+
+function onCustomChromeFocus(e: FocusEvent, id: string) {
+  selectChromeBlock(id)
+  activeTextAnchor.value = e.currentTarget instanceof HTMLElement ? e.currentTarget.getBoundingClientRect() : null
+}
+
+function onCustomChromeClick(e: MouseEvent, id: string) {
+  selectChromeBlock(id)
+  activeTextAnchor.value = (e.currentTarget as HTMLElement).getBoundingClientRect()
+}
+
+function onCustomChromeBlur(e: FocusEvent, id: string) {
+  const band = chromeBandForBlock(id)
+  const block = activeChromeBlock.value
+  if (!band || !block) return
+  upsertChromeBlockEdit(band, { ...block, text: (e.currentTarget as HTMLElement).innerText.trim() })
+}
 
 const SLOT_LABELS: Record<PosterTextSlot, string> = {
   trail_name: 'Trail name',
@@ -886,6 +1555,10 @@ const SLOT_LABELS: Record<PosterTextSlot, string> = {
   coordinates: 'Coordinates',
   start_pin_label: 'Start label',
   finish_pin_label: 'Finish label',
+  composition_kicker: 'Theme kicker',
+  composition_meta: 'Theme metadata',
+  composition_footer: 'Footer note',
+  composition_side_rail: 'Side rail label',
 }
 
 function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
@@ -921,12 +1594,20 @@ function defaultSlotText(slot: PosterTextSlot) {
   if (slot === 'date') return formattedDate.value
   if (slot === 'start_pin_label') return props.styleConfig.start_pin_label ?? 'Start'
   if (slot === 'finish_pin_label') return props.styleConfig.finish_pin_label ?? 'Finish'
+  if (slot === 'composition_kicker') return compositionDecorDefaults.value.kicker ?? ''
+  if (slot === 'composition_meta') return compositionDecorDefaults.value.meta ?? ''
+  if (slot === 'composition_footer') return compositionDecorDefaults.value.footerNote ?? ''
+  if (slot === 'composition_side_rail') return compositionDecorDefaults.value.sideRailLabel ?? ''
   return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''
 }
 
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
   const el = e.currentTarget as HTMLElement
   selectTextTarget({ type: 'slot', slot }, el)
+  if (chromeDirectEditing.value) {
+    const block = chromeBlockForSlot(slot)
+    if (block) selectChromeBlock(block.id)
+  }
   if (slot === 'trail_name' || slot === 'occasion_text' || slot === 'location_text') {
     emit('edit-requested', { field: slot, value: el.innerText.trim() })
   }
@@ -934,6 +1615,10 @@ function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
 
 function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
   selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
+  if (chromeDirectEditing.value) {
+    const block = chromeBlockForSlot(slot)
+    if (block) selectChromeBlock(block.id)
+  }
 }
 
 function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
@@ -946,6 +1631,13 @@ function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
 }
 
 function onOverlayTextFocus(e: FocusEvent, id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedOverlayId.value = id
+  selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
+  emit('overlay-selected', id)
+}
+
+function onOverlayTextPointerDown(e: PointerEvent, id: string) {
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
@@ -967,6 +1659,7 @@ function finishActiveTextEdit() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
   activeTextTarget.value = null
   activeTextAnchor.value = null
+  activeChromeBlockId.value = null
 }
 
 function resetActiveText() {
@@ -1131,11 +1824,15 @@ const previewRootClass = computed(() => isPrintRender.value
 
 const previewRootStyle = computed(() => ({
   background: isPrintRender.value ? props.styleConfig.background_color : '#e8e5e0',
+  alignItems: chromeMobileDrawerOpen.value ? 'flex-start' : undefined,
+  justifyContent: chromeMobileDrawerOpen.value ? 'center' : undefined,
 }))
 
 const posterCanvasClass = computed(() => ({
   'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
   'poster-canvas--print': isPrintRender.value,
+  'poster-composition': true,
+  [posterCompositionClassName(composition.value.id)]: true,
 }))
 
 const posterCanvasStyle = computed(() => isPrintRender.value
@@ -1146,18 +1843,46 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       aspectRatio: 'auto',
       backgroundColor: props.styleConfig.background_color,
       containerType: 'size',
+      '--print-bleed': `${printBleedCssPx.value}px`,
+      '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--composition-ink': props.styleConfig.label_text_color,
+      '--composition-paper': props.styleConfig.background_color,
+      '--composition-body-font': typography.value.subFont,
+      '--composition-rule-left': compositionRuleInset.value.left,
+      '--composition-rule-right': compositionRuleInset.value.right,
+      '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+      '--route-color': props.styleConfig.route_color,
     }
   : {
       aspectRatio: '2 / 3',
       backgroundColor: props.styleConfig.background_color,
-      height: '100%',
+      height: chromeMobileDrawerOpen.value ? 'min(100%, calc(100dvh - min(300px, 48vh) - 80px))' : '100%',
       maxWidth: '100%',
       containerType: 'size',
+      '--print-bleed': '0px',
+      '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--composition-ink': props.styleConfig.label_text_color,
+      '--composition-paper': props.styleConfig.background_color,
+      '--composition-body-font': typography.value.subFont,
+      '--composition-rule-left': compositionRuleInset.value.left,
+      '--composition-rule-right': compositionRuleInset.value.right,
+      '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+      '--route-color': props.styleConfig.route_color,
     })
 
 const typography = computed(() => getPosterTypography(props.styleConfig))
 
 const layout = computed(() => getPosterLayout(props.styleConfig))
+
+const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
+const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block')
+
+interface CompositionDecor {
+  kicker?: string
+  meta?: string
+  footerNote?: string
+  sideRailLabel?: string
+}
 
 // ── Poster content ────────────────────────────────────────────────────────────
 
@@ -1211,17 +1936,117 @@ const coordinatesText = computed(() => textWithOverride('coordinates', coords.va
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 
+const compositionDecorDefaults = computed<CompositionDecor>(() => {
+  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
+  const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
+  const date = dateText.value || 'undated'
+  const location = locationLine.value || 'trail record'
+
+  switch (composition.value.id) {
+    case 'editorial-tall':
+      return {
+        kicker: 'No. 01 — A field record',
+        meta: `${location} · ${date}`,
+        footerNote: 'Drawn from route telemetry and terrain data',
+      }
+    case 'park-quad':
+      return {
+        kicker: 'United States · Department of the Interior',
+        meta: 'Geological Survey · 7.5-minute series',
+        footerNote: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
+      }
+    case 'travel-banner':
+      return {
+        kicker: 'Visit · Explore · Return',
+        meta: 'Souvenir route poster',
+      }
+    case 'riso-stack':
+      return {
+        kicker: 'Edition 01 / 50',
+        meta: 'Two-color trail print',
+      }
+    case 'blueprint-grid':
+      return {
+        kicker: 'DWG · RM-001',
+        meta: 'SHEET 01 / 01 · DATUM WGS84',
+        footerNote: 'Grid overlay · route geometry locked to print frame',
+      }
+    case 'blueprint-strava':
+      return {
+        kicker: 'STRAVA FILE · ACTIVITY',
+        meta: `${date} · SHEET 01 / 01`,
+        footerNote: 'Distance · gain · coordinates · route trace',
+      }
+    case 'journal-spread':
+      return {
+        kicker: 'IX · MMXXVI — A field study',
+        meta: 'Annotated trail specimen',
+        footerNote: `${distance} · ${gain} · fair / clear`,
+        sideRailLabel: 'FIELD NOTES',
+      }
+    case 'modernist-block':
+      return {
+        kicker: 'RADMAPS / ROUTE OBJECT',
+        meta: `${distance} · ${gain}`,
+        footerNote: 'Form follows route',
+        sideRailLabel: 'RAD',
+      }
+    case 'splits-grid':
+      return {
+        kicker: 'MORNING RUN / DATA SHEET',
+        meta: `${distance} · ${date}`,
+        footerNote: 'Segment stats normalized for print',
+      }
+    case 'bib-numerals':
+      return {
+        kicker: 'The forty-first',
+        meta: 'Race commemorative',
+        footerNote: `${distance} / ${gain}`,
+      }
+    case 'darksky-stars':
+      return {
+        kicker: 'Dark · sky · reserve',
+        meta: 'New moon route plate',
+        footerNote: 'Zodiacal light · clear sky window',
+      }
+    case 'botanical-plate':
+      return {
+        kicker: 'Plate XLI — Cordillera Cascadia',
+        meta: 'Observed along the route transect',
+        footerNote: 'Drawn from life · elevation and terrain survey',
+      }
+    case 'brutalist-slab':
+      return {
+        kicker: 'RADMAPS · 001',
+        meta: 'LOT 12 / 50',
+        footerNote: '250 GSM · UNCOATED · ROUTE SLAB',
+      }
+    default:
+      return {}
+  }
+})
+
+const compositionDecor = computed<CompositionDecor>(() => {
+  const defaults = compositionDecorDefaults.value
+  return {
+    kicker: defaults.kicker != null ? textWithOverride('composition_kicker', defaults.kicker) : undefined,
+    meta: defaults.meta != null ? textWithOverride('composition_meta', defaults.meta) : undefined,
+    footerNote: defaults.footerNote != null ? textWithOverride('composition_footer', defaults.footerNote) : undefined,
+    sideRailLabel: defaults.sideRailLabel != null ? textWithOverride('composition_side_rail', defaults.sideRailLabel) : undefined,
+  }
+})
+
 const showDistanceSlot = computed(() =>
-  props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
+  chromeSlotVisible('distance') && props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
 )
 const showElevationGainSlot = computed(() =>
-  props.styleConfig.labels.show_elevation_gain && (editableTextVisible(elevationGainText.value)),
+  chromeSlotVisible('elevation_gain') && props.styleConfig.labels.show_elevation_gain && (editableTextVisible(elevationGainText.value)),
 )
 const showDateSlot = computed(() =>
-  props.styleConfig.labels.show_date && editableTextVisible(dateText.value),
+  chromeSlotVisible('date') && props.styleConfig.labels.show_date && editableTextVisible(dateText.value),
 )
 const showCoordinatesSlot = computed(() =>
-  props.styleConfig.labels?.show_location !== false && editableTextVisible(coordinatesText.value),
+  chromeSlotVisible('coordinates') && props.styleConfig.labels?.show_location !== false && editableTextVisible(coordinatesText.value),
 )
 
 function editableTextVisible(text: string) {
@@ -1232,9 +2057,17 @@ function editableTextVisible(text: string) {
 
 const fg = computed(() => props.styleConfig.label_text_color || '#1C1917')
 const bg = computed(() => props.styleConfig.label_bg_color || props.styleConfig.background_color)
+const headerBg = computed(() =>
+  composition.value.headerBackground === 'label'
+    ? (props.styleConfig.label_bg_color || props.styleConfig.background_color)
+    : props.styleConfig.background_color,
+)
 const borderW = computed(() =>
   props.styleConfig.border_style === 'thick' ? '2px'
   : props.styleConfig.border_style === 'thin' ? '1px' : '0',
+)
+const showPosterInsetFrame = computed(() =>
+  composition.value.id === 'legacy-classic' && props.styleConfig.border_style !== 'none',
 )
 const printBleedCssPx = computed(() =>
   props.printContext ? props.printContext.framing.trimBox.x / props.printContext.deviceScaleFactor : 0,
@@ -1253,6 +2086,50 @@ function effectiveSlotScale(slot: PosterTextSlot, fallback: number): number {
   return slotOverride(slot).scale ?? fallback
 }
 
+const MIN_TEXT_SIZE_PT = 6
+const MAX_TEXT_SIZE_PT = 240
+const DEFAULT_PRINT_HEIGHT_IN = 36
+
+function clampTextSizePt(value: number): number {
+  if (!Number.isFinite(value)) return MIN_TEXT_SIZE_PT
+  return Math.min(MAX_TEXT_SIZE_PT, Math.max(MIN_TEXT_SIZE_PT, Number(value.toFixed(1))))
+}
+
+function printHeightInches(): number {
+  const [, height] = String(props.styleConfig.print_size ?? '').split('x').map(Number)
+  return Number.isFinite(height) && height > 0 ? height : DEFAULT_PRINT_HEIGHT_IN
+}
+
+function cqhToPt(cqh: number): number {
+  return clampTextSizePt((cqh / 100) * printHeightInches() * 72)
+}
+
+function ptToCqh(pt: number): number {
+  return (clampTextSizePt(pt) / (printHeightInches() * 72)) * 100
+}
+
+function defaultSlotAlign(slot: PosterTextSlot): NonNullable<ChromeBlock['align']> {
+  if (slot === 'trail_name' || slot === 'location_text') {
+    return composition.value.titleAlign === 'left' ? 'left' : 'center'
+  }
+  if (slot === 'occasion_text') return 'center'
+  return 'left'
+}
+
+function effectiveSlotAlign(slot: PosterTextSlot, fallback = defaultSlotAlign(slot)): NonNullable<ChromeBlock['align']> {
+  return slotOverride(slot).align ?? fallback
+}
+
+function effectiveSlotFontSizeCqh(slot: PosterTextSlot, baseCqh: number): number {
+  const override = slotOverride(slot)
+  if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
+  return baseCqh * effectiveSlotScale(slot, legacySlotScale(slot))
+}
+
+function effectiveSlotOpacity(slot: PosterTextSlot, fallback: number): number {
+  return slotOverride(slot).opacity ?? fallback
+}
+
 function effectiveSlotWeight(slot: PosterTextSlot, fallback: string): string {
   const bold = slotOverride(slot).bold
   if (bold == null) return fallback
@@ -1263,30 +2140,35 @@ function effectiveSlotItalic(slot: PosterTextSlot): string {
   return slotOverride(slot).italic ? 'italic' : 'normal'
 }
 
-function getTextHalo() {
-  const bg = props.styleConfig.background_color ?? '#FFF'
+function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
   // 8-direction solid offsets create a crisp outline; blur fills any gaps
   return [
-    `-2px -2px 0 ${bg}`, `0 -2px 0 ${bg}`, `2px -2px 0 ${bg}`,
-    `-2px 0 0 ${bg}`,                        `2px 0 0 ${bg}`,
-    `-2px 2px 0 ${bg}`,  `0 2px 0 ${bg}`,  `2px 2px 0 ${bg}`,
-    `0 0 4px ${bg}`,
+    `-2px -2px 0 ${color}`, `0 -2px 0 ${color}`, `2px -2px 0 ${color}`,
+    `-2px 0 0 ${color}`,                           `2px 0 0 ${color}`,
+    `-2px 2px 0 ${color}`,  `0 2px 0 ${color}`,  `2px 2px 0 ${color}`,
+    `0 0 4px ${color}`,
   ].join(', ')
 }
 
 const headerBandStyle = computed(() => ({
-  backgroundColor: props.styleConfig.background_color,
+  backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
-  padding: layout.value.titlePosition === 'bottom'
-    ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
-    : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`,
+  padding: chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
+    ? (layout.value.titlePosition === 'bottom'
+        ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
+        : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
+    : composition.value.headerPadding),
   display: 'flex',
   flexDirection: 'column' as const,
-  alignItems: layout.value.titleAlign === 'left' ? 'flex-start' : 'center',
+  alignItems: composition.value.titleAlign === 'left' ? 'flex-start' : 'center',
   justifyContent: 'center',
   gap: '1.1cqh',
   position: 'relative' as const,
-  order: layout.value.titlePosition === 'top' ? '0' : '1',
+  order: String(composition.value.headerOrder),
+  zIndex: 3,
+  height: props.styleConfig.poster_layout?.bands?.header?.height != null
+    ? `${posterLayout.value.bands.header.height}%`
+    : undefined,
 }))
 
 const trailNameStyle = computed(() => ({
@@ -1295,14 +2177,16 @@ const trailNameStyle = computed(() => ({
   fontStyle: effectiveSlotItalic('trail_name'),
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${typography.value.titleSize * effectiveSlotScale('trail_name', props.styleConfig.title_scale ?? 1.0)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
-  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
+  opacity: String(effectiveSlotOpacity('trail_name', 1)),
+  textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
+  width: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(headerBg.value),
 }))
 
 const locationLineStyle = computed(() => ({
@@ -1310,15 +2194,67 @@ const locationLineStyle = computed(() => ({
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `${typography.value.subSize * effectiveSlotScale('location_text', props.styleConfig.subtitle_scale ?? 1.0)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
-  opacity: '0.5',
+  opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
-  textAlign: layout.value.titleAlign === 'left' ? 'left' as const : 'center' as const,
+  textAlign: effectiveSlotAlign('location_text', composition.value.titleAlign === 'left' ? 'left' : 'center'),
+  width: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(headerBg.value),
+}))
+
+const compositionKickerStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_kicker', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_kicker', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_kicker'),
+  fontSize: `${effectiveSlotFontSizeCqh('composition_kicker', 0.88)}cqh`,
+  letterSpacing: composition.value.id === 'editorial-tall' || composition.value.id === 'botanical-plate'
+    ? '0.08em'
+    : '0.24em',
+  color: effectiveSlotColor('composition_kicker', fg.value),
+  backgroundColor: slotOverride('composition_kicker').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_kicker', composition.value.id === 'brutalist-slab' ? 0.92 : 0.64)),
+  textAlign: effectiveSlotAlign('composition_kicker'),
+  width: '100%',
+}))
+
+const compositionMetaStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_meta', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_meta', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_meta'),
+  fontSize: `${effectiveSlotFontSizeCqh('composition_meta', 0.72)}cqh`,
+  letterSpacing: '0.18em',
+  color: effectiveSlotColor('composition_meta', fg.value),
+  backgroundColor: slotOverride('composition_meta').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_meta', 0.52)),
+  textAlign: effectiveSlotAlign('composition_meta'),
+  width: '100%',
+}))
+
+const compositionFooterNoteStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_footer', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_footer', typography.value.subWeight),
+  fontStyle: effectiveSlotItalic('composition_footer'),
+  fontSize: `${effectiveSlotFontSizeCqh('composition_footer', 0.62)}cqh`,
+  color: effectiveSlotColor('composition_footer', fg.value),
+  backgroundColor: slotOverride('composition_footer').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_footer', 0.36)),
+  textAlign: effectiveSlotAlign('composition_footer', 'center'),
+  width: '100%',
+}))
+
+const compositionSideRailLabelStyle = computed(() => ({
+  fontFamily: effectiveSlotFont('composition_side_rail', typography.value.subFont),
+  fontWeight: effectiveSlotWeight('composition_side_rail', '700'),
+  fontStyle: effectiveSlotItalic('composition_side_rail'),
+  fontSize: `${effectiveSlotFontSizeCqh('composition_side_rail', 0.82)}cqh`,
+  color: effectiveSlotColor('composition_side_rail', fg.value),
+  backgroundColor: slotOverride('composition_side_rail').bg_color ?? 'transparent',
+  opacity: String(effectiveSlotOpacity('composition_side_rail', 0.32)),
+  textAlign: effectiveSlotAlign('composition_side_rail', 'center'),
 }))
 
 const ruleStyle = computed(() => ({
@@ -1330,25 +2266,86 @@ const ruleStyle = computed(() => ({
   flexShrink: '0',
 }))
 
+const compositionRuleInset = computed(() => {
+  const bleed = 'var(--print-bleed, 0px)'
+  switch (composition.value.id) {
+    case 'editorial-tall':
+    case 'riso-stack':
+      return { left: `calc(8cqw + ${bleed})`, right: `calc(8cqw + ${bleed})` }
+    case 'park-quad':
+    case 'botanical-plate':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'blueprint-strava':
+    case 'splits-grid':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'modernist-block':
+      return { left: `calc(9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
+    case 'brutalist-slab':
+      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+    case 'travel-banner':
+    case 'darksky-stars':
+      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+    default:
+      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+  }
+})
+
+const footerRuleStyle = computed(() => ({
+  left: 'var(--composition-rule-left)',
+  right: 'var(--composition-rule-right)',
+  backgroundColor: fg.value,
+  opacity: composition.value.id === 'brutalist-slab' ? '0.12' : '0.1',
+}))
+
 const footerBandStyle = computed(() => ({
-  backgroundColor: bg.value,
+  backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
-  paddingTop: props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh',
-  paddingBottom: props.styleConfig.border_style !== 'none'
-    ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
-    : `calc(1.8cqh + ${printBleedCssPx.value}px)`,
-  paddingLeft: `calc(7cqw + ${printBleedCssPx.value}px)`,
-  paddingRight: `calc(7cqw + ${printBleedCssPx.value}px)`,
+  padding: chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
+    ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
+        ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
+        : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
+    : composition.value.footerPadding),
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   position: 'relative' as const,
-  borderTop: borderW.value !== '0' ? `${borderW.value} solid ${fg.value}1a` : `1px solid ${fg.value}0d`,
-  order: '2',
+  borderTop: '0',
+  order: String(composition.value.footerOrder),
+  zIndex: 3,
+  height: props.styleConfig.poster_layout?.bands?.footer?.height != null
+    ? `${posterLayout.value.bands.footer.height}%`
+    : undefined,
 }))
 
 const mapAreaStyle = computed(() => ({
-  order: layout.value.titlePosition === 'top' ? '1' : '0',
+  order: String(composition.value.mapOrder),
+  margin: composition.value.mapMargin,
+  border: composition.value.mapBorder,
+  boxShadow: composition.value.mapShadow,
+  minHeight: '0',
+  zIndex: 2,
+  color: fg.value,
+}))
+
+const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
+const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
+const showMapGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'map')
+const gridOverlayStyle = computed(() => {
+  const color = props.styleConfig.grid_color ?? props.styleConfig.label_text_color ?? '#1C1917'
+  const weight = props.styleConfig.grid_weight ?? 1
+  return {
+    opacity: String(props.styleConfig.grid_opacity ?? 0.2),
+    backgroundImage: [
+      `linear-gradient(to right, ${color} 0 ${weight}px, transparent ${weight}px)`,
+      `linear-gradient(to bottom, ${color} 0 ${weight}px, transparent ${weight}px)`,
+    ].join(', '),
+  }
+})
+
+const posterStatsStyle = computed(() => ({
+  gap: composition.value.statsEmphasis === 'numeric' ? '1.6cqw' : '2.4cqw',
+  transform: composition.value.statsEmphasis === 'large' ? 'scale(1.12)' : 'none',
+  transformOrigin: 'left center',
 }))
 
 function statNumberStyleFor(slot: PosterTextSlot) {
@@ -1356,11 +2353,13 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${2.6 * effectiveSlotScale(slot, 1)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh(slot, 2.6)}cqh`,
   letterSpacing: '-0.01em',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
+  opacity: String(effectiveSlotOpacity(slot, 1)),
   display: 'block',
+  textAlign: effectiveSlotAlign(slot),
   }
 }
 
@@ -1369,13 +2368,14 @@ function statUnitStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, '400'),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${0.8 * effectiveSlotScale(slot, 1)}cqh`,
+  fontSize: `${Math.max(0.32, effectiveSlotFontSizeCqh(slot, 2.6) * 0.31)}cqh`,
   letterSpacing: '0.18em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor(slot, fg.value),
-  opacity: '0.45',
+  opacity: String(effectiveSlotOpacity(slot, 0.45)),
   display: 'block',
   marginTop: '0.55cqh',
+  textAlign: effectiveSlotAlign(slot),
   }
 }
 
@@ -1384,21 +2384,23 @@ function coordStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${1.2 * effectiveSlotScale(slot, 1)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh(slot, 1.2)}cqh`,
   letterSpacing: '0.04em',
   lineHeight: '1.45',
   color: effectiveSlotColor(slot, fg.value),
-  opacity: '0.65',
+  opacity: String(effectiveSlotOpacity(slot, 0.65)),
   display: 'block',
   whiteSpace: 'pre-line' as const,
+  textAlign: effectiveSlotAlign(slot),
   }
 }
 
 function statCustomTextStyle(slot: PosterTextSlot) {
   return {
     ...statNumberStyleFor(slot),
-    fontSize: `${1.6 * effectiveSlotScale(slot, 1)}cqh`,
+    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.6)}cqh`,
     whiteSpace: 'pre-line' as const,
+    textAlign: effectiveSlotAlign(slot),
   }
 }
 
@@ -1413,11 +2415,14 @@ function pinLabelFontFamily(pin: 'start' | 'finish') {
 }
 
 function pinLabelColor(pin: 'start' | 'finish') {
-  return effectiveSlotColor(pinSlot(pin), props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917')
+  return effectiveSlotColor(pinSlot(pin), contrastSafePinColor.value)
 }
 
 function pinLabelFontSize(pin: 'start' | 'finish') {
-  return svgPinFontSize.value * effectiveSlotScale(pinSlot(pin), 1)
+  const slot = pinSlot(pin)
+  const override = slotOverride(slot)
+  if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
+  return svgPinFontSize.value * effectiveSlotScale(slot, 1)
 }
 
 function pinLabelWeight(pin: 'start' | 'finish') {
@@ -1426,6 +2431,10 @@ function pinLabelWeight(pin: 'start' | 'finish') {
 
 function pinLabelItalic(pin: 'start' | 'finish') {
   return effectiveSlotItalic(pinSlot(pin))
+}
+
+function pinLabelOpacity(pin: 'start' | 'finish', fallback: number) {
+  return effectiveSlotOpacity(pinSlot(pin), fallback)
 }
 
 const dividerStyle = computed(() => ({
@@ -1441,18 +2450,18 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `${0.95 * effectiveSlotScale('occasion_text', props.styleConfig.occasion_scale ?? 1.0)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
-  opacity: '0.5',
-  textAlign: 'center' as const,
+  opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
+  textAlign: effectiveSlotAlign('occasion_text', 'center'),
   position: 'absolute' as const,
   left: '50%',
   transform: 'translateX(-50%)',
   whiteSpace: 'nowrap' as const,
   outline: 'none',
-  textShadow: getTextHalo(),
+  textShadow: getTextHalo(bg.value),
 }))
 
 const markLabelStyle = computed(() => ({
@@ -1476,7 +2485,12 @@ const brandingNoteStyle = computed(() => ({
 }))
 
 const frameStyle = computed(() => ({
-  inset: `${14 + printBleedCssPx.value}px`,
+  top: `${14 + printBleedCssPx.value}px`,
+  right: `${14 + printBleedCssPx.value}px`,
+  bottom: `${14 + printBleedCssPx.value}px`,
+  left: composition.value.showSideRail
+    ? `calc(9cqw + ${14 + printBleedCssPx.value}px)`
+    : `${14 + printBleedCssPx.value}px`,
   border: `${borderW.value !== '0' ? borderW.value : '1px'} solid ${fg.value}`,
   opacity: '0.18',
 }))
@@ -1687,9 +2701,13 @@ const activeToolbarState = computed(() => {
       textValue: overlay.content,
       fontFamily: overlay.font_family,
       color: overlay.color,
-      scale: Math.max(0.5, Math.min(2, overlay.font_size / 2)),
+      backgroundColor: overlay.bg_color || '',
+      fontSizePt: cqhToPt(overlay.font_size),
+      align: overlay.alignment ?? 'left',
+      opacity: overlay.opacity,
       bold: overlay.bold,
       italic: overlay.italic ?? false,
+      supportsHighlight: true,
       canReset: false,
     }
   }
@@ -1705,7 +2723,12 @@ const activeToolbarState = computed(() => {
     ? typography.value.titleWeight
     : slot === 'start_pin_label' || slot === 'finish_pin_label'
       ? '600'
-    : slot === 'occasion_text' || slot === 'location_text'
+    : slot === 'occasion_text' ||
+        slot === 'location_text' ||
+        slot === 'composition_kicker' ||
+        slot === 'composition_meta' ||
+        slot === 'composition_footer' ||
+        slot === 'composition_side_rail'
       ? typography.value.subWeight
       : typography.value.statsWeight
 
@@ -1714,18 +2737,47 @@ const activeToolbarState = computed(() => {
     textValue: textWithOverride(slot, defaultSlotText(slot)),
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
-    scale: effectiveSlotScale(slot, legacySlotScale(slot)),
+    backgroundColor: override.bg_color ?? '',
+    fontSizePt: override.font_size_pt ?? cqhToPt(effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot))),
+    align: effectiveSlotAlign(slot),
+    opacity: effectiveSlotOpacity(slot, legacySlotOpacity(slot)),
     bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,
     italic: override.italic ?? false,
+    supportsHighlight: false,
     canReset: !!props.styleConfig.poster_text_overrides?.[slot],
   }
 })
+
+function slotBaseFontSizeCqh(slot: PosterTextSlot) {
+  if (slot === 'trail_name') return typography.value.titleSize
+  if (slot === 'location_text') return typography.value.subSize
+  if (slot === 'occasion_text') return 0.95
+  if (slot === 'distance' || slot === 'elevation_gain') return 2.6
+  if (slot === 'date' || slot === 'coordinates') return 1.2
+  if (slot === 'start_pin_label' || slot === 'finish_pin_label') return svgPinFontSize.value
+  if (slot === 'composition_kicker') return 0.88
+  if (slot === 'composition_meta') return 0.72
+  if (slot === 'composition_footer') return 0.62
+  if (slot === 'composition_side_rail') return 0.82
+  return 1
+}
 
 function legacySlotScale(slot: PosterTextSlot) {
   if (slot === 'trail_name') return props.styleConfig.title_scale ?? 1
   if (slot === 'occasion_text') return props.styleConfig.occasion_scale ?? 1
   if (slot === 'location_text') return props.styleConfig.subtitle_scale ?? 1
   if (slot === 'start_pin_label' || slot === 'finish_pin_label') return 1
+  return 1
+}
+
+function legacySlotOpacity(slot: PosterTextSlot) {
+  if (slot === 'location_text' || slot === 'occasion_text') return 0.5
+  if (slot === 'composition_kicker') return composition.value.id === 'brutalist-slab' ? 0.92 : 0.64
+  if (slot === 'composition_meta') return 0.52
+  if (slot === 'composition_footer') return 0.36
+  if (slot === 'composition_side_rail') return 0.32
+  if (slot === 'date' || slot === 'coordinates') return 0.65
+  if (slot === 'distance' || slot === 'elevation_gain') return 1
   return 1
 }
 
@@ -1741,11 +2793,148 @@ function applyToolbarPatch(patch: PosterTextOverride) {
   if (patch.text != null) overlayPatch.content = patch.text
   if (patch.font_family) overlayPatch.font_family = patch.font_family
   if (patch.color) overlayPatch.color = patch.color
-  if (patch.scale != null) overlayPatch.font_size = Number((patch.scale * 2).toFixed(2))
+  if (patch.bg_color != null) overlayPatch.bg_color = patch.bg_color || undefined
+  if (patch.font_size_pt != null) overlayPatch.font_size = Number(ptToCqh(patch.font_size_pt).toFixed(3))
+  else if (patch.scale != null) overlayPatch.font_size = Number((patch.scale * 2).toFixed(2))
+  if (patch.align != null) overlayPatch.alignment = patch.align
+  if (patch.opacity != null) overlayPatch.opacity = patch.opacity
   if (patch.bold != null) overlayPatch.bold = patch.bold
   if (patch.italic != null) overlayPatch.italic = patch.italic
   emit('overlay-updated', { id: target.id, patch: overlayPatch })
 }
+
+const activeChromeColor = computed(() => {
+  const block = activeChromeBlock.value
+  if (!block) return fg.value
+  if (block.slot) return slotOverride(block.slot).color ?? fg.value
+  return block.color ?? fg.value
+})
+
+const activeChromeBold = computed(() => {
+  const block = activeChromeBlock.value
+  if (!block) return false
+  if (block.slot) return slotOverride(block.slot).bold ?? false
+  return block.bold ?? false
+})
+
+const activeChromeItalic = computed(() => {
+  const block = activeChromeBlock.value
+  if (!block) return false
+  if (block.slot) return slotOverride(block.slot).italic ?? false
+  return block.italic ?? false
+})
+
+const activeChromeTextValue = computed(() => {
+  const block = activeChromeBlock.value
+  if (!block) return null
+  return chromeBlockText(block)
+})
+
+function patchActiveChromeBlock(patch: PosterTextOverride) {
+  const block = activeChromeBlock.value
+  const band = chromeBandForBlock(activeChromeBlockId.value)
+  if (!block || !band) return
+  if (block.slot) {
+    emit('poster-text-override', { slot: block.slot, patch })
+    return
+  }
+  upsertChromeBlockEdit(band, {
+    ...block,
+    text: patch.text ?? block.text,
+    font_family: patch.font_family ?? block.font_family,
+    font_size_pt: patch.font_size_pt ?? block.font_size_pt,
+    align: patch.align ?? block.align,
+    color: patch.color ?? block.color,
+    bg_color: patch.bg_color ?? block.bg_color,
+    scale: patch.scale ?? block.scale,
+    opacity: patch.opacity ?? block.opacity,
+    bold: patch.bold ?? block.bold,
+    italic: patch.italic ?? block.italic,
+  })
+}
+
+function patchActiveChromeLayoutBlock(patch: Partial<ChromeBlock>) {
+  const block = activeChromeBlock.value
+  const band = chromeBandForBlock(activeChromeBlockId.value)
+  if (!block || !band) return
+  upsertChromeBlockEdit(band, { ...block, ...patch })
+}
+
+function setActiveChromeText(text: string) {
+  patchActiveChromeBlock({ text })
+}
+
+function toggleChromeBold() {
+  patchActiveChromeBlock({ bold: !activeChromeBold.value })
+}
+
+function toggleChromeItalic() {
+  patchActiveChromeBlock({ italic: !activeChromeItalic.value })
+}
+
+function setChromeColor(color: string) {
+  patchActiveChromeBlock({ color })
+}
+
+function nudgeChromeScale(delta: number) {
+  const block = activeChromeBlock.value
+  if (!block) return
+  const currentPt = block.slot
+    ? slotOverride(block.slot).font_size_pt ?? cqhToPt(effectiveSlotFontSizeCqh(block.slot, slotBaseFontSizeCqh(block.slot)))
+    : block.font_size_pt ?? cqhToPt(1.1 * (block.scale ?? 1))
+  patchActiveChromeBlock({ font_size_pt: clampTextSizePt(currentPt + (delta > 0 ? 2 : -2)) })
+}
+
+function setChromeAlign(align: NonNullable<ChromeBlock['align']>) {
+  patchActiveChromeLayoutBlock({ align })
+  const block = activeChromeBlock.value
+  if (block?.slot) emit('poster-text-override', { slot: block.slot, patch: { align } })
+}
+
+function setChromeValign(valign: NonNullable<ChromeBlock['valign']>) {
+  patchActiveChromeLayoutBlock({ valign })
+}
+
+const chromeToolbarStyle = computed(() => {
+  if (!posterCanvasEl.value) return {}
+  const poster = posterCanvasEl.value.getBoundingClientRect()
+  const band = activeChromeBand.value
+  const width = 580
+  if (band === 'footer') {
+    return {
+      left: `${Math.max(12, Math.min(window.innerWidth - width - 12, poster.left + poster.width / 2 - width / 2))}px`,
+      top: `${Math.min(window.innerHeight - 52, poster.bottom + 14)}px`,
+      width: `${width}px`,
+    }
+  }
+  if (band === 'railLeft') {
+    return {
+      left: `${Math.min(window.innerWidth - width - 12, poster.right + 14)}px`,
+      top: `${Math.max(12, poster.top + poster.height / 2 - 20)}px`,
+      width: `${width}px`,
+    }
+  }
+  if (band === 'railRight') {
+    return {
+      left: `${Math.max(12, poster.left - width - 14)}px`,
+      top: `${Math.max(12, poster.top + poster.height / 2 - 20)}px`,
+      width: `${width}px`,
+    }
+  }
+  return {
+    left: `${Math.max(12, Math.min(window.innerWidth - width - 12, poster.left + poster.width / 2 - width / 2))}px`,
+    top: `${Math.max(12, poster.top - 52)}px`,
+    width: `${width}px`,
+  }
+})
+
+const chromeToolbarPointerStyle = computed(() => {
+  const band = activeChromeBand.value
+  if (band === 'footer') return { bottom: '100%', borderWidth: '0 6px 7px 6px', borderColor: 'transparent transparent #fff transparent' }
+  if (band === 'railLeft') return { right: '100%', top: '50%', width: '14px', height: '1px', background: '#2A5BCC' }
+  if (band === 'railRight') return { left: '100%', top: '50%', width: '14px', height: '1px', background: '#2A5BCC' }
+  return { top: '100%', borderWidth: '7px 6px 0 6px', borderColor: '#fff transparent transparent transparent' }
+})
 
 // ── Trail legend ──────────────────────────────────────────────────────────────
 
@@ -1942,6 +3131,18 @@ const showPinOverlay = computed(() =>
   ),
 )
 
+const contrastSafePinColor = computed(() =>
+  props.styleConfig.pin_color ?? pickContrastSafeColor(
+    mapBackgroundColor(props.styleConfig),
+    [
+      props.styleConfig.route_color,
+      props.styleConfig.label_bg_color,
+      props.styleConfig.label_text_color,
+      props.styleConfig.background_color,
+    ],
+  )
+)
+
 function recomputeOverlays() {
   if (!mapInstance || !mapContainer.value) return
   const W = mapContainer.value.offsetWidth
@@ -1963,7 +3164,7 @@ function recomputeOverlays() {
     }
   } else {
     const newPins: PinItem[] = []
-    const pinColor   = props.styleConfig.pin_color   ?? props.styleConfig.label_text_color ?? '#1C1917'
+    const pinColor   = contrastSafePinColor.value
     const pinOpacity = props.styleConfig.pin_opacity ?? 0.9
 
     for (const which of ['start', 'finish'] as const) {
@@ -2341,23 +3542,11 @@ function cancelLeaderDrag() {
 
 // ── Map lifecycle ─────────────────────────────────────────────────────────────
 
-const FULL_RELOAD_KEYS: (keyof StyleConfig)[] = [
-  'preset', 'base_tile_style',
-  'show_contours', 'show_hillshade', 'show_elevation_labels',
-  'contour_color', 'contour_major_color', 'contour_opacity', 'contour_detail',
-  'hillshade_intensity', 'hillshade_highlight',
-  'show_roads', 'roads_color', 'roads_opacity',
-  'show_place_labels', 'place_labels_color', 'place_labels_opacity', 'place_labels_scale',
-  'show_poi_labels', 'poi_labels_color', 'poi_labels_opacity',
-  // trail_segments intentionally absent — segment ID changes are detected below,
-  // and data-only changes (section_start/end, color, width) use the fast path.
-  'tile_effect',
-  'route_color_mode',
-  'map_3d',
-  'segment_casing_width',
-  'segment_casing_color',
-  'segment_dot_size',
-]
+function fullReloadKeysFor(cfg: StyleConfig): Array<keyof StyleConfig> {
+  // trail_segments intentionally stay structural/data-driven below: segment ID
+  // changes rebuild sources/layers, while geometry/color/width use fast paths.
+  return getGraphFullReloadFields(cfg).filter(key => key !== 'trail_segments')
+}
 
 // Computes a cache key for all parameters baked into the styledtile:// URL.
 // When this key changes, MapLibre needs a full style reload to re-fetch tiles.
@@ -2392,6 +3581,66 @@ function effectiveBearing(cfg: StyleConfig = props.styleConfig): number {
   return cfg.map_3d ? (cfg.map_bearing ?? 0) : 0
 }
 
+function effectiveHillshadeExaggeration(cfg: StyleConfig = props.styleConfig): number {
+  const intensity = cfg.hillshade_intensity ?? 0.3
+  return cfg.preset === 'contour-art' ? Math.min(intensity, 0.25) : intensity
+}
+
+type MapCameraSnapshot = {
+  center: [number, number]
+  zoom: number
+  pitch: number
+  bearing: number
+}
+
+function snapshotCurrentCamera(): MapCameraSnapshot | null {
+  if (!mapInstance) return null
+  const center = mapInstance.getCenter()
+  return {
+    center: [center.lng, center.lat],
+    zoom: mapInstance.getZoom(),
+    pitch: mapInstance.getPitch(),
+    bearing: mapInstance.getBearing(),
+  }
+}
+
+function restoreCameraAfterStyleReload(camera: MapCameraSnapshot | null) {
+  if (!mapInstance) return
+  if (camera) {
+    styleReloadCameraHold = camera
+    if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
+    styleReloadCameraHoldTimer = setTimeout(() => {
+      styleReloadCameraHold = null
+      styleReloadCameraHoldTimer = null
+    }, 1_500)
+    mapInstance.jumpTo(camera)
+    return
+  }
+  if (canUseSavedCamera()) {
+    mapInstance.jumpTo({
+      zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
+      center: props.styleConfig.map_center as [number, number],
+      pitch: effectivePitch(),
+      bearing: effectiveBearing(),
+    })
+  }
+}
+
+function publishDevCameraHandle() {
+  if (!import.meta.dev || typeof window === 'undefined') return
+  ;(window as unknown as {
+    __RADMAPS_MAP_CAMERA__?: {
+      get: () => MapCameraSnapshot | null
+      jumpTo: (camera: Partial<MapCameraSnapshot>) => void
+      getLayerIds: () => string[]
+    }
+  }).__RADMAPS_MAP_CAMERA__ = {
+    get: snapshotCurrentCamera,
+    jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
+    getLayerIds: () => mapInstance?.getStyle().layers?.map(layer => layer.id) ?? [],
+  }
+}
+
 onMounted(async () => {
   await nextTick()
   if (!mapContainer.value) return
@@ -2422,6 +3671,7 @@ onMounted(async () => {
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
   })
+  publishDevCameraHandle()
 
   // Debounced view-change emitter so pan/zoom is auto-saved without flooding saves
   let viewSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -2451,7 +3701,9 @@ onMounted(async () => {
     suppressViewSave = true
     mapInstance.resize()
 
-    if (canUseSavedCamera()) {
+    if (styleReloadCameraHold) {
+      mapInstance.jumpTo(styleReloadCameraHold)
+    } else if (canUseSavedCamera()) {
       mapInstance.jumpTo({
         zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
         center: props.styleConfig.map_center as [number, number],
@@ -2622,7 +3874,7 @@ let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
 function makePinDotEl(): HTMLElement {
-  const color   = props.styleConfig.pin_color ?? props.styleConfig.label_text_color ?? '#1C1917'
+  const color   = contrastSafePinColor.value
   const opacity = props.styleConfig.pin_opacity ?? 0.9
   const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
@@ -2661,7 +3913,7 @@ function placePinMarkers() {
   nextTick(recomputeOverlays)
 }
 
-function apply3DTerrain() {
+function apply3DTerrain(options: { animate?: boolean } = {}) {
   if (!mapInstance) return
   const pitch = effectivePitch()
   const bearing = effectiveBearing()
@@ -2673,7 +3925,14 @@ function apply3DTerrain() {
   } else {
     try { mapInstance.setTerrain(null as any) } catch {}
   }
-  mapInstance.easeTo({ pitch, bearing, duration: props.editable === false ? 0 : 600 })
+  const shouldAnimate = options.animate !== false &&
+    props.editable !== false &&
+    (Math.abs(mapInstance.getPitch() - pitch) > 0.01 || Math.abs(mapInstance.getBearing() - bearing) > 0.01)
+  if (shouldAnimate) {
+    mapInstance.easeTo({ pitch, bearing, duration: 600 })
+  } else {
+    mapInstance.jumpTo({ pitch, bearing })
+  }
 }
 
 function setPaintBackground() {
@@ -2681,6 +3940,79 @@ function setPaintBackground() {
   if (mapInstance.getLayer('background')) {
     mapInstance.setPaintProperty('background', 'background-color', mapBackgroundColor(props.styleConfig))
   }
+}
+
+function setLayerPaint(layerId: string, property: string, value: unknown) {
+  if (!mapInstance?.getLayer(layerId)) return
+  mapInstance.setPaintProperty(layerId, property, value)
+}
+
+function applyRoadPaint(config: StyleConfig) {
+  const color = config.roads_color ?? config.label_text_color
+  const opacity = config.roads_opacity ?? 0.6
+  for (const [layerId, multiplier] of [
+    ['roads-major', 0.50],
+    ['roads-primary', 0.37],
+    ['roads-minor', 0.23],
+    ['rn-service', 0.18],
+    ['rn-street', 0.32],
+    ['rn-secondary', 0.55],
+    ['rn-motorway', 0.75],
+    ['nt-service', 0.25],
+    ['nt-street', 0.55],
+    ['nt-secondary', 0.80],
+    ['nt-motorway', 1.0],
+  ] as const) {
+    setLayerPaint(layerId, 'line-color', color)
+    setLayerPaint(layerId, 'line-opacity', opacity * multiplier)
+  }
+}
+
+function applyPlaceLabelPaint(config: StyleConfig) {
+  setLayerPaint('roads-place-labels', 'text-color', config.place_labels_color ?? config.label_text_color)
+  setLayerPaint('roads-place-labels', 'text-opacity', config.place_labels_opacity ?? 0.75)
+  setLayerPaint('roads-place-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyPoiLabelPaint(config: StyleConfig) {
+  setLayerPaint('roads-poi-labels', 'text-color', config.poi_labels_color ?? config.label_text_color)
+  setLayerPaint('roads-poi-labels', 'text-opacity', config.poi_labels_opacity ?? 0.65)
+  setLayerPaint('roads-poi-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyWaterPaint(config: StyleConfig) {
+  const contourWaterColor = config.water_color ?? '#9CCFD8'
+  const roadNetworkWaterColor = config.water_color ?? '#7FB3C8'
+  setLayerPaint('contour-art-water', 'fill-color', contourWaterColor)
+  setLayerPaint('contour-art-waterways', 'line-color', contourWaterColor)
+  setLayerPaint('rn-water', 'fill-color', roadNetworkWaterColor)
+  setLayerPaint('rn-waterways', 'line-color', roadNetworkWaterColor)
+}
+
+function applyContourPaint(config: StyleConfig) {
+  const contourOpacity = config.contour_opacity ?? 0.65
+  const minorColor = config.contour_color ?? config.label_text_color ?? '#64748B'
+  const majorColor = config.contour_major_color ?? minorColor
+  setLayerPaint('contours-minor', 'line-color', minorColor)
+  setLayerPaint('contours-minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 5, contourOpacity, 14, contourOpacity * 0.9])
+  setLayerPaint('contours-mid', 'line-color', minorColor)
+  setLayerPaint('contours-mid', 'line-opacity', contourOpacity)
+  setLayerPaint('contours-major', 'line-color', majorColor)
+  setLayerPaint('contours-major', 'line-opacity', contourOpacity)
+  setLayerPaint('contours-labels', 'text-color', majorColor)
+  setLayerPaint('contours-labels', 'text-opacity', contourOpacity)
+  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(config))
+}
+
+function applyHillshadePaint(config: StyleConfig) {
+  setLayerPaint('hillshade', 'hillshade-exaggeration', effectiveHillshadeExaggeration(config))
+}
+
+function applyRasterPaint(config: StyleConfig) {
+  const rasterLayerId = config.preset === 'topographic' ? 'outdoors-tiles' : 'base-tiles'
+  setLayerPaint(rasterLayerId, 'raster-contrast', config.tile_contrast ?? 0)
+  setLayerPaint(rasterLayerId, 'raster-saturation', config.tile_saturation ?? 0)
+  setLayerPaint(rasterLayerId, 'raster-hue-rotate', config.tile_hue_rotate ?? 0)
 }
 
 // ── interactjs drag for text overlays ────────────────────────────────────────
@@ -2730,7 +4062,7 @@ async function initOverlayDrag() {
   const assets = container.querySelectorAll<HTMLElement>('.image-asset.is-editable')
   assets.forEach(el => {
     const inst = interact(el).draggable({
-      allowFrom: '.overlay-move-handle',
+      ignoreFrom: '.overlay-delete-btn, .overlay-resize-handle',
       listeners: {
         move(event: { dx: number; dy: number; target: HTMLElement }) {
           const containerRect = container.getBoundingClientRect()
@@ -2770,13 +4102,17 @@ watch(
     const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => s.id).join(',')
     const segStructureChanged = newSegIds !== oldSegIds
 
-    const needsFullReload = tileKeyChanged || segStructureChanged || FULL_RELOAD_KEYS.some(
+    const needsFullReload = tileKeyChanged || segStructureChanged || fullReloadKeysFor(newConfig).some(
       key => JSON.stringify(newConfig[key]) !== JSON.stringify(oldConfig?.[key]),
     )
 
     if (needsFullReload) {
       // Clear tile cache when effect params change so stale processed tiles aren't reused
       if (tileKeyChanged) _tileCache.clear()
+      const cameraBeforeReload = snapshotCurrentCamera()
+      const cameraAfterReload = cameraBeforeReload
+        ? { ...cameraBeforeReload, pitch: effectivePitch(newConfig), bearing: effectiveBearing(newConfig) }
+        : null
       mapReady.value = false
       if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
@@ -2785,16 +4121,9 @@ watch(
         populateRouteSource()
         populateSegmentSources()
         placePinMarkers()
-        apply3DTerrain()
-        // setStyle() resets the viewport — restore frozen position before revealing the map
-        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
-          mapInstance!.jumpTo({
-            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
-            center: props.styleConfig.map_center as [number, number],
-            pitch: effectivePitch(),
-            bearing: effectiveBearing(),
-          })
-        }
+        apply3DTerrain({ animate: false })
+        // setStyle() can reset the viewport; layer toggles must not reframe the poster.
+        restoreCameraAfterStyleReload(cameraAfterReload)
         applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -2835,39 +4164,71 @@ watch(
       apply3DTerrain()
     }
 
-    if (newConfig.background_color !== oldConfig?.background_color) setPaintBackground()
+    if (newConfig.hillshade_intensity !== oldConfig?.hillshade_intensity) applyHillshadePaint(newConfig)
+
+    if (newConfig.background_color !== oldConfig?.background_color) {
+      setPaintBackground()
+      applyPlaceLabelPaint(newConfig)
+      applyPoiLabelPaint(newConfig)
+      applyContourPaint(newConfig)
+    }
+
+    if (
+      newConfig.roads_color !== oldConfig?.roads_color ||
+      newConfig.roads_opacity !== oldConfig?.roads_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyRoadPaint(newConfig)
+    }
+
+    if (
+      newConfig.place_labels_color !== oldConfig?.place_labels_color ||
+      newConfig.place_labels_opacity !== oldConfig?.place_labels_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyPlaceLabelPaint(newConfig)
+    }
+
+    if (
+      newConfig.poi_labels_color !== oldConfig?.poi_labels_color ||
+      newConfig.poi_labels_opacity !== oldConfig?.poi_labels_opacity ||
+      newConfig.label_text_color !== oldConfig?.label_text_color
+    ) {
+      applyPoiLabelPaint(newConfig)
+    }
+
+    if (newConfig.water_color !== oldConfig?.water_color) applyWaterPaint(newConfig)
 
     // Contour line-width fast path — avoids full reload for width multiplier changes
+    if (
+      newConfig.contour_color !== oldConfig?.contour_color ||
+      newConfig.contour_major_color !== oldConfig?.contour_major_color ||
+      newConfig.contour_opacity !== oldConfig?.contour_opacity
+    ) {
+      applyContourPaint(newConfig)
+    }
     if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
-      const w = newConfig.contour_minor_width ?? 1
       if (mapInstance.getLayer('contours-minor'))
         mapInstance.setPaintProperty('contours-minor', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 0.8 * w, 14, 1.0 * w])
+          contourMinorLineWidthExpression(newConfig))
       if (mapInstance.getLayer('contours-mid'))
         mapInstance.setPaintProperty('contours-mid', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 1.1 * w, 14, 1.5 * w])
+          contourMidLineWidthExpression(newConfig))
     }
     if (newConfig.contour_major_width !== oldConfig?.contour_major_width) {
-      const w = newConfig.contour_major_width ?? 1
       if (mapInstance.getLayer('contours-major'))
         mapInstance.setPaintProperty('contours-major', 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 5, 1.5 * w, 14, 2.5 * w])
+          contourMajorLineWidthExpression(newConfig))
     }
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
     // these are MapLibre paint properties and don't need a tile re-fetch.
-    const rasterLayerId = newConfig.preset === 'topographic' ? 'outdoors-tiles' : 'base-tiles'
-    if (newConfig.tile_contrast !== oldConfig?.tile_contrast) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-contrast', newConfig.tile_contrast ?? 0)
-    }
-    if (newConfig.tile_saturation !== oldConfig?.tile_saturation) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-saturation', newConfig.tile_saturation ?? 0)
-    }
-    if (newConfig.tile_hue_rotate !== oldConfig?.tile_hue_rotate) {
-      if (mapInstance.getLayer(rasterLayerId))
-        mapInstance.setPaintProperty(rasterLayerId, 'raster-hue-rotate', newConfig.tile_hue_rotate ?? 0)
+    if (
+      newConfig.tile_contrast !== oldConfig?.tile_contrast ||
+      newConfig.tile_saturation !== oldConfig?.tile_saturation ||
+      newConfig.tile_hue_rotate !== oldConfig?.tile_hue_rotate
+    ) {
+      applyRasterPaint(newConfig)
     }
 
     if (mapInstance.getLayer('route-line')) {
@@ -2929,8 +4290,9 @@ watch(
     const hasRanges = (newRanges ?? []).length > 0
     // In gradient mode, crossing the empty↔non-empty boundary changes both the
     // source lineMetrics flag and the layer paint (line-gradient vs line-color).
-    // A full style reload is required — same path as FULL_RELOAD_KEYS.
+    // A full style reload is required — same path as graph full-reload dependencies.
     if (isGradient && hadRanges !== hasRanges) {
+      const cameraBeforeReload = snapshotCurrentCamera()
       mapReady.value = false
       const newStyle = buildScaledMapStyle(props.styleConfig)
       mapInstance.setStyle(newStyle)
@@ -2938,15 +4300,8 @@ watch(
         populateRouteSource()
         populateSegmentSources()
         placePinMarkers()
-        apply3DTerrain()
-        if (props.styleConfig.map_frozen && canUseSavedCamera()) {
-          mapInstance!.jumpTo({
-            zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
-            center: props.styleConfig.map_center as [number, number],
-            pitch: effectivePitch(),
-            bearing: effectiveBearing(),
-          })
-        }
+        apply3DTerrain({ animate: false })
+        restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties()
         mapReady.value = true
         if (props.editable) nextTick(() => initOverlayDrag())
@@ -3446,14 +4801,24 @@ onUnmounted(() => {
   plotGhostMarker?.remove()
   document.removeEventListener('keydown', onPlotKeydown)
   cancelAnimationFrame(plotAnimFrame)
+  if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
   mapInstance?.remove()
   mapInstance = null
+  if (import.meta.dev && typeof window !== 'undefined') {
+    delete (window as unknown as {
+      __RADMAPS_MAP_CAMERA__?: {
+        get: () => MapCameraSnapshot | null
+        jumpTo: (camera: Partial<MapCameraSnapshot>) => void
+      }
+    }).__RADMAPS_MAP_CAMERA__
+  }
 })
 </script>
 
 <style scoped>
 .poster-canvas {
   container-type: size;
+  color: var(--composition-ink, currentColor);
 }
 
 .radmaps-print-root {
@@ -3496,6 +4861,197 @@ onUnmounted(() => {
   height: 4cqh;
 }
 
+.poster-composition {
+  isolation: isolate;
+}
+
+.composition-paper-texture,
+.composition-grid-overlay,
+.composition-star-field,
+.composition-side-rail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.composition-paper-texture {
+  z-index: 1;
+  opacity: 0.22;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.035) 0 1px, transparent 1px 5px),
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.18), transparent 20%),
+    radial-gradient(circle at 82% 76%, rgba(0, 0, 0, 0.07), transparent 24%);
+  mix-blend-mode: multiply;
+}
+
+.composition-grid-overlay {
+  z-index: 4;
+  background-size: 8cqw 8cqw;
+}
+
+.composition-grid-overlay--map {
+  inset: 0;
+}
+
+.composition-star-field {
+  z-index: 1;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(circle at 16% 18%, currentColor 0 0.08cqw, transparent 0.1cqw),
+    radial-gradient(circle at 74% 11%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 88% 34%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(circle at 28% 69%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 54% 82%, currentColor 0 0.05cqw, transparent 0.08cqw);
+}
+
+.composition-side-rail {
+  z-index: 3;
+  right: auto;
+  width: 7cqw;
+  border-right: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  opacity: 0.72;
+}
+
+.composition-side-rail-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7cqw;
+  padding: 2cqh 0;
+  color: currentColor;
+  opacity: 0.32;
+  transform: rotate(180deg);
+  transform-origin: center;
+  font-family: var(--composition-body-font, inherit);
+  font-size: 0.82cqh;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  pointer-events: none;
+}
+
+.composition-kicker,
+.composition-meta-line,
+.composition-footer-note {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.composition-kicker {
+  font-size: 0.88cqh;
+  line-height: 1.2;
+}
+
+.composition-meta-line {
+  font-size: 0.72cqh;
+  line-height: 1.3;
+  margin-top: -0.2cqh;
+}
+
+.poster-footer-rule {
+  position: absolute;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.composition-footer-note {
+  position: absolute;
+  left: var(--composition-rule-left);
+  right: var(--composition-rule-right);
+  top: 0.65cqh;
+  overflow: hidden;
+  color: currentColor;
+  font-family: var(--composition-body-font, inherit);
+  font-size: 0.62cqh;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  opacity: 0.36;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-composition--modernist-block .composition-side-rail {
+  background: var(--label-bg-color, currentColor);
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+.poster-composition--modernist-block .composition-side-rail--left {
+  left: 0;
+  right: auto;
+  width: var(--composition-rule-left);
+  border-right: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-left: 0;
+}
+
+.poster-composition--modernist-block .composition-side-rail--right {
+  left: auto;
+  right: 0;
+  width: var(--composition-rule-right);
+  border-right: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.poster-composition--modernist-block .composition-side-rail-label--left {
+  left: 0;
+  right: auto;
+  width: var(--composition-rule-left);
+}
+
+.poster-composition--splits-grid .poster-footer-rule,
+.poster-composition--blueprint-strava .poster-footer-rule,
+.poster-composition--bib-numerals .poster-footer-rule {
+  height: 0;
+  background: transparent !important;
+  border-top: 1px dashed currentColor;
+}
+
+.poster-composition--riso-stack .poster-header::before {
+  content: "";
+  position: absolute;
+  top: 3cqh;
+  right: 7cqw;
+  width: 7cqw;
+  height: 7cqw;
+  background: var(--water-color, currentColor);
+  opacity: 0.85;
+  mix-blend-mode: multiply;
+}
+
+.poster-composition--botanical-plate .poster-header::before,
+.poster-composition--botanical-plate .poster-header::after {
+  content: "";
+  position: absolute;
+  top: calc(2.8cqh + var(--print-bleed, 0px));
+  width: 6cqw;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.22;
+}
+
+.poster-composition--botanical-plate .poster-header::before {
+  left: 7cqw;
+}
+
+.poster-composition--botanical-plate .poster-header::after {
+  right: 7cqw;
+}
+
 /* Editable text: subtle hover indicator */
 .editable-text:hover {
   outline: 1.5px dashed rgba(45, 106, 79, 0.35);
@@ -3512,10 +5068,383 @@ onUnmounted(() => {
 }
 .editable-text[contenteditable="true"] {
   -webkit-user-select: text;
+  pointer-events: auto;
   user-select: text;
 }
 .stat-custom-text {
   display: block;
+}
+
+/* Chrome direct editing */
+.chrome-selection-toolbar {
+  position: fixed;
+  z-index: 10020;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #E7E5E4;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 28px rgba(28, 25, 23, 0.16), 0 2px 6px rgba(28, 25, 23, 0.06);
+  color: #1C1917;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.chrome-toolbar-kind {
+  padding: 0 8px;
+  color: #78716C;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chrome-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #E7E5E4;
+}
+
+.chrome-toolbar-btn {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chrome-toolbar-btn:hover {
+  background: #F5F5F4;
+}
+
+.chrome-toolbar-btn--italic {
+  font-style: italic;
+}
+
+.chrome-toolbar-btn--danger {
+  color: #B5251D;
+}
+
+.chrome-toolbar-color {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chrome-toolbar-color input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chrome-toolbar-pointer {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.chrome-band-layer {
+  position: absolute;
+  inset: 4px;
+  z-index: 7;
+  pointer-events: none;
+  border: 1.5px dashed transparent;
+  border-radius: 2px;
+}
+
+.chrome-band-layer.is-active {
+  border-color: rgba(42, 91, 204, 0.5);
+}
+
+.chrome-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.chrome-section-chip {
+  position: absolute;
+  top: -26px;
+  right: 0;
+  z-index: 8;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: #2A5BCC;
+  color: white;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.chrome-section-chip--footer {
+  top: auto;
+  bottom: -26px;
+}
+
+.chrome-section-chip--rail {
+  top: 10px;
+  left: 10px;
+  right: auto;
+}
+
+.chrome-section-settings {
+  position: absolute;
+  top: 4px;
+  left: 52px;
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #E7E5E4;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #44403C;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  pointer-events: auto;
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-section-settings--footer {
+  top: auto;
+  bottom: 4px;
+}
+
+.chrome-section-settings button {
+  height: 22px;
+  min-width: 24px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  background: #F5F5F4;
+  color: #44403C;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chrome-section-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 4px;
+}
+
+.chrome-section-settings input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chrome-insert-btn {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  z-index: 9;
+  width: 24px;
+  height: 24px;
+  transform: translateY(-50%);
+  border: 1px solid #2A5BCC;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #2A5BCC;
+  font-size: 17px;
+  line-height: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.16);
+}
+
+.chrome-section-reset-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 9;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid #D6D3D1;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #44403C;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-section-reset-btn--footer {
+  top: 8px;
+  bottom: auto;
+}
+
+.chrome-band-resize-handle {
+  position: absolute;
+  left: 50%;
+  z-index: 10;
+  width: min(120px, 40%);
+  height: 44px;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.chrome-band-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: #2A5BCC;
+  box-shadow: 0 0 0 2px #FFFFFF, 0 4px 10px rgba(28, 25, 23, 0.18);
+}
+
+.chrome-band-resize-handle--header {
+  bottom: -25px;
+}
+
+.chrome-band-resize-handle--footer {
+  top: -25px;
+}
+
+.chrome-custom-block {
+  outline-color: rgba(42, 91, 204, 0.48);
+}
+
+.chrome-custom-block.is-selected-text {
+  outline-color: #2A5BCC;
+  background: rgba(42, 91, 204, 0.06);
+}
+
+.chrome-mobile-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10030;
+  height: min(300px, 48vh);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid #E7E5E4;
+  border-radius: 14px 14px 0 0;
+  background: #FFFFFF;
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.chrome-mobile-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #D6D2C8;
+  align-self: center;
+}
+
+.chrome-mobile-head,
+.chrome-mobile-actions,
+.chrome-mobile-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chrome-mobile-head {
+  justify-content: space-between;
+  color: #78716C;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.chrome-mobile-head button,
+.chrome-mobile-chip-row button,
+.chrome-mobile-actions button {
+  min-height: 34px;
+  border: 1px solid #E7E5E4;
+  border-radius: 7px;
+  background: #FAFAF9;
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chrome-mobile-input {
+  width: 100%;
+  border: 1px solid #E7E5E4;
+  border-radius: 7px;
+  background: #F7F4EE;
+  color: #1C1917;
+  padding: 10px 12px;
+  font-size: 16px;
+  outline: none;
+}
+
+.chrome-mobile-chip-row {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.chrome-mobile-chip-row button,
+.chrome-mobile-chip-row label {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #FAFAF9;
+  border: 1px solid #E7E5E4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chrome-mobile-chip-row .active {
+  background: #1C1917;
+  color: #FFFFFF;
+}
+
+.chrome-mobile-actions {
+  margin-top: auto;
+}
+
+.chrome-mobile-actions button {
+  flex: 1;
+}
+
+.chrome-mobile-actions .danger {
+  color: #B5251D;
 }
 
 /* Text overlay layer */

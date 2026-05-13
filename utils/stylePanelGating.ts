@@ -6,6 +6,9 @@
  * so these functions are the single source of truth for every v-if in the panel.
  */
 
+import type { StyleConfig } from '~/types'
+import { getPresetGraph, getVisibleStyleControls, styleGraphUsesContours } from '~/utils/styleLayerGraph'
+
 export interface GatingInput {
   hasRoute: boolean
   hasElevationData: boolean
@@ -31,11 +34,22 @@ export interface SectionVisibility {
   minimalistTileStyles: boolean
   naturalTopoTileStyles: boolean
   routeMapCard: boolean
+  hillshadeToggle: boolean
   hillshadeDetails: boolean
+  contourToggle: boolean
   contourDetails: boolean
+  mapDetailCard: boolean
+  roadsToggle: boolean
+  roadColorControl: boolean
+  roadOpacityControl: boolean
+  placeLabelsToggle: boolean
+  placeLabelDetails: boolean
+  poiToggle: boolean
+  poiDetails: boolean
   roadsExpanded: boolean
   elevationProfileToggle: boolean   // show/hide the toggle itself
   elevationProfileExpanded: boolean // show sub-controls when enabled
+  rasterEffectControls: boolean
   duotoneControls: boolean
   posterizeControls: boolean
   layerColorControls: boolean
@@ -48,10 +62,25 @@ export interface SectionVisibility {
   logoPositionControls: boolean
   trailSegmentsCard: boolean
   trailLegendControls: boolean
+  waterColorControl: boolean
 }
 
 export function computeSectionVisibility(input: GatingInput): SectionVisibility {
   const hasLogo = !!(input.logoUrl && input.logoUrl.length > 0) || (input.logoAssetCount ?? 0) > 0
+  const controls = getVisibleStyleControls(input.preset)
+  const graph = getPresetGraph(input.preset)
+  const isVisible = (field: keyof StyleConfig) => controls[field]?.visible === true
+  const contourActive = styleGraphUsesContours({
+    preset: graph.preset,
+    show_contours: input.showContours,
+  })
+  const roadsExpanded = input.showRoads && (isVisible('roads_color') || isVisible('roads_opacity'))
+  const placeLabelDetails = input.showRoads && input.showRoads && isVisible('place_labels_color')
+  const poiDetails = input.showRoads && isVisible('poi_labels_color')
+  const mapDetailCard = isVisible('show_roads')
+    || isVisible('roads_color')
+    || isVisible('show_place_labels')
+    || isVisible('show_poi_labels')
 
   return {
     // Quick tab
@@ -61,14 +90,25 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
     minimalistTileStyles: input.preset === 'minimalist',
     naturalTopoTileStyles: input.preset === 'natural-topo',
     routeMapCard: input.hasRoute,
+    hillshadeToggle: isVisible('show_hillshade'),
     hillshadeDetails: input.showHillshade,
-    contourDetails: input.showContours,
-    roadsExpanded: input.showRoads,
+    contourToggle: isVisible('show_contours'),
+    contourDetails: contourActive,
+    mapDetailCard,
+    roadsToggle: isVisible('show_roads'),
+    roadColorControl: isVisible('roads_color'),
+    roadOpacityControl: isVisible('roads_opacity'),
+    placeLabelsToggle: isVisible('show_place_labels'),
+    placeLabelDetails,
+    poiToggle: isVisible('show_poi_labels'),
+    poiDetails,
+    roadsExpanded,
     elevationProfileToggle: input.hasElevationData && input.hasRoute,
     elevationProfileExpanded: input.showElevationProfile && input.hasRoute && input.hasElevationData,
-    duotoneControls: input.tileEffect === 'duotone',
-    posterizeControls: input.tileEffect === 'posterize',
-    layerColorControls: input.tileEffect === 'layer-color',
+    rasterEffectControls: isVisible('tile_effect'),
+    duotoneControls: isVisible('tile_duotone_strength') && input.tileEffect === 'duotone',
+    posterizeControls: isVisible('tile_posterize_levels') && input.tileEffect === 'posterize',
+    layerColorControls: isVisible('tile_shadow_color') && input.tileEffect === 'layer-color',
     vignetteIntensity: input.showVignette,
 
     // Pins
@@ -80,5 +120,6 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
     logoPositionControls: hasLogo && input.showLogo,
     trailSegmentsCard: input.hasRoute,
     trailLegendControls: input.trailSegmentCount > 0,
+    waterColorControl: isVisible('water_color'),
   }
 }

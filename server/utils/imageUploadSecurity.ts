@@ -1,8 +1,7 @@
 import { fileTypeFromBuffer } from 'file-type'
 import { createError } from 'h3'
 import sharp from 'sharp'
-import type { MapAsset } from '~/types'
-import type { MapAssetKind } from '~/types'
+import type { MapAsset, MapAssetKind } from '~/types'
 
 export const MAX_LOGO_BYTES = 5 * 1024 * 1024
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
