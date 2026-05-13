@@ -35,7 +35,7 @@
       <!-- ═══════════════════════════════════════════════════════════════
            METHOD PICKER
            ═══════════════════════════════════════════════════════════════ -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 md:gap-3 mb-10">
         <MethodCard
           v-for="m in methods"
           :key="m.id"
@@ -1379,20 +1379,48 @@ const MethodCard = defineComponent({
   },
   emits: ['select'],
   setup(props, { emit }) {
-    const toneClasses: Record<string, { bg: string; icon: string }> = {
-      orange: { bg: 'bg-[#FC4C02]/10', icon: 'text-[#FC4C02]' },
-      stone: { bg: 'bg-stone-900/5', icon: 'text-stone-700' },
-      green: { bg: 'bg-[#2D6A4F]/10', icon: 'text-[#2D6A4F]' },
-      amber: { bg: 'bg-amber-500/10', icon: 'text-amber-700' },
-      blue: { bg: 'bg-blue-500/10', icon: 'text-blue-600' },
+    // Each method has a tone — a soft tinted icon chip, a matching ring on
+    // hover/active, and a thin accent stripe that fills in across the bottom
+    // of the card to "lock in" the choice.
+    const toneClasses: Record<string, { bg: string; icon: string; accent: string; ring: string }> = {
+      orange: {
+        bg: 'bg-gradient-to-br from-[#FC4C02]/18 to-[#FC4C02]/5',
+        icon: 'text-[#FC4C02]',
+        accent: 'bg-[#FC4C02]',
+        ring: 'group-hover:ring-[#FC4C02]/25',
+      },
+      stone: {
+        bg: 'bg-gradient-to-br from-stone-900/10 to-stone-900/3',
+        icon: 'text-stone-700',
+        accent: 'bg-stone-900',
+        ring: 'group-hover:ring-stone-900/20',
+      },
+      green: {
+        bg: 'bg-gradient-to-br from-[#2D6A4F]/18 to-[#52B788]/8',
+        icon: 'text-[#2D6A4F]',
+        accent: 'bg-[#2D6A4F]',
+        ring: 'group-hover:ring-[#2D6A4F]/25',
+      },
+      amber: {
+        bg: 'bg-gradient-to-br from-amber-500/20 to-amber-500/5',
+        icon: 'text-amber-700',
+        accent: 'bg-amber-500',
+        ring: 'group-hover:ring-amber-500/25',
+      },
+      blue: {
+        bg: 'bg-gradient-to-br from-blue-500/18 to-blue-500/5',
+        icon: 'text-blue-600',
+        accent: 'bg-blue-500',
+        ring: 'group-hover:ring-blue-500/25',
+      },
     }
     const icons: Record<string, () => any> = {
       strava: () =>
-        h('svg', { viewBox: '0 0 24 24', fill: 'currentColor', class: 'w-5 h-5' }, [
+        h('svg', { viewBox: '0 0 24 24', fill: 'currentColor', class: 'w-[22px] h-[22px]' }, [
           h('path', { d: 'M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0 5 13.828h4.172' }),
         ]),
       upload: () =>
-        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
+        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-[22px] h-[22px]' }, [
           h('path', {
             'fill-rule': 'evenodd',
             'clip-rule': 'evenodd',
@@ -1400,19 +1428,19 @@ const MethodCard = defineComponent({
           }),
         ]),
       premade: () =>
-        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
+        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-[22px] h-[22px]' }, [
           h('rect', { x: 3, y: 3, width: 6, height: 8, rx: 1 }),
           h('rect', { x: 11, y: 3, width: 6, height: 5, rx: 1 }),
           h('rect', { x: 3, y: 13, width: 6, height: 4, rx: 1 }),
           h('rect', { x: 11, y: 10, width: 6, height: 7, rx: 1 }),
         ]),
       draw: () =>
-        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
+        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-[22px] h-[22px]' }, [
           h('path', { d: 'M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793z' }),
           h('path', { d: 'M11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z' }),
         ]),
       place: () =>
-        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-5 h-5' }, [
+        h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-[22px] h-[22px]' }, [
           h('path', { 'fill-rule': 'evenodd', 'clip-rule': 'evenodd', d: 'M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z' }),
         ]),
     }
@@ -1423,27 +1451,59 @@ const MethodCard = defineComponent({
         {
           onClick: () => emit('select'),
           class: [
-            'relative group text-left p-4 rounded-2xl border-2 transition-all overflow-hidden',
+            'group relative text-left rounded-2xl border bg-white overflow-hidden h-full flex flex-col',
+            'px-3.5 py-4 sm:px-4 sm:py-5 transition-all duration-300 ease-out',
+            'ring-1 ring-transparent',
             props.active
-              ? 'border-stone-900 bg-white shadow-md shadow-stone-900/5 -translate-y-0.5'
-              : 'border-stone-200 bg-white/60 hover:border-stone-300 hover:-translate-y-0.5',
+              ? 'border-stone-900 shadow-lg shadow-stone-900/10 -translate-y-1'
+              : ['border-stone-200/80 hover:border-stone-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-stone-900/5', tone.value.ring],
           ],
         },
         [
+          // Subtle radial glow that fades in on hover/active — uses the tone's
+          // accent colour at very low opacity so each card hints at its
+          // identity without overpowering the editorial layout.
+          h('span', {
+            'aria-hidden': 'true',
+            class: [
+              'pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl transition-opacity duration-500',
+              tone.value.accent,
+              props.active ? 'opacity-[0.08]' : 'opacity-0 group-hover:opacity-[0.07]',
+            ],
+          }),
+
+          // Icon chip
           h('span', {
             class: [
-              'w-10 h-10 rounded-full flex items-center justify-center mb-3',
+              'inline-flex w-11 h-11 sm:w-12 sm:h-12 rounded-xl items-center justify-center mb-3 sm:mb-4 transition-transform duration-300',
+              'group-hover:scale-105 group-hover:-rotate-3',
               tone.value.bg,
               tone.value.icon,
             ],
           }, [icons[props.method.id]?.()]),
+
+          // Title + subtitle
           h('p', {
-            class: 'text-[15px] font-semibold text-stone-900 leading-tight mb-0.5',
+            class: 'text-[14px] sm:text-[15px] font-semibold text-stone-900 leading-tight mb-1',
             style: "font-family:'Space Grotesk',sans-serif",
           }, props.method.title),
-          h('p', { class: 'text-xs text-stone-500 leading-snug' }, props.method.subtitle),
+          h('p', { class: 'text-[11px] text-stone-500 leading-snug' }, props.method.subtitle),
+
+          // Animated bottom accent — fills in left-to-right on hover, locked in when active
+          h('span', {
+            'aria-hidden': 'true',
+            class: [
+              'absolute bottom-0 left-0 right-0 h-[3px] origin-left transition-transform duration-500 ease-out',
+              tone.value.accent,
+              props.active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100',
+            ],
+          }),
+
+          // Top-right corner badge: check when active, arrow on hover otherwise
           props.active
-            ? h('span', { class: 'absolute top-3 right-3 w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center' }, [
+            ? h('span', {
+                class: 'absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center shadow-sm',
+              }, [
                 h('svg', { class: 'w-3 h-3', viewBox: '0 0 20 20', fill: 'currentColor' }, [
                   h('path', {
                     'fill-rule': 'evenodd',
@@ -1452,7 +1512,18 @@ const MethodCard = defineComponent({
                   }),
                 ]),
               ])
-            : null,
+            : h('span', {
+                'aria-hidden': 'true',
+                class: 'absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300',
+              }, [
+                h('svg', { class: 'w-3 h-3', viewBox: '0 0 20 20', fill: 'currentColor' }, [
+                  h('path', {
+                    'fill-rule': 'evenodd',
+                    'clip-rule': 'evenodd',
+                    d: 'M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z',
+                  }),
+                ]),
+              ]),
         ],
       )
   },
