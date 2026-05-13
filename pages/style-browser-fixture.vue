@@ -5,11 +5,14 @@
         :map="sampleMap"
         :style-config="styleConfig"
         :editable="editable"
+        :chrome-editing="chromeEditing"
         :render-mode="renderMode"
         :print-context="printContext"
         @overlay-updated="onOverlayUpdated"
+        @asset-moved="onAssetMoved"
         @poster-text-override="onPosterTextOverride"
         @poster-text-reset="onPosterTextReset"
+        @poster-layout-updated="onPosterLayoutUpdated"
       />
     </div>
   </main>
@@ -17,7 +20,7 @@
 
 <script setup lang="ts">
 import MapPreview from '~/components/map/MapPreview.vue'
-import { DEFAULT_STYLE_CONFIG, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
@@ -43,7 +46,9 @@ const height = typeof route.query.height === 'string' ? Number.parseInt(route.qu
 const renderMode = route.query.print === 'final' ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
+const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
+const withAsset = route.query.asset === 'true' || route.query.asset === '1'
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -111,6 +116,29 @@ const initialStyleConfig: StyleConfig = {
         }],
       }
     : {}),
+  ...(withAsset
+    ? {
+        image_overlays: [{
+          id: 'fixture-logo-asset',
+          kind: 'logo',
+          source_url: 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20160%2080%22%3E%3Crect%20width=%22160%22%20height=%2280%22%20rx=%2212%22%20fill=%22%23ffffff%22/%3E%3Ccircle%20cx=%2240%22%20cy=%2240%22%20r=%2222%22%20fill=%22%232D6A4F%22/%3E%3Cpath%20d=%22M86%2053l12-27%2012%2027%22%20fill=%22none%22%20stroke=%22%232D6A4F%22%20stroke-width=%228%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E',
+          render_url: 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20160%2080%22%3E%3Crect%20width=%22160%22%20height=%2280%22%20rx=%2212%22%20fill=%22%23ffffff%22/%3E%3Ccircle%20cx=%2240%22%20cy=%2240%22%20r=%2222%22%20fill=%22%232D6A4F%22/%3E%3Cpath%20d=%22M86%2053l12-27%2012%2027%22%20fill=%22none%22%20stroke=%22%232D6A4F%22%20stroke-width=%228%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E',
+          mime_type: 'image/png',
+          width_px: 1600,
+          height_px: 800,
+          file_size_bytes: 4096,
+          x: 42,
+          y: 48,
+          width: 16,
+          height: 5.33,
+          rotation: 0,
+          opacity: 1,
+          z_index: 40,
+          quality_status: 'excellent',
+        }],
+        show_logo: true,
+      }
+    : {}),
 }
 
 const styleConfig = ref<StyleConfig>(initialStyleConfig)
@@ -146,6 +174,14 @@ function onOverlayUpdated(payload: { id: string; patch: Partial<TextOverlay> }) 
   }
 }
 
+function onAssetMoved(payload: { id: string; x: number; y: number }) {
+  const assets = styleConfig.value.image_overlays ?? []
+  styleConfig.value = {
+    ...styleConfig.value,
+    image_overlays: assets.map(asset => asset.id === payload.id ? { ...asset, x: payload.x, y: payload.y } : asset),
+  }
+}
+
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
   const current = styleConfig.value.poster_text_overrides ?? {}
   const existing = current[payload.slot] ?? {}
@@ -164,6 +200,13 @@ function onPosterTextReset(slot: PosterTextSlot) {
   styleConfig.value = {
     ...styleConfig.value,
     poster_text_overrides: Object.keys(current).length ? current : undefined,
+  }
+}
+
+function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
+  styleConfig.value = {
+    ...styleConfig.value,
+    poster_layout: value,
   }
 }
 

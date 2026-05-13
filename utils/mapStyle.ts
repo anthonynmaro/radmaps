@@ -451,6 +451,24 @@ function roadsSource(token: string) {
   }
 }
 
+const NATURAL_WATERWAY_CLASSES = ['river', 'canal', 'stream', 'stream_intermittent'] as const
+
+function waterwayLayer(id: string, color: string, opacity: number, minWidth: number, maxWidth: number): object {
+  return {
+    id,
+    type: 'line',
+    source: 'mapbox-streets',
+    'source-layer': 'waterway',
+    filter: ['in', ['get', 'class'], ['literal', [...NATURAL_WATERWAY_CLASSES]]],
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': color,
+      'line-opacity': opacity,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 7, minWidth, 14, maxWidth],
+    },
+  }
+}
+
 function usesRoadOverlay(config: StyleConfig): boolean {
   return config.show_roads === true || config.show_place_labels !== false || config.show_poi_labels === true
 }
@@ -908,6 +926,7 @@ function buildRoadNetworkStyle(
       'source-layer': 'water',
       paint: { 'fill-color': config.water_color ?? '#B8D8E8', 'fill-opacity': 0.6 },
     })
+    fillLayers.push(waterwayLayer('rn-waterways', config.water_color ?? '#B8D8E8', 0.7, 0.45, 1.6))
 
     // Land use — parks / green space
     fillLayers.push({
@@ -1043,7 +1062,8 @@ function buildContourArtStyle(
               'fill-color': config.water_color ?? '#B8D8E8',
               'fill-opacity': 0.62,
             },
-          }]
+          },
+          waterwayLayer('contour-art-waterways', config.water_color ?? '#B8D8E8', 0.85, 0.6, 2.0)]
         : []),
       // Hillshade at very low opacity for subtle topographic depth
       ...(config.show_hillshade
@@ -1348,6 +1368,7 @@ function buildNativeTonerStyle(
     baseLayers.push(
       { id: 'nt-water',     type: 'fill', source: 'mapbox-streets', 'source-layer': 'water',
         paint: { 'fill-color': ink, 'fill-opacity': 0.85 } },
+      waterwayLayer('nt-waterways', ink, 0.85, 0.45, 1.7),
       { id: 'nt-landuse',   type: 'fill', source: 'mapbox-streets', 'source-layer': 'landuse',
         filter: ['in', ['get', 'class'], ['literal', ['park', 'grass', 'wood', 'forest', 'scrub']]],
         paint: { 'fill-color': ink, 'fill-opacity': 0.08 } },

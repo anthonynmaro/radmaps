@@ -9,8 +9,20 @@ function baseTileUrl(style: object): string {
   return tileUrl
 }
 
-function layerById(style: object, id: string): { paint?: Record<string, unknown> } | undefined {
-  return (style as { layers?: Array<{ id: string; paint?: Record<string, unknown> }> }).layers?.find(layer => layer.id === id)
+interface TestLayer {
+  id: string
+  source?: string
+  'source-layer'?: string
+  filter?: unknown
+  paint?: Record<string, unknown>
+}
+
+function layerById(style: object, id: string): TestLayer | undefined {
+  return (style as { layers?: TestLayer[] }).layers?.find(layer => layer.id === id)
+}
+
+function layerIndex(style: object, id: string): number {
+  return ((style as { layers?: TestLayer[] }).layers ?? []).findIndex(layer => layer.id === id)
 }
 
 describe('map tile effects', () => {
@@ -89,6 +101,18 @@ describe('map tile effects', () => {
     expect(layerById(style, 'nt-water')).toBeDefined()
   })
 
+  it('renders Native Toner natural waterways with the ink treatment', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'native-toner',
+      label_text_color: '#111111',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'nt-waterways')?.['source-layer']).toBe('waterway')
+    expect(layerById(style, 'nt-waterways')?.paint?.['line-color']).toBe('#111111')
+    expect(layerById(style, 'nt-water')).toBeDefined()
+  })
+
   it('matches route casing to the inverted map background', () => {
     const config: StyleConfig = {
       ...DEFAULT_STYLE_CONFIG,
@@ -114,6 +138,25 @@ describe('contour style requirements', () => {
     }, 'mapbox-test-token')
 
     expect(layerById(style, 'contour-art-water')?.paint?.['fill-color']).toBe('#0A2040')
+  })
+
+  it('draws natural waterway lines below contour art terrain layers', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'contour-art',
+      water_color: '#0A2040',
+      show_hillshade: true,
+    }, 'mapbox-test-token')
+    const waterways = layerById(style, 'contour-art-waterways')
+
+    expect(waterways?.['source-layer']).toBe('waterway')
+    expect(waterways?.filter).toEqual(['in', ['get', 'class'], ['literal', ['river', 'canal', 'stream', 'stream_intermittent']]])
+    expect(JSON.stringify(waterways?.filter)).not.toContain('ditch')
+    expect(JSON.stringify(waterways?.filter)).not.toContain('drain')
+    expect(waterways?.paint?.['line-color']).toBe('#0A2040')
+    expect(layerIndex(style, 'contour-art-water')).toBeLessThan(layerIndex(style, 'contour-art-waterways'))
+    expect(layerIndex(style, 'contour-art-waterways')).toBeLessThan(layerIndex(style, 'hillshade'))
+    expect(layerIndex(style, 'contour-art-waterways')).toBeLessThan(layerIndex(style, 'contours-minor'))
   })
 
   it('applies contour-art major and minor weight controls in the browser contour path', () => {
@@ -162,6 +205,19 @@ describe('road network styling', () => {
     expect(layerById(style, 'rn-street')?.paint?.['line-color']).toBe('#60B8FF')
     expect(layerById(style, 'rn-street')?.paint?.['line-opacity']).toBeCloseTo(0.224)
     expect(layerById(style, 'rn-motorway')?.paint?.['line-opacity']).toBeCloseTo(0.525)
+  })
+
+  it('renders natural waterways in Road Net maps even when road lines are hidden', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'road-network',
+      show_roads: false,
+      water_color: '#60B8FF',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'rn-waterways')?.['source-layer']).toBe('waterway')
+    expect(layerById(style, 'rn-waterways')?.paint?.['line-color']).toBe('#60B8FF')
+    expect(layerById(style, 'rn-street')).toBeUndefined()
   })
 
   it('hides Road Net road layers when roads are disabled', () => {

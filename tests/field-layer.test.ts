@@ -64,6 +64,11 @@ const fullConfig: StyleConfig = {
   poster_text_overrides: {
     distance: { text: '26.2 miles', scale: 1.1, bold: true },
   },
+  poster_layout: {
+    blocks: {
+      header: [{ id: 'hdr-title', kind: 'title', slot: 'trail_name', col: 1, row: 1, span: 12 }],
+    },
+  },
 }
 
 describe('FIELD_LAYER — coverage', () => {
@@ -104,6 +109,10 @@ describe('FIELD_LAYER — locked decisions', () => {
 
   it('poster_text_overrides is "chrome" (editable imported text slots live in poster chrome)', () => {
     expect(FIELD_LAYER.poster_text_overrides).toBe('chrome')
+  })
+
+  it('poster_layout is "chrome" (direct chrome editing never invalidates the map raster)', () => {
+    expect(FIELD_LAYER.poster_layout).toBe('chrome')
   })
 
   it('preset and base_tile_style are "map"', () => {

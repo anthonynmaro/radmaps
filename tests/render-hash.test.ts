@@ -91,6 +91,31 @@ describe('two-layer isolation', () => {
     expect(a).not.toBe(b)
   })
 
+  it('changing poster_layout changes chrome_hash but not map_content_hash', () => {
+    const mapA = computeMapContentHash(baseConfig, geojson, framing)
+    const chromeA = computeChromeHash(baseConfig, stats)
+    const next: StyleConfig = {
+      ...baseConfig,
+      poster_layout: {
+        blocks: {
+          header: [{
+            id: 'hdr-title',
+            kind: 'title',
+            slot: 'trail_name',
+            col: 1,
+            row: 1,
+            span: 12,
+            scale: 1.2,
+          }],
+        },
+      },
+    }
+    const mapB = computeMapContentHash(next, geojson, framing)
+    const chromeB = computeChromeHash(next, stats)
+    expect(mapB).toBe(mapA)
+    expect(chromeB).not.toBe(chromeA)
+  })
+
   it('changing a map field does NOT change chrome_hash', () => {
     const a = computeChromeHash(baseConfig, stats)
     const next = { ...baseConfig, route_color: '#00FF00' }

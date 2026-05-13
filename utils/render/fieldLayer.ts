@@ -112,6 +112,7 @@ export const FIELD_LAYER = {
   occasion_text: 'chrome',
   location_text: 'chrome',
   poster_text_overrides: 'chrome',
+  poster_layout: 'chrome',
   label_text_color: 'chrome',
   label_bg_color: 'chrome',
 

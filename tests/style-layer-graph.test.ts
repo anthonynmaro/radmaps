@@ -16,6 +16,10 @@ function layerIds(style: object): string[] {
   return ((style as { layers?: Array<{ id?: string }> }).layers ?? []).map(layer => String(layer.id))
 }
 
+function graphLayerIds(preset: string): string[] {
+  return getPresetGraph(preset).layers.map(layer => layer.id)
+}
+
 function layerById(style: object, id: string): { metadata?: { radmaps?: { scale?: string[] } } } | undefined {
   return (style as { layers?: Array<{ id: string; metadata?: { radmaps?: { scale?: string[] } } }> }).layers?.find(layer => layer.id === id)
 }
@@ -134,6 +138,25 @@ describe('style layer graph contracts', () => {
         }
       }
     }
+  })
+
+  it('declares waterway layers only for vector-water presets', () => {
+    expect(graphLayerIds('contour-art')).toContain('contour-art-waterways')
+    expect(graphLayerIds('road-network')).toContain('rn-waterways')
+    expect(graphLayerIds('native-toner')).toContain('nt-waterways')
+
+    for (const preset of ALL_STYLE_PRESETS) {
+      if (preset === 'contour-art' || preset === 'road-network' || preset === 'native-toner') continue
+      expect(graphLayerIds(preset).filter(id => id.includes('waterway')), preset).toEqual([])
+    }
+  })
+
+  it('keeps waterway styling inside existing water controls', () => {
+    expect(getVisibleStyleControls('contour-art').water_color?.visible).toBe(true)
+    expect(getVisibleStyleControls('road-network').water_color?.visible).toBe(true)
+    expect(getVisibleStyleControls('native-toner').water_color?.visible).toBe(false)
+    expect(styleUsesField('contour-art', 'water_color')).toBe(true)
+    expect(styleUsesField('road-network', 'water_color')).toBe(true)
   })
 })
 

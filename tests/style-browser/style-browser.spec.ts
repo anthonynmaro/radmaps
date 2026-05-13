@@ -119,6 +119,54 @@ test.describe('style browser visual harness', () => {
     await expect.poll(async () => overlay.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   })
 
+  test('lets image assets drag across header, map, and footer regions', async ({ page }) => {
+    const fixtureUrl = '/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&asset=1'
+    const assetY = () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().image_overlays?.find((asset: { id: string }) => asset.id === 'fixture-logo-asset')?.y ?? 48
+    })
+    await page.goto(fixtureUrl)
+
+    let asset = page.locator('[data-asset-id="fixture-logo-asset"]')
+    await expect(asset).toBeVisible()
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(500)
+    await asset.click()
+    await expect(asset).toHaveClass(/is-selected/)
+
+    const headerBox = await page.getByTestId('poster-header').boundingBox()
+    expect(headerBox).toBeTruthy()
+
+    let assetBox = await asset.boundingBox()
+    expect(assetBox).toBeTruthy()
+    await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(headerBox!.x + headerBox!.width / 2, 4, { steps: 20 })
+    await page.mouse.up()
+
+    await expect.poll(assetY).toBeLessThan(35)
+
+    await page.goto(fixtureUrl)
+    asset = page.locator('[data-asset-id="fixture-logo-asset"]')
+    await expect(asset).toBeVisible()
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(500)
+    await asset.click()
+    await expect(asset).toHaveClass(/is-selected/)
+
+    const freshFooterBox = await page.getByTestId('poster-footer').boundingBox()
+    expect(freshFooterBox).toBeTruthy()
+
+    assetBox = await asset.boundingBox()
+    expect(assetBox).toBeTruthy()
+    await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(freshFooterBox!.x + freshFooterBox!.width / 2, (page.viewportSize()?.height ?? 900) - 4, { steps: 20 })
+    await page.mouse.up()
+
+    await expect.poll(assetY).toBeGreaterThan(65)
+  })
+
   test('makes every composition text cue editable and removable', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
 
@@ -138,7 +186,7 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
   })
 
-  test('applies inline size edits to themed composition text', async ({ page }) => {
+  test('applies inline point size and alignment edits to themed composition text', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&editable=1')
 
     const meta = page.getByTestId('composition-meta-line')
@@ -147,17 +195,23 @@ test.describe('style browser visual harness', () => {
 
     await expect.poll(async () => {
       await meta.click({ force: true })
-      return page.locator('.inline-text-toolbar .size-slider').count()
+      return page.getByTestId('text-size-input').count()
     }).toBe(1)
-    const slider = page.locator('.inline-text-toolbar .size-slider')
-    await expect(slider).toBeVisible()
-    await slider.evaluate((input) => {
+    const sizeInput = page.getByTestId('text-size-input')
+    await expect(sizeInput).toBeVisible()
+    await sizeInput.fill('96')
+    await sizeInput.evaluate((input) => {
       const el = input as HTMLInputElement
-      el.value = '3'
-      el.dispatchEvent(new Event('input', { bubbles: true }))
+      el.dispatchEvent(new Event('change', { bubbles: true }))
     })
 
-    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 2.8)
+    await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(before * 4)
+    await page.getByTestId('text-align-right').click()
+    await expect.poll(async () => meta.evaluate(el => getComputedStyle(el).textAlign)).toBe('right')
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_text_overrides?.composition_meta
+    })).toMatchObject({ font_size_pt: 96, align: 'right' })
 
     const opacity = page.locator('.inline-text-toolbar .opacity-slider')
     await expect(opacity).toBeVisible()
@@ -168,6 +222,88 @@ test.describe('style browser visual harness', () => {
     })
 
     await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).opacity))).toBeGreaterThan(0.98)
+  })
+
+  test('uses direct chrome editing controls for desktop bands', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop chrome editing coverage')
+
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1&chrome=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+
+    const title = page.locator('.poster-trail-name')
+    await expect(title).toBeVisible()
+    await title.click({ force: true })
+    await expect(page.getByTestId('chrome-selection-toolbar')).toBeVisible()
+    await expect(page.locator('.inline-text-toolbar')).toHaveCount(0)
+
+    await page.getByTestId('poster-header').hover()
+    await expect(page.getByText(/^HEADER ·/)).toBeVisible()
+    const headerInsert = page.getByTestId('chrome-band-header').locator('.chrome-insert-btn')
+    await expect(headerInsert).toBeVisible()
+
+    const headerBefore = await page.getByTestId('poster-header').boundingBox()
+    expect(headerBefore).toBeTruthy()
+    const resize = page.getByTestId('chrome-resize-header')
+    const resizeBox = await resize.boundingBox()
+    expect(resizeBox).toBeTruthy()
+    await page.mouse.move(resizeBox!.x + resizeBox!.width / 2, resizeBox!.y + resizeBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(resizeBox!.x + resizeBox!.width / 2, resizeBox!.y + resizeBox!.height / 2 + 60, { steps: 8 })
+    await page.mouse.up()
+
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_layout?.bands?.header?.height ?? 0
+    })).toBeGreaterThan(22)
+
+    await title.click({ force: true })
+    await page.getByTestId('chrome-delete-block').click()
+    await expect(page.locator('.poster-trail-name')).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_layout?.blocks?.header?.some((block: { id: string; deleted?: boolean }) => block.id === 'hdr-title' && block.deleted) ?? false
+    })).toBe(true)
+
+    await page.getByTestId('poster-header').hover()
+    await page.getByTestId('chrome-reset-header').click()
+    await expect(page.locator('.poster-trail-name')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_layout?.blocks?.header?.length ?? 0
+    })).toBe(0)
+
+    await page.getByTestId('poster-header').hover()
+    await headerInsert.click()
+    await expect(page.getByTestId('chrome-custom-block').first()).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_layout?.blocks?.header?.some((block: { id: string }) => block.id.startsWith('chrome-text-')) ?? false
+    })).toBe(true)
+  })
+
+  test('uses the mobile chrome drawer without covering selected text', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'mobile chrome editing coverage')
+
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1&chrome=1&width=390&height=585')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+
+    const title = page.locator('.poster-trail-name')
+    await expect(title).toBeVisible()
+    await title.click({ force: true })
+    await expect(page.getByTestId('chrome-mobile-drawer')).toBeVisible()
+    await expect(page.locator('.inline-text-toolbar')).toHaveCount(0)
+
+    const boxes = await page.evaluate(() => {
+      const selected = document.querySelector<HTMLElement>('.poster-trail-name')
+      const drawer = document.querySelector<HTMLElement>('[data-testid="chrome-mobile-drawer"]')
+      return {
+        selected: selected?.getBoundingClientRect().toJSON(),
+        drawer: drawer?.getBoundingClientRect().toJSON(),
+      }
+    })
+    expect(boxes.selected).toBeTruthy()
+    expect(boxes.drawer).toBeTruthy()
+    expect(boxes.selected!.y + boxes.selected!.height).toBeLessThan(boxes.drawer!.y)
   })
 
   test('preserves map camera when label toggles rebuild the style', async ({ page }) => {
@@ -212,6 +348,17 @@ test.describe('style browser visual harness', () => {
     expect(after.zoom).toBeCloseTo(before.zoom, 3)
     expect(after.center[0]).toBeCloseTo(before.center[0], 5)
     expect(after.center[1]).toBeCloseTo(before.center[1], 5)
+  })
+
+  test('loads contour-art waterway layers into the live MapLibre style', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.().includes('contour-art-waterways') ?? false
+    })).toBe(true)
   })
 
   test('preserves 3D map camera when paint-only map settings change', async ({ page }) => {

@@ -14,6 +14,7 @@
             :delete-brush-size="deleteBrushSize"
             :can-undo="canUndo"
             :can-redo="canRedo"
+            :chrome-editing="chromeDirectEdit"
             class="w-full h-full"
             @update:trail-name="setStyle({ trail_name: $event })"
             @update:occasion-text="setStyle({ occasion_text: $event })"
@@ -30,6 +31,7 @@
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
+            @poster-layout-updated="onPosterLayoutUpdated"
             @freeze-changed="onFreezeChanged"
             @segment-plotted="onSegmentPlotted"
             @plot-cancelled="plotMode = null"
@@ -101,6 +103,7 @@ import type {
   DeletedRange,
   MapAsset,
   MapAssetKind,
+  PartialPosterLayout,
   PosterTextOverride,
   PosterTextSlot,
   StyleConfig,
@@ -108,6 +111,7 @@ import type {
   TrailMap,
 } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
+import { FLAGS } from '~/utils/knownFlags'
 import {
   buildElevationProfile,
   detectDisconnectedRanges,
@@ -167,6 +171,8 @@ const hasElevationData = computed(() => {
   if (!props.map?.geojson) return false
   return buildElevationProfile(props.map.geojson as GeoJSON.FeatureCollection) !== null
 })
+
+const chromeDirectEdit = useFeatureFlag(FLAGS.CHROME_DIRECT_EDIT)
 
 onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'
@@ -436,6 +442,10 @@ function onPosterTextReset(slot: PosterTextSlot) {
     ...styleConfig.value,
     poster_text_overrides: Object.keys(current).length ? current : undefined,
   }
+}
+
+function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
+  setStyle({ poster_layout: value })
 }
 
 function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }) {

@@ -437,6 +437,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
     includeDefaultRoadLayers: false,
     layers: [
       { id: 'rn-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'] },
+      { id: 'rn-waterways', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'], scale: LINE_SCALE_PROPERTIES },
       { id: 'rn-landuse', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['land_color'] },
       { id: 'rn-service', slot: 'editable-roads', source: 'mapbox-streets', consumes: roadFields, scale: LINE_SCALE_PROPERTIES },
       { id: 'rn-street', slot: 'editable-roads', source: 'mapbox-streets', consumes: roadFields, scale: LINE_SCALE_PROPERTIES },
@@ -459,6 +460,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
     requiredFields: { show_contours: true },
     layers: [
       { id: 'contour-art-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'] },
+      { id: 'contour-art-waterways', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'], scale: LINE_SCALE_PROPERTIES },
     ],
   }),
   'natural-topo': makeGraph({
@@ -491,6 +493,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
     includeDefaultRoadLayers: false,
     layers: [
       { id: 'nt-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'] },
+      { id: 'nt-waterways', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'], scale: LINE_SCALE_PROPERTIES },
       { id: 'nt-landuse', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'] },
       { id: 'nt-buildings', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['label_text_color', 'background_color'] },
       { id: 'nt-service', slot: 'editable-roads', source: 'mapbox-streets', consumes: roadFields, scale: LINE_SCALE_PROPERTIES },

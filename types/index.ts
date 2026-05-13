@@ -87,6 +87,8 @@ export interface PosterTextOverride {
   font_family?: FontFamily
   color?: string
   bg_color?: string
+  font_size_pt?: number
+  align?: ChromeBlockAlign
   scale?: number
   opacity?: number
   bold?: boolean
@@ -96,6 +98,70 @@ export interface PosterTextOverride {
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
 
 export const DEFAULT_CONTOUR_MAJOR_WIDTH = 0.5
+
+// ─── Poster Chrome Layout ───────────────────────────────────────────────────
+
+export type ChromeBandId = 'header' | 'footer' | 'railLeft' | 'railRight'
+export type ChromeBlockKind =
+  | 'title'
+  | 'subtitle'
+  | 'eyebrow'
+  | 'occasion'
+  | 'coords'
+  | 'stat'
+  | 'note'
+  | 'brand'
+  | 'vlabel'
+  | 'logo'
+  | 'image'
+  | 'text'
+export type ChromeBlockAlign = 'left' | 'center' | 'right'
+export type ChromeBlockValign = 'top' | 'center' | 'bottom'
+
+export interface ChromeBlock {
+  id: string
+  kind: ChromeBlockKind
+  slot?: PosterTextSlot
+  col: number
+  row: number
+  span: number
+  rowSpan?: number
+  align?: ChromeBlockAlign
+  valign?: ChromeBlockValign
+  deleted?: boolean
+  text?: string
+  label?: string
+  value?: string
+  url?: string
+  font_family?: FontFamily
+  font_size_pt?: number
+  scale?: number
+  color?: string
+  bg_color?: string
+  opacity?: number
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+}
+
+export interface ChromeBand {
+  height?: number
+  width?: number
+  cols?: 4 | 6 | 8 | 12 | 16
+  rows?: number
+  background?: string
+  padding?: [number, number, number, number]
+}
+
+export interface PosterLayout {
+  bands: Record<ChromeBandId, ChromeBand>
+  blocks: Record<ChromeBandId, ChromeBlock[]>
+}
+
+export interface PartialPosterLayout {
+  bands?: Partial<Record<ChromeBandId, ChromeBand>>
+  blocks?: Partial<Record<ChromeBandId, ChromeBlock[]>>
+}
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────
 
@@ -220,6 +286,7 @@ export interface StyleConfig {
   label_text_color: string  // poster label band text colour
   label_bg_color: string    // poster label band background colour
   poster_text_overrides?: PosterTextOverrides // user edits for imported/theme text slots
+  poster_layout?: PartialPosterLayout // sparse user edits to composition chrome layout
   // Branding
   show_branding?: boolean         // show "radmaps.studio" credit in footer (default: true)
   // Logo
