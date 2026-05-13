@@ -716,7 +716,10 @@ type DashboardOrder = Pick<
   maps?: { title?: string | null } | null
 }
 
-const { data: premadeMaps } = await useFetch<DashboardPremadeMap[]>('/api/premade', {
+// Featured shop picks are a nice-to-have surface on the dashboard. Loading
+// them lazily means the dashboard chrome (maps grid, orders, hero) paints as
+// soon as the user clicks through to "/" — they don't wait on this fetch.
+const { data: premadeMaps } = useLazyFetch<DashboardPremadeMap[]>('/api/premade', {
   query: { view: 'cards', limit: 4 },
   default: () => [],
 })

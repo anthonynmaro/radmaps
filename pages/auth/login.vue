@@ -213,7 +213,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import * as THREE from 'three'
+// Three.js (~600KB minified) is only used for the decorative wireframe
+// terrain behind the auth form. Loading it lazily — and only on the client
+// after mount — keeps the initial login render fast and avoids shipping
+// Three on any route that links here.
+type ThreeModule = typeof import('three')
 
 definePageMeta({ layout: false })
 
@@ -322,7 +326,7 @@ function terrainHeight(x: number, z: number): number {
   )
 }
 
-function initThreeScene(canvas: HTMLCanvasElement) {
+function initThreeScene(canvas: HTMLCanvasElement, THREE: ThreeModule) {
   const scene = new THREE.Scene()
 
   let w = canvas.clientWidth
@@ -478,8 +482,18 @@ function initThreeScene(canvas: HTMLCanvasElement) {
 
 onMounted(async () => {
   await nextTick()
-  if (canvasEl.value) {
-    cleanup = initThreeScene(canvasEl.value)
+  if (!canvasEl.value) return
+  // Lazy-load Three.js once the canvas is mounted. The form and CTAs are
+  // already interactive at this point — the terrain wireframe simply fades
+  // in behind them when the chunk arrives.
+  try {
+    const THREE = await import('three')
+    if (!canvasEl.value) return
+    cleanup = initThreeScene(canvasEl.value, THREE)
+  } catch (err) {
+    // Three is a decorative enhancement; failing to load it should never
+    // block sign-in. Swallow the error and leave the canvas empty.
+    if (import.meta.dev) console.warn('[auth/login] could not load three.js', err)
   }
 })
 

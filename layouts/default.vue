@@ -363,41 +363,29 @@
 <script setup lang="ts">
 import { h, defineComponent, computed, ref, onMounted, onBeforeUnmount, watch, resolveComponent } from 'vue'
 
-type AdminMe = { staff: null | { role: string } }
-
 const user = useSupabaseUser()
 const supabase = useSupabaseClient()
-const adminMe = ref<AdminMe>({ staff: null })
-const adminMeLoadedFor = ref<string | null>(null)
+const { isStaff, ensureLoaded: ensureAdminMeLoaded, reset: resetAdminMe } = useAdminMe()
 const mobileMenuOpen = ref(false)
 const userInitial = computed(() => (user.value?.email ?? 'U').charAt(0).toUpperCase())
 const scrolled = ref(false)
-const isStaff = computed(() => Boolean(adminMe.value?.staff))
 
 // Close mobile menu on route change
 const route = useRoute()
 watch(() => route.path, () => { mobileMenuOpen.value = false })
 
-async function loadAdminMe() {
-  const userId = user.value?.id
-  if (!userId || adminMeLoadedFor.value === userId) return
-
-  try {
-    adminMe.value = await $fetch<AdminMe>('/api/admin/me')
-  } catch {
-    adminMe.value = { staff: null }
-  } finally {
-    adminMeLoadedFor.value = userId
-  }
-}
-
+// Load the shared `/api/admin/me` cache once per user session. The composable
+// itself is a no-op when called again with the same user — admin tab clicks
+// reuse the cached row instead of refetching.
 if (import.meta.client) {
   watch(
     () => user.value?.id,
     (userId) => {
-      adminMe.value = { staff: null }
-      adminMeLoadedFor.value = null
-      if (userId) loadAdminMe()
+      if (!userId) {
+        resetAdminMe()
+        return
+      }
+      ensureAdminMeLoaded()
     },
     { immediate: true },
   )

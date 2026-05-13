@@ -93,7 +93,9 @@ const route = useRoute()
 const toast = useToast()
 const premadeId = computed(() => route.params.id as string)
 
-const { data: premade, pending, error, refresh } = await useFetch<PremadeMap>(
+// useLazyFetch so navigation into the editor is instant — the header chrome
+// paints first and the map editor mounts when the premade row arrives.
+const { data: premade, pending, error, refresh } = useLazyFetch<PremadeMap>(
   () => `/api/admin/premade/${premadeId.value}`,
 )
 

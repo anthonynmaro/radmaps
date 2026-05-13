@@ -149,7 +149,9 @@ type FlagsResponse = {
   events: FeatureFlagEvent[]
 }
 
-const { data, refresh } = await useFetch<FlagsResponse>('/api/admin/flags', {
+// useLazyFetch so admin tab navigation doesn't block on this round-trip —
+// the page renders immediately and the list/events stream in.
+const { data, refresh } = useLazyFetch<FlagsResponse>('/api/admin/flags', {
   default: (): FlagsResponse => ({ environment: 'development', flags: [], events: [] }),
 })
 

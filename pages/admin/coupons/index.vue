@@ -117,7 +117,8 @@ interface AdminCoupon {
   reserved_count: number
 }
 
-const { data: coupons, refresh } = await useFetch<AdminCoupon[]>('/api/admin/coupons', {
+// useLazyFetch so admin tab navigation isn't blocked on this round-trip.
+const { data: coupons, refresh } = useLazyFetch<AdminCoupon[]>('/api/admin/coupons', {
   default: () => [],
 })
 

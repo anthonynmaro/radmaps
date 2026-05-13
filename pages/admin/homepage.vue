@@ -35,7 +35,8 @@ import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
-const { data: premades, refresh } = await useFetch<PremadeMap[]>('/api/admin/premade', {
+// useLazyFetch so admin tab navigation isn't blocked on this round-trip.
+const { data: premades, refresh } = useLazyFetch<PremadeMap[]>('/api/admin/premade', {
   default: () => [],
 })
 

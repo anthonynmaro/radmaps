@@ -150,7 +150,9 @@ const creating = ref(false)
 const backfilling = ref(false)
 const notice = ref('')
 const noticeType = ref<'success' | 'error'>('success')
-const { data: premades, refresh } = await useFetch<PremadeMap[]>('/api/admin/premade', {
+// useLazyFetch so admin tab navigation isn't blocked on this round-trip —
+// the page chrome paints first and the list streams in.
+const { data: premades, refresh } = useLazyFetch<PremadeMap[]>('/api/admin/premade', {
   default: () => [],
 })
 

@@ -82,7 +82,8 @@ const newRole = ref<AdminRole>('curator')
 const saving = ref(false)
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
-const { data: profiles, refresh } = await useFetch<StaffProfile[]>('/api/admin/staff', {
+// useLazyFetch so admin tab navigation isn't blocked on this round-trip.
+const { data: profiles, refresh } = useLazyFetch<StaffProfile[]>('/api/admin/staff', {
   query: { search },
   default: () => [],
 })

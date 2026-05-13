@@ -41,18 +41,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { roleCan } from '~/utils/adminPermissions'
-import type { AdminRole } from '~/types'
 
 defineProps<{
   title: string
 }>()
 
 const route = useRoute()
-const { data, pending } = await useFetch<{
-  staff: null | { user_id: string; email: string; role: AdminRole; staff_id: string | null }
-}>('/api/admin/me')
 
-const staff = computed(() => data.value?.staff || null)
+// Use the shared admin/me cache — populated once per user session. Admin tab
+// navigation reuses the cached row instead of blocking on a fresh
+// `/api/admin/me` fetch every time the user clicks a tab.
+const { staff, pending, ensureLoaded } = useAdminMe()
+
+// SSR: await the lookup once so the rendered HTML already has the staff row
+// (and the correct nav items) baked in. Client-side navigation between admin
+// tabs hits the cache and resolves synchronously without blocking the render.
+if (import.meta.server) {
+  await ensureLoaded()
+} else {
+  // Initial client mount or deep-link refresh: kick off the fetch without
+  // awaiting so the shell renders immediately with a small "Loading…" state
+  // while the row streams in.
+  ensureLoaded()
+}
+
 const navItems = [
   { to: '/admin/premade', label: 'Premade', icon: 'i-heroicons-map', action: 'premade:edit' as const },
   { to: '/admin/coupons', label: 'Coupons', icon: 'i-heroicons-ticket', action: 'coupon:manage' as const },

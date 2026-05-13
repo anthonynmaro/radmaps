@@ -568,11 +568,17 @@
 import { h, defineComponent, ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
-import * as toGeoJSON from '@tmcw/togeojson'
 import type { RouteStats, PremadeMap } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
 
-const { data: premadeMaps } = await useFetch<PremadeMap[]>('/api/premade', {
+// `@tmcw/togeojson` is ~30KB and only needed when the user actually drops a
+// GPX file. Loading it lazily keeps the initial Create page payload light.
+const loadToGeoJSON = () => import('@tmcw/togeojson')
+
+// The premade catalog only shows up if the user picks "Start from a premade".
+// Loading it lazily means navigation into /create doesn't wait on this round-
+// trip — the editorial header and method picker paint immediately.
+const { data: premadeMaps } = useLazyFetch<PremadeMap[]>('/api/premade', {
   default: () => [],
 })
 
@@ -1105,6 +1111,7 @@ const parseFile = async (file: File) => {
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(text, 'text/xml')
       if (xmlDoc.documentElement.tagName === 'parseerror') throw new Error('Invalid GPX file format')
+      const toGeoJSON = await loadToGeoJSON()
       geojson = toGeoJSON.gpx(xmlDoc)
     } else if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
       geojson = JSON.parse(text) as GeoJSON.FeatureCollection
