@@ -213,6 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import type { Vector3 } from 'three'
 // Three.js (~600KB minified) is only used for the decorative wireframe
 // terrain behind the auth form. Loading it lazily — and only on the client
 // after mount — keeps the initial login render fast and avoids shipping
@@ -365,7 +366,7 @@ function initThreeScene(canvas: HTMLCanvasElement, THREE: ThreeModule) {
   group.add(terrain)
 
   // ── Trail line as a tube (so it's actually thick) ──
-  const trailPoints: THREE.Vector3[] = []
+  const trailPoints: Vector3[] = []
   for (let t = 0; t <= 1; t += 0.003) {
     const x = -34 + t * 68
     const z = Math.sin(t * Math.PI * 3) * 16 + Math.cos(t * Math.PI * 1.4) * 7

@@ -501,6 +501,7 @@
                 :font-style="pinLabelItalic(pin.id)"
                 letter-spacing="0.12em"
                 dominant-baseline="middle"
+                :data-testid="`pin-label-${pin.id}`"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
                 :class="{ 'is-selected-svg-text': activeTextTarget?.type === 'slot' && activeTextTarget.slot === pinSlot(pin.id) }"
                 @click.stop="onPinLabelClick($event, pin.id)"
@@ -720,12 +721,12 @@
 
         <!-- Occasion / subtitle (centre, optional) -->
         <p
-          v-if="occasionText && !editable && chromeSlotVisible('occasion_text')"
+          v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
         >{{ occasionText }}</p>
         <p
-          v-else-if="editable && chromeSlotVisible('occasion_text')"
+          v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
@@ -1578,6 +1579,10 @@ function hasTextOverride(slot: PosterTextSlot) {
   return slotOverride(slot).text != null
 }
 
+function hasVisibleTextOverride(slot: PosterTextSlot) {
+  return Boolean(slotOverride(slot).text?.trim())
+}
+
 function textWithOverride(slot: PosterTextSlot, fallback: string) {
   return slotOverride(slot).text ?? fallback
 }
@@ -1897,6 +1902,7 @@ const locationLine = computed(() => {
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
+const showOccasionSlot = computed(() => composition.value.id !== 'modernist-block')
 
 const coords = computed(() => {
   const b = props.map.bbox
@@ -1988,7 +1994,6 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       return {
         kicker: 'RADMAPS / ROUTE OBJECT',
         meta: `${distance} · ${gain}`,
-        footerNote: 'Form follows route',
         sideRailLabel: 'RAD',
       }
     case 'splits-grid':
@@ -2040,7 +2045,9 @@ const showDistanceSlot = computed(() =>
   chromeSlotVisible('distance') && props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
 )
 const showElevationGainSlot = computed(() =>
-  chromeSlotVisible('elevation_gain') && props.styleConfig.labels.show_elevation_gain && (editableTextVisible(elevationGainText.value)),
+  chromeSlotVisible('elevation_gain') &&
+  props.styleConfig.labels.show_elevation_gain &&
+  Boolean(formattedGain.value || hasVisibleTextOverride('elevation_gain')),
 )
 const showDateSlot = computed(() =>
   chromeSlotVisible('date') && props.styleConfig.labels.show_date && editableTextVisible(dateText.value),
@@ -2106,6 +2113,22 @@ function cqhToPt(cqh: number): number {
 
 function ptToCqh(pt: number): number {
   return (clampTextSizePt(pt) / (printHeightInches() * 72)) * 100
+}
+
+function posterHeightPx(): number {
+  return posterCanvasEl.value?.getBoundingClientRect().height || containerDims.value.h || 0
+}
+
+function posterPxToPt(px: number): number {
+  const heightPx = posterHeightPx()
+  if (!heightPx) return cqhToPt(px)
+  return clampTextSizePt((px / heightPx) * printHeightInches() * 72)
+}
+
+function ptToPosterPx(pt: number): number {
+  const heightPx = posterHeightPx()
+  if (!heightPx) return ptToCqh(pt)
+  return (clampTextSizePt(pt) / (printHeightInches() * 72)) * heightPx
 }
 
 function defaultSlotAlign(slot: PosterTextSlot): NonNullable<ChromeBlock['align']> {
@@ -2421,7 +2444,7 @@ function pinLabelColor(pin: 'start' | 'finish') {
 function pinLabelFontSize(pin: 'start' | 'finish') {
   const slot = pinSlot(pin)
   const override = slotOverride(slot)
-  if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
+  if (override.font_size_pt != null) return ptToPosterPx(override.font_size_pt)
   return svgPinFontSize.value * effectiveSlotScale(slot, 1)
 }
 
@@ -2731,6 +2754,9 @@ const activeToolbarState = computed(() => {
         slot === 'composition_side_rail'
       ? typography.value.subWeight
       : typography.value.statsWeight
+  const defaultFontSizePt = slot === 'start_pin_label' || slot === 'finish_pin_label'
+    ? posterPxToPt(svgPinFontSize.value * effectiveSlotScale(slot, legacySlotScale(slot)))
+    : cqhToPt(effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot)))
 
   return {
     label: SLOT_LABELS[slot],
@@ -2738,7 +2764,7 @@ const activeToolbarState = computed(() => {
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
     backgroundColor: override.bg_color ?? '',
-    fontSizePt: override.font_size_pt ?? cqhToPt(effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot))),
+    fontSizePt: override.font_size_pt ?? defaultFontSizePt,
     align: effectiveSlotAlign(slot),
     opacity: effectiveSlotOpacity(slot, legacySlotOpacity(slot)),
     bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,

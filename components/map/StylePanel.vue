@@ -307,6 +307,16 @@
           </template>
         </V4Card>
 
+        <V4Card v-if="sections.waterCard" title="Water" :default-open="sections.waterColorControl">
+          <ColorRow v-if="sections.waterColorControl" label="Water color" :value="local.water_color" @change="set('water_color', $event)" />
+          <p v-else-if="sections.waterBakedNotice" class="text-[10px] leading-snug" style="color: #78716C;">
+            Water is baked into this raster tile style. Use Contour Art or Road Net for editable vector water color.
+          </p>
+          <p v-else-if="sections.waterThemeLockedNotice" class="text-[10px] leading-snug" style="color: #78716C;">
+            Water follows this preset's ink treatment.
+          </p>
+        </V4Card>
+
         <V4Card v-if="sections.routeMapCard" title="Route" :default-open="false">
           <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
             @change="set('route_color_mode', $event ? 'gradient' : 'solid')" />
@@ -693,7 +703,6 @@
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
-          <ColorRow v-if="sections.waterColorControl" label="Water" :value="local.water_color" @change="set('water_color', $event)" />
         </V4Card>
 
         <V4Card title="Grid" hint="Optional poster or map overlay" :default-open="false">

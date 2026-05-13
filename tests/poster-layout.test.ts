@@ -28,9 +28,10 @@ describe('poster layout merge', () => {
   it('hydrates legacy chrome slots into default header, footer, and rails', () => {
     const layout = defaultPosterLayout(baseConfig, stats)
     expect(layout.blocks.header.some(block => block.slot === 'trail_name')).toBe(true)
-    expect(layout.blocks.header.some(block => block.slot === 'occasion_text')).toBe(true)
+    expect(layout.blocks.header.some(block => block.slot === 'occasion_text')).toBe(false)
     expect(layout.blocks.footer.some(block => block.slot === 'distance')).toBe(true)
     expect(layout.blocks.footer.some(block => block.slot === 'date')).toBe(true)
+    expect(layout.blocks.footer.some(block => block.slot === 'composition_footer')).toBe(false)
     expect(layout.blocks.railLeft.some(block => block.slot === 'composition_side_rail')).toBe(true)
   })
 
@@ -59,6 +60,29 @@ describe('poster layout merge', () => {
     expect(layout.blocks.footer.some(block => block.id === 'ft-note')).toBe(false)
   })
 
+  it('does not create a gain stat when the route has no elevation data', () => {
+    const layout = defaultPosterLayout(baseConfig, {
+      ...stats,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+    })
+    expect(layout.blocks.footer.some(block => block.slot === 'elevation_gain')).toBe(false)
+  })
+
+  it('keeps an explicit gain text override when elevation data is missing', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      poster_text_overrides: {
+        elevation_gain: { text: "5,448'\nGain" },
+      },
+    }, {
+      ...stats,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+    })
+    expect(layout.blocks.footer.some(block => block.slot === 'elevation_gain')).toBe(true)
+  })
+
   it('keeps user-added blocks when patching another sparse field', () => {
     const current: PartialPosterLayout = {
       blocks: {
@@ -70,4 +94,3 @@ describe('poster layout merge', () => {
     expect(next.bands?.header?.height).toBe(24)
   })
 })
-

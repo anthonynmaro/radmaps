@@ -180,7 +180,9 @@ describe('map detail controls', () => {
     expect(s.roadOpacityControl).toBe(false)
     expect(s.placeLabelDetails).toBe(false)
     expect(s.poiToggle).toBe(false)
+    expect(s.waterCard).toBe(true)
     expect(s.waterColorControl).toBe(false)
+    expect(s.waterBakedNotice).toBe(true)
   })
 
   it('shows editable vector road controls only for supported presets', () => {
@@ -194,9 +196,13 @@ describe('map detail controls', () => {
   })
 
   it('shows water color only for vector-water presets', () => {
+    expect(compute({ preset: 'contour-art' }).waterCard).toBe(true)
     expect(compute({ preset: 'contour-art' }).waterColorControl).toBe(true)
     expect(compute({ preset: 'road-network' }).waterColorControl).toBe(true)
+    expect(compute({ preset: 'minimalist' }).waterCard).toBe(true)
     expect(compute({ preset: 'minimalist' }).waterColorControl).toBe(false)
+    expect(compute({ preset: 'minimalist' }).waterBakedNotice).toBe(true)
+    expect(compute({ preset: 'native-toner' }).waterThemeLockedNotice).toBe(true)
   })
 
   it('allows Stadia Toner label toggling without exposing fake label styling', () => {
