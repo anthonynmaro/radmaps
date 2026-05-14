@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { serverSupabaseServiceRole } from '#supabase/server'
 import { requireStaff } from '~/server/utils/adminAuth'
-import { PREMADE_CATEGORIES } from '~/utils/premadeCatalog'
+import { PREMADE_CATEGORIES, normalizePremadeCategories } from '~/utils/premadeCatalog'
 import { premadeRowToMap } from '~/server/utils/premadeCatalog'
 import { renderPremadeThumbnail } from '~/server/utils/premadeThumbnail'
 
@@ -21,6 +21,7 @@ const Body = z.object({
   location_lng: z.number().min(-180).max(180).nullable().optional(),
   location_lat: z.number().min(-90).max(90).nullable().optional(),
   category: z.enum(categoryIds).optional(),
+  categories: z.array(z.enum(categoryIds)).min(1).max(13).optional(),
   tagline: z.string().max(220).optional(),
   description: z.string().max(3000).optional(),
   badges: z.array(z.string().min(1).max(32)).max(8).optional(),
@@ -40,6 +41,12 @@ export default defineEventHandler(async (event) => {
 
   const body = parsed.data
   const { id, ...updates } = body
+  if (updates.categories) {
+    updates.categories = normalizePremadeCategories(updates.categories, updates.category)
+    updates.category = updates.categories[0]
+  } else if (updates.category) {
+    updates.categories = [updates.category]
+  }
   const supabase = await serverSupabaseServiceRole(event)
   const previewWasProvided = Object.prototype.hasOwnProperty.call(updates, 'preview_image_url')
   const styleWasProvided = Object.prototype.hasOwnProperty.call(updates, 'style_config')

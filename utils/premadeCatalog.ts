@@ -17,6 +17,32 @@ export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
   { id: 'parks', label: 'Parks' },
 ]
 
+export const PREMADE_CATEGORY_IDS = PREMADE_CATEGORIES.map((category) => category.id)
+
+export function isPremadeCategory(value: unknown): value is PremadeCategory {
+  return typeof value === 'string' && PREMADE_CATEGORY_IDS.includes(value as PremadeCategory)
+}
+
+export function normalizePremadeCategories(
+  categories?: readonly unknown[] | null,
+  fallback?: unknown,
+): PremadeCategory[] {
+  const normalized = (categories || []).filter(isPremadeCategory)
+  const unique = Array.from(new Set(normalized))
+  if (unique.length > 0) return unique
+  return isPremadeCategory(fallback) ? [fallback] : ['adventure']
+}
+
+export function premadeHasCategory(map: Pick<PremadeMap, 'category' | 'categories'>, category: PremadeCategory): boolean {
+  return normalizePremadeCategories(map.categories, map.category).includes(category)
+}
+
+export function premadeCategoryLabels(map: Pick<PremadeMap, 'category' | 'categories'>): string[] {
+  return normalizePremadeCategories(map.categories, map.category).map(
+    (id) => PREMADE_CATEGORIES.find((category) => category.id === id)?.label ?? id,
+  )
+}
+
 export interface SourceMapForPremade extends LocationMetadata {
   id: string
   title: string
@@ -154,6 +180,7 @@ export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omi
     location_lng: locationLng,
     location_lat: locationLat,
     category: 'adventure',
+    categories: ['adventure'],
     tagline: map.subtitle || map.style_config?.location_text || 'A curated RadMaps route.',
     description: '',
     badges: [],
@@ -176,7 +203,8 @@ export function missingPublishFields(map: Partial<PremadeMap>): string[] {
   const missing: string[] = []
   if (!map.slug?.trim()) missing.push('slug')
   if (!map.title?.trim()) missing.push('title')
-  if (!map.category) missing.push('category')
+  const providedCategories = (map.categories || []).filter(isPremadeCategory)
+  if (!map.category && providedCategories.length === 0) missing.push('category')
   if (!map.stats || Object.keys(map.stats).length === 0) missing.push('stats')
   if (!Array.isArray(map.bbox) || map.bbox.length !== 4) missing.push('bbox')
   if (!publishableLocationCoordinates(map)) missing.push('location_coordinates')

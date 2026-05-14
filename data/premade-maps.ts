@@ -266,6 +266,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: -118.7070,
     location_lat: 37.3920,
     category: 'long-distance',
+    categories: ['long-distance', 'hikes'],
     tagline: '211 miles through the Range of Light.',
     description:
       'From the granite walls of Yosemite Valley to the 14,505-foot summit of Mount Whitney, the JMT traces the spine of the Sierra Nevada — Thousand Island Lake, Muir Pass, Evolution Basin, and eleven passes above 11,000 feet. A cartographic tribute to three weeks in the backcountry.',
@@ -318,6 +319,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: -73.9677,
     location_lat: 40.7359,
     category: 'marathon',
+    categories: ['marathon', 'cityscapes'],
     tagline: 'From Staten Island to Tavern on the Green.',
     description:
       'Trace the blue line through all five boroughs — over the Verrazzano, up 4th Avenue, across the Queensboro, up 1st, into the Bronx, and down 5th into Central Park. The world\'s most celebrated city marathon, framed.',
@@ -369,6 +371,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: -73.0230,
     location_lat: -50.9423,
     category: 'adventure',
+    categories: ['adventure', 'hikes', 'parks'],
     tagline: 'Five days among the towers.',
     description:
       'Glaciers, hanging valleys, and the three granite spires at dawn. The W traces a 50-mile letter through Torres del Paine National Park — Grey, French Valley, and the Torres base — ending above the emerald tarn at sunrise.',
@@ -422,6 +425,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: -4.7990,
     location_lat: 42.6500,
     category: 'pilgrimage',
+    categories: ['pilgrimage', 'hikes'],
     tagline: 'Saint-Jean-Pied-de-Port to Santiago.',
     description:
       'Nine hundred years of footsteps. The French Way crosses the Pyrenees, the Meseta, and the hills of Galicia — 780 kilometers ending at the cathedral square in Santiago de Compostela. A map for the long walk.',
@@ -472,6 +476,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: -112.1129,
     location_lat: 36.1069,
     category: 'national-park',
+    categories: ['national-park', 'hikes', 'parks'],
     tagline: '24 miles · One mile deep.',
     description:
       'Descend the South Kaibab into the Inner Gorge, cross Bright Angel Creek at Phantom Ranch, and climb the North Kaibab back to the rim — nearly 11,000 feet of vertical in a single day-hike legend.',
@@ -523,6 +528,7 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_lng: 138.7444,
     location_lat: 35.3606,
     category: 'peak',
+    categories: ['peak', 'hikes'],
     tagline: 'From the 5th station to the summit.',
     description:
       'Nine hours of volcanic scree and tori gates under a black sky, chasing goraiko — the sunrise from 3,776 meters. This poster marks the Yoshida trail, the most trodden of the four routes up Japan\'s sacred mountain.',
@@ -575,7 +581,7 @@ export function listPremadeMaps(opts?: {
   featuredOnly?: boolean
 }): PremadeMap[] {
   let list = [...PREMADE_MAPS]
-  if (opts?.category) list = list.filter((m) => m.category === opts.category)
+  if (opts?.category) list = list.filter((m) => m.categories.includes(opts.category!))
   if (opts?.featuredOnly) list = list.filter((m) => m.featured)
   return list
 }

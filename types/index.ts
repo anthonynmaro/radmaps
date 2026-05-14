@@ -988,6 +988,7 @@ export interface PremadeMap extends LocationMetadata {
   region: string                  // Human-readable region (e.g. 'Sierra Nevada, California')
   country: string                 // ISO 3166 alpha-2 or short name
   category: PremadeCategory
+  categories: PremadeCategory[]
   tagline: string                 // Short marketing blurb for card
   description: string             // Long-form product description
   badges?: string[]               // Optional badges like 'Iconic', 'New', 'Bestseller'

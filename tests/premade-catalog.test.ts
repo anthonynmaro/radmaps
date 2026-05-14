@@ -7,6 +7,8 @@ import {
   hasValidLocationCoordinates,
   geojsonCenter,
   missingPublishFields,
+  normalizePremadeCategories,
+  premadeHasCategory,
   publishableLocationCoordinates,
   previewUrlForSourceMap,
   slugifyPremadeTitle,
@@ -76,6 +78,7 @@ describe('premade catalog helpers', () => {
     expect(draft.source_map_id).toBe('map-1')
     expect(draft.region).toBe('Boulder, Colorado')
     expect(draft.category).toBe('adventure')
+    expect(draft.categories).toEqual(['adventure'])
     expect(draft.preview_image_url).toBe('https://example.com/proof.jpg')
     expect(draft.render_url).toBeUndefined()
     expect(draft.needs_preview).toBe(false)
@@ -98,6 +101,14 @@ describe('premade catalog helpers', () => {
       'style_config',
       'preview_image_url',
     ])
+  })
+
+  it('normalizes multi-select categories without duplicates', () => {
+    expect(normalizePremadeCategories(['hikes', 'parks', 'hikes', 'bogus'])).toEqual(['hikes', 'parks'])
+    expect(premadeHasCategory({
+      category: 'adventure',
+      categories: ['adventure', 'hikes'],
+    }, 'hikes')).toBe(true)
   })
 
   it('derives publishable location coordinates from a valid bbox', () => {
