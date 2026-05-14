@@ -107,7 +107,7 @@
           </p>
           <div class="flex items-center justify-between gap-2 mt-1 pt-2 border-t border-stone-100">
             <span class="text-[10px] uppercase tracking-[0.14em] font-bold text-stone-400">
-              {{ categoryLabel(map.category) }}
+              {{ categoryLabels(map).join(', ') }}
             </span>
             <span class="text-[10px] uppercase tracking-[0.14em] font-semibold text-stone-400 group-hover:text-[#2D6A4F] transition-colors">
               Click to edit →
@@ -261,14 +261,27 @@
                     <span class="admin-label">Slug</span>
                     <input v-model="panelDraft.slug" class="admin-input font-mono text-xs" />
                   </label>
-                  <label class="block">
-                    <span class="admin-label">Category</span>
-                    <select v-model="panelDraft.category" class="admin-input">
-                      <option v-for="category in PREMADE_CATEGORIES" :key="category.id" :value="category.id">
-                        {{ category.label }}
-                      </option>
-                    </select>
-                  </label>
+                  <div class="block sm:col-span-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="admin-label">Categories</span>
+                      <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">v2</span>
+                    </div>
+                    <div class="mt-1.5 grid grid-cols-2 gap-2">
+                      <label
+                        v-for="category in PREMADE_CATEGORIES"
+                        :key="category.id"
+                        class="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700"
+                      >
+                        <input
+                          v-model="panelDraft.categories"
+                          type="checkbox"
+                          :value="category.id"
+                          class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                        />
+                        <span>{{ category.label }}</span>
+                      </label>
+                    </div>
+                  </div>
                   <label class="block">
                     <span class="admin-label">Region</span>
                     <input v-model="panelDraft.region" class="admin-input" />
@@ -397,7 +410,7 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { PremadeMap, PremadeStatus } from '~/types'
-import { PREMADE_CATEGORIES } from '~/utils/premadeCatalog'
+import { PREMADE_CATEGORIES, normalizePremadeCategories, premadeCategoryLabels } from '~/utils/premadeCatalog'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -525,6 +538,7 @@ function draftForMap(map: PremadeMap): Partial<PremadeMap> {
       title: map.title,
       slug: map.slug,
       category: map.category,
+      categories: normalizePremadeCategories(map.categories, map.category),
       region: map.region,
       country: map.country,
       location_label: map.location_label,
@@ -664,6 +678,8 @@ function normalisedDraftBody(): Partial<PremadeMap> | null {
   }
   if (draft.preview_image_url === '') draft.preview_image_url = null
   if (draft.render_url === '') draft.render_url = null
+  draft.categories = normalizePremadeCategories(draft.categories, draft.category)
+  draft.category = draft.categories[0]
   return draft as Partial<PremadeMap>
 }
 
@@ -753,9 +769,8 @@ function statusBadgeClass(status?: string) {
   return 'bg-amber-100/90 text-amber-800'
 }
 
-function categoryLabel(id?: string) {
-  if (!id) return 'Uncategorised'
-  return PREMADE_CATEGORIES.find((c) => c.id === id)?.label ?? id
+function categoryLabels(map: PremadeMap) {
+  return premadeCategoryLabels(map)
 }
 
 // ─── Inline section component for the panel body ───────────────────────────

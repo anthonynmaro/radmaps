@@ -213,6 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import type { Vector3 } from 'three'
 // Three.js (~600KB minified) is only used for the decorative wireframe
 // terrain behind the auth form. Loading it lazily — and only on the client
 // after mount — keeps the initial login render fast and avoids shipping
@@ -231,6 +232,18 @@ useSeo({
 
 const route = useRoute()
 const client = useSupabaseClient()
+
+function safeNextPath(value: unknown): string {
+  const next = Array.isArray(value) ? value[0] : value
+  if (typeof next !== 'string') return '/'
+  if (!next.startsWith('/') || next.startsWith('//')) return '/'
+  return next
+}
+
+const authConfirmUrl = computed(() => {
+  const next = safeNextPath(route.query.next)
+  return `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`
+})
 
 // ── Mode (sign in vs sign up) ────────────────────────────────────────
 const isSignup = computed(() => route.query.mode === 'signup')
@@ -257,7 +270,7 @@ const handleGoogleLogin = async () => {
   try {
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/confirm` },
+      options: { redirectTo: authConfirmUrl.value },
     })
     if (error) {
       errorMessage.value = error.message
@@ -279,7 +292,7 @@ const handleLogin = async () => {
   try {
     const { error } = await client.auth.signInWithOtp({
       email: email.value,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      options: { emailRedirectTo: authConfirmUrl.value },
     })
     if (error) {
       errorMessage.value = error.message
@@ -365,7 +378,7 @@ function initThreeScene(canvas: HTMLCanvasElement, THREE: ThreeModule) {
   group.add(terrain)
 
   // ── Trail line as a tube (so it's actually thick) ──
-  const trailPoints: THREE.Vector3[] = []
+  const trailPoints: Vector3[] = []
   for (let t = 0; t <= 1; t += 0.003) {
     const x = -34 + t * 68
     const z = Math.sin(t * Math.PI * 3) * 16 + Math.cos(t * Math.PI * 1.4) * 7

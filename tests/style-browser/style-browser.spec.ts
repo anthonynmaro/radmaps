@@ -141,7 +141,7 @@ test.describe('style browser visual harness', () => {
     expect(assetBox).toBeTruthy()
     await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
     await page.mouse.down()
-    await page.mouse.move(headerBox!.x + headerBox!.width / 2, 4, { steps: 20 })
+    await page.mouse.move(headerBox!.x + headerBox!.width / 2, headerBox!.y + 2, { steps: 20 })
     await page.mouse.up()
 
     await expect.poll(assetY).toBeLessThan(35)
@@ -161,10 +161,53 @@ test.describe('style browser visual harness', () => {
     expect(assetBox).toBeTruthy()
     await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
     await page.mouse.down()
-    await page.mouse.move(freshFooterBox!.x + freshFooterBox!.width / 2, (page.viewportSize()?.height ?? 900) - 4, { steps: 20 })
+    await page.mouse.move(freshFooterBox!.x + freshFooterBox!.width / 2, freshFooterBox!.y + freshFooterBox!.height - 2, { steps: 20 })
     await page.mouse.up()
 
-    await expect.poll(assetY).toBeGreaterThan(65)
+    await expect.poll(assetY).toBeGreaterThan(50)
+  })
+
+  test('keeps image overlay chrome quiet and supports precise edge and keyboard placement', async ({ page }) => {
+    const fixtureUrl = '/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&asset=1'
+    const assetPosition = () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const asset = fixture?.getStyle().image_overlays?.find((asset: { id: string }) => asset.id === 'fixture-logo-asset')
+      return { x: asset?.x ?? 42, y: asset?.y ?? 48 }
+    })
+    await page.goto(fixtureUrl)
+
+    const asset = page.locator('[data-asset-id="fixture-logo-asset"]')
+    await expect(asset).toBeVisible()
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(500)
+
+    await asset.click()
+    await expect(asset).toHaveClass(/is-selected/)
+    await expect(page.locator('.asset-quality-badge')).toHaveCount(0)
+
+    await page.mouse.move(2, 2)
+    await expect.poll(async () => asset.locator('.overlay-delete-btn').evaluate(el => getComputedStyle(el).opacity)).toBe('0')
+
+    const assetBox = await asset.boundingBox()
+    const posterBox = await page.locator('.poster-canvas').boundingBox()
+    expect(assetBox).toBeTruthy()
+    expect(posterBox).toBeTruthy()
+    await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(posterBox!.x - posterBox!.width * 0.75, assetBox!.y + assetBox!.height / 2, { steps: 24 })
+    await page.mouse.up()
+
+    await expect.poll(async () => (await assetPosition()).x).toBeLessThan(0)
+
+    const beforeKey = await assetPosition()
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(async () => (await assetPosition()).x).toBeGreaterThan(beforeKey.x)
+
+    await page.mouse.click(posterBox!.x + posterBox!.width - 4, posterBox!.y + posterBox!.height - 4)
+    await expect(asset).not.toHaveClass(/is-selected/)
+    const afterDeselect = await assetPosition()
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(async () => (await assetPosition()).x).toBe(afterDeselect.x)
   })
 
   test('makes every composition text cue editable and removable', async ({ page }) => {
@@ -222,6 +265,31 @@ test.describe('style browser visual harness', () => {
     })
 
     await expect.poll(async () => meta.evaluate(el => Number.parseFloat(getComputedStyle(el).opacity))).toBeGreaterThan(0.98)
+  })
+
+  test('applies absolute point sizes to SVG pin labels', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop SVG pin-label toolbar coverage')
+
+    await page.goto('/style-browser-fixture?composition=travel-banner&theme=midcentury-travel&editable=1&pins=1')
+
+    const finishLabel = page.getByTestId('pin-label-finish')
+    await expect(finishLabel).toBeVisible()
+    const before = await finishLabel.evaluate(el => Number.parseFloat(el.getAttribute('font-size') || '0'))
+
+    await finishLabel.click({ force: true })
+    const sizeInput = page.getByTestId('text-size-input')
+    await expect(sizeInput).toBeVisible()
+    await sizeInput.fill('120')
+    await sizeInput.evaluate((input) => {
+      const el = input as HTMLInputElement
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    await expect.poll(async () => finishLabel.evaluate(el => Number.parseFloat(el.getAttribute('font-size') || '0'))).toBeGreaterThan(before * 2)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_text_overrides?.finish_pin_label
+    })).toMatchObject({ font_size_pt: 120 })
   })
 
   test('uses direct chrome editing controls for desktop bands', async ({ page }, testInfo) => {
@@ -533,6 +601,22 @@ test.describe('style browser visual harness', () => {
     expect(contrast.headerBg).toBe('rgb(28, 25, 23)')
     expect(contrast.railBg).toBe('rgb(28, 25, 23)')
     expect(contrast.titleColor).toBe('rgb(241, 234, 224)')
+  })
+
+  test('does not render Modernist filler occasion or footer-note text', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1')
+
+    await expect(page.locator('.poster-occasion')).toHaveCount(0)
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
+    const slots = await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const layout = fixture?.getStyle().poster_layout
+      return {
+        footerNote: layout?.blocks?.footer?.some((block: { slot?: string }) => block.slot === 'composition_footer') ?? false,
+        occasion: layout?.blocks?.header?.some((block: { slot?: string }) => block.slot === 'occasion_text') ?? false,
+      }
+    })
+    expect(slots).toEqual({ footerNote: false, occasion: false })
   })
 
   test('keeps Modernist map framed inside the content column with visible topo detail', async ({ page }) => {

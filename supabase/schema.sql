@@ -608,7 +608,12 @@ CREATE TABLE IF NOT EXISTS public.premade_maps (
   region                TEXT NOT NULL DEFAULT 'Region TBD',
   country               TEXT NOT NULL DEFAULT 'United States',
   category              TEXT NOT NULL DEFAULT 'adventure'
-    CHECK (category IN ('national-park', 'long-distance', 'marathon', 'peak', 'pilgrimage', 'adventure')),
+    CHECK (category IN ('national-park', 'long-distance', 'marathon', 'peak', 'pilgrimage', 'adventure', 'cycling', 'cityscapes', 'mountain-biking', 'hikes', 'beaches', 'wine-trails', 'parks')),
+  categories            TEXT[] NOT NULL DEFAULT ARRAY['adventure']::TEXT[]
+    CHECK (
+      coalesce(array_length(categories, 1), 0) > 0
+      AND categories <@ ARRAY['national-park', 'long-distance', 'marathon', 'peak', 'pilgrimage', 'adventure', 'cycling', 'cityscapes', 'mountain-biking', 'hikes', 'beaches', 'wine-trails', 'parks']::TEXT[]
+    ),
   tagline               TEXT NOT NULL DEFAULT '',
   description           TEXT NOT NULL DEFAULT '',
   badges                TEXT[] NOT NULL DEFAULT '{}',
@@ -651,6 +656,10 @@ CREATE INDEX IF NOT EXISTS premade_maps_status_homepage_idx
 CREATE INDEX IF NOT EXISTS premade_maps_category_idx
   ON public.premade_maps (category)
   WHERE status = 'published';
+CREATE INDEX IF NOT EXISTS premade_maps_categories_gin_idx
+  ON public.premade_maps
+  USING GIN (categories)
+  WHERE status = 'published';
 CREATE INDEX IF NOT EXISTS premade_maps_source_map_idx
   ON public.premade_maps (source_map_id);
 CREATE INDEX IF NOT EXISTS premade_maps_location_published_gist_idx
@@ -689,6 +698,7 @@ RETURNS TABLE (
   location_lng DOUBLE PRECISION,
   location_lat DOUBLE PRECISION,
   category TEXT,
+  categories TEXT[],
   tagline TEXT,
   description TEXT,
   badges TEXT[],
@@ -732,6 +742,7 @@ AS $$
     p.location_lng,
     p.location_lat,
     p.category,
+    p.categories,
     p.tagline,
     p.description,
     p.badges,

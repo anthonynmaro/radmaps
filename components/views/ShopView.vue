@@ -325,7 +325,7 @@
 import { ref, computed } from 'vue'
 import { useSupabaseUser } from '#imports'
 import type { PremadeMap } from '~/types'
-import { PREMADE_CATEGORIES } from '~/utils/premadeCatalog'
+import { PREMADE_CATEGORIES, premadeHasCategory } from '~/utils/premadeCatalog'
 import { formatPrice } from '~/utils/products'
 
 const user = useSupabaseUser()
@@ -345,7 +345,7 @@ const allCount = computed(() => premadeMaps.value.length)
 
 const filteredMaps = computed(() => {
   if (activeCategory.value) {
-    return premadeMaps.value.filter((m) => m.category === activeCategory.value)
+    return premadeMaps.value.filter((m) => premadeHasCategory(m, activeCategory.value!))
   }
   if (locationSearchActive.value) {
     return premadeMaps.value
@@ -358,7 +358,7 @@ const filteredMaps = computed(() => {
 })
 
 function countByCategory(id: PremadeMap['category']) {
-  return premadeMaps.value.filter((m) => m.category === id).length
+  return premadeMaps.value.filter((m) => premadeHasCategory(m, id)).length
 }
 
 const formatKm = (km?: number) => {

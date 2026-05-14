@@ -62,7 +62,10 @@ export interface SectionVisibility {
   logoPositionControls: boolean
   trailSegmentsCard: boolean
   trailLegendControls: boolean
+  waterCard: boolean
   waterColorControl: boolean
+  waterBakedNotice: boolean
+  waterThemeLockedNotice: boolean
 }
 
 export function computeSectionVisibility(input: GatingInput): SectionVisibility {
@@ -77,6 +80,8 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
   const roadsExpanded = input.showRoads && (isVisible('roads_color') || isVisible('roads_opacity'))
   const placeLabelDetails = input.showRoads && input.showRoads && isVisible('place_labels_color')
   const poiDetails = input.showRoads && isVisible('poi_labels_color')
+  const waterFeature = graph.features.water
+  const waterColorControl = isVisible('water_color')
   const mapDetailCard = isVisible('show_roads')
     || isVisible('roads_color')
     || isVisible('show_place_labels')
@@ -120,6 +125,9 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
     logoPositionControls: hasLogo && input.showLogo,
     trailSegmentsCard: input.hasRoute,
     trailLegendControls: input.trailSegmentCount > 0,
-    waterColorControl: isVisible('water_color'),
+    waterCard: waterColorControl || waterFeature === 'baked-raster' || waterFeature === 'required',
+    waterColorControl,
+    waterBakedNotice: waterFeature === 'baked-raster',
+    waterThemeLockedNotice: waterFeature === 'required',
   }
 }

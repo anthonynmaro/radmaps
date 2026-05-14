@@ -196,8 +196,8 @@ export interface MapAsset {
   width_px: number
   height_px: number
   file_size_bytes: number
-  x: number                       // 0–100, % from left of poster canvas
-  y: number                       // 0–100, % from top of poster canvas
+  x: number                       // %, from left of poster canvas; may be negative when artwork extends off-canvas
+  y: number                       // %, from top of poster canvas; may be negative when artwork extends off-canvas
   width: number                   // 1–100, % of poster canvas width
   height: number                  // 1–100, % of poster canvas height
   rotation: number                // degrees
@@ -971,6 +971,13 @@ export type PremadeCategory =
   | 'peak'
   | 'pilgrimage'
   | 'adventure'
+  | 'cycling'
+  | 'cityscapes'
+  | 'mountain-biking'
+  | 'hikes'
+  | 'beaches'
+  | 'wine-trails'
+  | 'parks'
 
 export interface PremadeMap extends LocationMetadata {
   id?: string
@@ -981,6 +988,7 @@ export interface PremadeMap extends LocationMetadata {
   region: string                  // Human-readable region (e.g. 'Sierra Nevada, California')
   country: string                 // ISO 3166 alpha-2 or short name
   category: PremadeCategory
+  categories: PremadeCategory[]
   tagline: string                 // Short marketing blurb for card
   description: string             // Long-form product description
   badges?: string[]               // Optional badges like 'Iconic', 'New', 'Bestseller'

@@ -76,8 +76,11 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   const labels = styleConfig.labels
   const showDate = labels.show_date && hasVisibleText(stats?.date)
   const showLocation = labels.show_location !== false
-  const hasOccasion = hasVisibleText(styleConfig.occasion_text)
+  const showElevationGain =
+    labels.show_elevation_gain &&
+    (Boolean(stats?.elevation_gain_m) || hasVisibleText(styleConfig.poster_text_overrides?.elevation_gain?.text))
   const composition = styleConfig.composition
+  const hasOccasion = composition !== 'modernist-block' && hasVisibleText(styleConfig.occasion_text)
   const modernistRails = composition === 'modernist-block' || composition === 'journal-spread'
 
   const header: ChromeBlock[] = [
@@ -100,7 +103,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
     footer.push(block('ft-distance', 'stat', 'distance', col, 1, 3, { rowSpan: 2, valign: 'bottom' }))
     col += 3
   }
-  if (labels.show_elevation_gain) {
+  if (showElevationGain) {
     footer.push(block('ft-gain', 'stat', 'elevation_gain', col, 1, 3, { rowSpan: 2, valign: 'bottom' }))
     col += 3
   }
@@ -111,7 +114,9 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   if (showLocation) {
     footer.push(block('ft-coords', 'coords', 'coordinates', Math.min(col, 9), 1, 2, { rowSpan: 2, valign: 'bottom' }))
   }
-  footer.push(block('ft-note', 'note', 'composition_footer', 10, 1, 3, { align: 'right' }))
+  if (composition !== 'modernist-block') {
+    footer.push(block('ft-note', 'note', 'composition_footer', 10, 1, 3, { align: 'right' }))
+  }
   if (styleConfig.show_branding !== false) {
     footer.push(block('ft-brand', 'brand', undefined, 10, 2, 3, { align: 'right', text: 'RADMAPS' }))
   }

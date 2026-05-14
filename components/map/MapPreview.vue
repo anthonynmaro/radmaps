@@ -501,6 +501,7 @@
                 :font-style="pinLabelItalic(pin.id)"
                 letter-spacing="0.12em"
                 dominant-baseline="middle"
+                :data-testid="`pin-label-${pin.id}`"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
                 :class="{ 'is-selected-svg-text': activeTextTarget?.type === 'slot' && activeTextTarget.slot === pinSlot(pin.id) }"
                 @click.stop="onPinLabelClick($event, pin.id)"
@@ -720,12 +721,12 @@
 
         <!-- Occasion / subtitle (centre, optional) -->
         <p
-          v-if="occasionText && !editable && chromeSlotVisible('occasion_text')"
+          v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
         >{{ occasionText }}</p>
         <p
-          v-else-if="editable && chromeSlotVisible('occasion_text')"
+          v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
@@ -785,16 +786,16 @@
           :key="asset.id"
           :data-asset-id="asset.id"
           class="image-asset"
-          :class="{ 'is-editable': editable, 'is-selected': editable && selectedAssetId === asset.id }"
+          :class="{
+            'is-editable': editable,
+            'is-selected': editable && selectedAssetId === asset.id,
+            'is-dragging': editable && draggingAssetId === asset.id,
+          }"
           :style="imageAssetStyle(asset)"
-          @click.stop="editable ? onAssetClick(asset.id) : undefined"
+          :tabindex="editable ? 0 : undefined"
+          @click.stop="editable ? onAssetClick(asset.id, $event) : undefined"
         >
           <img :src="asset.render_url" alt="" draggable="false" />
-          <span
-            v-if="editable && selectedAssetId === asset.id"
-            class="asset-quality-badge"
-            :class="`asset-quality-${asset.quality_status}`"
-          >{{ assetQualityLabel(asset) }}</span>
           <template v-if="editable">
             <div
               class="overlay-move-handle"
@@ -912,7 +913,7 @@ import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYO
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import type { ChromeBand, ChromeBandId, ChromeBlock, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
-import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
+import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
@@ -1211,10 +1212,14 @@ function syncChromeViewportMode() {
 onMounted(() => {
   syncChromeViewportMode()
   window.addEventListener('resize', syncChromeViewportMode)
+  document.addEventListener('pointerdown', onDocumentPointerDown)
+  document.addEventListener('keydown', onDocumentKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', syncChromeViewportMode)
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
+  document.removeEventListener('keydown', onDocumentKeydown)
   teardownChromeBandResize()
 })
 
@@ -1578,6 +1583,10 @@ function hasTextOverride(slot: PosterTextSlot) {
   return slotOverride(slot).text != null
 }
 
+function hasVisibleTextOverride(slot: PosterTextSlot) {
+  return Boolean(slotOverride(slot).text?.trim())
+}
+
 function textWithOverride(slot: PosterTextSlot, fallback: string) {
   return slotOverride(slot).text ?? fallback
 }
@@ -1689,6 +1698,7 @@ function onPinLabelClick(e: MouseEvent, pin: 'start' | 'finish') {
 
 const selectedOverlayId = ref<string | null>(null)
 const selectedAssetId = ref<string | null>(null)
+const draggingAssetId = ref<string | null>(null)
 const resizePreview = ref<{ id: string; font_size: number } | null>(null)
 const assetResizePreview = ref<{ id: string; width: number; height: number } | null>(null)
 let deselectTimer: ReturnType<typeof setTimeout> | null = null
@@ -1729,13 +1739,81 @@ function onOverlayDelete(id: string) {
   emit('overlay-deleted', id)
 }
 
-function onAssetClick(id: string) {
+function onAssetClick(id: string, event?: MouseEvent) {
   if (deselectTimer) clearTimeout(deselectTimer)
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true })
   selectedAssetId.value = id
   selectedOverlayId.value = null
   activeTextTarget.value = null
   activeTextAnchor.value = null
   emit('asset-selected', id)
+}
+
+function clearAssetSelection() {
+  selectedAssetId.value = null
+  draggingAssetId.value = null
+}
+
+function findImageAsset(id: string): MapAsset | undefined {
+  return props.styleConfig.image_overlays?.find(a => a.id === id)
+}
+
+function assetPlacementBounds(asset: Pick<MapAsset, 'width' | 'height'>) {
+  return {
+    minX: -asset.width,
+    maxX: 100,
+    minY: -asset.height,
+    maxY: 100,
+  }
+}
+
+function clampAssetPosition(asset: Pick<MapAsset, 'width' | 'height'>, x: number, y: number) {
+  const bounds = assetPlacementBounds(asset)
+  return {
+    x: Math.max(bounds.minX, Math.min(bounds.maxX, x)),
+    y: Math.max(bounds.minY, Math.min(bounds.maxY, y)),
+  }
+}
+
+function roundedPercent(value: number) {
+  return Number(value.toFixed(2))
+}
+
+function isEditableTextElement(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"], .inline-text-toolbar'))
+}
+
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!props.editable || !selectedAssetId.value) return
+  if (event.target instanceof HTMLElement && event.target.closest('.image-asset')) return
+  clearAssetSelection()
+}
+
+function onDocumentKeydown(event: KeyboardEvent) {
+  if (!props.editable || !selectedAssetId.value) return
+  if (isEditableTextElement(event.target)) return
+
+  const directions: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  }
+  const direction = directions[event.key]
+  if (!direction) {
+    if (event.key === 'Escape') clearAssetSelection()
+    return
+  }
+
+  const id = selectedAssetId.value
+  const asset = findImageAsset(id)
+  if (!asset) return
+
+  event.preventDefault()
+  const step = event.shiftKey ? 1 : event.altKey ? 0.05 : 0.25
+  const next = clampAssetPosition(asset, asset.x + direction[0] * step, asset.y + direction[1] * step)
+  emit('asset-moved', { id, x: roundedPercent(next.x), y: roundedPercent(next.y) })
 }
 
 function onAssetDelete(id: string) {
@@ -1778,6 +1856,10 @@ function onAssetResizeStart(e: PointerEvent, id: string) {
   const asset = props.styleConfig.image_overlays?.find(a => a.id === id)
   if (!asset || !posterCanvasEl.value) return
   e.preventDefault()
+  selectedAssetId.value = id
+  selectedOverlayId.value = null
+  draggingAssetId.value = id
+  emit('asset-selected', id)
 
   const startX = e.clientX
   const startWidth = asset.width
@@ -1805,9 +1887,9 @@ function onAssetResizeStart(e: PointerEvent, id: string) {
       })
     }
     assetResizePreview.value = null
+    draggingAssetId.value = null
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
-    scheduleDeselect()
   }
 
   window.addEventListener('pointermove', onMove)
@@ -1897,6 +1979,7 @@ const locationLine = computed(() => {
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
+const showOccasionSlot = computed(() => composition.value.id !== 'modernist-block')
 
 const coords = computed(() => {
   const b = props.map.bbox
@@ -1988,7 +2071,6 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       return {
         kicker: 'RADMAPS / ROUTE OBJECT',
         meta: `${distance} · ${gain}`,
-        footerNote: 'Form follows route',
         sideRailLabel: 'RAD',
       }
     case 'splits-grid':
@@ -2040,7 +2122,9 @@ const showDistanceSlot = computed(() =>
   chromeSlotVisible('distance') && props.styleConfig.labels.show_distance && (editableTextVisible(distanceText.value)),
 )
 const showElevationGainSlot = computed(() =>
-  chromeSlotVisible('elevation_gain') && props.styleConfig.labels.show_elevation_gain && (editableTextVisible(elevationGainText.value)),
+  chromeSlotVisible('elevation_gain') &&
+  props.styleConfig.labels.show_elevation_gain &&
+  Boolean(formattedGain.value || hasVisibleTextOverride('elevation_gain')),
 )
 const showDateSlot = computed(() =>
   chromeSlotVisible('date') && props.styleConfig.labels.show_date && editableTextVisible(dateText.value),
@@ -2106,6 +2190,22 @@ function cqhToPt(cqh: number): number {
 
 function ptToCqh(pt: number): number {
   return (clampTextSizePt(pt) / (printHeightInches() * 72)) * 100
+}
+
+function posterHeightPx(): number {
+  return posterCanvasEl.value?.getBoundingClientRect().height || containerDims.value.h || 0
+}
+
+function posterPxToPt(px: number): number {
+  const heightPx = posterHeightPx()
+  if (!heightPx) return cqhToPt(px)
+  return clampTextSizePt((px / heightPx) * printHeightInches() * 72)
+}
+
+function ptToPosterPx(pt: number): number {
+  const heightPx = posterHeightPx()
+  if (!heightPx) return ptToCqh(pt)
+  return (clampTextSizePt(pt) / (printHeightInches() * 72)) * heightPx
 }
 
 function defaultSlotAlign(slot: PosterTextSlot): NonNullable<ChromeBlock['align']> {
@@ -2421,7 +2521,7 @@ function pinLabelColor(pin: 'start' | 'finish') {
 function pinLabelFontSize(pin: 'start' | 'finish') {
   const slot = pinSlot(pin)
   const override = slotOverride(slot)
-  if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
+  if (override.font_size_pt != null) return ptToPosterPx(override.font_size_pt)
   return svgPinFontSize.value * effectiveSlotScale(slot, 1)
 }
 
@@ -2685,10 +2785,6 @@ function imageAssetStyle(asset: MapAsset): Record<string, string> {
   }
 }
 
-function assetQualityLabel(asset: MapAsset): string {
-  return `${qualityLabel(asset.quality_status)} · ${computeEffectiveDpi(asset, props.styleConfig.print_size)} DPI`
-}
-
 const activeToolbarState = computed(() => {
   const target = activeTextTarget.value
   if (!target) return null
@@ -2731,6 +2827,9 @@ const activeToolbarState = computed(() => {
         slot === 'composition_side_rail'
       ? typography.value.subWeight
       : typography.value.statsWeight
+  const defaultFontSizePt = slot === 'start_pin_label' || slot === 'finish_pin_label'
+    ? posterPxToPt(svgPinFontSize.value * effectiveSlotScale(slot, legacySlotScale(slot)))
+    : cqhToPt(effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot)))
 
   return {
     label: SLOT_LABELS[slot],
@@ -2738,7 +2837,7 @@ const activeToolbarState = computed(() => {
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
     backgroundColor: override.bg_color ?? '',
-    fontSizePt: override.font_size_pt ?? cqhToPt(effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot))),
+    fontSizePt: override.font_size_pt ?? defaultFontSizePt,
     align: effectiveSlotAlign(slot),
     opacity: effectiveSlotOpacity(slot, legacySlotOpacity(slot)),
     bold: override.bold ?? Number.parseInt(defaultWeight, 10) >= 600,
@@ -4064,22 +4163,34 @@ async function initOverlayDrag() {
     const inst = interact(el).draggable({
       ignoreFrom: '.overlay-delete-btn, .overlay-resize-handle',
       listeners: {
+        start(event: { target: HTMLElement }) {
+          const id = event.target.dataset.assetId
+          if (!id) return
+          selectedAssetId.value = id
+          selectedOverlayId.value = null
+          draggingAssetId.value = id
+          emit('asset-selected', id)
+        },
         move(event: { dx: number; dy: number; target: HTMLElement }) {
+          const id = event.target.dataset.assetId
+          const asset = id ? findImageAsset(id) : undefined
+          if (!asset) return
           const containerRect = container.getBoundingClientRect()
           const currentLeft = parseFloat(el.style.left) || 0
           const currentTop = parseFloat(el.style.top) || 0
-          const newLeft = currentLeft + (event.dx / containerRect.width) * 100
-          const newTop = currentTop + (event.dy / containerRect.height) * 100
-          el.style.left = `${Math.max(0, Math.min(100, newLeft))}%`
-          el.style.top = `${Math.max(0, Math.min(100, newTop))}%`
+          const next = clampAssetPosition(asset, currentLeft + (event.dx / containerRect.width) * 100, currentTop + (event.dy / containerRect.height) * 100)
+          el.style.left = `${next.x}%`
+          el.style.top = `${next.y}%`
         },
         end(event: { target: HTMLElement }) {
           const id = event.target.dataset.assetId
-          if (!id) return
-          const x = Math.round(parseFloat(el.style.left) || 0)
-          const y = Math.round(parseFloat(el.style.top) || 0)
-          emit('asset-moved', { id, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
-          scheduleDeselect()
+          const asset = id ? findImageAsset(id) : undefined
+          draggingAssetId.value = null
+          if (!id || !asset) return
+          const next = clampAssetPosition(asset, parseFloat(el.style.left) || 0, parseFloat(el.style.top) || 0)
+          el.style.left = `${next.x}%`
+          el.style.top = `${next.y}%`
+          emit('asset-moved', { id, x: roundedPercent(next.x), y: roundedPercent(next.y) })
         },
       },
     })
@@ -5522,44 +5633,12 @@ onUnmounted(() => {
 .image-asset.is-editable:hover .overlay-move-handle,
 .image-asset.is-editable:hover .overlay-delete-btn,
 .image-asset.is-editable:hover .overlay-resize-handle,
-.image-asset.is-editable.is-selected .overlay-move-handle,
-.image-asset.is-editable.is-selected .overlay-delete-btn,
-.image-asset.is-editable.is-selected .overlay-resize-handle {
+.image-asset.is-editable.is-dragging .overlay-move-handle,
+.image-asset.is-editable.is-dragging .overlay-delete-btn,
+.image-asset.is-editable.is-dragging .overlay-resize-handle {
   opacity: 1;
   transform: scale(1);
   pointer-events: auto !important;
-}
-
-.asset-quality-badge {
-  position: absolute;
-  left: 50%;
-  bottom: -24px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  border-radius: 999px;
-  padding: 3px 7px;
-  font-size: 10px;
-  line-height: 1;
-  font-family: system-ui, sans-serif;
-  font-weight: 700;
-  background: rgba(28, 25, 23, 0.84);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.75);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  pointer-events: none;
-}
-
-.asset-quality-excellent,
-.asset-quality-good {
-  background: rgba(45, 106, 79, 0.9);
-}
-
-.asset-quality-warning {
-  background: rgba(180, 83, 9, 0.92);
-}
-
-.asset-quality-poor {
-  background: rgba(185, 28, 28, 0.92);
 }
 
 .overlay-move-handle {

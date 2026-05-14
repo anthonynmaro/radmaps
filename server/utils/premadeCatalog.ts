@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { PREMADE_MAPS } from '~/data/premade-maps'
 import type { PremadeMap } from '~/types'
+import { normalizePremadeCategories } from '~/utils/premadeCatalog'
 import { sortPremadeMapsByDistance } from '~/server/utils/premadeSearch'
 
 type AnyClient = SupabaseClient | any
@@ -16,6 +17,7 @@ const PREMADE_CARD_SELECT = [
   'region',
   'country',
   'category',
+  'categories',
   'tagline',
   'stats',
   'style_config',
@@ -28,6 +30,8 @@ const PREMADE_CARD_SELECT = [
 
 export function premadeRowToMap(row: Record<string, any>): PremadeMap {
   const distance = row.distance_meters ?? row.dist_meters
+  const categories = normalizePremadeCategories(row.categories, row.category)
+  const category = categories[0]
 
   return {
     id: row.id,
@@ -43,7 +47,8 @@ export function premadeRowToMap(row: Record<string, any>): PremadeMap {
     location_country: row.location_country || row.country || null,
     location_lng: row.location_lng ?? null,
     location_lat: row.location_lat ?? null,
-    category: row.category || 'adventure',
+    category: category,
+    categories,
     tagline: row.tagline || '',
     description: row.description || '',
     badges: row.badges || [],

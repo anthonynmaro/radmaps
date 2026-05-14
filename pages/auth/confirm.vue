@@ -88,8 +88,15 @@ function fail(message?: string) {
   isLoading.value = false
 }
 
+function safeNextPath(value: string | null): string {
+  if (!value) return '/'
+  if (!value.startsWith('/') || value.startsWith('//')) return '/'
+  return value
+}
+
 onMounted(async () => {
   const urlParams = new URLSearchParams(window.location.search)
+  const nextPath = safeNextPath(urlParams.get('next'))
   const callbackError = urlParams.get('error_description') || urlParams.get('error')
   if (callbackError) {
     fail(decodeURIComponent(callbackError).replace(/\+/g, ' '))
@@ -116,7 +123,7 @@ onMounted(async () => {
       return
     }
 
-    await router.push('/')
+    await router.push(nextPath)
     return
   }
 
@@ -130,14 +137,14 @@ onMounted(async () => {
       return
     }
 
-    await router.push('/')
+    await router.push(nextPath)
     return
   }
 
   // No hash tokens — check if there's already an active session (e.g. PKCE flow)
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    await router.push('/')
+    await router.push(nextPath)
   } else {
     fail()
   }

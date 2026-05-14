@@ -49,6 +49,7 @@ const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 const withAsset = route.query.asset === 'true' || route.query.asset === '1'
+const withPins = route.query.pins === 'true' || route.query.pins === '1'
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -67,8 +68,8 @@ const baseConfig: StyleConfig = {
   show_roads: false,
   show_place_labels: false,
   show_contours: true,
-  show_start_pin: false,
-  show_finish_pin: false,
+  show_start_pin: withPins,
+  show_finish_pin: withPins,
   map_frozen: false,
 }
 

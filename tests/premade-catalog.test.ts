@@ -5,7 +5,11 @@ import {
   draftPremadeFromMap,
   defaultPremadeBasePriceCents,
   hasValidLocationCoordinates,
+  geojsonCenter,
   missingPublishFields,
+  normalizePremadeCategories,
+  premadeHasCategory,
+  publishableLocationCoordinates,
   previewUrlForSourceMap,
   slugifyPremadeTitle,
 } from '~/utils/premadeCatalog'
@@ -49,6 +53,15 @@ describe('premade catalog helpers', () => {
     expect(bboxCenter([-181, 40, -105, 40.1])).toBeNull()
   })
 
+  it('derives route centers from GeoJSON when bbox metadata is missing', () => {
+    expect(geojsonCenter(geojson)).toEqual([-105.05, 40.05])
+    expect(publishableLocationCoordinates({
+      location_lng: null,
+      location_lat: null,
+      geojson,
+    })).toEqual([-105.05, 40.05])
+  })
+
   it('creates a draft premade map from only a source map and slug', () => {
     const draft = draftPremadeFromMap({
       id: 'map-1',
@@ -65,6 +78,7 @@ describe('premade catalog helpers', () => {
     expect(draft.source_map_id).toBe('map-1')
     expect(draft.region).toBe('Boulder, Colorado')
     expect(draft.category).toBe('adventure')
+    expect(draft.categories).toEqual(['adventure'])
     expect(draft.preview_image_url).toBe('https://example.com/proof.jpg')
     expect(draft.render_url).toBeUndefined()
     expect(draft.needs_preview).toBe(false)
@@ -73,6 +87,7 @@ describe('premade catalog helpers', () => {
     expect(draft.location_lng).toBe(-105.05)
     expect(draft.location_lat).toBe(40.05)
     expect(hasValidLocationCoordinates(draft)).toBe(true)
+    expect(publishableLocationCoordinates(draft)).toEqual([-105.05, 40.05])
   })
 
   it('reports publish blockers for incomplete maps', () => {
@@ -85,12 +100,32 @@ describe('premade catalog helpers', () => {
       'geojson',
       'style_config',
       'preview_image_url',
-      'render_url',
     ])
   })
 
-  it('accepts a complete purchasable premade map for publishing', () => {
+  it('normalizes multi-select categories without duplicates', () => {
+    expect(normalizePremadeCategories(['hikes', 'parks', 'hikes', 'bogus'])).toEqual(['hikes', 'parks'])
+    expect(premadeHasCategory({
+      category: 'adventure',
+      categories: ['adventure', 'hikes'],
+    }, 'hikes')).toBe(true)
+  })
+
+  it('derives publishable location coordinates from a valid bbox', () => {
     expect(missingPublishFields({
+      slug: 'evening-ridge',
+      title: 'Evening Ridge',
+      category: 'adventure',
+      stats,
+      bbox: [-105.1, 40, -105, 40.1],
+      geojson,
+      style_config: DEFAULT_STYLE_CONFIG,
+      preview_image_url: 'https://example.com/preview.jpg',
+    })).toEqual([])
+  })
+
+  it('accepts a complete previewed premade map for publishing without a final render URL', () => {
+    const missing = missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
       category: 'adventure',
@@ -101,8 +136,9 @@ describe('premade catalog helpers', () => {
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
-      render_url: 'https://example.com/render.jpg',
-    })).toEqual([])
+    })
+    expect(missing).toEqual([])
+    expect(missing).not.toContain('render_url')
   })
 
   it('requires a fresh preview before publishing after style edits', () => {
@@ -117,7 +153,6 @@ describe('premade catalog helpers', () => {
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
-      render_url: 'https://example.com/render.jpg',
       needs_preview: true,
     })).toEqual(['fresh_preview'])
   })

@@ -8,6 +8,7 @@
  */
 import { serverSupabaseServiceRole } from '#supabase/server'
 import { listPublishedPremadeMaps } from '~/server/utils/premadeCatalog'
+import { premadeCategoryLabels } from '~/utils/premadeCatalog'
 import { PRODUCTS, formatPrice } from '~/utils/products'
 import { SITE_URL } from '~/utils/seo'
 
@@ -31,7 +32,7 @@ export default defineEventHandler(async (event) => {
 - URL: ${SITE_URL}/shop/${m.slug}
 - Subtitle: ${m.subtitle}
 - Region: ${m.region}, ${m.country}
-- Category: ${m.category}
+- Categories: ${premadeCategoryLabels(m).join(', ')}
 - Tagline: ${m.tagline}
 - Description: ${m.description}
 - Distance: ${m.stats.distance_km} km (${(m.stats.distance_km * 0.621371).toFixed(1)} miles)

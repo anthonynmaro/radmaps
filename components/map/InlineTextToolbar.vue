@@ -61,7 +61,15 @@
             :title="option.title"
             :data-testid="`text-align-${option.value}`"
             @click="emitPatch({ align: option.value })"
-          >{{ option.label }}</button>
+          >
+            <span class="align-icon" :class="`align-icon--${option.value}`" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <span class="sr-only">{{ option.title }}</span>
+          </button>
         </div>
 
         <label class="toolbar-color" title="Text color">
@@ -143,10 +151,10 @@ const FONT_OPTIONS: FontFamily[] = [
 const MIN_TEXT_SIZE_PT = 6
 const MAX_TEXT_SIZE_PT = 240
 const TEXT_SIZE_OPTIONS = [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 84, 96, 120, 144, 180, 216, 240]
-const ALIGN_OPTIONS: Array<{ value: ChromeBlockAlign; label: string; title: string }> = [
-  { value: 'left', label: 'L', title: 'Align left' },
-  { value: 'center', label: 'C', title: 'Align center' },
-  { value: 'right', label: 'R', title: 'Align right' },
+const ALIGN_OPTIONS: Array<{ value: ChromeBlockAlign; title: string }> = [
+  { value: 'left', title: 'Align left' },
+  { value: 'center', title: 'Align center' },
+  { value: 'right', title: 'Align right' },
 ]
 
 const props = defineProps<{
@@ -308,8 +316,72 @@ function toggleHighlight() {
   height: 28px;
   border: 0;
   border-radius: 0;
-  font-size: 11px;
-  font-weight: 800;
+  padding: 0;
+}
+
+.align-icon {
+  width: 14px;
+  height: 13px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.align-icon span {
+  display: block;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.align-icon--left span:nth-child(1),
+.align-icon--left span:nth-child(3) {
+  width: 14px;
+}
+
+.align-icon--left span:nth-child(2),
+.align-icon--left span:nth-child(4) {
+  width: 9px;
+}
+
+.align-icon--center {
+  align-items: center;
+}
+
+.align-icon--center span:nth-child(1),
+.align-icon--center span:nth-child(3) {
+  width: 14px;
+}
+
+.align-icon--center span:nth-child(2),
+.align-icon--center span:nth-child(4) {
+  width: 9px;
+}
+
+.align-icon--right {
+  align-items: flex-end;
+}
+
+.align-icon--right span:nth-child(1),
+.align-icon--right span:nth-child(3) {
+  width: 14px;
+}
+
+.align-icon--right span:nth-child(2),
+.align-icon--right span:nth-child(4) {
+  width: 9px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .toolbar-highlight-toggle {

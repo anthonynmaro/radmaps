@@ -8,7 +8,40 @@ export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
   { id: 'peak', label: 'Peaks' },
   { id: 'pilgrimage', label: 'Pilgrimage' },
   { id: 'adventure', label: 'Adventure' },
+  { id: 'cycling', label: 'Cycling' },
+  { id: 'cityscapes', label: 'Cityscapes' },
+  { id: 'mountain-biking', label: 'Mountain Biking' },
+  { id: 'hikes', label: 'Hikes' },
+  { id: 'beaches', label: 'Beaches' },
+  { id: 'wine-trails', label: 'Wine Trails' },
+  { id: 'parks', label: 'Parks' },
 ]
+
+export const PREMADE_CATEGORY_IDS = PREMADE_CATEGORIES.map((category) => category.id)
+
+export function isPremadeCategory(value: unknown): value is PremadeCategory {
+  return typeof value === 'string' && PREMADE_CATEGORY_IDS.includes(value as PremadeCategory)
+}
+
+export function normalizePremadeCategories(
+  categories?: readonly unknown[] | null,
+  fallback?: unknown,
+): PremadeCategory[] {
+  const normalized = (categories || []).filter(isPremadeCategory)
+  const unique = Array.from(new Set(normalized))
+  if (unique.length > 0) return unique
+  return isPremadeCategory(fallback) ? [fallback] : ['adventure']
+}
+
+export function premadeHasCategory(map: Pick<PremadeMap, 'category' | 'categories'>, category: PremadeCategory): boolean {
+  return normalizePremadeCategories(map.categories, map.category).includes(category)
+}
+
+export function premadeCategoryLabels(map: Pick<PremadeMap, 'category' | 'categories'>): string[] {
+  return normalizePremadeCategories(map.categories, map.category).map(
+    (id) => PREMADE_CATEGORIES.find((category) => category.id === id)?.label ?? id,
+  )
+}
 
 export interface SourceMapForPremade extends LocationMetadata {
   id: string
@@ -56,6 +89,51 @@ export function bboxCenter(bbox?: [number, number, number, number] | null): [num
   return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
 }
 
+function visitGeojsonCoordinates(value: unknown, visit: (lng: number, lat: number) => void) {
+  if (!Array.isArray(value)) return
+  if (
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    typeof value[1] === 'number'
+  ) {
+    visit(value[0], value[1])
+    return
+  }
+  for (const child of value) visitGeojsonCoordinates(child, visit)
+}
+
+export function geojsonCenter(geojson?: GeoJSON.FeatureCollection | null): [number, number] | null {
+  if (!geojson?.features?.length) return null
+
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+
+  const visitGeometry = (geometry?: GeoJSON.Geometry | null) => {
+    if (!geometry) return
+    if (geometry.type === 'GeometryCollection') {
+      for (const child of geometry.geometries) visitGeometry(child)
+      return
+    }
+    visitGeojsonCoordinates(geometry.coordinates, (lng, lat) => {
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return
+      minLng = Math.min(minLng, lng)
+      minLat = Math.min(minLat, lat)
+      maxLng = Math.max(maxLng, lng)
+      maxLat = Math.max(maxLat, lat)
+    })
+  }
+
+  for (const feature of geojson.features) {
+    visitGeometry(feature.geometry)
+  }
+
+  if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null
+  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+}
+
 export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'location_lng' | 'location_lat'>): boolean {
   const lng = map.location_lng
   const lat = map.location_lat
@@ -69,6 +147,16 @@ export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'locatio
     lat >= -90 &&
     lat <= 90
   )
+}
+
+export function publishableLocationCoordinates(
+  map: Pick<LocationMetadata, 'location_lng' | 'location_lat'> & {
+    bbox?: [number, number, number, number] | null
+    geojson?: GeoJSON.FeatureCollection | null
+  },
+): [number, number] | null {
+  if (hasValidLocationCoordinates(map)) return [map.location_lng!, map.location_lat!]
+  return bboxCenter(map.bbox) || geojsonCenter(map.geojson)
 }
 
 export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omit<PremadeMap, 'id'> {
@@ -92,6 +180,7 @@ export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omi
     location_lng: locationLng,
     location_lat: locationLat,
     category: 'adventure',
+    categories: ['adventure'],
     tagline: map.subtitle || map.style_config?.location_text || 'A curated RadMaps route.',
     description: '',
     badges: [],
@@ -114,14 +203,14 @@ export function missingPublishFields(map: Partial<PremadeMap>): string[] {
   const missing: string[] = []
   if (!map.slug?.trim()) missing.push('slug')
   if (!map.title?.trim()) missing.push('title')
-  if (!map.category) missing.push('category')
+  const providedCategories = (map.categories || []).filter(isPremadeCategory)
+  if (!map.category && providedCategories.length === 0) missing.push('category')
   if (!map.stats || Object.keys(map.stats).length === 0) missing.push('stats')
   if (!Array.isArray(map.bbox) || map.bbox.length !== 4) missing.push('bbox')
-  if (!hasValidLocationCoordinates(map)) missing.push('location_coordinates')
+  if (!publishableLocationCoordinates(map)) missing.push('location_coordinates')
   if (!map.geojson?.features?.length) missing.push('geojson')
   if (!map.style_config) missing.push('style_config')
   if (!map.preview_image_url?.trim()) missing.push('preview_image_url')
-  if (!map.render_url?.trim()) missing.push('render_url')
   if (map.needs_preview) missing.push('fresh_preview')
   return missing
 }
