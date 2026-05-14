@@ -5,6 +5,7 @@ import {
   draftPremadeFromMap,
   defaultPremadeBasePriceCents,
   hasValidLocationCoordinates,
+  geojsonCenter,
   missingPublishFields,
   publishableLocationCoordinates,
   previewUrlForSourceMap,
@@ -48,6 +49,15 @@ describe('premade catalog helpers', () => {
   it('derives bbox centers for searchable location defaults', () => {
     expect(bboxCenter([-105.1, 40, -105, 40.1])).toEqual([-105.05, 40.05])
     expect(bboxCenter([-181, 40, -105, 40.1])).toBeNull()
+  })
+
+  it('derives route centers from GeoJSON when bbox metadata is missing', () => {
+    expect(geojsonCenter(geojson)).toEqual([-105.05, 40.05])
+    expect(publishableLocationCoordinates({
+      location_lng: null,
+      location_lat: null,
+      geojson,
+    })).toEqual([-105.05, 40.05])
   })
 
   it('creates a draft premade map from only a source map and slug', () => {
@@ -104,7 +114,7 @@ describe('premade catalog helpers', () => {
   })
 
   it('accepts a complete previewed premade map for publishing without a final render URL', () => {
-    expect(missingPublishFields({
+    const missing = missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
       category: 'adventure',
@@ -115,7 +125,9 @@ describe('premade catalog helpers', () => {
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
-    })).toEqual([])
+    })
+    expect(missing).toEqual([])
+    expect(missing).not.toContain('render_url')
   })
 
   it('requires a fresh preview before publishing after style edits', () => {

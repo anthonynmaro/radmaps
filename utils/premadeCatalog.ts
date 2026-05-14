@@ -56,6 +56,51 @@ export function bboxCenter(bbox?: [number, number, number, number] | null): [num
   return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
 }
 
+function visitGeojsonCoordinates(value: unknown, visit: (lng: number, lat: number) => void) {
+  if (!Array.isArray(value)) return
+  if (
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    typeof value[1] === 'number'
+  ) {
+    visit(value[0], value[1])
+    return
+  }
+  for (const child of value) visitGeojsonCoordinates(child, visit)
+}
+
+export function geojsonCenter(geojson?: GeoJSON.FeatureCollection | null): [number, number] | null {
+  if (!geojson?.features?.length) return null
+
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+
+  const visitGeometry = (geometry?: GeoJSON.Geometry | null) => {
+    if (!geometry) return
+    if (geometry.type === 'GeometryCollection') {
+      for (const child of geometry.geometries) visitGeometry(child)
+      return
+    }
+    visitGeojsonCoordinates(geometry.coordinates, (lng, lat) => {
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return
+      minLng = Math.min(minLng, lng)
+      minLat = Math.min(minLat, lat)
+      maxLng = Math.max(maxLng, lng)
+      maxLat = Math.max(maxLat, lat)
+    })
+  }
+
+  for (const feature of geojson.features) {
+    visitGeometry(feature.geometry)
+  }
+
+  if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null
+  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+}
+
 export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'location_lng' | 'location_lat'>): boolean {
   const lng = map.location_lng
   const lat = map.location_lat
@@ -72,10 +117,13 @@ export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'locatio
 }
 
 export function publishableLocationCoordinates(
-  map: Pick<LocationMetadata, 'location_lng' | 'location_lat'> & { bbox?: [number, number, number, number] | null },
+  map: Pick<LocationMetadata, 'location_lng' | 'location_lat'> & {
+    bbox?: [number, number, number, number] | null
+    geojson?: GeoJSON.FeatureCollection | null
+  },
 ): [number, number] | null {
   if (hasValidLocationCoordinates(map)) return [map.location_lng!, map.location_lat!]
-  return bboxCenter(map.bbox)
+  return bboxCenter(map.bbox) || geojsonCenter(map.geojson)
 }
 
 export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omit<PremadeMap, 'id'> {
