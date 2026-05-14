@@ -971,6 +971,13 @@ export type PremadeCategory =
   | 'peak'
   | 'pilgrimage'
   | 'adventure'
+  | 'cycling'
+  | 'cityscapes'
+  | 'mountain-biking'
+  | 'hikes'
+  | 'beaches'
+  | 'wine-trails'
+  | 'parks'
 
 export interface PremadeMap extends LocationMetadata {
   id?: string

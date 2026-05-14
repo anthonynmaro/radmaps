@@ -608,7 +608,7 @@ CREATE TABLE IF NOT EXISTS public.premade_maps (
   region                TEXT NOT NULL DEFAULT 'Region TBD',
   country               TEXT NOT NULL DEFAULT 'United States',
   category              TEXT NOT NULL DEFAULT 'adventure'
-    CHECK (category IN ('national-park', 'long-distance', 'marathon', 'peak', 'pilgrimage', 'adventure')),
+    CHECK (category IN ('national-park', 'long-distance', 'marathon', 'peak', 'pilgrimage', 'adventure', 'cycling', 'cityscapes', 'mountain-biking', 'hikes', 'beaches', 'wine-trails', 'parks')),
   tagline               TEXT NOT NULL DEFAULT '',
   description           TEXT NOT NULL DEFAULT '',
   badges                TEXT[] NOT NULL DEFAULT '{}',

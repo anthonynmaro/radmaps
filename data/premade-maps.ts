@@ -587,4 +587,11 @@ export const PREMADE_CATEGORIES: { id: PremadeMap['category']; label: string }[]
   { id: 'peak', label: 'Peaks' },
   { id: 'pilgrimage', label: 'Pilgrimage' },
   { id: 'adventure', label: 'Adventure' },
+  { id: 'cycling', label: 'Cycling' },
+  { id: 'cityscapes', label: 'Cityscapes' },
+  { id: 'mountain-biking', label: 'Mountain Biking' },
+  { id: 'hikes', label: 'Hikes' },
+  { id: 'beaches', label: 'Beaches' },
+  { id: 'wine-trails', label: 'Wine Trails' },
+  { id: 'parks', label: 'Parks' },
 ]
