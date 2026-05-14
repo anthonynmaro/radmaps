@@ -89,6 +89,14 @@ export default defineEventHandler(async (event) => {
   const baseUrl = configuredSiteUrl || (process.env.NODE_ENV === 'production'
     ? 'https://radmaps.studio'
     : 'http://localhost:3001')
+  const productData: Stripe.Checkout.SessionCreateParams.LineItem.PriceData.ProductData = {
+    name: digital_only
+      ? `${premade.title} — Digital Download`
+      : `${premade.title} — ${product?.name ?? print_size}`,
+  }
+  const description = premade.subtitle?.trim()
+  if (description) productData.description = description
+  if (premade.preview_image_url) productData.images = [premade.preview_image_url]
 
   let session: Stripe.Checkout.Session | null = null
   try {
@@ -101,13 +109,7 @@ export default defineEventHandler(async (event) => {
         {
           price_data: {
             currency: 'usd',
-            product_data: {
-              name: digital_only
-                ? `${premade.title} — Digital Download`
-                : `${premade.title} — ${product?.name ?? print_size}`,
-              description: premade.subtitle,
-              images: premade.preview_image_url ? [premade.preview_image_url] : [],
-            },
+            product_data: productData,
             unit_amount: unitPrice,
           },
           quantity,
