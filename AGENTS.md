@@ -130,6 +130,11 @@ Canonical slot order:
 
 Map controls must be graph-gated. Do not show controls for baked-only or unsupported features, and do not expose destructive toggles for required features. Use `getVisibleStyleControls()`, `styleUsesField()`, `effectiveStyleConfig()`, and `getGraphFullReloadFields()` instead of hardcoded preset checks.
 
+### Map provider/tile inventory
+`docs/MAP_TOOLS_CATALOG.md` and `utils/mapToolCatalog.ts` are the source of truth for RadMaps' map providers, tile services, generated layers, in-app names, layer capabilities, attribution/licensing posture, spend risk, and usage-tracking dimensions. `/admin/map-tools` renders the same catalog for staff.
+
+Update both files whenever you add, remove, rename, or materially change any map provider, tile source, preset/source mapping, layer capability, attribution requirement, commercial licensing assumption, self-hosted atlas, or provider usage analytics dimension. If a change affects screenshot behavior, product geometry, or renderer/provider boundaries, also update `docs/RENDERING.md` or `docs/ARCHITECTURE_SECURITY_REVIEW.md` as appropriate. If a change adds provider usage tracking tables, follow the database change policy and include forward and rollback SQL.
+
 ### Screenshot render (Browserless + render-worker-v4)
 The current renderer screenshots the real Nuxt/Vue/MapLibre poster in Chromium. `MapPreview.vue` is the only poster renderer.
 

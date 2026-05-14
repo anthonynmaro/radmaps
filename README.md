@@ -102,6 +102,12 @@ The staff admin section lives at `/admin`. See
 for the role matrix, super-admin bootstrap, database migration, and premade map
 publishing checklist.
 
+Map provider, tile source, attribution, layer capability, and usage-accounting
+inventory lives in
+[docs/MAP_TOOLS_CATALOG.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/MAP_TOOLS_CATALOG.md)
+and the matching admin reference page at `/admin/map-tools`. Update both when
+adding, removing, renaming, licensing, or instrumenting map sources.
+
 Premade shop/catalog runtime now reads from the `premade_maps` table through
 `GET /api/premade` and `GET /api/premade/:slug`. The static
 `data/premade-maps.ts` file remains as seed/reference data during migration and

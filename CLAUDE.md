@@ -148,6 +148,11 @@ Readiness is explicit. Browserless waits for `window.__RENDER_READY === true` an
 
 The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes. The cleanup/security review lives in `docs/ARCHITECTURE_SECURITY_REVIEW.md`; update it when removing renderer paths, changing queue boundaries, or accepting/defering renderer-adjacent security risks.
 
+### Map provider/tile inventory
+`docs/MAP_TOOLS_CATALOG.md` and `utils/mapToolCatalog.ts` are the source of truth for RadMaps' map providers, tile services, generated layers, in-app names, layer capabilities, attribution/licensing posture, spend risk, and usage-tracking dimensions. `/admin/map-tools` renders the same catalog for staff.
+
+Update both files whenever you add, remove, rename, or materially change any map provider, tile source, preset/source mapping, layer capability, attribution requirement, commercial licensing assumption, self-hosted atlas, or provider usage analytics dimension. If a change affects screenshot behavior, product geometry, or renderer/provider boundaries, also update `docs/RENDERING.md` or `docs/ARCHITECTURE_SECURITY_REVIEW.md` as appropriate. If a change adds provider usage tracking tables, follow the database change policy and include forward and rollback SQL.
+
 ## mapStyle.ts patterns
 - `buildMapStyle()` keeps the public API but renders from `effectiveStyleConfig(config)` so saved unsupported fields are ignored without migration.
 - Layer order follows the graph's canonical slots: `background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`.

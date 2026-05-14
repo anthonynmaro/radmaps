@@ -69,6 +69,7 @@ const navItems = [
   { to: '/admin/premade', label: 'Premade', icon: 'i-heroicons-map', action: 'premade:edit' as const },
   { to: '/admin/coupons', label: 'Coupons', icon: 'i-heroicons-ticket', action: 'coupon:manage' as const },
   { to: '/admin/homepage', label: 'Homepage', icon: 'i-heroicons-star', action: 'homepage:manage' as const },
+  { to: '/admin/map-tools', label: 'Map Tools', icon: 'i-heroicons-squares-2x2', action: 'map-tools:read' as const },
   { to: '/admin/staff', label: 'Staff', icon: 'i-heroicons-users', action: 'staff:manage' as const },
   { to: '/admin/flags', label: 'Flags', icon: 'i-heroicons-adjustments-horizontal', action: 'flags:manage' as const },
   { to: '/admin/support', label: 'Support', icon: 'i-heroicons-lifebuoy', action: 'support:read' as const },

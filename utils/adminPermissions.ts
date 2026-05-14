@@ -7,6 +7,7 @@ export type AdminAction =
   | 'premade:edit'
   | 'premade:publish'
   | 'homepage:manage'
+  | 'map-tools:read'
   | 'support:read'
   | 'flags:manage'
 
@@ -18,6 +19,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
     'premade:edit',
     'premade:publish',
     'homepage:manage',
+    'map-tools:read',
     'support:read',
     'flags:manage',
   ],
@@ -26,12 +28,15 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
     'premade:edit',
     'premade:publish',
     'homepage:manage',
+    'map-tools:read',
   ],
   designer: [
     'premade:create',
     'premade:edit',
+    'map-tools:read',
   ],
   support: [
+    'map-tools:read',
     'support:read',
   ],
 }
