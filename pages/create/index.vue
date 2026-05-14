@@ -604,6 +604,24 @@ type MethodId = 'strava' | 'upload' | 'premade' | 'draw' | 'place'
 
 const methods = [
   {
+    id: 'premade' as MethodId,
+    title: 'Start from a premade',
+    subtitle: 'Curated iconic trails',
+    tone: 'green',
+  },
+  {
+    id: 'place' as MethodId,
+    title: 'Place a location',
+    subtitle: 'Search or drop a pin',
+    tone: 'blue',
+  },
+  {
+    id: 'draw' as MethodId,
+    title: 'Draw on a map',
+    subtitle: 'Sketch with your mouse',
+    tone: 'amber',
+  },
+  {
     id: 'strava' as MethodId,
     title: 'From Strava',
     subtitle: 'Import any activity',
@@ -615,27 +633,11 @@ const methods = [
     subtitle: 'From your watch or app',
     tone: 'stone',
   },
-  {
-    id: 'premade' as MethodId,
-    title: 'Start from a premade',
-    subtitle: 'Curated iconic trails',
-    tone: 'green',
-  },
-  {
-    id: 'draw' as MethodId,
-    title: 'Draw on a map',
-    subtitle: 'Sketch with your mouse',
-    tone: 'amber',
-  },
-  {
-    id: 'place' as MethodId,
-    title: 'Place a location',
-    subtitle: 'Search or drop a pin',
-    tone: 'blue',
-  },
 ]
 
-const activeMethod = ref<MethodId>('strava')
+// Default to the first card in the new ordering so the highlighted state
+// matches the leftmost option on first paint.
+const activeMethod = ref<MethodId>('premade')
 
 function setMethod(id: MethodId) {
   activeMethod.value = id
