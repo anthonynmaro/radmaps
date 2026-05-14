@@ -215,7 +215,7 @@
               </span>
             </div>
 
-            <NuxtLink :to="`/shop/${premade.slug}/checkout?size=${selectedProductUid}&qty=${quantity}`">
+            <a :href="checkoutHref" class="block">
               <button class="w-full group inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 text-white font-semibold px-6 py-4 rounded-full text-sm transition-all shadow-sm shadow-stone-900/10">
                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
@@ -226,7 +226,7 @@
                   <path d="M3 8h10M9 4l4 4-4 4"/>
                 </svg>
               </button>
-            </NuxtLink>
+            </a>
 
             <p class="text-[11px] text-stone-400 text-center mt-3 tracking-wide">
               {{ checkoutReassurance }}
@@ -321,6 +321,9 @@ const selectedProductUid = ref<string>(defaultSizeUid)
 const quantity = ref(1)
 
 const selectedProduct = computed(() => getProduct(selectedProductUid.value))
+const checkoutHref = computed(() =>
+  `/shop/${slug}/checkout?size=${encodeURIComponent(selectedProductUid.value)}&qty=${quantity.value}`,
+)
 const buyCtaLabel = computed(() => user.value ? 'Buy now' : 'Buy now — checkout as guest')
 const checkoutReassurance = computed(() =>
   user.value
