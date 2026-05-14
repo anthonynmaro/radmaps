@@ -153,7 +153,9 @@ export default defineEventHandler(async (event) => {
   // no legacy proof-render fallback.
   if (!digital_only) {
     try {
-      await freezeOrderSnapshot(supabase, {
+      // `order_snapshots` is a server-only table: RLS exposes owner reads, but
+      // inserts happen only after this route has verified map ownership.
+      await freezeOrderSnapshot(adminClient, {
         stripeSessionId: session.id,
         mapId: map_id,
         productUid: product_uid,
