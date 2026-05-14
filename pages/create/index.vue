@@ -714,12 +714,28 @@ async function initPlaceMap() {
     const maplibregl2 = (await import('maplibre-gl')).default
     setPlacePin(e.lngLat.lng, e.lngLat.lat, maplibregl2, null)
   })
+  // Whenever the user pans or zooms the picker map, sync the bbox to the
+  // visible viewport so the poster gets framed exactly the way the user sees
+  // it here. Without this, panning away from the geocoded location would still
+  // save the original geocoded bbox and the poster would jump back.
+  placeMapInstance.on('moveend', () => {
+    if (placePinLng.value === null || placePinLat.value === null) return
+    const bbox = viewportBbox()
+    if (bbox) placeBbox.value = bbox
+  })
 }
 
 function setPlacePin(lng: number, lat: number, maplibregl: any, bbox: [number,number,number,number] | null) {
   placePinLng.value = lng
   placePinLat.value = lat
-  placeBbox.value = bbox ?? [lng - 0.05, lat - 0.05, lng + 0.05, lat + 0.05]
+  // Caller-provided bbox wins (eg. the geocoder's bounding box). Otherwise
+  // frame the poster around what the user is actually looking at — falling
+  // back to a small box centred on the pin only if the map isn't ready.
+  if (bbox) {
+    placeBbox.value = bbox
+  } else {
+    placeBbox.value = viewportBbox() ?? [lng - 0.05, lat - 0.05, lng + 0.05, lat + 0.05]
+  }
   if (!placeMapInstance) return
   if (placeMarker) placeMarker.remove()
   const el = document.createElement('div')
@@ -731,8 +747,26 @@ function setPlacePin(lng: number, lat: number, maplibregl: any, bbox: [number,nu
     const pos = placeMarker.getLngLat()
     placePinLng.value = pos.lng
     placePinLat.value = pos.lat
-    placeBbox.value = [pos.lng - 0.05, pos.lat - 0.05, pos.lng + 0.05, pos.lat + 0.05]
+    // After a marker drag, the user hasn't necessarily re-panned — keep the
+    // current viewport framing if we have one, falling back to a small box.
+    placeBbox.value = viewportBbox() ?? [pos.lng - 0.05, pos.lat - 0.05, pos.lng + 0.05, pos.lat + 0.05]
   })
+}
+
+function viewportBbox(): [number, number, number, number] | null {
+  if (!placeMapInstance) return null
+  const bounds = placeMapInstance.getBounds()
+  if (!bounds) return null
+  const west = bounds.getWest()
+  const south = bounds.getSouth()
+  const east = bounds.getEast()
+  const north = bounds.getNorth()
+  if (
+    !isFinite(west) || !isFinite(south) || !isFinite(east) || !isFinite(north) ||
+    west >= east || south >= north ||
+    west < -180 || east > 180 || south < -90 || north > 90
+  ) return null
+  return [west, south, east, north]
 }
 
 async function geocodePlace() {

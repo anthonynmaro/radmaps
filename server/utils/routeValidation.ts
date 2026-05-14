@@ -53,6 +53,19 @@ export function validateRouteGeojson(geojson: unknown): asserts geojson is GeoJS
           pointCount++
         }
       }
+    } else if (geometry.type === 'Point') {
+      // "Place a location" posters store the pin as a single Point feature.
+      // No route geometry, just a coordinate the renderer frames the map around.
+      assertFiniteLngLat(geometry.coordinates)
+      pointCount++
+    } else if (geometry.type === 'MultiPoint') {
+      if (!Array.isArray(geometry.coordinates)) {
+        throw createError({ statusCode: 400, message: 'Invalid route geometry' })
+      }
+      for (const coord of geometry.coordinates) {
+        assertFiniteLngLat(coord)
+        pointCount++
+      }
     } else {
       continue
     }
