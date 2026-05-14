@@ -262,7 +262,10 @@
                     <input v-model="panelDraft.slug" class="admin-input font-mono text-xs" />
                   </label>
                   <div class="block sm:col-span-2">
-                    <span class="admin-label">Categories</span>
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="admin-label">Categories</span>
+                      <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">v2</span>
+                    </div>
                     <div class="mt-1.5 grid grid-cols-2 gap-2">
                       <label
                         v-for="category in PREMADE_CATEGORIES"
