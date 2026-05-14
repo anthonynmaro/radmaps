@@ -76,6 +76,39 @@ describe('two-layer isolation', () => {
     expect(a).not.toBe(b)
   })
 
+  it('changing uploaded segment geometry changes map_content_hash', () => {
+    const a = computeMapContentHash(baseConfig, geojson, framing)
+    const next: StyleConfig = {
+      ...baseConfig,
+      trail_segments: [{
+        id: 'uploaded',
+        name: 'Spur',
+        color: '#3A7CA5',
+        visible: true,
+        source: 'uploaded-track',
+        geojson: {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-121.0, 39.0],
+                [-121.1, 39.1],
+              ],
+            },
+          }],
+        },
+        bbox: [-121.1, 39.0, -121.0, 39.1],
+        section_start: 0,
+        section_end: 100,
+      }],
+    }
+    const b = computeMapContentHash(next, geojson, framing)
+    expect(a).not.toBe(b)
+  })
+
   it('changing a chrome field does NOT change map_content_hash', () => {
     const a = computeMapContentHash(baseConfig, geojson, framing)
     // trail_name is classified 'chrome'

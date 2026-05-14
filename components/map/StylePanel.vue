@@ -700,8 +700,8 @@
                 </div>
                 <div class="space-y-2">
                   <div class="flex items-center justify-between">
-                    <p class="text-xs" style="color: #44403C;">Route section</p>
-                    <div class="flex gap-1">
+                    <p class="text-xs" style="color: #44403C;">{{ seg.source === 'uploaded-track' ? 'Track section' : 'Route section' }}</p>
+                    <div v-if="seg.source !== 'uploaded-track'" class="flex gap-1">
                       <button
                         @click="emit('request-plot', { segId: seg.id, field: 'start' })"
                         class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
@@ -714,8 +714,9 @@
                       >↗ End</button>
                     </div>
                   </div>
-                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentDistanceStepPct) })" />
-                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentDistanceStepPct" :display="segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentDistanceStepPct) })" />
+                  <p v-if="seg.source_filename" class="text-[10px]" style="color: #A8A29E;">{{ seg.source_filename }}</p>
+                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentStep(seg)" :display="seg.source === 'uploaded-track' ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentStep(seg)) })" />
+                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentStep(seg)" :display="seg.source === 'uploaded-track' ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentStep(seg)) })" />
                 </div>
                 <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
                 <div class="flex items-center justify-between">
@@ -725,6 +726,22 @@
               </div>
             </div>
             <button class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer" style="border: 2px dashed #E7E5E4; color: #A8A29E; background: transparent;" @click="addSegment">+ Add segment</button>
+            <template v-if="trackUploadAvailable">
+              <input
+                ref="trackUploadInputRef"
+                type="file"
+                accept=".gpx,application/gpx+xml"
+                class="hidden"
+                @change="handleTrackUploadInput"
+              />
+              <button
+                class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                style="border: 2px dashed #D6D3D1; color: #57534E; background: #FAFAF9;"
+                :disabled="trackUploadLoading"
+                @click="trackUploadInputRef?.click()"
+              >{{ trackUploadLoading ? 'Importing GPX…' : '+ Upload GPX track' }}</button>
+              <p v-if="trackUploadError" class="text-[10px] leading-snug" style="color: #B91C1C;">{{ trackUploadError }}</p>
+            </template>
             <template v-if="sections.trailLegendControls">
               <div class="pt-2 space-y-2.5" style="border-top: 1px solid #F5F5F4;">
                 <div>
@@ -1217,6 +1234,12 @@ const props = defineProps<{
   scoutAvailable?: boolean
   /** Route stats passed to Scout for style context */
   routeStats?: RouteStats
+  /** Enables importing additional GPX files into trail segments */
+  trackUploadAvailable?: boolean
+  /** True while an additional GPX track is being imported into the editor */
+  trackUploadLoading?: boolean
+  /** Last additional GPX import error, if any */
+  trackUploadError?: string | null
 }>()
 
 const sections = computed(() => computeSectionVisibility({
@@ -1259,6 +1282,8 @@ const emit = defineEmits<{
   'request-view-edit': []
   /** User wants to refit the route in the map camera */
   'request-view-reset': []
+  /** User selected an additional GPX track to import into trail segments */
+  'track-upload': [file: File]
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1617,6 +1642,15 @@ const segmentDistanceStepPct = computed(() => {
   return Math.max(0.001, Math.min(1, (SEGMENT_DISTANCE_STEP_MI / totalMi) * 100))
 })
 
+const trackUploadInputRef = ref<HTMLInputElement | null>(null)
+
+function handleTrackUploadInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) emit('track-upload', file)
+  input.value = ''
+}
+
 function addSegment() {
   const usedColors = (local.trail_segments ?? []).map(s => s.color)
   const nextColor = SEGMENT_COLORS.find(c => !usedColors.includes(c)) ?? SEGMENT_COLORS[0]
@@ -1633,6 +1667,10 @@ function addSegment() {
   }
   set('trail_segments', [...(local.trail_segments ?? []), seg])
   expandedSegmentId.value = seg.id
+}
+
+function segmentStep(seg: TrailSegment): number {
+  return seg.source === 'uploaded-track' ? 0.1 : segmentDistanceStepPct.value
 }
 
 function setSegment(id: string, patch: Partial<TrailSegment>) {
@@ -1661,6 +1699,10 @@ function segmentPctDisplay(pct: number): string {
     return mi < 100 ? mi.toFixed(2) + ' mi' : mi.toFixed(1) + ' mi'
   }
   return pct.toFixed(2) + '%'
+}
+
+function segmentPercentDisplay(pct: number): string {
+  return pct.toFixed(pct % 1 === 0 ? 0 : 1) + '%'
 }
 
 const isDeletePlotActive = computed(() => props.activePlotMode?.segId === 'route-delete-pending')

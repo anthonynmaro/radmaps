@@ -1,5 +1,11 @@
 import { serverSupabaseClient } from '#supabase/server'
 
+function safeNextPath(value: string | null): string {
+  if (!value) return '/'
+  if (!value.startsWith('/') || value.startsWith('//')) return '/'
+  return value
+}
+
 export default defineEventHandler(async (event) => {
   const url = getRequestURL(event)
   if (url.pathname !== '/auth/confirm') return
@@ -14,9 +20,10 @@ export default defineEventHandler(async (event) => {
     console.error('[auth/confirm] PKCE code exchange failed:', error.message)
     const params = new URLSearchParams({
       error_description: error.message,
+      next: safeNextPath(url.searchParams.get('next')),
     })
     return sendRedirect(event, `/auth/confirm?${params.toString()}`, 302)
   }
 
-  return sendRedirect(event, '/', 302)
+  return sendRedirect(event, safeNextPath(url.searchParams.get('next')), 302)
 })

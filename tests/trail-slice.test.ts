@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, mergeDeletedRangesForRoute, routeRangesToGeojson, sliceRouteByPercent } from '../utils/trail'
+import { deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
   return {
@@ -49,6 +50,78 @@ describe('sliceRouteByPercent', () => {
         [-89.0005, 40.0],
       ],
     ])
+  })
+})
+
+describe('trail segment geometry', () => {
+  it('resolves legacy segments as slices of the primary route', () => {
+    const primary = lineRoute([
+      [-89, 40],
+      [-89.0001, 40],
+      [-89.0002, 40],
+      [-89.0003, 40],
+    ])
+    const segment: TrailSegment = {
+      id: 'primary-segment',
+      name: 'Primary',
+      color: '#2D6A4F',
+      visible: true,
+      section_start: 25,
+      section_end: 75,
+    }
+
+    const resolved = resolveTrailSegmentGeojson(primary, segment)
+
+    expect((resolved.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-89.0001, 40],
+      [-89.0002, 40],
+    ])
+  })
+
+  it('resolves uploaded-track segments against their own geometry', () => {
+    const primary = lineRoute([
+      [-89, 40],
+      [-89.0001, 40],
+    ])
+    const uploaded = lineRoute([
+      [-90, 41],
+      [-90.0001, 41],
+      [-90.0002, 41],
+      [-90.0003, 41],
+    ])
+    const segment: TrailSegment = {
+      id: 'uploaded-segment',
+      name: 'Uploaded',
+      color: '#3A7CA5',
+      visible: true,
+      source: 'uploaded-track',
+      geojson: uploaded,
+      section_start: 25,
+      section_end: 75,
+    }
+
+    const resolved = resolveTrailSegmentGeojson(primary, segment)
+
+    expect((resolved.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-90.0001, 41],
+      [-90.0002, 41],
+    ])
+  })
+
+  it('builds segment handle features from resolved geometry endpoints', () => {
+    const resolved = lineRoute([
+      [-90, 41],
+      [-90.0001, 41],
+      [-90.0002, 41],
+    ])
+
+    const handles = trailSegmentEndpointFeatures(resolved, '#3A7CA5')
+
+    expect(handles.map(feature => feature.geometry)).toEqual([
+      { type: 'Point', coordinates: [-90, 41] },
+      { type: 'Point', coordinates: [-90.0002, 41] },
+    ])
+    expect(handles.map(feature => feature.properties?.color)).toEqual(['#3A7CA5', '#3A7CA5'])
   })
 })
 

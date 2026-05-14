@@ -421,6 +421,73 @@ export function sliceRouteByPercent(
   return featureCollectionFromLines(lines)
 }
 
+export function segmentSourceGeojson(
+  primaryRoute: GeoJSON.FeatureCollection,
+  segment: TrailSegment,
+): GeoJSON.FeatureCollection {
+  if (segment.source === 'uploaded-track' && segment.geojson) {
+    return segment.geojson
+  }
+  return primaryRoute
+}
+
+export function resolveTrailSegmentGeojson(
+  primaryRoute: GeoJSON.FeatureCollection,
+  segment: TrailSegment,
+  deletedRanges: DeletedRange[] = [],
+): GeoJSON.FeatureCollection {
+  const source = segmentSourceGeojson(primaryRoute, segment)
+  return sliceRouteByPercent(
+    source,
+    segment.section_start,
+    segment.section_end,
+    segment.source === 'uploaded-track' ? [] : deletedRanges,
+  )
+}
+
+export function trailSegmentEndpointFeatures(
+  segmentGeojson: GeoJSON.FeatureCollection,
+  color: string,
+): GeoJSON.Feature[] {
+  const coords = segmentGeojson.features.flatMap(feature => {
+    const geometry = feature.geometry
+    if (geometry.type === 'LineString') return geometry.coordinates
+    if (geometry.type === 'MultiLineString') return geometry.coordinates.flat()
+    return []
+  })
+
+  if (coords.length < 2) return []
+  return [
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color } },
+  ]
+}
+
+export function unionBboxes(
+  bboxes: Array<[number, number, number, number] | null | undefined>,
+): [number, number, number, number] | null {
+  const valid = bboxes.filter((bbox): bbox is [number, number, number, number] => {
+    if (!bbox || bbox.length !== 4) return false
+    const [minLng, minLat, maxLng, maxLat] = bbox
+    return [minLng, minLat, maxLng, maxLat].every(Number.isFinite) && minLng <= maxLng && minLat <= maxLat
+  })
+  if (!valid.length) return null
+
+  return valid.reduce<[number, number, number, number]>((acc, bbox) => [
+    Math.min(acc[0], bbox[0]),
+    Math.min(acc[1], bbox[1]),
+    Math.max(acc[2], bbox[2]),
+    Math.max(acc[3], bbox[3]),
+  ], [...valid[0]] as [number, number, number, number])
+}
+
+export function bboxContainsBbox(
+  outer: [number, number, number, number],
+  inner: [number, number, number, number],
+): boolean {
+  return outer[0] <= inner[0] && outer[1] <= inner[1] && outer[2] >= inner[2] && outer[3] >= inner[3]
+}
+
 /**
  * Produce a route FeatureCollection with crop + mid-route deleted ranges applied.
  * Returns a FeatureCollection with a single LineString (one gap) or MultiLineString

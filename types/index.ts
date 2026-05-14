@@ -213,7 +213,12 @@ export interface TrailSegment {
   name: string
   color: string
   visible: boolean
-  section_start: number           // 0–100, % of primary route coordinate array
+  source?: 'route-slice' | 'uploaded-track'
+  geojson?: GeoJSON.FeatureCollection
+  bbox?: [number, number, number, number]
+  stats?: RouteStats
+  source_filename?: string
+  section_start: number           // 0–100, % of source route coordinate array
   section_end: number             // 0–100
   width?: number                  // line width in px, defaults to route_width
   opacity?: number                // default: 0.9

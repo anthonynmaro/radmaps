@@ -2,6 +2,12 @@
   <div class="flex flex-1 overflow-hidden relative">
     <main class="flex-1 flex flex-col overflow-hidden" @click="onMapAreaClick">
       <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div
+          v-if="trackImportWarning"
+          class="absolute left-4 right-4 top-4 z-20 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900 shadow-sm"
+        >
+          {{ trackImportWarning }}
+        </div>
         <ClientOnly>
           <MapPreview
             v-if="map"
@@ -79,9 +85,13 @@
         :active-text-target="activeTextTarget"
         :scout-available="scoutAvailable"
         :route-stats="routeStats ?? map.stats"
+        :track-upload-available="trackUploadAvailable"
+        :track-upload-loading="trackUploadLoading"
+        :track-upload-error="trackUploadError"
         @reset="resetStyle"
         @logo-upload="emit('logo-upload', $event)"
         @image-upload="emit('image-upload', $event)"
+        @track-upload="onTrackUpload"
         @toggle-sheet="toggleSheet"
         @swipe-up="onSwipeUp"
         @swipe-down="onSwipeDown"
@@ -109,6 +119,7 @@ import type {
   StyleConfig,
   TextOverlay,
   TrailMap,
+  TrailSegment,
 } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import { FLAGS } from '~/utils/knownFlags'
@@ -117,6 +128,7 @@ import {
   detectDisconnectedRanges,
   mergeDeletedRanges,
   mergeDeletedRangesForRoute,
+  bboxContainsBbox,
 } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
@@ -128,6 +140,16 @@ type MapPreviewHandle = {
   freezeView: () => void
   unfreezeView: () => void
   resetViewToRoute: () => void
+  getVisibleBounds: () => [number, number, number, number] | null
+  fitToRouteAndSegments: (segmentBboxes?: Array<[number, number, number, number]>) => void
+}
+
+type TrackUploadResponse = {
+  style_config: StyleConfig
+  segment: TrailSegment
+  outside_current_frame_hint_data?: {
+    bbox?: [number, number, number, number]
+  }
 }
 
 const props = defineProps<{
@@ -136,6 +158,7 @@ const props = defineProps<{
   saving?: boolean
   scoutAvailable?: boolean
   routeStats?: TrailMap['stats']
+  trackUploadAvailable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -157,12 +180,16 @@ const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
 const pendingDeleteStart = ref<number | null>(null)
 const deleteBrushActive = ref(false)
 const deleteBrushSize = ref(8)
+const trackUploadLoading = ref(false)
+const trackUploadError = ref<string | null>(null)
+const trackImportWarning = ref<string | null>(null)
 
 const undoHistory = ref<StyleConfig[]>([])
 const undoIndex = ref(-1)
 let historyReady = false
 let isUndoRedoing = false
 let historyTimer: ReturnType<typeof setTimeout> | null = null
+let trackWarningTimer: ReturnType<typeof setTimeout> | null = null
 
 const canUndo = computed(() => undoIndex.value > 0)
 const canRedo = computed(() => undoIndex.value < undoHistory.value.length - 1)
@@ -183,6 +210,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown)
   if (historyTimer) clearTimeout(historyTimer)
+  if (trackWarningTimer) clearTimeout(trackWarningTimer)
 })
 
 watch(
@@ -283,6 +311,62 @@ function onKeyDown(e: KeyboardEvent) {
 function onRequestPlot(payload: { segId: string; field: 'start' | 'end' }) {
   deleteBrushActive.value = false
   plotMode.value = plotMode.value?.segId === payload.segId && plotMode.value?.field === payload.field ? null : payload
+}
+
+function visibleUploadedSegmentBboxes(config: StyleConfig): Array<[number, number, number, number]> {
+  return (config.trail_segments ?? [])
+    .filter(segment => segment.visible && segment.source === 'uploaded-track' && segment.bbox)
+    .map(segment => segment.bbox as [number, number, number, number])
+}
+
+function showTrackImportWarning(message: string) {
+  trackImportWarning.value = message
+  if (trackWarningTimer) clearTimeout(trackWarningTimer)
+  trackWarningTimer = setTimeout(() => {
+    trackImportWarning.value = null
+    trackWarningTimer = null
+  }, 7000)
+}
+
+async function onTrackUpload(file: File) {
+  if (!props.trackUploadAvailable || !props.map?.id || trackUploadLoading.value) return
+  const visibleBoundsBeforeImport = mapPreviewRef.value?.getVisibleBounds()
+  trackUploadLoading.value = true
+  trackUploadError.value = null
+  try {
+    const form = new FormData()
+    form.append('gpx', file)
+    const response = await fetch(`/api/maps/${props.map.id}/tracks`, {
+      method: 'POST',
+      body: form,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message ?? 'Failed to import GPX track')
+    }
+    const result = await response.json() as TrackUploadResponse
+    styleConfig.value = {
+      ...DEFAULT_STYLE_CONFIG,
+      ...result.style_config,
+    }
+
+    const importedBbox = result.segment.bbox ?? result.outside_current_frame_hint_data?.bbox
+    const isOutsideCurrentFrame = Boolean(
+      visibleBoundsBeforeImport &&
+      importedBbox &&
+      !bboxContainsBbox(visibleBoundsBeforeImport, importedBbox),
+    )
+
+    await nextTick()
+    if (isOutsideCurrentFrame) {
+      showTrackImportWarning('The uploaded GPX was outside the current map frame, so I zoomed out to include both tracks.')
+      mapPreviewRef.value?.fitToRouteAndSegments(visibleUploadedSegmentBboxes(result.style_config))
+    }
+  } catch (err) {
+    trackUploadError.value = err instanceof Error ? err.message : 'Failed to import GPX track'
+  } finally {
+    trackUploadLoading.value = false
+  }
 }
 
 function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start' | 'end'; pct: number }) {

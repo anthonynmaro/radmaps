@@ -905,7 +905,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
-import { sliceRouteByPercent, excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS } from '~/utils/trail'
+import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
@@ -3316,7 +3316,7 @@ function recomputeOverlays() {
     leaderLineItems.value = leaderLineItems.value.map(item => {
       const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === item.id)
       if (!seg) return item
-      const allC   = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+      const allC   = getAllRouteCoords(segmentSourceGeojson(props.map.geojson as GeoJSON.FeatureCollection, seg))
       const idx    = Math.min(Math.floor(allC.length * seg.section_start / 100), allC.length - 1)
       if (idx < 0) return item
       const pt = instance.project([allC[idx][0], allC[idx][1]] as [number, number])
@@ -3324,8 +3324,6 @@ function recomputeOverlays() {
     })
     return
   }
-
-  const allCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
 
   interface Candidate {
     seg: NonNullable<typeof props.styleConfig.trail_segments>[number]
@@ -3340,6 +3338,7 @@ function recomputeOverlays() {
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible || !seg.name) continue
+    const allCoords = getAllRouteCoords(segmentSourceGeojson(props.map.geojson as GeoJSON.FeatureCollection, seg))
     const idx = Math.min(Math.floor(allCoords.length * seg.section_start / 100), allCoords.length - 1)
     if (idx < 0) continue
     const [lng, lat] = allCoords[idx]
@@ -3939,26 +3938,15 @@ function populateSegmentSources() {
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible) continue
-    const sliced = sliceRouteByPercent(
+    const sliced = resolveTrailSegmentGeojson(
       props.map.geojson as GeoJSON.FeatureCollection,
-      seg.section_start,
-      seg.section_end,
+      seg,
       props.styleConfig.route_deleted_ranges ?? [],
     )
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
     if (src) src.setData(sliced)
 
-    // Collect start + end handle dots for this segment
-    const coords = sliced.features.flatMap(feature => {
-      const geometry = feature.geometry
-      if (geometry.type === 'LineString') return geometry.coordinates
-      if (geometry.type === 'MultiLineString') return geometry.coordinates.flat()
-      return []
-    })
-    if (coords && coords.length >= 2) {
-      handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color: seg.color } })
-      handleFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color: seg.color } })
-    }
+    handleFeatures.push(...trailSegmentEndpointFeatures(sliced, seg.color))
   }
 
   const handleSrc = mapInstance.getSource('segment-handles') as maplibregl.GeoJSONSource | undefined
@@ -4209,8 +4197,8 @@ watch(
     const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
 
     // Segment source/layer structure changes when segment IDs are added/removed
-    const newSegIds = (newConfig.trail_segments ?? []).map(s => s.id).join(',')
-    const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => s.id).join(',')
+    const newSegIds = (newConfig.trail_segments ?? []).map(s => `${s.id}:${s.visible}`).join(',')
+    const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => `${s.id}:${s.visible}`).join(',')
     const segStructureChanged = newSegIds !== oldSegIds
 
     const needsFullReload = tileKeyChanged || segStructureChanged || fullReloadKeysFor(newConfig).some(
@@ -4711,9 +4699,17 @@ function onPlotMouseMove(e: maplibregl.MapMouseEvent) {
   })
 }
 
+function plotModeGeojson(): GeoJSON.FeatureCollection {
+  const primary = props.map.geojson as GeoJSON.FeatureCollection
+  const mode = props.plotMode
+  if (!mode || mode.segId === 'route-crop' || mode.segId === 'route-delete-pending') return primary
+  const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === mode.segId)
+  return seg ? segmentSourceGeojson(primary, seg) : primary
+}
+
 function onPlotClick(e: maplibregl.MapMouseEvent) {
   if (!props.plotMode || !mapInstance) return
-  const pct = findRoutePercent([e.lngLat.lng, e.lngLat.lat], props.map.geojson as GeoJSON.FeatureCollection)
+  const pct = findRoutePercent([e.lngLat.lng, e.lngLat.lat], plotModeGeojson())
   emit('segment-plotted', { segId: props.plotMode.segId, field: props.plotMode.field, pct })
 }
 
@@ -4739,7 +4735,7 @@ watch(
     if (!mode) return
 
     // Pre-compute route coords for fast nearest-point lookup
-    plotRouteCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+    plotRouteCoords = getAllRouteCoords(plotModeGeojson())
     if (plotRouteCoords.length === 0) return
 
     // Position ghost marker at current segment position
@@ -4893,7 +4889,46 @@ function resetViewToRoute() {
   window.setTimeout(emitCamera, 320)
 }
 
-defineExpose({ freezeView, unfreezeView, resetViewToRoute })
+function getVisibleBounds(): [number, number, number, number] | null {
+  if (!mapInstance) return null
+  const bounds = mapInstance.getBounds()
+  return [
+    bounds.getWest(),
+    bounds.getSouth(),
+    bounds.getEast(),
+    bounds.getNorth(),
+  ]
+}
+
+function fitToRouteAndSegments(segmentBboxes: Array<[number, number, number, number]> = []) {
+  if (!mapInstance || !mapContainer.value) return
+  const bbox = unionBboxes([props.map.bbox, ...segmentBboxes])
+  if (!bbox) return
+
+  let emitted = false
+  const emitCamera = () => {
+    if (emitted || !mapInstance) return
+    emitted = true
+    const center = mapInstance.getCenter()
+    emit('freeze-changed', {
+      map_frozen: props.styleConfig.map_frozen ?? false,
+      map_zoom: mapInstance.getZoom(),
+      map_center: [center.lng, center.lat],
+      map_editor_width: mapContainer.value?.offsetWidth ?? 0,
+      map_pitch: mapInstance.getPitch(),
+      map_bearing: mapInstance.getBearing(),
+    })
+  }
+
+  mapInstance.once('moveend', emitCamera)
+  mapInstance.fitBounds(bbox as maplibregl.LngLatBoundsLike, {
+    padding: Math.round(mapContainer.value.offsetHeight * (props.styleConfig.padding_factor ?? 0.15)),
+    duration: props.editable === false ? 0 : 350,
+  })
+  window.setTimeout(emitCamera, 450)
+}
+
+defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(

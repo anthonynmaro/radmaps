@@ -69,6 +69,7 @@
       v-model="styleConfig"
       :map="mapData"
       :saving="saving"
+      :track-upload-available="true"
       @logo-upload="handleLogoUpload"
       @image-upload="handleImageAssetUpload"
       @freeze-changed="onFreezeChanged"
@@ -674,7 +675,7 @@ function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_
   // Sync optimistic state then save immediately — frozen position must survive
   // navigation (e.g. clicking Order) before the debounce timer fires.
   if (mapData.value) {
-    mapData.value.style_config = { ...mapData.value.style_config, ...payload }
+    mapData.value.style_config = { ...styleConfig.value, ...payload }
   }
   saveNow()
 }

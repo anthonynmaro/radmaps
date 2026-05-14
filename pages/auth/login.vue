@@ -268,15 +268,26 @@ const handleGoogleLogin = async () => {
   showErrorMessage.value = false
   errorMessage.value = ''
   try {
-    const { error } = await client.auth.signInWithOAuth({
+    const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: authConfirmUrl.value },
+      options: {
+        redirectTo: authConfirmUrl.value,
+        skipBrowserRedirect: true,
+      },
     })
     if (error) {
       errorMessage.value = error.message
       showErrorMessage.value = true
       isGoogleLoading.value = false
+      return
     }
+    if (data.url) {
+      window.location.assign(data.url)
+      return
+    }
+    errorMessage.value = 'Could not start Google sign-in. Please try again.'
+    showErrorMessage.value = true
+    isGoogleLoading.value = false
   } catch {
     errorMessage.value = 'Could not start Google sign-in. Please try again.'
     showErrorMessage.value = true
