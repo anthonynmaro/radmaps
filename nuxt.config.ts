@@ -92,6 +92,13 @@ export default defineNuxtConfig({
   nitro: {
     // Use Vercel preset for deployment
     preset: 'vercel',
+    publicAssets: [
+      {
+        dir: fileURLToPath(new URL('./fonts', import.meta.url)),
+        baseURL: '/fonts',
+        maxAge: 60 * 60 * 24 * 365,
+      },
+    ],
     experimental: {
       openAPI: true,
     },

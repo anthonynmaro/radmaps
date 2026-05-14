@@ -196,8 +196,8 @@ export interface MapAsset {
   width_px: number
   height_px: number
   file_size_bytes: number
-  x: number                       // 0–100, % from left of poster canvas
-  y: number                       // 0–100, % from top of poster canvas
+  x: number                       // %, from left of poster canvas; may be negative when artwork extends off-canvas
+  y: number                       // %, from top of poster canvas; may be negative when artwork extends off-canvas
   width: number                   // 1–100, % of poster canvas width
   height: number                  // 1–100, % of poster canvas height
   rotation: number                // degrees

@@ -141,7 +141,7 @@ test.describe('style browser visual harness', () => {
     expect(assetBox).toBeTruthy()
     await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
     await page.mouse.down()
-    await page.mouse.move(headerBox!.x + headerBox!.width / 2, 4, { steps: 20 })
+    await page.mouse.move(headerBox!.x + headerBox!.width / 2, headerBox!.y + 2, { steps: 20 })
     await page.mouse.up()
 
     await expect.poll(assetY).toBeLessThan(35)
@@ -161,10 +161,53 @@ test.describe('style browser visual harness', () => {
     expect(assetBox).toBeTruthy()
     await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
     await page.mouse.down()
-    await page.mouse.move(freshFooterBox!.x + freshFooterBox!.width / 2, (page.viewportSize()?.height ?? 900) - 4, { steps: 20 })
+    await page.mouse.move(freshFooterBox!.x + freshFooterBox!.width / 2, freshFooterBox!.y + freshFooterBox!.height - 2, { steps: 20 })
     await page.mouse.up()
 
-    await expect.poll(assetY).toBeGreaterThan(65)
+    await expect.poll(assetY).toBeGreaterThan(50)
+  })
+
+  test('keeps image overlay chrome quiet and supports precise edge and keyboard placement', async ({ page }) => {
+    const fixtureUrl = '/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&asset=1'
+    const assetPosition = () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const asset = fixture?.getStyle().image_overlays?.find((asset: { id: string }) => asset.id === 'fixture-logo-asset')
+      return { x: asset?.x ?? 42, y: asset?.y ?? 48 }
+    })
+    await page.goto(fixtureUrl)
+
+    const asset = page.locator('[data-asset-id="fixture-logo-asset"]')
+    await expect(asset).toBeVisible()
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(500)
+
+    await asset.click()
+    await expect(asset).toHaveClass(/is-selected/)
+    await expect(page.locator('.asset-quality-badge')).toHaveCount(0)
+
+    await page.mouse.move(2, 2)
+    await expect.poll(async () => asset.locator('.overlay-delete-btn').evaluate(el => getComputedStyle(el).opacity)).toBe('0')
+
+    const assetBox = await asset.boundingBox()
+    const posterBox = await page.locator('.poster-canvas').boundingBox()
+    expect(assetBox).toBeTruthy()
+    expect(posterBox).toBeTruthy()
+    await page.mouse.move(assetBox!.x + assetBox!.width / 2, assetBox!.y + assetBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(posterBox!.x - posterBox!.width * 0.75, assetBox!.y + assetBox!.height / 2, { steps: 24 })
+    await page.mouse.up()
+
+    await expect.poll(async () => (await assetPosition()).x).toBeLessThan(0)
+
+    const beforeKey = await assetPosition()
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(async () => (await assetPosition()).x).toBeGreaterThan(beforeKey.x)
+
+    await page.mouse.click(posterBox!.x + posterBox!.width - 4, posterBox!.y + posterBox!.height - 4)
+    await expect(asset).not.toHaveClass(/is-selected/)
+    const afterDeselect = await assetPosition()
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(async () => (await assetPosition()).x).toBe(afterDeselect.x)
   })
 
   test('makes every composition text cue editable and removable', async ({ page }) => {

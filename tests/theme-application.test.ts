@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '~/types'
+import { COLOR_THEMES, DEFAULT_STYLE_CONFIG, type StyleConfig } from '~/types'
 import { contrastRatio, pickContrastSafeColor } from '~/utils/colorContrast'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
 import { getThemeDefinition } from '~/utils/themes/refined'
@@ -109,6 +109,25 @@ describe('theme application', () => {
     expect(next.grid_opacity).toBe(0.2)
     expect(next.grid_weight).toBe(1)
     expect(next.grid_scope).toBe('poster')
+  })
+
+  it('can restore legacy marathon-era themes without forcing a refined composition', () => {
+    const theme = COLOR_THEMES.find(theme => theme.id === 'chalk')
+    expect(theme).toBeTruthy()
+
+    const next = applyThemeToStyleConfig(config({
+      color_theme: 'midcentury-travel',
+      composition: 'travel-banner',
+      audience: 'National Park / tourist',
+      font_family: 'Oswald',
+      body_font_family: 'Work Sans',
+    }), theme!)
+
+    expect(next.color_theme).toBe('chalk')
+    expect(next.composition).toBeUndefined()
+    expect(next.audience).toBeUndefined()
+    expect(next.background_color).toBe('#F4EFE6')
+    expect(next.base_tile_style).toBe('carto-light')
   })
 
   it('chooses contrast-safe default pin colors for pale and dark map backgrounds', () => {

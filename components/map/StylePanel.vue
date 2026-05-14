@@ -55,7 +55,7 @@
               @click="applyTheme(theme)"
               class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
               style="border-radius: 10px; border: 2px solid; padding: 4px;"
-              :style="{ borderColor: local.color_theme === theme.id ? '#2D6A4F' : '#E7E5E4' }"
+              :style="{ borderColor: isRefinedThemeActive(theme) ? '#2D6A4F' : '#E7E5E4' }"
             >
               <!-- Mini poster thumbnail — layout mirrors actual theme -->
               <div
@@ -119,9 +119,68 @@
 
               <span
                 class="text-[10px] font-semibold leading-none"
-                :style="{ color: local.color_theme === theme.id ? '#2D6A4F' : '#78716C' }"
+                :style="{ color: isRefinedThemeActive(theme) ? '#2D6A4F' : '#78716C' }"
               >{{ theme.label }}</span>
             </button>
+          </div>
+
+          <!-- Classic themes -->
+          <div class="mt-3 pt-3 border-t border-[#F5F5F4]">
+            <button
+              class="w-full flex items-center justify-between text-[10px] font-semibold uppercase border-none bg-transparent p-0 cursor-pointer"
+              style="letter-spacing: 0.14em; color: #78716C;"
+              @click="showClassicThemes = !showClassicThemes"
+            >
+              <span>Classic themes</span>
+              <span style="color: #A8A29E;">{{ showClassicThemes ? 'Hide' : 'Show' }}</span>
+            </button>
+            <div v-if="showClassicThemes" class="grid grid-cols-3 gap-2 mt-2">
+              <button
+                v-for="theme in CLASSIC_THEME_OPTIONS"
+                :key="`classic-${theme.id}`"
+                @click="applyClassicTheme(theme)"
+                class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
+                style="border-radius: 10px; border: 2px solid; padding: 4px;"
+                :style="{ borderColor: isClassicThemeActive(theme) ? '#2D6A4F' : '#E7E5E4' }"
+              >
+                <div
+                  class="w-full overflow-hidden flex flex-col"
+                  style="aspect-ratio: 2/3; border-radius: 5px;"
+                  :style="{ backgroundColor: theme.background_color }"
+                >
+                  <div
+                    class="flex items-center justify-center"
+                    style="height: 28%; padding: 9%;"
+                    :style="{ backgroundColor: theme.background_color }"
+                  >
+                    <span
+                      class="text-center"
+                      :style="{
+                        color: theme.label_text_color,
+                        fontFamily: themeFontPreview(theme),
+                        fontSize: themeThumb(theme, true).fontSize,
+                        fontWeight: themeThumb(theme, true).fontWeight,
+                        letterSpacing: themeThumb(theme, true).letterSpacing,
+                        textTransform: themeThumb(theme, true).textTransform,
+                        lineHeight: themeThumb(theme, true).lineHeight,
+                      }"
+                    >SUMMIT<br/>TRAIL</span>
+                  </div>
+                  <div style="height: 1px; opacity: 0.18;" :style="{ backgroundColor: theme.label_text_color }" />
+                  <div class="flex-1">
+                    <svg viewBox="0 0 60 40" style="width: 100%; height: 100%;" fill="none" preserveAspectRatio="xMidYMid slice">
+                      <ellipse cx="30" cy="22" rx="22" ry="12" :stroke="theme.contour_major_color ?? theme.label_text_color" stroke-width="0.4" fill="none" opacity="0.2"/>
+                      <path d="M6 32 Q16 26 24 28 Q34 30 44 18 Q50 12 56 14" :stroke="theme.route_color" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <div style="height: 14%;" :style="{ backgroundColor: theme.label_bg_color }" />
+                </div>
+                <span
+                  class="text-[10px] font-semibold leading-none truncate w-full text-center"
+                  :style="{ color: isClassicThemeActive(theme) ? '#2D6A4F' : '#78716C' }"
+                >{{ theme.label }}</span>
+              </button>
+            </div>
           </div>
 
           <!-- My Themes -->
@@ -1081,7 +1140,7 @@ import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
-import { getPosterCompositionProfile } from '~/utils/posterCompositions'
+import { POSTER_COMPOSITIONS, getPosterCompositionProfile } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
@@ -1135,6 +1194,7 @@ const THEME_OPTIONS: ThemeDefinition[] = [
   ...REFINED_THEMES,
   ...COLOR_THEMES.filter(theme => !theme.legacy && !REFINED_THEMES.some(refined => refined.id === theme.id)),
 ]
+const CLASSIC_THEME_OPTIONS: ThemeDefinition[] = COLOR_THEMES
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1354,6 +1414,7 @@ watch(() => props.activeTextTarget, (target) => {
 const { themes: savedThemes, saveTheme, removeTheme } = useSavedThemes()
 
 const showSaveInput = ref(false)
+const showClassicThemes = ref(false)
 const newThemeName = ref('')
 const saveInputRef = ref<HTMLInputElement | null>(null)
 
@@ -1643,6 +1704,21 @@ function applyTheme(theme: ThemeDefinition) {
   emit('update:modelValue', { ...local })
 }
 
+function applyClassicTheme(theme: ThemeDefinition) {
+  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+  local.composition = undefined
+  local.audience = undefined
+  emit('update:modelValue', { ...local })
+}
+
+function isRefinedThemeActive(theme: ThemeDefinition) {
+  return local.color_theme === theme.id && local.composition === theme.composition
+}
+
+function isClassicThemeActive(theme: ThemeDefinition) {
+  return local.color_theme === theme.id && !local.composition
+}
+
 function selectFont(fontName: FontFamily) {
   local.font_family = fontName
   local.body_font_family = pairedBodyFont(fontName)
@@ -1693,11 +1769,13 @@ const THEME_FONT_NAME: Record<string, string> = {
   'dark-sky':  'Fjalla One',
 }
 
-function themeThumb(theme: ThemeDefinition) {
-  const composition = getPosterCompositionProfile({
-    color_theme: theme.id,
-    composition: theme.composition,
-  })
+function themeThumb(theme: ThemeDefinition, classic = false) {
+  const composition = classic
+    ? POSTER_COMPOSITIONS['legacy-classic']
+    : getPosterCompositionProfile({
+        color_theme: theme.id,
+        composition: theme.composition,
+      })
   const base = THEME_THUMB[theme.id] ?? DEFAULT_THEME_THUMB
   return {
     ...base,
@@ -1808,6 +1886,14 @@ const CORE_MAP_PRESETS: MapPresetOption[] = [
   {
     id: 'road-network', label: 'Road Net', title: 'Vector roads as ink lines',
     viewBox: '0 0 48 32',
+    defaults: {
+      show_roads: true,
+      show_place_labels: false,
+      show_poi_labels: false,
+      show_contours: false,
+      show_hillshade: false,
+      map_3d: false,
+    },
     svg: `<rect width="48" height="32" fill="#f5f5f5"/>
       <path d="M0 8 Q12 10 24 8 Q36 6 48 10" stroke="#1c1917" stroke-width="1.4" fill="none" opacity="0.7"/>
       <path d="M0 18 Q10 16 20 18 Q32 20 48 16" stroke="#1c1917" stroke-width="1.0" fill="none" opacity="0.5"/>

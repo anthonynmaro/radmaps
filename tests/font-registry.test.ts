@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { FONT_REGISTRY, generateFontFaceCss, listAllFontFiles } from '../utils/render/fontRegistry'
 import { REFINED_THEMES } from '../utils/themes/refined'
 
@@ -20,5 +22,12 @@ describe('font registry', () => {
     expect(css).toContain("url('/fonts/Playfair_Display-800.ttf')")
     expect(css).toContain(`font-weight: 800`)
     expect(listAllFontFiles().length).toBeGreaterThan(0)
+  })
+
+  it('publishes the font directory at the same URL used by font-face CSS', () => {
+    const nuxtConfig = readFileSync(resolve(process.cwd(), 'nuxt.config.ts'), 'utf8')
+
+    expect(nuxtConfig).toContain("new URL('./fonts'")
+    expect(nuxtConfig).toContain("baseURL: '/fonts'")
   })
 })
