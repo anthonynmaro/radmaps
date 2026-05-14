@@ -71,6 +71,13 @@ export function hasValidLocationCoordinates(map: Pick<LocationMetadata, 'locatio
   )
 }
 
+export function publishableLocationCoordinates(
+  map: Pick<LocationMetadata, 'location_lng' | 'location_lat'> & { bbox?: [number, number, number, number] | null },
+): [number, number] | null {
+  if (hasValidLocationCoordinates(map)) return [map.location_lng!, map.location_lat!]
+  return bboxCenter(map.bbox)
+}
+
 export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omit<PremadeMap, 'id'> {
   const preview = previewUrlForSourceMap(map)
   const location = (map.stats?.location || '').trim()
@@ -117,11 +124,10 @@ export function missingPublishFields(map: Partial<PremadeMap>): string[] {
   if (!map.category) missing.push('category')
   if (!map.stats || Object.keys(map.stats).length === 0) missing.push('stats')
   if (!Array.isArray(map.bbox) || map.bbox.length !== 4) missing.push('bbox')
-  if (!hasValidLocationCoordinates(map)) missing.push('location_coordinates')
+  if (!publishableLocationCoordinates(map)) missing.push('location_coordinates')
   if (!map.geojson?.features?.length) missing.push('geojson')
   if (!map.style_config) missing.push('style_config')
   if (!map.preview_image_url?.trim()) missing.push('preview_image_url')
-  if (!map.render_url?.trim()) missing.push('render_url')
   if (map.needs_preview) missing.push('fresh_preview')
   return missing
 }

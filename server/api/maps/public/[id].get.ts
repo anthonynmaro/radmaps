@@ -6,6 +6,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { serverSupabaseUser } from '#supabase/server'
 
 const MapIdSchema = z.string().uuid()
 
@@ -14,6 +15,7 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, message: 'Missing map ID' })
   if (!MapIdSchema.safeParse(id).success) throw createError({ statusCode: 400, message: 'Invalid map ID' })
 
+  const user = await serverSupabaseUser(event).catch(() => null)
   const config = useRuntimeConfig()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createClient(
@@ -23,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: map, error } = await supabase
     .from('maps')
-    .select('id, title, subtitle, stats, render_url, thumbnail_url, proof_render_url, proof_render_hash, status, updated_at')
+    .select('id, user_id, title, subtitle, stats, render_url, thumbnail_url, proof_render_url, proof_render_hash, status, updated_at')
     .eq('id', id)
     .eq('is_public', true)
     .single()
@@ -32,5 +34,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Map not found' })
   }
 
-  return map
+  const { user_id: userId, ...publicMap } = map
+  return {
+    ...publicMap,
+    owned_by_viewer: Boolean(user?.id && user.id === userId),
+  }
 })

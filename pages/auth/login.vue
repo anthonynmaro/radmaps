@@ -233,6 +233,18 @@ useSeo({
 const route = useRoute()
 const client = useSupabaseClient()
 
+function safeNextPath(value: unknown): string {
+  const next = Array.isArray(value) ? value[0] : value
+  if (typeof next !== 'string') return '/'
+  if (!next.startsWith('/') || next.startsWith('//')) return '/'
+  return next
+}
+
+const authConfirmUrl = computed(() => {
+  const next = safeNextPath(route.query.next)
+  return `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`
+})
+
 // ── Mode (sign in vs sign up) ────────────────────────────────────────
 const isSignup = computed(() => route.query.mode === 'signup')
 const heading = computed(() => isSignup.value ? 'Welcome to RadMaps.' : 'Welcome back.')
@@ -258,7 +270,7 @@ const handleGoogleLogin = async () => {
   try {
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/confirm` },
+      options: { redirectTo: authConfirmUrl.value },
     })
     if (error) {
       errorMessage.value = error.message
@@ -280,7 +292,7 @@ const handleLogin = async () => {
   try {
     const { error } = await client.auth.signInWithOtp({
       email: email.value,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      options: { emailRedirectTo: authConfirmUrl.value },
     })
     if (error) {
       errorMessage.value = error.message

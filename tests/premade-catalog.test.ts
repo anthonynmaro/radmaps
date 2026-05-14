@@ -6,6 +6,7 @@ import {
   defaultPremadeBasePriceCents,
   hasValidLocationCoordinates,
   missingPublishFields,
+  publishableLocationCoordinates,
   previewUrlForSourceMap,
   slugifyPremadeTitle,
 } from '~/utils/premadeCatalog'
@@ -73,6 +74,7 @@ describe('premade catalog helpers', () => {
     expect(draft.location_lng).toBe(-105.05)
     expect(draft.location_lat).toBe(40.05)
     expect(hasValidLocationCoordinates(draft)).toBe(true)
+    expect(publishableLocationCoordinates(draft)).toEqual([-105.05, 40.05])
   })
 
   it('reports publish blockers for incomplete maps', () => {
@@ -85,11 +87,23 @@ describe('premade catalog helpers', () => {
       'geojson',
       'style_config',
       'preview_image_url',
-      'render_url',
     ])
   })
 
-  it('accepts a complete purchasable premade map for publishing', () => {
+  it('derives publishable location coordinates from a valid bbox', () => {
+    expect(missingPublishFields({
+      slug: 'evening-ridge',
+      title: 'Evening Ridge',
+      category: 'adventure',
+      stats,
+      bbox: [-105.1, 40, -105, 40.1],
+      geojson,
+      style_config: DEFAULT_STYLE_CONFIG,
+      preview_image_url: 'https://example.com/preview.jpg',
+    })).toEqual([])
+  })
+
+  it('accepts a complete previewed premade map for publishing without a final render URL', () => {
     expect(missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
@@ -101,7 +115,6 @@ describe('premade catalog helpers', () => {
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
-      render_url: 'https://example.com/render.jpg',
     })).toEqual([])
   })
 
@@ -117,7 +130,6 @@ describe('premade catalog helpers', () => {
       geojson,
       style_config: DEFAULT_STYLE_CONFIG,
       preview_image_url: 'https://example.com/preview.jpg',
-      render_url: 'https://example.com/render.jpg',
       needs_preview: true,
     })).toEqual(['fresh_preview'])
   })
