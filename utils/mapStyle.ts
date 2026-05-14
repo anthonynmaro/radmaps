@@ -593,6 +593,15 @@ function roadsLayers(config: StyleConfig): object[] {
 
 // ─── Trail segment sources/layers ────────────────────────────────────────────
 
+const ELEVATION_GRADIENT_PAINT = [
+  'interpolate', ['linear'], ['line-progress'],
+  0,    '#4F8EF7',
+  0.25, '#52B788',
+  0.6,  '#F4A261',
+  0.85, '#E76F51',
+  1,    '#C1121F',
+] as const
+
 export function trailSegmentSources(segments: TrailSegment[] = []): Record<string, object> {
   const sources: Record<string, object> = {}
   for (const seg of segments) {
@@ -600,6 +609,7 @@ export function trailSegmentSources(segments: TrailSegment[] = []): Record<strin
     sources[`trail-seg-${seg.id}`] = {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
+      ...(seg.color_mode === 'gradient' ? { lineMetrics: true } : {}),
     }
   }
   return sources
@@ -612,6 +622,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
     const width = seg.width ?? config.route_width ?? 2
     const opacity = seg.opacity ?? 0.9
     const dashArray = seg.dash ? [4, 3] : undefined
+    const useGradient = seg.color_mode === 'gradient'
 
     layers.push(withScaleMetadata({
       id: `trail-seg-casing-${seg.id}`,
@@ -634,7 +645,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
         'line-cap': 'round',
       },
       paint: {
-        'line-color': seg.color,
+        ...(useGradient ? { 'line-gradient': ELEVATION_GRADIENT_PAINT } : { 'line-color': seg.color }),
         'line-width': width,
         'line-opacity': opacity,
         ...(dashArray ? { 'line-dasharray': dashArray } : {}),
@@ -725,14 +736,7 @@ function routeLayers(config: StyleConfig) {
         source: 'route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
-          'line-gradient': [
-            'interpolate', ['linear'], ['line-progress'],
-            0,    '#4F8EF7',
-            0.25, '#52B788',
-            0.6,  '#F4A261',
-            0.85, '#E76F51',
-            1,    '#C1121F',
-          ],
+          'line-gradient': ELEVATION_GRADIENT_PAINT,
           'line-width': config.route_width,
           'line-opacity': config.route_opacity,
         },

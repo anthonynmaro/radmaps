@@ -18,6 +18,8 @@
             :plot-mode="plotMode"
             :delete-brush-active="deleteBrushActive"
             :delete-brush-size="deleteBrushSize"
+            :segment-draw-mode="segmentDrawMode"
+            :segment-edit-mode="segmentEditMode"
             :can-undo="canUndo"
             :can-redo="canRedo"
             :chrome-editing="chromeDirectEdit"
@@ -41,6 +43,10 @@
             @freeze-changed="onFreezeChanged"
             @segment-plotted="onSegmentPlotted"
             @plot-cancelled="plotMode = null"
+            @segment-draw-finished="onSegmentDrawFinished"
+            @segment-draw-cancelled="segmentDrawMode = null"
+            @segment-geometry-edited="onSegmentGeometryEdited"
+            @segment-edit-cancelled="segmentEditMode = null"
             @route-delete-brush-applied="onRouteDeleteBrushApplied"
             @route-delete-brush-cancelled="deleteBrushActive = false"
             @label-moved="onLabelMoved"
@@ -82,6 +88,10 @@
         :active-plot-mode="plotMode"
         :active-delete-brush="deleteBrushActive"
         :delete-brush-size="deleteBrushSize"
+        :active-segment-draw-mode="segmentDrawMode"
+        :segment-draw-disabled="segmentDrawDisabled"
+        :active-segment-edit-mode="segmentEditMode"
+        :segment-edit-disabled="segmentEditDisabled"
         :active-text-target="activeTextTarget"
         :scout-available="scoutAvailable"
         :route-stats="routeStats ?? map.stats"
@@ -96,6 +106,11 @@
         @swipe-up="onSwipeUp"
         @swipe-down="onSwipeDown"
         @request-plot="onRequestPlot"
+        @request-segment-draw="onRequestSegmentDraw"
+        @request-segment-draw-save="mapPreviewRef?.finishSegmentDraw()"
+        @request-segment-draw-cancel="segmentDrawMode = null"
+        @request-segment-edit="onRequestSegmentEdit"
+        @request-segment-edit-cancel="segmentEditMode = null"
         @request-detect-disconnected="onDetectDisconnected"
         @request-brush-delete="onRequestBrushDelete"
         @update-brush-size="deleteBrushSize = $event"
@@ -129,9 +144,18 @@ import {
   mergeDeletedRanges,
   mergeDeletedRangesForRoute,
   bboxContainsBbox,
+  buildGeometryBackedSegmentPatch,
+  extendSegmentCoordinates,
+  isGeometryBackedSegment,
+  normalizeLineCoords,
+  sanitizeSegmentBends,
 } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
+type SegmentDrawMode =
+  | { type: 'new' }
+  | { type: 'extend'; segId: string; end: 'start' | 'end' }
+type SegmentEditMode = { segId: string }
 type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
@@ -142,6 +166,8 @@ type MapPreviewHandle = {
   resetViewToRoute: () => void
   getVisibleBounds: () => [number, number, number, number] | null
   fitToRouteAndSegments: (segmentBboxes?: Array<[number, number, number, number]>) => void
+  finishSegmentDraw: () => void
+  undoSegmentDrawPoint: () => boolean
 }
 
 type TrackUploadResponse = {
@@ -177,6 +203,8 @@ const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
 const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
+const segmentDrawMode = ref<SegmentDrawMode | null>(null)
+const segmentEditMode = ref<SegmentEditMode | null>(null)
 const pendingDeleteStart = ref<number | null>(null)
 const deleteBrushActive = ref(false)
 const deleteBrushSize = ref(8)
@@ -193,6 +221,8 @@ let trackWarningTimer: ReturnType<typeof setTimeout> | null = null
 
 const canUndo = computed(() => undoIndex.value > 0)
 const canRedo = computed(() => undoIndex.value < undoHistory.value.length - 1)
+const segmentDrawDisabled = computed(() => Boolean(plotMode.value || deleteBrushActive.value || segmentEditMode.value))
+const segmentEditDisabled = computed(() => Boolean(plotMode.value || deleteBrushActive.value || segmentDrawMode.value))
 
 const hasElevationData = computed(() => {
   if (!props.map?.geojson) return false
@@ -263,7 +293,7 @@ function onSwipeDown() {
 
 function onMapAreaClick(e: MouseEvent) {
   if (typeof window === 'undefined' || window.innerWidth >= 768) return
-  if (plotMode.value || deleteBrushActive.value || sheetState.value === 'closed') return
+  if (plotMode.value || segmentDrawMode.value || segmentEditMode.value || deleteBrushActive.value || sheetState.value === 'closed') return
   const target = e.target as HTMLElement | null
   if (target?.closest('.maplibregl-canvas, .maplibregl-canvas-container')) sheetState.value = 'closed'
 }
@@ -282,6 +312,7 @@ function recordHistory(config: StyleConfig) {
 }
 
 function undo() {
+  if (segmentDrawMode.value && mapPreviewRef.value?.undoSegmentDrawPoint()) return
   if (!canUndo.value) return
   if (historyTimer) clearTimeout(historyTimer)
   isUndoRedoing = true
@@ -291,6 +322,7 @@ function undo() {
 }
 
 function redo() {
+  if (segmentDrawMode.value) return
   if (!canRedo.value) return
   if (historyTimer) clearTimeout(historyTimer)
   isUndoRedoing = true
@@ -304,13 +336,48 @@ function onKeyDown(e: KeyboardEvent) {
   if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
-  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
-  if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redo() }
+  const key = e.key.toLowerCase()
+  if (segmentDrawMode.value && key === 'z') {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    if (!e.shiftKey) mapPreviewRef.value?.undoSegmentDrawPoint()
+    return
+  }
+  if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+  if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo() }
 }
 
 function onRequestPlot(payload: { segId: string; field: 'start' | 'end' }) {
   deleteBrushActive.value = false
+  segmentDrawMode.value = null
+  segmentEditMode.value = null
   plotMode.value = plotMode.value?.segId === payload.segId && plotMode.value?.field === payload.field ? null : payload
+}
+
+function onRequestSegmentDraw(payload: SegmentDrawMode) {
+  if (segmentDrawDisabled.value) return
+  deleteBrushActive.value = false
+  plotMode.value = null
+  segmentEditMode.value = null
+  pendingDeleteStart.value = null
+  if (styleConfig.value.map_frozen) mapPreviewRef.value?.unfreezeView()
+  const current = segmentDrawMode.value
+  const isSameMode = current?.type === payload.type &&
+    (payload.type === 'new' || (current?.type === 'extend' && current.segId === payload.segId && current.end === payload.end))
+  segmentDrawMode.value = isSameMode ? null : payload
+  if (segmentDrawMode.value && typeof window !== 'undefined' && window.innerWidth < 768) sheetState.value = 'closed'
+}
+
+function onRequestSegmentEdit(payload: SegmentEditMode) {
+  const isSameMode = segmentEditMode.value?.segId === payload.segId
+  if (segmentEditDisabled.value && !isSameMode) return
+  deleteBrushActive.value = false
+  plotMode.value = null
+  segmentDrawMode.value = null
+  pendingDeleteStart.value = null
+  if (styleConfig.value.map_frozen) mapPreviewRef.value?.unfreezeView()
+  segmentEditMode.value = isSameMode ? null : payload
+  if (segmentEditMode.value && typeof window !== 'undefined' && window.innerWidth < 768) sheetState.value = 'closed'
 }
 
 function visibleUploadedSegmentBboxes(config: StyleConfig): Array<[number, number, number, number]> {
@@ -402,10 +469,84 @@ function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start'
   plotMode.value = null
 }
 
+function nextSegmentColor(segments: TrailSegment[]) {
+  const colors = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
+  const usedColors = segments.map(segment => segment.color)
+  return colors.find(color => !usedColors.includes(color)) ?? colors[0]
+}
+
+function onSegmentDrawFinished({ mode, coords }: { mode: SegmentDrawMode; coords: Array<[number, number]> }) {
+  const config = styleConfig.value
+  const segments = config.trail_segments ?? []
+  if (mode.type === 'new') {
+    if (coords.length < 2) return
+    const segment: TrailSegment = {
+      id: crypto.randomUUID(),
+      name: `Trail ${segments.length + 1}`,
+      color: nextSegmentColor(segments),
+      visible: true,
+      source: 'drawn-track',
+      width: 3,
+      opacity: 0.9,
+      smooth: 0,
+      bend: 0,
+      dash: false,
+      ...buildGeometryBackedSegmentPatch(coords),
+    }
+    styleConfig.value = { ...config, trail_segments: [...segments, segment] }
+  } else {
+    const nextSegments = segments.map(segment => {
+      if (segment.id !== mode.segId || !isGeometryBackedSegment(segment)) return segment
+      const nextCoords = extendSegmentCoordinates(segment, coords, mode.end)
+      const geometryPatch = buildGeometryBackedSegmentPatch(nextCoords)
+      const { label_lnglat: _labelLngLat, ...rest } = segment
+      const addedBends = Array(coords.length).fill(0)
+      const previousBends = normalizedSegmentBendsForCoords(segment.bends, segment.geojson ? normalizeLineCoords(segment.geojson).length : 0)
+      const nextBends = mode.end === 'start'
+        ? [...addedBends, ...previousBends]
+        : [...previousBends, ...addedBends]
+      return {
+        ...rest,
+        ...geometryPatch,
+        bends: normalizedSegmentBendsForCoords(nextBends, nextCoords.length),
+        section_start: segment.section_start,
+        section_end: segment.section_end,
+      }
+    })
+    styleConfig.value = { ...config, trail_segments: nextSegments }
+  }
+  segmentDrawMode.value = null
+}
+
+function normalizedSegmentBendsForCoords(bends: number[] | undefined, coordCount: number): number[] {
+  return sanitizeSegmentBends(bends, Math.max(0, coordCount - 1))
+}
+
+function onSegmentGeometryEdited({ segId, coords, bends }: { segId: string; coords: number[][]; bends?: number[] }) {
+  if (coords.length < 2) return
+  const segments = styleConfig.value.trail_segments ?? []
+  const nextSegments = segments.map(segment => {
+    if (segment.id !== segId || !isGeometryBackedSegment(segment)) return segment
+    const geometryPatch = buildGeometryBackedSegmentPatch(coords)
+    const { label_lnglat: _labelLngLat, ...rest } = segment
+    const nextBends = normalizedSegmentBendsForCoords(bends ?? segment.bends, coords.length)
+    return {
+      ...rest,
+      ...geometryPatch,
+      bends: nextBends,
+      section_start: segment.section_start,
+      section_end: segment.section_end,
+    }
+  })
+  styleConfig.value = { ...styleConfig.value, trail_segments: nextSegments }
+}
+
 function onRequestBrushDelete() {
   deleteBrushActive.value = !deleteBrushActive.value
   if (deleteBrushActive.value) {
     plotMode.value = null
+    segmentDrawMode.value = null
+    segmentEditMode.value = null
     pendingDeleteStart.value = null
   }
 }
@@ -533,6 +674,10 @@ function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
 }
 
 function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }) {
+  if (payload.map_frozen) {
+    segmentDrawMode.value = null
+    segmentEditMode.value = null
+  }
   setStyle(payload)
   emit('freeze-changed', payload)
 }

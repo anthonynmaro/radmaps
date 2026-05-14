@@ -172,6 +172,8 @@ export const FIELD_LAYER = {
   leader_label_scale: 'map',
   leader_label_auto_fit: 'map',
   leader_label_font_family: 'map',
+  trail_show_stats: 'map',
+  trail_show_elevation_gain: 'map',
 
   // ── Elevation profile (drawn on the map raster) ───────────────────────────
   show_elevation_profile: 'map',

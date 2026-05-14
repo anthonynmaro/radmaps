@@ -213,7 +213,7 @@ export interface TrailSegment {
   name: string
   color: string
   visible: boolean
-  source?: 'route-slice' | 'uploaded-track'
+  source?: 'route-slice' | 'uploaded-track' | 'drawn-track'
   geojson?: GeoJSON.FeatureCollection
   bbox?: [number, number, number, number]
   stats?: RouteStats
@@ -222,7 +222,11 @@ export interface TrailSegment {
   section_end: number             // 0–100
   width?: number                  // line width in px, defaults to route_width
   opacity?: number                // default: 0.9
+  smooth?: number                 // 0–10 moving-average smoothing strength
+  bend?: number                   // legacy/global curve strength fallback, -1–1
+  bends?: number[]                // per-stretch curve strength between editable points, -1–1
   dash?: boolean                  // dashed line style
+  color_mode?: 'solid' | 'gradient'
   label_lnglat?: [number, number] // user-dragged label position (lng/lat)
 }
 
@@ -340,6 +344,8 @@ export interface StyleConfig {
   leader_label_scale?: number     // font size multiplier for leader line labels, default: 1.0
   leader_label_auto_fit?: boolean  // auto-reduces leader label type so dense labels fit
   leader_label_font_family?: FontFamily
+  trail_show_stats?: boolean
+  trail_show_elevation_gain?: boolean
   // Elevation profile (SVG chart overlaid at bottom of map area)
   show_elevation_profile?: boolean
   elevation_profile_color?: string    // default: route_color
@@ -437,6 +443,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   segment_casing_color: '#FFFFFF',
   segment_dot_size: 1.5,
   leader_label_auto_fit: true,
+  trail_show_stats: false,
+  trail_show_elevation_gain: true,
   map_3d: false,
   map_pitch: 0,
   map_bearing: 0,

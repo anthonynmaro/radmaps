@@ -170,9 +170,9 @@
         <div class="control-pill">
           <button
             class="control-btn"
-            :disabled="!canUndo"
+            :disabled="segmentDrawMode ? !canUndoSegmentDrawPoint : !canUndo"
             title="Undo (⌘Z)"
-            @click="emit('undo')"
+            @click="requestUndo"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
               <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.061.025z" clip-rule="evenodd"/>
@@ -181,7 +181,7 @@
           <span class="control-divider"/>
           <button
             class="control-btn"
-            :disabled="!canRedo"
+            :disabled="segmentDrawMode ? true : !canRedo"
             title="Redo (⌘⇧Z)"
             @click="emit('redo')"
           >
@@ -399,6 +399,47 @@
           >Cancel</button>
         </div>
 
+        <!-- Segment draw overlay — point-to-point drawing for geometry-backed segments -->
+        <div
+          v-if="segmentDrawMode"
+          class="absolute top-0 inset-x-0 z-20 flex items-center justify-between pointer-events-none"
+          style="padding: 0.8cqh 1.4cqw; background: linear-gradient(to bottom, rgba(45,106,79,0.66) 0%, transparent 100%);"
+        >
+          <span style="color: white; font-size: 0.85cqh; font-weight: 700; letter-spacing: 0.06em; text-shadow: 0 1px 3px rgba(0,0,0,0.4);">
+            {{ segmentDrawMode.type === 'new'
+              ? `Click points to draw segment · ${segmentDrawPointCount} point${segmentDrawPointCount === 1 ? '' : 's'}`
+              : `Click points to extend ${segmentDrawMode.end} · ${segmentDrawPointCount} point${segmentDrawPointCount === 1 ? '' : 's'}` }}
+          </span>
+          <div class="pointer-events-auto flex items-center gap-1.5">
+            <button
+              style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 700; cursor: pointer; backdrop-filter: blur(4px);"
+              :disabled="!canFinishSegmentDraw"
+              @click="finishSegmentDraw"
+            >Done</button>
+            <button
+              style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 600; cursor: pointer; backdrop-filter: blur(4px);"
+              @click="emit('segment-draw-cancelled')"
+            >Cancel</button>
+          </div>
+        </div>
+
+        <!-- Segment point editing overlay -->
+        <div
+          v-if="segmentEditMode"
+          class="absolute top-0 inset-x-0 z-20 flex items-center justify-between pointer-events-none"
+          style="padding: 0.8cqh 1.4cqw; background: linear-gradient(to bottom, rgba(45,106,79,0.66) 0%, transparent 100%);"
+        >
+          <span style="color: white; font-size: 0.85cqh; font-weight: 700; letter-spacing: 0.06em; text-shadow: 0 1px 3px rgba(0,0,0,0.4);">
+            Drag points to edit track · {{ segmentEditPointCount }} point{{ segmentEditPointCount === 1 ? '' : 's' }}
+          </span>
+          <div class="pointer-events-auto flex items-center gap-1.5">
+            <button
+              style="background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; padding: 3px 9px; font-size: 0.75cqh; font-weight: 700; cursor: pointer; backdrop-filter: blur(4px);"
+              @click="emit('segment-edit-cancelled')"
+            >Save</button>
+          </div>
+        </div>
+
         <!-- Brush delete overlay — preview stays local until Apply -->
         <div
           v-if="deleteBrushActive"
@@ -459,8 +500,11 @@
             :key="seg.id"
             class="legend-item"
           >
-            <div class="legend-swatch" :style="{ backgroundColor: seg.color }" />
-            <span class="legend-label" :style="legendLabelStyle">{{ seg.name }}</span>
+            <div class="legend-swatch" :style="segmentSwatchStyle(seg)" />
+            <span class="legend-text">
+              <span class="legend-label" :style="legendLabelStyle">{{ seg.name }}</span>
+              <span v-if="segmentMetaText(seg)" class="legend-meta" :style="legendMetaStyle">{{ segmentMetaText(seg) }}</span>
+            </span>
           </div>
         </div>
 
@@ -535,13 +579,23 @@
                 paint-order="stroke fill"
                 font-weight="700"
                 letter-spacing="0.1em"
-                dominant-baseline="middle"
+                :dominant-baseline="item.meta ? 'auto' : 'middle'"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
                 @pointerdown.stop="editable && startLeaderDrag($event, item.id)"
                 @pointermove="isLeaderDragActive(item.id) && onLeaderDragMove($event)"
                 @pointerup="isLeaderDragActive(item.id) && onLeaderDragEnd($event)"
                 @pointercancel="cancelLeaderDrag"
-              >{{ item.name }}</text>
+              >
+                <tspan :x="item.labelX" :dy="item.meta ? '-0.35em' : '0'">{{ item.name }}</tspan>
+                <tspan
+                  v-if="item.meta"
+                  :x="item.labelX"
+                  dy="1.25em"
+                  :font-size="item.fontSize * 0.72"
+                  font-weight="600"
+                  letter-spacing="0.04em"
+                >{{ item.meta }}</tspan>
+              </text>
             </template>
           </g>
         </svg>
@@ -905,14 +959,14 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
-import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes } from '~/utils/trail'
+import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
-import type { ChromeBand, ChromeBandId, ChromeBlock, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TextOverlay } from '~/types'
+import type { ChromeBand, ChromeBandId, ChromeBlock, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -925,6 +979,11 @@ interface PrintContext {
   cssHeightPx: number
   deviceScaleFactor: number
 }
+
+type SegmentDrawMode =
+  | { type: 'new' }
+  | { type: 'extend'; segId: string; end: 'start' | 'end' }
+type SegmentEditMode = { segId: string }
 
 const props = defineProps<{
   map: TrailMap
@@ -939,6 +998,10 @@ const props = defineProps<{
   deleteBrushActive?: boolean
   /** Brush radius in screen pixels for route deletion selection */
   deleteBrushSize?: number
+  /** When set, click points on the map to draw or extend a geometry-backed segment */
+  segmentDrawMode?: SegmentDrawMode | null
+  /** When set, drag existing points to reshape a geometry-backed segment */
+  segmentEditMode?: SegmentEditMode | null
   canUndo?: boolean
   canRedo?: boolean
 }>()
@@ -965,6 +1028,14 @@ const emit = defineEmits<{
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
   /** Fired when user cancels plot mode (Escape key or cancel button) */
   'plot-cancelled': []
+  /** Fired when user finishes drawing or extending a segment */
+  'segment-draw-finished': [payload: { mode: SegmentDrawMode; coords: Array<[number, number]> }]
+  /** Fired when user cancels segment draw mode */
+  'segment-draw-cancelled': []
+  /** Fired when user drag-edits a geometry-backed segment's coordinates */
+  'segment-geometry-edited': [payload: { segId: string; coords: number[][]; bends?: number[] }]
+  /** Fired when user exits segment point edit mode */
+  'segment-edit-cancelled': []
   /** Fired when user applies a brush-selected route deletion preview */
   'route-delete-brush-applied': [payload: { ranges: DeletedRange[] }]
   /** Fired when user cancels brush route deletion */
@@ -1030,6 +1101,23 @@ let styleReloadCameraHoldTimer: ReturnType<typeof setTimeout> | null = null
 let plotGhostMarker: maplibregl.Marker | null = null
 let plotAnimFrame = 0
 let plotRouteCoords: number[][] = []
+let segmentDrawDisabledDoubleClickZoom = false
+const segmentDrawCoords = ref<Array<[number, number]>>([])
+const segmentDrawPointCount = computed(() => segmentDrawCoords.value.length)
+const canUndoSegmentDrawPoint = computed(() => Boolean(props.segmentDrawMode && segmentDrawCoords.value.length > 0))
+const segmentEditCoords = ref<number[][]>([])
+const segmentEditBends = ref<number[]>([])
+const segmentEditPointCount = computed(() => segmentEditCoords.value.length)
+let segmentEditDragIndex: number | null = null
+let segmentEditDragChanged = false
+let segmentBendDrag: { index: number; startSignedPx: number; initialBend: number } | null = null
+let segmentBendDragChanged = false
+const canFinishSegmentDraw = computed(() => {
+  if (!props.segmentDrawMode) return false
+  return props.segmentDrawMode.type === 'new'
+    ? segmentDrawCoords.value.length >= 2
+    : segmentDrawCoords.value.length >= 1
+})
 
 // ── Tile effect protocol (styledtile://) ──────────────────────────────────────
 // Intercepts raster tile fetches and applies per-pixel colour transforms:
@@ -3041,6 +3129,29 @@ const visibleNamedSegments = computed(() =>
   (props.styleConfig.trail_segments ?? []).filter(s => s.visible && s.name),
 )
 
+function segmentResolvedCoords(seg: NonNullable<typeof props.styleConfig.trail_segments>[number]): number[][] {
+  const primary = props.map.geojson as GeoJSON.FeatureCollection | undefined
+  if (!primary) return []
+  return getAllRouteCoords(resolveTrailSegmentGeojson(primary, seg, props.styleConfig.route_deleted_ranges ?? []))
+}
+
+function segmentMetaText(seg: NonNullable<typeof props.styleConfig.trail_segments>[number]): string {
+  if (!props.styleConfig.trail_show_stats) return ''
+  const coords = segmentResolvedCoords(seg)
+  if (coords.length < 2) return ''
+  const stats = routeStatsForCoords(coords)
+  const distanceMi = stats.distance_km * 0.621371
+  const distance = distanceMi < 100 ? `${distanceMi.toFixed(2)} mi` : `${distanceMi.toFixed(1)} mi`
+  if (props.styleConfig.trail_show_elevation_gain === false || !coordsHaveElevation(coords)) return distance
+  return `${distance} · ${Math.round(stats.elevation_gain_m * 3.28084).toLocaleString()} ft gain`
+}
+
+function segmentSwatchStyle(seg: NonNullable<typeof props.styleConfig.trail_segments>[number]) {
+  return seg.color_mode === 'gradient'
+    ? { background: 'linear-gradient(to right, #4F8EF7, #52B788 28%, #F4A261 60%, #E76F51 82%, #C1121F)' }
+    : { backgroundColor: seg.color }
+}
+
 const showTrailLegend = computed(() =>
   props.styleConfig.trail_legend?.show !== false &&
   visibleNamedSegments.value.length > 0 &&
@@ -3087,6 +3198,15 @@ const legendLabelStyle = computed(() => ({
   opacity: '0.85',
 }))
 
+const legendMetaStyle = computed(() => ({
+  fontFamily: typography.value.statsFont,
+  fontWeight: '500',
+  fontSize: '0.58cqh',
+  letterSpacing: '0.04em',
+  color: fg.value,
+  opacity: '0.62',
+}))
+
 // ── Vignette + grain computed values ─────────────────────────────────────────
 
 const vignetteStyle = computed(() => {
@@ -3109,6 +3229,7 @@ const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
 interface LeaderItem {
   id: string
   name: string
+  meta?: string
   color: string
   fontSize: number
   dotX: number
@@ -3167,6 +3288,13 @@ function estimateSvgTextWidth(text: string, fontSize: number, fontFamily: string
   ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
   const letterSpacing = Math.max(0, label.length - 1) * fontSize * letterSpacingEm
   return ctx.measureText(label).width + letterSpacing
+}
+
+function estimateLeaderLabelWidth(name: string, meta: string | undefined, fontSize: number, fontFamily: string): number {
+  const nameWidth = estimateSvgTextWidth(name, fontSize, fontFamily, 700, 0.1)
+  if (!meta) return nameWidth
+  const metaWidth = estimateSvgTextWidth(meta, fontSize * 0.72, fontFamily, 600, 0.04)
+  return Math.max(nameWidth, metaWidth)
 }
 
 function clampValue(value: number, min: number, max: number): number {
@@ -3316,10 +3444,9 @@ function recomputeOverlays() {
     leaderLineItems.value = leaderLineItems.value.map(item => {
       const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === item.id)
       if (!seg) return item
-      const allC   = getAllRouteCoords(segmentSourceGeojson(props.map.geojson as GeoJSON.FeatureCollection, seg))
-      const idx    = Math.min(Math.floor(allC.length * seg.section_start / 100), allC.length - 1)
-      if (idx < 0) return item
-      const pt = instance.project([allC[idx][0], allC[idx][1]] as [number, number])
+      const allC = segmentResolvedCoords(seg)
+      if (!allC.length) return item
+      const pt = instance.project([allC[0][0], allC[0][1]] as [number, number])
       return { ...item, dotX: pt.x, dotY: pt.y }
     })
     return
@@ -3327,6 +3454,7 @@ function recomputeOverlays() {
 
   interface Candidate {
     seg: NonNullable<typeof props.styleConfig.trail_segments>[number]
+    meta?: string
     dotX: number
     dotY: number
     labelWidth: number
@@ -3338,11 +3466,11 @@ function recomputeOverlays() {
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible || !seg.name) continue
-    const allCoords = getAllRouteCoords(segmentSourceGeojson(props.map.geojson as GeoJSON.FeatureCollection, seg))
-    const idx = Math.min(Math.floor(allCoords.length * seg.section_start / 100), allCoords.length - 1)
-    if (idx < 0) continue
-    const [lng, lat] = allCoords[idx]
+    const resolvedCoords = segmentResolvedCoords(seg)
+    if (!resolvedCoords.length) continue
+    const [lng, lat] = resolvedCoords[0]
     const pt = mapInstance.project([lng, lat])
+    const meta = segmentMetaText(seg)
     // Include segments slightly off-screen too (leader line still useful)
     if (pt.x < -W * 0.5 || pt.x > W * 1.5 || pt.y < -H * 0.5 || pt.y > H * 1.5) continue
 
@@ -3361,6 +3489,7 @@ function recomputeOverlays() {
       manualItems.push({
         id: seg.id,
         name: seg.name,
+        meta,
         color: seg.color,
         fontSize: labelFontSize,
         dotX: pt.x,
@@ -3372,9 +3501,10 @@ function recomputeOverlays() {
 
     candidates.push({
       seg,
+      meta,
       dotX: pt.x,
       dotY: pt.y,
-      labelWidth: estimateSvgTextWidth(seg.name, labelFontSize, fontFamily, 700, 0.1),
+      labelWidth: estimateLeaderLabelWidth(seg.name, meta, labelFontSize, fontFamily),
     })
   }
 
@@ -3411,14 +3541,14 @@ function recomputeOverlays() {
   rightCandidates.sort((a, b) => a.dotY - b.dotY)
 
   const fitLabelNames = [
-    ...candidates.map(c => c.seg.name),
-    ...manualItems.map(item => item.name),
+    ...candidates.map(c => ({ name: c.seg.name, meta: c.meta })),
+    ...manualItems.map(item => ({ name: item.name, meta: item.meta })),
   ]
 
   if (props.styleConfig.leader_label_auto_fit !== false && fitLabelNames.length) {
     const maxMeasuredWidth = Math.max(
       0,
-      ...fitLabelNames.map(name => estimateSvgTextWidth(name, labelFontSize, fontFamily, 700, 0.1)),
+      ...fitLabelNames.map(label => estimateLeaderLabelWidth(label.name, label.meta, labelFontSize, fontFamily)),
     )
     const maxSideCount = Math.max(leftCandidates.length, rightCandidates.length, Math.ceil(fitLabelNames.length / 2))
     const widthLimit = maxMeasuredWidth > 0 ? labelFontSize * (W * 0.34) / maxMeasuredWidth : labelFontSize
@@ -3429,7 +3559,7 @@ function recomputeOverlays() {
     if (fittedFontSize < labelFontSize) {
       labelFontSize = fittedFontSize
       for (const c of candidates) {
-        c.labelWidth = estimateSvgTextWidth(c.seg.name, labelFontSize, fontFamily, 700, 0.1)
+        c.labelWidth = estimateLeaderLabelWidth(c.seg.name, c.meta, labelFontSize, fontFamily)
       }
       for (const item of manualItems) item.fontSize = labelFontSize
     }
@@ -3451,7 +3581,7 @@ function recomputeOverlays() {
 
     const minY = vMargin
     const maxY = H - vMargin
-    const minGap = Math.max(posterContentMinPx(15), labelFontSize * 1.45)
+    const minGap = Math.max(posterContentMinPx(15), labelFontSize * (props.styleConfig.trail_show_stats ? 2.05 : 1.45))
     const ys = cands.map(c => clampValue(c.dotY, minY, maxY))
 
     for (let i = 1; i < ys.length; i++) {
@@ -3482,11 +3612,11 @@ function recomputeOverlays() {
 
   for (let i = 0; i < leftCandidates.length; i++) {
     const c = leftCandidates[i]
-    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: leftX, labelY: leftYs[i], anchor: 'end' })
+    items.push({ id: c.seg.id, name: c.seg.name, meta: c.meta, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: leftX, labelY: leftYs[i], anchor: 'end' })
   }
   for (let i = 0; i < rightCandidates.length; i++) {
     const c = rightCandidates[i]
-    items.push({ id: c.seg.id, name: c.seg.name, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: rightX, labelY: rightYs[i], anchor: 'start' })
+    items.push({ id: c.seg.id, name: c.seg.name, meta: c.meta, color: c.seg.color, fontSize: labelFontSize, dotX: c.dotX, dotY: c.dotY, labelX: rightX, labelY: rightYs[i], anchor: 'start' })
   }
 
   leaderLineItems.value = items
@@ -3932,25 +4062,66 @@ function populateRouteSource() {
   else mapInstance.addSource('route', { type: 'geojson', data: geojson })
 }
 
+function lineMetricsSafeGeojson(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  const lines: number[][][] = []
+  for (const feature of geojson.features) {
+    const geometry = feature.geometry
+    if (geometry.type === 'LineString' && geometry.coordinates.length >= 2) {
+      lines.push(geometry.coordinates as number[][])
+    } else if (geometry.type === 'MultiLineString') {
+      for (const line of geometry.coordinates) {
+        if (line.length >= 2) lines.push(line as number[][])
+      }
+    }
+  }
+  if (lines.length <= 1) return geojson
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'MultiLineString', coordinates: lines },
+    }],
+  }
+}
+
 function populateSegmentSources() {
   if (!mapInstance) return
   const handleFeatures: GeoJSON.Feature[] = []
 
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible) continue
-    const sliced = resolveTrailSegmentGeojson(
-      props.map.geojson as GeoJSON.FeatureCollection,
-      seg,
-      props.styleConfig.route_deleted_ranges ?? [],
-    )
+    const isActiveEditSegment = props.segmentEditMode?.segId === seg.id && segmentEditCoords.value.length >= 2
+    const rendered = isActiveEditSegment
+      ? activeSegmentEditLineGeojson()
+      : smoothGeojson(
+          bendSegmentGeojson(
+            resolveTrailSegmentGeojson(
+              props.map.geojson as GeoJSON.FeatureCollection,
+              seg,
+              props.styleConfig.route_deleted_ranges ?? [],
+            ),
+            seg.bend ?? 0,
+            seg.bends,
+          ),
+          seg.smooth ?? 0,
+        )
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
-    if (src) src.setData(sliced)
+  if (src) src.setData(seg.color_mode === 'gradient' ? lineMetricsSafeGeojson(rendered) : rendered)
 
-    handleFeatures.push(...trailSegmentEndpointFeatures(sliced, seg.color))
+    handleFeatures.push(...trailSegmentEndpointFeatures(rendered, seg.color))
   }
 
   const handleSrc = mapInstance.getSource('segment-handles') as maplibregl.GeoJSONSource | undefined
   if (handleSrc) handleSrc.setData({ type: 'FeatureCollection', features: handleFeatures })
+}
+
+function activeSegmentEditLineGeojson(): GeoJSON.FeatureCollection {
+  const base = lineStringFeatureCollection(segmentEditCoords.value)
+  if (!segmentBendDrag) return base
+  const bends = Array(Math.max(0, segmentEditCoords.value.length - 1)).fill(0)
+  bends[segmentBendDrag.index] = segmentEditBends.value[segmentBendDrag.index] ?? 0
+  return bendSegmentGeojson(base, 0, bends)
 }
 
 // ── Start / finish pin markers ────────────────────────────────────────────────
@@ -4197,8 +4368,8 @@ watch(
     const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
 
     // Segment source/layer structure changes when segment IDs are added/removed
-    const newSegIds = (newConfig.trail_segments ?? []).map(s => `${s.id}:${s.visible}`).join(',')
-    const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => `${s.id}:${s.visible}`).join(',')
+    const newSegIds = (newConfig.trail_segments ?? []).map(s => `${s.id}:${s.visible}:${s.color_mode ?? 'solid'}`).join(',')
+    const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => `${s.id}:${s.visible}:${s.color_mode ?? 'solid'}`).join(',')
     const segStructureChanged = newSegIds !== oldSegIds
 
     const needsFullReload = tileKeyChanged || segStructureChanged || fullReloadKeysFor(newConfig).some(
@@ -4228,6 +4399,8 @@ watch(
         if (props.editable) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
+        if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
+        if (props.segmentEditMode) nextTick(syncSegmentEditSources)
       })
       return
     }
@@ -4246,12 +4419,14 @@ watch(
         mapInstance.setLayoutProperty(casingId, 'visibility', vis)
         if (seg.visible) {
           const width = seg.width ?? newConfig.route_width ?? 2
-          mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
+          if (seg.color_mode !== 'gradient') mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
           mapInstance.setPaintProperty(lineId, 'line-width', width)
           mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
           mapInstance.setPaintProperty(casingId, 'line-width', width + (newConfig.segment_casing_width ?? 3))
         }
       }
+      applyViewportScaledLayerProperties(newConfig)
+      if (props.segmentEditMode) nextTick(reloadSegmentEditCoordsFromStyle)
       nextTick(recomputeOverlays)
     }
 
@@ -4357,6 +4532,8 @@ watch(
     // Recompute SVG overlay when label-affecting config changes
     if (
       newConfig.trail_label_style   !== oldConfig?.trail_label_style   ||
+      newConfig.trail_show_stats !== oldConfig?.trail_show_stats ||
+      newConfig.trail_show_elevation_gain !== oldConfig?.trail_show_elevation_gain ||
       newConfig.start_pin_label     !== oldConfig?.start_pin_label     ||
       newConfig.finish_pin_label    !== oldConfig?.finish_pin_label    ||
       newConfig.pin_font_family     !== oldConfig?.pin_font_family     ||
@@ -4677,6 +4854,548 @@ watch(
   },
 )
 
+// ── Segment draw mode: freehand point-to-point segment creation/extension ─────
+
+function drawModeAnchorCoord(): [number, number] | null {
+  const mode = props.segmentDrawMode
+  if (!mode || mode.type !== 'extend') return null
+  const seg = (props.styleConfig.trail_segments ?? []).find(segment => segment.id === mode.segId)
+  if (!seg?.geojson) return null
+  const coords = getAllRouteCoords(seg.geojson)
+  if (!coords.length) return null
+  const coord = mode.end === 'start' ? coords[0] : coords[coords.length - 1]
+  return [coord[0], coord[1]]
+}
+
+function ensureSegmentDrawLayers() {
+  if (!mapInstance) return
+  if (!mapInstance.getSource('segment-draw-line')) {
+    mapInstance.addSource('segment-draw-line', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!mapInstance.getSource('segment-draw-points')) {
+    mapInstance.addSource('segment-draw-points', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!mapInstance.getLayer('segment-draw-line')) {
+    mapInstance.addLayer({
+      id: 'segment-draw-line',
+      type: 'line',
+      source: 'segment-draw-line',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#2D6A4F',
+        'line-width': 3,
+        'line-opacity': 0.95,
+        'line-dasharray': [2, 1],
+      },
+    })
+  }
+  if (!mapInstance.getLayer('segment-draw-points-halo')) {
+    mapInstance.addLayer({
+      id: 'segment-draw-points-halo',
+      type: 'circle',
+      source: 'segment-draw-points',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#FFFFFF',
+        'circle-opacity': 0.9,
+      },
+    })
+  }
+  if (!mapInstance.getLayer('segment-draw-points')) {
+    mapInstance.addLayer({
+      id: 'segment-draw-points',
+      type: 'circle',
+      source: 'segment-draw-points',
+      paint: {
+        'circle-radius': 4.5,
+        'circle-color': '#2D6A4F',
+        'circle-stroke-color': '#FFFFFF',
+        'circle-stroke-width': 1.5,
+      },
+    })
+  }
+}
+
+function segmentDrawPreviewCoords(): Array<[number, number]> {
+  const anchor = drawModeAnchorCoord()
+  return anchor ? [anchor, ...segmentDrawCoords.value] : segmentDrawCoords.value
+}
+
+function syncSegmentDrawSources() {
+  if (!mapInstance) return
+  ensureSegmentDrawLayers()
+  const previewCoords = segmentDrawPreviewCoords()
+  const line = previewCoords.length >= 2
+    ? lineStringFeatureCollection(previewCoords)
+    : { type: 'FeatureCollection' as const, features: [] }
+  const points = {
+    type: 'FeatureCollection' as const,
+    features: previewCoords.map((coord, idx) => ({
+      type: 'Feature' as const,
+      properties: { idx },
+      geometry: { type: 'Point' as const, coordinates: coord },
+    })),
+  }
+  const lineSource = mapInstance.getSource('segment-draw-line') as maplibregl.GeoJSONSource | undefined
+  const pointsSource = mapInstance.getSource('segment-draw-points') as maplibregl.GeoJSONSource | undefined
+  lineSource?.setData(line)
+  pointsSource?.setData(points)
+}
+
+function clearSegmentDrawSources() {
+  const empty = { type: 'FeatureCollection' as const, features: [] }
+  const lineSource = mapInstance?.getSource('segment-draw-line') as maplibregl.GeoJSONSource | undefined
+  const pointsSource = mapInstance?.getSource('segment-draw-points') as maplibregl.GeoJSONSource | undefined
+  lineSource?.setData(empty)
+  pointsSource?.setData(empty)
+}
+
+function onSegmentDrawClick(e: maplibregl.MapMouseEvent) {
+  if (!props.segmentDrawMode) return
+  segmentDrawCoords.value = [...segmentDrawCoords.value, [e.lngLat.lng, e.lngLat.lat]]
+  syncSegmentDrawSources()
+}
+
+function onSegmentDrawDoubleClick(e: maplibregl.MapMouseEvent) {
+  e.preventDefault()
+  if (canFinishSegmentDraw.value) finishSegmentDraw()
+}
+
+function undoSegmentDrawPoint() {
+  if (!canUndoSegmentDrawPoint.value) return false
+  segmentDrawCoords.value = segmentDrawCoords.value.slice(0, -1)
+  syncSegmentDrawSources()
+  return true
+}
+
+function finishSegmentDraw() {
+  if (!props.segmentDrawMode || !canFinishSegmentDraw.value) return
+  emit('segment-draw-finished', {
+    mode: props.segmentDrawMode,
+    coords: [...segmentDrawCoords.value],
+  })
+}
+
+function onSegmentDrawKeydown(e: KeyboardEvent) {
+  if (!props.segmentDrawMode) return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    emit('segment-draw-cancelled')
+  } else if (e.key === 'Backspace' || e.key === 'Delete') {
+    e.preventDefault()
+    undoSegmentDrawPoint()
+  } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault()
+    undoSegmentDrawPoint()
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    finishSegmentDraw()
+  }
+}
+
+watch(
+  () => props.segmentDrawMode,
+  (mode, prevMode) => {
+    if (!mapInstance) return
+    if (prevMode) {
+      mapInstance.getCanvas().style.cursor = ''
+      mapInstance.off('click', onSegmentDrawClick)
+      mapInstance.off('dblclick', onSegmentDrawDoubleClick)
+      if (segmentDrawDisabledDoubleClickZoom) {
+        mapInstance.doubleClickZoom.enable()
+        segmentDrawDisabledDoubleClickZoom = false
+      }
+      document.removeEventListener('keydown', onSegmentDrawKeydown)
+      segmentDrawCoords.value = []
+      clearSegmentDrawSources()
+    }
+    if (!mode) return
+
+    mapInstance.getCanvas().style.cursor = 'crosshair'
+    if (mapInstance.doubleClickZoom.isEnabled()) {
+      mapInstance.doubleClickZoom.disable()
+      segmentDrawDisabledDoubleClickZoom = true
+    }
+    ensureSegmentDrawLayers()
+    segmentDrawCoords.value = []
+    syncSegmentDrawSources()
+    mapInstance.on('click', onSegmentDrawClick)
+    mapInstance.on('dblclick', onSegmentDrawDoubleClick)
+    document.addEventListener('keydown', onSegmentDrawKeydown)
+  },
+)
+
+// ── Segment point edit mode: drag existing geometry-backed track vertices ─────
+
+function currentEditSegment() {
+  const mode = props.segmentEditMode
+  if (!mode) return null
+  return (props.styleConfig.trail_segments ?? []).find(segment => segment.id === mode.segId) ?? null
+}
+
+function setSegmentEditInteractions(enabled: boolean) {
+  if (!mapInstance) return
+  if (enabled) {
+    mapInstance.dragPan.enable()
+    mapInstance.touchZoomRotate.enable()
+    return
+  }
+  mapInstance.dragPan.disable()
+  mapInstance.touchZoomRotate.disable()
+}
+
+function loadSegmentEditCoords() {
+  const seg = currentEditSegment()
+  segmentEditCoords.value = seg?.geojson ? normalizeLineCoords(seg.geojson) : []
+  segmentEditBends.value = normalizedSegmentEditBends(seg, segmentEditCoords.value.length)
+}
+
+function reloadSegmentEditCoordsFromStyle() {
+  if (!props.segmentEditMode || segmentEditDragIndex != null || segmentBendDrag) return
+  loadSegmentEditCoords()
+  syncSegmentEditSources()
+}
+
+function normalizedSegmentEditBends(seg: TrailSegment | null, coordCount: number): number[] {
+  const edgeCount = Math.max(0, coordCount - 1)
+  const values = Array(edgeCount).fill(0)
+  const fallback = typeof seg?.bend === 'number' && Number.isFinite(seg.bend)
+    ? Math.max(-1, Math.min(1, seg.bend))
+    : 0
+  for (let i = 0; i < edgeCount; i++) {
+    const raw = seg?.bends?.[i] ?? fallback
+    values[i] = Number.isFinite(raw) ? Math.max(-1, Math.min(1, raw)) : 0
+  }
+  return values
+}
+
+function normalizeBendsForCoords(bends: number[], coordCount: number): number[] {
+  return sanitizeSegmentBends(bends, Math.max(0, coordCount - 1))
+}
+
+function ensureSegmentEditLayers() {
+  if (!mapInstance) return
+  if (!mapInstance.getSource('segment-edit-bend-hit')) {
+    mapInstance.addSource('segment-edit-bend-hit', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!mapInstance.getSource('segment-edit-points')) {
+    mapInstance.addSource('segment-edit-points', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!mapInstance.getLayer('segment-edit-bend-hit')) {
+    mapInstance.addLayer({
+      id: 'segment-edit-bend-hit',
+      type: 'line',
+      source: 'segment-edit-bend-hit',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#2D6A4F',
+        'line-opacity': 0.01,
+        'line-width': 20,
+      },
+    })
+  }
+  if (!mapInstance.getLayer('segment-edit-points-halo')) {
+    mapInstance.addLayer({
+      id: 'segment-edit-points-halo',
+      type: 'circle',
+      source: 'segment-edit-points',
+      paint: {
+        'circle-radius': 7,
+        'circle-color': '#FFFFFF',
+        'circle-opacity': 0.9,
+      },
+    })
+  }
+  if (!mapInstance.getLayer('segment-edit-points')) {
+    mapInstance.addLayer({
+      id: 'segment-edit-points',
+      type: 'circle',
+      source: 'segment-edit-points',
+      paint: {
+        'circle-radius': 4.25,
+        'circle-color': '#2D6A4F',
+        'circle-stroke-color': '#FFFFFF',
+        'circle-stroke-width': 1.4,
+      },
+    })
+  }
+}
+
+function segmentEditPointCollection(): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: segmentEditCoords.value.map((coord, idx) => ({
+      type: 'Feature' as const,
+      properties: { idx },
+      geometry: { type: 'Point' as const, coordinates: [coord[0], coord[1]] },
+    })),
+  }
+}
+
+function syncSegmentEditSources() {
+  if (!mapInstance || !props.segmentEditMode) return
+  ensureSegmentEditLayers()
+  const pointsSource = mapInstance.getSource('segment-edit-points') as maplibregl.GeoJSONSource | undefined
+  const bendHitSource = mapInstance.getSource('segment-edit-bend-hit') as maplibregl.GeoJSONSource | undefined
+  bendHitSource?.setData(activeSegmentEditLineGeojson())
+  pointsSource?.setData(segmentEditPointCollection())
+
+  const seg = currentEditSegment()
+  if (!seg) return
+  const source = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
+  if (source && segmentEditCoords.value.length >= 2) {
+    source.setData(activeSegmentEditLineGeojson())
+  }
+}
+
+function clearSegmentEditSources() {
+  const empty = { type: 'FeatureCollection' as const, features: [] }
+  const pointsSource = mapInstance?.getSource('segment-edit-points') as maplibregl.GeoJSONSource | undefined
+  const bendHitSource = mapInstance?.getSource('segment-edit-bend-hit') as maplibregl.GeoJSONSource | undefined
+  pointsSource?.setData(empty)
+  bendHitSource?.setData(empty)
+  if (mapInstance) populateSegmentSources()
+}
+
+function pointIndexFromFeature(feature: maplibregl.MapGeoJSONFeature | undefined): number | null {
+  const raw = feature?.properties?.idx
+  const idx = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isInteger(idx) && idx >= 0 ? idx : null
+}
+
+function screenSegmentMetrics(index: number) {
+  if (!mapInstance) return null
+  const a = segmentEditCoords.value[index]
+  const b = segmentEditCoords.value[index + 1]
+  if (!a || !b) return null
+  const pa = mapInstance.project([a[0], a[1]])
+  const pb = mapInstance.project([b[0], b[1]])
+  const dx = pb.x - pa.x
+  const dy = pb.y - pa.y
+  const len = Math.sqrt(dx * dx + dy * dy)
+  if (len < 1) return null
+  return {
+    midX: (pa.x + pb.x) / 2,
+    midY: (pa.y + pb.y) / 2,
+    len,
+    normalX: -dy / len,
+    normalY: dx / len,
+  }
+}
+
+function signedBendDistancePx(index: number, point: { x: number; y: number }): number {
+  const metrics = screenSegmentMetrics(index)
+  if (!metrics) return 0
+  return ((point.x - metrics.midX) * metrics.normalX) + ((point.y - metrics.midY) * metrics.normalY)
+}
+
+function distanceToScreenSegment(point: { x: number; y: number }, index: number): number {
+  if (!mapInstance) return Number.POSITIVE_INFINITY
+  const a = segmentEditCoords.value[index]
+  const b = segmentEditCoords.value[index + 1]
+  if (!a || !b) return Number.POSITIVE_INFINITY
+  const pa = mapInstance.project([a[0], a[1]])
+  const pb = mapInstance.project([b[0], b[1]])
+  const dx = pb.x - pa.x
+  const dy = pb.y - pa.y
+  const lenSq = dx * dx + dy * dy
+  if (!lenSq) return Math.hypot(point.x - pa.x, point.y - pa.y)
+  const t = Math.max(0, Math.min(1, (((point.x - pa.x) * dx) + ((point.y - pa.y) * dy)) / lenSq))
+  const x = pa.x + dx * t
+  const y = pa.y + dy * t
+  return Math.hypot(point.x - x, point.y - y)
+}
+
+function nearestEditStretchIndex(point: { x: number; y: number }): number | null {
+  let bestIndex: number | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (let index = 0; index < segmentEditCoords.value.length - 1; index++) {
+    const distance = distanceToScreenSegment(point, index)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestIndex = index
+    }
+  }
+  return bestIndex
+}
+
+function onSegmentEditMouseDown(e: maplibregl.MapLayerMouseEvent) {
+  if (!props.segmentEditMode) return
+  const idx = pointIndexFromFeature(e.features?.[0])
+  if (idx == null || idx >= segmentEditCoords.value.length) return
+  e.preventDefault()
+  segmentEditDragIndex = idx
+  segmentEditDragChanged = false
+  setSegmentEditInteractions(false)
+  mapInstance?.getCanvas().classList.add('segment-point-dragging')
+}
+
+function onSegmentPointMouseEnter() {
+  if (!segmentEditDragIndex && !segmentBendDrag) {
+    mapInstance?.getCanvas().classList.add('segment-point-hover')
+    mapInstance?.getCanvas().classList.remove('segment-point-bend-hover')
+  }
+}
+
+function onSegmentPointMouseLeave() {
+  if (!segmentEditDragIndex) mapInstance?.getCanvas().classList.remove('segment-point-hover')
+}
+
+function onSegmentBendMouseDown(e: maplibregl.MapLayerMouseEvent) {
+  if (!props.segmentEditMode || segmentEditDragIndex != null) return
+  const index = nearestEditStretchIndex(e.point)
+  if (index == null) return
+  e.preventDefault()
+  segmentBendDrag = {
+    index,
+    startSignedPx: signedBendDistancePx(index, e.point),
+    initialBend: segmentEditBends.value[index] ?? 0,
+  }
+  segmentBendDragChanged = false
+  setSegmentEditInteractions(false)
+  mapInstance?.getCanvas().classList.add('segment-point-dragging')
+}
+
+function onSegmentEditMouseMove(e: maplibregl.MapMouseEvent) {
+  if (props.segmentEditMode && segmentBendDrag) {
+    const metrics = screenSegmentMetrics(segmentBendDrag.index)
+    if (!metrics) return
+    const signed = signedBendDistancePx(segmentBendDrag.index, e.point)
+    const nextBend = Math.max(-1, Math.min(1, segmentBendDrag.initialBend + ((signed - segmentBendDrag.startSignedPx) / Math.max(24, metrics.len * 0.45))))
+    const next = normalizeBendsForCoords(segmentEditBends.value, segmentEditCoords.value.length)
+    next[segmentBendDrag.index] = Math.abs(nextBend) < 0.03 ? 0 : nextBend
+    segmentEditBends.value = next
+    segmentBendDragChanged = true
+    syncSegmentEditSources()
+    return
+  }
+  if (!props.segmentEditMode || segmentEditDragIndex == null) return
+  const current = segmentEditCoords.value[segmentEditDragIndex]
+  if (!current) return
+  const nextCoord = [e.lngLat.lng, e.lngLat.lat, ...(current[2] != null ? [current[2]] : [])]
+  const next = segmentEditCoords.value.slice()
+  next[segmentEditDragIndex] = nextCoord
+  segmentEditCoords.value = next
+  segmentEditDragChanged = true
+  syncSegmentEditSources()
+}
+
+function finishSegmentEditDrag() {
+  if (props.segmentEditMode && segmentEditDragIndex != null && segmentEditDragChanged) {
+    emit('segment-geometry-edited', {
+      segId: props.segmentEditMode.segId,
+      coords: segmentEditCoords.value.map(coord => coord.slice()),
+      bends: normalizeBendsForCoords(segmentEditBends.value, segmentEditCoords.value.length),
+    })
+  } else if (props.segmentEditMode && segmentBendDrag && segmentBendDragChanged) {
+    emit('segment-geometry-edited', {
+      segId: props.segmentEditMode.segId,
+      coords: segmentEditCoords.value.map(coord => coord.slice()),
+      bends: normalizeBendsForCoords(segmentEditBends.value, segmentEditCoords.value.length),
+    })
+  }
+  resetSegmentEditDrag()
+}
+
+function resetSegmentEditDrag() {
+  segmentEditDragIndex = null
+  segmentEditDragChanged = false
+  segmentBendDrag = null
+  segmentBendDragChanged = false
+  setSegmentEditInteractions(true)
+  mapInstance?.getCanvas().classList.remove('segment-point-dragging')
+  mapInstance?.getCanvas().classList.remove('segment-point-hover')
+  mapInstance?.getCanvas().classList.remove('segment-point-bend-hover')
+}
+
+function onSegmentBendMouseEnter() {
+  if (!segmentEditDragIndex && !segmentBendDrag && !mapInstance?.getCanvas().classList.contains('segment-point-hover')) {
+    mapInstance?.getCanvas().classList.add('segment-point-bend-hover')
+  }
+}
+
+function onSegmentBendMouseLeave() {
+  if (!segmentBendDrag) mapInstance?.getCanvas().classList.remove('segment-point-bend-hover')
+}
+
+function onSegmentEditKeydown(e: KeyboardEvent) {
+  if (!props.segmentEditMode) return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    emit('segment-edit-cancelled')
+  }
+}
+
+let activeSegmentEditSegId: string | null = null
+
+function deactivateSegmentEditMode() {
+  if (mapInstance && activeSegmentEditSegId) {
+    mapInstance.off('mousedown', 'segment-edit-points', onSegmentEditMouseDown)
+    mapInstance.off('mouseenter', 'segment-edit-points', onSegmentPointMouseEnter)
+    mapInstance.off('mouseleave', 'segment-edit-points', onSegmentPointMouseLeave)
+    mapInstance.off('mousedown', 'segment-edit-bend-hit', onSegmentBendMouseDown)
+    mapInstance.off('mouseenter', 'segment-edit-bend-hit', onSegmentBendMouseEnter)
+    mapInstance.off('mouseleave', 'segment-edit-bend-hit', onSegmentBendMouseLeave)
+    mapInstance.off('mousemove', onSegmentEditMouseMove)
+    clearSegmentEditSources()
+    mapInstance.getCanvas().style.cursor = ''
+    mapInstance.getCanvas().classList.remove('segment-point-hover')
+    mapInstance.getCanvas().classList.remove('segment-point-bend-hover')
+  }
+  document.removeEventListener('mouseup', finishSegmentEditDrag)
+  document.removeEventListener('keydown', onSegmentEditKeydown)
+  resetSegmentEditDrag()
+  segmentEditCoords.value = []
+  activeSegmentEditSegId = null
+}
+
+function activateSegmentEditMode() {
+  if (!mapInstance || !mapReady.value || !props.segmentEditMode) return
+  if (activeSegmentEditSegId === props.segmentEditMode.segId) {
+    reloadSegmentEditCoordsFromStyle()
+    return
+  }
+  deactivateSegmentEditMode()
+  loadSegmentEditCoords()
+  ensureSegmentEditLayers()
+  syncSegmentEditSources()
+  mapInstance.getCanvas().style.cursor = ''
+  mapInstance.on('mousedown', 'segment-edit-points', onSegmentEditMouseDown)
+  mapInstance.on('mouseenter', 'segment-edit-points', onSegmentPointMouseEnter)
+  mapInstance.on('mouseleave', 'segment-edit-points', onSegmentPointMouseLeave)
+  mapInstance.on('mousedown', 'segment-edit-bend-hit', onSegmentBendMouseDown)
+  mapInstance.on('mouseenter', 'segment-edit-bend-hit', onSegmentBendMouseEnter)
+  mapInstance.on('mouseleave', 'segment-edit-bend-hit', onSegmentBendMouseLeave)
+  mapInstance.on('mousemove', onSegmentEditMouseMove)
+  document.addEventListener('mouseup', finishSegmentEditDrag)
+  document.addEventListener('keydown', onSegmentEditKeydown)
+  activeSegmentEditSegId = props.segmentEditMode.segId
+}
+
+watch(
+  [() => props.segmentEditMode?.segId ?? null, () => mapReady.value],
+  ([segId, ready]) => {
+    if (!segId || !ready) {
+      deactivateSegmentEditMode()
+      return
+    }
+    activateSegmentEditMode()
+  },
+  { immediate: true },
+)
+
 // ── Plot mode: crosshair + ghost marker + click handler ───────────────────────
 
 function nearestRouteCoord(lngLat: maplibregl.LngLat): [number, number] {
@@ -4928,7 +5647,15 @@ function fitToRouteAndSegments(segmentBboxes: Array<[number, number, number, num
   window.setTimeout(emitCamera, 450)
 }
 
-defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments })
+function requestUndo() {
+  if (props.segmentDrawMode) {
+    undoSegmentDrawPoint()
+    return
+  }
+  emit('undo')
+}
+
+defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(
@@ -4946,6 +5673,9 @@ onUnmounted(() => {
   finishMarker?.remove()
   plotGhostMarker?.remove()
   document.removeEventListener('keydown', onPlotKeydown)
+  document.removeEventListener('keydown', onSegmentDrawKeydown)
+  document.removeEventListener('mouseup', finishSegmentEditDrag)
+  document.removeEventListener('keydown', onSegmentEditKeydown)
   cancelAnimationFrame(plotAnimFrame)
   if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
   mapInstance?.remove()
@@ -5758,6 +6488,29 @@ onUnmounted(() => {
   height: 0.35cqh;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12cqh;
+  min-width: 0;
+}
+
+.legend-meta {
+  white-space: nowrap;
+}
+
+:deep(.maplibregl-canvas.segment-point-dragging) {
+  cursor: grabbing !important;
+}
+
+:deep(.maplibregl-canvas.segment-point-hover) {
+  cursor: grab !important;
+}
+
+:deep(.maplibregl-canvas.segment-point-bend-hover) {
+  cursor: move !important;
 }
 
 .logo-map {

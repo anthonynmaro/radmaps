@@ -584,6 +584,20 @@
         <V4Card v-if="sections.trailSegmentsCard" title="Trail segments" :default-open="false">
           <p class="text-[10px] mb-3" style="color: #A8A29E;">Name and color sections of your route to build a map legend</p>
 
+          <div class="mb-3 space-y-1.5">
+            <button
+              class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              :class="{ 'segment-save-pulse': activeSegmentDrawMode?.type === 'new' }"
+              :style="activeSegmentDrawMode?.type === 'new'
+                ? 'border: 2px solid #2D6A4F; color: #1F4D38; background: #DCEBE2;'
+                : 'border: 2px dashed #E7E5E4; color: #57534E; background: #FAFAF9;'"
+              :disabled="segmentDrawDisabled && activeSegmentDrawMode?.type !== 'new'"
+              @click="activeSegmentDrawMode?.type === 'new' ? emit('request-segment-draw-save') : requestSegmentDraw({ type: 'new' })"
+            >{{ activeSegmentDrawMode?.type === 'new' ? 'Save segment' : '+ Draw segment' }}</button>
+            <p v-if="local.map_frozen" class="text-[10px] leading-snug" style="color: #A8A29E;">Starting a segment edit will unlock the map view.</p>
+            <p v-else-if="segmentDrawDisabled" class="text-[10px] leading-snug" style="color: #A8A29E;">Finish the current map action before drawing a segment.</p>
+          </div>
+
           <!-- Apply to all controls -->
           <template v-if="(local.trail_segments ?? []).length > 0">
             <div class="mb-3 p-2.5 rounded-xl" style="background: #F5F5F4;">
@@ -595,6 +609,13 @@
                     class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
                     @change="applyToAll({ width: parseFloat(($event.target as HTMLInputElement).value) })" />
                   <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ ((local.trail_segments ?? [])[0]?.width ?? 3) }}px</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Smooth</span>
+                  <input type="range" min="0" max="10" step="1" :value="(local.trail_segments ?? [])[0]?.smooth ?? 0"
+                    class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
+                    @change="applyToAll({ smooth: parseInt(($event.target as HTMLInputElement).value, 10) })" />
+                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ segmentSmoothDisplay((local.trail_segments ?? [])[0]?.smooth ?? 0) }}</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Border</span>
@@ -690,6 +711,10 @@
               <div v-if="expandedSegmentId === seg.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
                 <div>
                   <p class="text-xs mb-2" style="color: #44403C;">Color</p>
+                  <div class="grid grid-cols-2 gap-1.5 mb-2">
+                    <SegmentButton label="Solid" :active="(seg.color_mode ?? 'solid') === 'solid'" @click="setSegment(seg.id, { color_mode: 'solid' })" />
+                    <SegmentButton label="Gradient" :active="seg.color_mode === 'gradient'" @click="setSegment(seg.id, { color_mode: 'gradient' })" />
+                  </div>
                   <div class="flex flex-wrap gap-1.5">
                     <button v-for="c in SEGMENT_COLORS" :key="c" class="w-6 h-6 rounded-full border-2 transition-all cursor-pointer" :style="{ backgroundColor: c, borderColor: seg.color === c ? '#2D6A4F' : 'white', boxShadow: seg.color === c ? 'none' : '0 0 0 1px #E7E5E4', transform: seg.color === c ? 'scale(1.1)' : 'scale(1)' }" @click="setSegment(seg.id, { color: c })" />
                     <label class="relative w-6 h-6 rounded-full flex items-center justify-center cursor-pointer overflow-hidden" style="border: 2px dashed #D6D3D1;" title="Custom color">
@@ -700,8 +725,8 @@
                 </div>
                 <div class="space-y-2">
                   <div class="flex items-center justify-between">
-                    <p class="text-xs" style="color: #44403C;">{{ seg.source === 'uploaded-track' ? 'Track section' : 'Route section' }}</p>
-                    <div v-if="seg.source !== 'uploaded-track'" class="flex gap-1">
+                    <p class="text-xs" style="color: #44403C;">{{ isGeometryBackedSegmentSource(seg) ? 'Track section' : 'Route section' }}</p>
+                    <div v-if="!isGeometryBackedSegmentSource(seg)" class="flex gap-1">
                       <button
                         @click="emit('request-plot', { segId: seg.id, field: 'start' })"
                         class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors"
@@ -714,11 +739,36 @@
                       >↗ End</button>
                     </div>
                   </div>
+                  <div v-if="isGeometryBackedSegmentSource(seg)" class="grid grid-cols-2 gap-1">
+                    <button
+                      class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      :class="{ 'segment-save-pulse': isActiveSegmentExtension(seg.id, 'start') }"
+                      :disabled="segmentDrawDisabled && !isActiveSegmentExtension(seg.id, 'start')"
+                      :style="isActiveSegmentExtension(seg.id, 'start') ? 'background:#DCEBE2;color:#1F4D38;border:1px solid #2D6A4F;' : 'background:white;color:#78716C;border:1px solid #E7E5E4;'"
+                      @click="isActiveSegmentExtension(seg.id, 'start') ? emit('request-segment-draw-save') : requestSegmentDraw({ type: 'extend', segId: seg.id, end: 'start' })"
+                    >{{ isActiveSegmentExtension(seg.id, 'start') ? 'Save' : 'Extend start' }}</button>
+                    <button
+                      class="text-[10px] px-2 py-1 rounded cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      :class="{ 'segment-save-pulse': isActiveSegmentExtension(seg.id, 'end') }"
+                      :disabled="segmentDrawDisabled && !isActiveSegmentExtension(seg.id, 'end')"
+                      :style="isActiveSegmentExtension(seg.id, 'end') ? 'background:#DCEBE2;color:#1F4D38;border:1px solid #2D6A4F;' : 'background:white;color:#78716C;border:1px solid #E7E5E4;'"
+                      @click="isActiveSegmentExtension(seg.id, 'end') ? emit('request-segment-draw-save') : requestSegmentDraw({ type: 'extend', segId: seg.id, end: 'end' })"
+                    >{{ isActiveSegmentExtension(seg.id, 'end') ? 'Save' : 'Extend end' }}</button>
+                  </div>
+                  <button
+                    v-if="isGeometryBackedSegmentSource(seg)"
+                    class="w-full text-[10px] px-2 py-1.5 rounded cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="{ 'segment-save-pulse': isActiveSegmentEdit(seg.id) }"
+                    :disabled="segmentEditDisabled && !isActiveSegmentEdit(seg.id)"
+                    :style="isActiveSegmentEdit(seg.id) ? 'background:#DCEBE2;color:#1F4D38;border:1px solid #2D6A4F;' : 'background:white;color:#78716C;border:1px solid #E7E5E4;'"
+                    @click="isActiveSegmentEdit(seg.id) ? emit('request-segment-edit-cancel') : requestSegmentEdit(seg.id)"
+                  >{{ isActiveSegmentEdit(seg.id) ? 'Save points' : 'Edit points' }}</button>
                   <p v-if="seg.source_filename" class="text-[10px]" style="color: #A8A29E;">{{ seg.source_filename }}</p>
-                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentStep(seg)" :display="seg.source === 'uploaded-track' ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentStep(seg)) })" />
-                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentStep(seg)" :display="seg.source === 'uploaded-track' ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentStep(seg)) })" />
+                  <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentStep(seg)" :display="isGeometryBackedSegmentSource(seg) ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentStep(seg)) })" />
+                  <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentStep(seg)" :display="isGeometryBackedSegmentSource(seg) ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentStep(seg)) })" />
                 </div>
                 <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
+                <SliderRow label="Smooth" :value="seg.smooth ?? 0" :min="0" :max="10" :step="1" :display="segmentSmoothDisplay" @change="setSegment(seg.id, { smooth: $event })" />
                 <div class="flex items-center justify-between">
                   <span class="text-xs" style="color: #44403C;">Dashed</span>
                   <button class="px-2 py-1 rounded text-xs font-medium transition-all cursor-pointer" style="border: 1px solid;" :style="seg.dash ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; color: #78716C; background: white;'" @click="setSegment(seg.id, { dash: !seg.dash })">- - -</button>
@@ -764,6 +814,10 @@
                       </div>
                     </div>
                   </template>
+                </template>
+                <ToggleRow label="Segment stats" :value="local.trail_show_stats ?? false" @change="set('trail_show_stats', $event)" />
+                <template v-if="local.trail_show_stats">
+                  <ToggleRow label="Elevation gain" :value="local.trail_show_elevation_gain !== false" @change="set('trail_show_elevation_gain', $event)" />
                 </template>
               </div>
             </template>
@@ -1163,6 +1217,10 @@ import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
+type SegmentDrawMode =
+  | { type: 'new' }
+  | { type: 'extend'; segId: string; end: 'start' | 'end' }
+type SegmentEditMode = { segId: string }
 type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
@@ -1228,6 +1286,14 @@ const props = defineProps<{
   activeDeleteBrush?: boolean
   /** Brush radius in screen pixels for route erase mode */
   deleteBrushSize?: number
+  /** Which segment draw/extension mode is currently active on the map */
+  activeSegmentDrawMode?: SegmentDrawMode | null
+  /** True when drawing is blocked by another map edit mode */
+  segmentDrawDisabled?: boolean
+  /** Which geometry-backed segment is currently in point edit mode */
+  activeSegmentEditMode?: SegmentEditMode | null
+  /** True when point editing is blocked by another map edit mode */
+  segmentEditDisabled?: boolean
   /** Text element selected from the poster preview */
   activeTextTarget?: ActiveTextTarget | null
   /** Enable the staff-only Scout tab when the feature flag resolves true */
@@ -1270,6 +1336,16 @@ const emit = defineEmits<{
   'swipe-down': []
   /** User wants to set a segment/crop position by tapping the map */
   'request-plot': [payload: { segId: string; field: 'start' | 'end' }]
+  /** User wants to draw a new segment or extend an existing geometry-backed segment */
+  'request-segment-draw': [payload: SegmentDrawMode]
+  /** User wants to save the active segment draw/extension */
+  'request-segment-draw-save': []
+  /** User wants to cancel segment draw/extension mode */
+  'request-segment-draw-cancel': []
+  /** User wants to drag-edit a geometry-backed segment's points */
+  'request-segment-edit': [payload: SegmentEditMode]
+  /** User wants to cancel segment point edit mode */
+  'request-segment-edit-cancel': []
   /** User wants to auto-detect and hide GPS-dropout gaps */
   'request-detect-disconnected': []
   /** User wants to paint-select route sections for deletion */
@@ -1651,6 +1727,16 @@ function handleTrackUploadInput(event: Event) {
   input.value = ''
 }
 
+function requestSegmentDraw(mode: SegmentDrawMode) {
+  if (props.segmentDrawDisabled) return
+  emit('request-segment-draw', mode)
+}
+
+function requestSegmentEdit(segId: string) {
+  if (props.segmentEditDisabled) return
+  emit('request-segment-edit', { segId })
+}
+
 function addSegment() {
   const usedColors = (local.trail_segments ?? []).map(s => s.color)
   const nextColor = SEGMENT_COLORS.find(c => !usedColors.includes(c)) ?? SEGMENT_COLORS[0]
@@ -1663,14 +1749,34 @@ function addSegment() {
     section_end: 100,
     width: 3,
     opacity: 0.9,
+    smooth: 0,
+    bend: 0,
     dash: false,
   }
   set('trail_segments', [...(local.trail_segments ?? []), seg])
   expandedSegmentId.value = seg.id
 }
 
+function segmentSmoothDisplay(value: number): string {
+  return value === 0 ? 'Off' : value === 10 ? 'Max' : String(value)
+}
+
 function segmentStep(seg: TrailSegment): number {
-  return seg.source === 'uploaded-track' ? 0.1 : segmentDistanceStepPct.value
+  return isGeometryBackedSegmentSource(seg) ? 0.1 : segmentDistanceStepPct.value
+}
+
+function isGeometryBackedSegmentSource(seg: TrailSegment): boolean {
+  return Boolean(seg.geojson && (seg.source === 'uploaded-track' || seg.source === 'drawn-track'))
+}
+
+function isActiveSegmentExtension(segId: string, end: 'start' | 'end'): boolean {
+  return props.activeSegmentDrawMode?.type === 'extend' &&
+    props.activeSegmentDrawMode.segId === segId &&
+    props.activeSegmentDrawMode.end === end
+}
+
+function isActiveSegmentEdit(segId: string): boolean {
+  return props.activeSegmentEditMode?.segId === segId
 }
 
 function setSegment(id: string, patch: Partial<TrailSegment>) {
@@ -2260,3 +2366,26 @@ export const SegmentButton = defineComponent({
   },
 })
 </script>
+
+<style scoped>
+.segment-save-pulse:not(:disabled) {
+  animation: segment-save-pulse 1.9s ease-in-out infinite;
+}
+
+@keyframes segment-save-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.22);
+    transform: translateY(0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.08);
+    transform: translateY(-0.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment-save-pulse:not(:disabled) {
+    animation: none;
+  }
+}
+</style>

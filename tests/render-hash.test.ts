@@ -109,6 +109,62 @@ describe('two-layer isolation', () => {
     expect(a).not.toBe(b)
   })
 
+  it('changing drawn segment geometry changes map_content_hash', () => {
+    const drawn: StyleConfig = {
+      ...baseConfig,
+      trail_segments: [{
+        id: 'drawn',
+        name: 'Hand drawn',
+        color: '#E87722',
+        visible: true,
+        source: 'drawn-track',
+        geojson: {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-121.0, 39.0],
+                [-121.1, 39.1],
+              ],
+            },
+          }],
+        },
+        bbox: [-121.1, 39.0, -121.0, 39.1],
+        section_start: 0,
+        section_end: 100,
+      }],
+    }
+    const extended: StyleConfig = {
+      ...drawn,
+      trail_segments: drawn.trail_segments?.map(segment => ({
+        ...segment,
+        geojson: {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-121.0, 39.0],
+                [-121.1, 39.1],
+                [-121.2, 39.2],
+              ],
+            },
+          }],
+        },
+        bbox: [-121.2, 39.0, -121.0, 39.2],
+      })),
+    }
+
+    const a = computeMapContentHash(drawn, geojson, framing)
+    const b = computeMapContentHash(extended, geojson, framing)
+    expect(a).not.toBe(b)
+  })
+
   it('changing a chrome field does NOT change map_content_hash', () => {
     const a = computeMapContentHash(baseConfig, geojson, framing)
     // trail_name is classified 'chrome'

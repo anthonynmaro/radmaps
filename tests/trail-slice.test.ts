@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import { bboxForCoords, bendLineCoords, buildGeometryBackedSegmentPatch, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
 import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
@@ -108,6 +108,131 @@ describe('trail segment geometry', () => {
     ])
   })
 
+  it('resolves drawn-track segments against their own geometry', () => {
+    const primary = lineRoute([
+      [-89, 40],
+      [-89.0001, 40],
+    ])
+    const drawn = lineRoute([
+      [-90, 41],
+      [-90.0001, 41],
+      [-90.0002, 41],
+      [-90.0003, 41],
+    ])
+    const segment: TrailSegment = {
+      id: 'drawn-segment',
+      name: 'Drawn',
+      color: '#E87722',
+      visible: true,
+      source: 'drawn-track',
+      geojson: drawn,
+      section_start: 25,
+      section_end: 75,
+    }
+
+    const resolved = resolveTrailSegmentGeojson(primary, segment)
+
+    expect((resolved.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-90.0001, 41],
+      [-90.0002, 41],
+    ])
+  })
+
+  it('keeps geometry-backed segment points connected across intentional long jumps', () => {
+    const primary = lineRoute([
+      [-89, 40],
+      [-89.0001, 40],
+    ])
+    const drawn = lineRoute([
+      [-90, 41],
+      [-90.02, 41],
+      [-90.04, 41],
+    ])
+    const segment: TrailSegment = {
+      id: 'drawn-extension',
+      name: 'Drawn extension',
+      color: '#E87722',
+      visible: true,
+      source: 'drawn-track',
+      geojson: drawn,
+      section_start: 0,
+      section_end: 100,
+    }
+
+    const resolved = resolveTrailSegmentGeojson(primary, segment)
+
+    expect(resolved.features).toHaveLength(1)
+    expect((resolved.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-90, 41],
+      [-90.02, 41],
+      [-90.04, 41],
+    ])
+  })
+
+  it('builds drawn segment geometry, bbox, and distance-only stats from clicked points', () => {
+    const coords = [
+      [-90, 41],
+      [-90.001, 41],
+      [-90.001, 41.001],
+    ]
+
+    const geojson = lineStringFeatureCollection(coords)
+    const stats = routeStatsForCoords(coords)
+    const patch = buildGeometryBackedSegmentPatch(coords)
+
+    expect((geojson.features[0].geometry as GeoJSON.LineString).coordinates).toEqual(coords)
+    expect(bboxForCoords(coords)).toEqual([-90.001, 41, -90, 41.001])
+    expect(stats.distance_km).toBeGreaterThan(0)
+    expect(stats.elevation_gain_m).toBe(0)
+    expect(patch.geojson).toEqual(geojson)
+    expect(patch.bbox).toEqual([-90.001, 41, -90, 41.001])
+    expect(patch.section_start).toBe(0)
+    expect(patch.section_end).toBe(100)
+  })
+
+  it('calculates segment elevation gain when coordinates include elevation', () => {
+    const stats = routeStatsForCoords([
+      [-90, 41, 100],
+      [-90.001, 41, 130],
+      [-90.002, 41, 110],
+      [-90.003, 41, 150],
+    ])
+
+    expect(stats.elevation_gain_m).toBe(70)
+    expect(stats.elevation_loss_m).toBe(20)
+    expect(stats.min_elevation_m).toBe(100)
+    expect(stats.max_elevation_m).toBe(150)
+  })
+
+  it('appends and prepends extension points for geometry-backed segments', () => {
+    const segment: TrailSegment = {
+      id: 'drawn-segment',
+      name: 'Drawn',
+      color: '#E87722',
+      visible: true,
+      source: 'drawn-track',
+      geojson: lineRoute([
+        [-90, 41],
+        [-90.001, 41],
+      ]),
+      section_start: 0,
+      section_end: 100,
+    }
+
+    expect(extendSegmentCoordinates(segment, [[-90.002, 41]], 'end')).toEqual([
+      [-90, 41],
+      [-90.001, 41],
+      [-90.002, 41],
+    ])
+    expect(extendSegmentCoordinates(segment, [[-89.999, 41], [-89.998, 41]], 'start')).toEqual([
+      [-89.998, 41],
+      [-89.999, 41],
+      [-90, 41],
+      [-90.001, 41],
+    ])
+    expect(isGeometryBackedSegment(segment)).toBe(true)
+  })
+
   it('builds segment handle features from resolved geometry endpoints', () => {
     const resolved = lineRoute([
       [-90, 41],
@@ -122,6 +247,49 @@ describe('trail segment geometry', () => {
       { type: 'Point', coordinates: [-90.0002, 41] },
     ])
     expect(handles.map(feature => feature.properties?.color)).toEqual(['#3A7CA5', '#3A7CA5'])
+  })
+
+  it('curves point-to-point geometry and flips bend direction while keeping endpoints anchored', () => {
+    const coords = [
+      [-90, 41],
+      [-89.99, 41],
+    ]
+
+    const rightBend = bendLineCoords(coords, 1)
+    const leftBend = bendLineCoords(coords, -1)
+
+    expect(rightBend[0]).toEqual(coords[0])
+    expect(rightBend[rightBend.length - 1]).toEqual(coords[1])
+    expect(leftBend[0]).toEqual(coords[0])
+    expect(leftBend[leftBend.length - 1]).toEqual(coords[1])
+    expect(rightBend.length).toBeGreaterThan(coords.length)
+    expect(rightBend[Math.floor(rightBend.length / 2)][1]).toBeGreaterThan(41)
+    expect(leftBend[Math.floor(leftBend.length / 2)][1]).toBeLessThan(41)
+  })
+
+  it('applies bend only to the requested stretch between editable points', () => {
+    const coords = [
+      [-90, 41],
+      [-89.99, 41],
+      [-89.98, 41],
+    ]
+
+    const bent = bendLineCoords(coords, [0, 1])
+
+    expect(bent[0]).toEqual(coords[0])
+    expect(bent).toContainEqual(coords[1])
+    expect(bent[bent.length - 1]).toEqual(coords[2])
+    expect(bent.slice(0, bent.findIndex(coord => coord[0] === coords[1][0] && coord[1] === coords[1][1]) + 1)).toEqual([
+      coords[0],
+      coords[1],
+    ])
+    expect(bent.slice(bent.findIndex(coord => coord[0] === coords[1][0] && coord[1] === coords[1][1]) + 1)).toHaveLength(12)
+  })
+
+  it('sanitizes noisy bend values from dense edit sessions', () => {
+    expect(sanitizeSegmentBends([0.02, -0.04, 0.07], 3)).toEqual([0, 0, 0])
+    expect(sanitizeSegmentBends(Array(20).fill(0.5), 20)).toEqual(Array(20).fill(0))
+    expect(sanitizeSegmentBends([0, 0.4, 0, -0.3], 4)).toEqual([0, 0.4, 0, -0.3])
   })
 })
 

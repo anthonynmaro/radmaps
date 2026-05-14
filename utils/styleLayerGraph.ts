@@ -109,6 +109,8 @@ const segmentFields: Array<keyof StyleConfig> = [
   'segment_dot_size',
   'leader_label_scale',
   'leader_label_font_family',
+  'trail_show_stats',
+  'trail_show_elevation_gain',
   'trail_label_style',
 ]
 

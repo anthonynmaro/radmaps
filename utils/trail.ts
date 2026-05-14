@@ -1,4 +1,4 @@
-import type { TrailSegment, DeletedRange } from '~/types'
+import type { TrailSegment, DeletedRange, RouteStats } from '~/types'
 
 export const DEFAULT_COORD_GAP_THRESHOLD_METERS = 50
 
@@ -305,6 +305,183 @@ function featureCollectionFromLines(lineCoords: number[][][]): GeoJSON.FeatureCo
   }
 }
 
+export function routeStatsForCoords(coords: number[][]): RouteStats {
+  let distanceKm = 0
+  let elevationGainM = 0
+  let elevationLossM = 0
+  let maxElevationM = -Infinity
+  let minElevationM = Infinity
+  let hasElevation = false
+  for (let i = 1; i < coords.length; i++) {
+    distanceKm += distanceMeters(coords[i - 1], coords[i]) / 1000
+
+    const prev = coords[i - 1][2]
+    const next = coords[i][2]
+    if (Number.isFinite(prev) && Number.isFinite(next)) {
+      const delta = next - prev
+      if (delta > 0) elevationGainM += delta
+      else elevationLossM += Math.abs(delta)
+    }
+  }
+
+  for (const coord of coords) {
+    const elevation = coord[2]
+    if (!Number.isFinite(elevation)) continue
+    hasElevation = true
+    if (elevation > maxElevationM) maxElevationM = elevation
+    if (elevation < minElevationM) minElevationM = elevation
+  }
+
+  return {
+    distance_km: Math.round(distanceKm * 100) / 100,
+    elevation_gain_m: hasElevation ? Math.round(elevationGainM) : 0,
+    elevation_loss_m: hasElevation ? Math.round(elevationLossM) : 0,
+    max_elevation_m: hasElevation ? Math.round(maxElevationM) : 0,
+    min_elevation_m: hasElevation ? Math.round(minElevationM) : 0,
+    activity_type: 'drawn',
+  }
+}
+
+export function coordsHaveElevation(coords: number[][]): boolean {
+  return coords.some(coord => Number.isFinite(coord[2]))
+}
+
+export function bboxForCoords(coords: number[][]): [number, number, number, number] | null {
+  if (!coords.length) return null
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+  for (const [lng, lat] of coords) {
+    if (lng < minLng) minLng = lng
+    if (lat < minLat) minLat = lat
+    if (lng > maxLng) maxLng = lng
+    if (lat > maxLat) maxLat = lat
+  }
+  if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null
+  return [minLng, minLat, maxLng, maxLat]
+}
+
+export function lineStringFeatureCollection(coords: number[][]): GeoJSON.FeatureCollection {
+  return coords.length >= 2
+    ? featureCollectionFromLines([coords])
+    : { type: 'FeatureCollection', features: [] }
+}
+
+function normalizeSegmentBend(bend: number | undefined): number {
+  if (!Number.isFinite(bend)) return 0
+  return Math.max(-1, Math.min(1, bend ?? 0))
+}
+
+export function sanitizeSegmentBends(bends: number[] | undefined, edgeCount: number): number[] {
+  if (edgeCount <= 0) return []
+  const values = Array.from({ length: edgeCount }, (_, index) => {
+    const value = normalizeSegmentBend(bends?.[index])
+    return Math.abs(value) < 0.08 ? 0 : value
+  })
+  const nonzeroCount = values.filter(Boolean).length
+  const maxExpectedManualBends = Math.max(6, Math.ceil(edgeCount * 0.15))
+  return nonzeroCount > maxExpectedManualBends ? Array(edgeCount).fill(0) : values
+}
+
+export function bendLineCoords(coords: number[][], bend: number | number[] | undefined, strength = 0.24): number[][] {
+  if (coords.length < 2) return coords.map(coord => coord.slice())
+  const segmentBends = Array.isArray(bend)
+    ? sanitizeSegmentBends(bend, coords.length - 1)
+    : Array(Math.max(0, coords.length - 1)).fill(normalizeSegmentBend(bend))
+  if (!segmentBends.some(Boolean)) return coords.map(coord => coord.slice())
+
+  const out: number[][] = []
+  for (let i = 0; i < coords.length - 1; i++) {
+    const direction = segmentBends[i] ?? 0
+    const a = coords[i]
+    const b = coords[i + 1]
+    if (!direction) {
+      if (i === 0) out.push(a.slice())
+      out.push(b.slice())
+      continue
+    }
+    const midLat = (a[1] + b[1]) / 2
+    const lonScale = Math.max(0.2, Math.cos((midLat * Math.PI) / 180))
+    const dx = (b[0] - a[0]) * lonScale
+    const dy = b[1] - a[1]
+    const len = Math.sqrt(dx * dx + dy * dy)
+    if (!len) {
+      if (i === 0) out.push(a.slice())
+      continue
+    }
+
+    const offset = len * strength * direction
+    const controlLng = (a[0] + b[0]) / 2 + ((-dy / len) * offset) / lonScale
+    const controlLat = (a[1] + b[1]) / 2 + (dx / len) * offset
+    const steps = 12
+
+    for (let step = 0; step <= steps; step++) {
+      if (i > 0 && step === 0) continue
+      const t = step / steps
+      const inv = 1 - t
+      const lng = inv * inv * a[0] + 2 * inv * t * controlLng + t * t * b[0]
+      const lat = inv * inv * a[1] + 2 * inv * t * controlLat + t * t * b[1]
+      const coord = [lng, lat]
+      if (a[2] != null || b[2] != null) {
+        coord.push((a[2] ?? b[2] ?? 0) * inv + (b[2] ?? a[2] ?? 0) * t)
+      }
+      out.push(coord)
+    }
+  }
+
+  return out
+}
+
+export function bendSegmentGeojson(
+  geojson: GeoJSON.FeatureCollection,
+  bend: number | undefined,
+  bends?: number[],
+): GeoJSON.FeatureCollection {
+  const hasBend = bends?.some(value => normalizeSegmentBend(value) !== 0) || normalizeSegmentBend(bend) !== 0
+  if (!hasBend) return geojson
+  return {
+    ...geojson,
+    features: geojson.features.map(feature => {
+      const g = feature.geometry
+      if (g.type === 'LineString') {
+        return { ...feature, geometry: { ...g, coordinates: bendLineCoords(g.coordinates, bends ?? bend) } }
+      }
+      if (g.type === 'MultiLineString') {
+        return { ...feature, geometry: { ...g, coordinates: g.coordinates.map(line => bendLineCoords(line, bends ?? bend)) } }
+      }
+      return feature
+    }),
+  }
+}
+
+export function normalizeLineCoords(geojson: GeoJSON.FeatureCollection): number[][] {
+  return getAllRouteCoords(geojson).map(coord => [coord[0], coord[1], ...(coord[2] != null ? [coord[2]] : [])])
+}
+
+export function buildGeometryBackedSegmentPatch(coords: number[][]): Pick<TrailSegment, 'geojson' | 'bbox' | 'stats' | 'section_start' | 'section_end'> {
+  const bbox = bboxForCoords(coords)
+  return {
+    geojson: lineStringFeatureCollection(coords),
+    ...(bbox ? { bbox } : {}),
+    stats: routeStatsForCoords(coords),
+    section_start: 0,
+    section_end: 100,
+  }
+}
+
+export function extendSegmentCoordinates(
+  segment: TrailSegment,
+  points: number[][],
+  end: 'start' | 'end',
+): number[][] {
+  const existing = segment.geojson ? normalizeLineCoords(segment.geojson) : []
+  const cleanPoints = points.map(coord => [coord[0], coord[1], ...(coord[2] != null ? [coord[2]] : [])])
+  if (!existing.length) return cleanPoints
+  if (!cleanPoints.length) return existing
+
+  return end === 'start'
+    ? [...cleanPoints.slice().reverse(), ...existing]
+    : [...existing, ...cleanPoints]
+}
+
 export function routeRangesToGeojson(
   geojson: GeoJSON.FeatureCollection,
   ranges: DeletedRange[],
@@ -369,6 +546,8 @@ export function extractNamedTrackSegments(geojson: GeoJSON.FeatureCollection): T
       section_end: end,
       width: 3,
       opacity: 0.9,
+      smooth: 0,
+      bend: 0,
       dash: false,
     } satisfies TrailSegment
   })
@@ -387,6 +566,7 @@ export function sliceRouteByPercent(
   startPct: number,
   endPct: number,
   deletedRanges: DeletedRange[] = [],
+  gapThresholdMeters = DEFAULT_COORD_GAP_THRESHOLD_METERS,
 ): GeoJSON.FeatureCollection {
   const allCoords = getAllRouteCoords(geojson)
 
@@ -399,19 +579,19 @@ export function sliceRouteByPercent(
   const blocked = mergeIndexRangesForRoute(
     deletedRanges.map(range => rangeToIndexRange(allCoords.length, range, start, end)),
     allCoords,
-    DEFAULT_COORD_GAP_THRESHOLD_METERS,
+    gapThresholdMeters,
   )
 
   const lines: number[][][] = []
   let cursor = start
   for (const [blockStart, blockEnd] of blocked) {
     if (blockStart > cursor) {
-      lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, blockStart)))
+      lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, blockStart), gapThresholdMeters))
     }
     cursor = Math.max(cursor, blockEnd)
   }
   if (cursor < end) {
-    lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, end)))
+    lines.push(...splitCoordsOnGaps(allCoords.slice(cursor, end), gapThresholdMeters))
   }
 
   if (lines.length === 0) {
@@ -425,7 +605,7 @@ export function segmentSourceGeojson(
   primaryRoute: GeoJSON.FeatureCollection,
   segment: TrailSegment,
 ): GeoJSON.FeatureCollection {
-  if (segment.source === 'uploaded-track' && segment.geojson) {
+  if ((segment.source === 'uploaded-track' || segment.source === 'drawn-track') && segment.geojson) {
     return segment.geojson
   }
   return primaryRoute
@@ -437,12 +617,18 @@ export function resolveTrailSegmentGeojson(
   deletedRanges: DeletedRange[] = [],
 ): GeoJSON.FeatureCollection {
   const source = segmentSourceGeojson(primaryRoute, segment)
+  const isGeometryBacked = segment.source === 'uploaded-track' || segment.source === 'drawn-track'
   return sliceRouteByPercent(
     source,
     segment.section_start,
     segment.section_end,
-    segment.source === 'uploaded-track' ? [] : deletedRanges,
+    isGeometryBacked ? [] : deletedRanges,
+    isGeometryBacked ? Number.POSITIVE_INFINITY : DEFAULT_COORD_GAP_THRESHOLD_METERS,
   )
+}
+
+export function isGeometryBackedSegment(segment: TrailSegment): boolean {
+  return Boolean(segment.geojson && (segment.source === 'uploaded-track' || segment.source === 'drawn-track'))
 }
 
 export function trailSegmentEndpointFeatures(

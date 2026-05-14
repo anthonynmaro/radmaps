@@ -73,6 +73,8 @@ export default defineEventHandler(async (event) => {
     section_end: 100,
     width: 3,
     opacity: 0.9,
+    smooth: 0,
+    bend: 0,
     dash: false,
   }
   const nextStyleConfig: StyleConfig = {
