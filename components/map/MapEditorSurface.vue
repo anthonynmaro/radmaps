@@ -1,5 +1,9 @@
 <template>
-  <div class="flex flex-1 overflow-hidden relative">
+  <div
+    class="flex flex-1 overflow-hidden relative"
+    data-testid="map-editor-surface"
+    :data-chrome-editing="chromeDirectEdit ? 'true' : 'false'"
+  >
     <main class="flex-1 flex flex-col overflow-hidden" @click="onMapAreaClick">
       <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
         <div
@@ -199,6 +203,7 @@ const styleConfig = computed({
   set: (value: StyleConfig) => emit('update:modelValue', value),
 })
 
+const route = useRoute()
 const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
@@ -229,7 +234,12 @@ const hasElevationData = computed(() => {
   return buildElevationProfile(props.map.geojson as GeoJSON.FeatureCollection) !== null
 })
 
-const chromeDirectEdit = useFeatureFlag(FLAGS.CHROME_DIRECT_EDIT)
+const chromeDirectEditFlag = useFeatureFlag(FLAGS.CHROME_DIRECT_EDIT)
+const chromeDirectEdit = computed(() => {
+  const chromeQuery = route.query.chrome
+  const chromeQueryEnabled = chromeQuery === '1' || chromeQuery === 'true'
+  return chromeDirectEditFlag.value || (import.meta.dev && chromeQueryEnabled)
+})
 
 onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'

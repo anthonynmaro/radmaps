@@ -24,40 +24,72 @@ const baseConfig: StyleConfig = {
   },
 }
 
+function blocksFor(layout: ReturnType<typeof defaultPosterLayout>, band: 'header' | 'footer' | 'railLeft' | 'railRight') {
+  return layout.bands[band].rows.flatMap(row => row.cells.map(cell => cell.block).filter(Boolean))
+}
+
 describe('poster layout merge', () => {
   it('hydrates legacy chrome slots into default header, footer, and rails', () => {
     const layout = defaultPosterLayout(baseConfig, stats)
-    expect(layout.blocks.header.some(block => block.slot === 'trail_name')).toBe(true)
-    expect(layout.blocks.header.some(block => block.slot === 'occasion_text')).toBe(false)
-    expect(layout.blocks.footer.some(block => block.slot === 'distance')).toBe(true)
-    expect(layout.blocks.footer.some(block => block.slot === 'date')).toBe(true)
-    expect(layout.blocks.footer.some(block => block.slot === 'composition_footer')).toBe(false)
-    expect(layout.blocks.railLeft.some(block => block.slot === 'composition_side_rail')).toBe(true)
+    expect(blocksFor(layout, 'header').some(block => block?.slot === 'trail_name')).toBe(true)
+    expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(true)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(true)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
+    expect(blocksFor(layout, 'railLeft').some(block => block?.slot === 'composition_side_rail')).toBe(true)
   })
 
-  it('applies sparse block edits by id without replacing the whole default layout', () => {
+  it('applies sparse row and cell edits by id without replacing the whole default layout', () => {
     const defaults = defaultPosterLayout(baseConfig, stats)
     const merged = mergePosterLayout(defaults, {
-      blocks: {
-        header: [{ id: 'hdr-title', kind: 'title', slot: 'trail_name', col: 1, row: 2, span: 8, scale: 1.25 }],
+      bands: {
+        header: {
+          rows: [{
+            id: 'header-title',
+            cells: [{ id: 'hdr-title', block: { id: 'hdr-title-block', kind: 'title', slot: 'trail_name', scale: 1.25 } }],
+          }],
+        },
       },
     })
-    const title = merged.blocks.header.find(block => block.id === 'hdr-title')
-    expect(title?.span).toBe(8)
+    const title = blocksFor(merged, 'header').find(block => block?.id === 'hdr-title-block')
     expect(title?.scale).toBe(1.25)
-    expect(merged.blocks.header.some(block => block.id === 'hdr-kicker')).toBe(true)
+    expect(blocksFor(merged, 'header').some(block => block?.id === 'hdr-kicker-block')).toBe(true)
   })
 
-  it('honors tombstones for deleted composition blocks', () => {
+  it('honors tombstones for deleted cells', () => {
     const layout = effectivePosterLayout({
       ...baseConfig,
       poster_layout: {
-        blocks: {
-          footer: [{ id: 'ft-note', kind: 'note', slot: 'composition_footer', col: 10, row: 1, span: 3, deleted: true }],
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              cells: [{ id: 'ft-date', deleted: true }],
+            }],
+          },
         },
       },
     }, stats)
-    expect(layout.blocks.footer.some(block => block.id === 'ft-note')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(false)
+  })
+
+  it('honors tombstones for deleted default rows', () => {
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          header: {
+            rows: [{
+              id: 'header-subtitle',
+              deleted: true,
+              cells: [{ id: 'hdr-location', deleted: true }],
+            }],
+          },
+        },
+      },
+    }, stats)
+    expect(layout.bands.header.rows.some(row => row.id === 'header-subtitle')).toBe(false)
+    expect(blocksFor(layout, 'header').some(block => block?.slot === 'location_text')).toBe(false)
   })
 
   it('does not create a gain stat when the route has no elevation data', () => {
@@ -66,7 +98,7 @@ describe('poster layout merge', () => {
       elevation_gain_m: 0,
       elevation_loss_m: 0,
     })
-    expect(layout.blocks.footer.some(block => block.slot === 'elevation_gain')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'elevation_gain')).toBe(false)
   })
 
   it('keeps an explicit gain text override when elevation data is missing', () => {
@@ -80,17 +112,19 @@ describe('poster layout merge', () => {
       elevation_gain_m: 0,
       elevation_loss_m: 0,
     })
-    expect(layout.blocks.footer.some(block => block.slot === 'elevation_gain')).toBe(true)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'elevation_gain')).toBe(true)
   })
 
-  it('keeps user-added blocks when patching another sparse field', () => {
+  it('keeps user-added rows when patching another sparse field', () => {
     const current: PartialPosterLayout = {
-      blocks: {
-        header: [{ id: 'custom', kind: 'text', col: 1, row: 1, span: 3, text: 'Custom' }],
+      bands: {
+        header: {
+          rows: [{ id: 'custom-row', cells: [{ id: 'custom', block: { id: 'custom-block', kind: 'text', text: 'Custom' } }] }],
+        },
       },
     }
     const next = patchPosterLayout(current, { bands: { header: { height: 24 } } })
-    expect(next.blocks?.header?.[0]?.id).toBe('custom')
+    expect(next.bands?.header?.rows?.[0]?.id).toBe('custom-row')
     expect(next.bands?.header?.height).toBe(24)
   })
 })

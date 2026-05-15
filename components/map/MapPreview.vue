@@ -26,38 +26,94 @@
 
     <div
       v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
+      ref="chromeToolbarEl"
       class="chrome-selection-toolbar"
       :class="`chrome-selection-toolbar--${activeChromeBand}`"
-      :style="chromeToolbarStyle"
+      :style="chromeToolbarFloatingStyle"
       data-testid="chrome-selection-toolbar"
       @pointerdown.stop
       @click.stop
     >
       <span class="chrome-toolbar-kind">{{ chromeBlockLabel(activeChromeBlock) }}</span>
       <span class="chrome-toolbar-divider" />
-      <button class="chrome-toolbar-btn" title="Bold" @click="toggleChromeBold">B</button>
-      <button class="chrome-toolbar-btn chrome-toolbar-btn--italic" title="Italic" @click="toggleChromeItalic">I</button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeBold }" title="Bold" @click="toggleChromeBold">B</button>
+      <button class="chrome-toolbar-btn chrome-toolbar-btn--italic" :class="{ 'is-active': activeChromeItalic }" title="Italic" @click="toggleChromeItalic">I</button>
       <button class="chrome-toolbar-btn" title="Smaller" @click="nudgeChromeScale(-0.05)">A-</button>
       <button class="chrome-toolbar-btn" title="Larger" @click="nudgeChromeScale(0.05)">A+</button>
       <label class="chrome-toolbar-color" title="Text color">
         <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
       </label>
       <span class="chrome-toolbar-divider" />
-      <button class="chrome-toolbar-btn" title="Align left" @click="setChromeAlign('left')">L</button>
-      <button class="chrome-toolbar-btn" title="Align center" @click="setChromeAlign('center')">C</button>
-      <button class="chrome-toolbar-btn" title="Align right" @click="setChromeAlign('right')">R</button>
-      <button class="chrome-toolbar-btn" title="Align top" @click="setChromeValign('top')">T</button>
-      <button class="chrome-toolbar-btn" title="Align middle" @click="setChromeValign('center')">M</button>
-      <button class="chrome-toolbar-btn" title="Align bottom" @click="setChromeValign('bottom')">B</button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeAlign === 'left' }" title="Align left" aria-label="Align left" @click="setChromeAlign('left')">
+        <span class="chrome-align-icon chrome-align-icon--left" aria-hidden="true" />
+      </button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeAlign === 'center' }" title="Align center" aria-label="Align center" @click="setChromeAlign('center')">
+        <span class="chrome-align-icon chrome-align-icon--center" aria-hidden="true" />
+      </button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeAlign === 'right' }" title="Align right" aria-label="Align right" @click="setChromeAlign('right')">
+        <span class="chrome-align-icon chrome-align-icon--right" aria-hidden="true" />
+      </button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeValign === 'top' }" title="Align top" aria-label="Align top" @click="setChromeValign('top')">
+        <span class="chrome-valign-icon chrome-valign-icon--top" aria-hidden="true" />
+      </button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeValign === 'center' }" title="Align middle" aria-label="Align middle" @click="setChromeValign('center')">
+        <span class="chrome-valign-icon chrome-valign-icon--middle" aria-hidden="true" />
+      </button>
+      <button class="chrome-toolbar-btn" :class="{ 'is-active': activeChromeValign === 'bottom' }" title="Align bottom" aria-label="Align bottom" @click="setChromeValign('bottom')">
+        <span class="chrome-valign-icon chrome-valign-icon--bottom" aria-hidden="true" />
+      </button>
       <span class="chrome-toolbar-divider" />
-      <button class="chrome-toolbar-btn" title="Duplicate" @click="duplicateChromeBlock">Duplicate</button>
-      <button class="chrome-toolbar-btn chrome-toolbar-btn--danger" title="Delete" data-testid="chrome-delete-block" @click="deleteChromeBlock">Delete</button>
+      <button
+        class="chrome-toolbar-btn"
+        :class="{ 'is-active': chromePaddingPanelOpen }"
+        title="Spacing"
+        aria-label="Spacing"
+        @click="chromePaddingPanelOpen = !chromePaddingPanelOpen"
+      >
+        <UIcon name="i-heroicons-adjustments-horizontal" class="chrome-toolbar-svg" />
+      </button>
       <button class="chrome-toolbar-btn" title="Done" @click="finishActiveTextEdit">Done</button>
-      <span class="chrome-toolbar-pointer" :style="chromeToolbarPointerStyle" />
+      <div
+        v-if="chromePaddingPanelOpen"
+        class="chrome-padding-popover"
+        data-testid="chrome-padding-popover"
+        @pointerdown.stop
+        @click.stop
+      >
+        <span class="chrome-padding-title">Padding</span>
+        <div
+          v-for="side in chromePaddingSides"
+          :key="side.key"
+          class="chrome-padding-side"
+        >
+          <span>{{ side.label }}</span>
+          <button :title="`Reduce ${side.name} padding`" @click="nudgeActiveChromeCellPadding(-1, side.index)">-</button>
+          <output>{{ activeChromePaddingValues[side.index] }}</output>
+          <button :title="`Increase ${side.name} padding`" @click="nudgeActiveChromeCellPadding(1, side.index)">+</button>
+        </div>
+      </div>
+      <span class="chrome-toolbar-pointer" :style="chromeToolbarPointerFloatingStyle" />
     </div>
 
     <div
-      v-if="chromeToolbarVisible && activeChromeBlock && chromeMobile"
+      v-if="chromeStructurePopoverVisible"
+      ref="chromeStructurePopoverEl"
+      class="chrome-inline-popover chrome-inline-popover--floating"
+      :style="chromeStructurePopoverFloatingStyle"
+      data-testid="chrome-structure-popover"
+      @pointerdown.stop
+      @click.stop
+    >
+      <button @pointerdown.prevent.stop="addColumnForSelection" @click.stop>+ Col</button>
+      <button @pointerdown.prevent.stop="addRowForSelection" @click.stop>+ Row</button>
+      <button @pointerdown.prevent.stop="duplicateChromeBlock" @click.stop>Dup</button>
+      <button @pointerdown.prevent.stop="deleteChromeBlock" @click.stop>Clear</button>
+      <button @pointerdown.prevent.stop="removeSelectedCell" @click.stop>Remove</button>
+      <button @pointerdown.prevent.stop="resetChromeSection(activeChromeBand)" @click.stop>Reset</button>
+    </div>
+
+    <div
+      v-if="chromeMobileDrawerOpen && activeChromeBlock"
       class="chrome-mobile-drawer"
       data-testid="chrome-mobile-drawer"
       @pointerdown.stop
@@ -88,9 +144,12 @@
         </label>
       </div>
       <div class="chrome-mobile-actions">
+        <button @click="addColumnForSelection">+ Column</button>
+        <button @click="addRowForSelection">+ Row</button>
+        <button @click="deleteChromeBlock">Clear</button>
         <button @click="duplicateChromeBlock">Duplicate</button>
         <button @click="resetChromeSection(activeChromeBand)">Reset section</button>
-        <button class="danger" @click="deleteChromeBlock">Delete</button>
+        <button class="danger" @click="removeSelectedCell">Remove cell</button>
       </div>
     </div>
 
@@ -211,6 +270,7 @@
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-header shrink-0"
+        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
         :style="headerBandStyle"
         data-testid="poster-header"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
@@ -233,6 +293,63 @@
             title="Add text block"
             @click.stop="addChromeTextBlock('header')"
           >+</button>
+        </div>
+        <div
+          v-if="chromeDirectEditing"
+          class="chrome-grid-band chrome-grid-band--header"
+          data-testid="chrome-band-header"
+          :style="chromeBandGridStyle('header')"
+          @click.self="selectChromeBand('header')"
+        >
+          <div
+            v-for="row in chromeRowsFor('header')"
+            :key="row.id"
+            class="chrome-grid-row"
+            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id }"
+            :style="chromeRowStyle(row)"
+            :data-chrome-row-id="row.id"
+            @click.stop="selectChromeRow('header', row.id)"
+          >
+            <div
+              v-for="cell in chromeCellsFor(row)"
+              :key="cell.id"
+              class="chrome-grid-cell"
+              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :style="chromeCellStyle(cell)"
+              :data-chrome-cell-id="cell.id"
+              @click.stop="selectChromeCell('header', row.id, cell.id)"
+            >
+              <div
+                v-if="cell.block && !cell.block.empty"
+                class="chrome-grid-block editable-text"
+                :class="`chrome-grid-block--${cell.block.kind}`"
+                :style="chromeGridBlockStyle(cell)"
+                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :suppressContentEditableWarning="true"
+                role="textbox"
+                :aria-label="chromeBlockLabel(cell.block)"
+                :data-chrome-block-id="cell.block.id"
+                @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
+                @blur="onChromeGridBlockBlur($event, 'header', row.id, cell.id)"
+                @keydown.enter.exact.prevent="finishActiveTextEdit"
+              >{{ chromeBlockText(cell.block) }}</div>
+              <button
+                v-else
+                class="chrome-empty-cell-btn"
+                title="Add text"
+                @click.stop="addChromeTextToCell('header', row.id, cell.id)"
+              >+</button>
+              <button
+                v-if="cell.block && !cell.block.empty"
+                class="chrome-cell-add-col chrome-cell-add-col--right"
+                title="Add column"
+                @pointerdown.prevent.stop="addColumnAfter('header', row.id, cell.id)"
+                @click.stop
+              >+</button>
+            </div>
+            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>+ Row</button>
+          </div>
+          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>+ Row</button>
         </div>
         <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
@@ -626,6 +743,7 @@
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-footer shrink-0"
+        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
         :style="footerBandStyle"
         data-testid="poster-footer"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
@@ -648,6 +766,63 @@
             title="Add text block"
             @click.stop="addChromeTextBlock('footer')"
           >+</button>
+        </div>
+        <div
+          v-if="chromeDirectEditing"
+          class="chrome-grid-band chrome-grid-band--footer"
+          data-testid="chrome-band-footer"
+          :style="chromeBandGridStyle('footer')"
+          @click.self="selectChromeBand('footer')"
+        >
+          <div
+            v-for="row in chromeRowsFor('footer')"
+            :key="row.id"
+            class="chrome-grid-row"
+            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id }"
+            :style="chromeRowStyle(row)"
+            :data-chrome-row-id="row.id"
+            @click.stop="selectChromeRow('footer', row.id)"
+          >
+            <div
+              v-for="cell in chromeCellsFor(row)"
+              :key="cell.id"
+              class="chrome-grid-cell"
+              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :style="chromeCellStyle(cell)"
+              :data-chrome-cell-id="cell.id"
+              @click.stop="selectChromeCell('footer', row.id, cell.id)"
+            >
+              <div
+                v-if="cell.block && !cell.block.empty"
+                class="chrome-grid-block editable-text"
+                :class="`chrome-grid-block--${cell.block.kind}`"
+                :style="chromeGridBlockStyle(cell)"
+                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :suppressContentEditableWarning="true"
+                role="textbox"
+                :aria-label="chromeBlockLabel(cell.block)"
+                :data-chrome-block-id="cell.block.id"
+                @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
+                @blur="onChromeGridBlockBlur($event, 'footer', row.id, cell.id)"
+                @keydown.enter.exact.prevent="finishActiveTextEdit"
+              >{{ chromeBlockText(cell.block) }}</div>
+              <button
+                v-else
+                class="chrome-empty-cell-btn"
+                title="Add text"
+                @click.stop="addChromeTextToCell('footer', row.id, cell.id)"
+              >+</button>
+              <button
+                v-if="cell.block && !cell.block.empty"
+                class="chrome-cell-add-col chrome-cell-add-col--right"
+                title="Add column"
+                @pointerdown.prevent.stop="addColumnAfter('footer', row.id, cell.id)"
+                @click.stop
+              >+</button>
+            </div>
+            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>+ Row</button>
+          </div>
+          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>+ Row</button>
         </div>
         <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
@@ -953,6 +1128,7 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { autoUpdate, computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom'
 // maplibre-contour 0.1.0 has a broken package `exports` map, so the bare
 // specifier cannot be resolved in the browser. Import the built ESM file
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
@@ -966,8 +1142,8 @@ import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectiveP
 import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
-import type { ChromeBand, ChromeBandId, ChromeBlock, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
-import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
+import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
@@ -1057,6 +1233,8 @@ const emit = defineEmits<{
 const config = useRuntimeConfig()
 const mapContainer = ref<HTMLDivElement | null>(null)
 const posterCanvasEl = ref<HTMLDivElement | null>(null)
+const chromeToolbarEl = ref<HTMLElement | null>(null)
+const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
@@ -1272,6 +1450,19 @@ const activeTextAnchor = ref<DOMRect | null>(null)
 const activeChromeBlockId = ref<string | null>(null)
 const hoveredChromeBand = ref<ChromeBandId | null>(null)
 const chromeMobile = ref(false)
+const chromePaddingPanelOpen = ref(false)
+const lastChromeTextStyle = ref<Partial<ChromeBlock> | null>(null)
+type ChromeSelection =
+  | { type: 'band'; band: ChromeBandId }
+  | { type: 'row'; band: ChromeBandId; rowId: string }
+  | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string }
+const selectedChromeTarget = ref<ChromeSelection | null>(null)
+const chromePaddingSides = [
+  { key: 'top', name: 'top', label: 'Top', index: 0 },
+  { key: 'right', name: 'right', label: 'Right', index: 1 },
+  { key: 'bottom', name: 'bottom', label: 'Bottom', index: 2 },
+  { key: 'left', name: 'left', label: 'Left', index: 3 },
+] as const
 const CHROME_COL_STEPS = [4, 6, 8, 12, 16] as const
 const activeChromeBandResize = ref<{
   band: Extract<ChromeBandId, 'header' | 'footer'>
@@ -1281,16 +1472,44 @@ const activeChromeBandResize = ref<{
 } | null>(null)
 
 const chromeDirectEditing = computed(() =>
-  false && Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
+  Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
 )
-const chromeToolbarVisible = computed(() => false)
+const chromeToolbarVisible = computed(() =>
+  chromeDirectEditing.value && !chromeMobile.value && activeChromeBlock.value != null,
+)
+const chromeStructurePopoverVisible = computed(() =>
+  chromeDirectEditing.value && !chromeMobile.value && selectedChromeTarget.value?.type === 'cell',
+)
+const chromeToolbarFloatingStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  left: '0px',
+  top: '0px',
+  width: '508px',
+  visibility: 'hidden',
+})
+const chromeStructurePopoverFloatingStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  left: '0px',
+  top: '0px',
+  visibility: 'hidden',
+})
+const chromeToolbarPointerFloatingStyle = ref<Record<string, string>>({
+  left: '50%',
+  top: '100%',
+  bottom: 'auto',
+  borderWidth: '7px 6px 0 6px',
+  borderColor: '#fff transparent transparent transparent',
+})
+const chromeToolbarPlacement = ref('top')
 const chromeAffordancesVisible = computed(() => false)
 const chromeMobileDrawerOpen = computed(() =>
-  chromeToolbarVisible.value && chromeMobile.value && activeChromeBlock.value != null,
+  chromeDirectEditing.value && chromeMobile.value && activeChromeBlock.value != null,
 )
 
 const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
 const defaultLayout = computed(() => defaultPosterLayout(props.styleConfig, props.map.stats))
+let cleanupChromeToolbarFloating: (() => void) | null = null
+let cleanupChromeStructureFloating: (() => void) | null = null
 
 function syncChromeViewportMode() {
   if (typeof window === 'undefined') return
@@ -1308,16 +1527,25 @@ onUnmounted(() => {
   window.removeEventListener('resize', syncChromeViewportMode)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
+  cleanupChromeFloating()
   teardownChromeBandResize()
 })
 
+function chromeRowsFor(band: ChromeBandId) {
+  return posterLayout.value.bands[band].rows.filter(row => !row.deleted)
+}
+
+function chromeCellsFor(row: ChromeGridRow) {
+  return row.cells.filter(cell => !cell.deleted)
+}
+
 function chromeBlocksFor(band: ChromeBandId) {
-  return posterLayout.value.blocks[band] ?? []
+  return chromeRowsFor(band).flatMap(row => chromeCellsFor(row).map(cell => cell.block).filter((block): block is ChromeBlock => Boolean(block && !block.deleted)))
 }
 
 function chromeBlockForSlot(slot: PosterTextSlot): ChromeBlock | null {
   for (const band of CHROME_BANDS) {
-    const found = chromeBlocksFor(band).find(block => block.slot === slot)
+    const found = chromeBlocksFor(band).find(block => block.slot === slot && !block.empty && !block.removed)
     if (found) return found
   }
   return null
@@ -1331,18 +1559,12 @@ function chromeBandForBlock(id: string | null): ChromeBandId | null {
   return null
 }
 
-const activeChromeBand = computed<ChromeBandId>(() =>
-  chromeBandForBlock(activeChromeBlockId.value) ?? hoveredChromeBand.value ?? 'header',
-)
+const activeChromeBand = computed<ChromeBandId>(() => selectedChromeTarget.value?.band ?? hoveredChromeBand.value ?? 'header')
 
 const activeChromeBlock = computed(() => {
-  const id = activeChromeBlockId.value
-  if (!id) return null
-  for (const band of CHROME_BANDS) {
-    const block = chromeBlocksFor(band).find(block => block.id === id)
-    if (block) return block
-  }
-  return null
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return null
+  return findChromeCell(target.band, target.rowId, target.cellId)?.block ?? null
 })
 
 function chromeSlotVisible(slot: PosterTextSlot) {
@@ -1350,11 +1572,11 @@ function chromeSlotVisible(slot: PosterTextSlot) {
 }
 
 const chromeBrandVisible = computed(() =>
-  chromeBlocksFor('footer').some(block => block.kind === 'brand' && !block.slot),
+  !chromeDirectEditing.value && chromeBlocksFor('footer').some(block => block.kind === 'brand' && !block.slot && !block.empty),
 )
 
-function customChromeBlocks(band: ChromeBandId) {
-  return chromeBlocksFor(band).filter(block => !block.slot && block.kind !== 'brand')
+function customChromeBlocks(_band: ChromeBandId): ChromeBlock[] {
+  return []
 }
 
 function chromeBandActive(band: ChromeBandId) {
@@ -1376,15 +1598,13 @@ function chromeBlockLabel(block: ChromeBlock) {
 }
 
 function chromeGridStyle(band: ChromeBandId) {
-  const cfg = posterLayout.value.bands[band]
-  const cols = cfg.cols ?? 12
-  const rows = cfg.rows ?? 2
+  const rows = Math.max(1, posterLayout.value.bands[band].rows.length)
   return {
     backgroundImage: [
       `linear-gradient(to right, rgba(42,91,204,0.24) 1px, transparent 1px)`,
       `linear-gradient(to bottom, rgba(42,91,204,0.18) 1px, transparent 1px)`,
     ].join(', '),
-    backgroundSize: `${100 / cols}% 100%, 100% ${100 / rows}%`,
+    backgroundSize: `8.33% 100%, 100% ${100 / rows}%`,
   }
 }
 
@@ -1408,15 +1628,24 @@ function setChromeBandBackground(band: ChromeBandId, background: string) {
 }
 
 function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
-  const current = posterLayout.value.bands[band].cols ?? 12
-  const currentIndex = Math.max(0, CHROME_COL_STEPS.findIndex(step => step === current))
-  const nextIndex = Math.min(CHROME_COL_STEPS.length - 1, Math.max(0, currentIndex + direction))
-  updateChromeBand(band, { cols: CHROME_COL_STEPS[nextIndex] })
+  const rowId = selectedChromeTarget.value?.type === 'row' || selectedChromeTarget.value?.type === 'cell'
+    ? selectedChromeTarget.value.rowId
+    : chromeRowsFor(band)[0]?.id
+  if (!rowId) return
+  if (direction > 0) addColumnAfter(band, rowId)
+  else {
+    const row = findChromeRow(band, rowId)
+    const last = row?.cells[row.cells.length - 1]
+    if (row && last && row.cells.length > 1) removeCell(band, rowId, last.id)
+  }
 }
 
 function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
-  const current = posterLayout.value.bands[band].rows ?? (band === 'header' ? 4 : 2)
-  updateChromeBand(band, { rows: Math.min(6, Math.max(1, current + direction)) })
+  if (direction > 0) addRowAfter(band)
+  else {
+    const rows = chromeRowsFor(band)
+    if (rows.length > 1) updateChromeRows(band, rows.slice(0, -1))
+  }
 }
 
 function nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
@@ -1425,42 +1654,113 @@ function nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
   updateChromeBand(band, { padding: next })
 }
 
+function nudgeActiveChromeCellPadding(direction: -1 | 1, sideIndex?: 0 | 1 | 2 | 3) {
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return
+  updateChromeCell(target.band, target.rowId, target.cellId, cell => {
+    const current = cell.padding ?? [0, 0, 0, 0]
+    const next = current.map((value, index) =>
+      sideIndex == null || sideIndex === index ? Math.min(12, Math.max(0, value + direction)) : value,
+    ) as [number, number, number, number]
+    return { ...cell, padding: next }
+  })
+}
+
 function chromeBandPaddingCss(band: ChromeBandId, fallback: string) {
   const padding = posterLayout.value.bands[band].padding
   if (!padding) return fallback
   return `${padding[0]}cqh ${padding[1]}cqw ${padding[2]}cqh ${padding[3]}cqw`
 }
 
-function chromeCustomBlockStyle(band: ChromeBandId, block: ChromeBlock): Record<string, string> {
+function chromeBandGridStyle(band: ChromeBandId) {
   const cfg = posterLayout.value.bands[band]
-  const cols = cfg.cols ?? 12
-  const rows = cfg.rows ?? 2
-  const left = ((block.col - 1) / cols) * 100
-  const top = ((block.row - 1) / rows) * 100
-  const width = (block.span / cols) * 100
-  const height = ((block.rowSpan ?? 1) / rows) * 100
   return {
-    position: 'absolute',
-    left: `${left}%`,
-    top: `${top}%`,
-    width: `${width}%`,
-    height: `${height}%`,
-    display: 'flex',
-    alignItems: block.valign === 'bottom' ? 'flex-end' : block.valign === 'center' ? 'center' : 'flex-start',
-    justifyContent: block.align === 'right' ? 'flex-end' : block.align === 'center' ? 'center' : 'flex-start',
-    fontFamily: block.font_family ? toFontStack(block.font_family) : typography.value.subFont,
-    fontSize: `${block.font_size_pt != null ? ptToCqh(block.font_size_pt) : 1.1 * (block.scale ?? 1)}cqh`,
-    color: block.color ?? fg.value,
-    opacity: String(block.opacity ?? 1),
-    fontWeight: block.bold ? '700' : '500',
-    fontStyle: block.italic ? 'italic' : 'normal',
-    textAlign: block.align ?? 'left',
-    zIndex: '6',
-    padding: '0.2cqh',
+    display: 'grid',
+    gridTemplateRows: chromeRowsFor(band).map(row => `${row.fr ?? 1}fr`).join(' ') || '1fr',
+    gap: '0.55cqh',
+    width: '100%',
+    height: '100%',
+    backgroundColor: cfg.background ?? 'transparent',
   }
 }
 
+function chromeRowStyle(row: ChromeGridRow) {
+  return {
+    display: 'grid',
+    gridTemplateColumns: chromeCellsFor(row).map(cell => `${cell.fr ?? 1}fr`).join(' ') || '1fr',
+    gap: '0.7cqw',
+  }
+}
+
+function chromeCellStyle(cell: ChromeGridCell) {
+  const slotAlign = cell.block?.slot ? slotOverride(cell.block.slot).align : undefined
+  const align = slotAlign ?? cell.align ?? cell.block?.align ?? 'left'
+  const style: Record<string, string> = {
+    justifyItems: align === 'right' ? 'end' : align === 'center' ? 'center' : 'start',
+    alignItems: cell.valign === 'bottom' ? 'end' : cell.valign === 'top' ? 'start' : 'center',
+    textAlign: align,
+  }
+  if (cell.padding) style.padding = `${cell.padding[0]}cqh ${cell.padding[1]}cqw ${cell.padding[2]}cqh ${cell.padding[3]}cqw`
+  return style
+}
+
+function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
+  const block = cell.block
+  if (!block) return {}
+  const override = block.slot ? slotOverride(block.slot) : {}
+  const align = override.align ?? cell.align ?? block.align ?? 'left'
+  const bold = override.bold ?? block.bold
+  const italic = override.italic ?? block.italic
+  return {
+    width: '100%',
+    fontFamily: override.font_family ? toFontStack(override.font_family) : block.font_family ? toFontStack(block.font_family) : typography.value.subFont,
+    fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
+    lineHeight: block.kind === 'title' ? typography.value.titleLineHeight : '1.12',
+    letterSpacing: chromeBlockLetterSpacing(block),
+    textTransform: block.kind === 'title' || block.kind === 'subtitle' || block.kind === 'eyebrow' || block.kind === 'note' ? 'uppercase' : 'none',
+    color: override.color ?? block.color ?? fg.value,
+    opacity: String(override.opacity ?? block.opacity ?? 1),
+    fontWeight: bold ? '800' : chromeBlockWeight(block),
+    fontStyle: italic ? 'italic' : 'normal',
+    textAlign: align,
+    backgroundColor: override.bg_color ?? block.bg_color ?? 'transparent',
+    outline: 'none',
+  }
+}
+
+function chromeBlockFontSize(block: ChromeBlock) {
+  if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
+  const scale = block.scale ?? 1
+  if (block.kind === 'title') return typography.value.titleSize * scale
+  if (block.kind === 'stat') return 1.8 * scale
+  if (block.kind === 'coords') return 1.05 * scale
+  if (block.kind === 'brand') return 0.62 * scale
+  return 0.9 * scale
+}
+
+function chromeBlockLetterSpacing(block: ChromeBlock) {
+  if (block.kind === 'title') return typography.value.titleTracking
+  if (block.kind === 'stat') return '0.01em'
+  if (block.kind === 'coords') return '0.04em'
+  return '0.16em'
+}
+
+function chromeBlockWeight(block: ChromeBlock) {
+  if (block.kind === 'title') return typography.value.titleWeight
+  if (block.kind === 'stat' || block.kind === 'brand') return '800'
+  return '600'
+}
+
+function chromeBlockEditable(block: ChromeBlock) {
+  return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image'
+}
+
+function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Record<string, string> {
+  return {}
+}
+
 function chromeBlockText(block: ChromeBlock) {
+  if (block.empty) return ''
   if (block.text != null) return block.text
   if (block.slot) return textWithOverride(block.slot, defaultSlotText(block.slot))
   return 'Your text'
@@ -1474,50 +1774,122 @@ function updatePosterLayout(patch: PartialPosterLayout) {
   emitPosterLayout(patchPosterLayout(props.styleConfig.poster_layout, patch))
 }
 
-function updateChromeBlocks(band: ChromeBandId, blocks: ChromeBlock[]) {
-  updatePosterLayout({ blocks: { [band]: blocks } })
+function cloneChromeCell(cell: ChromeGridCell): ChromeGridCell {
+  return {
+    ...cell,
+    padding: cell.padding ? [...cell.padding] as [number, number, number, number] : undefined,
+    block: cell.block ? { ...cell.block } : undefined,
+  }
 }
 
-function sparseBlocksFor(band: ChromeBandId) {
-  return props.styleConfig.poster_layout?.blocks?.[band] ?? []
+function cloneChromeRow(row: ChromeGridRow): ChromeGridRow {
+  return {
+    ...row,
+    cells: row.cells.map(cloneChromeCell),
+  }
 }
 
-function upsertChromeBlockEdit(band: ChromeBandId, block: ChromeBlock) {
-  const current = sparseBlocksFor(band)
-  const next = current.some(existing => existing.id === block.id)
-    ? current.map(existing => existing.id === block.id ? { ...existing, ...block } : existing)
-    : [...current, block]
-  updateChromeBlocks(band, next)
+function sparseBandRows(band: ChromeBandId) {
+  const rows = posterLayout.value.bands[band].rows.map(cloneChromeRow)
+  const sparseRows = props.styleConfig.poster_layout?.bands?.[band]?.rows
+  if (!sparseRows) return rows
+
+  const rowsById = new Map(rows.map(row => [row.id, row]))
+  const order = rows.map(row => row.id)
+
+  for (const sparseRow of sparseRows) {
+    const existing = rowsById.get(sparseRow.id)
+    if (!existing) {
+      rowsById.set(sparseRow.id, cloneChromeRow(sparseRow))
+      if (!order.includes(sparseRow.id)) order.push(sparseRow.id)
+      continue
+    }
+
+    const cellIds = new Set(existing.cells.map(cell => cell.id))
+    for (const sparseCell of sparseRow.cells) {
+      if (sparseCell.deleted && !cellIds.has(sparseCell.id)) {
+        existing.cells.push(cloneChromeCell(sparseCell))
+        cellIds.add(sparseCell.id)
+      }
+    }
+  }
+
+  return order
+    .map(id => rowsById.get(id))
+    .filter((row): row is ChromeGridRow => Boolean(row))
+}
+
+function updateChromeRows(band: ChromeBandId, rows: ChromeGridRow[]) {
+  updateChromeBand(band, { rows })
+}
+
+function findChromeRow(band: ChromeBandId, rowId: string) {
+  return posterLayout.value.bands[band].rows.find(row => row.id === rowId) ?? null
+}
+
+function findChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
+  return findChromeRow(band, rowId)?.cells.find(cell => cell.id === cellId) ?? null
+}
+
+function updateChromeCell(band: ChromeBandId, rowId: string, cellId: string, updater: (cell: ChromeGridCell) => ChromeGridCell) {
+  const rows = sparseBandRows(band).map(row => row.id === rowId
+    ? { ...row, cells: row.cells.map(cell => cell.id === cellId ? updater(cell) : cell) }
+    : row)
+  updateChromeRows(band, rows)
+}
+
+function selectChromeBand(band: ChromeBandId) {
+  if (!chromeDirectEditing.value) return
+  selectedChromeTarget.value = { type: 'band', band }
+  hoveredChromeBand.value = band
+  chromePaddingPanelOpen.value = false
+}
+
+function selectChromeRow(band: ChromeBandId, rowId: string) {
+  if (!chromeDirectEditing.value) return
+  selectedChromeTarget.value = { type: 'row', band, rowId }
+  hoveredChromeBand.value = band
+  chromePaddingPanelOpen.value = false
+}
+
+function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
+  if (!chromeDirectEditing.value) return
+  selectedChromeTarget.value = { type: 'cell', band, rowId, cellId }
+  hoveredChromeBand.value = band
+  const cell = findChromeCell(band, rowId, cellId)
+  activeChromeBlockId.value = cell?.block?.id ?? null
+  if (cell?.block && !cell.block.empty) rememberChromeTextStyle(cell.block, cell)
+  chromePaddingPanelOpen.value = false
 }
 
 function selectChromeBlock(id: string) {
   if (!chromeDirectEditing.value) return
-  activeChromeBlockId.value = id
-  hoveredChromeBand.value = chromeBandForBlock(id)
-}
-
-function activeSlotBlock() {
-  const target = activeTextTarget.value
-  if (target?.type !== 'slot') return null
-  return chromeBlockForSlot(target.slot)
+  for (const band of CHROME_BANDS) {
+    for (const row of chromeRowsFor(band)) {
+      const cell = chromeCellsFor(row).find(cell => cell.block?.id === id)
+      if (cell) {
+        selectChromeCell(band, row.id, cell.id)
+        return
+      }
+    }
+  }
 }
 
 function openChromeSection(band: ChromeBandId) {
-  hoveredChromeBand.value = band
-  activeChromeBlockId.value = null
+  selectChromeBand(band)
   activeTextTarget.value = null
 }
 
-function resetChromeSection(band: ChromeBandId) {
-  const currentBlocks = props.styleConfig.poster_layout?.blocks ?? {}
-  const currentBands = props.styleConfig.poster_layout?.bands ?? {}
-  const { [band]: _removedBlocks, ...blocks } = currentBlocks
-  const { [band]: _removedBand, ...bands } = currentBands
-  emitPosterLayout({
-    blocks: Object.keys(blocks).length ? blocks : undefined,
-    bands: Object.keys(bands).length ? bands : undefined,
-  })
+function resetChromeBand(band: ChromeBandId) {
+  const currentBands = { ...(props.styleConfig.poster_layout?.bands ?? {}) }
+  delete currentBands[band]
+  emitPosterLayout(Object.keys(currentBands).length ? { bands: currentBands } : undefined)
+  selectedChromeTarget.value = null
   activeChromeBlockId.value = null
+}
+
+function resetChromeSection(band: ChromeBandId) {
+  resetChromeBand(band)
 }
 
 function startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
@@ -1565,77 +1937,228 @@ function teardownChromeBandResize() {
   window.removeEventListener('pointercancel', finishChromeBandResize)
 }
 
-function addChromeTextBlock(band: ChromeBandId) {
-  const cfg = posterLayout.value.bands[band]
-  const id = `chrome-text-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
-  const block: ChromeBlock = {
-    id,
-    kind: 'text',
-    col: 1,
-    row: cfg.rows ?? 1,
-    span: band === 'header' ? 4 : 3,
-    rowSpan: 1,
-    text: 'Your text',
-    align: 'left',
-    valign: 'center',
-    font_family: props.styleConfig.body_font_family,
-    color: props.styleConfig.label_text_color,
-    scale: 1,
+function newChromeId(prefix: string) {
+  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
+}
+
+function makeEmptyCell(): ChromeGridCell {
+  return { id: newChromeId('chrome-cell'), fr: 1, align: 'left', valign: 'center' }
+}
+
+function defaultChromeFontFamily(block: ChromeBlock) {
+  if (block.font_family) return block.font_family
+  if (block.kind === 'title') return props.styleConfig.font_family
+  return props.styleConfig.body_font_family
+}
+
+function rememberChromeTextStyle(block: ChromeBlock, cell: ChromeGridCell) {
+  const override = block.slot ? slotOverride(block.slot) : {}
+  const fontWeight = Number.parseInt(String(chromeBlockWeight(block)), 10)
+  lastChromeTextStyle.value = {
+    font_family: override.font_family ?? defaultChromeFontFamily(block),
+    font_size_pt: override.font_size_pt ?? block.font_size_pt ?? cqhToPt(chromeBlockFontSize(block)),
+    align: override.align ?? cell.align ?? block.align ?? 'left',
+    valign: cell.valign ?? block.valign ?? 'center',
+    color: override.color ?? block.color ?? fg.value,
+    bg_color: override.bg_color ?? block.bg_color,
+    opacity: override.opacity ?? block.opacity,
+    bold: override.bold ?? block.bold ?? fontWeight >= 700,
+    italic: override.italic ?? block.italic ?? false,
+    scale: block.scale,
   }
-  updateChromeBlocks(band, [...sparseBlocksFor(band), block])
-  activeChromeBlockId.value = id
+}
+
+function makeTextBlock(text = 'Your text'): ChromeBlock {
+  const inherited = lastChromeTextStyle.value ?? {}
+  return {
+    id: newChromeId('chrome-text'),
+    kind: 'text',
+    source: 'user',
+    text,
+    align: inherited.align ?? 'left',
+    valign: inherited.valign ?? 'center',
+    font_family: inherited.font_family ?? props.styleConfig.body_font_family,
+    font_size_pt: inherited.font_size_pt,
+    color: inherited.color ?? props.styleConfig.label_text_color,
+    bg_color: inherited.bg_color,
+    opacity: inherited.opacity,
+    bold: inherited.bold,
+    italic: inherited.italic,
+    scale: inherited.font_size_pt != null ? undefined : inherited.scale ?? 1,
+  }
+}
+
+function addChromeTextToCell(band: ChromeBandId, rowId: string, cellId: string) {
+  updateChromeCell(band, rowId, cellId, cell => {
+    const block = makeTextBlock()
+    return {
+      ...cell,
+      align: block.align ?? cell.align,
+      valign: block.valign ?? cell.valign,
+      block,
+    }
+  })
+  selectChromeCell(band, rowId, cellId)
+}
+
+function addChromeTextBlock(band: ChromeBandId) {
+  const rowId = chromeRowsFor(band)[0]?.id
+  if (!rowId) {
+    addRowAfter(band)
+    return
+  }
+  addColumnAfter(band, rowId)
+}
+
+function addColumnAfter(band: ChromeBandId, rowId: string, afterCellId?: string) {
+  const rows = sparseBandRows(band).map(row => {
+    if (row.id !== rowId) return row
+    const nextCell = makeEmptyCell()
+    const index = afterCellId ? row.cells.findIndex(cell => cell.id === afterCellId) : row.cells.length - 1
+    const cells = [...row.cells]
+    cells.splice(Math.max(0, index) + 1, 0, nextCell)
+    return { ...row, cells }
+  })
+  updateChromeRows(band, rows)
+}
+
+function addRowAfter(band: ChromeBandId, afterRowId?: string) {
+  const nextRow: ChromeGridRow = { id: newChromeId('chrome-row'), fr: 1, cells: [makeEmptyCell()] }
+  const rows = [...sparseBandRows(band)]
+  const index = afterRowId ? rows.findIndex(row => row.id === afterRowId) : rows.length - 1
+  rows.splice(Math.max(0, index) + 1, 0, nextRow)
+  updateChromeRows(band, rows)
+}
+
+function deleteCellContent(band: ChromeBandId, rowId: string, cellId: string) {
+  updateChromeCell(band, rowId, cellId, cell => ({
+    ...cell,
+    block: cell.block ? { ...cell.block, empty: true, text: '', slot: undefined } : undefined,
+  }))
+}
+
+function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
+  const currentRows = sparseBandRows(band)
+  const visibleRows = currentRows.filter(row => !row.deleted)
+  let nextSelection: ChromeSelection | null = { type: 'row', band, rowId }
+
+  const rows = currentRows.map((row) => {
+    if (row.id !== rowId) return row
+
+    const visibleCells = row.cells.filter(cell => !cell.deleted)
+    if (visibleCells.length > 1) {
+      return {
+        ...row,
+        cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
+      }
+    }
+
+    if (visibleRows.length > 1) {
+      nextSelection = { type: 'band', band }
+      return {
+        ...row,
+        deleted: true,
+        cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
+      }
+    }
+
+    nextSelection = { type: 'cell', band, rowId, cellId }
+    return {
+      ...row,
+      cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: false, block: undefined } : cell),
+    }
+  })
+  updateChromeRows(band, rows)
+  selectedChromeTarget.value = nextSelection
+  activeChromeBlockId.value = null
+  activeTextTarget.value = null
+  chromePaddingPanelOpen.value = false
+}
+
+function addColumnForSelection() {
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return
+  addColumnAfter(target.band, target.rowId, target.cellId)
+}
+
+function addRowForSelection() {
+  const target = selectedChromeTarget.value
+  if (!target) return
+  addRowAfter(target.band, target.type === 'band' ? undefined : target.rowId)
+}
+
+function removeSelectedCell() {
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return
+  removeCell(target.band, target.rowId, target.cellId)
 }
 
 function deleteChromeBlock() {
-  const block = activeChromeBlock.value
-  const band = chromeBandForBlock(activeChromeBlockId.value)
-  if (!block || !band) return
-  if (block.slot) {
-    updateChromeBlocks(band, [...sparseBlocksFor(band).filter(existing => existing.id !== block.id), { ...block, deleted: true }])
-  } else {
-    updateChromeBlocks(band, sparseBlocksFor(band).filter(existing => existing.id !== block.id))
-  }
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return
+  deleteCellContent(target.band, target.rowId, target.cellId)
   activeChromeBlockId.value = null
   activeTextTarget.value = null
 }
 
 function duplicateChromeBlock() {
+  const target = selectedChromeTarget.value
   const block = activeChromeBlock.value
-  const band = chromeBandForBlock(activeChromeBlockId.value)
-  if (!block || !band) return
-  const id = `chrome-copy-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
-  const copy: ChromeBlock = {
-    ...block,
-    id,
-    slot: undefined,
-    text: chromeBlockText(block),
-    col: Math.min((posterLayout.value.bands[band].cols ?? 12), block.col + 1),
-  }
-  updateChromeBlocks(band, [...sparseBlocksFor(band), copy])
-  activeChromeBlockId.value = id
+  if (target?.type !== 'cell' || !block) return
+  const rows = sparseBandRows(target.band).map(row => {
+    if (row.id !== target.rowId) return row
+    const source = row.cells.find(cell => cell.id === target.cellId)
+    if (!source) return row
+    const index = row.cells.findIndex(cell => cell.id === target.cellId)
+    const duplicate: ChromeGridCell = {
+      ...source,
+      id: newChromeId('chrome-cell'),
+      block: source.block
+        ? {
+            ...source.block,
+            id: newChromeId('chrome-block'),
+            slot: undefined,
+            source: 'user',
+          }
+        : undefined,
+    }
+    const cells = [...row.cells]
+    cells.splice(Math.max(0, index) + 1, 0, duplicate)
+    return { ...row, cells }
+  })
+  updateChromeRows(target.band, rows)
 }
 
 function onChromeCanvasPointerDown() {
   if (!chromeDirectEditing.value) return
+  selectedChromeTarget.value = null
   activeChromeBlockId.value = null
   activeTextTarget.value = null
+  chromePaddingPanelOpen.value = false
 }
 
-function onCustomChromeFocus(e: FocusEvent, id: string) {
-  selectChromeBlock(id)
+function onCustomChromeFocus(_e: FocusEvent, _id: string) {}
+function onCustomChromeClick(_e: MouseEvent, _id: string) {}
+function onCustomChromeBlur(_e: FocusEvent, _id: string) {}
+
+function onChromeGridBlockFocus(e: FocusEvent, band: ChromeBandId, rowId: string, cellId: string) {
+  selectChromeCell(band, rowId, cellId)
   activeTextAnchor.value = e.currentTarget instanceof HTMLElement ? e.currentTarget.getBoundingClientRect() : null
 }
 
-function onCustomChromeClick(e: MouseEvent, id: string) {
-  selectChromeBlock(id)
-  activeTextAnchor.value = (e.currentTarget as HTMLElement).getBoundingClientRect()
-}
-
-function onCustomChromeBlur(e: FocusEvent, id: string) {
-  const band = chromeBandForBlock(id)
-  const block = activeChromeBlock.value
-  if (!band || !block) return
-  upsertChromeBlockEdit(band, { ...block, text: (e.currentTarget as HTMLElement).innerText.trim() })
+function onChromeGridBlockBlur(e: FocusEvent, band: ChromeBandId, rowId: string, cellId: string) {
+  const currentCell = findChromeCell(band, rowId, cellId)
+  const currentBlock = currentCell?.block
+  if (!currentCell || !currentBlock || currentBlock.empty || currentBlock.deleted) return
+  const text = (e.currentTarget as HTMLElement).innerText.trim()
+  if (currentBlock.slot) {
+    emit('poster-text-override', { slot: currentBlock.slot, patch: { text } })
+    return
+  }
+  updateChromeCell(band, rowId, cellId, cell => ({
+    ...cell,
+    block: cell.block ? { ...cell.block, text, slot: undefined, empty: text.length === 0 } : makeTextBlock(text),
+  }))
 }
 
 const SLOT_LABELS: Record<PosterTextSlot, string> = {
@@ -3017,34 +3540,88 @@ const activeChromeTextValue = computed(() => {
   return chromeBlockText(block)
 })
 
+const activeChromeAlign = computed(() => {
+  const block = activeChromeBlock.value
+  if (!block) return 'left'
+  if (block.slot) return slotOverride(block.slot).align ?? block.align ?? 'left'
+  return block.align ?? 'left'
+})
+
+const activeChromeValign = computed(() => {
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell') return 'center'
+  return findChromeCell(target.band, target.rowId, target.cellId)?.valign ?? activeChromeBlock.value?.valign ?? 'center'
+})
+
+const activeChromePaddingValues = computed<[number, number, number, number]>(() => {
+  const target = selectedChromeTarget.value
+  return target?.type === 'cell'
+    ? findChromeCell(target.band, target.rowId, target.cellId)?.padding ?? [0, 0, 0, 0]
+    : [0, 0, 0, 0]
+})
+
+function activeChromeToolbarAnchorElement() {
+  return activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
+}
+
+function activeChromeTextAnchorElement() {
+  if (!posterCanvasEl.value) return null
+  const blockId = activeChromeBlockId.value
+  if (blockId) {
+    const selector = `[data-chrome-block-id="${globalThis.CSS?.escape?.(blockId) ?? blockId.replace(/"/g, '\\"')}"]`
+    const blockEl = posterCanvasEl.value.querySelector<HTMLElement>(selector)
+    const rect = blockEl?.getBoundingClientRect()
+    if (blockEl && rect && rect.width > 0 && rect.height > 0) return blockEl
+  }
+  return activeChromeCellAnchorElement()
+}
+
+function activeChromeCellAnchorElement() {
+  const target = selectedChromeTarget.value
+  if (target?.type !== 'cell' || !posterCanvasEl.value) return null
+  const cellSelector = `[data-chrome-cell-id="${globalThis.CSS?.escape?.(target.cellId) ?? target.cellId.replace(/"/g, '\\"')}"]`
+  return posterCanvasEl.value.querySelector<HTMLElement>(cellSelector)
+}
+
 function patchActiveChromeBlock(patch: PosterTextOverride) {
   const block = activeChromeBlock.value
-  const band = chromeBandForBlock(activeChromeBlockId.value)
-  if (!block || !band) return
+  const target = selectedChromeTarget.value
+  if (!block || target?.type !== 'cell') return
+  lastChromeTextStyle.value = { ...(lastChromeTextStyle.value ?? {}), ...patch }
   if (block.slot) {
     emit('poster-text-override', { slot: block.slot, patch })
     return
   }
-  upsertChromeBlockEdit(band, {
-    ...block,
-    text: patch.text ?? block.text,
-    font_family: patch.font_family ?? block.font_family,
-    font_size_pt: patch.font_size_pt ?? block.font_size_pt,
-    align: patch.align ?? block.align,
-    color: patch.color ?? block.color,
-    bg_color: patch.bg_color ?? block.bg_color,
-    scale: patch.scale ?? block.scale,
-    opacity: patch.opacity ?? block.opacity,
-    bold: patch.bold ?? block.bold,
-    italic: patch.italic ?? block.italic,
-  })
+  updateChromeCell(target.band, target.rowId, target.cellId, cell => ({
+    ...cell,
+    align: patch.align ?? cell.align,
+    block: {
+      ...block,
+      text: patch.text ?? block.text,
+      font_family: patch.font_family ?? block.font_family,
+      font_size_pt: patch.font_size_pt ?? block.font_size_pt,
+      align: patch.align ?? block.align,
+      color: patch.color ?? block.color,
+      bg_color: patch.bg_color ?? block.bg_color,
+      scale: patch.scale ?? block.scale,
+      opacity: patch.opacity ?? block.opacity,
+      bold: patch.bold ?? block.bold,
+      italic: patch.italic ?? block.italic,
+    },
+  }))
 }
 
 function patchActiveChromeLayoutBlock(patch: Partial<ChromeBlock>) {
   const block = activeChromeBlock.value
-  const band = chromeBandForBlock(activeChromeBlockId.value)
-  if (!block || !band) return
-  upsertChromeBlockEdit(band, { ...block, ...patch })
+  const target = selectedChromeTarget.value
+  if (!block || target?.type !== 'cell') return
+  lastChromeTextStyle.value = { ...(lastChromeTextStyle.value ?? {}), ...patch }
+  updateChromeCell(target.band, target.rowId, target.cellId, cell => ({
+    ...cell,
+    align: patch.align ?? cell.align,
+    valign: patch.valign ?? cell.valign,
+    block: { ...block, ...patch },
+  }))
 }
 
 function setActiveChromeText(text: string) {
@@ -3082,46 +3659,116 @@ function setChromeValign(valign: NonNullable<ChromeBlock['valign']>) {
   patchActiveChromeLayoutBlock({ valign })
 }
 
-const chromeToolbarStyle = computed(() => {
-  if (!posterCanvasEl.value) return {}
-  const poster = posterCanvasEl.value.getBoundingClientRect()
-  const band = activeChromeBand.value
-  const width = 580
-  if (band === 'footer') {
-    return {
-      left: `${Math.max(12, Math.min(window.innerWidth - width - 12, poster.left + poster.width / 2 - width / 2))}px`,
-      top: `${Math.min(window.innerHeight - 52, poster.bottom + 14)}px`,
-      width: `${width}px`,
-    }
+function cleanupChromeFloating() {
+  cleanupChromeToolbarFloating?.()
+  cleanupChromeStructureFloating?.()
+  cleanupChromeToolbarFloating = null
+  cleanupChromeStructureFloating = null
+}
+
+function toolbarPointerStyle(reference: HTMLElement, floatingX: number, floatingWidth: number, placement: string) {
+  const referenceRect = reference.getBoundingClientRect()
+  const anchorX = Math.max(18, Math.min(floatingWidth - 18, referenceRect.left + referenceRect.width / 2 - floatingX))
+  const above = placement.startsWith('top')
+  chromeToolbarPointerFloatingStyle.value = {
+    left: `${anchorX}px`,
+    top: above ? '100%' : 'auto',
+    bottom: above ? 'auto' : '100%',
+    borderWidth: above ? '7px 6px 0 6px' : '0 6px 7px 6px',
+    borderColor: above ? '#fff transparent transparent transparent' : 'transparent transparent #fff transparent',
   }
-  if (band === 'railLeft') {
-    return {
-      left: `${Math.min(window.innerWidth - width - 12, poster.right + 14)}px`,
-      top: `${Math.max(12, poster.top + poster.height / 2 - 20)}px`,
-      width: `${width}px`,
-    }
+}
+
+async function updateChromeToolbarFloating() {
+  if (!chromeToolbarVisible.value || !chromeToolbarEl.value) {
+    chromeToolbarFloatingStyle.value = { ...chromeToolbarFloatingStyle.value, visibility: 'hidden' }
+    return
   }
-  if (band === 'railRight') {
-    return {
-      left: `${Math.max(12, poster.left - width - 14)}px`,
-      top: `${Math.max(12, poster.top + poster.height / 2 - 20)}px`,
-      width: `${width}px`,
-    }
-  }
-  return {
-    left: `${Math.max(12, Math.min(window.innerWidth - width - 12, poster.left + poster.width / 2 - width / 2))}px`,
-    top: `${Math.max(12, poster.top - 52)}px`,
+  const reference = activeChromeToolbarAnchorElement()
+  if (!reference) return
+  const width = Math.min(508, window.innerWidth - 24)
+  chromeToolbarFloatingStyle.value = {
+    ...chromeToolbarFloatingStyle.value,
     width: `${width}px`,
   }
-})
+  const { x, y, placement } = await computePosition(reference, chromeToolbarEl.value, {
+    strategy: 'fixed',
+    placement: 'top',
+    middleware: [
+      offset(12),
+      flip({ fallbackPlacements: ['bottom'] }),
+      shift({ padding: 8 }),
+    ],
+  })
+  chromeToolbarPlacement.value = placement
+  chromeToolbarFloatingStyle.value = {
+    position: 'fixed',
+    left: `${x}px`,
+    top: `${y}px`,
+    width: `${width}px`,
+    visibility: 'visible',
+  }
+  toolbarPointerStyle(reference, x, width, placement)
+}
 
-const chromeToolbarPointerStyle = computed(() => {
-  const band = activeChromeBand.value
-  if (band === 'footer') return { bottom: '100%', borderWidth: '0 6px 7px 6px', borderColor: 'transparent transparent #fff transparent' }
-  if (band === 'railLeft') return { right: '100%', top: '50%', width: '14px', height: '1px', background: '#2A5BCC' }
-  if (band === 'railRight') return { left: '100%', top: '50%', width: '14px', height: '1px', background: '#2A5BCC' }
-  return { top: '100%', borderWidth: '7px 6px 0 6px', borderColor: '#fff transparent transparent transparent' }
-})
+async function updateChromeStructureFloating() {
+  if (!chromeStructurePopoverVisible.value || !chromeStructurePopoverEl.value) {
+    chromeStructurePopoverFloatingStyle.value = { ...chromeStructurePopoverFloatingStyle.value, visibility: 'hidden' }
+    return
+  }
+  const reference = activeChromeCellAnchorElement()
+  if (!reference) return
+  const posterRect = posterCanvasEl.value?.getBoundingClientRect()
+  const referenceRect = reference.getBoundingClientRect()
+  const preferLeftSide = posterRect
+    ? referenceRect.left + referenceRect.width / 2 > posterRect.left + posterRect.width / 2
+    : false
+  const placement: Placement = chromeToolbarVisible.value
+    ? preferLeftSide ? 'left' : 'right'
+    : 'bottom'
+  const fallbackPlacements: Placement[] = chromeToolbarVisible.value
+    ? [preferLeftSide ? 'right' : 'left', 'bottom', 'top']
+    : ['top']
+  const { x, y } = await computePosition(reference, chromeStructurePopoverEl.value, {
+    strategy: 'fixed',
+    placement,
+    middleware: [
+      offset(12),
+      flip({ fallbackPlacements }),
+      shift({ padding: 8 }),
+    ],
+  })
+  chromeStructurePopoverFloatingStyle.value = {
+    position: 'fixed',
+    left: `${x}px`,
+    top: `${y}px`,
+    visibility: 'visible',
+  }
+}
+
+async function syncChromeFloating() {
+  if (typeof window === 'undefined') return
+  await nextTick()
+  cleanupChromeFloating()
+  const toolbarReference = activeChromeToolbarAnchorElement()
+  if (chromeToolbarVisible.value && toolbarReference && chromeToolbarEl.value) {
+    cleanupChromeToolbarFloating = autoUpdate(toolbarReference, chromeToolbarEl.value, updateChromeToolbarFloating)
+    await updateChromeToolbarFloating()
+  }
+  const structureReference = activeChromeCellAnchorElement()
+  if (chromeStructurePopoverVisible.value && structureReference && chromeStructurePopoverEl.value) {
+    cleanupChromeStructureFloating = autoUpdate(structureReference, chromeStructurePopoverEl.value, updateChromeStructureFloating)
+    await updateChromeStructureFloating()
+  }
+}
+
+watch(
+  [chromeToolbarVisible, chromeStructurePopoverVisible, activeChromeBlockId, chromePaddingPanelOpen, selectedChromeTarget],
+  () => { void syncChromeFloating() },
+  { flush: 'post' },
+)
+
+watch(posterLayout, () => { void syncChromeFloating() }, { flush: 'post' })
 
 // ── Trail legend ──────────────────────────────────────────────────────────────
 
@@ -5354,8 +6001,10 @@ function deactivateSegmentEditMode() {
     mapInstance.getCanvas().classList.remove('segment-point-hover')
     mapInstance.getCanvas().classList.remove('segment-point-bend-hover')
   }
-  document.removeEventListener('mouseup', finishSegmentEditDrag)
-  document.removeEventListener('keydown', onSegmentEditKeydown)
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('mouseup', finishSegmentEditDrag)
+    document.removeEventListener('keydown', onSegmentEditKeydown)
+  }
   resetSegmentEditDrag()
   segmentEditCoords.value = []
   activeSegmentEditSegId = null
@@ -5379,8 +6028,10 @@ function activateSegmentEditMode() {
   mapInstance.on('mouseenter', 'segment-edit-bend-hit', onSegmentBendMouseEnter)
   mapInstance.on('mouseleave', 'segment-edit-bend-hit', onSegmentBendMouseLeave)
   mapInstance.on('mousemove', onSegmentEditMouseMove)
-  document.addEventListener('mouseup', finishSegmentEditDrag)
-  document.addEventListener('keydown', onSegmentEditKeydown)
+  if (typeof document !== 'undefined') {
+    document.addEventListener('mouseup', finishSegmentEditDrag)
+    document.addEventListener('keydown', onSegmentEditKeydown)
+  }
   activeSegmentEditSegId = props.segmentEditMode.segId
 }
 
@@ -5951,46 +6602,256 @@ onUnmounted(() => {
   display: block;
 }
 
+/* Chrome row/column grid editor */
+.poster-header.is-chrome-grid-mode,
+.poster-footer.is-chrome-grid-mode {
+  display: block !important;
+}
+
+.poster-header.is-chrome-grid-mode > :not(.chrome-grid-band),
+.poster-footer.is-chrome-grid-mode > :not(.chrome-grid-band) {
+  display: none !important;
+}
+
+.chrome-grid-band {
+  position: relative;
+  z-index: 8;
+}
+
+.chrome-grid-row {
+  position: relative;
+  min-height: 0;
+}
+
+.chrome-grid-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 2.2cqh;
+  display: grid;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.22cqh 0.32cqw;
+}
+
+.chrome-grid-cell:hover {
+  border-color: rgba(42, 91, 204, 0.28);
+}
+
+.chrome-grid-cell.is-selected {
+  z-index: 20;
+  border-color: #2A5BCC;
+  box-shadow: 0 0 0 1px #2A5BCC;
+}
+
+.chrome-grid-cell.is-empty {
+  background: rgba(42, 91, 204, 0.035);
+}
+
+.chrome-grid-block {
+  min-width: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.chrome-grid-block--title {
+  max-width: 100%;
+}
+
+.chrome-empty-cell-btn,
+.chrome-row-add-row,
+.chrome-band-add-row,
+.chrome-cell-add-col {
+  min-width: 24px;
+  min-height: 24px;
+  border: 1px solid rgba(42, 91, 204, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #2A5BCC;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+  transition: opacity 120ms ease, transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.chrome-row-add-row,
+.chrome-band-add-row,
+.chrome-cell-add-col {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chrome-empty-cell-btn:hover,
+.chrome-row-add-row:hover,
+.chrome-band-add-row:hover,
+.chrome-cell-add-col:hover {
+  border-color: #2A5BCC;
+  background: #FFFFFF;
+}
+
+.chrome-empty-cell-btn {
+  justify-self: center;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+}
+
+.chrome-cell-add-col {
+  position: absolute;
+  right: -11px;
+  top: 50%;
+  z-index: 24;
+  width: 24px;
+  height: 24px;
+  transform: translate(50%, -50%) scale(0.92);
+}
+
+.chrome-grid-cell:not(.is-empty):hover > .chrome-cell-add-col,
+.chrome-grid-cell:not(.is-empty).is-selected > .chrome-cell-add-col {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(50%, -50%) scale(1);
+}
+
+.chrome-row-add-row {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -11px;
+  z-index: 22;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  transform: translateY(1px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: transparent;
+  overflow: visible;
+}
+
+.chrome-grid-row:hover > .chrome-row-add-row,
+.chrome-grid-row.is-selected > .chrome-row-add-row {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.chrome-row-add-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: rgba(42, 91, 204, 0.74);
+}
+
+.chrome-row-add-row::after {
+  content: "+ Row";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(42, 91, 204, 0.5);
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #2A5BCC;
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-band-add-row {
+  display: none;
+}
+
+.chrome-grid-band:hover > .chrome-band-add-row {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) scale(1);
+}
+
+.chrome-inline-popover {
+  position: fixed;
+  z-index: 10030;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(214, 211, 209, 0.92);
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 24px rgba(28, 25, 23, 0.14), 0 2px 6px rgba(28, 25, 23, 0.06);
+}
+
+.chrome-inline-popover button {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #F5F5F4;
+  color: #1C1917;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 /* Chrome direct editing */
 .chrome-selection-toolbar {
   position: fixed;
   z-index: 10020;
-  height: 38px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border: 1px solid #E7E5E4;
-  border-radius: 8px;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid rgba(214, 211, 209, 0.92);
+  border-radius: 10px;
   background: #FFFFFF;
-  box-shadow: 0 10px 28px rgba(28, 25, 23, 0.16), 0 2px 6px rgba(28, 25, 23, 0.06);
+  box-shadow: 0 14px 32px rgba(28, 25, 23, 0.16), 0 2px 6px rgba(28, 25, 23, 0.06);
   color: #1C1917;
   font-family: "Space Grotesk", system-ui, sans-serif;
+  overflow: visible;
 }
 
 .chrome-toolbar-kind {
-  padding: 0 8px;
+  flex: 0 0 auto;
+  max-width: 74px;
+  padding: 0 7px;
   color: #78716C;
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chrome-toolbar-divider {
   width: 1px;
-  height: 18px;
-  margin: 0 3px;
+  height: 20px;
+  margin: 0 2px;
   background: #E7E5E4;
+  flex: 0 0 auto;
 }
 
 .chrome-toolbar-btn {
-  height: 30px;
-  min-width: 30px;
-  padding: 0 8px;
+  flex: 0 0 auto;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 7px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: #1C1917;
   font-size: 12px;
@@ -5998,8 +6859,164 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
+.chrome-toolbar-btn[title="Done"] {
+  min-width: 42px;
+  padding: 0 9px;
+  background: #F5F5F4;
+}
+
+.chrome-toolbar-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.chrome-align-icon,
+.chrome-valign-icon {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
+.chrome-align-icon::before,
+.chrome-align-icon::after,
+.chrome-align-icon {
+  background-repeat: no-repeat;
+}
+
+.chrome-align-icon {
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor);
+  background-size: 14px 2px, 10px 2px, 12px 2px;
+  background-position: 1px 3px, 1px 7px, 1px 11px;
+}
+
+.chrome-align-icon--center {
+  background-position: 1px 3px, 3px 7px, 2px 11px;
+}
+
+.chrome-align-icon--right {
+  background-position: 1px 3px, 5px 7px, 3px 11px;
+}
+
+.chrome-valign-icon {
+  border-radius: 2px;
+}
+
+.chrome-valign-icon::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.65;
+}
+
+.chrome-valign-icon::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.chrome-valign-icon--top::before {
+  top: 2px;
+}
+
+.chrome-valign-icon--top::after {
+  top: 5px;
+}
+
+.chrome-valign-icon--middle::before {
+  top: 7px;
+}
+
+.chrome-valign-icon--middle::after {
+  top: 5px;
+}
+
+.chrome-valign-icon--bottom::before {
+  bottom: 2px;
+}
+
+.chrome-valign-icon--bottom::after {
+  bottom: 5px;
+}
+
+.chrome-padding-popover {
+  position: absolute;
+  right: 44px;
+  bottom: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: auto;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid rgba(214, 211, 209, 0.92);
+  border-radius: 9px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 26px rgba(28, 25, 23, 0.16), 0 2px 6px rgba(28, 25, 23, 0.06);
+}
+
+.chrome-padding-title {
+  padding: 0 4px;
+  color: #78716C;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.chrome-padding-side {
+  display: grid;
+  grid-template-columns: 48px 28px 24px 28px;
+  align-items: center;
+  gap: 4px;
+}
+
+.chrome-padding-side span {
+  padding: 0;
+  color: #44403C;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chrome-padding-popover button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: #F5F5F4;
+  color: #1C1917;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chrome-padding-popover output {
+  min-width: 18px;
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .chrome-toolbar-btn:hover {
   background: #F5F5F4;
+}
+
+.chrome-toolbar-btn.is-active {
+  background: #1C1917;
+  color: #FFFFFF;
 }
 
 .chrome-toolbar-btn--italic {
@@ -6011,19 +7028,26 @@ onUnmounted(() => {
 }
 
 .chrome-toolbar-color {
-  width: 30px;
-  height: 30px;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 6px;
   cursor: pointer;
+}
+
+.chrome-toolbar-color:hover {
+  background: #F5F5F4;
 }
 
 .chrome-toolbar-color input {
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 0;
+  border: 1px solid #D6D3D1;
+  border-radius: 4px;
   background: transparent;
 }
 
@@ -6313,10 +7337,13 @@ onUnmounted(() => {
 
 .chrome-mobile-actions {
   margin-top: auto;
+  flex-wrap: wrap;
 }
 
 .chrome-mobile-actions button {
-  flex: 1;
+  flex: 1 1 calc(33.333% - 6px);
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .chrome-mobile-actions .danger {
