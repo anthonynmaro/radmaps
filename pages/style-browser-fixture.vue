@@ -1,6 +1,13 @@
 <template>
   <main class="min-h-screen bg-stone-200 p-6">
-    <div class="mx-auto" :style="fixtureFrameStyle">
+    <div v-if="surfaceFixture" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
+      <MapEditorSurface
+        v-model="styleConfig"
+        :map="sampleMap"
+        :saving="false"
+      />
+    </div>
+    <div v-else class="mx-auto" :style="fixtureFrameStyle">
       <MapPreview
         :map="sampleMap"
         :style-config="styleConfig"
@@ -19,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
 import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
@@ -47,6 +55,7 @@ const renderMode = route.query.print === 'final' ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
+const surfaceFixture = route.query.surface === 'true' || route.query.surface === '1'
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 const withAsset = route.query.asset === 'true' || route.query.asset === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
@@ -234,6 +243,12 @@ const fixtureFrameStyle = computed(() => {
     maxWidth: '100%',
   }
 })
+
+const editorSurfaceFrameStyle = computed(() => ({
+  width: `${Number.isFinite(width) ? Math.max(width, 960) : 1180}px`,
+  height: `${Number.isFinite(height) ? Math.max(height, 720) : 820}px`,
+  maxWidth: '100%',
+}))
 
 const sampleRoute = [
   [-87.733, 41.905],

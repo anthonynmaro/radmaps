@@ -292,86 +292,115 @@ test.describe('style browser visual harness', () => {
     })).toMatchObject({ font_size_pt: 120 })
   })
 
-  test('uses direct chrome editing controls for desktop bands', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop chrome editing coverage')
+  test('edits chrome as rows with columns on desktop', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop chrome grid coverage')
 
     await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1&chrome=1')
     await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
 
-    const title = page.locator('.poster-trail-name')
-    await expect(title).toBeVisible()
-    await title.click({ force: true })
-    await expect(page.getByTestId('chrome-selection-toolbar')).toBeVisible()
+    const headerGrid = page.getByTestId('chrome-band-header')
+    const footerGrid = page.getByTestId('chrome-band-footer')
+    await expect(headerGrid).toBeVisible()
+    await expect(footerGrid).toBeVisible()
+    await expect(page.locator('.poster-trail-name')).toBeHidden()
     await expect(page.locator('.inline-text-toolbar')).toHaveCount(0)
 
-    await page.getByTestId('poster-header').hover()
-    await expect(page.getByText(/^HEADER ·/)).toBeVisible()
-    const headerInsert = page.getByTestId('chrome-band-header').locator('.chrome-insert-btn')
-    await expect(headerInsert).toBeVisible()
-
-    const headerBefore = await page.getByTestId('poster-header').boundingBox()
-    expect(headerBefore).toBeTruthy()
-    const resize = page.getByTestId('chrome-resize-header')
-    const resizeBox = await resize.boundingBox()
-    expect(resizeBox).toBeTruthy()
-    await page.mouse.move(resizeBox!.x + resizeBox!.width / 2, resizeBox!.y + resizeBox!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(resizeBox!.x + resizeBox!.width / 2, resizeBox!.y + resizeBox!.height / 2 + 60, { steps: 8 })
-    await page.mouse.up()
+    const firstHeaderCell = headerGrid.locator('.chrome-grid-cell').first()
+    await firstHeaderCell.click()
+    const structurePopover = page.getByTestId('chrome-structure-popover')
+    await expect(structurePopover).toBeVisible()
+    const rowCountBefore = await headerGrid.locator('.chrome-grid-row').count()
+    await structurePopover.getByText('+ Row').click()
+    await expect(headerGrid.locator('.chrome-grid-row')).toHaveCount(rowCountBefore + 1)
 
     await expect.poll(async () => page.evaluate(() => {
       const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      return fixture?.getStyle().poster_layout?.bands?.header?.height ?? 0
-    })).toBeGreaterThan(22)
+      return fixture?.getStyle().poster_layout?.bands?.header?.rows?.length ?? 0
+    })).toBeGreaterThan(rowCountBefore)
 
-    await title.click({ force: true })
-    await page.getByTestId('chrome-delete-block').click()
-    await expect(page.locator('.poster-trail-name')).toHaveCount(0)
+    const firstFooterCell = footerGrid.locator('.chrome-grid-cell').first()
+    const footerCellCountBefore = await footerGrid.locator('.chrome-grid-cell').count()
+    await firstFooterCell.click()
+    await structurePopover.getByText('+ Col').click()
+    await expect(footerGrid.locator('.chrome-grid-cell')).toHaveCount(footerCellCountBefore + 1)
+
+    await firstFooterCell.click()
+    await structurePopover.getByText('Clear').click()
+    await expect(firstFooterCell.locator('.chrome-empty-cell-btn')).toBeVisible()
     await expect.poll(async () => page.evaluate(() => {
       const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      return fixture?.getStyle().poster_layout?.blocks?.header?.some((block: { id: string; deleted?: boolean }) => block.id === 'hdr-title' && block.deleted) ?? false
+      const firstCell = fixture?.getStyle().poster_layout?.bands?.footer?.rows?.[0]?.cells?.[0]
+      return firstCell?.block?.empty === true
     })).toBe(true)
 
-    await page.getByTestId('poster-header').hover()
-    await page.getByTestId('chrome-reset-header').click()
-    await expect(page.locator('.poster-trail-name')).toBeVisible()
-    await expect.poll(async () => page.evaluate(() => {
-      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      return fixture?.getStyle().poster_layout?.blocks?.header?.length ?? 0
-    })).toBe(0)
+    await firstFooterCell.locator('.chrome-empty-cell-btn').click()
+    await expect(firstFooterCell.locator('.chrome-grid-block')).toContainText('Your text')
 
-    await page.getByTestId('poster-header').hover()
-    await headerInsert.click()
-    await expect(page.getByTestId('chrome-custom-block').first()).toBeVisible()
+    const subtitleCell = headerGrid.locator('[data-chrome-cell-id="hdr-location"]')
+    await expect(subtitleCell).toBeVisible()
+    await subtitleCell.click()
+    await structurePopover.getByText('Remove').click()
+    await expect(headerGrid.locator('[data-chrome-cell-id="hdr-location"]')).toHaveCount(0)
     await expect.poll(async () => page.evaluate(() => {
       const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      return fixture?.getStyle().poster_layout?.blocks?.header?.some((block: { id: string }) => block.id.startsWith('chrome-text-')) ?? false
+      return fixture?.getStyle().poster_layout?.bands?.header?.rows?.find((row: any) => row.id === 'header-subtitle')?.deleted === true
     })).toBe(true)
   })
 
-  test('uses the mobile chrome drawer without covering selected text', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile', 'mobile chrome editing coverage')
+  test('wires chrome grid edits through the map editor surface', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop editor-surface chrome coverage')
+
+    await page.goto('/style-browser-fixture?surface=1&composition=modernist-block&theme=bold-modern&chrome=1&width=1180&height=820')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+
+    const surface = page.getByTestId('map-editor-surface')
+    await expect(surface).toHaveAttribute('data-chrome-editing', 'true')
+
+    const footerGrid = page.getByTestId('chrome-band-footer')
+    const coordinateCell = footerGrid.locator('[data-chrome-cell-id="ft-coords"]')
+    await expect(coordinateCell).toBeVisible()
+    await coordinateCell.click()
+
+    const textToolbar = page.getByTestId('chrome-selection-toolbar')
+    const structurePopover = page.getByTestId('chrome-structure-popover')
+    await expect(textToolbar).toBeVisible()
+    await expect(structurePopover).toBeVisible()
+    await expect.poll(async () => {
+      const textBox = await textToolbar.boundingBox()
+      const structureBox = await structurePopover.boundingBox()
+      if (!textBox || !structureBox) return false
+      const horizontalOverlap = textBox.x < structureBox.x + structureBox.width && structureBox.x < textBox.x + textBox.width
+      const verticalOverlap = textBox.y < structureBox.y + structureBox.height && structureBox.y < textBox.y + textBox.height
+      return !(horizontalOverlap && verticalOverlap)
+    }).toBe(true)
+
+    const headerGrid = page.getByTestId('chrome-band-header')
+    const subtitleCell = headerGrid.locator('[data-chrome-cell-id="hdr-location"]')
+    await expect(subtitleCell).toBeVisible()
+    await subtitleCell.click()
+
+    await expect(structurePopover).toBeVisible()
+    await structurePopover.getByText('Remove').click()
+
+    await expect(headerGrid.locator('[data-chrome-cell-id="hdr-location"]')).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle().poster_layout?.bands?.header?.rows?.find((row: any) => row.id === 'header-subtitle')?.deleted === true
+    })).toBe(true)
+  })
+
+  test('renders the chrome grid editor on mobile without floating text toolbar', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'mobile chrome grid coverage')
 
     await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1&chrome=1&width=390&height=585')
     await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
 
-    const title = page.locator('.poster-trail-name')
-    await expect(title).toBeVisible()
-    await title.click({ force: true })
+    const footerGrid = page.getByTestId('chrome-band-footer')
+    await expect(footerGrid).toBeVisible()
+    await footerGrid.locator('.chrome-grid-cell').first().click()
     await expect(page.getByTestId('chrome-mobile-drawer')).toBeVisible()
+    await expect(footerGrid.locator('.chrome-inline-popover')).toHaveCount(0)
     await expect(page.locator('.inline-text-toolbar')).toHaveCount(0)
-
-    const boxes = await page.evaluate(() => {
-      const selected = document.querySelector<HTMLElement>('.poster-trail-name')
-      const drawer = document.querySelector<HTMLElement>('[data-testid="chrome-mobile-drawer"]')
-      return {
-        selected: selected?.getBoundingClientRect().toJSON(),
-        drawer: drawer?.getBoundingClientRect().toJSON(),
-      }
-    })
-    expect(boxes.selected).toBeTruthy()
-    expect(boxes.drawer).toBeTruthy()
-    expect(boxes.selected!.y + boxes.selected!.height).toBeLessThan(boxes.drawer!.y)
   })
 
   test('preserves map camera when label toggles rebuild the style', async ({ page }) => {
@@ -608,15 +637,6 @@ test.describe('style browser visual harness', () => {
 
     await expect(page.locator('.poster-occasion')).toHaveCount(0)
     await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
-    const slots = await page.evaluate(() => {
-      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      const layout = fixture?.getStyle().poster_layout
-      return {
-        footerNote: layout?.blocks?.footer?.some((block: { slot?: string }) => block.slot === 'composition_footer') ?? false,
-        occasion: layout?.blocks?.header?.some((block: { slot?: string }) => block.slot === 'occasion_text') ?? false,
-      }
-    })
-    expect(slots).toEqual({ footerNote: false, occasion: false })
   })
 
   test('keeps Modernist map framed inside the content column with visible topo detail', async ({ page }) => {

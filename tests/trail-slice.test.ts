@@ -169,6 +169,68 @@ describe('trail segment geometry', () => {
     ])
   })
 
+  it('preserves uploaded-track line boundaries instead of stitching separate GPX parts', () => {
+    const primary = lineRoute([
+      [-89, 40],
+      [-89.0001, 40],
+    ])
+    const uploaded: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-90, 41],
+              [-90.001, 41],
+              [-90.002, 41],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-91, 42],
+              [-91.001, 42],
+              [-91.002, 42],
+            ],
+          },
+        },
+      ],
+    }
+    const segment: TrailSegment = {
+      id: 'uploaded-multipart',
+      name: 'Uploaded multipart',
+      color: '#3A7CA5',
+      visible: true,
+      source: 'uploaded-track',
+      geojson: uploaded,
+      section_start: 0,
+      section_end: 100,
+    }
+
+    const resolved = resolveTrailSegmentGeojson(primary, segment)
+
+    expect(resolved.features).toHaveLength(2)
+    expect(resolved.features.map(feature => (feature.geometry as GeoJSON.LineString).coordinates)).toEqual([
+      [
+        [-90, 41],
+        [-90.001, 41],
+        [-90.002, 41],
+      ],
+      [
+        [-91, 42],
+        [-91.001, 42],
+        [-91.002, 42],
+      ],
+    ])
+  })
+
   it('builds drawn segment geometry, bbox, and distance-only stats from clicked points', () => {
     const coords = [
       [-90, 41],

@@ -65,8 +65,10 @@ const fullConfig: StyleConfig = {
     distance: { text: '26.2 miles', scale: 1.1, bold: true },
   },
   poster_layout: {
-    blocks: {
-      header: [{ id: 'hdr-title', kind: 'title', slot: 'trail_name', col: 1, row: 1, span: 12 }],
+    bands: {
+      header: {
+        rows: [{ id: 'header-title', cells: [{ id: 'hdr-title', block: { id: 'hdr-title-block', kind: 'title', slot: 'trail_name' } }] }],
+      },
     },
   },
 }

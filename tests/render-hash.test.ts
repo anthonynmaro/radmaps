@@ -186,16 +186,13 @@ describe('two-layer isolation', () => {
     const next: StyleConfig = {
       ...baseConfig,
       poster_layout: {
-        blocks: {
-          header: [{
-            id: 'hdr-title',
-            kind: 'title',
-            slot: 'trail_name',
-            col: 1,
-            row: 1,
-            span: 12,
-            scale: 1.2,
-          }],
+        bands: {
+          header: {
+            rows: [{
+              id: 'header-title',
+              cells: [{ id: 'hdr-title', block: { id: 'hdr-title-block', kind: 'title', slot: 'trail_name', scale: 1.2 } }],
+            }],
+          },
         },
       },
     }

@@ -305,6 +305,55 @@ function featureCollectionFromLines(lineCoords: number[][][]): GeoJSON.FeatureCo
   }
 }
 
+function getRouteLineCoords(geojson: GeoJSON.FeatureCollection): number[][][] {
+  const lines: number[][][] = []
+  for (const feature of geojson.features) {
+    const geometry = feature.geometry
+    if (geometry.type === 'LineString') {
+      lines.push(geometry.coordinates)
+    } else if (geometry.type === 'MultiLineString') {
+      lines.push(...geometry.coordinates)
+    }
+  }
+  return lines
+}
+
+function sliceGeometryBackedSegmentGeojson(
+  geojson: GeoJSON.FeatureCollection,
+  startPct: number,
+  endPct: number,
+): GeoJSON.FeatureCollection {
+  const lines = getRouteLineCoords(geojson).filter(line => line.length >= 2)
+  const totalCoords = lines.reduce((sum, line) => sum + line.length, 0)
+
+  if (!totalCoords) {
+    return { type: 'FeatureCollection', features: [] }
+  }
+
+  const [start, rawEnd] = pctToIndexRange(totalCoords, startPct, endPct)
+  const end = Math.max(rawEnd, start + 2)
+  const slicedLines: number[][][] = []
+  let offset = 0
+
+  for (const line of lines) {
+    const lineStart = offset
+    const lineEnd = offset + line.length
+    offset = lineEnd
+
+    const sliceStart = Math.max(start, lineStart)
+    const sliceEnd = Math.min(end, lineEnd)
+    if (sliceEnd - sliceStart < 2) continue
+
+    slicedLines.push(line.slice(sliceStart - lineStart, sliceEnd - lineStart))
+  }
+
+  if (!slicedLines.length) {
+    return { type: 'FeatureCollection', features: [] }
+  }
+
+  return featureCollectionFromLines(slicedLines)
+}
+
 export function routeStatsForCoords(coords: number[][]): RouteStats {
   let distanceKm = 0
   let elevationGainM = 0
@@ -618,12 +667,16 @@ export function resolveTrailSegmentGeojson(
 ): GeoJSON.FeatureCollection {
   const source = segmentSourceGeojson(primaryRoute, segment)
   const isGeometryBacked = segment.source === 'uploaded-track' || segment.source === 'drawn-track'
+  if (isGeometryBacked) {
+    return sliceGeometryBackedSegmentGeojson(source, segment.section_start, segment.section_end)
+  }
+
   return sliceRouteByPercent(
     source,
     segment.section_start,
     segment.section_end,
-    isGeometryBacked ? [] : deletedRanges,
-    isGeometryBacked ? Number.POSITIVE_INFINITY : DEFAULT_COORD_GAP_THRESHOLD_METERS,
+    deletedRanges,
+    DEFAULT_COORD_GAP_THRESHOLD_METERS,
   )
 }
 

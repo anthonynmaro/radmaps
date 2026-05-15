@@ -2,6 +2,8 @@ import type {
   ChromeBand,
   ChromeBandId,
   ChromeBlock,
+  ChromeGridCell,
+  ChromeGridRow,
   PartialPosterLayout,
   PosterLayout,
   PosterTextSlot,
@@ -26,50 +28,49 @@ export const CHROME_BLOCK_KIND_LABELS: Record<ChromeBlock['kind'], string> = {
   text: 'Text',
 }
 
-export const BLOCK_KINDS_FOR_BAND: Record<ChromeBandId, ChromeBlock['kind'][]> = {
-  header: ['title', 'subtitle', 'eyebrow', 'occasion', 'coords', 'stat', 'brand', 'logo', 'text'],
-  footer: ['stat', 'coords', 'note', 'brand', 'subtitle', 'logo', 'text'],
-  railLeft: ['vlabel', 'note', 'image', 'text'],
-  railRight: ['vlabel', 'note', 'image', 'text'],
-}
-
-function clampRows(rows?: number) {
-  if (rows == null || Number.isNaN(rows)) return undefined
-  return Math.max(1, Math.min(6, Math.round(rows)))
-}
-
-function normalizeBand(band: ChromeBand): ChromeBand {
-  return {
-    ...band,
-    rows: clampRows(band.rows),
-  }
+function hasVisibleText(value?: string) {
+  return Boolean(value?.trim())
 }
 
 function block(
   id: string,
   kind: ChromeBlock['kind'],
   slot: PosterTextSlot | undefined,
-  col: number,
-  row: number,
-  span: number,
   patch: Partial<ChromeBlock> = {},
 ): ChromeBlock {
   return {
     id,
     kind,
     slot,
-    col,
-    row,
-    span,
-    rowSpan: 1,
+    source: 'theme',
     align: 'left',
-    valign: 'top',
+    valign: 'center',
     ...patch,
   }
 }
 
-function hasVisibleText(value?: string) {
-  return Boolean(value?.trim())
+function cell(id: string, blockValue?: ChromeBlock, patch: Partial<ChromeGridCell> = {}): ChromeGridCell {
+  return {
+    id,
+    fr: 1,
+    align: blockValue?.align ?? 'left',
+    valign: blockValue?.valign ?? 'center',
+    block: blockValue,
+    ...patch,
+  }
+}
+
+function row(id: string, cells: ChromeGridCell[], patch: Partial<ChromeGridRow> = {}): ChromeGridRow {
+  return {
+    id,
+    fr: 1,
+    cells,
+    ...patch,
+  }
+}
+
+function band(patch: Omit<ChromeBand, 'rows'> & { rows: ChromeGridRow[] }): ChromeBand {
+  return patch
 }
 
 export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats): PosterLayout {
@@ -83,98 +84,152 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   const hasOccasion = composition !== 'modernist-block' && hasVisibleText(styleConfig.occasion_text)
   const modernistRails = composition === 'modernist-block' || composition === 'journal-spread'
 
-  const header: ChromeBlock[] = [
-    block('hdr-kicker', 'eyebrow', 'composition_kicker', 1, 1, 5),
-    block('hdr-meta', 'coords', 'composition_meta', 8, 1, 5, { align: 'right' }),
+  const headerRows: ChromeGridRow[] = [
+    row('header-meta', [
+      cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: 0.8 })),
+      cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: 0.72 })),
+    ], { fr: 0.55 }),
   ]
   if (labels.show_title !== false) {
-    header.push(block('hdr-title', 'title', 'trail_name', 1, 2, 12, { rowSpan: 2, valign: 'center' }))
+    headerRows.push(row('header-title', [
+      cell('hdr-title', block('hdr-title-block', 'title', 'trail_name', { scale: 1 })),
+    ], { fr: 2.6 }))
   }
+  const headerSubCells: ChromeGridCell[] = []
   if (showLocation) {
-    header.push(block('hdr-location', 'subtitle', 'location_text', 1, 4, 7))
+    headerSubCells.push(cell('hdr-location', block('hdr-location-block', 'subtitle', 'location_text', { scale: 0.8 })))
   }
   if (hasOccasion) {
-    header.push(block('hdr-occasion', 'occasion', 'occasion_text', 8, 4, 5, { align: 'right' }))
+    headerSubCells.push(cell('hdr-occasion', block('hdr-occasion-block', 'occasion', 'occasion_text', { align: 'right', scale: 0.75 })))
   }
+  if (headerSubCells.length) headerRows.push(row('header-subtitle', headerSubCells, { fr: 0.85 }))
 
-  const footer: ChromeBlock[] = []
-  let col = 1
+  const footerCells: ChromeGridCell[] = []
   if (labels.show_distance) {
-    footer.push(block('ft-distance', 'stat', 'distance', col, 1, 3, { rowSpan: 2, valign: 'bottom' }))
-    col += 3
+    footerCells.push(cell('ft-distance', block('ft-distance-block', 'stat', 'distance', { scale: 1.35 })))
   }
   if (showElevationGain) {
-    footer.push(block('ft-gain', 'stat', 'elevation_gain', col, 1, 3, { rowSpan: 2, valign: 'bottom' }))
-    col += 3
+    footerCells.push(cell('ft-gain', block('ft-gain-block', 'stat', 'elevation_gain', { scale: 1.35 })))
   }
   if (showDate) {
-    footer.push(block('ft-date', 'stat', 'date', col, 1, 2, { rowSpan: 2, valign: 'bottom' }))
-    col += 2
+    footerCells.push(cell('ft-date', block('ft-date-block', 'stat', 'date', { scale: 1.05 })))
   }
   if (showLocation) {
-    footer.push(block('ft-coords', 'coords', 'coordinates', Math.min(col, 9), 1, 2, { rowSpan: 2, valign: 'bottom' }))
+    footerCells.push(cell('ft-coords', block('ft-coords-block', 'coords', 'coordinates', { scale: 0.9 })))
   }
   if (composition !== 'modernist-block') {
-    footer.push(block('ft-note', 'note', 'composition_footer', 10, 1, 3, { align: 'right' }))
+    footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: 0.68 })))
   }
   if (styleConfig.show_branding !== false) {
-    footer.push(block('ft-brand', 'brand', undefined, 10, 2, 3, { align: 'right', text: 'RADMAPS' }))
+    footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.72 })))
   }
 
   return {
     bands: {
-      header: { height: 22, cols: 12, rows: 4 },
-      footer: { height: 14, cols: 12, rows: 2 },
-      railLeft: { width: modernistRails ? 5 : 0, cols: 4, rows: 1 },
-      railRight: { width: composition === 'modernist-block' ? 5 : 0, cols: 4, rows: 1 },
-    },
-    blocks: {
-      header,
-      footer,
-      railLeft: modernistRails
-        ? [block('rail-left-label', 'vlabel', 'composition_side_rail', 1, 1, 1, { text: 'RAD' })]
-        : [],
-      railRight: composition === 'modernist-block'
-        ? [block('rail-right-label', 'vlabel', 'composition_side_rail', 1, 1, 1, { text: 'RAD' })]
-        : [],
+      header: band({ height: 22, rows: headerRows }),
+      footer: band({ height: 14, rows: [row('footer-primary', footerCells.length ? footerCells : [cell('ft-empty')])] }),
+      railLeft: band({
+        width: modernistRails ? 5 : 0,
+        rows: modernistRails
+          ? [row('rail-left-primary', [cell('rail-left-label', block('rail-left-label-block', 'vlabel', 'composition_side_rail', { text: 'RAD', align: 'center' }))])]
+          : [],
+      }),
+      railRight: band({
+        width: composition === 'modernist-block' ? 5 : 0,
+        rows: composition === 'modernist-block'
+          ? [row('rail-right-primary', [cell('rail-right-label', block('rail-right-label-block', 'vlabel', 'composition_side_rail', { text: 'RAD', align: 'center' }))])]
+          : [],
+      }),
     },
   }
 }
 
-function mergeBlocks(defaults: ChromeBlock[], edits: ChromeBlock[] | undefined): ChromeBlock[] {
-  if (!edits?.length) return defaults
-  const byId = new Map(defaults.map(block => [block.id, { ...block }]))
-  const order = defaults.map(block => block.id)
+function cloneBand(bandValue: ChromeBand): ChromeBand {
+  return {
+    ...bandValue,
+    padding: bandValue.padding ? [...bandValue.padding] as [number, number, number, number] : undefined,
+    rows: bandValue.rows.map(rowValue => ({
+      ...rowValue,
+      cells: rowValue.cells.map(cellValue => ({
+        ...cellValue,
+        block: cellValue.block ? { ...cellValue.block } : undefined,
+      })),
+    })),
+  }
+}
 
-  for (const edit of edits) {
+function mergeCells(defaultCells: ChromeGridCell[], editedCells?: ChromeGridCell[]) {
+  if (!editedCells) return defaultCells
+  const byId = new Map<string, ChromeGridCell>(defaultCells.map(cellValue => [
+    cellValue.id,
+    { ...cellValue, block: cellValue.block ? { ...cellValue.block } : undefined },
+  ]))
+  const order = defaultCells.map(cellValue => cellValue.id)
+
+  for (const edit of editedCells) {
     const existing = byId.get(edit.id)
-    if (edit.deleted) {
-      byId.set(edit.id, { ...(existing ?? edit), ...edit, deleted: true })
-      if (!order.includes(edit.id)) order.push(edit.id)
-      continue
-    }
-    byId.set(edit.id, { ...(existing ?? {}), ...edit })
+    const next = {
+      ...(existing ?? {}),
+      ...edit,
+      block: edit.block === undefined
+        ? existing?.block
+        : edit.block ? { ...(existing?.block ?? {}), ...edit.block } : undefined,
+    } as ChromeGridCell
+    byId.set(edit.id, next)
     if (!order.includes(edit.id)) order.push(edit.id)
   }
 
   return order
     .map(id => byId.get(id))
-    .filter((block): block is ChromeBlock => block != null && block.deleted !== true)
+    .filter((cellValue): cellValue is ChromeGridCell => Boolean(cellValue && !cellValue.deleted))
+}
+
+function mergeRows(defaultRows: ChromeGridRow[], editedRows?: ChromeGridRow[]) {
+  if (!editedRows) return defaultRows
+  const byId = new Map<string, ChromeGridRow>(defaultRows.map(rowValue => [
+    rowValue.id,
+    { ...rowValue, cells: mergeCells(rowValue.cells) },
+  ]))
+  const order = defaultRows.map(rowValue => rowValue.id)
+
+  for (const edit of editedRows) {
+    const existing = byId.get(edit.id)
+    const next = {
+      ...(existing ?? {}),
+      ...edit,
+      cells: mergeCells(existing?.cells ?? [], edit.cells),
+    } as ChromeGridRow
+    byId.set(edit.id, next)
+    if (!order.includes(edit.id)) order.push(edit.id)
+  }
+
+  return order
+    .map(id => byId.get(id))
+    .filter((rowValue): rowValue is ChromeGridRow => Boolean(rowValue && !rowValue.deleted))
 }
 
 export function mergePosterLayout(defaultLayout: PosterLayout, sparse?: PartialPosterLayout): PosterLayout {
-  if (!sparse) return defaultLayout
+  if (!sparse) return {
+    bands: {
+      header: cloneBand(defaultLayout.bands.header),
+      footer: cloneBand(defaultLayout.bands.footer),
+      railLeft: cloneBand(defaultLayout.bands.railLeft),
+      railRight: cloneBand(defaultLayout.bands.railRight),
+    },
+  }
 
   const bands = {} as PosterLayout['bands']
-  const blocks = {} as PosterLayout['blocks']
-  for (const band of CHROME_BANDS) {
-    bands[band] = normalizeBand({
-      ...defaultLayout.bands[band],
-      ...(sparse.bands?.[band] ?? {}),
-    })
-    blocks[band] = mergeBlocks(defaultLayout.blocks[band] ?? [], sparse.blocks?.[band])
+  for (const bandId of CHROME_BANDS) {
+    const defaults = defaultLayout.bands[bandId]
+    const edits = sparse.bands?.[bandId]
+    bands[bandId] = {
+      ...cloneBand(defaults),
+      ...edits,
+      padding: edits?.padding ? [...edits.padding] as [number, number, number, number] : defaults.padding,
+      rows: mergeRows(defaults.rows, edits?.rows),
+    }
   }
-  return { bands, blocks }
+  return { bands }
 }
 
 export function effectivePosterLayout(styleConfig: StyleConfig, stats?: RouteStats): PosterLayout {
@@ -185,14 +240,16 @@ export function patchPosterLayout(
   current: PartialPosterLayout | undefined,
   patch: PartialPosterLayout,
 ): PartialPosterLayout {
+  const bands = { ...(current?.bands ?? {}) }
+  for (const bandId of CHROME_BANDS) {
+    const bandPatch = patch.bands?.[bandId]
+    if (!bandPatch) continue
+    bands[bandId] = {
+      ...(bands[bandId] ?? {}),
+      ...bandPatch,
+    }
+  }
   return {
-    bands: {
-      ...(current?.bands ?? {}),
-      ...(patch.bands ?? {}),
-    },
-    blocks: {
-      ...(current?.blocks ?? {}),
-      ...(patch.blocks ?? {}),
-    },
+    bands,
   }
 }

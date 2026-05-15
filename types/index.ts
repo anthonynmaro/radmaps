@@ -170,13 +170,12 @@ export interface ChromeBlock {
   id: string
   kind: ChromeBlockKind
   slot?: PosterTextSlot
-  col: number
-  row: number
-  span: number
-  rowSpan?: number
   align?: ChromeBlockAlign
   valign?: ChromeBlockValign
   deleted?: boolean
+  empty?: boolean
+  removed?: boolean
+  source?: 'theme' | 'user'
   text?: string
   label?: string
   value?: string
@@ -192,23 +191,37 @@ export interface ChromeBlock {
   underline?: boolean
 }
 
+export interface ChromeGridCell {
+  id: string
+  fr?: number
+  align?: ChromeBlockAlign
+  valign?: ChromeBlockValign
+  padding?: [number, number, number, number]
+  deleted?: boolean
+  block?: ChromeBlock
+}
+
+export interface ChromeGridRow {
+  id: string
+  fr?: number
+  deleted?: boolean
+  cells: ChromeGridCell[]
+}
+
 export interface ChromeBand {
   height?: number
   width?: number
-  cols?: 4 | 6 | 8 | 12 | 16
-  rows?: number
   background?: string
   padding?: [number, number, number, number]
+  rows: ChromeGridRow[]
 }
 
 export interface PosterLayout {
   bands: Record<ChromeBandId, ChromeBand>
-  blocks: Record<ChromeBandId, ChromeBlock[]>
 }
 
 export interface PartialPosterLayout {
-  bands?: Partial<Record<ChromeBandId, ChromeBand>>
-  blocks?: Partial<Record<ChromeBandId, ChromeBlock[]>>
+  bands?: Partial<Record<ChromeBandId, Partial<ChromeBand>>>
 }
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────
