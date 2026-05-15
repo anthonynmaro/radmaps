@@ -1,11 +1,23 @@
 <template>
-  <div class="relative min-h-[100dvh]">
+  <div class="shop-wall relative min-h-[100dvh]">
 
-    <!-- subtle paper texture -->
+    <!-- gallery wall texture -->
     <div
       aria-hidden="true"
-      class="pointer-events-none absolute inset-0 opacity-[0.025] mix-blend-multiply"
-      style="background-image:url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');background-size:180px"
+      class="pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply"
+      style="background-image:url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');background-size:220px"
+    />
+    <!-- ambient overhead gallery light -->
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-0 top-0 h-[60vh]"
+      style="background:radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255,247,230,0.55), rgba(255,247,230,0) 70%)"
+    />
+    <!-- wall-to-floor shadow at the bottom -->
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-0 bottom-0 h-40"
+      style="background:linear-gradient(to top, rgba(58,42,28,0.10), rgba(58,42,28,0))"
     />
 
     <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
@@ -84,12 +96,12 @@
       <!-- ═══════════════════════════════════════════════════════════════
            CATEGORY FILTER
            ═══════════════════════════════════════════════════════════════ -->
-      <form class="mb-4 flex flex-col gap-3 rounded-xl border border-stone-200 bg-white/75 p-3 sm:flex-row sm:items-center" @submit.prevent="searchByPlace">
+      <form class="mb-4 flex flex-col gap-3 rounded-xl border border-stone-300/70 bg-white/60 backdrop-blur-sm p-3 sm:flex-row sm:items-center shadow-sm shadow-stone-900/[0.03]" @submit.prevent="searchByPlace">
         <label class="min-w-0 flex-1">
           <span class="sr-only">Search by location</span>
           <input
             v-model="searchText"
-            class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/15"
+            class="w-full rounded-lg border border-stone-200 bg-white/90 px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/15"
             placeholder="Search by city, park, state, or country"
           />
         </label>
@@ -102,7 +114,7 @@
             {{ pending && searchMode === 'place' ? 'Searching...' : 'Search' }}
           </button>
           <button
-            class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-700 transition-colors hover:border-stone-300 hover:text-stone-900 disabled:opacity-60"
+            class="rounded-lg border border-stone-200 bg-white/90 px-3.5 py-2.5 text-xs font-bold text-stone-700 transition-colors hover:border-stone-300 hover:text-stone-900 disabled:opacity-60"
             :disabled="pending"
             type="button"
             @click="useNearbyLocation"
@@ -111,7 +123,7 @@
           </button>
           <button
             v-if="locationSearchActive"
-            class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-500 transition-colors hover:border-stone-300 hover:text-stone-900"
+            class="rounded-lg border border-stone-200 bg-white/90 px-3.5 py-2.5 text-xs font-bold text-stone-500 transition-colors hover:border-stone-300 hover:text-stone-900"
             type="button"
             @click="clearLocationSearch"
           >
@@ -121,157 +133,203 @@
       </form>
       <p v-if="searchNotice" class="mb-4 text-xs text-stone-500">{{ searchNotice }}</p>
 
-      <div class="flex flex-wrap items-center gap-2 mb-10">
-        <button
-          @click="activeCategory = null"
-          :class="[
-            'text-xs font-semibold px-3.5 py-2 rounded-full transition-colors',
-            activeCategory === null
-              ? 'bg-stone-900 text-white'
-              : 'bg-white border border-stone-200 text-stone-600 hover:border-stone-300 hover:text-stone-900',
-          ]"
-        >All prints <span class="ml-1 opacity-60">{{ allCount }}</span></button>
-        <button
-          v-for="cat in PREMADE_CATEGORIES"
-          :key="cat.id"
-          @click="activeCategory = activeCategory === cat.id ? null : cat.id"
-          :class="[
-            'text-xs font-semibold px-3.5 py-2 rounded-full transition-colors',
-            activeCategory === cat.id
-              ? 'bg-stone-900 text-white'
-              : 'bg-white border border-stone-200 text-stone-600 hover:border-stone-300 hover:text-stone-900',
-          ]"
-        >
-          {{ cat.label }}
-          <span class="ml-1 opacity-60">{{ countByCategory(cat.id) }}</span>
-        </button>
-      </div>
+      <nav aria-label="Filter by collection" class="mb-12">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-stone-500">
+            Browse the collection
+          </span>
+          <span class="h-px flex-1 bg-stone-300/60" />
+        </div>
+        <div class="relative -mx-4 sm:mx-0">
+          <ul class="flex flex-nowrap sm:flex-wrap items-center gap-x-1 gap-y-2 overflow-x-auto sm:overflow-visible px-4 sm:px-0 pb-1 scrollbar-none">
+            <li class="shrink-0">
+              <button
+                type="button"
+                @click="activeCategory = null"
+                :class="[
+                  'group/cat relative inline-flex items-baseline gap-1.5 px-3 py-1.5 text-[12px] tracking-wide transition-colors whitespace-nowrap',
+                  activeCategory === null
+                    ? 'text-stone-900 font-semibold'
+                    : 'text-stone-500 hover:text-stone-900 font-medium',
+                ]"
+              >
+                All prints
+                <span class="text-[10px] tabular-nums opacity-60">{{ allCount }}</span>
+                <span
+                  aria-hidden="true"
+                  :class="[
+                    'absolute inset-x-2 -bottom-0.5 h-px transition-colors',
+                    activeCategory === null ? 'bg-stone-900' : 'bg-transparent group-hover/cat:bg-stone-300',
+                  ]"
+                />
+              </button>
+            </li>
+            <li v-for="cat in visibleCategories" :key="cat.id" class="shrink-0 flex items-center">
+              <span aria-hidden="true" class="text-stone-300 select-none px-0.5">·</span>
+              <button
+                type="button"
+                @click="activeCategory = activeCategory === cat.id ? null : cat.id"
+                :class="[
+                  'group/cat relative inline-flex items-baseline gap-1.5 px-3 py-1.5 text-[12px] tracking-wide transition-colors whitespace-nowrap',
+                  activeCategory === cat.id
+                    ? 'text-stone-900 font-semibold'
+                    : 'text-stone-500 hover:text-stone-900 font-medium',
+                ]"
+              >
+                {{ cat.label }}
+                <span class="text-[10px] tabular-nums opacity-60">{{ countByCategory(cat.id) }}</span>
+                <span
+                  aria-hidden="true"
+                  :class="[
+                    'absolute inset-x-2 -bottom-0.5 h-px transition-colors',
+                    activeCategory === cat.id ? 'bg-stone-900' : 'bg-transparent group-hover/cat:bg-stone-300',
+                  ]"
+                />
+              </button>
+            </li>
+          </ul>
+        </div>
+      </nav>
 
       <!-- ═══════════════════════════════════════════════════════════════
-           GRID
+           GRID — framed posters mounted on the wall
            ═══════════════════════════════════════════════════════════════ -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 sm:gap-x-12 gap-y-16 sm:gap-y-20">
         <NuxtLink
           v-for="map in filteredMaps"
           :key="map.slug"
           :to="`/shop/${map.slug}`"
-          class="group block"
+          class="frame-mount group block"
         >
-          <div
-            class="relative rounded-xl overflow-hidden shadow-sm group-hover:shadow-2xl group-hover:-translate-y-1 transition-all duration-300 border border-stone-900/5"
-            style="aspect-ratio:2/3"
-            :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
-          >
-            <!-- Real pre-rendered image if available -->
-            <img
-              v-if="map.preview_image_url"
-              :src="map.preview_image_url"
-              :alt="map.title"
-              class="w-full h-full object-cover"
-            />
+          <!-- Picture-hanging hardware -->
+          <div aria-hidden="true" class="hanger-wire" />
+          <div aria-hidden="true" class="hanger-nail" />
 
-            <!-- Otherwise: render the stylised poster preview inline -->
-            <div v-else class="absolute inset-0 flex flex-col">
-              <!-- title band -->
+          <!-- Outer frame (matte black with subtle bevel) -->
+          <div class="frame relative">
+            <!-- inner frame bevel highlight -->
+            <div aria-hidden="true" class="frame-bevel" />
+
+            <!-- Matboard -->
+            <div class="mat">
+              <!-- Poster itself -->
               <div
-                class="px-3 pt-3 pb-1.5 text-center shrink-0"
-                :style="{
-                  backgroundColor: map.style_config?.label_bg_color || map.style_config?.background_color,
-                  color: map.style_config?.label_text_color || '#1C1917',
-                }"
+                class="poster relative overflow-hidden"
+                style="aspect-ratio:2/3"
+                :style="{ backgroundColor: map.style_config?.background_color || '#F7F4EF' }"
               >
-                <p
-                  class="text-[10px] font-bold tracking-[0.18em] uppercase truncate leading-tight"
-                  :style="{ fontFamily: `'${map.style_config?.font_family || 'Space Grotesk'}', sans-serif` }"
-                >{{ map.title }}</p>
-              </div>
-              <!-- map area -->
-              <div class="flex-1 relative overflow-hidden">
-                <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full">
-                  <!-- subtle contour lines -->
-                  <g :stroke="map.style_config?.contour_color || '#C8BDB0'" stroke-width="0.3" fill="none" opacity="0.55">
-                    <path d="M-5 28 Q25 23 50 30 T105 26" />
-                    <path d="M-5 48 Q20 42 50 50 T105 46" />
-                    <path d="M-5 68 Q30 62 50 70 T105 66" />
-                    <path d="M-5 88 Q25 82 50 90 T105 86" />
-                    <path d="M-5 108 Q30 102 50 110 T105 106" />
-                  </g>
-                  <path
-                    v-if="routePath(map)"
-                    :d="routePath(map)"
-                    fill="none"
-                    :stroke="map.style_config?.route_color || '#C1121F'"
-                    stroke-width="1.4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    :opacity="map.style_config?.route_opacity ?? 0.95"
-                  />
-                  <template v-if="routeEndpoints(map)">
-                    <circle
-                      :cx="routeEndpoints(map)!.start[0]"
-                      :cy="routeEndpoints(map)!.start[1]"
-                      r="1.3"
-                      :fill="map.style_config?.route_color || '#C1121F'"
-                    />
-                    <circle
-                      :cx="routeEndpoints(map)!.end[0]"
-                      :cy="routeEndpoints(map)!.end[1]"
-                      r="1.3"
-                      fill="white"
-                      :stroke="map.style_config?.route_color || '#C1121F'"
-                      stroke-width="0.6"
-                    />
-                  </template>
-                </svg>
-              </div>
-              <!-- footer band -->
-              <div
-                class="px-3 py-1.5 text-center shrink-0"
-                :style="{
-                  backgroundColor: map.style_config?.label_bg_color || map.style_config?.background_color,
-                  color: map.style_config?.label_text_color || '#1C1917',
-                }"
-              >
-                <p class="text-[7px] font-semibold tracking-[0.25em] uppercase opacity-70 truncate">
-                  {{ formatKm(map.stats.distance_km) }} · {{ formatM(map.stats.elevation_gain_m) }} ↑
-                </p>
-              </div>
-            </div>
+                <!-- Real pre-rendered image if available -->
+                <img
+                  v-if="map.preview_image_url"
+                  :src="map.preview_image_url"
+                  :alt="map.title"
+                  class="w-full h-full object-cover"
+                />
 
-            <!-- Badges -->
-            <div v-if="map.badges?.length" class="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start">
-              <span
-                v-for="b in map.badges"
-                :key="b"
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-[0.14em] bg-white/90 text-stone-800 backdrop-blur"
-              >{{ b }}</span>
-            </div>
+                <!-- Otherwise: render the stylised poster preview inline -->
+                <div v-else class="absolute inset-0 flex flex-col">
+                  <!-- title band -->
+                  <div
+                    class="px-3 pt-3 pb-1.5 text-center shrink-0"
+                    :style="{
+                      backgroundColor: map.style_config?.label_bg_color || map.style_config?.background_color,
+                      color: map.style_config?.label_text_color || '#1C1917',
+                    }"
+                  >
+                    <p
+                      class="text-[10px] font-bold tracking-[0.18em] uppercase truncate leading-tight"
+                      :style="{ fontFamily: `'${map.style_config?.font_family || 'Space Grotesk'}', sans-serif` }"
+                    >{{ map.title }}</p>
+                  </div>
+                  <!-- map area -->
+                  <div class="flex-1 relative overflow-hidden">
+                    <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full">
+                      <!-- subtle contour lines -->
+                      <g :stroke="map.style_config?.contour_color || '#C8BDB0'" stroke-width="0.3" fill="none" opacity="0.55">
+                        <path d="M-5 28 Q25 23 50 30 T105 26" />
+                        <path d="M-5 48 Q20 42 50 50 T105 46" />
+                        <path d="M-5 68 Q30 62 50 70 T105 66" />
+                        <path d="M-5 88 Q25 82 50 90 T105 86" />
+                        <path d="M-5 108 Q30 102 50 110 T105 106" />
+                      </g>
+                      <path
+                        v-if="routePath(map)"
+                        :d="routePath(map)"
+                        fill="none"
+                        :stroke="map.style_config?.route_color || '#C1121F'"
+                        stroke-width="1.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        :opacity="map.style_config?.route_opacity ?? 0.95"
+                      />
+                      <template v-if="routeEndpoints(map)">
+                        <circle
+                          :cx="routeEndpoints(map)!.start[0]"
+                          :cy="routeEndpoints(map)!.start[1]"
+                          r="1.3"
+                          :fill="map.style_config?.route_color || '#C1121F'"
+                        />
+                        <circle
+                          :cx="routeEndpoints(map)!.end[0]"
+                          :cy="routeEndpoints(map)!.end[1]"
+                          r="1.3"
+                          fill="white"
+                          :stroke="map.style_config?.route_color || '#C1121F'"
+                          stroke-width="0.6"
+                        />
+                      </template>
+                    </svg>
+                  </div>
+                  <!-- footer band -->
+                  <div
+                    class="px-3 py-1.5 text-center shrink-0"
+                    :style="{
+                      backgroundColor: map.style_config?.label_bg_color || map.style_config?.background_color,
+                      color: map.style_config?.label_text_color || '#1C1917',
+                    }"
+                  >
+                    <p class="text-[7px] font-semibold tracking-[0.25em] uppercase opacity-70 truncate">
+                      {{ formatKm(map.stats.distance_km) }} · {{ formatM(map.stats.elevation_gain_m) }} ↑
+                    </p>
+                  </div>
+                </div>
 
-            <!-- Price pill -->
-            <div class="absolute top-3 right-3 z-10">
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-stone-900 text-white shadow-md shadow-black/10">
-                from {{ formatPrice(map.base_price_cents) }}
-              </span>
+                <!-- specular glass highlight -->
+                <div aria-hidden="true" class="glass-glint" />
+
+                <!-- Badges -->
+                <div v-if="map.badges?.length" class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 items-start">
+                  <span
+                    v-for="b in map.badges"
+                    :key="b"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-[0.14em] bg-white/90 text-stone-800 backdrop-blur"
+                  >{{ b }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Metadata -->
-          <div class="mt-4 px-0.5">
-            <p class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 mb-1 truncate">
+          <!-- Museum placard -->
+          <div class="mt-6 text-center px-2">
+            <p class="text-[10px] font-semibold tracking-[0.22em] uppercase text-stone-500 mb-1.5">
               {{ map.region }}<span v-if="formatDistance(map)" class="text-[#2D6A4F]"> · {{ formatDistance(map) }}</span>
             </p>
             <h3
-              class="text-lg font-semibold text-stone-900 leading-snug tracking-tight truncate group-hover:text-[#2D6A4F] transition-colors"
-              style="font-family:'Space Grotesk',sans-serif"
+              class="text-[17px] sm:text-lg font-semibold text-stone-900 leading-snug tracking-tight truncate group-hover:text-[#2D6A4F] transition-colors"
+              style="font-family:'Playfair Display',serif"
             >{{ map.title }}</h3>
-            <p class="text-sm text-stone-500 mt-0.5 truncate">{{ map.tagline }}</p>
+            <p v-if="map.tagline" class="text-[13px] italic text-stone-500 mt-1 truncate" style="font-family:'Playfair Display',serif">{{ map.tagline }}</p>
+            <p class="mt-3 text-[11px] font-semibold tracking-[0.22em] uppercase text-stone-700">
+              from {{ formatPrice(map.base_price_cents) }}
+            </p>
           </div>
         </NuxtLink>
       </div>
 
       <!-- Empty filter state -->
-      <div v-if="filteredMaps.length === 0" class="text-center py-20 border border-dashed border-stone-300 rounded-2xl bg-white/40 mt-8">
-        <p class="text-sm text-stone-500">No prints in this category yet.</p>
+      <div v-if="filteredMaps.length === 0" class="text-center py-20 border border-dashed border-stone-400/40 rounded-2xl bg-white/30 backdrop-blur-sm mt-8">
+        <p class="text-[10px] font-semibold tracking-[0.22em] uppercase text-stone-500 mb-2">An empty wall</p>
+        <p class="text-sm text-stone-600" style="font-family:'Playfair Display',serif">No prints in this collection yet.</p>
         <button
           @click="activeCategory = null"
           class="mt-3 text-xs font-semibold text-[#2D6A4F] hover:underline"
@@ -489,4 +547,133 @@ function routeEndpoints(map: PremadeMap): { start: [number, number]; end: [numbe
   if (!pts || pts.length < 2) return null
   return { start: [pts[0].x, pts[0].y], end: [pts[pts.length - 1].x, pts[pts.length - 1].y] }
 }
+
+const visibleCategories = computed(() =>
+  PREMADE_CATEGORIES.filter((cat) => countByCategory(cat.id) > 0),
+)
 </script>
+
+<style scoped>
+.shop-wall {
+  background:
+    linear-gradient(180deg, #EDE5D5 0%, #E4DBC8 55%, #DBD0B8 100%);
+}
+
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
+/* ── Framed poster mounting ───────────────────────────────────────────── */
+.frame-mount {
+  position: relative;
+  padding-top: 22px; /* room for hanging hardware */
+}
+
+.hanger-nail {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #c7b9a3 0%, #6e5d46 65%, #3b3024 100%);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+
+.hanger-wire {
+  position: absolute;
+  top: 11px;
+  left: 22%;
+  right: 22%;
+  height: 16px;
+  border-top: 1px solid rgba(58, 42, 28, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.frame {
+  background:
+    linear-gradient(180deg, #2a2520 0%, #1a1612 50%, #0f0c09 100%);
+  padding: 10px;
+  border-radius: 2px;
+  box-shadow:
+    /* contact shadow */
+    0 2px 3px rgba(28, 22, 16, 0.35),
+    /* soft mid shadow */
+    0 14px 24px -10px rgba(28, 22, 16, 0.45),
+    /* large ambient shadow on the wall */
+    0 30px 50px -18px rgba(28, 22, 16, 0.55),
+    /* inner top-rim highlight */
+    inset 0 1px 0 rgba(255, 246, 230, 0.08),
+    /* inner bottom shadow */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  transform-origin: 50% 0%;
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 500ms ease;
+  will-change: transform;
+}
+
+.frame-bevel {
+  position: absolute;
+  inset: 4px;
+  border-radius: 1px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 246, 230, 0.06),
+    inset 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.mat {
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #FBFAF4 0%, #F1ECDF 100%);
+  padding: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06),
+    inset 0 2px 4px rgba(0, 0, 0, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.poster {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* specular highlight to imply glazing */
+.glass-glint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 18%, rgba(255,255,255,0) 38%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  transition: opacity 500ms ease;
+}
+
+/* hover: gently lifts off the wall */
+.frame-mount:hover .frame {
+  transform: translateY(-4px) rotate(0.15deg);
+  box-shadow:
+    0 3px 4px rgba(28, 22, 16, 0.32),
+    0 22px 34px -12px rgba(28, 22, 16, 0.5),
+    0 44px 70px -22px rgba(28, 22, 16, 0.55),
+    inset 0 1px 0 rgba(255, 246, 230, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+.frame-mount:hover .glass-glint { opacity: 0.95; }
+
+@media (prefers-reduced-motion: reduce) {
+  .frame { transition: none; }
+  .frame-mount:hover .frame { transform: none; }
+}
+
+@media (max-width: 640px) {
+  .frame { padding: 8px; }
+  .mat { padding: 10px; }
+  .hanger-wire { left: 28%; right: 28%; }
+}
+</style>
