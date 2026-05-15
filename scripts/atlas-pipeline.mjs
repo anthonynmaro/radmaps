@@ -1,0 +1,305 @@
+#!/usr/bin/env node
+/**
+ * Cloud-runner atlas build pipeline.
+ *
+ * This is intentionally orchestration-only. Heavy work happens on the runner
+ * that invokes it: GitHub larger runner, self-hosted VM, or short-lived cloud VM
+ * with enough scratch disk. Artifacts are uploaded to Cloudflare R2.
+ */
+
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const repoRoot = resolve(__dirname, '..')
+const args = parseArgs(process.argv.slice(2))
+const env = { ...loadEnv(resolve(repoRoot, '.env')), ...process.env }
+const regions = JSON.parse(readFileSync(resolve(repoRoot, 'atlas/regions.json'), 'utf8'))
+const regionKey = args.region || 'driftless-lab'
+const region = regions[regionKey]
+if (!region) throw new Error(`Unknown atlas region: ${regionKey}`)
+
+const stage = args.stage || 'all'
+const environment = args.environment || 'staging'
+const date = args.date || new Date().toISOString().slice(0, 10)
+const version = args.version || `${date.replaceAll('-', '.')}-${region.coverage}.1`
+const dryRun = Boolean(args.dryRun)
+const allowMissingContours = args.allowMissingContours !== false
+const buildRoot = resolve(repoRoot, args.workdir || `atlas/build/${region.id}`)
+const sourceDir = resolve(buildRoot, 'source')
+const outputDir = resolve(buildRoot, 'output')
+const manifestPath = resolve(repoRoot, `public/atlas/manifests/${environment}.json`)
+const publicBaseUrl = args.publicBaseUrl || env.ATLAS_PUBLIC_BASE_URL
+const bucket = args.bucket || (environment === 'production' ? 'radmaps-atlas-prod' : 'radmaps-atlas-staging')
+
+const stages = expandStage(stage)
+console.log(JSON.stringify({
+  pipeline: 'radmaps-atlas',
+  region: regionKey,
+  environment,
+  version,
+  stages,
+  dryRun,
+  buildRoot,
+}, null, 2))
+
+mkdirSync(sourceDir, { recursive: true })
+mkdirSync(outputDir, { recursive: true })
+
+if (stages.includes('preflight')) preflight()
+if (stages.includes('download')) downloadSource()
+if (stages.includes('base')) buildBase()
+if (stages.includes('contours')) buildContours()
+if (stages.includes('validate')) validateArtifacts()
+if (stages.includes('upload')) uploadArtifacts()
+if (stages.includes('manifest')) generateManifest()
+if (stages.includes('publish')) publishManifest()
+
+function parseArgs(argv) {
+  const parsed = { allowMissingContours: true }
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    if (arg === '--region') parsed.region = argv[++i]
+    else if (arg === '--bucket') parsed.bucket = argv[++i]
+    else if (arg === '--environment') parsed.environment = argv[++i]
+    else if (arg === '--stage') parsed.stage = argv[++i]
+    else if (arg === '--version') parsed.version = argv[++i]
+    else if (arg === '--date') parsed.date = argv[++i]
+    else if (arg === '--workdir') parsed.workdir = argv[++i]
+    else if (arg === '--public-base-url') parsed.publicBaseUrl = argv[++i]
+    else if (arg === '--dry-run') parsed.dryRun = true
+    else if (arg === '--no-allow-missing-contours') parsed.allowMissingContours = false
+    else if (arg === '--help' || arg === '-h') {
+      console.log(`Usage: node scripts/atlas-pipeline.mjs [options]
+
+Options:
+  --region <id>                 Region key from atlas/regions.json
+  --bucket <name>               R2 bucket override
+  --environment <name>          staging or production
+  --stage <name>                all, preflight, download, base, contours, validate, upload, manifest, publish
+  --version <id>                Atlas version, defaults to date + coverage
+  --date <yyyy-mm-dd>           Date inserted into R2 object paths
+  --workdir <path>              Build scratch dir, defaults to atlas/build/<region>
+  --public-base-url <url>       R2 public base URL
+  --dry-run                     Print commands without running heavyweight stages
+  --no-allow-missing-contours   Fail if a region has no contour artifact`)
+      process.exit(0)
+    }
+  }
+  return parsed
+}
+
+function expandStage(value) {
+  if (value === 'all') return ['preflight', 'download', 'base', 'contours', 'validate', 'upload', 'manifest', 'publish']
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
+
+function preflight() {
+  const minGb = Number(env.ATLAS_MIN_FREE_GB || (region.id === 'us' ? 500 : 120))
+  const freeKb = Number(command('df', ['-Pk', buildRoot], { capture: true }).trim().split(/\s+/).at(-3) || 0)
+  const freeGb = freeKb / 1024 / 1024
+  const docker = command('docker', ['--version'], { capture: true, optional: true }).trim()
+  const summary = { freeGb: Number(freeGb.toFixed(1)), minGb, docker: docker || 'missing' }
+  console.log(JSON.stringify({ preflight: summary }, null, 2))
+  if (!docker && region.planetiler?.enabled) throw new Error('Docker is required for Planetiler stages')
+  if (!dryRun && freeGb < minGb) throw new Error(`Need at least ${minGb}GB free for ${regionKey}, found ${freeGb.toFixed(1)}GB`)
+}
+
+function downloadSource() {
+  if (!region.source?.url) {
+    console.log('No remote source configured; skipping download.')
+    return
+  }
+  const target = sourcePbfPath()
+  if (existsSync(target) && statSync(target).size > 0) {
+    console.log(`Using existing source: ${target}`)
+    return
+  }
+  run('curl', ['--fail', '--location', '--continue-at', '-', '--output', target, region.source.url], { heavy: true })
+}
+
+function buildBase() {
+  if (!region.planetiler?.enabled) {
+    console.log(`Planetiler base build disabled for ${regionKey}; using existing base artifact.`)
+    return
+  }
+  const output = resolve(repoRoot, fillPath(region.base.localPath))
+  mkdirSync(dirname(output), { recursive: true })
+  const dataDir = buildRoot
+  const containerSource = `/data/source/${region.id}-latest.osm.pbf`
+  const containerOutput = `/data/output/${output.split('/').pop()}`
+  const hostSource = sourcePbfPath()
+  if (dryRun && !existsSync(hostSource)) {
+    console.log(`dry-run: source PBF is not present yet, Planetiler will run after download: ${hostSource}`)
+    return
+  }
+  if (!existsSync(hostSource)) throw new Error(`Missing source PBF: ${hostSource}`)
+  const image = env.PLANETILER_IMAGE || region.planetiler.image || 'ghcr.io/onthegomap/planetiler:latest'
+  const javaOpts = env.PLANETILER_JAVA_TOOL_OPTIONS || region.planetiler.javaToolOptions || '-Xmx24g'
+  const planetilerArgs = [
+    'run',
+    '--rm',
+    '-e',
+    `JAVA_TOOL_OPTIONS=${javaOpts}`,
+    '-v',
+    `${dataDir}:/data`,
+    image,
+    `--osm-path=${containerSource}`,
+    `--output=${containerOutput}`,
+    `--bounds=${region.bbox.join(',')}`,
+    ...(region.planetiler.extraArgs || []),
+  ]
+  if (hostSource !== resolve(sourceDir, `${region.id}-latest.osm.pbf`)) {
+    console.warn(`Expected source PBF at ${resolve(sourceDir, `${region.id}-latest.osm.pbf`)}, got ${hostSource}`)
+  }
+  run('docker', planetilerArgs, { heavy: true })
+}
+
+function buildContours() {
+  if (!region.contours?.enabled) {
+    console.log(`Contours disabled for ${regionKey}; skipping contour build.`)
+    return
+  }
+  const output = resolve(repoRoot, fillPath(region.contours.localPath))
+  run('node', [
+    'scripts/build-contour-pmtiles.mjs',
+    '--region',
+    region.contours.scriptRegion || region.id,
+    '--output',
+    output.replace(`${repoRoot}/`, ''),
+  ], { heavy: true })
+}
+
+function validateArtifacts() {
+  validateArtifact('base', region.base)
+  if (region.contours?.enabled && existsSync(resolve(repoRoot, fillPath(region.contours.localPath)))) {
+    validateArtifact('contours', region.contours)
+  } else if (region.contours?.enabled && !allowMissingContours) {
+    throw new Error(`Missing contour artifact for ${regionKey}`)
+  }
+}
+
+function validateArtifact(name, config) {
+  if (!config?.localPath) return
+  const file = resolve(repoRoot, fillPath(config.localPath))
+  if (dryRun && !existsSync(file)) {
+    console.log(`dry-run: ${name} artifact is not present yet, validation will run after build: ${file}`)
+    return
+  }
+  if (!existsSync(file)) throw new Error(`Missing ${name} artifact: ${file}`)
+  run('node', [
+    'scripts/atlas-validate-pmtiles.mjs',
+    '--file',
+    file,
+    '--minzoom',
+    String(config.minzoom ?? 0),
+    '--maxzoom',
+    String(config.maxzoom ?? 14),
+    '--tile-type',
+    'mvt',
+  ])
+}
+
+function uploadArtifacts() {
+  uploadArtifact(region.base)
+  if (region.contours?.enabled && existsSync(resolve(repoRoot, fillPath(region.contours.localPath)))) uploadArtifact(region.contours)
+}
+
+function uploadArtifact(config) {
+  const source = resolve(repoRoot, fillPath(config.localPath))
+  const object = fillPath(config.objectPath)
+  run('node', [
+    'scripts/upload-atlas-object.mjs',
+    '--bucket',
+    bucket,
+    '--source',
+    source,
+    '--object',
+    object,
+    '--verify',
+    'pmtiles',
+  ], { heavy: true })
+}
+
+function generateManifest() {
+  const baseArtifact = resolve(repoRoot, fillPath(region.base.localPath))
+  if (dryRun && !existsSync(baseArtifact)) {
+    console.log(`dry-run: base artifact is not present yet, manifest generation will run after build: ${baseArtifact}`)
+    return
+  }
+  run('node', [
+    'scripts/atlas-generate-manifest.mjs',
+    '--region',
+    regionKey,
+    '--environment',
+    environment,
+    '--date',
+    date,
+    '--version',
+    version,
+    '--bucket',
+    bucket,
+    ...(publicBaseUrl ? ['--public-base-url', publicBaseUrl] : []),
+    '--output',
+    manifestPath,
+  ])
+}
+
+function publishManifest() {
+  run('node', [
+    'scripts/upload-atlas-object.mjs',
+    '--bucket',
+    bucket,
+    '--source',
+    manifestPath,
+    '--object',
+    `atlas/v1/manifests/${environment}.json`,
+    '--content-type',
+    'application/json',
+    '--verify',
+    'json',
+  ], { heavy: true })
+}
+
+function sourcePbfPath() {
+  return resolve(sourceDir, `${region.id}-latest.osm.pbf`)
+}
+
+function fillPath(value) {
+  return value.replaceAll('{date}', date).replaceAll('{version}', version)
+}
+
+function run(cmd, cmdArgs, opts = {}) {
+  const printable = [cmd, ...cmdArgs].join(' ')
+  console.log(`$ ${printable}`)
+  if (dryRun && opts.heavy) return
+  const result = spawnSync(cmd, cmdArgs, {
+    cwd: repoRoot,
+    stdio: opts.capture ? 'pipe' : 'inherit',
+    encoding: 'utf8',
+  })
+  if (opts.optional && result.status !== 0) return ''
+  if (result.status !== 0) throw new Error(`Command failed (${result.status}): ${printable}`)
+  return result.stdout || ''
+}
+
+function command(cmd, cmdArgs, opts = {}) {
+  return run(cmd, cmdArgs, opts)
+}
+
+function loadEnv(path) {
+  try {
+    return Object.fromEntries(
+      readFileSync(path, 'utf8')
+        .split(/\n/)
+        .map(line => line.match(/^\s*([A-Z0-9_]+)=(.*)$/))
+        .filter(Boolean)
+        .map(([, key, raw]) => [key, raw.trim().replace(/^['"]|['"]$/g, '')]),
+    )
+  } catch {
+    return {}
+  }
+}

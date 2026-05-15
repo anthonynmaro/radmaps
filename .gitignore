@@ -31,6 +31,13 @@ npm-debug.log*
 coverage/
 .vercel
 
+# Local atlas build artifacts
+atlas/planetiler/
+atlas/source/
+atlas/terrain/
+public/atlas/*.pmtiles
+public/atlas/*.mbtiles
+
 # Claude Code
 .claude/
 

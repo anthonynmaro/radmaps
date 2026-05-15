@@ -84,6 +84,9 @@ export default defineNuxtConfig({
       // browser, so this key is public by design. Restrict it by domain in
       // the Stadia dashboard.
       stadiaToken: process.env.NUXT_PUBLIC_STADIA_API_KEY || process.env.STADIA_API_KEY,
+      radmapsAtlasManifestUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_MANIFEST_URL,
+      radmapsAtlasPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_PMTILES_URL,
+      radmapsContourPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_CONTOUR_PMTILES_URL,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://radmaps.studio' : 'http://localhost:3001'),
     },
   },

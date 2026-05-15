@@ -57,6 +57,54 @@ export type BaseTileStyle =
   | 'maptiler-topo'
   | 'maptiler-winter'
 
+export type AtlasLayerId =
+  | 'contour'
+  | 'water'
+  | 'waterway'
+  | 'park'
+  | 'landcover'
+  | 'transportation'
+  | 'building'
+  | 'poi'
+  | 'place'
+
+export type AtlasLayerVisibility = Partial<Record<AtlasLayerId, boolean>>
+
+export interface AtlasLayerSettings {
+  contour?: {
+    interval?: 'auto' | '20ft' | '40ft' | '100ft' | '10m' | '20m'
+    minor_color?: string
+    index_color?: string
+    major_color?: string
+    minor_opacity?: number
+    index_opacity?: number
+    major_opacity?: number
+    labels?: boolean
+    units?: 'ft' | 'm'
+  }
+  transportation?: {
+    density?: 'minimal' | 'balanced' | 'detailed'
+    road_color?: string
+    trail_color?: string
+    labels?: boolean
+  }
+  poi?: {
+    density?: 'sparse' | 'balanced' | 'detailed'
+    categories?: string[]
+    labels?: boolean
+  }
+  park?: {
+    fill_color?: string
+    boundary_color?: string
+    labels?: boolean
+  }
+  water?: {
+    fill_color?: string
+    waterway_color?: string
+    labels?: boolean
+  }
+}
+
 export interface StyleLabels {
   show_title: boolean
   show_distance: boolean
@@ -280,6 +328,11 @@ export interface StyleConfig {
   color_theme: ColorTheme
   print_size: PrintSize
   base_tile_style: BaseTileStyle
+  // Owned atlas state. Optional during rollout; legacy provider presets ignore it.
+  atlas_manifest_id?: string
+  atlas_style_id?: string
+  atlas_layers?: AtlasLayerVisibility
+  atlas_layer_settings?: AtlasLayerSettings
   composition?: CompositionId
   audience?: string
   dark?: boolean

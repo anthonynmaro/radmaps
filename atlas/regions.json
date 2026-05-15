@@ -1,0 +1,84 @@
+{
+  "driftless-lab": {
+    "id": "driftless",
+    "label": "Driftless / Madison lab pack",
+    "coverage": "driftless",
+    "bbox": [-90.25, 42.85, -88.85, 43.55],
+    "planetiler": {
+      "enabled": false,
+      "note": "Existing lab base PMTiles was built locally; keep this as validation/upload smoke coverage."
+    },
+    "base": {
+      "localPath": "public/atlas/radmaps-driftless-planetiler.pmtiles",
+      "objectPath": "atlas/v1/base/driftless/{date}/radmaps-driftless-planetiler.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"]
+    },
+    "contours": {
+      "enabled": true,
+      "scriptRegion": "driftless",
+      "localPath": "public/atlas/radmaps-driftless-contours.pmtiles",
+      "objectPath": "atlas/v1/terrain/driftless/{date}/radmaps-driftless-contours.pmtiles",
+      "minzoom": 8,
+      "maxzoom": 14,
+      "layers": ["contour"]
+    }
+  },
+  "us-midwest": {
+    "id": "us-midwest",
+    "label": "United States Midwest regional pack",
+    "coverage": "us-midwest",
+    "bbox": [-104.1, 35.9, -80.3, 49.4],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/north-america/us-midwest-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx24g",
+      "extraArgs": ["--download=false", "--force"]
+    },
+    "base": {
+      "localPath": "atlas/build/us-midwest/output/radmaps-base-us-midwest.pmtiles",
+      "objectPath": "atlas/v1/base/us-midwest/{date}/radmaps-base-us-midwest.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Regional contour build is next; base coverage can publish first with contours omitted from manifest."
+    }
+  },
+  "us-contiguous": {
+    "id": "us",
+    "label": "United States base atlas",
+    "coverage": "us",
+    "bbox": [-125.0, 24.4, -66.8, 49.5],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/north-america/us-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx48g",
+      "extraArgs": ["--download=false", "--force"]
+    },
+    "base": {
+      "localPath": "atlas/build/us/output/radmaps-base-us.pmtiles",
+      "objectPath": "atlas/v1/base/us/{date}/radmaps-base-us.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Full-US contours should be generated as regional terrain packs to control build time and storage."
+    }
+  }
+}

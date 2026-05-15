@@ -1,0 +1,82 @@
+{
+  "atlasVersion": "2026.05.15-driftless.1",
+  "schemaVersion": "radmaps-atlas-v1",
+  "coverage": "driftless",
+  "label": "Driftless / Madison lab pack",
+  "createdAt": "2026-05-15T19:58:30.495Z",
+  "storage": {
+    "provider": "cloudflare-r2",
+    "bucket": "radmaps-atlas-staging",
+    "publicBaseUrl": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev"
+  },
+  "artifacts": {
+    "base": {
+      "id": "radmaps-driftless-base",
+      "kind": "base",
+      "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles",
+      "objectPath": "atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "bounds": [
+        -90.25,
+        42.85,
+        -88.85,
+        43.55
+      ],
+      "layers": [
+        "landcover",
+        "landuse",
+        "park",
+        "water",
+        "waterway",
+        "building",
+        "transportation",
+        "transportation_name",
+        "place",
+        "poi"
+      ],
+      "bytes": 24461506
+    },
+    "contours": {
+      "id": "radmaps-driftless-contours",
+      "kind": "contours",
+      "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles",
+      "objectPath": "atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles",
+      "minzoom": 8,
+      "maxzoom": 14,
+      "bounds": [
+        -90.25,
+        42.85,
+        -88.85,
+        43.55
+      ],
+      "layers": [
+        "contour"
+      ],
+      "bytes": 29075770
+    }
+  },
+  "layerCatalog": [
+    "landcover",
+    "park",
+    "water",
+    "waterway",
+    "building",
+    "transportation",
+    "place",
+    "poi",
+    "contour"
+  ],
+  "attribution": [
+    {
+      "name": "OpenStreetMap contributors",
+      "requiredText": "© OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/copyright"
+    },
+    {
+      "name": "RadMaps Atlas",
+      "requiredText": "Atlas styling and derived tile packaging © RadMaps",
+      "url": "https://radmaps.studio"
+    }
+  ]
+}

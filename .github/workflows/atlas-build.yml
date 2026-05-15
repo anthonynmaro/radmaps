@@ -1,0 +1,86 @@
+name: Atlas Build Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Region key from atlas/regions.json
+        required: true
+        default: us-midwest
+        type: choice
+        options:
+          - driftless-lab
+          - us-midwest
+          - us-contiguous
+      environment:
+        description: Atlas manifest target
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      stage:
+        description: Pipeline stages, comma-separated or all
+        required: true
+        default: all
+      atlas_version:
+        description: Optional atlas version override
+        required: false
+        default: ''
+      runner_label:
+        description: Runner label. Use self-hosted atlas runner for US-scale builds.
+        required: true
+        default: ubuntu-latest
+      dry_run:
+        description: Print heavyweight commands without running them
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  atlas-build:
+    name: Build Atlas ${{ inputs.region }} -> ${{ inputs.environment }}
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 1440
+    env:
+      ATLAS_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'radmaps-atlas-prod' || 'radmaps-atlas-staging' }}
+      ATLAS_PUBLIC_BASE_URL: ${{ inputs.environment == 'production' && secrets.ATLAS_PROD_PUBLIC_BASE_URL || secrets.ATLAS_STAGING_PUBLIC_BASE_URL }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      ATLAS_MIN_FREE_GB: ${{ inputs.region == 'us-contiguous' && '500' || '120' }}
+      PLANETILER_IMAGE: ghcr.io/onthegomap/planetiler:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Docker preflight
+        run: docker --version
+
+      - name: Atlas pipeline
+        run: |
+          ARGS=(
+            --region "${{ inputs.region }}"
+            --environment "${{ inputs.environment }}"
+            --stage "${{ inputs.stage }}"
+          )
+          if [ -n "${{ inputs.atlas_version }}" ]; then
+            ARGS+=(--version "${{ inputs.atlas_version }}")
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          npm run atlas:pipeline -- "${ARGS[@]}"

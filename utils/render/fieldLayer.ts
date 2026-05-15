@@ -47,6 +47,10 @@ export const FIELD_LAYER = {
   // ── Map preset / base tiles ────────────────────────────────────────────────
   preset: 'map',
   base_tile_style: 'map',
+  atlas_manifest_id: 'map',
+  atlas_style_id: 'map',
+  atlas_layers: 'map',
+  atlas_layer_settings: 'map',
 
   // ── Background (paints the canvas behind the map; chrome layer concern) ────
   background_color: 'chrome',
