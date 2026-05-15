@@ -12,10 +12,11 @@
  * - ATLAS_STORAGE_OBJECT_PATH
  * - ATLAS_PUBLIC_BASE_URL
  * - ATLAS_R2_ENDPOINT
+ * - R2_SESSION_TOKEN (required for temporary R2 credentials)
  */
 
 import { createHash, createHmac } from 'node:crypto'
-import { readFileSync, statSync } from 'node:fs'
+import { createReadStream, readFileSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
 
 const args = parseArgs(process.argv.slice(2))
@@ -28,6 +29,7 @@ const verifyMode = args.verify || guessVerifyMode(source)
 const accountId = args.accountId || env.CLOUDFLARE_ACCOUNT_ID
 const accessKeyId = args.accessKeyId || env.R2_ACCESS_KEY_ID
 const secretAccessKey = args.secretAccessKey || env.R2_SECRET_ACCESS_KEY
+const sessionToken = args.sessionToken || env.R2_SESSION_TOKEN
 const endpoint = args.endpoint || env.ATLAS_R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : '')
 const publicBaseUrl = args.publicBaseUrl || env.ATLAS_PUBLIC_BASE_URL || ''
 const dryRun = Boolean(args.dryRun)
@@ -51,6 +53,7 @@ function parseArgs(argv) {
     else if (arg === '--account-id') parsed.accountId = argv[++i]
     else if (arg === '--access-key-id') parsed.accessKeyId = argv[++i]
     else if (arg === '--secret-access-key') parsed.secretAccessKey = argv[++i]
+    else if (arg === '--session-token') parsed.sessionToken = argv[++i]
     else if (arg === '--dry-run') parsed.dryRun = true
     else if (arg === '--help' || arg === '-h') {
       console.log(`Usage: node scripts/upload-atlas-object.mjs [options]
@@ -63,6 +66,7 @@ Options:
   --verify <pmtiles|json|none> Public verification mode
   --public-base-url <url>     R2 managed/custom public base URL
   --endpoint <url>            S3 endpoint, defaults to https://<account>.r2.cloudflarestorage.com
+  --session-token <token>     Temporary credential session token, if needed
   --dry-run                   Print the planned upload without sending it
 
 Examples:
@@ -113,6 +117,17 @@ function hash(value) {
   return createHash('sha256').update(value).digest('hex')
 }
 
+async function hashFile(path) {
+  const digest = createHash('sha256')
+  await new Promise((resolve, reject) => {
+    createReadStream(path)
+      .on('data', chunk => digest.update(chunk))
+      .on('error', reject)
+      .on('end', resolve)
+  })
+  return digest.digest('hex')
+}
+
 function encodePath(path) {
   return path.split('/').map(part => encodeURIComponent(part)).join('/')
 }
@@ -124,19 +139,20 @@ function signingKey(secret, dateStamp) {
   return hmac(kService, 'aws4_request')
 }
 
-function signedPutRequest({ body, now = new Date() }) {
+function signedPutRequest({ payloadHash, size, now = new Date() }) {
   const url = new URL(`${endpoint.replace(/\/$/, '')}/${bucket}/${encodePath(objectPath)}`)
   const date = amzDate(now)
   const dateStamp = date.slice(0, 8)
-  const payloadHash = hash(body)
   const cacheControl = contentType.startsWith('application/json') ? 'max-age=60' : 'public, max-age=31536000, immutable'
   const headers = {
     'cache-control': cacheControl,
+    'content-length': String(size),
     'content-type': contentType,
     host: url.host,
     'x-amz-content-sha256': payloadHash,
     'x-amz-date': date,
   }
+  if (sessionToken) headers['x-amz-security-token'] = sessionToken
   const signedHeaders = Object.keys(headers).sort().join(';')
   const canonicalHeaders = Object.keys(headers).sort().map(key => `${key}:${headers[key]}\n`).join('')
   const canonicalRequest = [
@@ -191,7 +207,6 @@ async function verifyPublicUrl(url) {
   throw new Error(`Unknown verify mode: ${verifyMode}`)
 }
 
-const body = readFileSync(source)
 const size = statSync(source).size
 const planned = {
   bucket,
@@ -208,11 +223,13 @@ if (dryRun) {
   process.exit(0)
 }
 
-const request = signedPutRequest({ body })
+const payloadHash = await hashFile(source)
+const request = signedPutRequest({ payloadHash, size })
 const uploadResponse = await fetch(request.url, {
   method: 'PUT',
   headers: request.headers,
-  body,
+  body: createReadStream(source),
+  duplex: 'half',
 })
 
 if (!uploadResponse.ok) {

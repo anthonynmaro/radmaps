@@ -35,9 +35,13 @@ Set these as GitHub Actions repository secrets before turning off `dry_run`:
 CLOUDFLARE_ACCOUNT_ID
 R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY
+R2_SESSION_TOKEN
 ATLAS_PROD_PUBLIC_BASE_URL
 ATLAS_STAGING_PUBLIC_BASE_URL
 ```
+
+`R2_SESSION_TOKEN` is only required when the build uses temporary Cloudflare R2
+credentials. Permanent least-privilege R2 keys do not need it.
 
 The R2 key should be least-privilege and scoped to object reads/writes for:
 
