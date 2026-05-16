@@ -2,19 +2,14 @@ import { PRODUCTS } from '~/utils/products'
 import type { LocationMetadata, PremadeCategory, PremadeMap, RouteStats, StyleConfig } from '~/types'
 
 export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
-  { id: 'national-park', label: 'National Parks' },
-  { id: 'long-distance', label: 'Long-distance' },
-  { id: 'marathon', label: 'Marathons' },
-  { id: 'peak', label: 'Peaks' },
-  { id: 'pilgrimage', label: 'Pilgrimage' },
-  { id: 'adventure', label: 'Adventure' },
-  { id: 'cycling', label: 'Cycling' },
-  { id: 'cityscapes', label: 'Cityscapes' },
-  { id: 'mountain-biking', label: 'Mountain Biking' },
   { id: 'hikes', label: 'Hikes' },
+  { id: 'mountain-biking', label: 'Mountain Biking' },
+  { id: 'paddles', label: 'Paddles' },
+  { id: 'rivers', label: 'Rivers' },
+  { id: 'cityscapes', label: 'Cityscapes' },
+  { id: 'cycling', label: 'Cycling' },
   { id: 'beaches', label: 'Beaches' },
   { id: 'wine-trails', label: 'Wine Trails' },
-  { id: 'parks', label: 'Parks' },
 ]
 
 export const PREMADE_CATEGORY_IDS = PREMADE_CATEGORIES.map((category) => category.id)
@@ -30,7 +25,7 @@ export function normalizePremadeCategories(
   const normalized = (categories || []).filter(isPremadeCategory)
   const unique = Array.from(new Set(normalized))
   if (unique.length > 0) return unique
-  return isPremadeCategory(fallback) ? [fallback] : ['adventure']
+  return isPremadeCategory(fallback) ? [fallback] : ['hikes']
 }
 
 export function premadeHasCategory(map: Pick<PremadeMap, 'category' | 'categories'>, category: PremadeCategory): boolean {
@@ -179,8 +174,8 @@ export function draftPremadeFromMap(map: SourceMapForPremade, slug: string): Omi
     location_country: map.location_country || 'United States',
     location_lng: locationLng,
     location_lat: locationLat,
-    category: 'adventure',
-    categories: ['adventure'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: map.subtitle || map.style_config?.location_text || 'A curated RadMaps route.',
     description: '',
     badges: [],

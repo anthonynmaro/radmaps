@@ -1044,19 +1044,14 @@ export interface FeatureFlagContext {
 export type PremadeStatus = 'draft' | 'published' | 'archived'
 
 export type PremadeCategory =
-  | 'national-park'
-  | 'long-distance'
-  | 'marathon'
-  | 'peak'
-  | 'pilgrimage'
-  | 'adventure'
-  | 'cycling'
-  | 'cityscapes'
-  | 'mountain-biking'
   | 'hikes'
+  | 'mountain-biking'
+  | 'paddles'
+  | 'rivers'
+  | 'cityscapes'
+  | 'cycling'
   | 'beaches'
   | 'wine-trails'
-  | 'parks'
 
 export interface PremadeMap extends LocationMetadata {
   id?: string

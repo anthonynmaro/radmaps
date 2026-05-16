@@ -77,8 +77,8 @@ describe('premade catalog helpers', () => {
     expect(draft.slug).toBe('evening-ridge')
     expect(draft.source_map_id).toBe('map-1')
     expect(draft.region).toBe('Boulder, Colorado')
-    expect(draft.category).toBe('adventure')
-    expect(draft.categories).toEqual(['adventure'])
+    expect(draft.category).toBe('hikes')
+    expect(draft.categories).toEqual(['hikes'])
     expect(draft.preview_image_url).toBe('https://example.com/proof.jpg')
     expect(draft.render_url).toBeUndefined()
     expect(draft.needs_preview).toBe(false)
@@ -104,10 +104,10 @@ describe('premade catalog helpers', () => {
   })
 
   it('normalizes multi-select categories without duplicates', () => {
-    expect(normalizePremadeCategories(['hikes', 'parks', 'hikes', 'bogus'])).toEqual(['hikes', 'parks'])
+    expect(normalizePremadeCategories(['hikes', 'cycling', 'hikes', 'bogus'])).toEqual(['hikes', 'cycling'])
     expect(premadeHasCategory({
-      category: 'adventure',
-      categories: ['adventure', 'hikes'],
+      category: 'cityscapes',
+      categories: ['cityscapes', 'hikes'],
     }, 'hikes')).toBe(true)
   })
 
@@ -115,7 +115,7 @@ describe('premade catalog helpers', () => {
     expect(missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
-      category: 'adventure',
+      category: 'hikes',
       stats,
       bbox: [-105.1, 40, -105, 40.1],
       geojson,
@@ -128,7 +128,7 @@ describe('premade catalog helpers', () => {
     const missing = missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
-      category: 'adventure',
+      category: 'hikes',
       stats,
       bbox: [-105.1, 40, -105, 40.1],
       location_lng: -105.05,
@@ -145,7 +145,7 @@ describe('premade catalog helpers', () => {
     expect(missingPublishFields({
       slug: 'evening-ridge',
       title: 'Evening Ridge',
-      category: 'adventure',
+      category: 'hikes',
       stats,
       bbox: [-105.1, 40, -105, 40.1],
       location_lng: -105.05,

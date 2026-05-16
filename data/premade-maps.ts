@@ -265,8 +265,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'United States',
     location_lng: -118.7070,
     location_lat: 37.3920,
-    category: 'long-distance',
-    categories: ['long-distance', 'hikes'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: '211 miles through the Range of Light.',
     description:
       'From the granite walls of Yosemite Valley to the 14,505-foot summit of Mount Whitney, the JMT traces the spine of the Sierra Nevada — Thousand Island Lake, Muir Pass, Evolution Basin, and eleven passes above 11,000 feet. A cartographic tribute to three weeks in the backcountry.',
@@ -318,8 +318,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'United States',
     location_lng: -73.9677,
     location_lat: 40.7359,
-    category: 'marathon',
-    categories: ['marathon', 'cityscapes'],
+    category: 'cityscapes',
+    categories: ['cityscapes'],
     tagline: 'From Staten Island to Tavern on the Green.',
     description:
       'Trace the blue line through all five boroughs — over the Verrazzano, up 4th Avenue, across the Queensboro, up 1st, into the Bronx, and down 5th into Central Park. The world\'s most celebrated city marathon, framed.',
@@ -370,8 +370,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'Chile',
     location_lng: -73.0230,
     location_lat: -50.9423,
-    category: 'adventure',
-    categories: ['adventure', 'hikes', 'parks'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: 'Five days among the towers.',
     description:
       'Glaciers, hanging valleys, and the three granite spires at dawn. The W traces a 50-mile letter through Torres del Paine National Park — Grey, French Valley, and the Torres base — ending above the emerald tarn at sunrise.',
@@ -424,8 +424,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'Spain',
     location_lng: -4.7990,
     location_lat: 42.6500,
-    category: 'pilgrimage',
-    categories: ['pilgrimage', 'hikes'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: 'Saint-Jean-Pied-de-Port to Santiago.',
     description:
       'Nine hundred years of footsteps. The French Way crosses the Pyrenees, the Meseta, and the hills of Galicia — 780 kilometers ending at the cathedral square in Santiago de Compostela. A map for the long walk.',
@@ -475,8 +475,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'United States',
     location_lng: -112.1129,
     location_lat: 36.1069,
-    category: 'national-park',
-    categories: ['national-park', 'hikes', 'parks'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: '24 miles · One mile deep.',
     description:
       'Descend the South Kaibab into the Inner Gorge, cross Bright Angel Creek at Phantom Ranch, and climb the North Kaibab back to the rim — nearly 11,000 feet of vertical in a single day-hike legend.',
@@ -527,8 +527,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'Japan',
     location_lng: 138.7444,
     location_lat: 35.3606,
-    category: 'peak',
-    categories: ['peak', 'hikes'],
+    category: 'hikes',
+    categories: ['hikes'],
     tagline: 'From the 5th station to the summit.',
     description:
       'Nine hours of volcanic scree and tori gates under a black sky, chasing goraiko — the sunrise from 3,776 meters. This poster marks the Yoshida trail, the most trodden of the four routes up Japan\'s sacred mountain.',
@@ -587,17 +587,12 @@ export function listPremadeMaps(opts?: {
 }
 
 export const PREMADE_CATEGORIES: { id: PremadeMap['category']; label: string }[] = [
-  { id: 'national-park', label: 'National Parks' },
-  { id: 'long-distance', label: 'Long-distance' },
-  { id: 'marathon', label: 'Marathons' },
-  { id: 'peak', label: 'Peaks' },
-  { id: 'pilgrimage', label: 'Pilgrimage' },
-  { id: 'adventure', label: 'Adventure' },
-  { id: 'cycling', label: 'Cycling' },
-  { id: 'cityscapes', label: 'Cityscapes' },
-  { id: 'mountain-biking', label: 'Mountain Biking' },
   { id: 'hikes', label: 'Hikes' },
+  { id: 'mountain-biking', label: 'Mountain Biking' },
+  { id: 'paddles', label: 'Paddles' },
+  { id: 'rivers', label: 'Rivers' },
+  { id: 'cityscapes', label: 'Cityscapes' },
+  { id: 'cycling', label: 'Cycling' },
   { id: 'beaches', label: 'Beaches' },
   { id: 'wine-trails', label: 'Wine Trails' },
-  { id: 'parks', label: 'Parks' },
 ]
