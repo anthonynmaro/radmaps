@@ -39,7 +39,7 @@
       "enabled": true,
       "image": "ghcr.io/onthegomap/planetiler:latest",
       "javaToolOptions": "-Xmx24g",
-      "extraArgs": ["--force"]
+      "extraArgs": ["--download", "--force"]
     },
     "base": {
       "localPath": "atlas/build/us-midwest/output/radmaps-base-us-midwest.pmtiles",
@@ -67,7 +67,7 @@
       "enabled": true,
       "image": "ghcr.io/onthegomap/planetiler:latest",
       "javaToolOptions": "-Xmx48g",
-      "extraArgs": ["--force"]
+      "extraArgs": ["--download", "--force"]
     },
     "base": {
       "localPath": "atlas/build/us/output/radmaps-base-us.pmtiles",
