@@ -380,13 +380,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useSupabaseUser } from '#imports'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useSupabaseUser } from '#imports'
 import type { PremadeMap } from '~/types'
-import { PREMADE_CATEGORIES, premadeHasCategory } from '~/utils/premadeCatalog'
+import { PREMADE_CATEGORIES, isPremadeCategory, premadeHasCategory } from '~/utils/premadeCatalog'
 import { formatPrice } from '~/utils/products'
 
 const user = useSupabaseUser()
+const route = useRoute()
 const searchText = ref('')
 const searchMode = ref<'place' | 'near-me' | null>(null)
 const searchNotice = ref('')
@@ -397,7 +398,16 @@ const { data: premadeMaps, pending, refresh } = await useFetch<PremadeMap[]>('/a
   default: () => [],
 })
 
-const activeCategory = ref<PremadeMap['category'] | null>(null)
+function readCategoryFromQuery(value: unknown): PremadeMap['category'] | null {
+  const raw = Array.isArray(value) ? value[0] : value
+  return isPremadeCategory(raw) ? raw : null
+}
+
+const activeCategory = ref<PremadeMap['category'] | null>(readCategoryFromQuery(route.query.category))
+
+watch(() => route.query.category, (next) => {
+  activeCategory.value = readCategoryFromQuery(next)
+})
 
 const allCount = computed(() => premadeMaps.value.length)
 
