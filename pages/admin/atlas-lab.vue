@@ -16,6 +16,29 @@
         </div>
       </section>
 
+      <section class="rounded-lg border border-stone-200 bg-white p-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p class="text-sm font-semibold text-stone-900">US showcase window</p>
+            <p class="mt-1 text-xs leading-5 text-stone-600">
+              Jump the same owned PMTiles archive across sellable regions and compare every house style against live vector tiles.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="showcase in showcases"
+              :key="showcase.id"
+              type="button"
+              class="showcase-button"
+              :class="{ 'showcase-button--active': showcase.id === activeShowcaseId }"
+              @click="setActiveShowcase(showcase.id)"
+            >
+              {{ showcase.name }}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section class="grid gap-5 xl:grid-cols-2">
         <article
           v-for="style in styles"
@@ -37,7 +60,7 @@
                 <p class="text-sm font-semibold text-stone-900">{{ style.name }}</p>
               </div>
               <div class="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 shadow-sm backdrop-blur">
-                {{ atlasLabel }} - {{ atlasCoverageLabel }}
+                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ atlasCoverageLabel }}
               </div>
               <div
                 v-if="mapStatus[style.id]"
@@ -72,10 +95,8 @@
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, type ComponentPublicInstance, type PropType } from 'vue'
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, type ComponentPublicInstance, type PropType } from 'vue'
 import { PMTiles, Protocol } from 'pmtiles'
-import { VectorTile } from '@mapbox/vector-tile'
-import Protobuf from 'pbf'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   createFallbackAtlasManifest,
@@ -126,9 +147,64 @@ const localAtlasUrl = '/atlas/radmaps-driftless-planetiler.pmtiles'
 const localContourUrl = '/atlas/radmaps-driftless-contours.pmtiles'
 const atlasLabel = ref('Driftless / Madison lab pack')
 const atlasCoverageLabel = ref('manifest pending')
-const maps: Array<{ remove: () => void }> = []
+const maps: Array<{
+  remove: () => void
+  flyTo: (options: { center: [number, number], zoom: number, duration?: number }) => void
+  getSource: (id: string) => unknown
+  queryRenderedFeatures: (options: { layers: string[] }) => unknown[]
+  resize: () => void
+}> = []
 const mapEls = new Map<string, HTMLElement>()
 const mapStatus = reactive<Record<string, string>>({})
+
+type ShowcaseLocation = {
+  id: string
+  name: string
+  center: [number, number]
+  zoom: number
+  route: [number, number][]
+}
+
+const showcases: ShowcaseLocation[] = [
+  {
+    id: 'yosemite',
+    name: 'Yosemite',
+    center: [-119.573, 37.748],
+    zoom: 12.2,
+    route: [[-119.628, 37.731], [-119.604, 37.742], [-119.580, 37.754], [-119.557, 37.771], [-119.536, 37.787]],
+  },
+  {
+    id: 'rocky-mountain',
+    name: 'Rocky Mountain',
+    center: [-105.646, 40.325],
+    zoom: 12.1,
+    route: [[-105.684, 40.310], [-105.666, 40.324], [-105.643, 40.337], [-105.621, 40.352], [-105.603, 40.366]],
+  },
+  {
+    id: 'smokies',
+    name: 'Smokies',
+    center: [-83.507, 35.611],
+    zoom: 12.4,
+    route: [[-83.548, 35.586], [-83.529, 35.600], [-83.506, 35.616], [-83.487, 35.632], [-83.470, 35.648]],
+  },
+  {
+    id: 'superior',
+    name: 'North Shore',
+    center: [-91.109, 47.309],
+    zoom: 11.9,
+    route: [[-91.170, 47.278], [-91.145, 47.295], [-91.117, 47.314], [-91.087, 47.335], [-91.055, 47.354]],
+  },
+  {
+    id: 'madison',
+    name: 'Driftless',
+    center: [-89.396, 43.077],
+    zoom: 14,
+    route: [[-89.430, 43.058], [-89.418, 43.066], [-89.402, 43.075], [-89.387, 43.083], [-89.372, 43.092]],
+  },
+]
+
+const activeShowcaseId = ref(showcases[0].id)
+const activeShowcase = computed(() => showcases.find(showcase => showcase.id === activeShowcaseId.value) ?? showcases[0])
 
 const styles: AtlasStyle[] = [
   {
@@ -278,40 +354,6 @@ const styles: AtlasStyle[] = [
   },
 ]
 
-const previewTile = { z: 14, x: 4123, y: 6015 }
-const emptyCollection = { type: 'FeatureCollection', features: [] }
-
-async function decodePmtilesTile(pmtilesUrl: string, layerPrefix = '') {
-  const archive = new PMTiles(pmtilesUrl)
-  const tile = await archive.getZxy(previewTile.z, previewTile.x, previewTile.y)
-  if (!tile) return {}
-
-  const vectorTile = new VectorTile(new Protobuf(new Uint8Array(tile.data)))
-  const layers: Record<string, unknown> = {}
-
-  for (const [layerName, layer] of Object.entries(vectorTile.layers)) {
-    const features = []
-    for (let i = 0; i < layer.length; i += 1) {
-      features.push(layer.feature(i).toGeoJSON(previewTile.x, previewTile.y, previewTile.z))
-    }
-    layers[`${layerPrefix}${layerName}`] = { type: 'FeatureCollection', features }
-  }
-
-  return layers
-}
-
-async function loadPreviewLayers(pmtilesUrl: string, contourPmtilesUrl?: string) {
-  const layers = await decodePmtilesTile(pmtilesUrl)
-  if (contourPmtilesUrl) {
-    try {
-      Object.assign(layers, await decodePmtilesTile(contourPmtilesUrl, 'terrain_'))
-    } catch (error) {
-      console.warn(`Contour PMTiles preview unavailable: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
-  return layers
-}
-
 function toAbsoluteUrl(url: string) {
   if (!url) return ''
   if (/^https?:\/\//.test(url)) return url
@@ -357,7 +399,39 @@ function setMapEl(id: string, el: Element | ComponentPublicInstance | null) {
   if (el instanceof HTMLElement) mapEls.set(id, el)
 }
 
-function buildStyle(style: AtlasStyle, previewLayers: Record<string, unknown>) {
+function pmtilesSourceUrl(url: string) {
+  return `pmtiles://${url}`
+}
+
+function sampleRouteGeojson(showcase: ShowcaseLocation) {
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: showcase.route,
+        },
+      },
+    ],
+  }
+}
+
+function setActiveShowcase(id: string) {
+  activeShowcaseId.value = id
+  const showcase = activeShowcase.value
+  const route = sampleRouteGeojson(showcase)
+  for (const map of maps) {
+    map.flyTo({ center: showcase.center, zoom: showcase.zoom, duration: 700 })
+    const routeSource = map.getSource('sample-route') as { setData?: (data: unknown) => void } | undefined
+    routeSource?.setData?.(route)
+    requestAnimationFrame(() => map.resize())
+  }
+}
+
+function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl: string }) {
   const p = style.palette
   const isToner = style.id === 'radmaps-toner'
   const isTopo = style.id === 'radmaps-field-topo'
@@ -384,72 +458,45 @@ function buildStyle(style: AtlasStyle, previewLayers: Record<string, unknown>) {
     name: style.name,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      landcover: { type: 'geojson', data: previewLayers.landcover ?? emptyCollection },
-      landuse: { type: 'geojson', data: previewLayers.landuse ?? emptyCollection },
-      park: { type: 'geojson', data: previewLayers.park ?? emptyCollection },
-      water: { type: 'geojson', data: previewLayers.water ?? emptyCollection },
-      waterway: { type: 'geojson', data: previewLayers.waterway ?? emptyCollection },
-      building: { type: 'geojson', data: previewLayers.building ?? emptyCollection },
-      transportation: { type: 'geojson', data: previewLayers.transportation ?? emptyCollection },
-      transportation_name: { type: 'geojson', data: previewLayers.transportation_name ?? emptyCollection },
-      place: { type: 'geojson', data: previewLayers.place ?? emptyCollection },
-      poi: { type: 'geojson', data: previewLayers.poi ?? emptyCollection },
-      contour: { type: 'geojson', data: previewLayers.terrain_contour ?? emptyCollection },
+      atlas: { type: 'vector', url: pmtilesSourceUrl(urls.baseUrl) },
+      terrain: { type: 'vector', url: pmtilesSourceUrl(urls.contourUrl) },
       'sample-route': {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [
-            {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: [
-                  [-89.430, 43.058],
-                  [-89.418, 43.066],
-                  [-89.402, 43.075],
-                  [-89.387, 43.083],
-                  [-89.372, 43.092],
-                ],
-              },
-            },
-          ],
-        },
+        data: sampleRouteGeojson(activeShowcase.value),
       },
     },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': p.background } },
       ...(isWatercolor ? [
-        { id: 'landcover-pigment', type: 'fill', source: 'landcover', paint: { 'fill-color': p.landcover, 'fill-opacity': 0.12, 'fill-translate': ['literal', [-4, 3]] } },
-        { id: 'landuse-pigment', type: 'fill', source: 'landuse', paint: { 'fill-color': p.landuse, 'fill-opacity': 0.10, 'fill-translate': ['literal', [5, -3]] } },
-        { id: 'park-pigment', type: 'fill', source: 'park', paint: { 'fill-color': p.park, 'fill-opacity': 0.16, 'fill-translate': ['literal', [-6, -2]] } },
-        { id: 'water-pigment', type: 'fill', source: 'water', paint: { 'fill-color': p.water, 'fill-opacity': 0.26, 'fill-translate': ['literal', [4, 4]] } },
+        { id: 'landcover-pigment', type: 'fill', source: 'atlas', 'source-layer': 'landcover', paint: { 'fill-color': p.landcover, 'fill-opacity': 0.12, 'fill-translate': ['literal', [-4, 3]] } },
+        { id: 'landuse-pigment', type: 'fill', source: 'atlas', 'source-layer': 'landuse', paint: { 'fill-color': p.landuse, 'fill-opacity': 0.10, 'fill-translate': ['literal', [5, -3]] } },
+        { id: 'park-pigment', type: 'fill', source: 'atlas', 'source-layer': 'park', paint: { 'fill-color': p.park, 'fill-opacity': 0.16, 'fill-translate': ['literal', [-6, -2]] } },
+        { id: 'water-pigment', type: 'fill', source: 'atlas', 'source-layer': 'water', paint: { 'fill-color': p.water, 'fill-opacity': 0.26, 'fill-translate': ['literal', [4, 4]] } },
       ] : []),
-      { id: 'landcover', type: 'fill', source: 'landcover', paint: { 'fill-color': p.landcover, 'fill-opacity': landcoverOpacity } },
-      { id: 'landuse', type: 'fill', source: 'landuse', paint: { 'fill-color': p.landuse, 'fill-opacity': landuseOpacity } },
-      { id: 'park', type: 'fill', source: 'park', paint: { 'fill-color': p.park, 'fill-opacity': parkOpacity } },
-      { id: 'water-wash', type: 'fill', source: 'water', paint: { 'fill-color': p.water, 'fill-opacity': isWatercolor ? 0.20 : 0, 'fill-translate': ['literal', isWatercolor ? [-3, 2] : [0, 0]] } },
-      { id: 'water', type: 'fill', source: 'water', paint: { 'fill-color': p.water, 'fill-opacity': waterOpacity } },
+      { id: 'landcover', type: 'fill', source: 'atlas', 'source-layer': 'landcover', paint: { 'fill-color': p.landcover, 'fill-opacity': landcoverOpacity } },
+      { id: 'landuse', type: 'fill', source: 'atlas', 'source-layer': 'landuse', paint: { 'fill-color': p.landuse, 'fill-opacity': landuseOpacity } },
+      { id: 'park', type: 'fill', source: 'atlas', 'source-layer': 'park', paint: { 'fill-color': p.park, 'fill-opacity': parkOpacity } },
+      { id: 'water-wash', type: 'fill', source: 'atlas', 'source-layer': 'water', paint: { 'fill-color': p.water, 'fill-opacity': isWatercolor ? 0.20 : 0, 'fill-translate': ['literal', isWatercolor ? [-3, 2] : [0, 0]] } },
+      { id: 'water', type: 'fill', source: 'atlas', 'source-layer': 'water', paint: { 'fill-color': p.water, 'fill-opacity': waterOpacity } },
       ...(isWatercolor ? [
-        { id: 'water-edge-bleed', type: 'line', source: 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 4.4], 'line-blur': 3.2 } },
+        { id: 'water-edge-bleed', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 4.4], 'line-blur': 3.2 } },
       ] : []),
-      { id: 'waterway', type: 'line', source: 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': isWatercolor ? 0.22 : 0.72, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, isWatercolor ? 0.35 : 0.45, 14, isWatercolor ? 1.2 : 1.5], 'line-blur': isWatercolor ? 1.1 : 0 } },
-      { id: 'building', type: 'fill', source: 'building', minzoom: isWatercolor ? 13 : 12, paint: { 'fill-color': p.building, 'fill-opacity': buildingOpacity } },
+      { id: 'waterway', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': isWatercolor ? 0.22 : 0.72, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, isWatercolor ? 0.35 : 0.45, 14, isWatercolor ? 1.2 : 1.5], 'line-blur': isWatercolor ? 1.1 : 0 } },
+      { id: 'building', type: 'fill', source: 'atlas', 'source-layer': 'building', minzoom: isWatercolor ? 13 : 12, paint: { 'fill-color': p.building, 'fill-opacity': buildingOpacity } },
       ...(isWatercolor ? [
-        { id: 'road-pigment-major', type: 'line', source: 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': 0.12, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.6, 10, 4.0, 14, 7.2], 'line-blur': 4.2, 'line-translate': ['literal', [2, -1]] } },
+        { id: 'road-pigment-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': 0.12, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.6, 10, 4.0, 14, 7.2], 'line-blur': 4.2, 'line-translate': ['literal', [2, -1]] } },
         { id: 'route-underwash', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': 18, 'line-opacity': 0.12, 'line-blur': 8 } },
       ] : []),
-      { id: 'road-casing', type: 'line', source: 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service', 'path', 'track']]], paint: { 'line-color': p.roadCasing, 'line-opacity': roadCasingOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.3 : 1.2, 10, isWatercolor ? 0.7 : 2.4, 14, isWatercolor ? 1.6 : 5.4], 'line-blur': isWatercolor ? 2.8 : 0 } },
-      { id: 'roads-major', type: 'line', source: 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': majorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.28 : 0.8, 10, isWatercolor ? 0.6 : 1.6, 14, isWatercolor ? 1.2 : 3.8], 'line-blur': isWatercolor ? 1.6 : 0 } },
-      { id: 'roads-minor', type: 'line', source: 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service']]], paint: { 'line-color': p.roadMinor, 'line-opacity': minorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.18 : 0.45, 14, isWatercolor ? 0.58 : 1.6], 'line-blur': isWatercolor ? 1.8 : 0 } },
-      { id: 'paths-trails', type: 'line', source: 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track']]], paint: { 'line-color': p.path, 'line-opacity': pathOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.36 : 0.8, 14, isWatercolor ? 0.85 : 2.2], 'line-blur': isWatercolor ? 1.1 : 0, 'line-dasharray': ['literal', isWatercolor ? [0.8, 2.6] : [2, 1.4]] } },
-      { id: 'contours-minor', type: 'line', source: 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.22 : 0.45, 'line-blur': isWatercolor ? 1.3 : 0 } },
-      { id: 'contours-index', type: 'line', source: 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.38 : 0.7, 'line-blur': isWatercolor ? 1.0 : 0 } },
-      { id: 'contours-major', type: 'line', source: 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.56 : 1.05, 'line-blur': isWatercolor ? 0.8 : 0 } },
-      { id: 'poi', type: 'circle', source: 'poi', minzoom: isWatercolor ? 16 : 15, paint: { 'circle-color': p.poi, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 1.1, 17, 2.6], 'circle-opacity': poiOpacity, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': isWatercolor ? 0.35 : 0.7 } },
-      { id: 'place-labels', type: 'symbol', source: 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': [isWatercolor ? 'Open Sans Regular' : 'Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 9 : 10, 11, isWatercolor ? 12 : 14, 14, isWatercolor ? 15 : 17], 'text-letter-spacing': isWatercolor ? 0.01 : 0.02 }, paint: { 'text-color': p.label, 'text-opacity': labelOpacity, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.8 : 1.4, 'text-halo-blur': isWatercolor ? 0.7 : 0.25 } },
-      { id: 'road-labels', type: 'symbol', source: 'transportation_name', minzoom: isWatercolor ? 14 : 12, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Open Sans Regular'], 'text-size': isWatercolor ? 9 : 10 }, paint: { 'text-color': p.label, 'text-opacity': isWatercolor ? 0.36 : 0.86, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.7 : 1.2, 'text-halo-blur': isWatercolor ? 0.8 : 0.2 } },
+      { id: 'road-casing', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service', 'path', 'track']]], paint: { 'line-color': p.roadCasing, 'line-opacity': roadCasingOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.3 : 1.2, 10, isWatercolor ? 0.7 : 2.4, 14, isWatercolor ? 1.6 : 5.4], 'line-blur': isWatercolor ? 2.8 : 0 } },
+      { id: 'roads-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': majorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.28 : 0.8, 10, isWatercolor ? 0.6 : 1.6, 14, isWatercolor ? 1.2 : 3.8], 'line-blur': isWatercolor ? 1.6 : 0 } },
+      { id: 'roads-minor', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service']]], paint: { 'line-color': p.roadMinor, 'line-opacity': minorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.18 : 0.45, 14, isWatercolor ? 0.58 : 1.6], 'line-blur': isWatercolor ? 1.8 : 0 } },
+      { id: 'paths-trails', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track']]], paint: { 'line-color': p.path, 'line-opacity': pathOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.36 : 0.8, 14, isWatercolor ? 0.85 : 2.2], 'line-blur': isWatercolor ? 1.1 : 0, 'line-dasharray': ['literal', isWatercolor ? [0.8, 2.6] : [2, 1.4]] } },
+      { id: 'contours-minor', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.22 : 0.45, 'line-blur': isWatercolor ? 1.3 : 0 } },
+      { id: 'contours-index', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.38 : 0.7, 'line-blur': isWatercolor ? 1.0 : 0 } },
+      { id: 'contours-major', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.56 : 1.05, 'line-blur': isWatercolor ? 0.8 : 0 } },
+      { id: 'poi', type: 'circle', source: 'atlas', 'source-layer': 'poi', minzoom: isWatercolor ? 16 : 15, paint: { 'circle-color': p.poi, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 1.1, 17, 2.6], 'circle-opacity': poiOpacity, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': isWatercolor ? 0.35 : 0.7 } },
+      { id: 'place-labels', type: 'symbol', source: 'atlas', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': [isWatercolor ? 'Open Sans Regular' : 'Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 9 : 10, 11, isWatercolor ? 12 : 14, 14, isWatercolor ? 15 : 17], 'text-letter-spacing': isWatercolor ? 0.01 : 0.02 }, paint: { 'text-color': p.label, 'text-opacity': labelOpacity, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.8 : 1.4, 'text-halo-blur': isWatercolor ? 0.7 : 0.25 } },
+      { id: 'road-labels', type: 'symbol', source: 'atlas', 'source-layer': 'transportation_name', minzoom: isWatercolor ? 14 : 12, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Open Sans Regular'], 'text-size': isWatercolor ? 9 : 10 }, paint: { 'text-color': p.label, 'text-opacity': isWatercolor ? 0.36 : 0.86, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.7 : 1.2, 'text-halo-blur': isWatercolor ? 0.8 : 0.2 } },
       { id: 'sample-route-casing', type: 'line', source: 'sample-route', paint: { 'line-color': p.routeHalo, 'line-width': isWatercolor ? 8.8 : 7.5, 'line-opacity': isWatercolor ? 0.44 : 0.94, 'line-blur': isWatercolor ? 2.4 : 0 } },
       { id: 'sample-route', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': isWatercolor ? 4.6 : 4.2, 'line-opacity': isWatercolor ? 0.70 : 0.98, 'line-blur': isWatercolor ? 0.9 : 0 } },
       ...(isWatercolor ? [
@@ -469,12 +516,6 @@ onMounted(async () => {
   protocol.add(new PMTiles(pmtilesUrl))
   if (contourPmtilesUrl) protocol.add(new PMTiles(contourPmtilesUrl))
   maplibregl.addProtocol('pmtiles', protocol.tile)
-  const previewLayers = await loadPreviewLayers(pmtilesUrl, contourPmtilesUrl)
-  const previewFeatureCount = Object.values(previewLayers).reduce<number>((sum, collection) => {
-    if (!collection || typeof collection !== 'object' || !('features' in collection)) return sum
-    const features = (collection as { features?: unknown[] }).features
-    return sum + (features?.length ?? 0)
-  }, 0)
   trackAtlasUsageEvent({
     eventName: 'atlas_lab_preview_loaded',
     atlasManifestId: manifest.atlasVersion,
@@ -486,8 +527,8 @@ onMounted(async () => {
     source: 'admin_atlas_lab',
     metadata: {
       coverage: manifest.coverage,
-      featureCount: previewFeatureCount,
       styles: styles.map(style => style.id),
+      showcase: activeShowcase.value.id,
     },
   })
   await nextTick()
@@ -500,13 +541,13 @@ onMounted(async () => {
       container: el,
       interactive: true,
       attributionControl: { compact: true },
-      style: buildStyle(style, previewLayers) as never,
-      center: [-89.39575, 43.07691],
-      zoom: 14,
+      style: buildStyle(style, { baseUrl: pmtilesUrl, contourUrl: contourPmtilesUrl }) as never,
+      center: activeShowcase.value.center,
+      zoom: activeShowcase.value.zoom,
       preserveDrawingBuffer: true,
     })
 
-    mapStatus[style.id] = `PMTiles decoded - ${previewFeatureCount.toLocaleString()} features`
+    mapStatus[style.id] = 'loading owned PMTiles'
     map.on('load', () => {
       mapStatus[style.id] = 'loaded'
     })
@@ -549,6 +590,9 @@ const InfoBlock = defineComponent({
 <style scoped>
 .admin-secondary { display:inline-flex; align-items:center; justify-content:center; border-radius:999px; border:1px solid rgb(231 229 228); background:white; color:rgb(68 64 60); padding:0.6rem 1rem; font-size:0.8rem; font-weight:700; transition:background-color 150ms ease, border-color 150ms ease; white-space:nowrap; }
 .admin-secondary:hover { background:rgb(245 245 244); border-color:rgb(214 211 209); }
+.showcase-button { display:inline-flex; align-items:center; justify-content:center; min-height:2rem; border-radius:999px; border:1px solid rgb(231 229 228); background:white; color:rgb(68 64 60); padding:0.42rem 0.74rem; font-size:0.75rem; font-weight:700; transition:background-color 150ms ease, border-color 150ms ease, color 150ms ease; white-space:nowrap; }
+.showcase-button:hover { background:rgb(245 245 244); border-color:rgb(214 211 209); }
+.showcase-button--active { background:rgb(28 25 23); border-color:rgb(28 25 23); color:white; }
 .atlas-style-card--radmaps-toner :deep(.maplibregl-canvas) { filter: contrast(1.18) grayscale(0.72); }
 .atlas-style-card--radmaps-field-topo :deep(.maplibregl-canvas) { filter: saturate(0.92) contrast(1.04); }
 .atlas-style-card--radmaps-watercolor-wash :deep(.maplibregl-canvas) { filter: saturate(0.86) contrast(0.72) brightness(1.12) sepia(0.12); }
