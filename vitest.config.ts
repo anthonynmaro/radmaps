@@ -17,7 +17,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    exclude: ['tests/style-browser/**', '**/node_modules/**', '**/dist/**', '**/.nuxt/**', '**/.output/**'],
+    exclude: ['tests/style-browser/**', 'render-worker-v4/**', '**/node_modules/**', '**/dist/**', '**/.nuxt/**', '**/.output/**'],
     typecheck: { tsconfig: './tsconfig.test.json' },
   },
   define: {
