@@ -142,6 +142,8 @@ function buildBase() {
   const planetilerArgs = [
     'run',
     '--rm',
+    '--user',
+    `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
     '-e',
     `JAVA_TOOL_OPTIONS=${javaOpts}`,
     '-v',

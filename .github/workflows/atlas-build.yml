@@ -58,6 +58,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Recover self-hosted workspace ownership
+        if: ${{ inputs.runner_label != 'ubuntu-latest' }}
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+          rm -rf atlas/build
 
       - name: Setup Node
         uses: actions/setup-node@v4
