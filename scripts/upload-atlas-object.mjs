@@ -17,6 +17,7 @@
 
 import { createHash, createHmac } from 'node:crypto'
 import { createReadStream, readFileSync, statSync } from 'node:fs'
+import { open } from 'node:fs/promises'
 import { basename } from 'node:path'
 
 const args = parseArgs(process.argv.slice(2))
@@ -33,6 +34,8 @@ const sessionToken = args.sessionToken || env.R2_SESSION_TOKEN
 const endpoint = args.endpoint || env.ATLAS_R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : '')
 const publicBaseUrl = args.publicBaseUrl || env.ATLAS_PUBLIC_BASE_URL || ''
 const dryRun = Boolean(args.dryRun)
+const multipartThresholdBytes = 4.5 * 1024 * 1024 * 1024
+const multipartPartBytes = 256 * 1024 * 1024
 
 if (!source || !bucket || !objectPath) throw new Error('Missing source, bucket, or object path')
 if (!dryRun && (!accountId || !accessKeyId || !secretAccessKey || !endpoint)) {
@@ -139,26 +142,37 @@ function signingKey(secret, dateStamp) {
   return hmac(kService, 'aws4_request')
 }
 
-function signedPutRequest({ payloadHash, size, now = new Date() }) {
+function encodeCanonical(value) {
+  return encodeURIComponent(value).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+}
+
+function canonicalQuery(query = {}) {
+  return Object.entries(query)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${encodeCanonical(key)}=${encodeCanonical(String(value))}`)
+    .join('&')
+}
+
+function signedS3Request({ method, query = {}, payloadHash, size, headers = {}, now = new Date() }) {
   const url = new URL(`${endpoint.replace(/\/$/, '')}/${bucket}/${encodePath(objectPath)}`)
+  const queryString = canonicalQuery(query)
+  if (queryString) url.search = queryString
   const date = amzDate(now)
   const dateStamp = date.slice(0, 8)
-  const cacheControl = contentType.startsWith('application/json') ? 'max-age=60' : 'public, max-age=31536000, immutable'
-  const headers = {
-    'cache-control': cacheControl,
-    'content-length': String(size),
-    'content-type': contentType,
+  const signedHeaderValues = {
+    ...headers,
     host: url.host,
     'x-amz-content-sha256': payloadHash,
     'x-amz-date': date,
   }
-  if (sessionToken) headers['x-amz-security-token'] = sessionToken
-  const signedHeaders = Object.keys(headers).sort().join(';')
-  const canonicalHeaders = Object.keys(headers).sort().map(key => `${key}:${headers[key]}\n`).join('')
+  if (size !== undefined) signedHeaderValues['content-length'] = String(size)
+  if (sessionToken) signedHeaderValues['x-amz-security-token'] = sessionToken
+  const signedHeaders = Object.keys(signedHeaderValues).sort().join(';')
+  const canonicalHeaders = Object.keys(signedHeaderValues).sort().map(key => `${key}:${signedHeaderValues[key]}\n`).join('')
   const canonicalRequest = [
-    'PUT',
+    method,
     url.pathname,
-    '',
+    queryString,
     canonicalHeaders,
     signedHeaders,
     payloadHash,
@@ -174,9 +188,17 @@ function signedPutRequest({ payloadHash, size, now = new Date() }) {
   return {
     url,
     headers: {
-      ...headers,
+      ...signedHeaderValues,
       authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
     },
+  }
+}
+
+function objectHeaders() {
+  const cacheControl = contentType.startsWith('application/json') ? 'max-age=60' : 'public, max-age=31536000, immutable'
+  return {
+    'cache-control': cacheControl,
+    'content-type': contentType,
   }
 }
 
@@ -207,6 +229,138 @@ async function verifyPublicUrl(url) {
   throw new Error(`Unknown verify mode: ${verifyMode}`)
 }
 
+function xmlValue(xml, tag) {
+  const match = xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`))
+  return match?.[1] || ''
+}
+
+async function readPart(file, start, length) {
+  const handle = await open(file, 'r')
+  try {
+    const buffer = Buffer.allocUnsafe(length)
+    const { bytesRead } = await handle.read(buffer, 0, length, start)
+    return bytesRead === length ? buffer : buffer.subarray(0, bytesRead)
+  } finally {
+    await handle.close()
+  }
+}
+
+async function singlePutUpload({ size }) {
+  const payloadHash = await hashFile(source)
+  const request = signedS3Request({
+    method: 'PUT',
+    payloadHash,
+    size,
+    headers: objectHeaders(),
+  })
+  const uploadResponse = await fetch(request.url, {
+    method: 'PUT',
+    headers: request.headers,
+    body: createReadStream(source),
+    duplex: 'half',
+  })
+
+  if (!uploadResponse.ok) {
+    throw new Error(`R2 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}\n${await uploadResponse.text()}`)
+  }
+
+  return {
+    etag: uploadResponse.headers.get('etag')?.replace(/^"|"$/g, '') ?? null,
+    multipart: false,
+  }
+}
+
+async function multipartUpload({ size }) {
+  const emptyHash = hash('')
+  const initiate = signedS3Request({
+    method: 'POST',
+    query: { uploads: '' },
+    payloadHash: emptyHash,
+    size: 0,
+    headers: objectHeaders(),
+  })
+  const initiateResponse = await fetch(initiate.url, {
+    method: 'POST',
+    headers: initiate.headers,
+    body: '',
+  })
+  const initiateText = await initiateResponse.text()
+  if (!initiateResponse.ok) {
+    throw new Error(`R2 multipart initiation failed: ${initiateResponse.status} ${initiateResponse.statusText}\n${initiateText}`)
+  }
+
+  const uploadId = xmlValue(initiateText, 'UploadId')
+  if (!uploadId) throw new Error(`R2 multipart initiation did not return UploadId:\n${initiateText}`)
+
+  const parts = []
+  const totalParts = Math.ceil(size / multipartPartBytes)
+  try {
+    for (let index = 0; index < totalParts; index += 1) {
+      const partNumber = index + 1
+      const start = index * multipartPartBytes
+      const partSize = Math.min(multipartPartBytes, size - start)
+      const part = await readPart(source, start, partSize)
+      const payloadHash = createHash('sha256').update(part).digest('hex')
+      const request = signedS3Request({
+        method: 'PUT',
+        query: { partNumber, uploadId },
+        payloadHash,
+        size: part.length,
+      })
+      const response = await fetch(request.url, {
+        method: 'PUT',
+        headers: request.headers,
+        body: part,
+      })
+      if (!response.ok) {
+        throw new Error(`R2 multipart part ${partNumber}/${totalParts} failed: ${response.status} ${response.statusText}\n${await response.text()}`)
+      }
+      const etag = response.headers.get('etag')
+      if (!etag) throw new Error(`R2 multipart part ${partNumber}/${totalParts} did not return an ETag`)
+      parts.push({ partNumber, etag })
+      console.log(JSON.stringify({ multipart: true, uploadedPart: partNumber, totalParts, bytes: part.length }))
+    }
+
+    const completeBody = [
+      '<CompleteMultipartUpload>',
+      ...parts.map(part => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${part.etag}</ETag></Part>`),
+      '</CompleteMultipartUpload>',
+    ].join('')
+    const payloadHash = hash(completeBody)
+    const complete = signedS3Request({
+      method: 'POST',
+      query: { uploadId },
+      payloadHash,
+      size: Buffer.byteLength(completeBody),
+      headers: { 'content-type': 'application/xml' },
+    })
+    const completeResponse = await fetch(complete.url, {
+      method: 'POST',
+      headers: complete.headers,
+      body: completeBody,
+    })
+    const completeText = await completeResponse.text()
+    if (!completeResponse.ok) {
+      throw new Error(`R2 multipart completion failed: ${completeResponse.status} ${completeResponse.statusText}\n${completeText}`)
+    }
+
+    return {
+      etag: xmlValue(completeText, 'ETag').replace(/^"|"$/g, '') || null,
+      multipart: true,
+      parts: parts.length,
+    }
+  } catch (error) {
+    const abort = signedS3Request({
+      method: 'DELETE',
+      query: { uploadId },
+      payloadHash: emptyHash,
+      size: 0,
+    })
+    await fetch(abort.url, { method: 'DELETE', headers: abort.headers, body: '' }).catch(() => {})
+    throw error
+  }
+}
+
 const size = statSync(source).size
 const planned = {
   bucket,
@@ -223,24 +377,14 @@ if (dryRun) {
   process.exit(0)
 }
 
-const payloadHash = await hashFile(source)
-const request = signedPutRequest({ payloadHash, size })
-const uploadResponse = await fetch(request.url, {
-  method: 'PUT',
-  headers: request.headers,
-  body: createReadStream(source),
-  duplex: 'half',
-})
-
-if (!uploadResponse.ok) {
-  throw new Error(`R2 upload failed: ${uploadResponse.status} ${uploadResponse.statusText}\n${await uploadResponse.text()}`)
-}
-
+const upload = size > multipartThresholdBytes ? await multipartUpload({ size }) : await singlePutUpload({ size })
 const verification = await verifyPublicUrl(publicUrl())
 
 console.log(JSON.stringify({
   ...planned,
-  etag: uploadResponse.headers.get('etag')?.replace(/^"|"$/g, '') ?? null,
+  etag: upload.etag,
   uploaded: true,
+  multipart: upload.multipart,
+  parts: upload.parts,
   verification,
 }, null, 2))

@@ -31,6 +31,8 @@ if ! id "$RUNNER_USER" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$RUNNER_USER"
 fi
 usermod -aG docker "$RUNNER_USER"
+printf '%s ALL=(ALL) NOPASSWD: /usr/bin/chown, /usr/bin/rm\n' "$RUNNER_USER" > "/etc/sudoers.d/${RUNNER_USER}-atlas-runner"
+chmod 0440 "/etc/sudoers.d/${RUNNER_USER}-atlas-runner"
 
 mkdir -p "$RUNNER_HOME"
 chown -R "$RUNNER_USER:$RUNNER_USER" "$RUNNER_HOME"
