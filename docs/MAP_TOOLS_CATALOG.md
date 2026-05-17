@@ -36,7 +36,7 @@ flowchart LR
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Watercolor and toner raster art; toner label-family toggle | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
 | RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles | Beta | Self-hosted | Contiguous-US staging PMTiles base atlas; water, waterways, roads, trails, labels, POIs, buildings, landuse, parks/forests | Full vector paint/layout control for layer families | OSM attribution remains unless source data is non-OSM or attribution-free. |
-| RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Driftless contours now; regional contour packs, hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
+| RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Live regional contour packs for Driftless, Yosemite, Rocky Mountain, Smokies, and North Shore; hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
 ## Layer Capability Accounting
@@ -161,6 +161,16 @@ Automation ideas:
 - Precompute water/shoreline masks so water color stays editable even in terrain-heavy styles.
 - Run route-bbox tile completeness checks before final render jobs submit to Gelato.
 - Store `terrain_atlas_version`, `dem_source`, `contour_interval`, and `hillshade_style` in render metadata.
+
+Current live terrain packs:
+
+| Region | Object | Notes |
+|---|---|---|
+| Driftless | `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles` | Original contour proving pack used as the local/default fallback. |
+| Yosemite | `atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles` | Mountain showcase pack wired into Atlas Lab region switching. |
+| Rocky Mountain | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` | High-relief mountain showcase pack wired into Atlas Lab region switching. |
+| Smokies | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` | Eastern mountain showcase pack wired into Atlas Lab region switching. |
+| North Shore | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` | Midwest/North Shore showcase pack wired into Atlas Lab region switching. |
 
 Why this matters:
 

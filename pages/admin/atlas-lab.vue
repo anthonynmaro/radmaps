@@ -60,7 +60,7 @@
                 <p class="text-sm font-semibold text-stone-900">{{ style.name }}</p>
               </div>
               <div class="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 shadow-sm backdrop-blur">
-                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ atlasCoverageLabel }}
+                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ activeShowcase.contourUrl ? 'regional contours z8-14' : atlasCoverageLabel }}
               </div>
               <div
                 v-if="mapStatus[style.id]"
@@ -148,11 +148,13 @@ const localContourUrl = '/atlas/radmaps-driftless-contours.pmtiles'
 const atlasLabel = ref('Driftless / Madison lab pack')
 const atlasCoverageLabel = ref('manifest pending')
 const maps: Array<{
+  style: AtlasStyle
   remove: () => void
   flyTo: (options: { center: [number, number], zoom: number, duration?: number }) => void
   getSource: (id: string) => unknown
   queryRenderedFeatures: (options: { layers: string[] }) => unknown[]
   resize: () => void
+  setStyle: (style: unknown) => void
 }> = []
 const mapEls = new Map<string, HTMLElement>()
 const mapStatus = reactive<Record<string, string>>({})
@@ -163,6 +165,7 @@ type ShowcaseLocation = {
   center: [number, number]
   zoom: number
   route: [number, number][]
+  contourUrl?: string
 }
 
 const showcases: ShowcaseLocation[] = [
@@ -172,6 +175,7 @@ const showcases: ShowcaseLocation[] = [
     center: [-119.573, 37.748],
     zoom: 12.2,
     route: [[-119.628, 37.731], [-119.604, 37.742], [-119.580, 37.754], [-119.557, 37.771], [-119.536, 37.787]],
+    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles',
   },
   {
     id: 'rocky-mountain',
@@ -179,6 +183,7 @@ const showcases: ShowcaseLocation[] = [
     center: [-105.646, 40.325],
     zoom: 12.1,
     route: [[-105.684, 40.310], [-105.666, 40.324], [-105.643, 40.337], [-105.621, 40.352], [-105.603, 40.366]],
+    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles',
   },
   {
     id: 'smokies',
@@ -186,6 +191,7 @@ const showcases: ShowcaseLocation[] = [
     center: [-83.507, 35.611],
     zoom: 12.4,
     route: [[-83.548, 35.586], [-83.529, 35.600], [-83.506, 35.616], [-83.487, 35.632], [-83.470, 35.648]],
+    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles',
   },
   {
     id: 'superior',
@@ -193,6 +199,7 @@ const showcases: ShowcaseLocation[] = [
     center: [-91.109, 47.309],
     zoom: 11.9,
     route: [[-91.170, 47.278], [-91.145, 47.295], [-91.117, 47.314], [-91.087, 47.335], [-91.055, 47.354]],
+    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles',
   },
   {
     id: 'madison',
@@ -200,11 +207,14 @@ const showcases: ShowcaseLocation[] = [
     center: [-89.396, 43.077],
     zoom: 14,
     route: [[-89.430, 43.058], [-89.418, 43.066], [-89.402, 43.075], [-89.387, 43.083], [-89.372, 43.092]],
+    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles',
   },
 ]
 
 const activeShowcaseId = ref(showcases[0].id)
 const activeShowcase = computed(() => showcases.find(showcase => showcase.id === activeShowcaseId.value) ?? showcases[0])
+let activeBasePmtilesUrl = ''
+let defaultContourPmtilesUrl = ''
 
 const styles: AtlasStyle[] = [
   {
@@ -403,6 +413,10 @@ function pmtilesSourceUrl(url: string) {
   return `pmtiles://${url}`
 }
 
+function contourUrlForShowcase(showcase: ShowcaseLocation) {
+  return toAbsoluteUrl(showcase.contourUrl || defaultContourPmtilesUrl)
+}
+
 function sampleRouteGeojson(showcase: ShowcaseLocation) {
   return {
     type: 'FeatureCollection',
@@ -422,11 +436,12 @@ function sampleRouteGeojson(showcase: ShowcaseLocation) {
 function setActiveShowcase(id: string) {
   activeShowcaseId.value = id
   const showcase = activeShowcase.value
-  const route = sampleRouteGeojson(showcase)
   for (const map of maps) {
+    map.setStyle(buildStyle(map.style, {
+      baseUrl: activeBasePmtilesUrl,
+      contourUrl: contourUrlForShowcase(showcase),
+    }))
     map.flyTo({ center: showcase.center, zoom: showcase.zoom, duration: 700 })
-    const routeSource = map.getSource('sample-route') as { setData?: (data: unknown) => void } | undefined
-    routeSource?.setData?.(route)
     requestAnimationFrame(() => map.resize())
   }
 }
@@ -513,8 +528,14 @@ onMounted(async () => {
   const { baseUrl, contourUrl } = resolveAtlasArtifacts(manifest)
   const pmtilesUrl = toAbsoluteUrl(baseUrl)
   const contourPmtilesUrl = toAbsoluteUrl(contourUrl)
+  activeBasePmtilesUrl = pmtilesUrl
+  defaultContourPmtilesUrl = contourPmtilesUrl
   protocol.add(new PMTiles(pmtilesUrl))
   if (contourPmtilesUrl) protocol.add(new PMTiles(contourPmtilesUrl))
+  for (const showcase of showcases) {
+    const showcaseContourUrl = contourUrlForShowcase(showcase)
+    if (showcaseContourUrl && showcaseContourUrl !== contourPmtilesUrl) protocol.add(new PMTiles(showcaseContourUrl))
+  }
   maplibregl.addProtocol('pmtiles', protocol.tile)
   trackAtlasUsageEvent({
     eventName: 'atlas_lab_preview_loaded',
@@ -541,7 +562,7 @@ onMounted(async () => {
       container: el,
       interactive: true,
       attributionControl: { compact: true },
-      style: buildStyle(style, { baseUrl: pmtilesUrl, contourUrl: contourPmtilesUrl }) as never,
+      style: buildStyle(style, { baseUrl: pmtilesUrl, contourUrl: contourUrlForShowcase(activeShowcase.value) }) as never,
       center: activeShowcase.value.center,
       zoom: activeShowcase.value.zoom,
       preserveDrawingBuffer: true,
@@ -563,7 +584,17 @@ onMounted(async () => {
     requestAnimationFrame(() => map.resize())
     window.setTimeout(() => map.resize(), 250)
 
-    maps.push(map)
+    maps.push({
+      style,
+      remove: () => map.remove(),
+      flyTo: options => map.flyTo(options),
+      getSource: id => map.getSource(id),
+      queryRenderedFeatures: options => map.queryRenderedFeatures(options),
+      resize: () => map.resize(),
+      setStyle: nextStyle => {
+        map.setStyle(nextStyle as never)
+      },
+    })
   }
 })
 

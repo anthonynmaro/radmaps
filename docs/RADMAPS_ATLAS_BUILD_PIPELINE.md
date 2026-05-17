@@ -10,6 +10,10 @@ The GitHub Actions workflow lives at:
 
 `.github/workflows/atlas-build.yml`
 
+Regional terrain packs are built by:
+
+`.github/workflows/atlas-terrain-pack.yml`
+
 It is manually dispatched with:
 
 - `region`: `driftless-lab`, `us-midwest`, or `us-contiguous`
@@ -123,13 +127,34 @@ The current full-U.S. base pipeline deliberately does not build one monolithic
 U.S. contour archive. Full terrain should be built as regional terrain packs so
 we can control compute, detail, storage, and update cadence.
 
-The existing Driftless contour builder remains the proving path for:
+The contour builder is now used for:
 
 - DEM fetch/cache
 - contour vector generation
 - PMTiles validation
 - R2 upload
-- manifest attachment
+- showcase style wiring in Atlas Lab
 
-Next terrain deployment step: add regional contour pack configs and run them
-against priority sales regions.
+Current deployed showcase packs:
+
+| Region | Workflow input | Output |
+|---|---|---|
+| Yosemite | `terrain_region=yosemite` | `atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles` |
+| Rocky Mountain | `terrain_region=rocky-mountain` | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` |
+| Smokies | `terrain_region=smokies` | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` |
+| North Shore | `terrain_region=superior` | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` |
+
+The all-showcase dispatch is:
+
+```bash
+gh workflow run atlas-terrain-pack.yml \
+  --repo anthonynmaro/radmaps \
+  --ref main \
+  -f terrain_region=all-showcase \
+  -f environment=staging \
+  -f dry_run=false
+```
+
+Next terrain deployment step: expand regional contour pack configs around the
+premade catalog and the highest-intent sales geographies before attempting any
+monolithic U.S. terrain archive.

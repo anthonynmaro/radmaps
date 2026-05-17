@@ -27,11 +27,20 @@ Current staging manifest:
 Current production base archive:
 `atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles`
 
-Current contour archive:
+Current production contour archive:
 `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles`
 
 Current production manifest:
 `atlas/v1/manifests/production.json`
+
+Current staging terrain showcase packs:
+
+| Region | Object | Bytes | Notes |
+|---|---:|---:|---|
+| Yosemite | `atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles` | `9,978,006` | Mountain contour showcase, z8-14. |
+| Rocky Mountain | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` | `11,662,164` | High-relief contour showcase, z8-14. |
+| Smokies | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` | `16,111,631` | Eastern mountain contour showcase, z8-14. |
+| North Shore | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` | `4,390,525` | Midwest/North Shore contour showcase, z8-14. |
 
 The manifest is the preferred app entry point. Direct PMTiles URLs are retained
 as local development and emergency fallbacks:
@@ -69,6 +78,14 @@ Full-US staging verification on 2026-05-17:
 - zooms: `0-14`
 - upload mode: R2 multipart, `36` parts
 - public range check: HTTP `206 Partial Content`
+
+Regional terrain showcase verification on 2026-05-17:
+- workflow: `.github/workflows/atlas-terrain-pack.yml`
+- run: `25985273254`
+- environment: `staging`
+- regions: `yosemite`, `rocky-mountain`, `smokies`, `superior`
+- public range checks: HTTP `206 Partial Content`
+- first bytes decode to `PMTiles`
 
 Manifest verification:
 
