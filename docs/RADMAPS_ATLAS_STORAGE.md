@@ -18,7 +18,13 @@ Staging bucket: `radmaps-atlas-staging`
 Production public domain: `pub-9d309719b5ba4334974a164f41db2a76.r2.dev`  
 Staging public domain: `pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev`  
 Visibility: public through R2-managed domains  
-Current base archive:
+Current staging base archive:
+`atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles`
+
+Current staging manifest:
+`atlas/v1/manifests/staging.json`
+
+Current production base archive:
 `atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles`
 
 Current contour archive:
@@ -37,6 +43,12 @@ NUXT_PUBLIC_RADMAPS_CONTOUR_PMTILES_URL=https://pub-9d309719b5ba4334974a164f41db
 ATLAS_PUBLIC_BASE_URL=https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev
 ```
 
+For Atlas Lab staging against the full contiguous-US base:
+
+```bash
+NUXT_PUBLIC_RADMAPS_ATLAS_MANIFEST_URL=https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json
+```
+
 Verification performed:
 
 ```bash
@@ -48,6 +60,15 @@ Expected result:
 - HTTP `206 Partial Content`
 - `Content-Range` header
 - first bytes decode to `PMTiles`
+
+Full-US staging verification on 2026-05-17:
+- `atlasVersion`: `2026.05.17-us.1`
+- object: `atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles`
+- bytes: `9,593,839,310`
+- bounds: `[-125, 24.4, -66.8, 49.5]`
+- zooms: `0-14`
+- upload mode: R2 multipart, `36` parts
+- public range check: HTTP `206 Partial Content`
 
 Manifest verification:
 
@@ -122,6 +143,7 @@ npm run atlas:publish-manifest
 The R2 upload path:
 - writes immutable PMTiles objects into `radmaps-atlas-prod` or
   `radmaps-atlas-staging`
+- uses S3 multipart upload for large PMTiles archives beyond single PUT limits
 - uploads with long-lived cache headers
 - verifies public range requests before printing the URL
 - updates `public/atlas/manifests/*.json` and the matching R2 manifest object

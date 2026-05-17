@@ -130,7 +130,7 @@ export const MAP_TOOL_CATALOG: MapToolCatalogItem[] = [
     attribution: 'OSM attribution remains unless source data is non-OSM or attribution-free.',
     spendRisk: 'Converts variable tile API spend into storage/CDN/build costs.',
     trackingKeys: ['atlas_version', 'tile_schema_version', 'bbox_hash', 'preset', 'enabled_layers', 'render_class', 'atlas_manifest_id', 'atlas_style_id'],
-    notes: 'Driftless Atlas Lab pack is live in admin from R2; this is the strategic replacement for most commercial vector/raster basemap dependency.',
+    notes: 'Staging now has a validated contiguous-US Planetiler PMTiles base atlas in R2; Driftless remains the contour proving pack. This is the strategic replacement for most commercial vector/raster basemap dependency.',
   },
   {
     id: 'radmaps-terrain-atlas',
@@ -147,7 +147,7 @@ export const MAP_TOOL_CATALOG: MapToolCatalogItem[] = [
     attribution: 'Depends on selected DEM/landcover sources; prefer public-domain or permissive datasets.',
     spendRisk: 'Mostly compute/storage; enables vendor-independent terrain-heavy products.',
     trackingKeys: ['terrain_atlas_version', 'dem_source', 'contour_interval', 'hillshade_style', 'render_class', 'atlas_manifest_id', 'atlas_style_id'],
-    notes: 'Driftless contours are live in admin from R2; this is the main creative moat: RadMaps-specific topographic rendering, not generic web cartography.',
+    notes: 'Driftless contours are live in admin from R2; full-US base coverage is live without terrain contours. Next terrain work should publish regional contour packs before any monolithic US terrain attempt.',
   },
   {
     id: 'naip-aerial',

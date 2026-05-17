@@ -58,7 +58,9 @@ Current entries:
 
 - `driftless-lab`: validates and republishes the current regional lab pack.
 - `us-midwest`: first larger regional base-build target.
-- `us-contiguous`: first full U.S. base-build target.
+- `us-contiguous`: first full U.S. base-build target. Staging build
+  `2026.05.17-us.1` produced a validated `9,593,839,310` byte PMTiles archive
+  and published it to R2.
 
 The full U.S. source is the Geofabrik United States OSM PBF:
 
@@ -90,6 +92,9 @@ Stages:
 - `upload`: uploads immutable PMTiles artifacts to R2.
 - `manifest`: generates the mutable environment manifest.
 - `publish`: uploads the manifest to R2.
+
+Large PMTiles uploads use S3 multipart upload through
+`scripts/upload-atlas-object.mjs`; the first full-US upload used `36` parts.
 
 ## First Production Run
 
