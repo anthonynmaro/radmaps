@@ -53,7 +53,25 @@ ami_id="$(
     --region "$REGION"
 )"
 
-if [[ ! -f "$KEY_PATH" ]]; then
+key_exists="$(
+  aws ec2 describe-key-pairs \
+    --key-names "$KEY_NAME" \
+    --query 'KeyPairs[0].KeyName' \
+    --output text \
+    --region "$REGION" 2>/dev/null || true
+)"
+
+if [[ "$key_exists" == "$KEY_NAME" ]]; then
+  :
+elif [[ -f "$KEY_PATH" ]]; then
+  public_key_path="$(mktemp)"
+  ssh-keygen -y -f "$KEY_PATH" > "$public_key_path"
+  aws ec2 import-key-pair \
+    --key-name "$KEY_NAME" \
+    --public-key-material "fileb://$public_key_path" \
+    --region "$REGION" >/dev/null
+  rm -f "$public_key_path"
+else
   mkdir -p "$(dirname "$KEY_PATH")"
   aws ec2 create-key-pair \
     --key-name "$KEY_NAME" \
