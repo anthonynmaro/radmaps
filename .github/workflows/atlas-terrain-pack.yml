@@ -1,0 +1,91 @@
+name: Atlas Terrain Pack
+
+on:
+  workflow_dispatch:
+    inputs:
+      terrain_region:
+        description: Terrain contour pack to build
+        required: true
+        default: all-showcase
+        type: choice
+        options:
+          - all-showcase
+          - yosemite
+          - rocky-mountain
+          - smokies
+          - superior
+          - driftless
+          - madison
+      environment:
+        description: Atlas manifest target
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      date:
+        description: Optional yyyy-mm-dd object path date
+        required: false
+        default: ''
+      dry_run:
+        description: Build only; skip R2 uploads
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  terrain-pack:
+    name: Build terrain pack ${{ inputs.terrain_region }} -> ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ATLAS_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'radmaps-atlas-prod' || 'radmaps-atlas-staging' }}
+      ATLAS_PUBLIC_BASE_URL: ${{ inputs.environment == 'production' && secrets.ATLAS_PROD_PUBLIC_BASE_URL || secrets.ATLAS_STAGING_PUBLIC_BASE_URL }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_SESSION_TOKEN: ${{ secrets.R2_SESSION_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and upload terrain packs
+        run: |
+          set -euo pipefail
+          DATE="${{ inputs.date }}"
+          if [ -z "$DATE" ]; then
+            DATE="$(date -u +%F)"
+          fi
+
+          if [ "${{ inputs.terrain_region }}" = "all-showcase" ]; then
+            REGIONS=(yosemite rocky-mountain smokies superior)
+          else
+            REGIONS=("${{ inputs.terrain_region }}")
+          fi
+
+          for REGION in "${REGIONS[@]}"; do
+            OUTPUT="atlas/build/terrain/${REGION}/radmaps-${REGION}-contours.pmtiles"
+            OBJECT="atlas/v1/terrain/${REGION}/${DATE}/radmaps-${REGION}-contours.pmtiles"
+            node scripts/build-contour-pmtiles.mjs --region "$REGION" --output "$OUTPUT"
+            node scripts/atlas-validate-pmtiles.mjs --file "$OUTPUT" --minzoom 8 --maxzoom 14 --tile-type mvt
+            if [ "${{ inputs.dry_run }}" != "true" ]; then
+              node scripts/upload-atlas-object.mjs \
+                --bucket "$ATLAS_STORAGE_BUCKET" \
+                --source "$OUTPUT" \
+                --object "$OBJECT" \
+                --verify pmtiles
+            fi
+          done

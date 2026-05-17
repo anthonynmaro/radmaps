@@ -40,6 +40,46 @@ const REGIONS = {
     contourIntervalFt: 20,
     sampleStepPx: 3,
   },
+  yosemite: {
+    name: 'RadMaps Yosemite Terrain Atlas',
+    bbox: [-119.75, 37.60, -119.35, 37.92],
+    center: [-119.573, 37.748, 12],
+    demZoom: 12,
+    minzoom: 8,
+    maxzoom: 14,
+    contourIntervalFt: 80,
+    sampleStepPx: 4,
+  },
+  'rocky-mountain': {
+    name: 'RadMaps Rocky Mountain Terrain Atlas',
+    bbox: [-105.85, 40.16, -105.45, 40.52],
+    center: [-105.646, 40.325, 12],
+    demZoom: 12,
+    minzoom: 8,
+    maxzoom: 14,
+    contourIntervalFt: 80,
+    sampleStepPx: 4,
+  },
+  smokies: {
+    name: 'RadMaps Smokies Terrain Atlas',
+    bbox: [-83.75, 35.44, -83.22, 35.80],
+    center: [-83.507, 35.611, 12],
+    demZoom: 12,
+    minzoom: 8,
+    maxzoom: 14,
+    contourIntervalFt: 80,
+    sampleStepPx: 4,
+  },
+  superior: {
+    name: 'RadMaps North Shore Terrain Atlas',
+    bbox: [-91.52, 47.08, -90.68, 47.58],
+    center: [-91.109, 47.309, 12],
+    demZoom: 12,
+    minzoom: 8,
+    maxzoom: 14,
+    contourIntervalFt: 40,
+    sampleStepPx: 4,
+  },
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -59,7 +99,7 @@ function parseArgs(argv) {
     else if (arg === '--output') parsed.output = argv[++i] ?? parsed.output
     else if (arg === '--force-fetch') parsed.forceFetch = true
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/build-contour-pmtiles.mjs [--region driftless|madison] [--output public/atlas/radmaps-driftless-contours.pmtiles] [--force-fetch]')
+      console.log('Usage: node scripts/build-contour-pmtiles.mjs [--region driftless|madison|yosemite|rocky-mountain|smokies|superior] [--output public/atlas/radmaps-driftless-contours.pmtiles] [--force-fetch]')
       process.exit(0)
     }
   }
@@ -261,7 +301,7 @@ function addSegment(features, level, a, b) {
       interval_class: contourClass(level),
       contour_interval_ft: region.contourIntervalFt,
       dem_source: 'mapzen-terrarium-aws',
-      terrain_atlas_version: 'driftless-contours-2026-05-15',
+      terrain_atlas_version: `${args.region}-contours-${new Date().toISOString().slice(0, 10)}`,
     },
     geometry: { type: 'LineString', coordinates: [a, b] },
   })
