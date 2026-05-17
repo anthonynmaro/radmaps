@@ -1,5 +1,5 @@
 <template>
-  <AdminShell title="Atlas Lab">
+  <AdminShell title="Atlas Lab" :allow-local-preview="true">
     <div class="space-y-6">
       <section class="rounded-lg border border-stone-200 bg-white p-5">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -105,7 +105,7 @@ import {
 } from '~/utils/atlasManifest'
 import { trackAtlasUsageEvent } from '~/utils/atlasUsage'
 
-definePageMeta({ layout: 'default', middleware: 'auth' })
+definePageMeta({ layout: 'default' })
 
 type PaintPalette = {
   background: string

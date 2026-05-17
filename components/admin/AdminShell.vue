@@ -8,8 +8,13 @@
             {{ title }}
           </h1>
         </div>
-        <div v-if="staff" class="text-xs text-stone-500">
-          {{ staff.email }} · <span class="font-semibold text-stone-800">{{ staff.role }}</span>
+        <div v-if="staff || localPreviewAllowed" class="text-xs text-stone-500">
+          <template v-if="staff">
+            {{ staff.email }} · <span class="font-semibold text-stone-800">{{ staff.role }}</span>
+          </template>
+          <template v-else>
+            Local preview · <span class="font-semibold text-stone-800">dev</span>
+          </template>
         </div>
       </div>
 
@@ -29,7 +34,7 @@
       <div v-if="pending" class="rounded-xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
         Loading admin access…
       </div>
-      <div v-else-if="!staff" class="rounded-xl border border-red-200 bg-red-50 p-6">
+      <div v-else-if="!staff && !localPreviewAllowed" class="rounded-xl border border-red-200 bg-red-50 p-6">
         <p class="text-sm font-semibold text-red-800">Admin access required</p>
         <p class="text-sm text-red-700 mt-1">Sign in with a staff account to use this section.</p>
       </div>
@@ -42,9 +47,12 @@
 import { computed } from 'vue'
 import { roleCan } from '~/utils/adminPermissions'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   title: string
-}>()
+  allowLocalPreview?: boolean
+}>(), {
+  allowLocalPreview: false,
+})
 
 const route = useRoute()
 
@@ -52,6 +60,7 @@ const route = useRoute()
 // navigation reuses the cached row instead of blocking on a fresh
 // `/api/admin/me` fetch every time the user clicks a tab.
 const { staff, pending, ensureLoaded } = useAdminMe()
+const localPreviewAllowed = computed(() => import.meta.dev && props.allowLocalPreview && !staff.value)
 
 // SSR: await the lookup once so the rendered HTML already has the staff row
 // (and the correct nav items) baked in. Client-side navigation between admin
@@ -77,6 +86,8 @@ const navItems = [
 ]
 
 const visibleItems = computed(() =>
-  navItems.filter((item) => staff.value && roleCan(staff.value.role, item.action))
+  localPreviewAllowed.value
+    ? navItems.filter(item => item.to === '/admin/map-tools' || item.to === '/admin/atlas-lab')
+    : navItems.filter((item) => staff.value && roleCan(staff.value.role, item.action))
 )
 </script>

@@ -41,7 +41,20 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
-      exclude: ['/', '/map/*', '/shop', '/shop/**', '/dashboard', '/terms', '/privacy', '/support', '/render/**', '/fonts/**', '/style-browser-fixture'],
+      exclude: [
+        '/',
+        '/map/*',
+        '/shop',
+        '/shop/**',
+        '/dashboard',
+        '/terms',
+        '/privacy',
+        '/support',
+        '/render/**',
+        '/fonts/**',
+        '/style-browser-fixture',
+        ...(process.env.NODE_ENV === 'production' ? [] : ['/admin/atlas-lab']),
+      ],
     },
     cookieOptions: {
       maxAge: 60 * 60 * 8,
