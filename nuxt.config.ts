@@ -51,6 +51,7 @@ export default defineNuxtConfig({
         '/privacy',
         '/support',
         '/render/**',
+        '/api/atlas/tiles/**',
         '/fonts/**',
         '/style-browser-fixture',
         ...(process.env.NODE_ENV === 'production' ? [] : ['/admin/atlas-lab']),

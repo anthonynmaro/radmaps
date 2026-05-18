@@ -4,18 +4,36 @@ on:
   workflow_dispatch:
     inputs:
       terrain_region:
-        description: Terrain contour pack to build
+        description: Terrain contour pack or region to build
         required: true
-        default: all-showcase
+        default: midwest-core
         type: choice
         options:
           - all-showcase
+          - midwest-core
+          - us-terrain-phase1
+          - us-terrain-backbone
           - yosemite
           - rocky-mountain
           - smokies
           - superior
           - driftless
           - madison
+          - midwest-driftless-expanded
+          - midwest-northwoods-superior
+          - midwest-chicago-lake
+          - midwest-michigan-west
+          - midwest-ohio-indiana
+          - sierra-yosemite-expanded
+          - rockies-colorado-front-range
+          - appalachia-smokies-expanded
+          - southwest-moab-canyonlands
+          - pacific-northwest-cascades
+          - northeast-acadia
+      runner_label:
+        description: Runner label. Use self-hosted atlas runner for multi-pack builds.
+        required: true
+        default: ubuntu-latest
       environment:
         description: Atlas manifest target
         required: true
@@ -40,8 +58,8 @@ permissions:
 jobs:
   terrain-pack:
     name: Build terrain pack ${{ inputs.terrain_region }} -> ${{ inputs.environment }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 1440
     env:
       ATLAS_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'radmaps-atlas-prod' || 'radmaps-atlas-staging' }}
       ATLAS_PUBLIC_BASE_URL: ${{ inputs.environment == 'production' && secrets.ATLAS_PROD_PUBLIC_BASE_URL || secrets.ATLAS_STAGING_PUBLIC_BASE_URL }}
@@ -70,15 +88,9 @@ jobs:
             DATE="$(date -u +%F)"
           fi
 
-          if [ "${{ inputs.terrain_region }}" = "all-showcase" ]; then
-            REGIONS=(yosemite rocky-mountain smokies superior)
-          else
-            REGIONS=("${{ inputs.terrain_region }}")
-          fi
+          node scripts/atlas-terrain-plan.mjs --pack "${{ inputs.terrain_region }}" --date "$DATE"
 
-          for REGION in "${REGIONS[@]}"; do
-            OUTPUT="atlas/build/terrain/${REGION}/radmaps-${REGION}-contours.pmtiles"
-            OBJECT="atlas/v1/terrain/${REGION}/${DATE}/radmaps-${REGION}-contours.pmtiles"
+          while IFS=$'\t' read -r REGION OUTPUT OBJECT; do
             node scripts/build-contour-pmtiles.mjs --region "$REGION" --output "$OUTPUT"
             node scripts/atlas-validate-pmtiles.mjs --file "$OUTPUT" --minzoom 8 --maxzoom 14 --tile-type mvt
             if [ "${{ inputs.dry_run }}" != "true" ]; then
@@ -88,4 +100,4 @@ jobs:
                 --object "$OBJECT" \
                 --verify pmtiles
             fi
-          done
+          done < <(node scripts/atlas-terrain-plan.mjs --pack "${{ inputs.terrain_region }}" --date "$DATE" --format shell)

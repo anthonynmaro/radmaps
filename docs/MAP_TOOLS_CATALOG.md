@@ -35,7 +35,7 @@ flowchart LR
 | MapTiler Raster Styles | `maptiler-outdoor`, `maptiler-topo`, `maptiler-winter`, `alidade-smooth`, `alidade-smooth-dark` | Active | Paid/custom | Baked raster outdoor/topo/winter/dataviz styles | `base_tile_style`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires MapTiler and OpenStreetMap attribution unless written terms and non-OSM data remove parts of it. |
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Watercolor and toner raster art; toner label-family toggle | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
-| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles | Beta | Self-hosted | Contiguous-US staging PMTiles base atlas; water, waterways, roads, trails, labels, POIs, buildings, landuse, parks/forests | Full vector paint/layout control for layer families | OSM attribution remains unless source data is non-OSM or attribution-free. |
+| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles | Beta | Self-hosted | Contiguous-US staging PMTiles base atlas served through `/api/atlas/tiles`; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
 | RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Live regional contour packs for Driftless, Yosemite, Rocky Mountain, Smokies, and North Shore; hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
@@ -119,6 +119,7 @@ flowchart LR
 Why this is attractive:
 
 - PMTiles is designed as a single-file tile archive that can live on static object storage and be read by HTTP range requests.
+- Atlas Lab currently reads PMTiles through the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` endpoint. That keeps the browser on ordinary MVT tile URLs, gives us an obvious future Cloudflare Worker shape, and creates a clean place for cache/observability controls.
 - Planetiler can generate planet-scale vector tiles from OSM and other geographic sources without a PostGIS tile stack.
 - Tilemaker is simpler for local/regional experiments and lets us author Lua profiles for exactly the layer schema we want.
 - Vector layers let themes blend water, roads, labels, POIs, landcover, and buildings separately instead of pushing color transforms over baked rasters.
@@ -135,7 +136,7 @@ Open questions:
 
 - Do we start from Protomaps Basemap layers, OpenMapTiles-compatible output, or a RadMaps-native schema?
 - How much OSM tag richness do we need for trails and park POIs?
-- Should the editor fetch PMTiles directly, or should render-worker/browserless use a tile proxy for caching and observability?
+- Should the editor fetch PMTiles directly, or should render-worker/browserless use a tile proxy for caching and observability? Current Atlas Lab behavior favors the tile endpoint because it made road/POI debugging and future Worker deployment cleaner.
 
 ## Strategic Track 4: RadMaps Terrain Atlas
 
@@ -171,6 +172,28 @@ Current live terrain packs:
 | Rocky Mountain | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` | High-relief mountain showcase pack wired into Atlas Lab region switching. |
 | Smokies | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` | Eastern mountain showcase pack wired into Atlas Lab region switching. |
 | North Shore | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` | Midwest/North Shore showcase pack wired into Atlas Lab region switching. |
+
+Terrain build config now lives in `atlas/terrain-regions.json`. It defines named contour regions and packs so we can run the same build system for local showcase packs, Midwest coverage, and then US/global coverage. Use:
+
+```bash
+npm run atlas:terrain-plan -- --pack midwest-core
+npm run atlas:build-contours -- --region midwest-driftless-expanded --output atlas/build/terrain/midwest-driftless-expanded/radmaps-midwest-driftless-expanded-contours.pmtiles
+```
+
+Current build packs:
+
+| Pack | Regions | Purpose |
+|---|---:|---|
+| `all-showcase` | 5 | Rebuild the live Atlas Lab contour showcase regions. |
+| `midwest-core` | 5 | First serious low-relief production pack: Driftless, Superior/Northwoods, Chicago/Lake Michigan, West Michigan, Ohio/Indiana. |
+| `us-terrain-backbone` | 6 | Mountain/coastal priority regions for US product coverage outside the Midwest. |
+| `us-terrain-phase1` | 9 | Midwest plus US backbone regions; first broad national contour push before full contiguous-US tiling. |
+
+Density targets:
+
+- Midwest/lowland: 10-20 ft minor contours, 50-100 ft index contours, 250-500 ft major contours.
+- Mountain/canyon: 40 ft minor contours, 200 ft index contours, 1000 ft major contours.
+- All contour vector features carry `elevation_ft`, `elevation_m`, `interval_class`, `contour_interval_ft`, `index_interval_ft`, `major_interval_ft`, `source_dem`, `terrain_zone`, and `terrain_atlas_version`.
 
 Why this matters:
 

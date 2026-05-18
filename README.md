@@ -108,6 +108,24 @@ inventory lives in
 and the matching admin reference page at `/admin/map-tools`. Update both when
 adding, removing, renaming, licensing, or instrumenting map sources.
 
+## RadMaps Atlas Lab
+
+The owned atlas work lives behind `/admin/atlas-lab` and is documented in
+`docs/MAP_TOOLS_CATALOG.md`. The current architecture is: pre-render PMTiles
+data, then live-style it in MapLibre.
+
+Useful atlas commands:
+
+```bash
+npm run atlas:terrain-plan -- --pack midwest-core
+npm run atlas:build-contours -- --region midwest-driftless-expanded --output atlas/build/terrain/midwest-driftless-expanded/radmaps-midwest-driftless-expanded-contours.pmtiles
+npm run atlas:validate-pmtiles -- --file atlas/build/terrain/midwest-driftless-expanded/radmaps-midwest-driftless-expanded-contours.pmtiles --minzoom 8 --maxzoom 14 --tile-type mvt
+```
+
+Terrain region definitions live in `atlas/terrain-regions.json`. GitHub Actions
+workflow `Atlas Terrain Pack` can build `midwest-core`, `us-terrain-backbone`,
+or `us-terrain-phase1` remotely and upload the resulting contour PMTiles to R2.
+
 Premade shop/catalog runtime now reads from the `premade_maps` table through
 `GET /api/premade` and `GET /api/premade/:slug`. The static
 `data/premade-maps.ts` file remains as seed/reference data during migration and

@@ -81,9 +81,24 @@ const REGIONS = {
     sampleStepPx: 4,
   },
 }
+const TERRAIN_REGION_CONFIG_PATH = resolve(repoRoot, 'atlas/terrain-regions.json')
+const TERRAIN_REGION_CONFIG = existsSync(TERRAIN_REGION_CONFIG_PATH)
+  ? JSON.parse(readFileSync(TERRAIN_REGION_CONFIG_PATH, 'utf8'))
+  : { regions: {} }
+const AVAILABLE_REGIONS = {
+  ...REGIONS,
+  ...(TERRAIN_REGION_CONFIG.regions || {}),
+}
 
 const args = parseArgs(process.argv.slice(2))
-const region = REGIONS[args.region] ?? REGIONS.driftless
+if (args.listRegions) {
+  console.log(Object.keys(AVAILABLE_REGIONS).sort().join('\n'))
+  process.exit(0)
+}
+const region = AVAILABLE_REGIONS[args.region]
+if (!region) {
+  throw new Error(`Unknown terrain region "${args.region}". Run with --list-regions to inspect available regions.`)
+}
 const outputPath = resolve(repoRoot, args.output)
 const cacheDir = resolve(repoRoot, `atlas/terrain/${args.region}/terrarium-z${region.demZoom}`)
 
@@ -92,14 +107,16 @@ function parseArgs(argv) {
     region: 'driftless',
     output: 'public/atlas/radmaps-driftless-contours.pmtiles',
     forceFetch: false,
+    listRegions: false,
   }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
     if (arg === '--region') parsed.region = argv[++i] ?? parsed.region
     else if (arg === '--output') parsed.output = argv[++i] ?? parsed.output
     else if (arg === '--force-fetch') parsed.forceFetch = true
+    else if (arg === '--list-regions') parsed.listRegions = true
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/build-contour-pmtiles.mjs [--region driftless|madison|yosemite|rocky-mountain|smokies|superior] [--output public/atlas/radmaps-driftless-contours.pmtiles] [--force-fetch]')
+      console.log('Usage: node scripts/build-contour-pmtiles.mjs [--region <id>] [--output public/atlas/radmaps-driftless-contours.pmtiles] [--force-fetch] [--list-regions]')
       process.exit(0)
     }
   }
@@ -235,9 +252,17 @@ function crossing(a, b, level) {
 }
 
 function contourClass(level) {
-  if (level % 200 === 0) return 'major'
-  if (level % 80 === 0) return 'index'
+  const major = region.majorIntervalFt ?? 200
+  const index = region.indexIntervalFt ?? 80
+  if (isMultiple(level, major)) return 'major'
+  if (isMultiple(level, index)) return 'index'
   return 'minor'
+}
+
+function isMultiple(value, interval) {
+  if (!interval) return false
+  const rounded = Math.round(value / interval) * interval
+  return Math.abs(value - rounded) < 0.0001
 }
 
 function buildContourFeatures(mosaic, sample) {
@@ -297,10 +322,15 @@ function addSegment(features, level, a, b) {
     type: 'Feature',
     properties: {
       elevation_ft: level,
+      elevation_m: Math.round(level / 3.28084),
       label: `${level} ft`,
       interval_class: contourClass(level),
       contour_interval_ft: region.contourIntervalFt,
+      index_interval_ft: region.indexIntervalFt ?? 80,
+      major_interval_ft: region.majorIntervalFt ?? 200,
       dem_source: 'mapzen-terrarium-aws',
+      source_dem: 'mapzen-terrarium-aws',
+      terrain_zone: region.terrainZone || 'standard',
       terrain_atlas_version: `${args.region}-contours-${new Date().toISOString().slice(0, 10)}`,
     },
     geometry: { type: 'LineString', coordinates: [a, b] },
@@ -409,10 +439,15 @@ function writePmtiles(tiles, layers) {
       description: 'RadMaps vector contour layer',
       fields: {
         elevation_ft: 'Number',
+        elevation_m: 'Number',
         label: 'String',
         interval_class: 'String',
         contour_interval_ft: 'Number',
+        index_interval_ft: 'Number',
+        major_interval_ft: 'Number',
         dem_source: 'String',
+        source_dem: 'String',
+        terrain_zone: 'String',
         terrain_atlas_version: 'String',
       },
     })),

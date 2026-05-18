@@ -6,8 +6,14 @@
           <div class="max-w-3xl">
             <p class="text-sm font-semibold text-stone-900">RadMaps owned atlas PMTiles</p>
             <p class="mt-2 text-sm leading-6 text-stone-600">
-              Real Planetiler PMTiles rendered locally through MapLibre. One vector tile archive feeds multiple RadMaps
-              art directions so we can tune print styles without duplicating geography or vendor calls.
+              Real Planetiler PMTiles served through the RadMaps atlas tile endpoint and rendered locally through
+              MapLibre. One vector tile archive feeds multiple RadMaps art directions so we can tune print styles
+              without duplicating geography or vendor calls.
+            </p>
+            <p class="mt-2 text-xs leading-5 text-stone-500">
+              Base coverage is the contiguous United States at z0-14. Contour coverage is intentionally regional right
+              now: the mountain buttons use generated terrain packs, while the city/base buttons show the full-US atlas
+              without a terrain overlay.
             </p>
           </div>
           <NuxtLink to="/admin/map-tools" class="admin-secondary">
@@ -21,7 +27,8 @@
           <div>
             <p class="text-sm font-semibold text-stone-900">US showcase window</p>
             <p class="mt-1 text-xs leading-5 text-stone-600">
-              Jump the same owned PMTiles archive across sellable regions and compare every house style against live vector tiles.
+              Jump the same owned PMTiles archive across contour regions and base-only city stress tests. Roads, trails,
+              water, parks, places, POIs, and peaks are all styled from separate vector layers.
             </p>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -60,7 +67,7 @@
                 <p class="text-sm font-semibold text-stone-900">{{ style.name }}</p>
               </div>
               <div class="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 shadow-sm backdrop-blur">
-                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ activeShowcase.contourUrl ? 'regional contours z8-14' : atlasCoverageLabel }}
+                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ activeShowcase.contourUrl ? 'regional contour pack inside outlined bbox z8-14' : 'base z0-14 roads/places/POIs' }}
               </div>
               <div
                 v-if="mapStatus[style.id]"
@@ -96,7 +103,6 @@
 
 <script setup lang="ts">
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, type ComponentPublicInstance, type PropType } from 'vue'
-import { PMTiles, Protocol } from 'pmtiles'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   createFallbackAtlasManifest,
@@ -139,6 +145,22 @@ type AtlasStyle = {
   palette: PaintPalette
 }
 
+const baseVectorLayers = [
+  'landcover',
+  'landuse',
+  'mountain_peak',
+  'park',
+  'place',
+  'transportation',
+  'transportation_name',
+  'water',
+  'water_name',
+  'waterway',
+  'building',
+  'poi',
+].map(id => ({ id }))
+const contourVectorLayers = [{ id: 'contour' }]
+
 const config = useRuntimeConfig()
 const configuredManifestUrl = String(config.public.radmapsAtlasManifestUrl || '')
 const configuredAtlasUrl = String(config.public.radmapsAtlasPmtilesUrl || '')
@@ -146,18 +168,26 @@ const configuredContourUrl = String(config.public.radmapsContourPmtilesUrl || ''
 const localAtlasUrl = '/atlas/radmaps-driftless-planetiler.pmtiles'
 const localContourUrl = '/atlas/radmaps-driftless-contours.pmtiles'
 const atlasLabel = ref('Driftless / Madison lab pack')
-const atlasCoverageLabel = ref('manifest pending')
 const maps: Array<{
   style: AtlasStyle
   remove: () => void
   flyTo: (options: { center: [number, number], zoom: number, duration?: number }) => void
+  jumpTo: (options: { center: [number, number], zoom: number }) => void
   getSource: (id: string) => unknown
   queryRenderedFeatures: (options: { layers: string[] }) => unknown[]
+  querySourceFeatures: (sourceId: string, options: { sourceLayer: string }) => unknown[]
+  getCenter: () => { lng: number, lat: number }
+  getZoom: () => number
+  getLayer: (id: string) => unknown
+  getStyle: () => unknown
+  isSourceLoaded: (id: string) => boolean
+  raw?: unknown
   resize: () => void
   setStyle: (style: unknown) => void
 }> = []
 const mapEls = new Map<string, HTMLElement>()
 const mapStatus = reactive<Record<string, string>>({})
+const mapErrors = reactive<Record<string, string>>({})
 
 type ShowcaseLocation = {
   id: string
@@ -166,6 +196,7 @@ type ShowcaseLocation = {
   zoom: number
   route: [number, number][]
   contourUrl?: string
+  contourBounds?: [number, number, number, number]
 }
 
 const showcases: ShowcaseLocation[] = [
@@ -176,6 +207,7 @@ const showcases: ShowcaseLocation[] = [
     zoom: 12.2,
     route: [[-119.628, 37.731], [-119.604, 37.742], [-119.580, 37.754], [-119.557, 37.771], [-119.536, 37.787]],
     contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles',
+    contourBounds: [-119.75, 37.6, -119.35, 37.92],
   },
   {
     id: 'rocky-mountain',
@@ -184,6 +216,7 @@ const showcases: ShowcaseLocation[] = [
     zoom: 12.1,
     route: [[-105.684, 40.310], [-105.666, 40.324], [-105.643, 40.337], [-105.621, 40.352], [-105.603, 40.366]],
     contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles',
+    contourBounds: [-105.85, 40.16, -105.45, 40.52],
   },
   {
     id: 'smokies',
@@ -192,6 +225,7 @@ const showcases: ShowcaseLocation[] = [
     zoom: 12.4,
     route: [[-83.548, 35.586], [-83.529, 35.600], [-83.506, 35.616], [-83.487, 35.632], [-83.470, 35.648]],
     contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles',
+    contourBounds: [-83.75, 35.44, -83.22, 35.8],
   },
   {
     id: 'superior',
@@ -200,6 +234,7 @@ const showcases: ShowcaseLocation[] = [
     zoom: 11.9,
     route: [[-91.170, 47.278], [-91.145, 47.295], [-91.117, 47.314], [-91.087, 47.335], [-91.055, 47.354]],
     contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles',
+    contourBounds: [-91.52, 47.08, -90.68, 47.58],
   },
   {
     id: 'madison',
@@ -208,13 +243,41 @@ const showcases: ShowcaseLocation[] = [
     zoom: 14,
     route: [[-89.430, 43.058], [-89.418, 43.066], [-89.402, 43.075], [-89.387, 43.083], [-89.372, 43.092]],
     contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles',
+    contourBounds: [-90.25, 42.85, -88.85, 43.55],
+  },
+  {
+    id: 'chicago',
+    name: 'Chicago',
+    center: [-87.629, 41.879],
+    zoom: 13.1,
+    route: [[-87.642, 41.867], [-87.636, 41.874], [-87.629, 41.881], [-87.622, 41.888], [-87.615, 41.895]],
+  },
+  {
+    id: 'moab',
+    name: 'Moab',
+    center: [-109.593, 38.574],
+    zoom: 12.8,
+    route: [[-109.635, 38.555], [-109.620, 38.566], [-109.603, 38.578], [-109.586, 38.590], [-109.570, 38.602]],
+  },
+  {
+    id: 'seattle',
+    name: 'Seattle',
+    center: [-122.332, 47.606],
+    zoom: 12.7,
+    route: [[-122.362, 47.590], [-122.346, 47.599], [-122.329, 47.608], [-122.312, 47.617], [-122.295, 47.626]],
+  },
+  {
+    id: 'acadia',
+    name: 'Acadia',
+    center: [-68.273, 44.338],
+    zoom: 12.9,
+    route: [[-68.315, 44.323], [-68.300, 44.332], [-68.282, 44.341], [-68.264, 44.350], [-68.246, 44.359]],
   },
 ]
 
 const activeShowcaseId = ref(showcases[0].id)
 const activeShowcase = computed(() => showcases.find(showcase => showcase.id === activeShowcaseId.value) ?? showcases[0])
 let activeBasePmtilesUrl = ''
-let defaultContourPmtilesUrl = ''
 
 const styles: AtlasStyle[] = [
   {
@@ -398,7 +461,6 @@ function resolveAtlasArtifacts(manifest: AtlasManifest) {
   const resolved = resolveManifestArtifacts(manifest, fallback)
 
   atlasLabel.value = resolved.label
-  atlasCoverageLabel.value = resolved.coverageLabel
   return {
     baseUrl: resolved.baseUrl || configuredAtlasUrl || localAtlasUrl,
     contourUrl: resolved.contourUrl || configuredContourUrl || localContourUrl,
@@ -409,12 +471,13 @@ function setMapEl(id: string, el: Element | ComponentPublicInstance | null) {
   if (el instanceof HTMLElement) mapEls.set(id, el)
 }
 
-function pmtilesSourceUrl(url: string) {
-  return `pmtiles://${url}`
+function atlasTileUrl(source: 'base' | 'terrain', url: string) {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin
+  return `${origin}/api/atlas/tiles/${source}/{z}/{x}/{y}.mvt?url=${encodeURIComponent(url)}`
 }
 
 function contourUrlForShowcase(showcase: ShowcaseLocation) {
-  return toAbsoluteUrl(showcase.contourUrl || defaultContourPmtilesUrl)
+  return showcase.contourUrl ? toAbsoluteUrl(showcase.contourUrl) : ''
 }
 
 function sampleRouteGeojson(showcase: ShowcaseLocation) {
@@ -433,6 +496,32 @@ function sampleRouteGeojson(showcase: ShowcaseLocation) {
   }
 }
 
+function contourCoverageGeojson(showcase: ShowcaseLocation) {
+  const bounds = showcase.contourBounds
+  if (!bounds) return { type: 'FeatureCollection', features: [] }
+
+  const [west, south, east, north] = bounds
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [west, south],
+            [east, south],
+            [east, north],
+            [west, north],
+            [west, south],
+          ]],
+        },
+      },
+    ],
+  }
+}
+
 function setActiveShowcase(id: string) {
   activeShowcaseId.value = id
   const showcase = activeShowcase.value
@@ -441,40 +530,61 @@ function setActiveShowcase(id: string) {
       baseUrl: activeBasePmtilesUrl,
       contourUrl: contourUrlForShowcase(showcase),
     }))
+    const moveToShowcase = () => {
+      map.jumpTo({ center: showcase.center, zoom: showcase.zoom })
+      map.resize()
+    }
     map.flyTo({ center: showcase.center, zoom: showcase.zoom, duration: 700 })
-    requestAnimationFrame(() => map.resize())
+    requestAnimationFrame(moveToShowcase)
+    window.setTimeout(moveToShowcase, 300)
+    window.setTimeout(moveToShowcase, 1000)
   }
 }
 
-function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl: string }) {
+function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl?: string }) {
   const p = style.palette
   const isToner = style.id === 'radmaps-toner'
   const isTopo = style.id === 'radmaps-field-topo'
   const isWatercolor = style.id === 'radmaps-watercolor-wash'
   const isNight = style.id === 'radmaps-night-relief'
   const isSimpleContour = style.id === 'radmaps-simple-contour'
-  const landcoverOpacity = isSimpleContour ? 0.05 : isWatercolor ? 0.16 : isNight ? 0.62 : 0.45
-  const landuseOpacity = isSimpleContour ? 0.03 : isWatercolor ? 0.12 : isNight ? 0.50 : 0.34
-  const parkOpacity = isSimpleContour ? 0.10 : isWatercolor ? 0.24 : isNight ? 0.62 : 0.55
-  const waterOpacity = isSimpleContour ? 0.22 : isWatercolor ? 0.42 : isNight ? 0.86 : 0.92
+  const landcoverOpacity = isSimpleContour ? 0.05 : isWatercolor ? 0.22 : isNight ? 0.62 : 0.45
+  const landuseOpacity = isSimpleContour ? 0.03 : isWatercolor ? 0.18 : isNight ? 0.50 : 0.34
+  const parkOpacity = isSimpleContour ? 0.10 : isWatercolor ? 0.34 : isNight ? 0.62 : 0.55
+  const waterOpacity = isSimpleContour ? 0.22 : isWatercolor ? 0.50 : isNight ? 0.86 : 0.92
   const buildingOpacity = isSimpleContour ? 0.02 : isWatercolor ? 0.04 : isNight ? 0.38 : 0.62
-  const roadCasingOpacity = isSimpleContour ? 0.08 : isWatercolor ? 0.08 : isNight ? 0.36 : 0.78
-  const majorRoadOpacity = isSimpleContour ? 0.16 : isWatercolor ? 0.20 : isNight ? 0.48 : 0.86
-  const minorRoadOpacity = isSimpleContour ? 0.04 : isWatercolor ? 0.07 : isNight ? 0.28 : 0.68
-  const pathOpacity = isSimpleContour ? 0.24 : isWatercolor ? 0.12 : isNight ? 0.38 : isTopo ? 0.55 : 0.78
-  const contourMinorOpacity = isSimpleContour ? 0.52 : isWatercolor ? 0.08 : isNight ? 0.40 : isTopo ? 0.50 : 0.24
-  const contourIndexOpacity = isSimpleContour ? 0.76 : isWatercolor ? 0.14 : isNight ? 0.54 : isTopo ? 0.68 : 0.34
-  const contourMajorOpacity = isSimpleContour ? 0.92 : isWatercolor ? 0.22 : isNight ? 0.72 : isTopo ? 0.84 : 0.46
-  const poiOpacity = isSimpleContour ? 0.02 : isWatercolor ? 0.04 : isNight ? 0.34 : isToner ? 0.22 : 0.28
-  const labelOpacity = isSimpleContour ? 0.36 : isWatercolor ? 0.42 : 1
+  const roadCasingOpacity = isSimpleContour ? 0.08 : isWatercolor ? 0.18 : isNight ? 0.36 : 0.78
+  const majorRoadOpacity = isSimpleContour ? 0.16 : isWatercolor ? 0.46 : isNight ? 0.48 : 0.86
+  const minorRoadOpacity = isSimpleContour ? 0.18 : isWatercolor ? 0.34 : isNight ? 0.40 : 0.76
+  const pathOpacity = isSimpleContour ? 0.48 : isWatercolor ? 0.52 : isNight ? 0.54 : isTopo ? 0.72 : 0.86
+  const contourMinorOpacity = isSimpleContour ? 0.46 : isWatercolor ? 0.05 : isNight ? 0.24 : isTopo ? 0.30 : 0.16
+  const contourIndexOpacity = isSimpleContour ? 0.70 : isWatercolor ? 0.10 : isNight ? 0.36 : isTopo ? 0.48 : 0.24
+  const contourMajorOpacity = isSimpleContour ? 0.90 : isWatercolor ? 0.18 : isNight ? 0.54 : isTopo ? 0.62 : 0.36
+  const poiOpacity = isSimpleContour ? 0.22 : isWatercolor ? 0.22 : isNight ? 0.54 : isToner ? 0.46 : 0.42
+  const labelOpacity = isSimpleContour ? 0.36 : isWatercolor ? 0.56 : 1
+  const majorRoadClasses = ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']
+  const minorRoadClasses = ['minor', 'service', 'residential', 'living_street', 'pedestrian']
+  const pathClasses = ['path', 'track', 'cycleway', 'bridleway', 'steps']
+  const allTransportClasses = [...majorRoadClasses, ...minorRoadClasses, ...pathClasses]
+  const contourLayers = urls.contourUrl ? [
+    { id: 'contours-minor', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.24 : 0.42, 'line-blur': isWatercolor ? 0.35 : 0 } },
+    { id: 'contours-index', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.42 : 0.64, 'line-blur': isWatercolor ? 0.25 : 0 } },
+    { id: 'contours-major', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.68 : 0.95, 'line-blur': isWatercolor ? 0.15 : 0 } },
+  ] : []
 
   return {
     version: 8,
     name: style.name,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      atlas: { type: 'vector', url: pmtilesSourceUrl(urls.baseUrl) },
-      terrain: { type: 'vector', url: pmtilesSourceUrl(urls.contourUrl) },
+      atlas: { type: 'vector', tiles: [atlasTileUrl('base', urls.baseUrl)], minzoom: 0, maxzoom: 14, vector_layers: baseVectorLayers },
+      ...(urls.contourUrl ? { terrain: { type: 'vector', tiles: [atlasTileUrl('terrain', urls.contourUrl)], minzoom: 8, maxzoom: 14, vector_layers: contourVectorLayers } } : {}),
+      ...(urls.contourUrl ? {
+        'contour-coverage': {
+          type: 'geojson',
+          data: contourCoverageGeojson(activeShowcase.value),
+        },
+      } : {}),
       'sample-route': {
         type: 'geojson',
         data: sampleRouteGeojson(activeShowcase.value),
@@ -494,26 +604,34 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl: stri
       { id: 'water-wash', type: 'fill', source: 'atlas', 'source-layer': 'water', paint: { 'fill-color': p.water, 'fill-opacity': isWatercolor ? 0.20 : 0, 'fill-translate': ['literal', isWatercolor ? [-3, 2] : [0, 0]] } },
       { id: 'water', type: 'fill', source: 'atlas', 'source-layer': 'water', paint: { 'fill-color': p.water, 'fill-opacity': waterOpacity } },
       ...(isWatercolor ? [
-        { id: 'water-edge-bleed', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 4.4], 'line-blur': 3.2 } },
+        { id: 'water-edge-bleed', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': 0.24, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.0, 14, 3.4], 'line-blur': 0.9 } },
       ] : []),
-      { id: 'waterway', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': isWatercolor ? 0.22 : 0.72, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, isWatercolor ? 0.35 : 0.45, 14, isWatercolor ? 1.2 : 1.5], 'line-blur': isWatercolor ? 1.1 : 0 } },
+      { id: 'waterway', type: 'line', source: 'atlas', 'source-layer': 'waterway', paint: { 'line-color': p.waterLine, 'line-opacity': isWatercolor ? 0.38 : 0.72, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, isWatercolor ? 0.5 : 0.45, 14, isWatercolor ? 1.5 : 1.5], 'line-blur': isWatercolor ? 0.25 : 0 } },
+      ...(urls.contourUrl ? [
+        { id: 'contour-coverage-fill', type: 'fill', source: 'contour-coverage', paint: { 'fill-color': '#F97316', 'fill-opacity': 0.035 } },
+        { id: 'contour-coverage-line', type: 'line', source: 'contour-coverage', paint: { 'line-color': '#F97316', 'line-opacity': 0.82, 'line-width': 1.4, 'line-dasharray': ['literal', [2.5, 2]] } },
+      ] : []),
+      ...contourLayers,
       { id: 'building', type: 'fill', source: 'atlas', 'source-layer': 'building', minzoom: isWatercolor ? 13 : 12, paint: { 'fill-color': p.building, 'fill-opacity': buildingOpacity } },
       ...(isWatercolor ? [
-        { id: 'road-pigment-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': 0.12, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.6, 10, 4.0, 14, 7.2], 'line-blur': 4.2, 'line-translate': ['literal', [2, -1]] } },
-        { id: 'route-underwash', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': 18, 'line-opacity': 0.12, 'line-blur': 8 } },
+        { id: 'road-pigment-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], majorRoadClasses, true, false], paint: { 'line-color': p.road, 'line-opacity': 0.22, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.2, 10, 3.2, 14, 5.6], 'line-blur': 0.9, 'line-translate': ['literal', [1.5, -0.8]] } },
+        { id: 'road-pigment-minor', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], minorRoadClasses, true, false], paint: { 'line-color': p.roadMinor, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.0, 14, 2.8], 'line-blur': 0.7, 'line-translate': ['literal', [-1.0, 0.7]] } },
+        { id: 'route-underwash', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': 15, 'line-opacity': 0.15, 'line-blur': 3.2 } },
       ] : []),
-      { id: 'road-casing', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service', 'path', 'track']]], paint: { 'line-color': p.roadCasing, 'line-opacity': roadCasingOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.3 : 1.2, 10, isWatercolor ? 0.7 : 2.4, 14, isWatercolor ? 1.6 : 5.4], 'line-blur': isWatercolor ? 2.8 : 0 } },
-      { id: 'roads-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]], paint: { 'line-color': p.road, 'line-opacity': majorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.28 : 0.8, 10, isWatercolor ? 0.6 : 1.6, 14, isWatercolor ? 1.2 : 3.8], 'line-blur': isWatercolor ? 1.6 : 0 } },
-      { id: 'roads-minor', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service']]], paint: { 'line-color': p.roadMinor, 'line-opacity': minorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.18 : 0.45, 14, isWatercolor ? 0.58 : 1.6], 'line-blur': isWatercolor ? 1.8 : 0 } },
-      { id: 'paths-trails', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track']]], paint: { 'line-color': p.path, 'line-opacity': pathOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.36 : 0.8, 14, isWatercolor ? 0.85 : 2.2], 'line-blur': isWatercolor ? 1.1 : 0, 'line-dasharray': ['literal', isWatercolor ? [0.8, 2.6] : [2, 1.4]] } },
-      { id: 'contours-minor', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.22 : 0.45, 'line-blur': isWatercolor ? 1.3 : 0 } },
-      { id: 'contours-index', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.38 : 0.7, 'line-blur': isWatercolor ? 1.0 : 0 } },
-      { id: 'contours-major', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.56 : 1.05, 'line-blur': isWatercolor ? 0.8 : 0 } },
-      { id: 'poi', type: 'circle', source: 'atlas', 'source-layer': 'poi', minzoom: isWatercolor ? 16 : 15, paint: { 'circle-color': p.poi, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 1.1, 17, 2.6], 'circle-opacity': poiOpacity, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': isWatercolor ? 0.35 : 0.7 } },
-      { id: 'place-labels', type: 'symbol', source: 'atlas', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': [isWatercolor ? 'Open Sans Regular' : 'Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 9 : 10, 11, isWatercolor ? 12 : 14, 14, isWatercolor ? 15 : 17], 'text-letter-spacing': isWatercolor ? 0.01 : 0.02 }, paint: { 'text-color': p.label, 'text-opacity': labelOpacity, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.8 : 1.4, 'text-halo-blur': isWatercolor ? 0.7 : 0.25 } },
-      { id: 'road-labels', type: 'symbol', source: 'atlas', 'source-layer': 'transportation_name', minzoom: isWatercolor ? 14 : 12, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Open Sans Regular'], 'text-size': isWatercolor ? 9 : 10 }, paint: { 'text-color': p.label, 'text-opacity': isWatercolor ? 0.36 : 0.86, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.7 : 1.2, 'text-halo-blur': isWatercolor ? 0.8 : 0.2 } },
-      { id: 'sample-route-casing', type: 'line', source: 'sample-route', paint: { 'line-color': p.routeHalo, 'line-width': isWatercolor ? 8.8 : 7.5, 'line-opacity': isWatercolor ? 0.44 : 0.94, 'line-blur': isWatercolor ? 2.4 : 0 } },
-      { id: 'sample-route', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': isWatercolor ? 4.6 : 4.2, 'line-opacity': isWatercolor ? 0.70 : 0.98, 'line-blur': isWatercolor ? 0.9 : 0 } },
+      { id: 'roads-all-context', type: 'line', source: 'atlas', 'source-layer': 'transportation', paint: { 'line-color': p.roadMinor, 'line-opacity': isSimpleContour ? 0.18 : isWatercolor ? 0.24 : isNight ? 0.32 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.45, 10, 0.95, 14, 2.1], 'line-blur': isWatercolor ? 0.15 : 0 } },
+      { id: 'road-casing', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], allTransportClasses, true, false], paint: { 'line-color': p.roadCasing, 'line-opacity': roadCasingOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.8 : 1.2, 10, isWatercolor ? 1.5 : 2.4, 14, isWatercolor ? 3.4 : 5.4], 'line-blur': isWatercolor ? 0.35 : 0 } },
+      { id: 'roads-major', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], majorRoadClasses, true, false], paint: { 'line-color': p.road, 'line-opacity': majorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 0.55 : 0.8, 10, isWatercolor ? 1.1 : 1.6, 14, isWatercolor ? 2.2 : 3.8], 'line-blur': isWatercolor ? 0.12 : 0 } },
+      { id: 'roads-minor', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], minorRoadClasses, true, false], paint: { 'line-color': p.roadMinor, 'line-opacity': minorRoadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.55 : 0.55, 14, isWatercolor ? 1.25 : 1.8], 'line-blur': isWatercolor ? 0.10 : 0 } },
+      { id: 'paths-trails', type: 'line', source: 'atlas', 'source-layer': 'transportation', filter: ['match', ['get', 'class'], pathClasses, true, false], paint: { 'line-color': p.path, 'line-opacity': pathOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, isWatercolor ? 0.8 : 0.95, 14, isWatercolor ? 1.65 : 2.55], 'line-blur': isWatercolor ? 0.08 : 0, 'line-dasharray': ['literal', isWatercolor ? [0.8, 2.6] : [2, 1.4]] } },
+      { id: 'poi', type: 'circle', source: 'atlas', 'source-layer': 'poi', minzoom: isWatercolor ? 13 : 12, paint: { 'circle-color': p.poi, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 1.4, 15, 2.2, 17, 3.2], 'circle-opacity': poiOpacity, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': isWatercolor ? 0.35 : 0.7 } },
+      { id: 'peaks', type: 'circle', source: 'atlas', 'source-layer': 'mountain_peak', minzoom: 10, paint: { 'circle-color': p.poi, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 1.2, 13, 2.0, 15, 3.0], 'circle-opacity': isWatercolor ? 0.34 : isNight ? 0.62 : 0.52, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': 0.8 } },
+      { id: 'park-labels', type: 'symbol', source: 'atlas', 'source-layer': 'park', minzoom: 9, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 9, 12, 11, 14, 13], 'text-letter-spacing': 0.02 }, paint: { 'text-color': p.poi, 'text-opacity': isSimpleContour ? 0.28 : isWatercolor ? 0.34 : 0.60, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.4 : 1.1, 'text-halo-blur': isWatercolor ? 0.7 : 0.2 } },
+      { id: 'peak-labels', type: 'symbol', source: 'atlas', 'source-layer': 'mountain_peak', minzoom: 11, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 8.5, 13, 10, 15, 11.5], 'text-offset': ['literal', [0, 0.7]], 'text-anchor': 'top' }, paint: { 'text-color': p.label, 'text-opacity': isSimpleContour ? 0.42 : isWatercolor ? 0.44 : 0.76, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.5 : 1.2, 'text-halo-blur': isWatercolor ? 0.8 : 0.25 } },
+      { id: 'poi-labels', type: 'symbol', source: 'atlas', 'source-layer': 'poi', minzoom: 13, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 10.5], 'text-offset': ['literal', [0, 0.8]], 'text-anchor': 'top' }, paint: { 'text-color': p.label, 'text-opacity': isSimpleContour ? 0.24 : isWatercolor ? 0.30 : 0.62, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.4 : 1.1, 'text-halo-blur': isWatercolor ? 0.8 : 0.2 } },
+      { id: 'place-labels', type: 'symbol', source: 'atlas', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': [isWatercolor ? 'Noto Sans Regular' : 'Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 6, isWatercolor ? 9 : 10, 11, isWatercolor ? 12 : 14, 14, isWatercolor ? 15 : 17], 'text-letter-spacing': isWatercolor ? 0.01 : 0.02 }, paint: { 'text-color': p.label, 'text-opacity': labelOpacity, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.8 : 1.4, 'text-halo-blur': isWatercolor ? 0.7 : 0.25 } },
+      { id: 'road-labels', type: 'symbol', source: 'atlas', 'source-layer': 'transportation_name', minzoom: isWatercolor ? 12 : 11, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': isWatercolor ? 9 : 10 }, paint: { 'text-color': p.label, 'text-opacity': isWatercolor ? 0.48 : 0.86, 'text-halo-color': p.labelHalo, 'text-halo-width': isWatercolor ? 1.7 : 1.2, 'text-halo-blur': isWatercolor ? 0.8 : 0.2 } },
+      { id: 'sample-route-casing', type: 'line', source: 'sample-route', paint: { 'line-color': p.routeHalo, 'line-width': isWatercolor ? 8.2 : 7.5, 'line-opacity': isWatercolor ? 0.54 : 0.94, 'line-blur': isWatercolor ? 0.8 : 0 } },
+      { id: 'sample-route', type: 'line', source: 'sample-route', paint: { 'line-color': p.route, 'line-width': isWatercolor ? 4.4 : 4.2, 'line-opacity': isWatercolor ? 0.82 : 0.98, 'line-blur': isWatercolor ? 0.16 : 0 } },
       ...(isWatercolor ? [
         { id: 'route-drybrush', type: 'line', source: 'sample-route', paint: { 'line-color': '#6F2E25', 'line-width': 1.2, 'line-opacity': 0.36, 'line-dasharray': ['literal', [0.7, 1.8]], 'line-translate': ['literal', [1.2, -0.8]] } },
       ] : []),
@@ -523,20 +641,10 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl: stri
 
 onMounted(async () => {
   const maplibregl = await import('maplibre-gl')
-  const protocol = new Protocol()
   const manifest = await loadAtlasManifest()
-  const { baseUrl, contourUrl } = resolveAtlasArtifacts(manifest)
+  const { baseUrl } = resolveAtlasArtifacts(manifest)
   const pmtilesUrl = toAbsoluteUrl(baseUrl)
-  const contourPmtilesUrl = toAbsoluteUrl(contourUrl)
   activeBasePmtilesUrl = pmtilesUrl
-  defaultContourPmtilesUrl = contourPmtilesUrl
-  protocol.add(new PMTiles(pmtilesUrl))
-  if (contourPmtilesUrl) protocol.add(new PMTiles(contourPmtilesUrl))
-  for (const showcase of showcases) {
-    const showcaseContourUrl = contourUrlForShowcase(showcase)
-    if (showcaseContourUrl && showcaseContourUrl !== contourPmtilesUrl) protocol.add(new PMTiles(showcaseContourUrl))
-  }
-  maplibregl.addProtocol('pmtiles', protocol.tile)
   trackAtlasUsageEvent({
     eventName: 'atlas_lab_preview_loaded',
     atlasManifestId: manifest.atlasVersion,
@@ -573,13 +681,38 @@ onMounted(async () => {
       mapStatus[style.id] = 'loaded'
     })
     map.on('idle', () => {
+      const auditLayers = [
+        'landcover',
+        'landuse',
+        'park',
+        'water',
+        'waterway',
+        'roads-all-context',
+        'roads-major',
+        'roads-minor',
+        'paths-trails',
+        'contours-minor',
+        'contours-index',
+        'contours-major',
+        'poi',
+        'peaks',
+        'park-labels',
+        'peak-labels',
+        'poi-labels',
+        'place-labels',
+        'road-labels',
+        'sample-route',
+      ].filter(layerId => map.getLayer(layerId))
       const renderedFeatures = map.queryRenderedFeatures({
-        layers: ['landcover', 'landuse', 'park', 'water', 'roads-major', 'roads-minor', 'paths-trails', 'contours-minor', 'contours-index', 'contours-major', 'sample-route'],
+        layers: auditLayers,
       }).length
-      mapStatus[style.id] = `tiles ready - ${renderedFeatures} rendered`
+      mapStatus[style.id] = mapErrors[style.id]
+        ? `tiles ready - ${renderedFeatures} rendered - ${mapErrors[style.id]}`
+        : `tiles ready - ${renderedFeatures} rendered`
     })
     map.on('error', (event) => {
-      mapStatus[style.id] = event.error?.message ?? 'map error'
+      mapErrors[style.id] = event.error?.message ?? 'map error'
+      mapStatus[style.id] = mapErrors[style.id]
     })
     requestAnimationFrame(() => map.resize())
     window.setTimeout(() => map.resize(), 250)
@@ -588,14 +721,25 @@ onMounted(async () => {
       style,
       remove: () => map.remove(),
       flyTo: options => map.flyTo(options),
+      jumpTo: options => map.jumpTo(options),
       getSource: id => map.getSource(id),
       queryRenderedFeatures: options => map.queryRenderedFeatures(options),
+      querySourceFeatures: (sourceId, options) => map.querySourceFeatures(sourceId, options),
+      getCenter: () => map.getCenter(),
+      getZoom: () => map.getZoom(),
+      getLayer: id => map.getLayer(id),
+      getStyle: () => map.getStyle(),
+      isSourceLoaded: id => map.isSourceLoaded(id),
+      raw: import.meta.dev ? map : undefined,
       resize: () => map.resize(),
       setStyle: nextStyle => {
         map.setStyle(nextStyle as never)
       },
     })
+    if (import.meta.dev) Object.assign(window, { __RADMAPS_ATLAS_MAPS__: maps })
   }
+
+  if (import.meta.dev) Object.assign(window, { __RADMAPS_ATLAS_MAPS__: maps })
 })
 
 onBeforeUnmount(() => {
@@ -626,7 +770,7 @@ const InfoBlock = defineComponent({
 .showcase-button--active { background:rgb(28 25 23); border-color:rgb(28 25 23); color:white; }
 .atlas-style-card--radmaps-toner :deep(.maplibregl-canvas) { filter: contrast(1.18) grayscale(0.72); }
 .atlas-style-card--radmaps-field-topo :deep(.maplibregl-canvas) { filter: saturate(0.92) contrast(1.04); }
-.atlas-style-card--radmaps-watercolor-wash :deep(.maplibregl-canvas) { filter: saturate(0.86) contrast(0.72) brightness(1.12) sepia(0.12); }
+.atlas-style-card--radmaps-watercolor-wash :deep(.maplibregl-canvas) { filter: saturate(1.04) contrast(0.96) brightness(1.05) sepia(0.08); }
 .atlas-style-card--radmaps-night-relief :deep(.maplibregl-canvas) { filter: saturate(1.12) contrast(1.12); }
 .atlas-style-card--radmaps-simple-contour :deep(.maplibregl-canvas) { filter: saturate(0.76) contrast(1.08) brightness(1.04); }
 .watercolor-art-overlay {
@@ -635,21 +779,21 @@ const InfoBlock = defineComponent({
   inset: 0;
   z-index: 1;
   overflow: hidden;
-  opacity: 0.82;
+  opacity: 0.54;
   mix-blend-mode: multiply;
   background:
     radial-gradient(ellipse at 24% 18%, rgba(255,255,255,0.74) 0 11%, rgba(255,255,255,0) 32%),
     radial-gradient(ellipse at 72% 24%, rgba(111,171,185,0.24) 0 12%, rgba(111,171,185,0) 36%),
     radial-gradient(ellipse at 45% 72%, rgba(196,132,83,0.18) 0 14%, rgba(196,132,83,0) 38%),
-    repeating-linear-gradient(7deg, rgba(80,59,36,0.08) 0 1px, rgba(255,255,255,0) 1px 5px),
-    repeating-linear-gradient(97deg, rgba(255,255,255,0.22) 0 1px, rgba(91,68,42,0.05) 1px 7px);
+    repeating-linear-gradient(7deg, rgba(80,59,36,0.055) 0 1px, rgba(255,255,255,0) 1px 5px),
+    repeating-linear-gradient(97deg, rgba(255,255,255,0.18) 0 1px, rgba(91,68,42,0.04) 1px 7px);
 }
 .watercolor-art-overlay::before,
 .watercolor-art-overlay::after {
   content: '';
   position: absolute;
   inset: -16%;
-  opacity: 0.28;
+  opacity: 0.20;
   mix-blend-mode: multiply;
 }
 .watercolor-art-overlay::before {
