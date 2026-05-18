@@ -101,6 +101,8 @@ if (!region) {
 }
 const outputPath = resolve(repoRoot, args.output)
 const cacheDir = resolve(repoRoot, `atlas/terrain/${args.region}/terrarium-z${region.demZoom}`)
+const minValidElevationFt = region.minValidElevationFt ?? -1500
+const maxValidElevationFt = region.maxValidElevationFt ?? 30000
 
 function parseArgs(argv) {
   const parsed = {
@@ -224,12 +226,18 @@ function sampleElevation(mosaic) {
       const px = Math.min(x * step, mosaic.width - 1)
       const idx = (py * mosaic.width + px) * 3
       const feet = terrariumToFeet(mosaic.rgb[idx], mosaic.rgb[idx + 1], mosaic.rgb[idx + 2])
-      values[y * width + x] = feet
-      min = Math.min(min, feet)
-      max = Math.max(max, feet)
+      const value = feet >= minValidElevationFt && feet <= maxValidElevationFt ? feet : Number.NaN
+      values[y * width + x] = value
+      if (Number.isFinite(value)) {
+        min = Math.min(min, value)
+        max = Math.max(max, value)
+      }
     }
   }
 
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    throw new Error(`No valid DEM samples found for ${args.region}`)
+  }
   console.log(`Elevation range: ${Math.round(min)}ft to ${Math.round(max)}ft`)
   return { width, height, values, step, min, max }
 }
@@ -277,6 +285,7 @@ function buildContourFeatures(mosaic, sample) {
       const v10 = sample.values[y * sample.width + x + 1]
       const v11 = sample.values[(y + 1) * sample.width + x + 1]
       const v01 = sample.values[(y + 1) * sample.width + x]
+      if (![v00, v10, v11, v01].every(Number.isFinite)) continue
       const cellMin = Math.min(v00, v10, v11, v01)
       const cellMax = Math.max(v00, v10, v11, v01)
       const start = Math.max(minLevel, Math.ceil(cellMin / interval) * interval)
