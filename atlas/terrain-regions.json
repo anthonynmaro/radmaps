@@ -7,7 +7,7 @@
       { "split": "midwest-northwoods-superior", "cols": 4, "rows": 3 },
       { "split": "midwest-chicago-lake", "cols": 5, "rows": 4 },
       { "split": "midwest-michigan-west", "cols": 5, "rows": 5 },
-      { "split": "midwest-ohio-indiana", "cols": 6, "rows": 5 }
+      { "split": "midwest-ohio-indiana", "cols": 8, "rows": 8 }
     ],
     "us-terrain-phase1": [
       { "split": "midwest-driftless-expanded", "cols": 3, "rows": 3 },

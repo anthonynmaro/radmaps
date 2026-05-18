@@ -92,6 +92,11 @@ jobs:
           node scripts/atlas-terrain-plan.mjs --pack "${{ inputs.terrain_region }}" --date "$DATE"
 
           while IFS=$'\t' read -r REGION OUTPUT OBJECT; do
+            if [ "${{ inputs.dry_run }}" != "true" ] && node scripts/upload-atlas-object.mjs --object "$OBJECT" --verify pmtiles --check-existing; then
+              echo "Skipping existing verified atlas object: $OBJECT"
+              continue
+            fi
+
             node scripts/build-contour-pmtiles.mjs --region "$REGION" --output "$OUTPUT"
             node scripts/atlas-validate-pmtiles.mjs --file "$OUTPUT" --minzoom 8 --maxzoom 14 --tile-type mvt
             if [ "${{ inputs.dry_run }}" != "true" ]; then

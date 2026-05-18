@@ -34,11 +34,12 @@ const sessionToken = args.sessionToken || env.R2_SESSION_TOKEN
 const endpoint = args.endpoint || env.ATLAS_R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : '')
 const publicBaseUrl = args.publicBaseUrl || env.ATLAS_PUBLIC_BASE_URL || ''
 const dryRun = Boolean(args.dryRun)
+const checkExisting = Boolean(args.checkExisting)
 const multipartThresholdBytes = 4.5 * 1024 * 1024 * 1024
 const multipartPartBytes = 256 * 1024 * 1024
 
 if (!source || !bucket || !objectPath) throw new Error('Missing source, bucket, or object path')
-if (!dryRun && (!accountId || !accessKeyId || !secretAccessKey || !endpoint)) {
+if (!dryRun && !checkExisting && (!accountId || !accessKeyId || !secretAccessKey || !endpoint)) {
   throw new Error('Missing CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or R2 endpoint')
 }
 
@@ -58,6 +59,7 @@ function parseArgs(argv) {
     else if (arg === '--secret-access-key') parsed.secretAccessKey = argv[++i]
     else if (arg === '--session-token') parsed.sessionToken = argv[++i]
     else if (arg === '--dry-run') parsed.dryRun = true
+    else if (arg === '--check-existing') parsed.checkExisting = true
     else if (arg === '--help' || arg === '-h') {
       console.log(`Usage: node scripts/upload-atlas-object.mjs [options]
 
@@ -71,6 +73,7 @@ Options:
   --endpoint <url>            S3 endpoint, defaults to https://<account>.r2.cloudflarestorage.com
   --session-token <token>     Temporary credential session token, if needed
   --dry-run                   Print the planned upload without sending it
+  --check-existing            Verify the public object and exit 0 only if it exists
 
 Examples:
   npm run atlas:upload-pmtiles -- --source public/atlas/radmaps-driftless-planetiler.pmtiles
@@ -361,20 +364,39 @@ async function multipartUpload({ size }) {
   }
 }
 
-const size = statSync(source).size
 const planned = {
   bucket,
   objectPath,
   source,
-  bytes: size,
+  bytes: checkExisting ? null : statSync(source).size,
   contentType,
   verify: verifyMode,
   publicUrl: publicUrl() || null,
 }
+const size = planned.bytes
 
 if (dryRun) {
   console.log(JSON.stringify({ dryRun: true, ...planned }, null, 2))
   process.exit(0)
+}
+
+if (checkExisting) {
+  try {
+    const verification = await verifyPublicUrl(publicUrl())
+    if (!verification.ok) throw new Error('Public verification did not pass')
+    console.log(JSON.stringify({ exists: true, ...planned, verification }, null, 2))
+    process.exit(0)
+  } catch (error) {
+    console.error(JSON.stringify({
+      exists: false,
+      bucket,
+      objectPath,
+      publicUrl: publicUrl() || null,
+      verify: verifyMode,
+      error: error instanceof Error ? error.message : String(error),
+    }, null, 2))
+    process.exit(1)
+  }
 }
 
 const upload = size > multipartThresholdBytes ? await multipartUpload({ size }) : await singlePutUpload({ size })
