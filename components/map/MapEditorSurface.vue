@@ -4,7 +4,15 @@
     data-testid="map-editor-surface"
     :data-chrome-editing="chromeDirectEdit ? 'true' : 'false'"
   >
-    <main class="flex-1 flex flex-col overflow-hidden" @click="onMapAreaClick">
+    <main
+      class="flex-1 flex flex-col overflow-hidden transition-[padding] duration-300 ease-out md:!pb-0"
+      :class="[
+        sheetState === 'closed' ? 'pb-16' :
+        sheetState === 'half' ? 'pb-[45vh]' :
+        'pb-[85vh]',
+      ]"
+      @click="onMapAreaClick"
+    >
       <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
         <div
           v-if="trackImportWarning"
