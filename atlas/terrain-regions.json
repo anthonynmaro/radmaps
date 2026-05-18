@@ -3,16 +3,16 @@
   "packs": {
     "all-showcase": ["yosemite", "rocky-mountain", "smokies", "superior", "driftless"],
     "midwest-core": [
-      "midwest-driftless-expanded",
-      "midwest-northwoods-superior",
-      "midwest-chicago-lake",
-      "midwest-michigan-west",
-      "midwest-ohio-indiana"
+      { "split": "midwest-driftless-expanded", "cols": 3, "rows": 3 },
+      { "split": "midwest-northwoods-superior", "cols": 4, "rows": 3 },
+      { "split": "midwest-chicago-lake", "cols": 5, "rows": 4 },
+      { "split": "midwest-michigan-west", "cols": 5, "rows": 5 },
+      { "split": "midwest-ohio-indiana", "cols": 6, "rows": 5 }
     ],
     "us-terrain-phase1": [
-      "midwest-driftless-expanded",
-      "midwest-northwoods-superior",
-      "midwest-chicago-lake",
+      { "split": "midwest-driftless-expanded", "cols": 3, "rows": 3 },
+      { "split": "midwest-northwoods-superior", "cols": 4, "rows": 3 },
+      { "split": "midwest-chicago-lake", "cols": 5, "rows": 4 },
       "sierra-yosemite-expanded",
       "rockies-colorado-front-range",
       "appalachia-smokies-expanded",

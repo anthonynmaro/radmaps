@@ -85,9 +85,11 @@ const TERRAIN_REGION_CONFIG_PATH = resolve(repoRoot, 'atlas/terrain-regions.json
 const TERRAIN_REGION_CONFIG = existsSync(TERRAIN_REGION_CONFIG_PATH)
   ? JSON.parse(readFileSync(TERRAIN_REGION_CONFIG_PATH, 'utf8'))
   : { regions: {} }
+const VIRTUAL_REGIONS = buildVirtualRegions(TERRAIN_REGION_CONFIG)
 const AVAILABLE_REGIONS = {
   ...REGIONS,
   ...(TERRAIN_REGION_CONFIG.regions || {}),
+  ...VIRTUAL_REGIONS,
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -103,6 +105,7 @@ const outputPath = resolve(repoRoot, args.output)
 const cacheDir = resolve(repoRoot, `atlas/terrain/${args.region}/terrarium-z${region.demZoom}`)
 const minValidElevationFt = region.minValidElevationFt ?? -1500
 const maxValidElevationFt = region.maxValidElevationFt ?? 30000
+const maxContourSegments = region.maxContourSegments ?? 900_000
 
 function parseArgs(argv) {
   const parsed = {
@@ -123,6 +126,53 @@ function parseArgs(argv) {
     }
   }
   return parsed
+}
+
+function buildVirtualRegions(config) {
+  const regions = {}
+  for (const refs of Object.values(config.packs || {})) {
+    for (const ref of refs) {
+      if (!ref || typeof ref === 'string' || !ref.split) continue
+      const base = config.regions?.[ref.split]
+      if (!base) throw new Error(`Terrain split references unknown region "${ref.split}"`)
+      const cols = Number(ref.cols || 1)
+      const rows = Number(ref.rows || 1)
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          const id = splitRegionId(ref.split, row, col)
+          const bbox = splitBbox(base.bbox, cols, rows, row, col)
+          const objectSlug = `${base.objectSlug || ref.split}-r${row + 1}c${col + 1}`
+          regions[id] = {
+            ...base,
+            name: `${base.name} R${row + 1}C${col + 1}`,
+            bbox,
+            center: [roundCoord((bbox[0] + bbox[2]) / 2), roundCoord((bbox[1] + bbox[3]) / 2), base.center?.[2] ?? base.minzoom],
+            objectSlug,
+            sourceRegion: ref.split,
+            split: { cols, rows, row: row + 1, col: col + 1 },
+          }
+        }
+      }
+    }
+  }
+  return regions
+}
+
+function splitRegionId(baseId, row, col) {
+  return `${baseId}-r${row + 1}c${col + 1}`
+}
+
+function splitBbox([w, s, e, n], cols, rows, row, col) {
+  return [
+    roundCoord(w + ((e - w) * col) / cols),
+    roundCoord(s + ((n - s) * row) / rows),
+    roundCoord(w + ((e - w) * (col + 1)) / cols),
+    roundCoord(s + ((n - s) * (row + 1)) / rows),
+  ]
+}
+
+function roundCoord(value) {
+  return Number(value.toFixed(6))
 }
 
 function lonLatToTile(lon, lat, z) {
@@ -327,6 +377,9 @@ function buildContourFeatures(mosaic, sample) {
 function addSegment(features, level, a, b) {
   const [w, s, e, n] = region.bbox
   if ((a[0] < w && b[0] < w) || (a[0] > e && b[0] > e) || (a[1] < s && b[1] < s) || (a[1] > n && b[1] > n)) return
+  if (features.length >= maxContourSegments) {
+    throw new Error(`Region "${args.region}" exceeded ${maxContourSegments.toLocaleString()} contour segments. Split the bbox into smaller regions or increase sampleStepPx/contourIntervalFt before encoding PMTiles.`)
+  }
   features.push({
     type: 'Feature',
     properties: {
