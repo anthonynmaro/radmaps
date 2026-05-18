@@ -187,7 +187,7 @@ export default defineNuxtConfig({
       title: 'RadMaps Studio — Trail Posters, Printed and Framed',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
         { name: 'description', content: 'Turn your Strava activities, watch routes, and favourite trails into beautiful print-quality posters — or pick from a curated catalog of iconic routes.' },
         { name: 'theme-color', content: '#2D6A4F' },
         { name: 'application-name', content: 'RadMaps' },
