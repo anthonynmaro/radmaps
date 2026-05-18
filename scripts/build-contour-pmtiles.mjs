@@ -139,6 +139,7 @@ function buildVirtualRegions(config) {
       const rows = Number(ref.rows || 1)
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < cols; col += 1) {
+          if (!includesSplitCell(ref, row, col)) continue
           const id = splitRegionId(ref.split, row, col)
           const bbox = splitBbox(base.bbox, cols, rows, row, col)
           const objectSlug = `${base.objectSlug || ref.split}-r${row + 1}c${col + 1}`
@@ -156,6 +157,13 @@ function buildVirtualRegions(config) {
     }
   }
   return regions
+}
+
+function includesSplitCell(ref, row, col) {
+  const key = `r${row + 1}c${col + 1}`
+  if (Array.isArray(ref.include) && !ref.include.includes(key)) return false
+  if (Array.isArray(ref.exclude) && ref.exclude.includes(key)) return false
+  return true
 }
 
 function splitRegionId(baseId, row, col) {

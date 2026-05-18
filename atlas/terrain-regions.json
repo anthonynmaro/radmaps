@@ -7,7 +7,13 @@
       { "split": "midwest-northwoods-superior", "cols": 4, "rows": 3 },
       { "split": "midwest-chicago-lake", "cols": 5, "rows": 4 },
       { "split": "midwest-michigan-west", "cols": 5, "rows": 5 },
-      { "split": "midwest-ohio-indiana", "cols": 8, "rows": 8 }
+      {
+        "split": "midwest-ohio-indiana",
+        "cols": 8,
+        "rows": 8,
+        "exclude": ["r1c8", "r2c8", "r3c8", "r4c8", "r5c8", "r6c8", "r7c8", "r8c8"]
+      },
+      { "split": "midwest-ohio-indiana-east-edge", "cols": 2, "rows": 16 }
     ],
     "us-terrain-phase1": [
       { "split": "midwest-driftless-expanded", "cols": 3, "rows": 3 },
@@ -183,6 +189,20 @@
       "sampleStepPx": 4,
       "terrainZone": "lowland",
       "objectSlug": "midwest-ohio-indiana"
+    },
+    "midwest-ohio-indiana-east-edge": {
+      "name": "RadMaps Midwest Ohio Indiana East Edge Terrain Atlas",
+      "bbox": [-81.3, 38.25, -80.3, 42.45],
+      "center": [-80.8, 40.45, 8],
+      "demZoom": 11,
+      "minzoom": 8,
+      "maxzoom": 14,
+      "contourIntervalFt": 20,
+      "indexIntervalFt": 100,
+      "majorIntervalFt": 500,
+      "sampleStepPx": 4,
+      "terrainZone": "lowland",
+      "objectSlug": "midwest-ohio-indiana-east-edge"
     },
     "sierra-yosemite-expanded": {
       "name": "RadMaps Sierra Yosemite Expanded Terrain Atlas",
