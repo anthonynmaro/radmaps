@@ -4609,6 +4609,10 @@ onMounted(async () => {
     recomputeOverlays()
     markPrintRenderReady()
     if (props.deleteBrushActive) nextTick(activateDeleteBrush)
+    // Reconcile freeze state on initial load — the map_frozen watcher returns
+    // early before mapReady, so a frozen view saved in the DB would otherwise
+    // load with gestures still enabled.
+    if (props.styleConfig.map_frozen) disableAllMapGestures()
   })
 
   mapInstance.on('zoom', () => {
