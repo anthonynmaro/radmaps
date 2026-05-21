@@ -14,12 +14,14 @@ export default defineNuxtConfig({
   ignore: [
     'render-worker-v4/**',
     'design_handoff_style_panel/**',
+    'workers/**',
   ],
   watchers: {
     chokidar: {
       ignored: [
         '**/render-worker-v4/**',
         '**/design_handoff_style_panel/**',
+        '**/workers/**',
       ],
     },
   },
@@ -99,6 +101,7 @@ export default defineNuxtConfig({
       // the Stadia dashboard.
       stadiaToken: process.env.NUXT_PUBLIC_STADIA_API_KEY || process.env.STADIA_API_KEY,
       radmapsAtlasManifestUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_MANIFEST_URL,
+      radmapsAtlasTileBaseUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL,
       radmapsAtlasPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_PMTILES_URL,
       radmapsContourPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_CONTOUR_PMTILES_URL,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://radmaps.studio' : 'http://localhost:3001'),
@@ -159,6 +162,7 @@ export default defineNuxtConfig({
         ignored: [
           '**/render-worker-v4/**',
           '**/design_handoff_style_panel/**',
+          '**/workers/**',
           '**/.git/**',
           '**/.nuxt/**',
           '**/.output/**',

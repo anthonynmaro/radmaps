@@ -75,6 +75,12 @@ export const ALL_STYLE_PRESETS: readonly StylePreset[] = [
   'native-watercolor',
   'alidade-smooth',
   'alidade-smooth-dark',
+  'radmaps-toner',
+  'radmaps-field-topo',
+  'radmaps-simple-contour',
+  'radmaps-night-relief',
+  'radmaps-watercolor-pigment-wash',
+  'radmaps-watercolor-brush-ink',
 ] as const
 
 export const CANONICAL_LAYER_SLOT_ORDER: readonly LayerSlot[] = [
@@ -165,6 +171,13 @@ const chromeEffectFields: Array<keyof StyleConfig> = [
   'show_vignette',
   'vignette_intensity',
   'tile_grain',
+]
+
+const atlasFields: Array<keyof StyleConfig> = [
+  'atlas_manifest_id',
+  'atlas_style_id',
+  'atlas_layers',
+  'atlas_layer_settings',
 ]
 
 function slotIndex(slot: LayerSlot): number {
@@ -409,6 +422,56 @@ const vectorRouteFeatures: LayerGraphFeatureSet = {
   trailSegments: 'editable-vector',
 }
 
+const atlasVectorFeatures: LayerGraphFeatureSet = {
+  baseRaster: 'unsupported',
+  water: 'editable-vector',
+  roads: 'editable-vector',
+  placeLabels: 'editable-vector',
+  pois: 'editable-vector',
+  contours: 'editable-vector',
+  hillshade: 'editable-vector',
+  rasterEffects: 'unsupported',
+  routeCasing: 'required',
+  route: 'required',
+  trailSegments: 'editable-vector',
+}
+
+function atlasGraph(preset: StylePreset, options: {
+  contours?: LayerFeatureSupport
+  hillshade?: LayerFeatureSupport
+  requiredFields?: LayerGraph['requiredFields']
+} = {}) {
+  return makeGraph({
+    preset,
+    features: {
+      ...atlasVectorFeatures,
+      contours: options.contours ?? 'editable-vector',
+      hillshade: options.hillshade ?? 'editable-vector',
+    },
+    sources: ['radmaps-atlas-base', 'radmaps-atlas-contours', 'route'],
+    includeDefaultRoadLayers: false,
+    requiredFields: options.requiredFields,
+    controls: {
+      atlas_manifest_id: { visible: false, update: 'full-reload' },
+      atlas_style_id: { visible: false, update: 'full-reload' },
+      atlas_layers: { visible: true, update: 'full-reload' },
+      atlas_layer_settings: { visible: true, update: 'paint' },
+    },
+    layers: [
+      { id: `${preset}-landcover`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
+      { id: `${preset}-park`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
+      { id: `${preset}-water`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
+      { id: `${preset}-waterway`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-building`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
+      { id: `${preset}-roads-minor`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-roads-major`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-roads-trails`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-place-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: atlasFields, scale: SYMBOL_SCALE_PROPERTIES },
+      { id: `${preset}-poi-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: atlasFields, scale: SYMBOL_SCALE_PROPERTIES },
+    ],
+  })
+}
+
 const graphs: Record<StylePreset, LayerGraph> = {
   minimalist: makeGraph({
     preset: 'minimalist',
@@ -519,6 +582,12 @@ const graphs: Record<StylePreset, LayerGraph> = {
     features: rasterPresetFeatures,
     sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
   }),
+  'radmaps-toner': atlasGraph('radmaps-toner'),
+  'radmaps-field-topo': atlasGraph('radmaps-field-topo', { contours: 'required', requiredFields: { show_contours: true } }),
+  'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { contours: 'required', hillshade: 'unsupported', requiredFields: { show_contours: true } }),
+  'radmaps-night-relief': atlasGraph('radmaps-night-relief', { contours: 'required', requiredFields: { show_contours: true } }),
+  'radmaps-watercolor-pigment-wash': atlasGraph('radmaps-watercolor-pigment-wash'),
+  'radmaps-watercolor-brush-ink': atlasGraph('radmaps-watercolor-brush-ink'),
 }
 
 export function getPresetGraph(preset: StylePreset | string | undefined): LayerGraph {

@@ -24,6 +24,21 @@ Current staging base archive:
 Current staging manifest:
 `atlas/v1/manifests/staging.json`
 
+Current production tile service code:
+`workers/atlas-tiles`
+
+Preferred production service shape:
+
+```text
+https://tiles.radmaps.studio/manifests/production.json
+https://tiles.radmaps.studio/tiles/production/{artifactId}/{z}/{x}/{y}.mvt
+```
+
+The Worker reads approved manifest and PMTiles objects from R2. App code should
+address artifacts by `artifactId`, not by raw PMTiles URL. Direct public PMTiles
+URLs remain useful for validation, local development, and break-glass recovery,
+but they are not the desired customer-facing contract.
+
 Current production base archive:
 `atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles`
 
@@ -96,7 +111,7 @@ curl "$NUXT_PUBLIC_RADMAPS_ATLAS_MANIFEST_URL"
 Expected result:
 - valid JSON
 - `schemaVersion` is `radmaps-atlas-v1`
-- `artifacts.base.url` and `artifacts.contours.url` point at immutable PMTiles
+- `artifacts.base[]` and `artifacts.contours[]` point at immutable PMTiles
 - artifact `etag`, `bytes`, `bounds`, zoom range, and layer names match the
   uploaded archives
 
@@ -218,6 +233,11 @@ Do not commit upload tokens or R2 access keys.
 - Treat atlas manifests as mutable pointers to immutable artifacts. Update a
   manifest only after all referenced PMTiles exist and have passed range-read
   verification.
+- Publish manifests to R2 at `atlas/v1/manifests/{environment}.json` so the
+  Cloudflare Worker can serve them.
+- Include `id`, `kind`, `url`, `objectPath`, `bounds`, `minzoom`, `maxzoom`,
+  `layers`, `bytes`, `etag` or checksum when available, `sourceLicenses`, and
+  `createdAt` on every artifact.
 - Include source, region, and date/version in the object path.
 - Do not overwrite an archive used by proofs, final renders, or catalog previews
   unless the replacement is byte-for-byte equivalent.
@@ -235,6 +255,8 @@ The local disk is too tight for a US Planetiler extract plus temp files.
 
 Target options:
 - Attach `tiles.radmaps.studio` after moving/delegating DNS to Cloudflare.
+- Deploy `workers/atlas-tiles` and point `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL`
+  at that Worker/custom domain for staging first.
 - Add a permanent least-privilege R2 upload credential for build automation.
 - Run `.github/workflows/atlas-build.yml` on a larger GitHub runner or
   short-lived self-hosted cloud VM with enough scratch disk for Planetiler.

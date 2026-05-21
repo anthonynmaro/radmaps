@@ -22,6 +22,8 @@
     "atlas:upload-object": "node scripts/upload-atlas-object.mjs",
     "atlas:upload-pmtiles": "node scripts/upload-atlas-pmtiles.mjs",
     "atlas:publish-manifest": "node scripts/upload-atlas-object.mjs --source public/atlas/manifests/production.json --object atlas/v1/manifests/production.json --content-type application/json --verify json",
+    "atlas:worker:dev": "npx wrangler dev --config workers/atlas-tiles/wrangler.jsonc",
+    "atlas:worker:deploy": "npx wrangler deploy --config workers/atlas-tiles/wrangler.jsonc",
     "premade:backfill-thumbnails": "node scripts/backfill-premade-thumbnails.mjs",
     "print-worker:dev": "node scripts/print-worker-dev.mjs",
     "gelato:draft-bypass": "cd render-worker-v4 && npx tsx scripts/gelato-draft-bypass.ts",

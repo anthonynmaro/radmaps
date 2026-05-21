@@ -1,5 +1,6 @@
 import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import type { AtlasUsageEventName } from '~/utils/atlasUsage'
+import { assertRateLimit } from '~/server/utils/rateLimit'
 
 const EVENT_NAMES = new Set<AtlasUsageEventName>([
   'atlas_lab_preview_loaded',
@@ -26,8 +27,15 @@ function cleanStringArray(value: unknown, maxItems = 32) {
     .slice(0, maxItems)
 }
 
-function cleanObject(value: unknown) {
+function cleanObject(value: unknown, maxBytes = 4000) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const json = JSON.stringify(value)
+  if (json.length > maxBytes) {
+    return {
+      truncated: true,
+      originalBytes: json.length,
+    }
+  }
   return value as Record<string, unknown>
 }
 
@@ -40,6 +48,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const user = await serverSupabaseUser(event).catch(() => null)
+  assertRateLimit(event, {
+    key: 'atlas-usage',
+    limit: 120,
+    windowMs: 60_000,
+    userId: user?.id,
+  })
+
   const supabase = await serverSupabaseServiceRole(event)
   const { error } = await supabase.from('atlas_usage_events').insert({
     event_name: eventName,

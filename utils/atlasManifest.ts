@@ -1,4 +1,4 @@
-import type { AtlasLayerId } from '~/types'
+import type { AtlasLayerId } from '../types'
 
 export const ATLAS_LAYER_IDS = [
   'contour',
@@ -14,9 +14,15 @@ export const ATLAS_LAYER_IDS = [
 
 export type AtlasArtifactKey = 'base' | 'contours' | 'hillshade' | 'publicLands' | 'poi'
 
+export type AtlasSourceLicense = {
+  name: string
+  url?: string
+  attribution?: string
+}
+
 export type AtlasManifestArtifact = {
   id: string
-  kind: string
+  kind: AtlasArtifactKey | 'terrain' | 'overlay'
   url: string
   objectPath?: string
   minzoom?: number
@@ -25,7 +31,13 @@ export type AtlasManifestArtifact = {
   layers?: string[]
   bytes?: number
   etag?: string
+  checksum?: string
+  sourceLicenses?: Array<string | AtlasSourceLicense>
+  createdAt?: string
+  status?: 'staging' | 'validated' | 'production' | 'deprecated'
 }
+
+export type AtlasManifestArtifactEntry = AtlasManifestArtifact | AtlasManifestArtifact[]
 
 export type AtlasAttribution = {
   name: string
@@ -44,7 +56,7 @@ export type AtlasManifest = {
     bucket?: string
     publicBaseUrl?: string
   }
-  artifacts?: Partial<Record<AtlasArtifactKey, AtlasManifestArtifact>>
+  artifacts?: Partial<Record<AtlasArtifactKey, AtlasManifestArtifactEntry>>
   layerCatalog?: AtlasLayerId[]
   attribution?: AtlasAttribution[]
 }
@@ -52,6 +64,10 @@ export type AtlasManifest = {
 export type AtlasResolvedArtifacts = {
   baseUrl: string
   contourUrl: string
+  baseArtifacts: AtlasManifestArtifact[]
+  contourArtifacts: AtlasManifestArtifact[]
+  artifactsByKind: Partial<Record<AtlasArtifactKey, AtlasManifestArtifact[]>>
+  artifactIds: string[]
   label: string
   coverageLabel: string
 }
@@ -95,21 +111,94 @@ export function createFallbackAtlasManifest(options: {
   }
 }
 
+export function atlasManifestArtifacts(
+  manifest: AtlasManifest | null | undefined,
+  key: AtlasArtifactKey,
+): AtlasManifestArtifact[] {
+  const entry = manifest?.artifacts?.[key]
+  if (!entry) return []
+  return Array.isArray(entry) ? entry : [entry]
+}
+
+export function atlasAllManifestArtifacts(
+  manifest: AtlasManifest | null | undefined,
+): AtlasManifestArtifact[] {
+  return (['base', 'contours', 'hillshade', 'publicLands', 'poi'] as const)
+    .flatMap(key => atlasManifestArtifacts(manifest, key))
+}
+
+export function atlasArtifactIntersectsBbox(
+  artifact: AtlasManifestArtifact,
+  bbox?: [number, number, number, number] | null,
+) {
+  if (!bbox || !artifact.bounds) return true
+  const [west, south, east, north] = bbox
+  const [artifactWest, artifactSouth, artifactEast, artifactNorth] = artifact.bounds
+  return west <= artifactEast &&
+    east >= artifactWest &&
+    south <= artifactNorth &&
+    north >= artifactSouth
+}
+
+export function findAtlasArtifact(
+  manifest: AtlasManifest | null | undefined,
+  artifactId: string,
+) {
+  return atlasAllManifestArtifacts(manifest).find(artifact => artifact.id === artifactId) || null
+}
+
+function artifactDisplayName(kind: AtlasArtifactKey) {
+  if (kind === 'publicLands') return 'public lands'
+  return kind
+}
+
+function firstAtlasArtifactUrl(
+  manifest: AtlasManifest,
+  key: AtlasArtifactKey,
+) {
+  return atlasManifestArtifacts(manifest, key)[0]?.url || ''
+}
+
 export function resolveAtlasArtifacts(
   manifest: AtlasManifest,
   fallback: AtlasManifest,
+  options: {
+    bbox?: [number, number, number, number] | null
+    requiredKinds?: AtlasArtifactKey[]
+  } = {},
 ): AtlasResolvedArtifacts {
-  const base = manifest.artifacts?.base ?? fallback.artifacts?.base
-  const contours = manifest.artifacts?.contours ?? fallback.artifacts?.contours
+  const artifactsByKind = (['base', 'contours', 'hillshade', 'publicLands', 'poi'] as const)
+    .reduce<Partial<Record<AtlasArtifactKey, AtlasManifestArtifact[]>>>((acc, key) => {
+      const manifestArtifacts = atlasManifestArtifacts(manifest, key)
+      const fallbackArtifacts = atlasManifestArtifacts(fallback, key)
+      const resolved = (manifestArtifacts.length ? manifestArtifacts : fallbackArtifacts)
+        .filter(artifact => atlasArtifactIntersectsBbox(artifact, options.bbox))
+      if (resolved.length) acc[key] = resolved
+      return acc
+    }, {})
+  const baseArtifacts = artifactsByKind.base || []
+  const contourArtifacts = artifactsByKind.contours || []
+  const base = baseArtifacts[0]
+  const contours = contourArtifacts[0]
   const label = manifest.label || fallback.label || 'RadMaps atlas pack'
-  const coverageLabel = [
-    atlasArtifactZoomLabel('base', base),
-    atlasArtifactZoomLabel('contours', contours),
-  ].filter(Boolean).join(' - ') || 'PMTiles ready'
+  const displayKinds = options.requiredKinds || ['base', 'contours']
+  const coverageLabel = displayKinds
+    .flatMap(kind => (artifactsByKind[kind] || []).map((artifact, index) =>
+      atlasArtifactZoomLabel(`${artifactDisplayName(kind)}${index ? ` ${index + 1}` : ''}`, artifact),
+    ))
+    .filter(Boolean)
+    .join(' - ') || 'PMTiles ready'
+  const artifactIds = Object.values(artifactsByKind)
+    .flatMap(artifacts => artifacts || [])
+    .map(artifact => artifact.id)
 
   return {
-    baseUrl: base?.url || fallback.artifacts?.base?.url || '',
-    contourUrl: contours?.url || fallback.artifacts?.contours?.url || '',
+    baseUrl: base?.url || firstAtlasArtifactUrl(fallback, 'base'),
+    contourUrl: contours?.url || firstAtlasArtifactUrl(fallback, 'contours'),
+    baseArtifacts,
+    contourArtifacts,
+    artifactsByKind,
+    artifactIds,
     label,
     coverageLabel,
   }

@@ -36,10 +36,10 @@ class NodeFileSource {
 
 const artifacts = {}
 if (region.base?.localPath) {
-  artifacts.base = await artifactFromConfig('base', region.base)
+  artifacts.base = [await artifactFromConfig('base', region.base)]
 }
 if (region.contours?.enabled && region.contours?.localPath && existsSync(resolve(repoRoot, region.contours.localPath))) {
-  artifacts.contours = await artifactFromConfig('contours', region.contours)
+  artifacts.contours = [await artifactFromConfig('contours', region.contours)]
 }
 
 const manifest = {
@@ -54,7 +54,9 @@ const manifest = {
     publicBaseUrl,
   },
   artifacts,
-  layerCatalog: [...new Set(Object.values(artifacts).flatMap(artifact => artifact.layers || []))]
+  layerCatalog: [...new Set(Object.values(artifacts).flatMap(entries =>
+    (Array.isArray(entries) ? entries : [entries]).flatMap(artifact => artifact.layers || []),
+  ))]
     .filter(layer => layer !== 'landuse' && layer !== 'transportation_name'),
   attribution: [
     {
@@ -90,6 +92,9 @@ async function artifactFromConfig(kind, config) {
     bounds: [header.minLon, header.minLat, header.maxLon, header.maxLat],
     layers: config.layers || [],
     bytes: statSync(localPath).size,
+    sourceLicenses: config.sourceLicenses || [],
+    createdAt: new Date().toISOString(),
+    status: environment === 'production' ? 'production' : 'staging',
   }
 }
 

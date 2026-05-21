@@ -3,6 +3,7 @@ import {
   CIRCLE_SCALE_PROPERTIES,
   LINE_SCALE_PROPERTIES,
   ROUTE_SCALE_PROPERTIES,
+  SYMBOL_SCALE_PROPERTIES,
   effectiveStyleConfig,
   getPresetGraph,
   styleGraphUsesContours,
@@ -69,6 +70,8 @@ export function buildMapStyle(
   let style: object
   if (effectiveConfig.preset === 'topographic') {
     style = buildTopographicStyle(effectiveConfig, mapboxToken, contourTileUrl)
+  } else if (isRadMapsAtlasPreset(effectiveConfig.preset)) {
+    style = buildRadMapsAtlasStyle(effectiveConfig, mapboxToken)
   } else if (effectiveConfig.preset === 'route-only') {
     style = buildRouteOnlyStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   } else if (effectiveConfig.preset === 'road-network') {
@@ -93,6 +96,10 @@ export function buildMapStyle(
     style = buildMinimalistStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   }
   return applyGraphLayerMetadata(style, effectiveConfig)
+}
+
+function isRadMapsAtlasPreset(preset?: string) {
+  return Boolean(preset?.startsWith('radmaps-'))
 }
 
 export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
@@ -846,6 +853,86 @@ function buildMinimalistStyle(
 // ─── Route-Only Style ─────────────────────────────────────────────────────────
 // No base raster tiles — just a solid background + route + optional contours/terrain.
 // Produces the clean "route on paper" look: solid colour field, route line, faint labels.
+
+function buildRadMapsAtlasStyle(config: StyleConfig, mapboxToken?: string): object {
+  const token = mapboxToken || ''
+  const preset = config.preset || 'radmaps-field-topo'
+  const isWatercolor = preset.includes('watercolor')
+  const isNight = preset === 'radmaps-night-relief'
+  const isToner = preset === 'radmaps-toner'
+  const isSimpleContour = preset === 'radmaps-simple-contour'
+  const ink = isNight ? '#d8f2dc' : isToner ? '#17222a' : '#405340'
+  const land = isNight ? '#102a1d' : isWatercolor ? '#cdddbd' : isToner ? '#edf2f5' : '#e7dfbf'
+  const water = isNight ? '#3f9fbd' : isWatercolor ? '#47aeca' : isToner ? '#bfd5e8' : '#79b7c8'
+  const park = isNight ? '#193f25' : isWatercolor ? '#b8d0aa' : isToner ? '#dfe8dd' : '#c9d29a'
+  const road = isWatercolor ? '#9a6b75' : isNight ? '#f18f45' : isToner ? '#203345' : '#b7663c'
+  const labelHalo = isNight ? '#0b1d15' : isWatercolor ? '#e8eadf' : '#f7f2e7'
+  const label = isNight ? '#e5f3d8' : '#29362d'
+  const roadOpacity = isWatercolor ? 0.52 : isNight ? 0.9 : 0.82
+
+  const sources: Record<string, object> = {
+    'radmaps-atlas-base': {
+      type: 'vector' as const,
+      tiles: ['/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging'],
+      minzoom: 0,
+      maxzoom: 14,
+      attribution: '© OpenStreetMap contributors © RadMaps Atlas',
+    },
+    route: routeSource(config),
+    ...trailSegmentSources(config.trail_segments),
+    ...segmentHandleSource(),
+  }
+
+  if (config.show_contours || isSimpleContour || preset === 'radmaps-field-topo' || preset === 'radmaps-night-relief') {
+    sources['radmaps-atlas-contours'] = {
+      type: 'vector' as const,
+      tiles: ['/api/atlas/tiles/terrain/{z}/{x}/{y}.mvt?environment=production'],
+      minzoom: 8,
+      maxzoom: 14,
+      attribution: 'Contours © RadMaps Atlas',
+    }
+  }
+  if (config.show_hillshade && !isSimpleContour && token) {
+    Object.assign(sources, demSource(token))
+  }
+
+  const contourColor = config.contour_color || (isNight ? '#63a97c' : isWatercolor ? '#78996e' : '#8b875e')
+  const contourMajorColor = config.contour_major_color || (isNight ? '#8ed39f' : isWatercolor ? '#6f885f' : '#68653f')
+  const contourOpacity = isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isNight ? 0.46 : 0.34
+  const atlasContourLayers = sources['radmaps-atlas-contours'] ? [
+    withScaleMetadata({ id: 'contours-minor', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['!=', ['get', 'level'], 2], paint: { 'line-color': contourColor, 'line-opacity': contourOpacity, 'line-width': config.contour_minor_width ?? 0.45 } }, LINE_SCALE_PROPERTIES),
+    withScaleMetadata({ id: 'contours-mid', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['==', ['get', 'level'], 1], paint: { 'line-color': contourMajorColor, 'line-opacity': Math.min(1, contourOpacity + 0.18), 'line-width': config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH } }, LINE_SCALE_PROPERTIES),
+    withScaleMetadata({ id: 'contours-major', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['==', ['get', 'level'], 2], paint: { 'line-color': contourMajorColor, 'line-opacity': Math.min(1, contourOpacity + 0.28), 'line-width': (config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH) + 0.25 } }, LINE_SCALE_PROPERTIES),
+    withScaleMetadata({ id: 'contours-labels', type: 'symbol', source: 'radmaps-atlas-contours', 'source-layer': 'contour', minzoom: 11, layout: { 'text-field': ['coalesce', ['get', 'label'], ['to-string', ['get', 'ele']]], 'symbol-placement': 'line', 'text-size': 9, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': contourMajorColor, 'text-opacity': config.show_elevation_labels === false ? 0 : 0.42, 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES),
+  ] : []
+
+  return {
+    version: 8,
+    name: `RadMaps Atlas ${preset}`,
+    glyphs: token
+      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
+      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources,
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': isNight ? '#081611' : land } },
+      { id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': isSimpleContour ? 0.12 : 0.82 } },
+      { id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': isSimpleContour ? 0.10 : 0.58 } },
+      { id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolor ? 0.68 : 0.76 } },
+      withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': water, 'line-opacity': isWatercolor ? 0.70 : 0.78, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, 1.1, 15, 2.0] } }, LINE_SCALE_PROPERTIES),
+      { id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': ink, 'fill-opacity': isSimpleContour ? 0.05 : 0.16 } },
+      ...(config.show_hillshade && !isSimpleContour && token ? hillshadeLayers(config) : []),
+      ...atlasContourLayers,
+      withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'path']]], paint: { 'line-color': road, 'line-opacity': roadOpacity * 0.62, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.25, 13, 0.9, 16, 2.1] } }, LINE_SCALE_PROPERTIES),
+      withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': road, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, 2.0, 16, 4.2] } }, LINE_SCALE_PROPERTIES),
+      withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail']]], paint: { 'line-color': isWatercolor ? '#7f8f70' : ink, 'line-opacity': isWatercolor ? 0.35 : 0.55, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.35, 14, 1.2, 16, 2.0], 'line-dasharray': [1.2, 1.6] } }, LINE_SCALE_PROPERTIES),
+      ...routeLayers(config),
+      withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 12, 15], 'text-letter-spacing': 0.02 }, paint: { 'text-color': label, 'text-opacity': isWatercolor ? 0.48 : 0.78, 'text-halo-color': labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES),
+      withScaleMetadata({ id: `${preset}-poi-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11], 'text-offset': ['literal', [0, 0.8]], 'text-anchor': 'top' }, paint: { 'text-color': label, 'text-opacity': isWatercolor ? 0.34 : 0.62, 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES),
+      ...trailSegmentLayers(config.trail_segments, config),
+      ...segmentHandleLayers(config),
+    ],
+  }
+}
 
 function buildRouteOnlyStyle(
   config: StyleConfig,

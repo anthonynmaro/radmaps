@@ -70,6 +70,28 @@ Production storage should use immutable PMTiles archives on S3-compatible object
 storage with HTTP range request support. Cloudflare R2 is the preferred
 production target. Supabase Storage can remain staging/dev while usage is low.
 
+Production delivery is through the Cloudflare Worker in
+`workers/atlas-tiles`. The Worker is the scalable tile service; the Nuxt
+`/api/atlas/tiles` route is retained as a local/admin fallback and should not
+be the long-term customer tile path.
+
+Worker routes:
+
+```text
+GET /manifests/staging.json
+GET /manifests/production.json
+GET /tiles/:environment/:artifactId/:z/:x/:y.mvt
+```
+
+Worker requirements now implemented in code:
+- serve by approved manifest artifact id, not raw caller-supplied URLs
+- load manifests from R2 at `atlas/v1/manifests/{environment}.json`
+- validate environment, artifact id, z/x/y matrix, zoom range, and bounds
+- read PMTiles from R2 by byte range through the PMTiles source API
+- cache hot tile responses with Cloudflare Cache API
+- return MVT headers and immutable cache headers
+- expose manifests with artifact counts and the tile URL template
+
 Canonical object layout:
 
 ```text
@@ -113,26 +135,38 @@ Example:
   "schemaVersion": "radmaps-atlas-v1",
   "createdAt": "2026-05-15T00:00:00Z",
   "artifacts": {
-    "base": {
-      "url": "https://tiles.radmaps.studio/atlas/v1/base/us/2026-05-15/radmaps-base-us.pmtiles",
-      "minzoom": 0,
-      "maxzoom": 14
-    },
-    "contours": {
-      "url": "https://tiles.radmaps.studio/atlas/v1/terrain/us/2026-05-15/radmaps-contours-us.pmtiles",
-      "minzoom": 8,
-      "maxzoom": 15
-    },
-    "publicLands": {
-      "url": "https://tiles.radmaps.studio/atlas/v1/overlays/public-lands/us/2026-05-15/radmaps-public-lands-us.pmtiles",
-      "minzoom": 4,
-      "maxzoom": 14
-    },
-    "poi": {
-      "url": "https://tiles.radmaps.studio/atlas/v1/overlays/poi/us/2026-05-15/radmaps-poi-us.pmtiles",
-      "minzoom": 8,
-      "maxzoom": 15
-    }
+    "base": [
+      {
+        "id": "radmaps-us-base",
+        "kind": "base",
+        "url": "https://tiles.radmaps.studio/atlas/v1/base/us/2026-05-15/radmaps-base-us.pmtiles",
+        "objectPath": "atlas/v1/base/us/2026-05-15/radmaps-base-us.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [-125, 24.4, -66.8, 49.5],
+        "layers": ["water", "transportation", "place", "poi"],
+        "bytes": 9593839310,
+        "sourceLicenses": ["OpenStreetMap ODbL"],
+        "createdAt": "2026-05-15T00:00:00Z"
+      }
+    ],
+    "contours": [
+      {
+        "id": "radmaps-yosemite-contours",
+        "kind": "contours",
+        "url": "https://tiles.radmaps.studio/atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [-120.4, 37.4, -118.9, 38.2],
+        "layers": ["contour"],
+        "sourceLicenses": ["USGS 3DEP"],
+        "createdAt": "2026-05-17T00:00:00Z"
+      }
+    ],
+    "hillshade": [],
+    "publicLands": [],
+    "poi": []
   },
   "attribution": [
     {
@@ -146,6 +180,11 @@ Example:
   ]
 }
 ```
+
+Artifact arrays are intentional. A national base can be one artifact while
+terrain, public lands, and POI packs are regional shards. The resolver in
+`utils/atlasManifest.ts` selects the national base plus only artifacts that
+intersect the requested map bbox.
 
 ## RadMaps Layer Contract
 

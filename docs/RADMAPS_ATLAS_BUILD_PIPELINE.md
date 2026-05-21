@@ -122,6 +122,18 @@ Stages:
 Large PMTiles uploads use S3 multipart upload through
 `scripts/upload-atlas-object.mjs`; the first full-US upload used `36` parts.
 
+After publish, production delivery is verified through the Cloudflare Worker:
+
+```bash
+curl https://tiles.radmaps.studio/manifests/staging.json
+curl -I https://tiles.radmaps.studio/tiles/staging/radmaps-us-base/8/44/97.mvt
+```
+
+The Worker only serves artifacts listed in the R2 manifest. It rejects unknown
+artifact ids, out-of-range z/x/y, tiles outside artifact bounds, and raw URL
+lookups. This keeps the customer tile path stable while allowing the manifest
+to move between immutable PMTiles releases.
+
 ## Map Update And PMTiles Refresh Process
 
 PMTiles archives are immutable snapshots. We do not sync updates into an
@@ -169,10 +181,11 @@ Recommended base-atlas refresh flow:
    Expected: `206 Partial Content`, `Content-Range`, and readable PMTiles
    header bytes.
 7. Publish the staging manifest so Atlas Lab points at the new archive.
-8. QA Atlas Lab plus representative print renders across all house styles.
-9. Promote by publishing the production manifest to the same immutable artifact
+8. Verify the Worker manifest and tile routes against staging artifacts.
+9. QA Atlas Lab plus representative print renders across all house styles.
+10. Promote by publishing the production manifest to the same immutable artifact
    only after QA passes.
-10. Keep the previous object and manifest metadata for rollback.
+11. Keep the previous object and manifest metadata for rollback.
 
 Rollback is a manifest change, not a rebuild. If a new archive has bad geometry,
 missing layers, or style regressions, republish the previous production manifest

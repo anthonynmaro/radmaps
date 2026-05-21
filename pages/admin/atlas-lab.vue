@@ -230,6 +230,7 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, type ComponentPublicInstance, type PropType } from 'vue'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
+  atlasAllManifestArtifacts,
   createFallbackAtlasManifest,
   resolveAtlasArtifacts as resolveManifestArtifacts,
   type AtlasManifest,
@@ -984,7 +985,7 @@ onMounted(async () => {
     atlasVersion: manifest.atlasVersion,
     tileSchemaVersion: manifest.schemaVersion,
     enabledLayers: manifest.layerCatalog,
-    artifactIds: Object.values(manifest.artifacts ?? {}).map(artifact => artifact?.id).filter((id): id is string => Boolean(id)),
+    artifactIds: atlasAllManifestArtifacts(manifest).map(artifact => artifact.id),
     providerId: manifest.storage?.provider || 'local',
     source: 'admin_atlas_lab',
     metadata: {

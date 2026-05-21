@@ -146,7 +146,7 @@ describe('style layer graph contracts', () => {
     expect(graphLayerIds('native-toner')).toContain('nt-waterways')
 
     for (const preset of ALL_STYLE_PRESETS) {
-      if (preset === 'contour-art' || preset === 'road-network' || preset === 'native-toner') continue
+      if (getPresetGraph(preset).features.water === 'editable-vector' || getPresetGraph(preset).features.water === 'required') continue
       expect(graphLayerIds(preset).filter(id => id.includes('waterway')), preset).toEqual([])
     }
   })

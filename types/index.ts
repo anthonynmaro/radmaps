@@ -6,6 +6,14 @@ export type StylePreset =
   | 'contour-art' | 'natural-topo' | 'stadia-watercolor' | 'stadia-toner'
   // Beta — native presets with no Stadia Maps dependency
   | 'native-toner' | 'native-watercolor' | 'alidade-smooth' | 'alidade-smooth-dark'
+  // RadMaps owned Atlas presets. These are MapLibre recipes over first-party
+  // PMTiles data, not separate third-party basemap products.
+  | 'radmaps-toner'
+  | 'radmaps-field-topo'
+  | 'radmaps-simple-contour'
+  | 'radmaps-night-relief'
+  | 'radmaps-watercolor-pigment-wash'
+  | 'radmaps-watercolor-brush-ink'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
@@ -79,29 +87,78 @@ export interface AtlasLayerSettings {
     minor_opacity?: number
     index_opacity?: number
     major_opacity?: number
+    minor_width?: number
+    index_width?: number
+    major_width?: number
     labels?: boolean
+    label_color?: string
+    label_opacity?: number
     units?: 'ft' | 'm'
   }
   transportation?: {
     density?: 'minimal' | 'balanced' | 'detailed'
+    major_color?: string
+    minor_color?: string
     road_color?: string
     trail_color?: string
+    opacity?: number
+    major_width?: number
+    minor_width?: number
+    trail_width?: number
     labels?: boolean
+    label_color?: string
+    label_opacity?: number
   }
   poi?: {
     density?: 'sparse' | 'balanced' | 'detailed'
     categories?: string[]
+    icon_opacity?: number
     labels?: boolean
+    label_color?: string
+    label_opacity?: number
   }
   park?: {
     fill_color?: string
     boundary_color?: string
+    opacity?: number
+    boundary_opacity?: number
     labels?: boolean
+    label_color?: string
+    label_opacity?: number
   }
   water?: {
     fill_color?: string
+    fill_opacity?: number
     waterway_color?: string
+    waterway_opacity?: number
+    waterway_width?: number
     labels?: boolean
+    label_color?: string
+    label_opacity?: number
+  }
+  waterway?: {
+    color?: string
+    opacity?: number
+    width?: number
+    labels?: boolean
+  }
+  landcover?: {
+    color?: string
+    opacity?: number
+    texture?: 'none' | 'subtle' | 'paper' | 'relief'
+  }
+  building?: {
+    fill_color?: string
+    outline_color?: string
+    opacity?: number
+  }
+  place?: {
+    label_color?: string
+    label_opacity?: number
+    font_family?: string
+    font_size?: number
+    halo_color?: string
+    halo_opacity?: number
   }
 }
 

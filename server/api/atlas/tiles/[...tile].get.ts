@@ -1,4 +1,11 @@
 import { PMTiles } from 'pmtiles'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import type { AtlasArtifactKey, AtlasManifest, AtlasManifestArtifact } from '~/utils/atlasManifest'
+import {
+  atlasManifestArtifacts,
+  findAtlasArtifact,
+} from '~/utils/atlasManifest'
 
 const DEFAULT_BASE_URL = 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles'
 const ALLOWED_TILE_URL_PREFIXES = [
@@ -8,11 +15,17 @@ const ALLOWED_TILE_URL_PREFIXES = [
 
 const globalForAtlasTiles = globalThis as unknown as {
   __radmapsAtlasPmtilesCache?: Map<string, PMTiles>
+  __radmapsAtlasManifestCache?: Map<string, AtlasManifest>
 }
 
 function pmtilesCache() {
   globalForAtlasTiles.__radmapsAtlasPmtilesCache ??= new Map<string, PMTiles>()
   return globalForAtlasTiles.__radmapsAtlasPmtilesCache
+}
+
+function manifestCache() {
+  globalForAtlasTiles.__radmapsAtlasManifestCache ??= new Map<string, AtlasManifest>()
+  return globalForAtlasTiles.__radmapsAtlasManifestCache
 }
 
 function tilePathParts(event: Parameters<typeof getRouterParam>[0]) {
@@ -32,19 +45,116 @@ function numericTilePart(value: string, name: string) {
   return numericValue
 }
 
-function normalizeTileUrl(event: Parameters<typeof getRouterParam>[0]) {
-  const query = getQuery(event)
-  const requestedUrl = typeof query.url === 'string' && query.url.trim()
-    ? query.url.trim()
-    : DEFAULT_BASE_URL
+function validateTileRange(z: number, x: number, y: number) {
+  if (z > 24) {
+    throw createError({ statusCode: 400, message: 'Atlas tile zoom too high' })
+  }
+  const max = 2 ** z
+  if (x >= max || y >= max) {
+    throw createError({ statusCode: 400, message: 'Atlas tile coordinate outside zoom range' })
+  }
+}
 
-  const isAllowedRemote = ALLOWED_TILE_URL_PREFIXES.some(prefix => requestedUrl.startsWith(prefix))
-  const isAllowedLocal = import.meta.dev && /^https?:\/\/localhost:\d+\/atlas\//.test(requestedUrl)
-  if (!isAllowedRemote && !isAllowedLocal) {
-    throw createError({ statusCode: 400, message: 'Unsupported atlas tile URL' })
+function tileToBbox(z: number, x: number, y: number): [number, number, number, number] {
+  const n = 2 ** z
+  const west = x / n * 360 - 180
+  const east = (x + 1) / n * 360 - 180
+  const north = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI
+  const south = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) * 180 / Math.PI
+  return [west, south, east, north]
+}
+
+function bboxIntersects(a: [number, number, number, number], b: [number, number, number, number]) {
+  const [west, south, east, north] = a
+  const [otherWest, otherSouth, otherEast, otherNorth] = b
+  return west <= otherEast && east >= otherWest && south <= otherNorth && north >= otherSouth
+}
+
+async function loadLocalManifest(environment: string) {
+  if (environment !== 'staging' && environment !== 'production') {
+    throw createError({ statusCode: 400, message: 'Unsupported atlas environment' })
+  }
+  const cache = manifestCache()
+  const cached = cache.get(environment)
+  if (cached) return cached
+
+  const file = resolve(process.cwd(), 'public/atlas/manifests', `${environment}.json`)
+  const manifest = JSON.parse(await readFile(file, 'utf8')) as AtlasManifest
+  cache.set(environment, manifest)
+  return manifest
+}
+
+function artifactKindForSource(source: string): AtlasArtifactKey {
+  return source === 'terrain' ? 'contours' : 'base'
+}
+
+function firstArtifactForSource(manifest: AtlasManifest, source: string) {
+  return atlasManifestArtifacts(manifest, artifactKindForSource(source))[0] || null
+}
+
+async function artifactFromQuery(
+  event: Parameters<typeof getRouterParam>[0],
+  source: string,
+): Promise<AtlasManifestArtifact | null> {
+  const query = getQuery(event)
+  const environment = typeof query.environment === 'string' && query.environment.trim()
+    ? query.environment.trim()
+    : 'staging'
+  const artifactId = typeof query.artifactId === 'string' ? query.artifactId.trim() : ''
+  const manifest = await loadLocalManifest(environment)
+  if (artifactId) {
+    const artifact = findAtlasArtifact(manifest, artifactId)
+    if (!artifact) {
+      throw createError({ statusCode: 404, message: 'Atlas artifact not found' })
+    }
+    return artifact
+  }
+  return firstArtifactForSource(manifest, source)
+}
+
+function validateArtifactTile(
+  artifact: AtlasManifestArtifact | null,
+  z: number,
+  x: number,
+  y: number,
+) {
+  if (!artifact) return
+  const minzoom = artifact.minzoom ?? 0
+  const maxzoom = artifact.maxzoom ?? 24
+  if (z < minzoom || z > maxzoom) {
+    throw createError({ statusCode: 400, message: 'Atlas tile zoom outside artifact range' })
+  }
+  if (artifact.bounds && !bboxIntersects(artifact.bounds, tileToBbox(z, x, y))) {
+    throw createError({ statusCode: 404, message: 'Atlas tile outside artifact bounds' })
+  }
+}
+
+async function normalizeTileUrl(
+  event: Parameters<typeof getRouterParam>[0],
+  source: string,
+  z: number,
+  x: number,
+  y: number,
+) {
+  const query = getQuery(event)
+  const requestedUrl = typeof query.url === 'string' && query.url.trim() ? query.url.trim() : ''
+
+  if (requestedUrl) {
+    if (!import.meta.dev) {
+      throw createError({ statusCode: 400, message: 'Direct atlas tile URLs are dev-only' })
+    }
+
+    const isAllowedRemote = ALLOWED_TILE_URL_PREFIXES.some(prefix => requestedUrl.startsWith(prefix))
+    const isAllowedLocal = /^https?:\/\/localhost:\d+\/atlas\//.test(requestedUrl)
+    if (!isAllowedRemote && !isAllowedLocal) {
+      throw createError({ statusCode: 400, message: 'Unsupported atlas tile URL' })
+    }
+    return requestedUrl
   }
 
-  return requestedUrl
+  const artifact = await artifactFromQuery(event, source)
+  validateArtifactTile(artifact, z, x, y)
+  return artifact?.url || DEFAULT_BASE_URL
 }
 
 function getPmtiles(url: string) {
@@ -66,7 +176,8 @@ export default defineEventHandler(async (event) => {
   const z = numericTilePart(zPart, 'z')
   const x = numericTilePart(xPart, 'x')
   const y = numericTilePart(yPart, 'y')
-  const pmtiles = getPmtiles(normalizeTileUrl(event))
+  validateTileRange(z, x, y)
+  const pmtiles = getPmtiles(await normalizeTileUrl(event, source, z, x, y))
   const tile = await pmtiles.getZxy(z, x, y)
 
   if (!tile) {
