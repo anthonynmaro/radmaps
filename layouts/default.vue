@@ -317,6 +317,9 @@
             <ul class="space-y-2.5">
               <li><NuxtLink to="/shop" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">All prints</NuxtLink></li>
               <li><NuxtLink to="/shop?category=hikes" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Hikes</NuxtLink></li>
+              <li><NuxtLink to="/shop?category=trails" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Trails</NuxtLink></li>
+              <li><NuxtLink to="/shop?category=runs" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Runs</NuxtLink></li>
+              <li><NuxtLink to="/shop?category=marathons" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Marathons</NuxtLink></li>
               <li><NuxtLink to="/shop?category=cityscapes" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Cityscapes</NuxtLink></li>
               <li><NuxtLink to="/shop?category=cycling" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Cycling</NuxtLink></li>
             </ul>

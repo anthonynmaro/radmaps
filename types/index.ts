@@ -1045,6 +1045,9 @@ export type PremadeStatus = 'draft' | 'published' | 'archived'
 
 export type PremadeCategory =
   | 'hikes'
+  | 'trails'
+  | 'runs'
+  | 'marathons'
   | 'mountain-biking'
   | 'paddles'
   | 'rivers'

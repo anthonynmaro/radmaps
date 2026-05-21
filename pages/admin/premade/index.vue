@@ -365,9 +365,17 @@
                     {{ generating ? 'Generating…' : 'Regenerate preview' }}
                   </button>
                   <button
+                    v-if="editingMap.status === 'published'"
+                    class="admin-secondary"
+                    :disabled="unpublishing"
+                    @click="unpublishPremade"
+                  >
+                    {{ unpublishing ? 'Unpublishing…' : 'Unpublish' }}
+                  </button>
+                  <button
                     v-if="editingMap.status !== 'archived'"
                     class="admin-danger"
-                    :disabled="archiving"
+                    :disabled="archiving || unpublishing"
                     @click="archivePremade"
                   >
                     {{ archiving ? 'Archiving…' : 'Archive' }}
@@ -624,6 +632,7 @@ const creating = ref(false)
 const createError = ref('')
 const saving = ref(false)
 const publishing = ref(false)
+const unpublishing = ref(false)
 const generating = ref(false)
 const archiving = ref(false)
 const backfilling = ref(false)
@@ -731,6 +740,24 @@ async function generatePreview() {
     flashStatus(err?.data?.message || err?.message || 'Could not regenerate preview.', 'error')
   } finally {
     generating.value = false
+  }
+}
+
+async function unpublishPremade() {
+  const id = editingId.value
+  if (!id) return
+  unpublishing.value = true
+  try {
+    await $fetch('/api/admin/premade', {
+      method: 'PATCH',
+      body: { id, status: 'draft', homepage_visible: false },
+    })
+    await refresh()
+    flashStatus('Unpublished.', 'success')
+  } catch (err: any) {
+    flashStatus(err?.data?.message || err?.message || 'Could not unpublish.', 'error')
+  } finally {
+    unpublishing.value = false
   }
 }
 

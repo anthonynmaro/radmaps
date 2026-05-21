@@ -7,7 +7,7 @@
  * StyleConfig via the Anthropic API — no human interaction needed.
  *
  * Usage:
- *   node scripts/ai-style-agent.mjs --gpx <path.gpx> [--title "Name"] [--category marathon]
+ *   node scripts/ai-style-agent.mjs --gpx <path.gpx> [--title "Name"] [--category marathons]
  *   node scripts/ai-style-agent.mjs --test   # Run against 3 sample maps
  *
  * Can also be imported as a module:
@@ -230,7 +230,7 @@ labels MUST be an object with boolean fields: { "show_title": true, "show_distan
  *
  * @param {object} context
  * @param {string} context.title - Map title (e.g. "Boston Marathon 2026")
- * @param {string} context.category - Route category (marathon, adventure, national-park, etc.)
+ * @param {string} context.category - Route category (marathons, hikes, cycling, etc.)
  * @param {object} context.stats - RouteStats (distance_km, elevation_gain_m, location, etc.)
  * @param {number[]} context.bbox - [minLng, minLat, maxLng, maxLat]
  * @param {number} context.featureCount - Number of GeoJSON features (1 = single route, 2659 = network)
@@ -413,13 +413,13 @@ async function runTest() {
     {
       gpx: resolve(import.meta.dirname, '..', '..', 'marathon_gpx_files', 'boston_marathon_2026.gpx'),
       title: 'Boston Marathon 2026',
-      category: 'marathon',
+      category: 'marathons',
       description: 'Hopkinton to Boylston Street — the world\'s oldest annual marathon, 26.2 miles through Boston.',
     },
     {
       gpx: resolve(import.meta.dirname, '..', '..', 'marathon_gpx_files', 'tokyo_marathon_2025.gpx'),
       title: 'Tokyo Marathon 2025',
-      category: 'marathon',
+      category: 'marathons',
       description: 'From Shinjuku to Tokyo Station — a World Major through the Japanese capital.',
     },
   ]
@@ -480,5 +480,5 @@ if (args.includes('--test')) {
 } else {
   console.log('Usage:')
   console.log('  node scripts/ai-style-agent.mjs --test')
-  console.log('  node scripts/ai-style-agent.mjs --gpx <path> [--title "Name"] [--category marathon]')
+  console.log('  node scripts/ai-style-agent.mjs --gpx <path> [--title "Name"] [--category marathons]')
 }
