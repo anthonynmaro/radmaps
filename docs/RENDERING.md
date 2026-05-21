@@ -380,9 +380,11 @@ Required checks:
 - render page reported no readiness errors,
 - map canvas is not blank,
 - route pixels are present, or the page explicitly reports route source/layers rendered,
+- when contours or hillshade are enabled, the render status reports contour/DEM
+  source completion or an explicit terrain wait timeout,
 - fonts and requested logos/images loaded.
 
-Before production cutover or any major renderer change, test at least `8x12`, `24x36`, and `32x48` if enabled, with topographic contours, hillshade, labels, route segments, logos, text overlays, long titles, and long routes.
+Before production cutover or any major renderer change, test at least `8x12`, `24x36`, and `32x48` if enabled, with topographic contours at detail `0-5`, hillshade, labels, route segments, logos, text overlays, long titles, and long routes. Atlas presets should use the same browser-generated contour path in the editor and Browserless print pages unless a future cached contour service is explicitly selected.
 
 ## Concurrency Notes
 

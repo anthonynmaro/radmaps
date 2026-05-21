@@ -497,6 +497,13 @@
           :style="gridOverlayStyle"
           data-testid="composition-map-grid-overlay"
         />
+        <div
+          v-if="showTerrainIllusionOverlay"
+          class="terrain-illusion-overlay"
+          :class="terrainIllusionClass"
+          :style="terrainIllusionStyle"
+          data-testid="terrain-illusion-overlay"
+        />
 
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
@@ -3281,21 +3288,63 @@ async function waitForPrintableAssets() {
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
 }
 
+function sourceLoaded(instance: maplibregl.Map, sourceId: string) {
+  if (!instance.getSource(sourceId)) return true
+  const maybeSourceLoaded = instance as maplibregl.Map & { isSourceLoaded?: (id: string) => boolean }
+  return typeof maybeSourceLoaded.isSourceLoaded === 'function'
+    ? maybeSourceLoaded.isSourceLoaded(sourceId)
+    : true
+}
+
+function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
+  const contoursExpected = styleUsesContours(props.styleConfig)
+  const contourSourceId = instance.getSource('contours')
+    ? 'contours'
+    : instance.getSource('mapbox-terrain-v2')
+      ? 'mapbox-terrain-v2'
+      : null
+  const demExpected = props.styleConfig.show_hillshade === true || props.styleConfig.map_3d === true
+  const tilesLoaded = typeof instance.areTilesLoaded === 'function' ? instance.areTilesLoaded() : instance.loaded()
+  return {
+    ready: true,
+    mapLoaded: instance.loaded(),
+    tilesLoaded,
+    routeLayerPresent: !!instance.getLayer('route-line'),
+    routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
+    contoursExpected,
+    contourSourcePresent: !!contourSourceId,
+    contourSourceLoaded: !contoursExpected || (!!contourSourceId && sourceLoaded(instance, contourSourceId)),
+    demExpected,
+    demSourceLoaded: !demExpected || sourceLoaded(instance, 'mapbox-dem'),
+    timedOut,
+  }
+}
+
+function printableMapComplete(status: ReturnType<typeof printableMapStatus>) {
+  return status.mapLoaded
+    && status.tilesLoaded
+    && status.routeLayerPresent
+    && status.contourSourceLoaded
+    && status.demSourceLoaded
+}
+
 function markPrintRenderReady() {
   if (!isPrintRender.value || renderReady.value || !mapInstance) return
   const instance = mapInstance
   let readyTimer: ReturnType<typeof setTimeout> | null = null
-  const complete = async () => {
-    if (renderReady.value) return
+  const cleanup = () => {
     if (readyTimer) clearTimeout(readyTimer)
+    instance.off('idle', check)
+    instance.off('sourcedata', check)
+    instance.off('styledata', check)
+  }
+  const complete = async (timedOut = false) => {
+    if (renderReady.value) return
+    const status = printableMapStatus(instance, timedOut)
+    if (!timedOut && !printableMapComplete(status)) return
+    cleanup()
     try {
       await waitForPrintableAssets()
-      const status = {
-        ready: true,
-        mapLoaded: instance.loaded(),
-        routeLayerPresent: !!instance.getLayer('route-line'),
-        routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
-      }
       renderReady.value = true
       ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = status
       ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
@@ -3306,8 +3355,12 @@ function markPrintRenderReady() {
       ;(window as unknown as { __RENDER_ERROR?: string }).__RENDER_ERROR = message
     }
   }
-  instance.once('idle', complete)
-  readyTimer = setTimeout(complete, 12_000)
+  const check = () => { void complete(false) }
+  instance.on('idle', check)
+  instance.on('sourcedata', check)
+  instance.on('styledata', check)
+  readyTimer = setTimeout(() => { void complete(true) }, 25_000)
+  requestAnimationFrame(check)
 }
 
 // ── Logo styles ───────────────────────────────────────────────────────────────
@@ -3867,6 +3920,26 @@ const vignetteStyle = computed(() => {
 })
 
 const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
+
+const showTerrainIllusionOverlay = computed(() => {
+  const preset = props.styleConfig.preset ?? ''
+  return preset.startsWith('radmaps-')
+    && (props.styleConfig.show_contours || props.styleConfig.show_hillshade || preset.includes('watercolor') || preset === 'radmaps-night-relief')
+})
+
+const terrainIllusionClass = computed(() => ({
+  'terrain-illusion-overlay--watercolor': props.styleConfig.preset?.includes('watercolor'),
+  'terrain-illusion-overlay--night': props.styleConfig.preset === 'radmaps-night-relief',
+  'terrain-illusion-overlay--topo': props.styleConfig.preset === 'radmaps-field-topo' || props.styleConfig.preset === 'radmaps-simple-contour',
+}))
+
+const terrainIllusionStyle = computed(() => {
+  const preset = props.styleConfig.preset ?? ''
+  const base = preset.includes('watercolor') ? 0.10 : preset === 'radmaps-night-relief' ? 0.12 : 0.07
+  const contourBoost = Math.min(0.05, Math.max(0, (props.styleConfig.contour_detail ?? 3) - 2) * 0.012)
+  const hillshadeBoost = (props.styleConfig.show_hillshade ? props.styleConfig.hillshade_intensity ?? 0.35 : 0) * 0.05
+  return { opacity: Math.min(0.18, base + contourBoost + hillshadeBoost).toFixed(3) }
+})
 
 // ── SVG overlay state (leader lines + pin labels) ─────────────────────────────
 // All positions are in px relative to the map container, recomputed on every
@@ -6418,6 +6491,41 @@ onUnmounted(() => {
 
 .composition-grid-overlay--map {
   inset: 0;
+}
+
+.terrain-illusion-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  background-image:
+    repeating-linear-gradient(108deg, rgba(28, 25, 23, 0.16) 0 0.08cqw, transparent 0.08cqw 0.42cqw),
+    repeating-linear-gradient(18deg, rgba(255, 255, 255, 0.22) 0 0.06cqw, transparent 0.06cqw 0.56cqw),
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.32), transparent 18%),
+    radial-gradient(circle at 78% 76%, rgba(28, 25, 23, 0.20), transparent 22%);
+}
+
+.terrain-illusion-overlay--watercolor {
+  mix-blend-mode: multiply;
+  filter: blur(0.14cqw);
+  background-image:
+    radial-gradient(circle at 18% 16%, rgba(69, 190, 210, 0.24), transparent 15%),
+    radial-gradient(circle at 76% 26%, rgba(191, 148, 84, 0.18), transparent 18%),
+    radial-gradient(circle at 42% 72%, rgba(92, 141, 86, 0.18), transparent 24%),
+    repeating-linear-gradient(94deg, rgba(65, 81, 61, 0.13) 0 0.07cqw, transparent 0.07cqw 0.52cqw);
+}
+
+.terrain-illusion-overlay--night {
+  mix-blend-mode: screen;
+  background-image:
+    repeating-linear-gradient(112deg, rgba(142, 211, 159, 0.20) 0 0.06cqw, transparent 0.06cqw 0.45cqw),
+    radial-gradient(circle at 35% 35%, rgba(63, 159, 189, 0.16), transparent 22%),
+    radial-gradient(circle at 70% 78%, rgba(241, 143, 69, 0.10), transparent 18%);
+}
+
+.terrain-illusion-overlay--topo {
+  mix-blend-mode: multiply;
 }
 
 .composition-star-field {

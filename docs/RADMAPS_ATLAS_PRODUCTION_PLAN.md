@@ -10,7 +10,8 @@ usage accounting all share one contract.
 - Let users build a map style by adding/removing individual RadMaps layers.
 - Support simple contour-first maps as a first-class product.
 - Preserve high-quality print rendering for 24x36 and larger posters.
-- Reduce live third-party tile dependencies during preview and final render.
+- Reduce third-party basemap dependencies first; keep browser-generated terrain
+  until usage proves that cached/self-hosted contours are worth the compute.
 - Track usage by layer, style, atlas artifact, proof render, final render, and
   order so we know what users like and what each map costs.
 - Keep the system global-ready without blocking near-term U.S. sales.
@@ -33,7 +34,10 @@ Initial priority regions:
 
 The first U.S. release should include:
 - nationwide base map
-- high-detail contours for priority regions
+- browser/Browserless-generated high-detail contours using the current
+  `maplibre-contour` fidelity path
+- optional prewarmed/cached contour artifacts for priority regions only when
+  render reliability or volume justifies them
 - national/state parks and major public lands
 - trailheads, peaks, campsites, viewpoints, parking, and water POIs
 - house styles: Simple Contour, Field Topo, Toner, Night Relief, Watercolor
@@ -46,7 +50,8 @@ quality justify it.
 
 North America release should include:
 - base map for U.S., Canada, Mexico
-- global or continental contour fallback
+- browser-generated contour coverage wherever Terrarium/global DEM coverage is available
+- terrain illusion layers for visual richness without global contour precompute
 - richer U.S. public lands
 - selected Canadian parks/public lands
 - popular destination upgrades based on search/render/order demand
@@ -59,8 +64,8 @@ regions into higher-detail packs.
 
 Global release should include:
 - global basemap artifacts
-- global contour fallback
-- destination-specific high-detail packs
+- browser-rendered contours as the default high-detail terrain path
+- destination-specific cached/high-detail packs only for proven demand or reliability gaps
 - usage-driven rebuild priorities
 - per-country attribution/license registry
 
@@ -106,9 +111,10 @@ tiles.radmaps.studio/
         north-america/2026-07-01/radmaps-base-north-america.pmtiles
         globe/2026-09-01/radmaps-base-globe.pmtiles
       terrain/
-        us/2026-05-15/radmaps-contours-us.pmtiles
-        us/2026-05-15/radmaps-hillshade-us.pmtiles
-        globe/2026-09-01/radmaps-contours-globe.pmtiles
+        cache/...
+        experiments/...
+        # High-detail global contours are not a default production artifact.
+        # Browserless/editor contours are generated from DEM at render time.
       overlays/
         public-lands/us/2026-05-15/radmaps-public-lands-us.pmtiles
         poi/us/2026-05-15/radmaps-poi-us.pmtiles
@@ -747,20 +753,24 @@ This lets us answer:
 ### Milestone 6: U.S. Complete Build
 
 - Full U.S. base coverage.
-- Regional high-detail terrain overlays.
+- Browser-rendered high-detail contours for editor, proof, and final renders.
+- Optional cached terrain overlays only for priority areas that need reliability or speed.
 - Usage tracking.
 - Style editor controls available to customers behind a feature flag.
 
 ### Milestone 7: North America And Globe
 
-- Expand base/terrain coverage.
-- Add global fallback contours.
-- Promote popular regions into high-detail builds based on usage.
+- Expand base coverage first.
+- Use browser-generated contours and terrain illusion layers globally where DEM coverage allows.
+- Promote popular or failure-prone regions into cached contour artifacts based on actual usage.
 
 ## Near-Term Decision
 
 Build the next slice around `radmaps-simple-contour`.
 
 That forces the system to solve the most important hard problem first:
-high-quality contours as a standalone product layer, with every other layer
-individually optional from the Style Panel.
+high-quality contour rendering in editor and Browserless without paying to
+precompute global terrain. The implementation benchmark is the existing
+`maplibre-contour` detail path, supplemented with hillshade, slope/wash,
+hachure, paper grain, and ghost-contour texture where styles need more terrain
+presence.

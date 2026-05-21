@@ -52,7 +52,10 @@ function applyGraphLayerMetadata<T extends object>(style: T, config: StyleConfig
  *   Browser  → contourTileUrl is provided by MapPreview.vue (maplibre-contour protocol)
  *              Generates contours on-the-fly from free AWS terrarium DEM tiles.
  *              Supports configurable meter intervals via contour_detail.
- *   Worker   → contourTileUrl is undefined; falls back to Mapbox terrain-v2 vector tiles.
+ *   Print    → Browserless renders the same MapPreview path, so it should also
+ *              provide contourTileUrl and use the browser-generated contours.
+ *   Fallback → contourTileUrl is undefined; falls back to Mapbox terrain-v2
+ *              vector tiles for legacy/non-browser style generation.
  *
  * Base tile options (base_tile_style):
  *   carto-light / carto-dark  — free CARTO raster tiles (no token)
@@ -71,7 +74,7 @@ export function buildMapStyle(
   if (effectiveConfig.preset === 'topographic') {
     style = buildTopographicStyle(effectiveConfig, mapboxToken, contourTileUrl)
   } else if (isRadMapsAtlasPreset(effectiveConfig.preset)) {
-    style = buildRadMapsAtlasStyle(effectiveConfig, mapboxToken)
+    style = buildRadMapsAtlasStyle(effectiveConfig, mapboxToken, contourTileUrl)
   } else if (effectiveConfig.preset === 'route-only') {
     style = buildRouteOnlyStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   } else if (effectiveConfig.preset === 'road-network') {
@@ -854,7 +857,113 @@ function buildMinimalistStyle(
 // No base raster tiles — just a solid background + route + optional contours/terrain.
 // Produces the clean "route on paper" look: solid colour field, route line, faint labels.
 
-function buildRadMapsAtlasStyle(config: StyleConfig, mapboxToken?: string): object {
+function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, options: {
+  watercolor: boolean
+  night: boolean
+  simple: boolean
+}): object[] {
+  if (!config.show_contours) return []
+  if (!usingMlContour) return contourLayers(config, false)
+
+  const ghostOpacity = options.simple ? 0 : options.watercolor ? 0.075 : options.night ? 0.12 : 0.08
+  const layers: object[] = []
+  if (ghostOpacity > 0) {
+    layers.push(withScaleMetadata({
+      id: 'contours-ghost-texture',
+      type: 'line',
+      source: 'contours',
+      'source-layer': 'contours',
+      filter: ['!=', ['get', 'level'], 1],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': config.contour_color,
+        'line-opacity': ghostOpacity,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 14, options.watercolor ? 2.2 : 1.6],
+        'line-blur': options.watercolor ? 1.6 : 0.8,
+      },
+    }, LINE_SCALE_PROPERTIES))
+  }
+
+  layers.push(
+    withScaleMetadata({
+      id: 'contours-minor',
+      type: 'line',
+      source: 'contours',
+      'source-layer': 'contours',
+      filter: ['!=', ['get', 'level'], 1],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': config.contour_color,
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, config.contour_opacity, 14, config.contour_opacity * 0.9],
+        'line-width': contourMinorLineWidthExpression(config),
+        'line-blur': options.watercolor ? 0.25 : 0,
+      },
+    }, LINE_SCALE_PROPERTIES),
+    withScaleMetadata({
+      id: 'contours-mid',
+      type: 'line',
+      source: 'contours',
+      'source-layer': 'contours',
+      filter: ['==', ['get', 'level'], 1],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': config.contour_color,
+        'line-opacity': Math.max(0, config.contour_opacity * 0.55),
+        'line-width': contourMidLineWidthExpression(config),
+        'line-blur': options.watercolor ? 0.2 : 0,
+      },
+    }, LINE_SCALE_PROPERTIES),
+    withScaleMetadata({
+      id: 'contours-major',
+      type: 'line',
+      source: 'contours',
+      'source-layer': 'contours',
+      filter: ['==', ['get', 'level'], 1],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': config.contour_major_color,
+        'line-opacity': config.contour_opacity,
+        'line-width': contourMajorLineWidthExpression(config),
+        'line-blur': options.watercolor ? 0.08 : 0,
+      },
+    }, LINE_SCALE_PROPERTIES),
+  )
+
+  if (config.show_elevation_labels) {
+    layers.push(withScaleMetadata({
+      id: 'contours-labels',
+      type: 'symbol',
+      source: 'contours',
+      'source-layer': 'contours',
+      filter: ['==', ['get', 'level'], 1],
+      layout: {
+        'symbol-placement': 'line',
+        'symbol-spacing': 500,
+        'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
+        'text-letter-spacing': 0.06,
+        'text-padding': 4,
+        'text-pitch-alignment': 'viewport',
+        'text-rotation-alignment': 'viewport',
+      },
+      paint: {
+        'text-color': config.contour_major_color,
+        'text-halo-color': config.background_color,
+        'text-halo-width': options.watercolor ? 2.4 : 2,
+        'text-opacity': options.watercolor ? config.contour_opacity * 0.7 : config.contour_opacity,
+      },
+    }, SYMBOL_SCALE_PROPERTIES))
+  }
+
+  return layers
+}
+
+function buildRadMapsAtlasStyle(
+  config: StyleConfig,
+  mapboxToken?: string,
+  contourTileUrl?: string,
+): object {
   const token = mapboxToken || ''
   const preset = config.preset || 'radmaps-field-topo'
   const isWatercolor = preset.includes('watercolor')
@@ -869,6 +978,8 @@ function buildRadMapsAtlasStyle(config: StyleConfig, mapboxToken?: string): obje
   const labelHalo = isNight ? '#0b1d15' : isWatercolor ? '#e8eadf' : '#f7f2e7'
   const label = isNight ? '#e5f3d8' : '#29362d'
   const roadOpacity = isWatercolor ? 0.52 : isNight ? 0.9 : 0.82
+  const usingMlContour = !!contourTileUrl
+  const wantsContours = config.show_contours || isSimpleContour || preset === 'radmaps-field-topo' || preset === 'radmaps-night-relief'
 
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
@@ -883,28 +994,27 @@ function buildRadMapsAtlasStyle(config: StyleConfig, mapboxToken?: string): obje
     ...segmentHandleSource(),
   }
 
-  if (config.show_contours || isSimpleContour || preset === 'radmaps-field-topo' || preset === 'radmaps-night-relief') {
-    sources['radmaps-atlas-contours'] = {
-      type: 'vector' as const,
-      tiles: ['/api/atlas/tiles/terrain/{z}/{x}/{y}.mvt?environment=production'],
-      minzoom: 8,
-      maxzoom: 14,
-      attribution: 'Contours © RadMaps Atlas',
-    }
+  if (wantsContours) {
+    Object.assign(sources, contourSource(token, contourTileUrl))
   }
-  if (config.show_hillshade && !isSimpleContour && token) {
+  if (config.show_hillshade && !isSimpleContour) {
     Object.assign(sources, demSource(token))
   }
 
   const contourColor = config.contour_color || (isNight ? '#63a97c' : isWatercolor ? '#78996e' : '#8b875e')
   const contourMajorColor = config.contour_major_color || (isNight ? '#8ed39f' : isWatercolor ? '#6f885f' : '#68653f')
   const contourOpacity = isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isNight ? 0.46 : 0.34
-  const atlasContourLayers = sources['radmaps-atlas-contours'] ? [
-    withScaleMetadata({ id: 'contours-minor', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['!=', ['get', 'level'], 2], paint: { 'line-color': contourColor, 'line-opacity': contourOpacity, 'line-width': config.contour_minor_width ?? 0.45 } }, LINE_SCALE_PROPERTIES),
-    withScaleMetadata({ id: 'contours-mid', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['==', ['get', 'level'], 1], paint: { 'line-color': contourMajorColor, 'line-opacity': Math.min(1, contourOpacity + 0.18), 'line-width': config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH } }, LINE_SCALE_PROPERTIES),
-    withScaleMetadata({ id: 'contours-major', type: 'line', source: 'radmaps-atlas-contours', 'source-layer': 'contour', filter: ['==', ['get', 'level'], 2], paint: { 'line-color': contourMajorColor, 'line-opacity': Math.min(1, contourOpacity + 0.28), 'line-width': (config.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH) + 0.25 } }, LINE_SCALE_PROPERTIES),
-    withScaleMetadata({ id: 'contours-labels', type: 'symbol', source: 'radmaps-atlas-contours', 'source-layer': 'contour', minzoom: 11, layout: { 'text-field': ['coalesce', ['get', 'label'], ['to-string', ['get', 'ele']]], 'symbol-placement': 'line', 'text-size': 9, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': contourMajorColor, 'text-opacity': config.show_elevation_labels === false ? 0 : 0.42, 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES),
-  ] : []
+  const contourConfig: StyleConfig = {
+    ...config,
+    show_contours: wantsContours,
+    contour_color: contourColor,
+    contour_major_color: contourMajorColor,
+    contour_opacity: contourOpacity,
+    background_color: labelHalo,
+  }
+  const atlasContourLayers = wantsContours
+    ? buildAtlasContourLayers(contourConfig, usingMlContour, { watercolor: isWatercolor, night: isNight, simple: isSimpleContour })
+    : []
 
   return {
     version: 8,
@@ -920,7 +1030,7 @@ function buildRadMapsAtlasStyle(config: StyleConfig, mapboxToken?: string): obje
       { id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolor ? 0.68 : 0.76 } },
       withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': water, 'line-opacity': isWatercolor ? 0.70 : 0.78, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, 1.1, 15, 2.0] } }, LINE_SCALE_PROPERTIES),
       { id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': ink, 'fill-opacity': isSimpleContour ? 0.05 : 0.16 } },
-      ...(config.show_hillshade && !isSimpleContour && token ? hillshadeLayers(config) : []),
+      ...(config.show_hillshade && !isSimpleContour ? hillshadeLayers(config) : []),
       ...atlasContourLayers,
       withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'path']]], paint: { 'line-color': road, 'line-opacity': roadOpacity * 0.62, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.25, 13, 0.9, 16, 2.1] } }, LINE_SCALE_PROPERTIES),
       withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': road, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, 2.0, 16, 4.2] } }, LINE_SCALE_PROPERTIES),

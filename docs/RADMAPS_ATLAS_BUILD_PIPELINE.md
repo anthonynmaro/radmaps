@@ -201,8 +201,10 @@ Recommended cadence:
 
 - Base atlas: monthly while usage is early; tighten to weekly only if map
   freshness becomes product-critical.
-- Terrain/contours: region-driven, prioritized by sales geography and premade
-  catalog coverage.
+- Terrain/contours: browser-rendered in editor and Browserless by default.
+  Precompute/cache only specific regions that are slow, failure-prone, or
+  proven by search/render/order demand. Do not schedule global high-detail
+  contour PMTiles as a routine build.
 - Emergency corrections: rebuild only the affected regional pack where possible,
   then publish a new manifest version.
 

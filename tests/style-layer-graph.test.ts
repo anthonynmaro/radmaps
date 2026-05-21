@@ -24,6 +24,10 @@ function layerById(style: object, id: string): { metadata?: { radmaps?: { scale?
   return (style as { layers?: Array<{ id: string; metadata?: { radmaps?: { scale?: string[] } } }> }).layers?.find(layer => layer.id === id)
 }
 
+function sourceIds(style: object): string[] {
+  return Object.keys((style as { sources?: Record<string, unknown> }).sources ?? {})
+}
+
 describe('style layer graph contracts', () => {
   it('declares a graph for every current style preset', () => {
     for (const preset of ALL_STYLE_PRESETS) {
@@ -195,6 +199,23 @@ describe('style JSON matrix', () => {
     }, 'mapbox-token')
 
     expect(layerIds(style)).toContain('contours-minor')
+    expect(layerIds(style)).toContain('contours-major')
+  })
+
+  it('uses browser-generated contours for Atlas presets when MapPreview provides the contour protocol', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      show_contours: true,
+      show_elevation_labels: true,
+    }, 'mapbox-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(sourceIds(style)).toContain('contours')
+    expect(sourceIds(style)).not.toContain('radmaps-atlas-contours')
+    expect(sourceIds(style)).not.toContain('mapbox-terrain-v2')
+    expect(layerIds(style)).toContain('contours-ghost-texture')
+    expect(layerIds(style)).toContain('contours-minor')
+    expect(layerIds(style)).toContain('contours-mid')
     expect(layerIds(style)).toContain('contours-major')
   })
 

@@ -22,7 +22,7 @@ describe('Atlas coverage status', () => {
     }
 
     expect(atlasCoverageStatus(coverage)).toBe('terrain')
-    expect(atlasCoverageLabel(coverage)).toBe('full base + 2 terrain shards')
+    expect(atlasCoverageLabel(coverage)).toBe('full base + browser contours (2 cached shards available)')
     expect(atlasCoverageWarning(coverage)).toBe('')
   })
 
@@ -31,8 +31,8 @@ describe('Atlas coverage status', () => {
     const missing = { baseArtifacts: [], terrainArtifacts: [] }
 
     expect(atlasCoverageStatus(baseOnly)).toBe('base')
-    expect(atlasCoverageLabel(baseOnly)).toContain('full base only')
-    expect(atlasCoverageWarning(baseOnly)).toContain('base-map-only')
+    expect(atlasCoverageLabel(baseOnly)).toContain('browser contours')
+    expect(atlasCoverageWarning(baseOnly)).toContain('browser-generated DEM contours')
     expect(atlasCoverageStatus(missing)).toBe('missing')
     expect(atlasCoverageLabel(missing)).toBe('missing atlas coverage')
   })

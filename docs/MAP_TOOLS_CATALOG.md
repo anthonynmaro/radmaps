@@ -36,7 +36,7 @@ flowchart LR
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Watercolor and toner raster art; toner label-family toggle | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
 | RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles | Beta | Self-hosted | Contiguous-US staging PMTiles base atlas served through `/api/atlas/tiles`; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
-| RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Staging manifest now carries verified `us-terrain-phase1` contour shards plus the contiguous-US base atlas; hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
+| RadMaps Terrain Runtime | `radmaps-terrain`, browser-generated `contours`, `radmaps-hillshade`, `RadMaps Simple Contour` | Beta | Browser/Browserless compute first; self-hosted cache later only if needed | Atlas styles now prefer browser-generated `maplibre-contour` output from Terrarium DEM in both editor and Browserless print renders. Existing R2 contour PMTiles remain QA/history/coverage experiments, not the global production default. | `show_contours`, `contour_detail`, `contour_*`, `show_hillshade`, `hillshade_intensity`, `terrain_exaggeration`, Atlas style ids | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. Cached/self-hosted terrain artifacts must carry source DEM metadata. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
 ## Layer Capability Accounting
@@ -144,26 +144,27 @@ Open questions:
 
 Goal: build a print-first terrain system: contours, hillshade, hydro emphasis, slope/aspect texture, landcover masks, and terrain-aware label density. This should become a house style, not a generic web topo layer.
 
-Recommended architecture:
+Recommended architecture after the 2026-05 browser-rendered contour pivot:
 
 ```mermaid
 flowchart LR
-  A["DEM COGs"] --> B["Terrain build worker"]
-  B --> C["Hillshade raster tiles"]
-  B --> D["Contour vector tiles"]
-  E["Hydro + landcover data"] --> B
-  C --> F["RadMaps Terrain Atlas"]
-  D --> F
-  F --> G["MapLibre terrain/topo presets"]
+  A["Terrarium DEM tiles"] --> B["MapPreview maplibre-contour"]
+  B --> C["Editor preview"]
+  B --> D["Browserless proof/final render"]
+  E["RadMaps global/base atlas"] --> C
+  E --> D
+  F["Hillshade + terrain illusion overlays"] --> C
+  F --> D
+  G["Optional future contour cache"] -. "only if volume/reliability requires" .-> C
 ```
 
 Automation ideas:
 
-- Generate contour intervals by target print scale, not just web zoom.
+- Generate contour intervals by target print scale, not just web zoom, using the existing `contour_detail` thresholds as the fidelity benchmark.
 - Build multiple hillshade recipes: soft editorial, dramatic mountain, dark-mode relief, blueprint relief.
-- Precompute water/shoreline masks so water color stays editable even in terrain-heavy styles.
-- Run route-bbox tile completeness checks before final render jobs submit to Gelato.
-- Store `terrain_atlas_version`, `dem_source`, `contour_interval`, and `hillshade_style` in render metadata.
+- Add slope/aspect, hachure, watercolor wash, paper grain, and ghost-contour treatments as runtime/renderer effects before paying to precompute global terrain.
+- Run Browserless readiness checks that wait for contour/DEM source completion before final render jobs submit to Gelato.
+- Store `dem_source`, `contour_detail`, `contour_interval`, `hillshade_style`, and whether Browserless timed out waiting for terrain in render metadata.
 
 Current live terrain packs:
 
@@ -196,11 +197,12 @@ Density targets:
 - Mountain/canyon: 40 ft minor contours, 200 ft index contours, 1000 ft major contours.
 - All contour vector features carry `elevation_ft`, `elevation_m`, `interval_class`, `contour_interval_ft`, `index_interval_ft`, `major_interval_ft`, `source_dem`, `terrain_zone`, and `terrain_atlas_version`.
 
-Why this matters:
+Why this changed:
 
-- Current browser contours use free DEM tiles and worker fallback uses Mapbox Terrain v2. That split is useful but not ideal for consistent print products.
-- A RadMaps terrain atlas gives consistent proof/final output, fewer third-party dependencies, and much stronger theme control.
-- Print-specific generalization can make small posters feel composed rather than cluttered.
+- High-detail global precomputed contour PMTiles are too expensive for the current business stage.
+- Current browser contours can be denser than the owned PMTiles contour shards because `maplibre-contour` can generate intervals directly from DEM thresholds at render time.
+- The global owned atlas should focus first on base data: roads, water, labels, parks, POIs, buildings, landcover, and boundaries.
+- Terrain richness should come from browser-generated contours plus hillshade/slope/wash/hachure/grain effects. Build a contour cache only if Browserless reliability, DEM availability, or order volume proves we need it.
 
 Open questions:
 

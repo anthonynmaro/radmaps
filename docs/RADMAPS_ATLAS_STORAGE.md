@@ -24,11 +24,16 @@ Current staging base archive:
 Current staging manifest:
 `atlas/v1/manifests/staging.json`
 
-The checked-in staging manifest now includes the contiguous-US base atlas and
-the verified `us-terrain-phase1` contour shard set from the successful
-2026-05-18 build. Atlas Lab consumes this manifest by route bbox, selecting the
-base atlas plus every intersecting contour artifact instead of hardcoding one
-small regional contour URL per showcase.
+The checked-in staging manifest includes the contiguous-US base atlas and the
+verified `us-terrain-phase1` contour shard set from the successful 2026-05-18
+build. Those contour shards are retained for QA, history, and optional cached
+coverage experiments. They are no longer the default strategy for scaling
+high-detail terrain globally.
+
+Production direction: build global/North America base archives in R2, but keep
+high-detail terrain browser-rendered through `maplibre-contour` in both editor
+and Browserless print renders. Only add/cache contour PMTiles for regions where
+usage, reliability, or render latency proves the extra compute is worth it.
 
 Current production tile service code:
 `workers/atlas-tiles`

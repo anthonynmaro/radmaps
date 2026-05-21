@@ -448,7 +448,7 @@ function atlasGraph(preset: StylePreset, options: {
       contours: options.contours ?? 'editable-vector',
       hillshade: options.hillshade ?? 'editable-vector',
     },
-    sources: ['radmaps-atlas-base', 'radmaps-atlas-contours', 'route'],
+    sources: ['radmaps-atlas-base', 'contours', 'mapbox-dem', 'route'],
     includeDefaultRoadLayers: false,
     requiredFields: options.requiredFields,
     controls: {

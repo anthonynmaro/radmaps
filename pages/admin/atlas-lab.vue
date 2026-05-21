@@ -20,10 +20,10 @@
               <div>
                 <p class="text-sm font-semibold text-stone-900">RadMaps owned atlas PMTiles</p>
                 <p class="mt-2 text-sm leading-6 text-stone-600">
-                  This lab previews the owned RadMaps tile stack: Planetiler turns open geodata and elevation sources
-                  into versioned PMTiles archives, Cloudflare R2 stores those archives, the RadMaps tile API serves
-                  them to the app, and MapLibre applies print-grade style recipes at render time. The goal is one
-                  reusable geography archive with many visual treatments.
+                  This lab previews the owned RadMaps tile stack: Planetiler turns open geodata into versioned
+                  base PMTiles, Cloudflare R2 stores those archives, the RadMaps tile API serves them to the app,
+                  and MapLibre applies print-grade style recipes at render time. High-detail contours now stay
+                  browser-rendered first so we keep the fidelity without paying to prebuild terrain for the world.
                 </p>
               </div>
               <NuxtLink to="/admin/map-tools" class="admin-secondary shrink-0">
@@ -57,7 +57,8 @@
                 <p class="atlas-info-label">Styles</p>
                 <p class="atlas-info-copy">
                   Toner, topo, watercolor A/B, night relief, survey, cyanotype, atlas, engraving, and simple contour
-                  are MapLibre recipes over the same source layers. Style changes do not require rebuilding geography.
+                  are MapLibre recipes over the same source layers plus runtime contours, hillshade, and terrain
+                  illusion overlays. Style changes do not require rebuilding geography.
                 </p>
               </div>
             </div>
@@ -106,7 +107,8 @@
                 </p>
                 <p class="mt-3 text-xs leading-5 text-stone-500">
                   Practical cadence: monthly base-atlas refreshes while product usage is low, faster regional terrain refreshes where
-                  print demand is high, and a future scheduled pipeline once QA and rollback are boring.
+                  print demand is high only if browser-rendered contours become too slow or unreliable, and a future
+                  scheduled pipeline once QA and rollback are boring.
                 </p>
               </div>
             </div>
@@ -119,12 +121,12 @@
               <span class="atlas-architecture-arrow">-></span>
               <div class="atlas-architecture-node">
                 <span>Build</span>
-                <strong>Planetiler + terrain jobs</strong>
+                <strong>Planetiler base + browser terrain</strong>
               </div>
               <span class="atlas-architecture-arrow">-></span>
               <div class="atlas-architecture-node">
                 <span>Storage</span>
-                <strong>R2 PMTiles + manifest</strong>
+                <strong>R2 base PMTiles + manifest</strong>
               </div>
               <span class="atlas-architecture-arrow">-></span>
               <div class="atlas-architecture-node">
@@ -134,15 +136,15 @@
               <span class="atlas-architecture-arrow">-></span>
               <div class="atlas-architecture-node">
                 <span>Output</span>
-                <strong>MapLibre previews + print renders</strong>
+                <strong>MapLibre + Browserless contours</strong>
               </div>
             </div>
 
             <p class="mt-4 text-xs leading-5 text-stone-500">
-              Base coverage is the contiguous United States at z0-14. Contour coverage now comes from the active
-              Atlas manifest and is resolved by each showcase route bbox, so the lab reflects real PMTiles coverage
-              instead of hand-picked preview URLs. In production, the same manifest should drive editor previews,
-              proofs, final print renders, attribution, and atlas usage analytics.
+              Base coverage is the contiguous United States at z0-14. Existing contour PMTiles remain visible in
+              the coverage accounting for QA/history, but the production direction is browser-generated contours in
+              editor and Browserless renders, with cached terrain artifacts added only where usage proves they are
+              worth the compute.
             </p>
           </div>
         </div>
@@ -269,6 +271,8 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, type ComponentPublicInstance, type PropType } from 'vue'
 import 'maplibre-gl/dist/maplibre-gl.css'
+// @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
+import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
 import {
   atlasAllManifestArtifacts,
   atlasManifestArtifacts,
@@ -279,6 +283,7 @@ import {
 } from '~/utils/atlasManifest'
 import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasExpandTerrainRegionArtifacts, atlasPreviewBbox } from '~/utils/atlasCoverage'
 import { trackAtlasUsageEvent } from '~/utils/atlasUsage'
+import { CONTOUR_THRESHOLDS } from '~/utils/mapStyle'
 
 definePageMeta({ layout: 'default' })
 
@@ -462,6 +467,7 @@ const coverageMatrix = computed(() => showcases.map((showcase) => {
   }
 }))
 let activeBasePmtilesUrl = ''
+let activeBrowserContourTileUrl = ''
 
 const styles: AtlasStyle[] = [
   {
@@ -892,6 +898,7 @@ function refreshMapTerrainForViewport(map: AtlasLabMap) {
     baseUrl: activeBasePmtilesUrl,
     baseArtifact: coverage.baseArtifacts[0],
     terrainArtifacts: coverage.terrainArtifacts,
+    contourTileUrl: activeBrowserContourTileUrl,
   }))
 }
 
@@ -899,7 +906,7 @@ function artifactIdsEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((id, index) => id === right[index])
 }
 
-function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: AtlasManifestArtifact, terrainArtifacts: AtlasManifestArtifact[] }) {
+function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: AtlasManifestArtifact, terrainArtifacts: AtlasManifestArtifact[], contourTileUrl?: string }) {
   const p = style.palette
   const isToner = style.id === 'radmaps-toner'
   const isTopo = style.id === 'radmaps-field-topo'
@@ -934,7 +941,16 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: A
   const allTransportClasses = [...majorRoadClasses, ...minorRoadClasses, ...pathClasses]
   const terrainArtifacts = urls.terrainArtifacts || []
   const terrainSourceId = (index: number) => `terrain-${index}`
-  const contourLayers = terrainArtifacts.flatMap((artifact, index) => {
+  const browserContourLayers = urls.contourTileUrl ? [
+    ...(isEngraved ? [
+      { id: 'contours-engraved-shadow-browser', type: 'line', source: 'contours', 'source-layer': 'contours', filter: ['!=', ['get', 'level'], 1], paint: { 'line-color': p.contourMajor, 'line-opacity': 0.10, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.55, 14, 1.5], 'line-dasharray': ['literal', [0.9, 2.2]], 'line-translate': ['literal', [1.1, 0.8]], 'line-blur': 0.4 } },
+    ] : []),
+    { id: 'contours-ghost-browser', type: 'line', source: 'contours', 'source-layer': 'contours', filter: ['!=', ['get', 'level'], 1], paint: { 'line-color': p.contour, 'line-opacity': isWatercolor ? 0.04 : isNight ? 0.10 : isSimpleContour ? 0.08 : 0.07, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, isWatercolor ? 1.4 : 0.9, 14, isWatercolor ? 2.4 : 1.7], 'line-blur': isWatercolor ? 1.4 : 0.7 } },
+    { id: 'contours-minor-browser', type: 'line', source: 'contours', 'source-layer': 'contours', filter: ['!=', ['get', 'level'], 1], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.24 : isSwiss ? 0.52 : isCyanotype ? 0.44 : isEngraved ? 0.48 : isTopo ? 0.50 : 0.42, 'line-blur': isWatercolor ? 0.35 : 0 } },
+    { id: 'contours-index-browser', type: 'line', source: 'contours', 'source-layer': 'contours', filter: ['==', ['get', 'level'], 1], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity * 0.65, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.42 : isSwiss ? 0.86 : isCyanotype ? 0.78 : isEngraved ? 0.78 : isTopo ? 0.82 : 0.64, 'line-blur': isWatercolor ? 0.25 : 0 } },
+    { id: 'contours-major-browser', type: 'line', source: 'contours', 'source-layer': 'contours', filter: ['==', ['get', 'level'], 1], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.68 : isSwiss ? 1.28 : isCyanotype ? 1.22 : isEngraved ? 1.18 : isTopo ? 1.25 : 0.95, 'line-blur': isWatercolor ? 0.15 : 0 } },
+  ] : []
+  const pmtilesContourLayers = terrainArtifacts.flatMap((artifact, index) => {
     const source = terrainSourceId(index)
     const suffix = `-${index}`
     return [
@@ -946,7 +962,31 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: A
       { id: `contours-major${suffix}`, type: 'line', source, 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.68 : isSwiss ? 1.28 : isCyanotype ? 1.22 : isEngraved ? 1.18 : isTopo ? 1.25 : 0.95, 'line-blur': isWatercolor ? 0.15 : 0 } },
     ]
   })
-  const topoContourLabels = terrainArtifacts.length && (isTopo || isSwiss || isNationalAtlas)
+  const contourLayers = browserContourLayers.length ? browserContourLayers : pmtilesContourLayers
+  const topoContourLabels = urls.contourTileUrl && (isTopo || isSwiss || isNationalAtlas)
+    ? [{
+        id: 'contour-elevation-labels-browser',
+        type: 'symbol',
+        source: 'contours',
+        'source-layer': 'contours',
+        minzoom: 12,
+        filter: ['==', ['get', 'level'], 1],
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 14, 9.5],
+          'text-letter-spacing': 0.01,
+        },
+        paint: {
+          'text-color': p.contourMajor,
+          'text-opacity': isSwiss ? 0.78 : 0.72,
+          'text-halo-color': p.labelHalo,
+          'text-halo-width': 1.6,
+          'text-halo-blur': 0.12,
+        },
+      }]
+    : terrainArtifacts.length && (isTopo || isSwiss || isNationalAtlas)
     ? terrainArtifacts.map((artifact, index) => ({
         id: `contour-elevation-labels-${index}`,
         type: 'symbol',
@@ -977,6 +1017,9 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: A
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       atlas: { type: 'vector', tiles: [atlasTileUrl('base', urls.baseArtifact, urls.baseUrl)], minzoom: 0, maxzoom: 14, vector_layers: baseVectorLayers },
+      ...(urls.contourTileUrl ? {
+        contours: { type: 'vector', tiles: [urls.contourTileUrl], minzoom: 0, maxzoom: 14, vector_layers: [{ id: 'contours' }] },
+      } : {}),
       ...Object.fromEntries(terrainArtifacts.map((artifact, index) => [
         terrainSourceId(index),
         { type: 'vector', tiles: [atlasTileUrl('terrain', artifact)], minzoom: artifact.minzoom ?? 8, maxzoom: artifact.maxzoom ?? 14, vector_layers: contourVectorLayers },
@@ -1061,6 +1104,18 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: A
 
 onMounted(async () => {
   const maplibregl = await import('maplibre-gl')
+  const { DemSource } = mlContour as any
+  const demSource = new DemSource({
+    url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+    encoding: 'terrarium',
+    maxzoom: 15,
+    worker: true,
+  })
+  demSource.setupMaplibre(maplibregl)
+  activeBrowserContourTileUrl = demSource.contourProtocolUrl({
+    thresholds: CONTOUR_THRESHOLDS[4],
+    overzoom: 2,
+  })
   const manifest = await loadAtlasManifest()
   activeManifest.value = manifest
   atlasManifestVersion.value = manifest.atlasVersion || 'local-fallback'
@@ -1099,6 +1154,7 @@ onMounted(async () => {
         baseUrl: pmtilesUrl,
         baseArtifact: activeInitialCoverage.baseArtifacts[0],
         terrainArtifacts: activeInitialCoverage.terrainArtifacts,
+        contourTileUrl: activeBrowserContourTileUrl,
       }) as never,
       center: activeShowcase.value.center,
       zoom: activeShowcase.value.zoom,
