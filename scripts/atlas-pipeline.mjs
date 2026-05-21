@@ -98,7 +98,8 @@ function expandStage(value) {
 }
 
 function preflight() {
-  const minGb = Number(env.ATLAS_MIN_FREE_GB || (region.id === 'us' ? 500 : 120))
+  const defaultMinGb = region.id === 'north-america' ? 900 : region.id === 'us' ? 500 : 120
+  const minGb = Number(env.ATLAS_MIN_FREE_GB || defaultMinGb)
   const freeKb = Number(command('df', ['-Pk', buildRoot], { capture: true }).trim().split(/\s+/).at(-3) || 0)
   const freeGb = freeKb / 1024 / 1024
   const docker = command('docker', ['--version'], { capture: true, optional: true }).trim()
