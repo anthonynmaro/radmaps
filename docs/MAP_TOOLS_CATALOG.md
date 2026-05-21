@@ -50,7 +50,9 @@ Use these categories when documenting each preset or provider:
 
 Canonical layer order remains:
 
-`background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> labels-pois -> route-casing -> route -> segments-handles`
+`background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> route-casing -> route -> labels-pois -> segments-handles`
+
+Route linework should render below map labels by default so labels stay readable. Interactive segment handles and editing overlays are the exception and stay above labels.
 
 ## Analytics Convention
 

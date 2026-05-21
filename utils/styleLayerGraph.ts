@@ -84,9 +84,9 @@ export const CANONICAL_LAYER_SLOT_ORDER: readonly LayerSlot[] = [
   'terrain',
   'contours',
   'editable-roads',
-  'labels-pois',
   'route-casing',
   'route',
+  'labels-pois',
   'segments-handles',
 ] as const
 

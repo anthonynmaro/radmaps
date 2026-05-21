@@ -28,8 +28,10 @@ cannot independently style those baked pixels.
 MapLibre layers should be assembled in canonical slot order:
 
 ```text
-background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> labels-pois -> route-casing -> route -> segments-handles
+background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> route-casing -> route -> labels-pois -> segments-handles
 ```
+
+Route linework renders below map labels by default so labels stay readable in editor previews, proofs, and final print renders. Interactive segment handles and editing overlays remain above labels.
 
 The editor, render pages, and Browserless output must all use the same
 graph-derived effective config. Do not special-case render pages to show controls

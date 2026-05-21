@@ -529,11 +529,15 @@ water-land-buildings
 terrain
 contours
 editable-roads
-labels-pois
 route-casing
 route
+labels-pois
 segments-handles
 ```
+
+Route linework should render below map labels by default so place, road, water,
+POI, and contour labels stay readable. Interactive segment handles and editing
+overlays remain above labels.
 
 `contour` should have its own canonical slot or a terrain subslot so it can be
 styled independently from hillshade.

@@ -119,6 +119,39 @@ Custom domain status:
   in this account.
 - Use the R2-managed production domain until DNS is moved or delegated.
 
+## Immutability, Manifests, And Sync
+
+PMTiles objects are immutable release artifacts. Do not overwrite an existing
+object path to "sync" map updates. A refresh creates a new PMTiles object path
+and then updates the environment manifest after validation.
+
+Why:
+
+- Browser, CDN, and render-worker caches can safely keep old immutable objects.
+- Rollback is fast because the manifest can point back to the previous archive.
+- Usage analytics can attribute renders to an exact `atlas_version` and object
+  path.
+- Failed builds do not corrupt the currently working atlas.
+
+Manifest responsibilities:
+
+- `atlas/v1/manifests/staging.json` points Atlas Lab and staging tests at the
+  current candidate archives.
+- `atlas/v1/manifests/production.json` points production editor/proof/final
+  renders at the last approved archives.
+- Manifests should include artifact URL, object path, bytes, etag, bounds,
+  zoom range, source layers, source-data date, and atlas version.
+
+Storage refresh checklist:
+
+1. Upload new PMTiles to a dated object key.
+2. Verify R2 `GET`/`HEAD` and HTTP range reads.
+3. Generate/update the staging manifest.
+4. Verify Atlas Lab loads from staging manifest.
+5. Render representative samples.
+6. Publish production manifest only after QA passes.
+7. Retain at least the previous production PMTiles and manifest for rollback.
+
 ## Budget Posture
 
 Monthly budget: `$30`.

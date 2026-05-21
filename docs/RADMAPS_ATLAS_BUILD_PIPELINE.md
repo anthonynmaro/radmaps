@@ -74,6 +74,28 @@ Geofabrik lists that extract as about 11GB, so the build runner needs enough
 scratch for the source, Planetiler working files, PMTiles output, validation,
 and upload retries.
 
+## Planetiler Operating Model
+
+Planetiler is not a hosted tile service. It is an open-source build tool that
+RadMaps runs in Docker/Java/GitHub Actions to convert source geodata into vector
+tile archives. The official Planetiler project describes it as a tool for
+generating vector tiles from OpenStreetMap and other geographic data, with
+output support for MBTiles and PMTiles.
+
+Cost posture:
+
+- No Planetiler usage fee is expected for RadMaps builds.
+- Planetiler itself is Apache-2.0 licensed.
+- Our costs are build compute, scratch disk, source-data transfer, R2 storage,
+  R2/API operations, and QA/render verification.
+- Planetiler licensing is separate from source-data licensing. OSM-derived
+  tiles still require OSM attribution and ODbL-aware handling.
+
+Primary references:
+
+- https://github.com/onthegomap/planetiler
+- https://github.com/onthegomap/planetiler/blob/main/LICENSE
+
 ## Pipeline Stages
 
 Run locally in dry-run mode:
@@ -99,6 +121,76 @@ Stages:
 
 Large PMTiles uploads use S3 multipart upload through
 `scripts/upload-atlas-object.mjs`; the first full-US upload used `36` parts.
+
+## Map Update And PMTiles Refresh Process
+
+PMTiles archives are immutable snapshots. We do not sync updates into an
+existing PMTiles object in place. To receive map updates, build a new PMTiles
+archive from newer source data, publish it under a new object path, then move
+the manifest pointer after validation.
+
+Recommended base-atlas refresh flow:
+
+1. Choose a source snapshot.
+   - Base atlas: Geofabrik regional extract or planet-scale OSM PBF.
+   - Terrain atlas: configured DEM source and terrain-region definition.
+   - Record source URL, source date, expected coverage, and checksums where
+     available.
+2. Run a staging dry run:
+
+   ```bash
+   npm run atlas:pipeline -- \
+     --region us-contiguous \
+     --environment staging \
+     --stage all \
+     --dry-run
+   ```
+
+3. Run the real staging build from a cloud runner with `dry_run=false`.
+4. Validate the generated PMTiles:
+   - header and magic bytes
+   - tile type
+   - min/max zoom
+   - bounds
+   - required layer names
+   - representative rendered sample tiles
+5. Upload the PMTiles to a new immutable R2 object path:
+
+   ```text
+   atlas/v1/base/us/<yyyy-mm-dd>/radmaps-base-us.pmtiles
+   ```
+
+6. Verify public HTTP range reads:
+
+   ```bash
+   curl -I -H 'Range: bytes=0-16383' <pmtiles-url>
+   ```
+
+   Expected: `206 Partial Content`, `Content-Range`, and readable PMTiles
+   header bytes.
+7. Publish the staging manifest so Atlas Lab points at the new archive.
+8. QA Atlas Lab plus representative print renders across all house styles.
+9. Promote by publishing the production manifest to the same immutable artifact
+   only after QA passes.
+10. Keep the previous object and manifest metadata for rollback.
+
+Rollback is a manifest change, not a rebuild. If a new archive has bad geometry,
+missing layers, or style regressions, republish the previous production manifest
+or a corrected manifest that points at the last known-good PMTiles objects.
+
+Recommended cadence:
+
+- Base atlas: monthly while usage is early; tighten to weekly only if map
+  freshness becomes product-critical.
+- Terrain/contours: region-driven, prioritized by sales geography and premade
+  catalog coverage.
+- Emergency corrections: rebuild only the affected regional pack where possible,
+  then publish a new manifest version.
+
+Future option: incremental OSM diff processing. Do not assume we have it today.
+Planetiler can be part of a fast full-rebuild strategy, but minute/hourly
+updates usually require additional diff ingestion, a database-backed tile stack,
+or a custom regional patch workflow.
 
 ## First Production Run
 

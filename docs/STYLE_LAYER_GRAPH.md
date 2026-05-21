@@ -22,8 +22,10 @@ Each graph declares:
 The canonical slot order is:
 
 ```text
-background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> labels-pois -> route-casing -> route -> segments-handles
+background -> base -> water-land-buildings -> terrain -> contours -> editable-roads -> route-casing -> route -> labels-pois -> segments-handles
 ```
+
+Route linework should sit below map labels so place, road, water, POI, and contour labels remain readable. Interactive segment handles and editing overlays remain above labels.
 
 ## Example
 

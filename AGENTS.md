@@ -126,7 +126,9 @@ Stored in `maps` table. `geojson` (route), `bbox`, `stats` (distance/elevation),
 [utils/styleLayerGraph.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleLayerGraph.ts) has one graph per `StylePreset`. The graph declares feature support, required fields, ignored fields, consumed fields, sources, canonical layer slots, update modes, and viewport scaling metadata.
 
 Canonical slot order:
-`background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`
+`background → base → water-land-buildings → terrain → contours → editable-roads → route-casing → route → labels-pois → segments-handles`
+
+Route linework should sit below map labels so place, road, water, POI, and contour labels remain readable. Interactive segment handles and editing overlays remain above labels.
 
 Map controls must be graph-gated. Do not show controls for baked-only or unsupported features, and do not expose destructive toggles for required features. Use `getVisibleStyleControls()`, `styleUsesField()`, `effectiveStyleConfig()`, and `getGraphFullReloadFields()` instead of hardcoded preset checks.
 
@@ -168,7 +170,7 @@ Checkout is product-first: users choose size/material before Browserless proof r
 
 ## mapStyle.ts patterns
 - `buildMapStyle()` keeps the public API but renders from `effectiveStyleConfig(config)` so saved unsupported fields are ignored without migration.
-- Layer order follows the graph's canonical slots: `background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`.
+- Layer order follows the graph's canonical slots: `background → base → water-land-buildings → terrain → contours → editable-roads → route-casing → route → labels-pois → segments-handles`.
 - Viewport scaling is graph metadata-driven through `metadata.radmaps.scale`; do not reintroduce layer-ID regex scaling.
 - CARTO tiles used for minimalist preset (free, no auth required)
 - Mapbox DEM/terrain sources only included in style when their feature is enabled (avoid unnecessary TileJSON fetches and 401s)
