@@ -19,20 +19,20 @@
       { "split": "midwest-driftless-expanded", "cols": 3, "rows": 3 },
       { "split": "midwest-northwoods-superior", "cols": 4, "rows": 3 },
       { "split": "midwest-chicago-lake", "cols": 5, "rows": 4 },
-      "sierra-yosemite-expanded",
-      "rockies-colorado-front-range",
-      "appalachia-smokies-expanded",
-      "southwest-moab-canyonlands",
-      "pacific-northwest-cascades",
-      "northeast-acadia"
+      { "split": "sierra-yosemite-expanded", "cols": 5, "rows": 5 },
+      { "split": "rockies-colorado-front-range", "cols": 5, "rows": 5 },
+      { "split": "appalachia-smokies-expanded", "cols": 5, "rows": 5 },
+      { "split": "southwest-moab-canyonlands", "cols": 4, "rows": 4 },
+      { "split": "pacific-northwest-cascades", "cols": 6, "rows": 6 },
+      { "split": "northeast-acadia", "cols": 3, "rows": 3 }
     ],
     "us-terrain-backbone": [
-      "sierra-yosemite-expanded",
-      "rockies-colorado-front-range",
-      "appalachia-smokies-expanded",
-      "southwest-moab-canyonlands",
-      "pacific-northwest-cascades",
-      "northeast-acadia"
+      { "split": "sierra-yosemite-expanded", "cols": 5, "rows": 5 },
+      { "split": "rockies-colorado-front-range", "cols": 5, "rows": 5 },
+      { "split": "appalachia-smokies-expanded", "cols": 5, "rows": 5 },
+      { "split": "southwest-moab-canyonlands", "cols": 4, "rows": 4 },
+      { "split": "pacific-northwest-cascades", "cols": 6, "rows": 6 },
+      { "split": "northeast-acadia", "cols": 3, "rows": 3 }
     ]
   },
   "regions": {

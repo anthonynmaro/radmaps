@@ -139,11 +139,51 @@
             </div>
 
             <p class="mt-4 text-xs leading-5 text-stone-500">
-              Base coverage is the contiguous United States at z0-14. Contour coverage is intentionally regional
-              while we scale terrain generation: the mountain buttons use generated terrain packs, while the
-              city/base buttons show the full-US atlas without a terrain overlay. In production, the same manifest
-              should drive editor previews, proofs, final print renders, attribution, and atlas usage analytics.
+              Base coverage is the contiguous United States at z0-14. Contour coverage now comes from the active
+              Atlas manifest and is resolved by each showcase route bbox, so the lab reflects real PMTiles coverage
+              instead of hand-picked preview URLs. In production, the same manifest should drive editor previews,
+              proofs, final print renders, attribution, and atlas usage analytics.
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-stone-200 bg-white p-4">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p class="text-sm font-semibold text-stone-900">Coverage accounting</p>
+            <p class="mt-1 text-xs leading-5 text-stone-600">
+              Manifest {{ atlasManifestVersion }} - {{ atlasBaseCount }} base artifact{{ atlasBaseCount === 1 ? '' : 's' }} -
+              {{ atlasContourCount }} contour artifact{{ atlasContourCount === 1 ? '' : 's' }}.
+            </p>
+            <p class="mt-2 text-xs font-semibold" :class="activeCoverageClass">
+              {{ activeShowcase.name }}: {{ activeCoverageLabel }}
+            </p>
+            <p v-if="activeCoverageWarning" class="mt-1 text-xs leading-5 text-amber-700">
+              {{ activeCoverageWarning }}
+            </p>
+            <div v-if="activeCoverageArtifactIds.length" class="mt-3 flex flex-wrap gap-1.5">
+              <span
+                v-for="artifactId in activeCoverageArtifactIds"
+                :key="artifactId"
+                class="rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-600"
+              >
+                {{ artifactId }}
+              </span>
+            </div>
+          </div>
+          <div class="coverage-matrix">
+            <button
+              v-for="item in coverageMatrix"
+              :key="item.id"
+              type="button"
+              class="coverage-chip"
+              :class="`coverage-chip--${item.status}`"
+              @click="setActiveShowcase(item.id)"
+            >
+              <span>{{ item.name }}</span>
+              <strong>{{ item.label }}</strong>
+            </button>
           </div>
         </div>
       </section>
@@ -192,7 +232,7 @@
                 <p class="text-sm font-semibold text-stone-900">{{ style.name }}</p>
               </div>
               <div class="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 shadow-sm backdrop-blur">
-                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ activeShowcase.contourUrl ? 'regional contour pack inside outlined bbox z8-14' : 'base z0-14 roads/places/POIs' }}
+                {{ activeShowcase.name }} - {{ atlasLabel }} - {{ activeCoverageLabel }}
               </div>
               <div
                 v-if="mapStatus[style.id]"
@@ -231,10 +271,13 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, rea
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   atlasAllManifestArtifacts,
+  atlasManifestArtifacts,
   createFallbackAtlasManifest,
   resolveAtlasArtifacts as resolveManifestArtifacts,
   type AtlasManifest,
+  type AtlasManifestArtifact,
 } from '~/utils/atlasManifest'
+import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning } from '~/utils/atlasCoverage'
 import { trackAtlasUsageEvent } from '~/utils/atlasUsage'
 
 definePageMeta({ layout: 'default' })
@@ -291,9 +334,15 @@ const config = useRuntimeConfig()
 const configuredManifestUrl = String(config.public.radmapsAtlasManifestUrl || '')
 const configuredAtlasUrl = String(config.public.radmapsAtlasPmtilesUrl || '')
 const configuredContourUrl = String(config.public.radmapsContourPmtilesUrl || '')
+const configuredTileBaseUrl = String(config.public.radmapsAtlasTileBaseUrl || '')
 const localAtlasUrl = '/atlas/radmaps-driftless-planetiler.pmtiles'
 const localContourUrl = '/atlas/radmaps-driftless-contours.pmtiles'
 const atlasLabel = ref('Driftless / Madison lab pack')
+const atlasManifestVersion = ref('local-fallback')
+const atlasEnvironment = ref<'staging' | 'production'>('staging')
+const activeManifest = ref<AtlasManifest | null>(null)
+const atlasBaseCount = computed(() => activeManifest.value ? atlasManifestArtifacts(activeManifest.value, 'base').length : 0)
+const atlasContourCount = computed(() => activeManifest.value ? atlasManifestArtifacts(activeManifest.value, 'contours').length : 0)
 const maps: Array<{
   style: AtlasStyle
   remove: () => void
@@ -321,8 +370,6 @@ type ShowcaseLocation = {
   center: [number, number]
   zoom: number
   route: [number, number][]
-  contourUrl?: string
-  contourBounds?: [number, number, number, number]
 }
 
 const showcases: ShowcaseLocation[] = [
@@ -332,8 +379,6 @@ const showcases: ShowcaseLocation[] = [
     center: [-119.573, 37.748],
     zoom: 12.2,
     route: [[-119.628, 37.731], [-119.604, 37.742], [-119.580, 37.754], [-119.557, 37.771], [-119.536, 37.787]],
-    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles',
-    contourBounds: [-119.75, 37.6, -119.35, 37.92],
   },
   {
     id: 'rocky-mountain',
@@ -341,8 +386,6 @@ const showcases: ShowcaseLocation[] = [
     center: [-105.646, 40.325],
     zoom: 12.1,
     route: [[-105.684, 40.310], [-105.666, 40.324], [-105.643, 40.337], [-105.621, 40.352], [-105.603, 40.366]],
-    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles',
-    contourBounds: [-105.85, 40.16, -105.45, 40.52],
   },
   {
     id: 'smokies',
@@ -350,8 +393,6 @@ const showcases: ShowcaseLocation[] = [
     center: [-83.507, 35.611],
     zoom: 12.4,
     route: [[-83.548, 35.586], [-83.529, 35.600], [-83.506, 35.616], [-83.487, 35.632], [-83.470, 35.648]],
-    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles',
-    contourBounds: [-83.75, 35.44, -83.22, 35.8],
   },
   {
     id: 'superior',
@@ -359,8 +400,6 @@ const showcases: ShowcaseLocation[] = [
     center: [-91.109, 47.309],
     zoom: 11.9,
     route: [[-91.170, 47.278], [-91.145, 47.295], [-91.117, 47.314], [-91.087, 47.335], [-91.055, 47.354]],
-    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles',
-    contourBounds: [-91.52, 47.08, -90.68, 47.58],
   },
   {
     id: 'madison',
@@ -368,8 +407,6 @@ const showcases: ShowcaseLocation[] = [
     center: [-89.396, 43.077],
     zoom: 14,
     route: [[-89.430, 43.058], [-89.418, 43.066], [-89.402, 43.075], [-89.387, 43.083], [-89.372, 43.092]],
-    contourUrl: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles',
-    contourBounds: [-90.25, 42.85, -88.85, 43.55],
   },
   {
     id: 'chicago',
@@ -403,6 +440,23 @@ const showcases: ShowcaseLocation[] = [
 
 const activeShowcaseId = ref(showcases[0].id)
 const activeShowcase = computed(() => showcases.find(showcase => showcase.id === activeShowcaseId.value) ?? showcases[0])
+const activeCoverage = computed(() => resolveShowcaseArtifacts(activeShowcase.value))
+const activeCoverageArtifactIds = computed(() => activeCoverage.value.terrainArtifacts.map(artifact => artifact.id))
+const activeCoverageLabel = computed(() => atlasCoverageLabel(activeCoverage.value))
+const activeCoverageWarning = computed(() => atlasCoverageWarning(activeCoverage.value))
+const activeCoverageClass = computed(() => atlasCoverageStatus(activeCoverage.value) === 'terrain' ? 'text-emerald-700' : 'text-amber-700')
+const coverageMatrix = computed(() => showcases.map((showcase) => {
+  const coverage = resolveShowcaseArtifacts(showcase)
+  const status = atlasCoverageStatus(coverage)
+  return {
+    id: showcase.id,
+    name: showcase.name,
+    status,
+    label: status === 'terrain'
+      ? `${coverage.terrainArtifacts.length} terrain`
+      : status === 'base' ? 'base only' : 'missing',
+  }
+}))
 let activeBasePmtilesUrl = ''
 
 const styles: AtlasStyle[] = [
@@ -712,8 +766,14 @@ function fallbackManifest(): AtlasManifest {
   })
 }
 
+function inferAtlasEnvironment(manifest: AtlasManifest): 'staging' | 'production' {
+  return manifest.storage?.bucket?.includes('staging') || manifest.atlasVersion?.includes('staging')
+    ? 'staging'
+    : 'production'
+}
+
 async function loadAtlasManifest() {
-  const manifestUrl = configuredManifestUrl || '/atlas/manifests/production.json'
+  const manifestUrl = import.meta.dev ? '/atlas/manifests/staging.json' : configuredManifestUrl || '/atlas/manifests/staging.json'
   try {
     const response = await fetch(toAbsoluteUrl(manifestUrl), {
       headers: { accept: 'application/json' },
@@ -727,14 +787,27 @@ async function loadAtlasManifest() {
   }
 }
 
-function resolveAtlasArtifacts(manifest: AtlasManifest) {
+function resolveAtlasArtifacts(manifest: AtlasManifest, showcase = activeShowcase.value) {
   const fallback = fallbackManifest()
-  const resolved = resolveManifestArtifacts(manifest, fallback)
+  const resolved = resolveManifestArtifacts(manifest, fallback, {
+    bbox: showcaseBbox(showcase),
+    requiredKinds: ['base', 'contours'],
+  })
 
-  atlasLabel.value = resolved.label
   return {
     baseUrl: resolved.baseUrl || configuredAtlasUrl || localAtlasUrl,
-    contourUrl: resolved.contourUrl || configuredContourUrl || localContourUrl,
+    baseArtifacts: resolved.baseArtifacts,
+    terrainArtifacts: resolved.contourArtifacts,
+  }
+}
+
+function resolveShowcaseArtifacts(showcase: ShowcaseLocation) {
+  const manifest = activeManifest.value || fallbackManifest()
+  const resolved = resolveAtlasArtifacts(manifest, showcase)
+  return {
+    ...resolved,
+    baseArtifacts: resolved.baseArtifacts,
+    terrainArtifacts: resolved.terrainArtifacts,
   }
 }
 
@@ -742,13 +815,26 @@ function setMapEl(id: string, el: Element | ComponentPublicInstance | null) {
   if (el instanceof HTMLElement) mapEls.set(id, el)
 }
 
-function atlasTileUrl(source: 'base' | 'terrain', url: string) {
+function atlasTileUrl(source: 'base' | 'terrain', artifact?: AtlasManifestArtifact, fallbackUrl = '') {
   const origin = typeof window === 'undefined' ? '' : window.location.origin
-  return `${origin}/api/atlas/tiles/${source}/{z}/{x}/{y}.mvt?url=${encodeURIComponent(url)}`
+  if (artifact?.id) {
+    const tileBaseUrl = configuredTileBaseUrl.replace(/\/$/, '')
+    if (tileBaseUrl) return `${tileBaseUrl}/tiles/${atlasEnvironment.value}/${artifact.id}/{z}/{x}/{y}.mvt`
+    return `${origin}/api/atlas/tiles/${source}/{z}/{x}/{y}.mvt?environment=${atlasEnvironment.value}&artifactId=${encodeURIComponent(artifact.id)}`
+  }
+  return `${origin}/api/atlas/tiles/${source}/{z}/{x}/{y}.mvt?url=${encodeURIComponent(fallbackUrl)}`
 }
 
-function contourUrlForShowcase(showcase: ShowcaseLocation) {
-  return showcase.contourUrl ? toAbsoluteUrl(showcase.contourUrl) : ''
+function showcaseBbox(showcase: ShowcaseLocation): [number, number, number, number] {
+  const lons = showcase.route.map(([lon]) => lon)
+  const lats = showcase.route.map(([, lat]) => lat)
+  const padding = 0.08
+  return [
+    Math.min(...lons) - padding,
+    Math.min(...lats) - padding,
+    Math.max(...lons) + padding,
+    Math.max(...lats) + padding,
+  ]
 }
 
 function sampleRouteGeojson(showcase: ShowcaseLocation) {
@@ -767,39 +853,15 @@ function sampleRouteGeojson(showcase: ShowcaseLocation) {
   }
 }
 
-function contourCoverageGeojson(showcase: ShowcaseLocation) {
-  const bounds = showcase.contourBounds
-  if (!bounds) return { type: 'FeatureCollection', features: [] }
-
-  const [west, south, east, north] = bounds
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [west, south],
-            [east, south],
-            [east, north],
-            [west, north],
-            [west, south],
-          ]],
-        },
-      },
-    ],
-  }
-}
-
 function setActiveShowcase(id: string) {
   activeShowcaseId.value = id
   const showcase = activeShowcase.value
   for (const map of maps) {
+    const coverage = resolveShowcaseArtifacts(showcase)
     map.setStyle(buildStyle(map.style, {
       baseUrl: activeBasePmtilesUrl,
-      contourUrl: contourUrlForShowcase(showcase),
+      baseArtifact: coverage.baseArtifacts[0],
+      terrainArtifacts: coverage.terrainArtifacts,
     }))
     const moveToShowcase = () => {
       map.jumpTo({ center: showcase.center, zoom: showcase.zoom })
@@ -812,7 +874,7 @@ function setActiveShowcase(id: string) {
   }
 }
 
-function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl?: string }) {
+function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: AtlasManifestArtifact, terrainArtifacts: AtlasManifestArtifact[] }) {
   const p = style.palette
   const isToner = style.id === 'radmaps-toner'
   const isTopo = style.id === 'radmaps-field-topo'
@@ -845,52 +907,55 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl?: str
   const minorRoadClasses = ['minor', 'service', 'residential', 'living_street', 'pedestrian']
   const pathClasses = ['path', 'track', 'cycleway', 'bridleway', 'steps']
   const allTransportClasses = [...majorRoadClasses, ...minorRoadClasses, ...pathClasses]
-  const contourLayers = urls.contourUrl ? [
-    ...(isEngraved ? [
-      { id: 'contours-engraved-shadow', type: 'line', source: 'terrain', 'source-layer': 'contour', paint: { 'line-color': p.contourMajor, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.45, 14, 1.2], 'line-dasharray': ['literal', [0.9, 2.2]], 'line-translate': ['literal', [1.1, 0.8]] } },
-    ] : []),
-    { id: 'contours-minor', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.24 : isSwiss ? 0.52 : isCyanotype ? 0.44 : isEngraved ? 0.48 : isTopo ? 0.50 : 0.42, 'line-blur': isWatercolor ? 0.35 : 0 } },
-    { id: 'contours-index', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.42 : isSwiss ? 0.86 : isCyanotype ? 0.78 : isEngraved ? 0.78 : isTopo ? 0.82 : 0.64, 'line-blur': isWatercolor ? 0.25 : 0 } },
-    { id: 'contours-major', type: 'line', source: 'terrain', 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.68 : isSwiss ? 1.28 : isCyanotype ? 1.22 : isEngraved ? 1.18 : isTopo ? 1.25 : 0.95, 'line-blur': isWatercolor ? 0.15 : 0 } },
-  ] : []
-  const topoContourLabels = urls.contourUrl && (isTopo || isSwiss || isNationalAtlas) ? [
-    {
-      id: 'contour-elevation-labels',
-      type: 'symbol',
-      source: 'terrain',
-      'source-layer': 'contour',
-      minzoom: 12,
-      filter: ['match', ['get', 'interval_class'], ['index', 'major'], true, false],
-      layout: {
-        'symbol-placement': 'line',
-        'text-field': ['concat', ['to-string', ['get', 'elevation_ft']], ' ft'],
-        'text-font': ['Noto Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 14, 9.5],
-        'text-letter-spacing': 0.01,
-      },
-      paint: {
-        'text-color': p.contourMajor,
-        'text-opacity': isSwiss ? 0.78 : 0.72,
-        'text-halo-color': p.labelHalo,
-        'text-halo-width': 1.6,
-        'text-halo-blur': 0.12,
-      },
-    },
-  ] : []
+  const terrainArtifacts = urls.terrainArtifacts || []
+  const terrainSourceId = (index: number) => `terrain-${index}`
+  const contourLayers = terrainArtifacts.flatMap((artifact, index) => {
+    const source = terrainSourceId(index)
+    const suffix = `-${index}`
+    return [
+      ...(isEngraved ? [
+        { id: `contours-engraved-shadow${suffix}`, type: 'line', source, 'source-layer': 'contour', paint: { 'line-color': p.contourMajor, 'line-opacity': 0.18, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.45, 14, 1.2], 'line-dasharray': ['literal', [0.9, 2.2]], 'line-translate': ['literal', [1.1, 0.8]] } },
+      ] : []),
+      { id: `contours-minor${suffix}`, type: 'line', source, 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'minor'], paint: { 'line-color': p.contour, 'line-opacity': contourMinorOpacity, 'line-width': isSimpleContour ? 0.38 : isWatercolor ? 0.24 : isSwiss ? 0.52 : isCyanotype ? 0.44 : isEngraved ? 0.48 : isTopo ? 0.50 : 0.42, 'line-blur': isWatercolor ? 0.35 : 0 } },
+      { id: `contours-index${suffix}`, type: 'line', source, 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'index'], paint: { 'line-color': p.contour, 'line-opacity': contourIndexOpacity, 'line-width': isSimpleContour ? 0.74 : isWatercolor ? 0.42 : isSwiss ? 0.86 : isCyanotype ? 0.78 : isEngraved ? 0.78 : isTopo ? 0.82 : 0.64, 'line-blur': isWatercolor ? 0.25 : 0 } },
+      { id: `contours-major${suffix}`, type: 'line', source, 'source-layer': 'contour', filter: ['==', ['get', 'interval_class'], 'major'], paint: { 'line-color': p.contourMajor, 'line-opacity': contourMajorOpacity, 'line-width': isSimpleContour ? 1.22 : isWatercolor ? 0.68 : isSwiss ? 1.28 : isCyanotype ? 1.22 : isEngraved ? 1.18 : isTopo ? 1.25 : 0.95, 'line-blur': isWatercolor ? 0.15 : 0 } },
+    ]
+  })
+  const topoContourLabels = terrainArtifacts.length && (isTopo || isSwiss || isNationalAtlas)
+    ? terrainArtifacts.map((artifact, index) => ({
+        id: `contour-elevation-labels-${index}`,
+        type: 'symbol',
+        source: terrainSourceId(index),
+        'source-layer': 'contour',
+        minzoom: 12,
+        filter: ['match', ['get', 'interval_class'], ['index', 'major'], true, false],
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': ['concat', ['to-string', ['get', 'elevation_ft']], ' ft'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 14, 9.5],
+          'text-letter-spacing': 0.01,
+        },
+        paint: {
+          'text-color': p.contourMajor,
+          'text-opacity': isSwiss ? 0.78 : 0.72,
+          'text-halo-color': p.labelHalo,
+          'text-halo-width': 1.6,
+          'text-halo-blur': 0.12,
+        },
+      }))
+    : []
 
   return {
     version: 8,
     name: style.name,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      atlas: { type: 'vector', tiles: [atlasTileUrl('base', urls.baseUrl)], minzoom: 0, maxzoom: 14, vector_layers: baseVectorLayers },
-      ...(urls.contourUrl ? { terrain: { type: 'vector', tiles: [atlasTileUrl('terrain', urls.contourUrl)], minzoom: 8, maxzoom: 14, vector_layers: contourVectorLayers } } : {}),
-      ...(urls.contourUrl ? {
-        'contour-coverage': {
-          type: 'geojson',
-          data: contourCoverageGeojson(activeShowcase.value),
-        },
-      } : {}),
+      atlas: { type: 'vector', tiles: [atlasTileUrl('base', urls.baseArtifact, urls.baseUrl)], minzoom: 0, maxzoom: 14, vector_layers: baseVectorLayers },
+      ...Object.fromEntries(terrainArtifacts.map((artifact, index) => [
+        terrainSourceId(index),
+        { type: 'vector', tiles: [atlasTileUrl('terrain', artifact)], minzoom: artifact.minzoom ?? 8, maxzoom: artifact.maxzoom ?? 14, vector_layers: contourVectorLayers },
+      ])),
       'sample-route': {
         type: 'geojson',
         data: sampleRouteGeojson(activeShowcase.value),
@@ -925,10 +990,6 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl?: str
       ] : []),
       ...(isPrintmaking ? [
         { id: 'water-print-outline', type: 'line', source: 'atlas', 'source-layer': 'water', paint: { 'line-color': p.waterLine, 'line-opacity': isCyanotype ? 0.48 : 0.34, 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.45, 14, 1.3], 'line-dasharray': ['literal', isCyanotype ? [3.5, 1.4] : [1.2, 1.8]] } },
-      ] : []),
-      ...(urls.contourUrl ? [
-        { id: 'contour-coverage-fill', type: 'fill', source: 'contour-coverage', paint: { 'fill-color': '#F97316', 'fill-opacity': isWatercolor ? 0 : 0.035 } },
-        { id: 'contour-coverage-line', type: 'line', source: 'contour-coverage', paint: { 'line-color': isWatercolor ? p.contourMajor : '#F97316', 'line-opacity': isWatercolor ? 0.26 : 0.82, 'line-width': 1.4, 'line-dasharray': ['literal', [2.5, 2]] } },
       ] : []),
       ...contourLayers,
       ...topoContourLabels,
@@ -976,7 +1037,12 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, contourUrl?: str
 onMounted(async () => {
   const maplibregl = await import('maplibre-gl')
   const manifest = await loadAtlasManifest()
-  const { baseUrl } = resolveAtlasArtifacts(manifest)
+  activeManifest.value = manifest
+  atlasManifestVersion.value = manifest.atlasVersion || 'local-fallback'
+  atlasLabel.value = manifest.label || 'RadMaps atlas pack'
+  atlasEnvironment.value = inferAtlasEnvironment(manifest)
+  const activeInitialCoverage = resolveShowcaseArtifacts(activeShowcase.value)
+  const { baseUrl } = activeInitialCoverage
   const pmtilesUrl = toAbsoluteUrl(baseUrl)
   activeBasePmtilesUrl = pmtilesUrl
   trackAtlasUsageEvent({
@@ -1004,7 +1070,11 @@ onMounted(async () => {
       container: el,
       interactive: true,
       attributionControl: { compact: true },
-      style: buildStyle(style, { baseUrl: pmtilesUrl, contourUrl: contourUrlForShowcase(activeShowcase.value) }) as never,
+      style: buildStyle(style, {
+        baseUrl: pmtilesUrl,
+        baseArtifact: activeInitialCoverage.baseArtifacts[0],
+        terrainArtifacts: activeInitialCoverage.terrainArtifacts,
+      }) as never,
       center: activeShowcase.value.center,
       zoom: activeShowcase.value.zoom,
       preserveDrawingBuffer: true,
@@ -1025,9 +1095,9 @@ onMounted(async () => {
         'roads-major',
         'roads-minor',
         'paths-trails',
-        'contours-minor',
-        'contours-index',
-        'contours-major',
+        ...((map.getStyle() as { layers?: Array<{ id?: string }> }).layers || [])
+          .map(layer => String(layer.id || ''))
+          .filter(layerId => layerId.startsWith('contours-') || layerId.startsWith('contour-elevation-labels-')),
         'poi',
         'peaks',
         'park-labels',
@@ -1113,6 +1183,17 @@ const InfoBlock = defineComponent({
 .atlas-architecture-node span { display:block; color:rgb(120 113 108); font-size:0.62rem; font-weight:800; letter-spacing:0.11em; text-transform:uppercase; }
 .atlas-architecture-node strong { display:block; margin-top:0.25rem; color:rgb(28 25 23); font-size:0.75rem; line-height:1.35; }
 .atlas-architecture-arrow { align-self:center; color:rgb(120 113 108); font-size:0.75rem; font-weight:800; }
+.coverage-matrix { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.45rem; min-width:min(100%, 36rem); }
+.coverage-chip { display:flex; min-height:3rem; flex-direction:column; align-items:flex-start; justify-content:center; gap:0.15rem; border-radius:7px; border:1px solid rgb(231 229 228); background:rgb(250 250 249); padding:0.5rem 0.6rem; text-align:left; transition:background-color 150ms ease, border-color 150ms ease; }
+.coverage-chip:hover { background:white; border-color:rgb(214 211 209); }
+.coverage-chip span { color:rgb(28 25 23); font-size:0.72rem; font-weight:800; line-height:1.15; }
+.coverage-chip strong { color:rgb(120 113 108); font-size:0.62rem; font-weight:800; letter-spacing:0.08em; line-height:1.15; text-transform:uppercase; }
+.coverage-chip--terrain { border-color:rgb(167 243 208); background:rgb(240 253 244); }
+.coverage-chip--terrain strong { color:rgb(4 120 87); }
+.coverage-chip--base { border-color:rgb(253 230 138); background:rgb(255 251 235); }
+.coverage-chip--base strong { color:rgb(180 83 9); }
+.coverage-chip--missing { border-color:rgb(254 202 202); background:rgb(254 242 242); }
+.coverage-chip--missing strong { color:rgb(185 28 28); }
 .showcase-button { display:inline-flex; align-items:center; justify-content:center; min-height:2rem; border-radius:999px; border:1px solid rgb(231 229 228); background:white; color:rgb(68 64 60); padding:0.42rem 0.74rem; font-size:0.75rem; font-weight:700; transition:background-color 150ms ease, border-color 150ms ease, color 150ms ease; white-space:nowrap; }
 .showcase-button:hover { background:rgb(245 245 244); border-color:rgb(214 211 209); }
 .showcase-button--active { background:rgb(28 25 23); border-color:rgb(28 25 23); color:white; }
@@ -1233,5 +1314,6 @@ const InfoBlock = defineComponent({
   .atlas-architecture { grid-template-columns:1fr; }
   .atlas-architecture-arrow { justify-self:center; transform:rotate(90deg); }
   .atlas-architecture-node { min-width:0; }
+  .coverage-matrix { grid-template-columns:1fr; min-width:0; }
 }
 </style>

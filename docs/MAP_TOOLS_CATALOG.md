@@ -36,7 +36,7 @@ flowchart LR
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Watercolor and toner raster art; toner label-family toggle | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
 | RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles | Beta | Self-hosted | Contiguous-US staging PMTiles base atlas served through `/api/atlas/tiles`; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
-| RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Live regional contour packs for Driftless, Yosemite, Rocky Mountain, Smokies, and North Shore; hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
+| RadMaps Terrain Atlas | `radmaps-terrain`, `radmaps-contours`, `radmaps-hillshade`, `radmaps-landcover`, `RadMaps Simple Contour` | Beta | Self-hosted | Staging manifest now carries verified `us-terrain-phase1` contour shards plus the contiguous-US base atlas; hillshade, slope/aspect textures, hydro emphasis, landcover masks next | `atlas_manifest_id`, `atlas_style_id`, `atlas_layers`, `atlas_layer_settings`, `contour_*`, `hillshade_*`, `terrain_exaggeration` | Depends on selected DEM and landcover sources; prefer public-domain or permissive sources. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
 ## Layer Capability Accounting
@@ -121,7 +121,7 @@ flowchart LR
 Why this is attractive:
 
 - PMTiles is designed as a single-file tile archive that can live on static object storage and be read by HTTP range requests.
-- Atlas Lab currently reads PMTiles through the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` endpoint. That keeps the browser on ordinary MVT tile URLs, gives us an obvious future Cloudflare Worker shape, and creates a clean place for cache/observability controls.
+- Atlas Lab resolves approved PMTiles artifacts from the active Atlas manifest. When `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` is configured it prefers the Cloudflare Worker route `/tiles/{environment}/{artifactId}/{z}/{x}/{y}.mvt`; otherwise local/admin development uses the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` fallback. Production traffic should not use caller-supplied raw tile URLs.
 - Planetiler can generate planet-scale vector tiles from OSM and other geographic sources without a PostGIS tile stack.
 - Tilemaker is simpler for local/regional experiments and lets us author Lua profiles for exactly the layer schema we want.
 - Vector layers let themes blend water, roads, labels, POIs, landcover, and buildings separately instead of pushing color transforms over baked rasters.
@@ -170,10 +170,9 @@ Current live terrain packs:
 | Region | Object | Notes |
 |---|---|---|
 | Driftless | `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles` | Original contour proving pack used as the local/default fallback. |
-| Yosemite | `atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles` | Mountain showcase pack wired into Atlas Lab region switching. |
-| Rocky Mountain | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` | High-relief mountain showcase pack wired into Atlas Lab region switching. |
-| Smokies | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` | Eastern mountain showcase pack wired into Atlas Lab region switching. |
-| North Shore | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` | Midwest/North Shore showcase pack wired into Atlas Lab region switching. |
+| `us-terrain-phase1` | 177 shard artifacts in `public/atlas/manifests/staging.json` | Verified staging coverage for Yosemite/Sierra, Rocky Mountain/Front Range, Smokies/Appalachia, Moab/Canyonlands, Seattle/Cascades, and Acadia via route-bbox artifact resolution. |
+| `us-terrain-backbone` | 136 shard artifacts from the 2026-05-18 build | Successful broader terrain run; sync into manifests as needed for additional staging coverage. |
+| Yosemite / Rocky / Smokies / North Shore legacy packs | 2026-05-17 single-region objects | Older showcase proving packs retained for fallback/history, no longer the primary Atlas Lab coverage model. |
 
 Terrain build config now lives in `atlas/terrain-regions.json`. It defines named contour regions and packs so we can run the same build system for local showcase packs, Midwest coverage, and then US/global coverage. Use:
 

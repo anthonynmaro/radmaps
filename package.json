@@ -17,6 +17,7 @@
     "atlas:validate-pmtiles": "node scripts/atlas-validate-pmtiles.mjs",
     "atlas:generate-manifest": "node scripts/atlas-generate-manifest.mjs",
     "atlas:terrain-plan": "node scripts/atlas-terrain-plan.mjs",
+    "atlas:sync-terrain-manifest": "node scripts/atlas-sync-terrain-manifest.mjs",
     "atlas:build-contours": "node scripts/build-contour-pmtiles.mjs",
     "atlas:style-agent": "node scripts/atlas-style-agent.mjs",
     "atlas:upload-object": "node scripts/upload-atlas-object.mjs",

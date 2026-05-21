@@ -169,9 +169,10 @@ export function resolveAtlasArtifacts(
 ): AtlasResolvedArtifacts {
   const artifactsByKind = (['base', 'contours', 'hillshade', 'publicLands', 'poi'] as const)
     .reduce<Partial<Record<AtlasArtifactKey, AtlasManifestArtifact[]>>>((acc, key) => {
+      const manifestHasEntry = Object.prototype.hasOwnProperty.call(manifest.artifacts || {}, key)
       const manifestArtifacts = atlasManifestArtifacts(manifest, key)
       const fallbackArtifacts = atlasManifestArtifacts(fallback, key)
-      const resolved = (manifestArtifacts.length ? manifestArtifacts : fallbackArtifacts)
+      const resolved = (manifestHasEntry ? manifestArtifacts : fallbackArtifacts)
         .filter(artifact => atlasArtifactIntersectsBbox(artifact, options.bbox))
       if (resolved.length) acc[key] = resolved
       return acc

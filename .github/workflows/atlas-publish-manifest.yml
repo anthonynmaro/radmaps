@@ -1,0 +1,58 @@
+name: Atlas Publish Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Atlas manifest environment to publish
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      verify:
+        description: Verify the public manifest URL after upload
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish-manifest:
+    name: Publish ${{ inputs.environment }} atlas manifest
+    runs-on: ubuntu-latest
+    env:
+      ATLAS_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'radmaps-atlas-prod' || 'radmaps-atlas-staging' }}
+      ATLAS_PUBLIC_BASE_URL: ${{ inputs.environment == 'production' && secrets.ATLAS_PROD_PUBLIC_BASE_URL || secrets.ATLAS_STAGING_PUBLIC_BASE_URL }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_SESSION_TOKEN: ${{ secrets.R2_SESSION_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck manifest tooling
+        run: npm run typecheck
+
+      - name: Upload manifest to R2
+        run: |
+          set -euo pipefail
+          node scripts/upload-atlas-object.mjs \
+            --bucket "$ATLAS_STORAGE_BUCKET" \
+            --source "public/atlas/manifests/${{ inputs.environment }}.json" \
+            --object "atlas/v1/manifests/${{ inputs.environment }}.json" \
+            --content-type "application/json; charset=utf-8" \
+            --verify "${{ inputs.verify == true && 'json' || 'none' }}"

@@ -45,7 +45,4610 @@
         "status": "staging"
       }
     ],
-    "contours": []
+    "contours": [
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r1c1/2026-05-18/radmaps-appalachia-smokies-expanded-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r1c1/2026-05-18/radmaps-appalachia-smokies-expanded-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -84.4,
+          35,
+          -83.99,
+          35.27
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16846695,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r1c1",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r1c2/2026-05-18/radmaps-appalachia-smokies-expanded-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r1c2/2026-05-18/radmaps-appalachia-smokies-expanded-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.99,
+          35,
+          -83.58,
+          35.27
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 21503768,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r1c2",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r1c3/2026-05-18/radmaps-appalachia-smokies-expanded-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r1c3/2026-05-18/radmaps-appalachia-smokies-expanded-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.58,
+          35,
+          -83.17,
+          35.27
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 20606548,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r1c3",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r1c4/2026-05-18/radmaps-appalachia-smokies-expanded-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r1c4/2026-05-18/radmaps-appalachia-smokies-expanded-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.17,
+          35,
+          -82.76,
+          35.27
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18934247,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r1c4",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r1c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r1c5/2026-05-18/radmaps-appalachia-smokies-expanded-r1c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r1c5/2026-05-18/radmaps-appalachia-smokies-expanded-r1c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -82.76,
+          35,
+          -82.35,
+          35.27
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13261177,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r1c5",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r2c1/2026-05-18/radmaps-appalachia-smokies-expanded-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r2c1/2026-05-18/radmaps-appalachia-smokies-expanded-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -84.4,
+          35.27,
+          -83.99,
+          35.54
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18304075,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r2c1",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r2c2/2026-05-18/radmaps-appalachia-smokies-expanded-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r2c2/2026-05-18/radmaps-appalachia-smokies-expanded-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.99,
+          35.27,
+          -83.58,
+          35.54
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 26288708,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r2c2",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r2c3/2026-05-18/radmaps-appalachia-smokies-expanded-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r2c3/2026-05-18/radmaps-appalachia-smokies-expanded-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.58,
+          35.27,
+          -83.17,
+          35.54
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 24204133,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r2c3",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r2c4/2026-05-18/radmaps-appalachia-smokies-expanded-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r2c4/2026-05-18/radmaps-appalachia-smokies-expanded-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.17,
+          35.27,
+          -82.76,
+          35.54
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 25448890,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r2c4",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r2c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r2c5/2026-05-18/radmaps-appalachia-smokies-expanded-r2c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r2c5/2026-05-18/radmaps-appalachia-smokies-expanded-r2c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -82.76,
+          35.27,
+          -82.35,
+          35.54
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13465998,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r2c5",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r3c1/2026-05-18/radmaps-appalachia-smokies-expanded-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r3c1/2026-05-18/radmaps-appalachia-smokies-expanded-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -84.4,
+          35.54,
+          -83.99,
+          35.81
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7437699,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r3c1",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r3c2/2026-05-18/radmaps-appalachia-smokies-expanded-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r3c2/2026-05-18/radmaps-appalachia-smokies-expanded-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.99,
+          35.54,
+          -83.58,
+          35.81
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 19182298,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r3c2",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r3c3/2026-05-18/radmaps-appalachia-smokies-expanded-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r3c3/2026-05-18/radmaps-appalachia-smokies-expanded-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.58,
+          35.54,
+          -83.17,
+          35.81
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 26307346,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r3c3",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r3c4/2026-05-18/radmaps-appalachia-smokies-expanded-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r3c4/2026-05-18/radmaps-appalachia-smokies-expanded-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.17,
+          35.54,
+          -82.76,
+          35.81
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 23860876,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r3c4",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r3c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r3c5/2026-05-18/radmaps-appalachia-smokies-expanded-r3c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r3c5/2026-05-18/radmaps-appalachia-smokies-expanded-r3c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -82.76,
+          35.54,
+          -82.35,
+          35.81
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16111631,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r3c5",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r4c1/2026-05-18/radmaps-appalachia-smokies-expanded-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r4c1/2026-05-18/radmaps-appalachia-smokies-expanded-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -84.4,
+          35.81,
+          -83.99,
+          36.08
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8563089,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r4c1",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r4c2/2026-05-18/radmaps-appalachia-smokies-expanded-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r4c2/2026-05-18/radmaps-appalachia-smokies-expanded-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.99,
+          35.81,
+          -83.58,
+          36.08
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8093845,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r4c2",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r4c3/2026-05-18/radmaps-appalachia-smokies-expanded-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r4c3/2026-05-18/radmaps-appalachia-smokies-expanded-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.58,
+          35.81,
+          -83.17,
+          36.08
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10274060,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r4c3",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r4c4/2026-05-18/radmaps-appalachia-smokies-expanded-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r4c4/2026-05-18/radmaps-appalachia-smokies-expanded-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.17,
+          35.81,
+          -82.76,
+          36.08
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18218366,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r4c4",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r4c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r4c5/2026-05-18/radmaps-appalachia-smokies-expanded-r4c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r4c5/2026-05-18/radmaps-appalachia-smokies-expanded-r4c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -82.76,
+          35.81,
+          -82.35,
+          36.08
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 23823792,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r4c5",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r5c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r5c1/2026-05-18/radmaps-appalachia-smokies-expanded-r5c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r5c1/2026-05-18/radmaps-appalachia-smokies-expanded-r5c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -84.4,
+          36.08,
+          -83.99,
+          36.35
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17717859,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r5c1",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r5c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r5c2/2026-05-18/radmaps-appalachia-smokies-expanded-r5c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r5c2/2026-05-18/radmaps-appalachia-smokies-expanded-r5c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.99,
+          36.08,
+          -83.58,
+          36.35
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10916655,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r5c2",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r5c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r5c3/2026-05-18/radmaps-appalachia-smokies-expanded-r5c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r5c3/2026-05-18/radmaps-appalachia-smokies-expanded-r5c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.58,
+          36.08,
+          -83.17,
+          36.35
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8053710,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r5c3",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r5c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r5c4/2026-05-18/radmaps-appalachia-smokies-expanded-r5c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r5c4/2026-05-18/radmaps-appalachia-smokies-expanded-r5c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -83.17,
+          36.08,
+          -82.76,
+          36.35
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8408707,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r5c4",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-appalachia-smokies-expanded-r5c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/appalachia-smokies-expanded-r5c5/2026-05-18/radmaps-appalachia-smokies-expanded-r5c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/appalachia-smokies-expanded-r5c5/2026-05-18/radmaps-appalachia-smokies-expanded-r5c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -82.76,
+          36.08,
+          -82.35,
+          36.35
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12285594,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "appalachia-smokies-expanded-r5c5",
+        "sourceRegion": "appalachia-smokies-expanded"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r1c1/2026-05-18/radmaps-midwest-chicago-lake-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r1c1/2026-05-18/radmaps-midwest-chicago-lake-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.25,
+          40.75,
+          -88.47,
+          41.3
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 5084505,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r1c1",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r1c2/2026-05-18/radmaps-midwest-chicago-lake-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r1c2/2026-05-18/radmaps-midwest-chicago-lake-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -88.47,
+          40.75,
+          -87.69,
+          41.3
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3364948,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r1c2",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r1c3/2026-05-18/radmaps-midwest-chicago-lake-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r1c3/2026-05-18/radmaps-midwest-chicago-lake-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -87.69,
+          40.75,
+          -86.91,
+          41.3
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3230179,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r1c3",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r1c4/2026-05-18/radmaps-midwest-chicago-lake-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r1c4/2026-05-18/radmaps-midwest-chicago-lake-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.91,
+          40.75,
+          -86.13,
+          41.3
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4776465,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r1c4",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r1c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r1c5/2026-05-18/radmaps-midwest-chicago-lake-r1c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r1c5/2026-05-18/radmaps-midwest-chicago-lake-r1c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.13,
+          40.75,
+          -85.35,
+          41.3
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7649278,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r1c5",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r2c1/2026-05-18/radmaps-midwest-chicago-lake-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r2c1/2026-05-18/radmaps-midwest-chicago-lake-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.25,
+          41.3,
+          -88.47,
+          41.85
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6761426,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r2c1",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r2c2/2026-05-18/radmaps-midwest-chicago-lake-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r2c2/2026-05-18/radmaps-midwest-chicago-lake-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -88.47,
+          41.3,
+          -87.69,
+          41.85
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6544076,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r2c2",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r2c3/2026-05-18/radmaps-midwest-chicago-lake-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r2c3/2026-05-18/radmaps-midwest-chicago-lake-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -87.69,
+          41.3,
+          -86.91,
+          41.85
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4235484,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r2c3",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r2c4/2026-05-18/radmaps-midwest-chicago-lake-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r2c4/2026-05-18/radmaps-midwest-chicago-lake-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.91,
+          41.3,
+          -86.13,
+          41.85
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 5966886,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r2c4",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r2c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r2c5/2026-05-18/radmaps-midwest-chicago-lake-r2c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r2c5/2026-05-18/radmaps-midwest-chicago-lake-r2c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.13,
+          41.3,
+          -85.35,
+          41.85
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6428646,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r2c5",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r3c1/2026-05-18/radmaps-midwest-chicago-lake-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r3c1/2026-05-18/radmaps-midwest-chicago-lake-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.25,
+          41.85,
+          -88.47,
+          42.4
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7381626,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r3c1",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r3c2/2026-05-18/radmaps-midwest-chicago-lake-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r3c2/2026-05-18/radmaps-midwest-chicago-lake-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -88.47,
+          41.85,
+          -87.69,
+          42.4
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7024382,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r3c2",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r3c3/2026-05-18/radmaps-midwest-chicago-lake-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r3c3/2026-05-18/radmaps-midwest-chicago-lake-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -87.69,
+          41.85,
+          -86.91,
+          42.4
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 158463,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r3c3",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r3c4/2026-05-18/radmaps-midwest-chicago-lake-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r3c4/2026-05-18/radmaps-midwest-chicago-lake-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.91,
+          41.85,
+          -86.13,
+          42.4
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4147819,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r3c4",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r3c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r3c5/2026-05-18/radmaps-midwest-chicago-lake-r3c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r3c5/2026-05-18/radmaps-midwest-chicago-lake-r3c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.13,
+          41.85,
+          -85.35,
+          42.4
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8802141,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r3c5",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r4c1/2026-05-18/radmaps-midwest-chicago-lake-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r4c1/2026-05-18/radmaps-midwest-chicago-lake-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.25,
+          42.4,
+          -88.47,
+          42.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10036076,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r4c1",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r4c2/2026-05-18/radmaps-midwest-chicago-lake-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r4c2/2026-05-18/radmaps-midwest-chicago-lake-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -88.47,
+          42.4,
+          -87.69,
+          42.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8154445,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r4c2",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r4c3/2026-05-18/radmaps-midwest-chicago-lake-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r4c3/2026-05-18/radmaps-midwest-chicago-lake-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -87.69,
+          42.4,
+          -86.91,
+          42.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 763,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r4c3",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r4c4/2026-05-18/radmaps-midwest-chicago-lake-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r4c4/2026-05-18/radmaps-midwest-chicago-lake-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.91,
+          42.4,
+          -86.13,
+          42.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1080095,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r4c4",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-chicago-lake-r4c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-chicago-lake-r4c5/2026-05-18/radmaps-midwest-chicago-lake-r4c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-chicago-lake-r4c5/2026-05-18/radmaps-midwest-chicago-lake-r4c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -86.13,
+          42.4,
+          -85.35,
+          42.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10020937,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-chicago-lake-r4c5",
+        "sourceRegion": "midwest-chicago-lake"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r1c1/2026-05-18/radmaps-midwest-driftless-expanded-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r1c1/2026-05-18/radmaps-midwest-driftless-expanded-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.2,
+          42.25,
+          -90.95,
+          43.016667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 21007009,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r1c1",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r1c2/2026-05-18/radmaps-midwest-driftless-expanded-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r1c2/2026-05-18/radmaps-midwest-driftless-expanded-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.95,
+          42.25,
+          -89.7,
+          43.016667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 32781428,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r1c2",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r1c3/2026-05-18/radmaps-midwest-driftless-expanded-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r1c3/2026-05-18/radmaps-midwest-driftless-expanded-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.7,
+          42.25,
+          -88.45,
+          43.016667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14164010,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r1c3",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r2c1/2026-05-18/radmaps-midwest-driftless-expanded-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r2c1/2026-05-18/radmaps-midwest-driftless-expanded-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.2,
+          43.016667,
+          -90.95,
+          43.783333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 43094113,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r2c1",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r2c2/2026-05-18/radmaps-midwest-driftless-expanded-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r2c2/2026-05-18/radmaps-midwest-driftless-expanded-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.95,
+          43.016667,
+          -89.7,
+          43.783333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 49672279,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r2c2",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r2c3/2026-05-18/radmaps-midwest-driftless-expanded-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r2c3/2026-05-18/radmaps-midwest-driftless-expanded-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.7,
+          43.016667,
+          -88.45,
+          43.783333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15033826,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r2c3",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r3c1/2026-05-18/radmaps-midwest-driftless-expanded-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r3c1/2026-05-18/radmaps-midwest-driftless-expanded-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.2,
+          43.783333,
+          -90.95,
+          44.55
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 50250010,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r3c1",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r3c2/2026-05-18/radmaps-midwest-driftless-expanded-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r3c2/2026-05-18/radmaps-midwest-driftless-expanded-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.95,
+          43.783333,
+          -89.7,
+          44.55
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15335558,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r3c2",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-driftless-expanded-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-driftless-expanded-r3c3/2026-05-18/radmaps-midwest-driftless-expanded-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-driftless-expanded-r3c3/2026-05-18/radmaps-midwest-driftless-expanded-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -89.7,
+          43.783333,
+          -88.45,
+          44.55
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10001835,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-driftless-expanded-r3c3",
+        "sourceRegion": "midwest-driftless-expanded"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r1c1/2026-05-18/radmaps-midwest-northwoods-superior-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r1c1/2026-05-18/radmaps-midwest-northwoods-superior-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -93.65,
+          46,
+          -92.4875,
+          46.883333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8845836,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r1c1",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r1c2/2026-05-18/radmaps-midwest-northwoods-superior-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r1c2/2026-05-18/radmaps-midwest-northwoods-superior-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.4875,
+          46,
+          -91.325,
+          46.883333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14143754,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r1c2",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r1c3/2026-05-18/radmaps-midwest-northwoods-superior-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r1c3/2026-05-18/radmaps-midwest-northwoods-superior-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -91.325,
+          46,
+          -90.1625,
+          46.883333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15884396,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r1c3",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r1c4/2026-05-18/radmaps-midwest-northwoods-superior-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r1c4/2026-05-18/radmaps-midwest-northwoods-superior-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.1625,
+          46,
+          -89,
+          46.883333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17776271,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r1c4",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r2c1/2026-05-18/radmaps-midwest-northwoods-superior-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r2c1/2026-05-18/radmaps-midwest-northwoods-superior-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -93.65,
+          46.883333,
+          -92.4875,
+          47.766667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 10904175,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r2c1",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r2c2/2026-05-18/radmaps-midwest-northwoods-superior-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r2c2/2026-05-18/radmaps-midwest-northwoods-superior-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.4875,
+          46.883333,
+          -91.325,
+          47.766667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12848075,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r2c2",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r2c3/2026-05-18/radmaps-midwest-northwoods-superior-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r2c3/2026-05-18/radmaps-midwest-northwoods-superior-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -91.325,
+          46.883333,
+          -90.1625,
+          47.766667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7979787,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r2c3",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r2c4/2026-05-18/radmaps-midwest-northwoods-superior-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r2c4/2026-05-18/radmaps-midwest-northwoods-superior-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.1625,
+          46.883333,
+          -89,
+          47.766667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 344118,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r2c4",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r3c1/2026-05-18/radmaps-midwest-northwoods-superior-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r3c1/2026-05-18/radmaps-midwest-northwoods-superior-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -93.65,
+          47.766667,
+          -92.4875,
+          48.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13557388,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r3c1",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r3c2/2026-05-18/radmaps-midwest-northwoods-superior-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r3c2/2026-05-18/radmaps-midwest-northwoods-superior-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -92.4875,
+          47.766667,
+          -91.325,
+          48.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 24355467,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r3c2",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r3c3/2026-05-18/radmaps-midwest-northwoods-superior-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r3c3/2026-05-18/radmaps-midwest-northwoods-superior-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -91.325,
+          47.766667,
+          -90.1625,
+          48.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 27993385,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r3c3",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-midwest-northwoods-superior-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/midwest-northwoods-superior-r3c4/2026-05-18/radmaps-midwest-northwoods-superior-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/midwest-northwoods-superior-r3c4/2026-05-18/radmaps-midwest-northwoods-superior-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -90.1625,
+          47.766667,
+          -89,
+          48.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 25675139,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "midwest-northwoods-superior-r3c4",
+        "sourceRegion": "midwest-northwoods-superior"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r1c1/2026-05-18/radmaps-northeast-acadia-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r1c1/2026-05-18/radmaps-northeast-acadia-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.65,
+          44.1,
+          -68.4,
+          44.283333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1093832,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r1c1",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r1c2/2026-05-18/radmaps-northeast-acadia-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r1c2/2026-05-18/radmaps-northeast-acadia-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.4,
+          44.1,
+          -68.15,
+          44.283333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 712541,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r1c2",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r1c3/2026-05-18/radmaps-northeast-acadia-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r1c3/2026-05-18/radmaps-northeast-acadia-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.15,
+          44.1,
+          -67.9,
+          44.283333
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 759,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r1c3",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r2c1/2026-05-18/radmaps-northeast-acadia-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r2c1/2026-05-18/radmaps-northeast-acadia-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.65,
+          44.283333,
+          -68.4,
+          44.466667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2361257,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r2c1",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r2c2/2026-05-18/radmaps-northeast-acadia-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r2c2/2026-05-18/radmaps-northeast-acadia-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.4,
+          44.283333,
+          -68.15,
+          44.466667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4545219,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r2c2",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r2c3/2026-05-18/radmaps-northeast-acadia-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r2c3/2026-05-18/radmaps-northeast-acadia-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.15,
+          44.283333,
+          -67.9,
+          44.466667
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1210586,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r2c3",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r3c1/2026-05-18/radmaps-northeast-acadia-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r3c1/2026-05-18/radmaps-northeast-acadia-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.65,
+          44.466667,
+          -68.4,
+          44.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2716995,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r3c1",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r3c2/2026-05-18/radmaps-northeast-acadia-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r3c2/2026-05-18/radmaps-northeast-acadia-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.4,
+          44.466667,
+          -68.15,
+          44.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2711610,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r3c2",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-northeast-acadia-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/northeast-acadia-r3c3/2026-05-18/radmaps-northeast-acadia-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/northeast-acadia-r3c3/2026-05-18/radmaps-northeast-acadia-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -68.15,
+          44.466667,
+          -67.9,
+          44.65
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3506986,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "northeast-acadia-r3c3",
+        "sourceRegion": "northeast-acadia"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c1/2026-05-18/radmaps-pacific-northwest-cascades-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c1/2026-05-18/radmaps-pacific-northwest-cascades-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          46.7,
+          -122.266667,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 9789033,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c2/2026-05-18/radmaps-pacific-northwest-cascades-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c2/2026-05-18/radmaps-pacific-northwest-cascades-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          46.7,
+          -121.933333,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13124305,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c3/2026-05-18/radmaps-pacific-northwest-cascades-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c3/2026-05-18/radmaps-pacific-northwest-cascades-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          46.7,
+          -121.6,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 24452494,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c4/2026-05-18/radmaps-pacific-northwest-cascades-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c4/2026-05-18/radmaps-pacific-northwest-cascades-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          46.7,
+          -121.266667,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 20273647,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c5/2026-05-18/radmaps-pacific-northwest-cascades-r1c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c5/2026-05-18/radmaps-pacific-northwest-cascades-r1c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          46.7,
+          -120.933333,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18168825,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r1c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r1c6/2026-05-18/radmaps-pacific-northwest-cascades-r1c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r1c6/2026-05-18/radmaps-pacific-northwest-cascades-r1c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          46.7,
+          -120.6,
+          46.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11386895,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r1c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c1/2026-05-18/radmaps-pacific-northwest-cascades-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c1/2026-05-18/radmaps-pacific-northwest-cascades-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          46.95,
+          -122.266667,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1750889,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c2/2026-05-18/radmaps-pacific-northwest-cascades-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c2/2026-05-18/radmaps-pacific-northwest-cascades-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          46.95,
+          -121.933333,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7844205,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c3/2026-05-18/radmaps-pacific-northwest-cascades-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c3/2026-05-18/radmaps-pacific-northwest-cascades-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          46.95,
+          -121.6,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 21967477,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c4/2026-05-18/radmaps-pacific-northwest-cascades-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c4/2026-05-18/radmaps-pacific-northwest-cascades-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          46.95,
+          -121.266667,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 22319229,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c5/2026-05-18/radmaps-pacific-northwest-cascades-r2c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c5/2026-05-18/radmaps-pacific-northwest-cascades-r2c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          46.95,
+          -120.933333,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16974447,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r2c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r2c6/2026-05-18/radmaps-pacific-northwest-cascades-r2c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r2c6/2026-05-18/radmaps-pacific-northwest-cascades-r2c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          46.95,
+          -120.6,
+          47.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 9115606,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r2c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c1/2026-05-18/radmaps-pacific-northwest-cascades-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c1/2026-05-18/radmaps-pacific-northwest-cascades-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          47.2,
+          -122.266667,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3186633,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c2/2026-05-18/radmaps-pacific-northwest-cascades-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c2/2026-05-18/radmaps-pacific-northwest-cascades-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          47.2,
+          -121.933333,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3510787,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c3/2026-05-18/radmaps-pacific-northwest-cascades-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c3/2026-05-18/radmaps-pacific-northwest-cascades-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          47.2,
+          -121.6,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16816464,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c4/2026-05-18/radmaps-pacific-northwest-cascades-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c4/2026-05-18/radmaps-pacific-northwest-cascades-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          47.2,
+          -121.266667,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 20471807,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c5/2026-05-18/radmaps-pacific-northwest-cascades-r3c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c5/2026-05-18/radmaps-pacific-northwest-cascades-r3c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          47.2,
+          -120.933333,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18223653,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r3c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r3c6/2026-05-18/radmaps-pacific-northwest-cascades-r3c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r3c6/2026-05-18/radmaps-pacific-northwest-cascades-r3c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          47.2,
+          -120.6,
+          47.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18677995,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r3c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c1/2026-05-18/radmaps-pacific-northwest-cascades-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c1/2026-05-18/radmaps-pacific-northwest-cascades-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          47.45,
+          -122.266667,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3200503,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c2/2026-05-18/radmaps-pacific-northwest-cascades-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c2/2026-05-18/radmaps-pacific-northwest-cascades-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          47.45,
+          -121.933333,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 5648889,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c3/2026-05-18/radmaps-pacific-northwest-cascades-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c3/2026-05-18/radmaps-pacific-northwest-cascades-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          47.45,
+          -121.6,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13411471,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c4/2026-05-18/radmaps-pacific-northwest-cascades-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c4/2026-05-18/radmaps-pacific-northwest-cascades-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          47.45,
+          -121.266667,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 30355494,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c5/2026-05-18/radmaps-pacific-northwest-cascades-r4c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c5/2026-05-18/radmaps-pacific-northwest-cascades-r4c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          47.45,
+          -120.933333,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 25623762,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r4c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r4c6/2026-05-18/radmaps-pacific-northwest-cascades-r4c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r4c6/2026-05-18/radmaps-pacific-northwest-cascades-r4c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          47.45,
+          -120.6,
+          47.7
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 26852139,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r4c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c1/2026-05-18/radmaps-pacific-northwest-cascades-r5c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c1/2026-05-18/radmaps-pacific-northwest-cascades-r5c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          47.7,
+          -122.266667,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2809426,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c2/2026-05-18/radmaps-pacific-northwest-cascades-r5c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c2/2026-05-18/radmaps-pacific-northwest-cascades-r5c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          47.7,
+          -121.933333,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3482736,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c3/2026-05-18/radmaps-pacific-northwest-cascades-r5c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c3/2026-05-18/radmaps-pacific-northwest-cascades-r5c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          47.7,
+          -121.6,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12407733,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c4/2026-05-18/radmaps-pacific-northwest-cascades-r5c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c4/2026-05-18/radmaps-pacific-northwest-cascades-r5c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          47.7,
+          -121.266667,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 28075495,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c5/2026-05-18/radmaps-pacific-northwest-cascades-r5c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c5/2026-05-18/radmaps-pacific-northwest-cascades-r5c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          47.7,
+          -120.933333,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 25377071,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r5c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r5c6/2026-05-18/radmaps-pacific-northwest-cascades-r5c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r5c6/2026-05-18/radmaps-pacific-northwest-cascades-r5c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          47.7,
+          -120.6,
+          47.95
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18030803,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r5c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c1/2026-05-18/radmaps-pacific-northwest-cascades-r6c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c1/2026-05-18/radmaps-pacific-northwest-cascades-r6c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.6,
+          47.95,
+          -122.266667,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3070209,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c1",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c2/2026-05-18/radmaps-pacific-northwest-cascades-r6c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c2/2026-05-18/radmaps-pacific-northwest-cascades-r6c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -122.266667,
+          47.95,
+          -121.933333,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3856061,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c2",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c3/2026-05-18/radmaps-pacific-northwest-cascades-r6c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c3/2026-05-18/radmaps-pacific-northwest-cascades-r6c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.933333,
+          47.95,
+          -121.6,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 19285792,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c3",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c4/2026-05-18/radmaps-pacific-northwest-cascades-r6c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c4/2026-05-18/radmaps-pacific-northwest-cascades-r6c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.6,
+          47.95,
+          -121.266667,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 31662243,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c4",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c5/2026-05-18/radmaps-pacific-northwest-cascades-r6c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c5/2026-05-18/radmaps-pacific-northwest-cascades-r6c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -121.266667,
+          47.95,
+          -120.933333,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 29508538,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c5",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-pacific-northwest-cascades-r6c6-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/pacific-northwest-cascades-r6c6/2026-05-18/radmaps-pacific-northwest-cascades-r6c6-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/pacific-northwest-cascades-r6c6/2026-05-18/radmaps-pacific-northwest-cascades-r6c6-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.933333,
+          47.95,
+          -120.6,
+          48.2
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 28638968,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "pacific-northwest-cascades-r6c6",
+        "sourceRegion": "pacific-northwest-cascades"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r1c1/2026-05-18/radmaps-rockies-colorado-front-range-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r1c1/2026-05-18/radmaps-rockies-colorado-front-range-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -106.25,
+          39.45,
+          -105.93,
+          39.71
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15701178,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r1c1",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r1c2/2026-05-18/radmaps-rockies-colorado-front-range-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r1c2/2026-05-18/radmaps-rockies-colorado-front-range-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.93,
+          39.45,
+          -105.61,
+          39.71
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 19076584,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r1c2",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r1c3/2026-05-18/radmaps-rockies-colorado-front-range-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r1c3/2026-05-18/radmaps-rockies-colorado-front-range-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.61,
+          39.45,
+          -105.29,
+          39.71
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13951367,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r1c3",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r1c4/2026-05-18/radmaps-rockies-colorado-front-range-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r1c4/2026-05-18/radmaps-rockies-colorado-front-range-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.29,
+          39.45,
+          -104.97,
+          39.71
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8163727,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r1c4",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r1c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r1c5/2026-05-18/radmaps-rockies-colorado-front-range-r1c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r1c5/2026-05-18/radmaps-rockies-colorado-front-range-r1c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -104.97,
+          39.45,
+          -104.65,
+          39.71
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2669048,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r1c5",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r2c1/2026-05-18/radmaps-rockies-colorado-front-range-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r2c1/2026-05-18/radmaps-rockies-colorado-front-range-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -106.25,
+          39.71,
+          -105.93,
+          39.97
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14660114,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r2c1",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r2c2/2026-05-18/radmaps-rockies-colorado-front-range-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r2c2/2026-05-18/radmaps-rockies-colorado-front-range-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.93,
+          39.71,
+          -105.61,
+          39.97
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17294088,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r2c2",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r2c3/2026-05-18/radmaps-rockies-colorado-front-range-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r2c3/2026-05-18/radmaps-rockies-colorado-front-range-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.61,
+          39.71,
+          -105.29,
+          39.97
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16082464,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r2c3",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r2c4/2026-05-18/radmaps-rockies-colorado-front-range-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r2c4/2026-05-18/radmaps-rockies-colorado-front-range-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.29,
+          39.71,
+          -104.97,
+          39.97
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4426740,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r2c4",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r2c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r2c5/2026-05-18/radmaps-rockies-colorado-front-range-r2c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r2c5/2026-05-18/radmaps-rockies-colorado-front-range-r2c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -104.97,
+          39.71,
+          -104.65,
+          39.97
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1256312,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r2c5",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r3c1/2026-05-18/radmaps-rockies-colorado-front-range-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r3c1/2026-05-18/radmaps-rockies-colorado-front-range-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -106.25,
+          39.97,
+          -105.93,
+          40.23
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11553189,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r3c1",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r3c2/2026-05-18/radmaps-rockies-colorado-front-range-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r3c2/2026-05-18/radmaps-rockies-colorado-front-range-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.93,
+          39.97,
+          -105.61,
+          40.23
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15381970,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r3c2",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r3c3/2026-05-18/radmaps-rockies-colorado-front-range-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r3c3/2026-05-18/radmaps-rockies-colorado-front-range-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.61,
+          39.97,
+          -105.29,
+          40.23
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15454363,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r3c3",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r3c4/2026-05-18/radmaps-rockies-colorado-front-range-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r3c4/2026-05-18/radmaps-rockies-colorado-front-range-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.29,
+          39.97,
+          -104.97,
+          40.23
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1994227,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r3c4",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r3c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r3c5/2026-05-18/radmaps-rockies-colorado-front-range-r3c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r3c5/2026-05-18/radmaps-rockies-colorado-front-range-r3c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -104.97,
+          39.97,
+          -104.65,
+          40.23
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1065691,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r3c5",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r4c1/2026-05-18/radmaps-rockies-colorado-front-range-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r4c1/2026-05-18/radmaps-rockies-colorado-front-range-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -106.25,
+          40.23,
+          -105.93,
+          40.49
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11518134,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r4c1",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r4c2/2026-05-18/radmaps-rockies-colorado-front-range-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r4c2/2026-05-18/radmaps-rockies-colorado-front-range-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.93,
+          40.23,
+          -105.61,
+          40.49
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18831607,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r4c2",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r4c3/2026-05-18/radmaps-rockies-colorado-front-range-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r4c3/2026-05-18/radmaps-rockies-colorado-front-range-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.61,
+          40.23,
+          -105.29,
+          40.49
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 16515973,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r4c3",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r4c4/2026-05-18/radmaps-rockies-colorado-front-range-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r4c4/2026-05-18/radmaps-rockies-colorado-front-range-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.29,
+          40.23,
+          -104.97,
+          40.49
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4985114,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r4c4",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r4c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r4c5/2026-05-18/radmaps-rockies-colorado-front-range-r4c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r4c5/2026-05-18/radmaps-rockies-colorado-front-range-r4c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -104.97,
+          40.23,
+          -104.65,
+          40.49
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1209569,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r4c5",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r5c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r5c1/2026-05-18/radmaps-rockies-colorado-front-range-r5c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r5c1/2026-05-18/radmaps-rockies-colorado-front-range-r5c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -106.25,
+          40.49,
+          -105.93,
+          40.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6474133,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r5c1",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r5c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r5c2/2026-05-18/radmaps-rockies-colorado-front-range-r5c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r5c2/2026-05-18/radmaps-rockies-colorado-front-range-r5c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.93,
+          40.49,
+          -105.61,
+          40.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13679857,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r5c2",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r5c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r5c3/2026-05-18/radmaps-rockies-colorado-front-range-r5c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r5c3/2026-05-18/radmaps-rockies-colorado-front-range-r5c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.61,
+          40.49,
+          -105.29,
+          40.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15160569,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r5c3",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r5c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r5c4/2026-05-18/radmaps-rockies-colorado-front-range-r5c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r5c4/2026-05-18/radmaps-rockies-colorado-front-range-r5c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -105.29,
+          40.49,
+          -104.97,
+          40.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6473673,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r5c4",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-rockies-colorado-front-range-r5c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/rockies-colorado-front-range-r5c5/2026-05-18/radmaps-rockies-colorado-front-range-r5c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/rockies-colorado-front-range-r5c5/2026-05-18/radmaps-rockies-colorado-front-range-r5c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -104.97,
+          40.49,
+          -104.65,
+          40.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 1116328,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "rockies-colorado-front-range-r5c5",
+        "sourceRegion": "rockies-colorado-front-range"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r1c1/2026-05-18/radmaps-sierra-yosemite-expanded-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r1c1/2026-05-18/radmaps-sierra-yosemite-expanded-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.35,
+          37.1,
+          -120.05,
+          37.37
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 2024882,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r1c1",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r1c2/2026-05-18/radmaps-sierra-yosemite-expanded-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r1c2/2026-05-18/radmaps-sierra-yosemite-expanded-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.05,
+          37.1,
+          -119.75,
+          37.37
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6680814,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r1c2",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r1c3/2026-05-18/radmaps-sierra-yosemite-expanded-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r1c3/2026-05-18/radmaps-sierra-yosemite-expanded-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.75,
+          37.1,
+          -119.45,
+          37.37
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11293215,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r1c3",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r1c4/2026-05-18/radmaps-sierra-yosemite-expanded-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r1c4/2026-05-18/radmaps-sierra-yosemite-expanded-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.45,
+          37.1,
+          -119.15,
+          37.37
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 15031976,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r1c4",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r1c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r1c5/2026-05-18/radmaps-sierra-yosemite-expanded-r1c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r1c5/2026-05-18/radmaps-sierra-yosemite-expanded-r1c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.15,
+          37.1,
+          -118.85,
+          37.37
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12387938,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r1c5",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r2c1/2026-05-18/radmaps-sierra-yosemite-expanded-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r2c1/2026-05-18/radmaps-sierra-yosemite-expanded-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.35,
+          37.37,
+          -120.05,
+          37.64
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8603435,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r2c1",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r2c2/2026-05-18/radmaps-sierra-yosemite-expanded-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r2c2/2026-05-18/radmaps-sierra-yosemite-expanded-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.05,
+          37.37,
+          -119.75,
+          37.64
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14136976,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r2c2",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r2c3/2026-05-18/radmaps-sierra-yosemite-expanded-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r2c3/2026-05-18/radmaps-sierra-yosemite-expanded-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.75,
+          37.37,
+          -119.45,
+          37.64
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13986451,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r2c3",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r2c4/2026-05-18/radmaps-sierra-yosemite-expanded-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r2c4/2026-05-18/radmaps-sierra-yosemite-expanded-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.45,
+          37.37,
+          -119.15,
+          37.64
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14153713,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r2c4",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r2c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r2c5/2026-05-18/radmaps-sierra-yosemite-expanded-r2c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r2c5/2026-05-18/radmaps-sierra-yosemite-expanded-r2c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.15,
+          37.37,
+          -118.85,
+          37.64
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17273945,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r2c5",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r3c1/2026-05-18/radmaps-sierra-yosemite-expanded-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r3c1/2026-05-18/radmaps-sierra-yosemite-expanded-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.35,
+          37.64,
+          -120.05,
+          37.91
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14241886,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r3c1",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r3c2/2026-05-18/radmaps-sierra-yosemite-expanded-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r3c2/2026-05-18/radmaps-sierra-yosemite-expanded-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.05,
+          37.64,
+          -119.75,
+          37.91
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17284118,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r3c2",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r3c3/2026-05-18/radmaps-sierra-yosemite-expanded-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r3c3/2026-05-18/radmaps-sierra-yosemite-expanded-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.75,
+          37.64,
+          -119.45,
+          37.91
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 17284081,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r3c3",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r3c4/2026-05-18/radmaps-sierra-yosemite-expanded-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r3c4/2026-05-18/radmaps-sierra-yosemite-expanded-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.45,
+          37.64,
+          -119.15,
+          37.91
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18231612,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r3c4",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r3c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r3c5/2026-05-18/radmaps-sierra-yosemite-expanded-r3c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r3c5/2026-05-18/radmaps-sierra-yosemite-expanded-r3c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.15,
+          37.64,
+          -118.85,
+          37.91
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 9342736,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r3c5",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r4c1/2026-05-18/radmaps-sierra-yosemite-expanded-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r4c1/2026-05-18/radmaps-sierra-yosemite-expanded-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.35,
+          37.91,
+          -120.05,
+          38.18
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14613066,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r4c1",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r4c2/2026-05-18/radmaps-sierra-yosemite-expanded-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r4c2/2026-05-18/radmaps-sierra-yosemite-expanded-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.05,
+          37.91,
+          -119.75,
+          38.18
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13447902,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r4c2",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r4c3/2026-05-18/radmaps-sierra-yosemite-expanded-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r4c3/2026-05-18/radmaps-sierra-yosemite-expanded-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.75,
+          37.91,
+          -119.45,
+          38.18
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 20592722,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r4c3",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r4c4/2026-05-18/radmaps-sierra-yosemite-expanded-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r4c4/2026-05-18/radmaps-sierra-yosemite-expanded-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.45,
+          37.91,
+          -119.15,
+          38.18
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18681861,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r4c4",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r4c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r4c5/2026-05-18/radmaps-sierra-yosemite-expanded-r4c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r4c5/2026-05-18/radmaps-sierra-yosemite-expanded-r4c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.15,
+          37.91,
+          -118.85,
+          38.18
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3889623,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r4c5",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r5c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r5c1/2026-05-18/radmaps-sierra-yosemite-expanded-r5c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r5c1/2026-05-18/radmaps-sierra-yosemite-expanded-r5c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.35,
+          38.18,
+          -120.05,
+          38.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13134533,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r5c1",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r5c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r5c2/2026-05-18/radmaps-sierra-yosemite-expanded-r5c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r5c2/2026-05-18/radmaps-sierra-yosemite-expanded-r5c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -120.05,
+          38.18,
+          -119.75,
+          38.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 14149309,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r5c2",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r5c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r5c3/2026-05-18/radmaps-sierra-yosemite-expanded-r5c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r5c3/2026-05-18/radmaps-sierra-yosemite-expanded-r5c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.75,
+          38.18,
+          -119.45,
+          38.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 18279613,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r5c3",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r5c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r5c4/2026-05-18/radmaps-sierra-yosemite-expanded-r5c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r5c4/2026-05-18/radmaps-sierra-yosemite-expanded-r5c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.45,
+          38.18,
+          -119.15,
+          38.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12005269,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r5c4",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-sierra-yosemite-expanded-r5c5-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/sierra-yosemite-expanded-r5c5/2026-05-18/radmaps-sierra-yosemite-expanded-r5c5-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/sierra-yosemite-expanded-r5c5/2026-05-18/radmaps-sierra-yosemite-expanded-r5c5-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -119.15,
+          38.18,
+          -118.85,
+          38.45
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 9037038,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "sierra-yosemite-expanded-r5c5",
+        "sourceRegion": "sierra-yosemite-expanded"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r1c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r1c1/2026-05-18/radmaps-southwest-moab-canyonlands-r1c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r1c1/2026-05-18/radmaps-southwest-moab-canyonlands-r1c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -110.2,
+          38,
+          -109.9125,
+          38.25
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11507119,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r1c1",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r1c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r1c2/2026-05-18/radmaps-southwest-moab-canyonlands-r1c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r1c2/2026-05-18/radmaps-southwest-moab-canyonlands-r1c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.9125,
+          38,
+          -109.625,
+          38.25
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11190801,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r1c2",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r1c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r1c3/2026-05-18/radmaps-southwest-moab-canyonlands-r1c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r1c3/2026-05-18/radmaps-southwest-moab-canyonlands-r1c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.625,
+          38,
+          -109.3375,
+          38.25
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7335884,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r1c3",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r1c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r1c4/2026-05-18/radmaps-southwest-moab-canyonlands-r1c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r1c4/2026-05-18/radmaps-southwest-moab-canyonlands-r1c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.3375,
+          38,
+          -109.05,
+          38.25
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 4884727,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r1c4",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r2c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r2c1/2026-05-18/radmaps-southwest-moab-canyonlands-r2c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r2c1/2026-05-18/radmaps-southwest-moab-canyonlands-r2c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -110.2,
+          38.25,
+          -109.9125,
+          38.5
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 11036489,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r2c1",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r2c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r2c2/2026-05-18/radmaps-southwest-moab-canyonlands-r2c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r2c2/2026-05-18/radmaps-southwest-moab-canyonlands-r2c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.9125,
+          38.25,
+          -109.625,
+          38.5
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 13352555,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r2c2",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r2c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r2c3/2026-05-18/radmaps-southwest-moab-canyonlands-r2c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r2c3/2026-05-18/radmaps-southwest-moab-canyonlands-r2c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.625,
+          38.25,
+          -109.3375,
+          38.5
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7645946,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r2c3",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r2c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r2c4/2026-05-18/radmaps-southwest-moab-canyonlands-r2c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r2c4/2026-05-18/radmaps-southwest-moab-canyonlands-r2c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.3375,
+          38.25,
+          -109.05,
+          38.5
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8345645,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r2c4",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r3c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r3c1/2026-05-18/radmaps-southwest-moab-canyonlands-r3c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r3c1/2026-05-18/radmaps-southwest-moab-canyonlands-r3c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -110.2,
+          38.5,
+          -109.9125,
+          38.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 6845599,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r3c1",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r3c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r3c2/2026-05-18/radmaps-southwest-moab-canyonlands-r3c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r3c2/2026-05-18/radmaps-southwest-moab-canyonlands-r3c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.9125,
+          38.5,
+          -109.625,
+          38.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 7018497,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r3c2",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r3c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r3c3/2026-05-18/radmaps-southwest-moab-canyonlands-r3c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r3c3/2026-05-18/radmaps-southwest-moab-canyonlands-r3c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.625,
+          38.5,
+          -109.3375,
+          38.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 9617134,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r3c3",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r3c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r3c4/2026-05-18/radmaps-southwest-moab-canyonlands-r3c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r3c4/2026-05-18/radmaps-southwest-moab-canyonlands-r3c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.3375,
+          38.5,
+          -109.05,
+          38.75
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 12133445,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r3c4",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r4c1-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r4c1/2026-05-18/radmaps-southwest-moab-canyonlands-r4c1-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r4c1/2026-05-18/radmaps-southwest-moab-canyonlands-r4c1-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -110.2,
+          38.75,
+          -109.9125,
+          39
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3794194,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r4c1",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r4c2-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r4c2/2026-05-18/radmaps-southwest-moab-canyonlands-r4c2-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r4c2/2026-05-18/radmaps-southwest-moab-canyonlands-r4c2-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.9125,
+          38.75,
+          -109.625,
+          39
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3651655,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r4c2",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r4c3-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r4c3/2026-05-18/radmaps-southwest-moab-canyonlands-r4c3-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r4c3/2026-05-18/radmaps-southwest-moab-canyonlands-r4c3-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.625,
+          38.75,
+          -109.3375,
+          39
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 3590071,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r4c3",
+        "sourceRegion": "southwest-moab-canyonlands"
+      },
+      {
+        "id": "radmaps-southwest-moab-canyonlands-r4c4-contours",
+        "kind": "contours",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/terrain/southwest-moab-canyonlands-r4c4/2026-05-18/radmaps-southwest-moab-canyonlands-r4c4-contours.pmtiles",
+        "objectPath": "atlas/v1/terrain/southwest-moab-canyonlands-r4c4/2026-05-18/radmaps-southwest-moab-canyonlands-r4c4-contours.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 14,
+        "bounds": [
+          -109.3375,
+          38.75,
+          -109.05,
+          39
+        ],
+        "layers": [
+          "contour"
+        ],
+        "bytes": 8361826,
+        "sourceLicenses": [
+          "Mapzen Terrain Tiles on AWS Open Data",
+          "RadMaps generated contours"
+        ],
+        "createdAt": "2026-05-18T00:00:00.000Z",
+        "status": "staging",
+        "terrainRegion": "southwest-moab-canyonlands-r4c4",
+        "sourceRegion": "southwest-moab-canyonlands"
+      }
+    ]
   },
   "layerCatalog": [
     "landcover",
@@ -55,7 +4658,8 @@
     "building",
     "transportation",
     "place",
-    "poi"
+    "poi",
+    "contour"
   ],
   "attribution": [
     {
@@ -68,5 +4672,6 @@
       "requiredText": "Atlas styling and derived tile packaging © RadMaps",
       "url": "https://radmaps.studio"
     }
-  ]
+  ],
+  "updatedAt": "2026-05-21T14:49:39.635Z"
 }

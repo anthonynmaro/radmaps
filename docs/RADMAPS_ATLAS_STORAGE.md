@@ -24,6 +24,12 @@ Current staging base archive:
 Current staging manifest:
 `atlas/v1/manifests/staging.json`
 
+The checked-in staging manifest now includes the contiguous-US base atlas and
+the verified `us-terrain-phase1` contour shard set from the successful
+2026-05-18 build. Atlas Lab consumes this manifest by route bbox, selecting the
+base atlas plus every intersecting contour artifact instead of hardcoding one
+small regional contour URL per showcase.
+
 Current production tile service code:
 `workers/atlas-tiles`
 
@@ -54,14 +60,20 @@ Current production contour archive:
 Current production manifest:
 `atlas/v1/manifests/production.json`
 
-Current staging terrain showcase packs:
+Current staging terrain coverage:
 
 | Region | Object | Bytes | Notes |
 |---|---:|---:|---|
+| `us-terrain-phase1` | 177 contour shard artifacts in `public/atlas/manifests/staging.json` | Manifest-derived | Verified 2026-05-18 staging contour coverage for Sierra/Yosemite, Colorado Front Range, Smokies/Appalachia, Moab/Canyonlands, Cascades/Seattle, and Acadia. |
+| `us-terrain-backbone` | 136 contour shard artifacts from the 2026-05-18 build | Manifest-sync candidate | Successful broader terrain build; sync to staging when those areas are needed in Atlas Lab or editor QA. |
 | Yosemite | `atlas/v1/terrain/yosemite/2026-05-17/radmaps-yosemite-contours.pmtiles` | `9,978,006` | Mountain contour showcase, z8-14. |
 | Rocky Mountain | `atlas/v1/terrain/rocky-mountain/2026-05-17/radmaps-rocky-mountain-contours.pmtiles` | `11,662,164` | High-relief contour showcase, z8-14. |
 | Smokies | `atlas/v1/terrain/smokies/2026-05-17/radmaps-smokies-contours.pmtiles` | `16,111,631` | Eastern mountain contour showcase, z8-14. |
 | North Shore | `atlas/v1/terrain/superior/2026-05-17/radmaps-superior-contours.pmtiles` | `4,390,525` | Midwest/North Shore contour showcase, z8-14. |
+
+The 2026-05-17 single-region objects are retained as fallback/history. The
+primary Atlas Lab model is now manifest artifact resolution, not a hardcoded
+small contour preview box.
 
 The manifest is the preferred app entry point. Direct PMTiles URLs are retained
 as local development and emergency fallbacks:
@@ -209,6 +221,13 @@ Publish the production manifest after all artifacts verify:
 
 ```bash
 npm run atlas:publish-manifest
+```
+
+Publish a staging or production manifest through GitHub Actions when local R2
+credentials are not available:
+
+```bash
+gh workflow run "Atlas Publish Manifest" --ref main -f environment=staging
 ```
 
 The R2 upload path:

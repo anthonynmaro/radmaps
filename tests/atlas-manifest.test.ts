@@ -62,4 +62,26 @@ describe('Atlas manifest resolver', () => {
     expect(findAtlasArtifact(manifest, 'terrain-west')?.objectPath).toBe('atlas/west.pmtiles')
     expect(findAtlasArtifact(manifest, 'missing')).toBeNull()
   })
+
+  it('does not fall back to legacy contours when a manifest explicitly has no contour artifacts', () => {
+    const fallback: AtlasManifest = {
+      artifacts: {
+        contours: [{
+          id: 'legacy-contours',
+          kind: 'contours',
+          url: 'https://tiles.example/legacy.pmtiles',
+        }],
+      },
+    }
+    const resolved = resolveAtlasArtifacts({
+      artifacts: {
+        base: manifest.artifacts!.base!,
+        contours: [],
+      },
+    }, fallback, { requiredKinds: ['base', 'contours'] })
+
+    expect(resolved.baseArtifacts.map(artifact => artifact.id)).toEqual(['base-us'])
+    expect(resolved.contourArtifacts).toEqual([])
+    expect(resolved.artifactIds).not.toContain('legacy-contours')
+  })
 })
