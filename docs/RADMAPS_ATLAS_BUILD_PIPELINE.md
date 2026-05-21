@@ -24,6 +24,11 @@ It is manually dispatched with:
   runner for real production builds
 - `dry_run`: defaults to `true`
 
+Environment naming: `staging` and `production` in this pipeline refer to Atlas
+R2 buckets/manifests and QA state, not separate Nuxt deployments. RadMaps
+currently has local development and production app deployments only. Local
+Atlas Lab should use the `staging` Atlas manifest when validating new tile data.
+
 Use a self-hosted runner or larger GitHub runner with at least:
 
 - 120GB free scratch for regional builds
@@ -180,7 +185,8 @@ Recommended base-atlas refresh flow:
 
    Expected: `206 Partial Content`, `Content-Range`, and readable PMTiles
    header bytes.
-7. Publish the staging manifest so Atlas Lab points at the new archive.
+7. Publish the `staging` Atlas manifest so local Atlas Lab points at the new
+   archive.
 8. Verify the Worker manifest and tile routes against staging artifacts.
 9. QA Atlas Lab plus representative print renders across all house styles.
 10. Promote by publishing the production manifest to the same immutable artifact

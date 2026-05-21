@@ -39,6 +39,12 @@ address artifacts by `artifactId`, not by raw PMTiles URL. Direct public PMTiles
 URLs remain useful for validation, local development, and break-glass recovery,
 but they are not the desired customer-facing contract.
 
+Important environment naming note: RadMaps currently has a local app and a
+production app. There is not a separate deployed staging app. In Atlas docs,
+`staging` means the R2 bucket/manifest/data environment used by local Atlas Lab,
+CI validation, and pre-production tile QA before a manifest is promoted to
+`production`.
+
 Current production base archive:
 `atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles`
 
@@ -256,7 +262,8 @@ The local disk is too tight for a US Planetiler extract plus temp files.
 Target options:
 - Attach `tiles.radmaps.studio` after moving/delegating DNS to Cloudflare.
 - Deploy `workers/atlas-tiles` and point `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL`
-  at that Worker/custom domain for staging first.
+  at that Worker/custom domain in local dev while using the `staging` Atlas
+  manifest/data environment.
 - Add a permanent least-privilege R2 upload credential for build automation.
 - Run `.github/workflows/atlas-build.yml` on a larger GitHub runner or
   short-lived self-hosted cloud VM with enough scratch disk for Planetiler.
