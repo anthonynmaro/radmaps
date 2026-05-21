@@ -35,6 +35,8 @@ export type AtlasManifestArtifact = {
   sourceLicenses?: Array<string | AtlasSourceLicense>
   createdAt?: string
   status?: 'staging' | 'validated' | 'production' | 'deprecated'
+  terrainRegion?: string
+  sourceRegion?: string
 }
 
 export type AtlasManifestArtifactEntry = AtlasManifestArtifact | AtlasManifestArtifact[]

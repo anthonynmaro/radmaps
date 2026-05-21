@@ -277,7 +277,7 @@ import {
   type AtlasManifest,
   type AtlasManifestArtifact,
 } from '~/utils/atlasManifest'
-import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasPreviewBbox } from '~/utils/atlasCoverage'
+import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasExpandTerrainRegionArtifacts, atlasPreviewBbox } from '~/utils/atlasCoverage'
 import { trackAtlasUsageEvent } from '~/utils/atlasUsage'
 
 definePageMeta({ layout: 'default' })
@@ -343,8 +343,9 @@ const atlasEnvironment = ref<'staging' | 'production'>('staging')
 const activeManifest = ref<AtlasManifest | null>(null)
 const atlasBaseCount = computed(() => activeManifest.value ? atlasManifestArtifacts(activeManifest.value, 'base').length : 0)
 const atlasContourCount = computed(() => activeManifest.value ? atlasManifestArtifacts(activeManifest.value, 'contours').length : 0)
-const maps: Array<{
+type AtlasLabMap = {
   style: AtlasStyle
+  terrainArtifactIds: string[]
   remove: () => void
   flyTo: (options: { center: [number, number], zoom: number, duration?: number }) => void
   jumpTo: (options: { center: [number, number], zoom: number }) => void
@@ -353,13 +354,16 @@ const maps: Array<{
   querySourceFeatures: (sourceId: string, options: { sourceLayer: string }) => unknown[]
   getCenter: () => { lng: number, lat: number }
   getZoom: () => number
+  getBounds: () => [number, number, number, number]
   getLayer: (id: string) => unknown
   getStyle: () => unknown
   isSourceLoaded: (id: string) => boolean
   raw?: unknown
   resize: () => void
   setStyle: (style: unknown) => void
-}> = []
+}
+
+const maps: AtlasLabMap[] = []
 const mapEls = new Map<string, HTMLElement>()
 const mapStatus = reactive<Record<string, string>>({})
 const mapErrors = reactive<Record<string, string>>({})
@@ -788,16 +792,21 @@ async function loadAtlasManifest() {
 }
 
 function resolveAtlasArtifacts(manifest: AtlasManifest, showcase = activeShowcase.value) {
+  return resolveAtlasArtifactsForBbox(manifest, showcaseBbox(showcase))
+}
+
+function resolveAtlasArtifactsForBbox(manifest: AtlasManifest, bbox: [number, number, number, number]) {
   const fallback = fallbackManifest()
   const resolved = resolveManifestArtifacts(manifest, fallback, {
-    bbox: showcaseBbox(showcase),
+    bbox,
     requiredKinds: ['base', 'contours'],
   })
+  const allTerrainArtifacts = atlasManifestArtifacts(manifest, 'contours')
 
   return {
     baseUrl: resolved.baseUrl || configuredAtlasUrl || localAtlasUrl,
     baseArtifacts: resolved.baseArtifacts,
-    terrainArtifacts: resolved.contourArtifacts,
+    terrainArtifacts: atlasExpandTerrainRegionArtifacts(resolved.contourArtifacts, allTerrainArtifacts),
   }
 }
 
@@ -854,6 +863,7 @@ function setActiveShowcase(id: string) {
   const showcase = activeShowcase.value
   for (const map of maps) {
     const coverage = resolveShowcaseArtifacts(showcase)
+    map.terrainArtifactIds = coverage.terrainArtifacts.map(artifact => artifact.id)
     map.setStyle(buildStyle(map.style, {
       baseUrl: activeBasePmtilesUrl,
       baseArtifact: coverage.baseArtifacts[0],
@@ -868,6 +878,25 @@ function setActiveShowcase(id: string) {
     window.setTimeout(moveToShowcase, 300)
     window.setTimeout(moveToShowcase, 1000)
   }
+}
+
+function refreshMapTerrainForViewport(map: AtlasLabMap) {
+  const manifest = activeManifest.value
+  if (!manifest) return
+  const coverage = resolveAtlasArtifactsForBbox(manifest, map.getBounds())
+  const nextIds = coverage.terrainArtifacts.map(artifact => artifact.id)
+  if (artifactIdsEqual(map.terrainArtifactIds, nextIds)) return
+
+  map.terrainArtifactIds = nextIds
+  map.setStyle(buildStyle(map.style, {
+    baseUrl: activeBasePmtilesUrl,
+    baseArtifact: coverage.baseArtifacts[0],
+    terrainArtifacts: coverage.terrainArtifacts,
+  }))
+}
+
+function artifactIdsEqual(left: string[], right: string[]) {
+  return left.length === right.length && left.every((id, index) => id === right[index])
 }
 
 function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: AtlasManifestArtifact, terrainArtifacts: AtlasManifestArtifact[] }) {
@@ -1117,8 +1146,9 @@ onMounted(async () => {
     requestAnimationFrame(() => map.resize())
     window.setTimeout(() => map.resize(), 250)
 
-    maps.push({
+    const labMap: AtlasLabMap = {
       style,
+      terrainArtifactIds: activeInitialCoverage.terrainArtifacts.map(artifact => artifact.id),
       remove: () => map.remove(),
       flyTo: options => map.flyTo(options),
       jumpTo: options => map.jumpTo(options),
@@ -1127,6 +1157,10 @@ onMounted(async () => {
       querySourceFeatures: (sourceId, options) => map.querySourceFeatures(sourceId, options),
       getCenter: () => map.getCenter(),
       getZoom: () => map.getZoom(),
+      getBounds: () => {
+        const bounds = map.getBounds()
+        return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] as [number, number, number, number]
+      },
       getLayer: id => map.getLayer(id),
       getStyle: () => map.getStyle(),
       isSourceLoaded: id => map.isSourceLoaded(id),
@@ -1135,7 +1169,9 @@ onMounted(async () => {
       setStyle: nextStyle => {
         map.setStyle(nextStyle as never)
       },
-    })
+    }
+    maps.push(labMap)
+    map.on('moveend', () => refreshMapTerrainForViewport(labMap))
     if (import.meta.dev) Object.assign(window, { __RADMAPS_ATLAS_MAPS__: maps })
   }
 

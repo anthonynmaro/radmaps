@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AtlasManifestArtifact } from '../utils/atlasManifest'
-import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasPreviewBbox } from '../utils/atlasCoverage'
+import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasExpandTerrainRegionArtifacts, atlasPreviewBbox } from '../utils/atlasCoverage'
 
 const baseArtifact: AtlasManifestArtifact = {
   id: 'base-us',
@@ -48,5 +48,20 @@ describe('Atlas coverage status', () => {
     expect(bbox[2]).toBeGreaterThan(-119.1)
     expect(bbox[1]).toBeLessThan(37.6)
     expect(bbox[3]).toBeGreaterThan(37.9)
+  })
+
+  it('expands matched terrain shards to the full source region so zooming does not reveal shard edges', () => {
+    const allTerrain = [
+      { ...terrainArtifact, id: 'radmaps-sierra-r1c1-contours', sourceRegion: 'sierra' },
+      { ...terrainArtifact, id: 'radmaps-sierra-r1c2-contours', sourceRegion: 'sierra' },
+      { ...terrainArtifact, id: 'radmaps-sierra-r2c1-contours', sourceRegion: 'sierra' },
+      { ...terrainArtifact, id: 'radmaps-rockies-r1c1-contours', sourceRegion: 'rockies' },
+    ]
+
+    expect(atlasExpandTerrainRegionArtifacts([allTerrain[1]], allTerrain).map(artifact => artifact.id)).toEqual([
+      'radmaps-sierra-r1c1-contours',
+      'radmaps-sierra-r1c2-contours',
+      'radmaps-sierra-r2c1-contours',
+    ])
   })
 })

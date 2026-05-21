@@ -37,6 +37,17 @@ export function atlasCoverageWarning(coverage: AtlasCoverageInput) {
     : ''
 }
 
+export function atlasExpandTerrainRegionArtifacts(
+  matchedArtifacts: AtlasManifestArtifact[],
+  allTerrainArtifacts: AtlasManifestArtifact[],
+) {
+  const regionKeys = new Set(matchedArtifacts.map(atlasTerrainRegionKey).filter(Boolean))
+  if (!regionKeys.size) return sortArtifactsById(matchedArtifacts)
+
+  const expanded = allTerrainArtifacts.filter(artifact => regionKeys.has(atlasTerrainRegionKey(artifact)))
+  return sortArtifactsById(expanded.length ? expanded : matchedArtifacts)
+}
+
 export function atlasPreviewBbox(options: AtlasPreviewBboxInput): [number, number, number, number] {
   const width = options.viewportWidth ?? 1200
   const height = options.viewportHeight ?? 520
@@ -81,4 +92,12 @@ function mercatorXToLng(x: number) {
 
 function mercatorYToLat(y: number) {
   return Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180 / Math.PI
+}
+
+function atlasTerrainRegionKey(artifact: AtlasManifestArtifact) {
+  return artifact.sourceRegion || artifact.terrainRegion?.replace(/-r\d+c\d+$/, '') || artifact.id.replace(/^radmaps-/, '').replace(/-r\d+c\d+-contours$/, '').replace(/-contours$/, '')
+}
+
+function sortArtifactsById(artifacts: AtlasManifestArtifact[]) {
+  return [...artifacts].sort((left, right) => left.id.localeCompare(right.id))
 }
