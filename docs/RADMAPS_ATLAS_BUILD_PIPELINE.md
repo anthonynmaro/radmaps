@@ -234,6 +234,13 @@ Only promote production after:
 - Atlas Lab can load the staging manifest.
 - Acceptance screenshots render all house styles.
 
+For large AWS-built base atlases, do not replace the whole staging manifest with
+the runner's single-region manifest. Download the runner manifest, copy the
+PMTiles object into the matching immutable R2 path, then merge the base artifact
+into the existing staging manifest with `npm run atlas:merge-manifest-artifact`.
+That keeps already-verified terrain shard entries available while adding the
+new base coverage.
+
 ## Contours
 
 The current full-U.S. base pipeline deliberately does not build one monolithic

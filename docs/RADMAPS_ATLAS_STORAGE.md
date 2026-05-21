@@ -190,6 +190,29 @@ Storage refresh checklist:
 6. Publish production manifest only after QA passes.
 7. Retain at least the previous production PMTiles and manifest for rollback.
 
+When a large atlas is built on a short-lived AWS runner, treat AWS S3 as the
+durable build handoff and R2 as the serving origin:
+
+1. The runner uploads the raw PMTiles and generated build manifest to the
+   private AWS build bucket.
+2. Copy the PMTiles from AWS S3 to the immutable R2 key declared by the build
+   manifest, for example
+   `atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`.
+3. Merge only the new artifact into the active staging manifest so existing
+   contour shards and other validated artifacts remain listed:
+
+```bash
+npm run atlas:merge-manifest-artifact -- \
+  --source /tmp/north-america-staging.json \
+  --target public/atlas/manifests/staging.json \
+  --kind base \
+  --public-base-url https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev
+```
+
+4. Publish `public/atlas/manifests/staging.json` to
+   `atlas/v1/manifests/staging.json` only after the new R2 PMTiles object is
+   present and range-readable.
+
 ## Budget Posture
 
 Monthly budget: `$30`.

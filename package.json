@@ -16,6 +16,7 @@
     "atlas:pipeline": "node scripts/atlas-pipeline.mjs",
     "atlas:validate-pmtiles": "node scripts/atlas-validate-pmtiles.mjs",
     "atlas:generate-manifest": "node scripts/atlas-generate-manifest.mjs",
+    "atlas:merge-manifest-artifact": "node scripts/atlas-merge-manifest-artifact.mjs",
     "atlas:terrain-plan": "node scripts/atlas-terrain-plan.mjs",
     "atlas:sync-terrain-manifest": "node scripts/atlas-sync-terrain-manifest.mjs",
     "atlas:build-contours": "node scripts/build-contour-pmtiles.mjs",
