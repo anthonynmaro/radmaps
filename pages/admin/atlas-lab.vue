@@ -277,7 +277,7 @@ import {
   type AtlasManifest,
   type AtlasManifestArtifact,
 } from '~/utils/atlasManifest'
-import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning } from '~/utils/atlasCoverage'
+import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasPreviewBbox } from '~/utils/atlasCoverage'
 import { trackAtlasUsageEvent } from '~/utils/atlasUsage'
 
 definePageMeta({ layout: 'default' })
@@ -826,15 +826,11 @@ function atlasTileUrl(source: 'base' | 'terrain', artifact?: AtlasManifestArtifa
 }
 
 function showcaseBbox(showcase: ShowcaseLocation): [number, number, number, number] {
-  const lons = showcase.route.map(([lon]) => lon)
-  const lats = showcase.route.map(([, lat]) => lat)
-  const padding = 0.08
-  return [
-    Math.min(...lons) - padding,
-    Math.min(...lats) - padding,
-    Math.max(...lons) + padding,
-    Math.max(...lats) + padding,
-  ]
+  return atlasPreviewBbox({
+    center: showcase.center,
+    zoom: showcase.zoom,
+    route: showcase.route,
+  })
 }
 
 function sampleRouteGeojson(showcase: ShowcaseLocation) {

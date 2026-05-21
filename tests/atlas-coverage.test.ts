@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AtlasManifestArtifact } from '../utils/atlasManifest'
-import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning } from '../utils/atlasCoverage'
+import { atlasCoverageLabel, atlasCoverageStatus, atlasCoverageWarning, atlasPreviewBbox } from '../utils/atlasCoverage'
 
 const baseArtifact: AtlasManifestArtifact = {
   id: 'base-us',
@@ -35,5 +35,18 @@ describe('Atlas coverage status', () => {
     expect(atlasCoverageWarning(baseOnly)).toContain('base-map-only')
     expect(atlasCoverageStatus(missing)).toBe('missing')
     expect(atlasCoverageLabel(missing)).toBe('missing atlas coverage')
+  })
+
+  it('uses the preview viewport, not just the route line, for terrain artifact selection', () => {
+    const bbox = atlasPreviewBbox({
+      center: [-119.573, 37.748],
+      zoom: 12.2,
+      route: [[-119.628, 37.731], [-119.536, 37.787]],
+    })
+
+    expect(bbox[0]).toBeLessThan(-120)
+    expect(bbox[2]).toBeGreaterThan(-119.1)
+    expect(bbox[1]).toBeLessThan(37.6)
+    expect(bbox[3]).toBeGreaterThan(37.9)
   })
 })
