@@ -3,6 +3,9 @@ import type { LocationMetadata, PremadeCategory, PremadeMap, RouteStats, StyleCo
 
 export const PREMADE_CATEGORIES: { id: PremadeCategory; label: string }[] = [
   { id: 'hikes', label: 'Hikes' },
+  { id: 'trails', label: 'Trails' },
+  { id: 'runs', label: 'Runs' },
+  { id: 'marathons', label: 'Marathons' },
   { id: 'mountain-biking', label: 'Mountain Biking' },
   { id: 'paddles', label: 'Paddles' },
   { id: 'rivers', label: 'Rivers' },

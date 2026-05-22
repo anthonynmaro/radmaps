@@ -4682,6 +4682,10 @@ onMounted(async () => {
     recomputeOverlays()
     markPrintRenderReady()
     if (props.deleteBrushActive) nextTick(activateDeleteBrush)
+    // Reconcile freeze state on initial load — the map_frozen watcher returns
+    // early before mapReady, so a frozen view saved in the DB would otherwise
+    // load with gestures still enabled.
+    if (props.styleConfig.map_frozen) disableAllMapGestures()
   })
 
   mapInstance.on('zoom', () => {
@@ -6228,16 +6232,36 @@ watch(
 // may have initialized with bounds before the DB record loaded, so we need
 // to explicitly reposition it here.
 
+function disableAllMapGestures() {
+  if (!mapInstance) return
+  mapInstance.dragPan.disable()
+  mapInstance.scrollZoom.disable()
+  mapInstance.doubleClickZoom.disable()
+  mapInstance.touchZoomRotate.disable()
+  mapInstance.touchPitch?.disable()
+  mapInstance.dragRotate.disable()
+  mapInstance.boxZoom.disable()
+  mapInstance.keyboard.disable()
+}
+
+function enableAllMapGestures() {
+  if (!mapInstance) return
+  mapInstance.dragPan.enable()
+  mapInstance.scrollZoom.enable()
+  mapInstance.doubleClickZoom.enable()
+  mapInstance.touchZoomRotate.enable()
+  mapInstance.touchPitch?.enable()
+  mapInstance.dragRotate.enable()
+  mapInstance.boxZoom.enable()
+  mapInstance.keyboard.enable()
+}
+
 watch(
   () => props.styleConfig.map_frozen,
   (frozen) => {
     if (!mapInstance || !mapReady.value) return
     if (frozen) {
-      mapInstance.dragPan.disable()
-      mapInstance.scrollZoom.disable()
-      mapInstance.doubleClickZoom.disable()
-      mapInstance.touchZoomRotate.disable()
-      mapInstance.keyboard.disable()
+      disableAllMapGestures()
       if (canUseSavedCamera()) {
         mapInstance.jumpTo({
           zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
@@ -6245,11 +6269,7 @@ watch(
         })
       }
     } else {
-      mapInstance.dragPan.enable()
-      mapInstance.scrollZoom.enable()
-      mapInstance.doubleClickZoom.enable()
-      mapInstance.touchZoomRotate.enable()
-      mapInstance.keyboard.enable()
+      enableAllMapGestures()
     }
   },
 )
@@ -6262,11 +6282,7 @@ function freezeView() {
   const center = mapInstance.getCenter()
   // Clear tile cache — we're establishing a new fixed tile set
   _tileCache.clear()
-  mapInstance.dragPan.disable()
-  mapInstance.scrollZoom.disable()
-  mapInstance.doubleClickZoom.disable()
-  mapInstance.touchZoomRotate.disable()
-  mapInstance.keyboard.disable()
+  disableAllMapGestures()
   emit('freeze-changed', {
     map_frozen: true,
     map_zoom: zoom,
@@ -6279,11 +6295,7 @@ function freezeView() {
 
 function unfreezeView() {
   if (!mapInstance) return
-  mapInstance.dragPan.enable()
-  mapInstance.scrollZoom.enable()
-  mapInstance.doubleClickZoom.enable()
-  mapInstance.touchZoomRotate.enable()
-  mapInstance.keyboard.enable()
+  enableAllMapGestures()
   emit('freeze-changed', { map_frozen: false })
 }
 
@@ -6300,11 +6312,7 @@ function resetViewToRoute() {
     return
   }
 
-  mapInstance.dragPan.enable()
-  mapInstance.scrollZoom.enable()
-  mapInstance.doubleClickZoom.enable()
-  mapInstance.touchZoomRotate.enable()
-  mapInstance.keyboard.enable()
+  enableAllMapGestures()
 
   let emitted = false
   const emitCamera = () => {

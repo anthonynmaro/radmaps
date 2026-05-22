@@ -667,11 +667,11 @@ CREATE TABLE IF NOT EXISTS public.premade_maps (
   region                TEXT NOT NULL DEFAULT 'Region TBD',
   country               TEXT NOT NULL DEFAULT 'United States',
   category              TEXT NOT NULL DEFAULT 'hikes'
-    CHECK (category IN ('hikes', 'mountain-biking', 'paddles', 'rivers', 'cityscapes', 'cycling', 'beaches', 'wine-trails')),
+    CHECK (category IN ('hikes', 'trails', 'runs', 'marathons', 'mountain-biking', 'paddles', 'rivers', 'cityscapes', 'cycling', 'beaches', 'wine-trails')),
   categories            TEXT[] NOT NULL DEFAULT ARRAY['hikes']::TEXT[]
     CHECK (
       coalesce(array_length(categories, 1), 0) > 0
-      AND categories <@ ARRAY['hikes', 'mountain-biking', 'paddles', 'rivers', 'cityscapes', 'cycling', 'beaches', 'wine-trails']::TEXT[]
+      AND categories <@ ARRAY['hikes', 'trails', 'runs', 'marathons', 'mountain-biking', 'paddles', 'rivers', 'cityscapes', 'cycling', 'beaches', 'wine-trails']::TEXT[]
     ),
   tagline               TEXT NOT NULL DEFAULT '',
   description           TEXT NOT NULL DEFAULT '',

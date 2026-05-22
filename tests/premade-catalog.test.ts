@@ -8,6 +8,7 @@ import {
   geojsonCenter,
   missingPublishFields,
   normalizePremadeCategories,
+  PREMADE_CATEGORIES,
   premadeHasCategory,
   publishableLocationCoordinates,
   previewUrlForSourceMap,
@@ -104,11 +105,19 @@ describe('premade catalog helpers', () => {
   })
 
   it('normalizes multi-select categories without duplicates', () => {
-    expect(normalizePremadeCategories(['hikes', 'cycling', 'hikes', 'bogus'])).toEqual(['hikes', 'cycling'])
+    expect(normalizePremadeCategories(['hikes', 'runs', 'marathons', 'cycling', 'hikes', 'bogus'])).toEqual(['hikes', 'runs', 'marathons', 'cycling'])
     expect(premadeHasCategory({
       category: 'cityscapes',
-      categories: ['cityscapes', 'hikes'],
-    }, 'hikes')).toBe(true)
+      categories: ['cityscapes', 'trails'],
+    }, 'trails')).toBe(true)
+  })
+
+  it('includes running and trail categories in the shared registry', () => {
+    expect(PREMADE_CATEGORIES.map((category) => category.id)).toEqual(expect.arrayContaining([
+      'runs',
+      'trails',
+      'marathons',
+    ]))
   })
 
   it('derives publishable location coordinates from a valid bbox', () => {

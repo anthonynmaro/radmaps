@@ -318,8 +318,8 @@ export const PREMADE_MAPS: PremadeMap[] = [
     location_country: 'United States',
     location_lng: -73.9677,
     location_lat: 40.7359,
-    category: 'cityscapes',
-    categories: ['cityscapes'],
+    category: 'marathons',
+    categories: ['marathons', 'cityscapes'],
     tagline: 'From Staten Island to Tavern on the Green.',
     description:
       'Trace the blue line through all five boroughs — over the Verrazzano, up 4th Avenue, across the Queensboro, up 1st, into the Bronx, and down 5th into Central Park. The world\'s most celebrated city marathon, framed.',
@@ -588,6 +588,9 @@ export function listPremadeMaps(opts?: {
 
 export const PREMADE_CATEGORIES: { id: PremadeMap['category']; label: string }[] = [
   { id: 'hikes', label: 'Hikes' },
+  { id: 'trails', label: 'Trails' },
+  { id: 'runs', label: 'Runs' },
+  { id: 'marathons', label: 'Marathons' },
   { id: 'mountain-biking', label: 'Mountain Biking' },
   { id: 'paddles', label: 'Paddles' },
   { id: 'rivers', label: 'Rivers' },
