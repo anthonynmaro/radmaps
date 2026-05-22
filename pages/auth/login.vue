@@ -174,7 +174,7 @@
 
         <!-- Strava (uniform pill, same shape) -->
         <a
-          href="/api/strava/connect"
+          :href="stravaConnectUrl"
           class="w-full inline-flex items-center justify-center gap-2.5 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-800 font-semibold text-sm py-3.5 rounded-full transition-colors"
         >
           <svg class="w-4 h-4 shrink-0 text-[#FC4C02]" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -182,7 +182,7 @@
           </svg>
           Continue with Strava
         </a>
-        <a href="/api/strava/connect?private=1" class="block text-center text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
+        <a :href="stravaPrivateConnectUrl" class="block text-center text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
           Connect Strava with private activities
         </a>
 
@@ -244,6 +244,9 @@ const authConfirmUrl = computed(() => {
   const next = safeNextPath(route.query.next)
   return `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`
 })
+const stravaReturnPath = computed(() => encodeURIComponent(safeNextPath(route.query.next)))
+const stravaConnectUrl = computed(() => `/api/strava/connect?return_to=${stravaReturnPath.value}`)
+const stravaPrivateConnectUrl = computed(() => `/api/strava/connect?private=1&return_to=${stravaReturnPath.value}`)
 
 // ── Mode (sign in vs sign up) ────────────────────────────────────────
 const isSignup = computed(() => route.query.mode === 'signup')

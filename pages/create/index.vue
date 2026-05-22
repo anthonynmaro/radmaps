@@ -75,7 +75,7 @@
               </p>
             </div>
             <a
-              href="/api/strava/connect"
+              :href="stravaConnectUrl"
               class="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 px-5 py-3 rounded-full transition-colors shadow-sm shadow-stone-900/10"
             >
               <svg class="w-4 h-4 text-[#FC4C02]" viewBox="0 0 24 24" fill="currentColor">
@@ -83,7 +83,7 @@
               </svg>
               Connect Strava
             </a>
-            <a href="/api/strava/connect?private=1" class="text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
+            <a :href="stravaPrivateConnectUrl" class="text-xs font-medium text-stone-500 hover:text-stone-900 underline underline-offset-4">
               Include private activities
             </a>
           </div>
@@ -569,6 +569,7 @@ import { h, defineComponent, ref, computed, onMounted, watch, nextTick, onBefore
 import { useRouter, useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import type { RouteStats, PremadeMap } from '~/types'
+import { STRAVA_CREATE_RETURN_PATH } from '~/utils/stravaOAuthReturn'
 import { extractNamedTrackSegments } from '~/utils/trail'
 
 // `@tmcw/togeojson` is ~30KB and only needed when the user actually drops a
@@ -598,6 +599,9 @@ useSeo({
 const router = useRouter()
 const route = useRoute()
 const user = useSupabaseUser()
+const encodedStravaReturnPath = encodeURIComponent(STRAVA_CREATE_RETURN_PATH)
+const stravaConnectUrl = `/api/strava/connect?return_to=${encodedStravaReturnPath}`
+const stravaPrivateConnectUrl = `/api/strava/connect?private=1&return_to=${encodedStravaReturnPath}`
 
 // ─── Method picker ───────────────────────────────────────────────────────
 type MethodId = 'strava' | 'upload' | 'premade' | 'draw' | 'place'

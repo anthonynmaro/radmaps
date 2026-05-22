@@ -13,8 +13,14 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 import { encryptedStravaTokenPayload } from '~/server/utils/stravaTokens'
 import type { H3Event } from 'h3'
-
-const STATE_COOKIE = 'radmaps_strava_oauth_state'
+import {
+  STRAVA_CREATE_RETURN_PATH,
+  STRAVA_OAUTH_STATE_COOKIE,
+  STRAVA_RETURN_TO_COOKIE,
+  authConfirmPathForReturnTo,
+  decodeReturnPathCookie,
+  stravaErrorReturnPath,
+} from '~/utils/stravaOAuthReturn'
 
 function requestOrigin(event: H3Event) {
   const config = useRuntimeConfig()
@@ -32,13 +38,19 @@ export default defineEventHandler(async (event) => {
   const code = query.code as string
   const error = query.error as string | undefined
   const state = query.state as string | undefined
+  const returnTo = decodeReturnPathCookie(getCookie(event, STRAVA_RETURN_TO_COOKIE), STRAVA_CREATE_RETURN_PATH)
 
-  if (error) return sendRedirect(event, '/auth/login?strava_error=access_denied')
+  if (error) {
+    deleteCookie(event, STRAVA_OAUTH_STATE_COOKIE, { path: '/' })
+    deleteCookie(event, STRAVA_RETURN_TO_COOKIE, { path: '/' })
+    return sendRedirect(event, stravaErrorReturnPath(returnTo, 'access_denied'))
+  }
   if (!code) throw createError({ statusCode: 400, message: 'Missing authorization code' })
-  const expectedState = getCookie(event, STATE_COOKIE)
-  deleteCookie(event, STATE_COOKIE, { path: '/' })
+  const expectedState = getCookie(event, STRAVA_OAUTH_STATE_COOKIE)
+  deleteCookie(event, STRAVA_OAUTH_STATE_COOKIE, { path: '/' })
+  deleteCookie(event, STRAVA_RETURN_TO_COOKIE, { path: '/' })
   if (!state || !expectedState || state !== expectedState) {
-    return sendRedirect(event, '/auth/login?strava_error=invalid_state')
+    return sendRedirect(event, stravaErrorReturnPath(returnTo, 'invalid_state'))
   }
 
   const config = useRuntimeConfig()
@@ -121,11 +133,11 @@ export default defineEventHandler(async (event) => {
   if (dbError) throw createError({ statusCode: 500, message: 'Failed to store Strava tokens' })
 
   // 4. Generate a one-time magic link so the browser can acquire a Supabase session.
-  //    redirectTo → /auth/confirm, which handles the hash tokens and sends user to `/` (their Maps).
+  //    redirectTo carries the original Strava return target through Supabase.
   const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
     type: 'magiclink',
     email: syntheticEmail,
-    options: { redirectTo: `${origin}/auth/confirm` },
+    options: { redirectTo: `${origin}${authConfirmPathForReturnTo(returnTo)}` },
   })
 
   if (linkErr || !linkData?.properties?.action_link) {

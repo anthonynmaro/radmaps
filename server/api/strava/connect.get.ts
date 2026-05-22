@@ -15,8 +15,13 @@
 import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
 import { randomBytes } from 'node:crypto'
 import type { H3Event } from 'h3'
-
-const STATE_COOKIE = 'radmaps_strava_oauth_state'
+import {
+  STRAVA_CREATE_RETURN_PATH,
+  STRAVA_OAUTH_STATE_COOKIE,
+  STRAVA_RETURN_TO_COOKIE,
+  encodeReturnPathCookie,
+  safeInternalPath,
+} from '~/utils/stravaOAuthReturn'
 
 function requestOrigin(event: H3Event) {
   const config = useRuntimeConfig()
@@ -33,6 +38,7 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const query = getQuery(event)
   const includePrivate = query.private === '1' || query.scope === 'private'
+  const returnTo = safeInternalPath(query.return_to, STRAVA_CREATE_RETURN_PATH)
 
   // Short-circuit: if the user is already logged in and has tokens, skip OAuth.
   try {
@@ -45,7 +51,7 @@ export default defineEventHandler(async (event) => {
         .eq('user_id', user.id)
         .maybeSingle()
       if (token?.athlete_id) {
-        return sendRedirect(event, '/create?strava_connected=1')
+        return sendRedirect(event, returnTo)
       }
     }
   } catch {
@@ -55,7 +61,14 @@ export default defineEventHandler(async (event) => {
   const origin = requestOrigin(event)
   const redirectUri = `${origin}/api/strava/callback`
   const state = randomBytes(24).toString('base64url')
-  setCookie(event, STATE_COOKIE, state, {
+  setCookie(event, STRAVA_OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 10 * 60,
+  })
+  setCookie(event, STRAVA_RETURN_TO_COOKIE, encodeReturnPathCookie(returnTo), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
