@@ -105,6 +105,15 @@ function isRadMapsAtlasPreset(preset?: string) {
   return Boolean(preset?.startsWith('radmaps-'))
 }
 
+function atlasLayerEnabled(config: StyleConfig, layer: keyof NonNullable<StyleConfig['atlas_layers']>, fallback = true) {
+  return config.atlas_layers?.[layer] ?? fallback
+}
+
+function atlasNumberSetting(value: number | undefined, fallback: number, min = 0, max = 1) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, value))
+}
+
 function sameOriginTileUrl(path: string) {
   const origin = typeof globalThis !== 'undefined'
     ? (globalThis as { location?: { origin?: string } }).location?.origin
@@ -977,16 +986,31 @@ function buildRadMapsAtlasStyle(
   const isNight = preset === 'radmaps-night-relief'
   const isToner = preset === 'radmaps-toner'
   const isSimpleContour = preset === 'radmaps-simple-contour'
+  const atlasSettings = config.atlas_layer_settings ?? {}
   const ink = isNight ? '#d8f2dc' : isToner ? '#17222a' : '#405340'
-  const land = isNight ? '#102a1d' : isWatercolor ? '#cdddbd' : isToner ? '#edf2f5' : '#e7dfbf'
-  const water = isNight ? '#3f9fbd' : isWatercolor ? '#47aeca' : isToner ? '#bfd5e8' : '#79b7c8'
-  const park = isNight ? '#193f25' : isWatercolor ? '#b8d0aa' : isToner ? '#dfe8dd' : '#c9d29a'
-  const road = isWatercolor ? '#9a6b75' : isNight ? '#f18f45' : isToner ? '#203345' : '#b7663c'
+  const land = atlasSettings.landcover?.color || (isNight ? '#102a1d' : isWatercolor ? '#cdddbd' : isToner ? '#edf2f5' : '#e7dfbf')
+  const water = atlasSettings.water?.fill_color || (isNight ? '#3f9fbd' : isWatercolor ? '#47aeca' : isToner ? '#bfd5e8' : '#79b7c8')
+  const waterway = atlasSettings.waterway?.color || atlasSettings.water?.waterway_color || water
+  const park = atlasSettings.park?.fill_color || (isNight ? '#193f25' : isWatercolor ? '#b8d0aa' : isToner ? '#dfe8dd' : '#c9d29a')
+  const road = atlasSettings.transportation?.road_color || (isWatercolor ? '#9a6b75' : isNight ? '#f18f45' : isToner ? '#203345' : '#b7663c')
+  const roadMajor = atlasSettings.transportation?.major_color || road
+  const roadMinor = atlasSettings.transportation?.minor_color || road
+  const trail = atlasSettings.transportation?.trail_color || (isWatercolor ? '#7f8f70' : ink)
   const labelHalo = isNight ? '#0b1d15' : isWatercolor ? '#e8eadf' : '#f7f2e7'
-  const label = isNight ? '#e5f3d8' : '#29362d'
-  const roadOpacity = isWatercolor ? 0.52 : isNight ? 0.9 : 0.82
+  const label = atlasSettings.place?.label_color || config.place_labels_color || (isNight ? '#e5f3d8' : '#29362d')
+  const poiLabel = atlasSettings.poi?.label_color || config.poi_labels_color || label
+  const roadOpacity = atlasNumberSetting(atlasSettings.transportation?.opacity ?? config.roads_opacity, isWatercolor ? 0.52 : isNight ? 0.9 : 0.82)
   const usingMlContour = !!contourTileUrl
-  const wantsContours = config.show_contours || isSimpleContour || preset === 'radmaps-field-topo' || preset === 'radmaps-night-relief'
+  const defaultContours = config.show_contours || isSimpleContour || preset === 'radmaps-field-topo' || preset === 'radmaps-night-relief'
+  const wantsContours = atlasLayerEnabled(config, 'contour', defaultContours) && defaultContours
+  const showLandcover = atlasLayerEnabled(config, 'landcover')
+  const showPark = atlasLayerEnabled(config, 'park')
+  const showWater = atlasLayerEnabled(config, 'water')
+  const showWaterway = atlasLayerEnabled(config, 'waterway')
+  const showBuildings = atlasLayerEnabled(config, 'building')
+  const showTransportation = atlasLayerEnabled(config, 'transportation')
+  const showPlaces = atlasLayerEnabled(config, 'place', config.show_place_labels !== false)
+  const showPois = atlasLayerEnabled(config, 'poi', config.show_poi_labels ?? true)
 
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
@@ -1008,15 +1032,18 @@ function buildRadMapsAtlasStyle(
     Object.assign(sources, demSource(token))
   }
 
-  const contourColor = config.contour_color || (isNight ? '#63a97c' : isWatercolor ? '#78996e' : '#8b875e')
-  const contourMajorColor = config.contour_major_color || (isNight ? '#8ed39f' : isWatercolor ? '#6f885f' : '#68653f')
-  const contourOpacity = isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isNight ? 0.46 : 0.34
+  const contourColor = atlasSettings.contour?.minor_color || config.contour_color || (isNight ? '#63a97c' : isWatercolor ? '#78996e' : '#8b875e')
+  const contourMajorColor = atlasSettings.contour?.major_color || atlasSettings.contour?.index_color || config.contour_major_color || (isNight ? '#8ed39f' : isWatercolor ? '#6f885f' : '#68653f')
+  const contourOpacity = atlasNumberSetting(atlasSettings.contour?.minor_opacity ?? config.contour_opacity, isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isNight ? 0.46 : 0.34)
   const contourConfig: StyleConfig = {
     ...config,
     show_contours: wantsContours,
     contour_color: contourColor,
     contour_major_color: contourMajorColor,
     contour_opacity: contourOpacity,
+    contour_minor_width: atlasSettings.contour?.minor_width ?? config.contour_minor_width,
+    contour_major_width: atlasSettings.contour?.major_width ?? atlasSettings.contour?.index_width ?? config.contour_major_width,
+    show_elevation_labels: atlasSettings.contour?.labels ?? config.show_elevation_labels,
     background_color: labelHalo,
   }
   const atlasContourLayers = wantsContours
@@ -1033,19 +1060,21 @@ function buildRadMapsAtlasStyle(
     sources,
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': isNight ? '#081611' : land } },
-      { id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': isSimpleContour ? 0.12 : 0.82 } },
-      { id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': isSimpleContour ? 0.10 : 0.58 } },
-      { id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolor ? 0.68 : 0.76 } },
-      withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': water, 'line-opacity': isWatercolor ? 0.70 : 0.78, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, 1.1, 15, 2.0] } }, LINE_SCALE_PROPERTIES),
-      { id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': ink, 'fill-opacity': isSimpleContour ? 0.05 : 0.16 } },
+      ...(showLandcover ? [{ id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': atlasNumberSetting(atlasSettings.landcover?.opacity, isSimpleContour ? 0.12 : 0.82) } }] : []),
+      ...(showPark ? [{ id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': atlasNumberSetting(atlasSettings.park?.opacity, isSimpleContour ? 0.10 : 0.58) } }] : []),
+      ...(showWater ? [{ id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': atlasNumberSetting(atlasSettings.water?.fill_opacity, isWatercolor ? 0.68 : 0.76) } }] : []),
+      ...(showWaterway ? [withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': atlasNumberSetting(atlasSettings.waterway?.opacity ?? atlasSettings.water?.waterway_opacity, isWatercolor ? 0.70 : 0.78), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, Math.max(0.05, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 1) * 0.35), 13, atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 1.1, 15, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 2.0)] } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(showBuildings ? [{ id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': atlasSettings.building?.fill_color || ink, 'fill-opacity': atlasNumberSetting(atlasSettings.building?.opacity, isSimpleContour ? 0.05 : 0.16) } }] : []),
       ...(config.show_hillshade && !isSimpleContour ? hillshadeLayers(config) : []),
       ...atlasContourLayers,
-      withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'path']]], paint: { 'line-color': road, 'line-opacity': roadOpacity * 0.62, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.25, 13, 0.9, 16, 2.1] } }, LINE_SCALE_PROPERTIES),
-      withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': road, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, 2.0, 16, 4.2] } }, LINE_SCALE_PROPERTIES),
-      withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail']]], paint: { 'line-color': isWatercolor ? '#7f8f70' : ink, 'line-opacity': isWatercolor ? 0.35 : 0.55, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.35, 14, 1.2, 16, 2.0], 'line-dasharray': [1.2, 1.6] } }, LINE_SCALE_PROPERTIES),
+      ...(showTransportation ? [
+        withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'path']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * 0.62, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.25, 13, atlasSettings.transportation?.minor_width ?? 0.9, 16, (atlasSettings.transportation?.minor_width ?? 2.1)] } }, LINE_SCALE_PROPERTIES),
+        withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, atlasSettings.transportation?.major_width ?? 2.0, 16, (atlasSettings.transportation?.major_width ?? 4.2)] } }, LINE_SCALE_PROPERTIES),
+        withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail']]], paint: { 'line-color': trail, 'line-opacity': isWatercolor ? Math.min(roadOpacity, 0.45) : Math.min(roadOpacity, 0.65), 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.35, 14, atlasSettings.transportation?.trail_width ?? 1.2, 16, (atlasSettings.transportation?.trail_width ?? 2.0)], 'line-dasharray': [1.2, 1.6] } }, LINE_SCALE_PROPERTIES),
+      ] : []),
       ...routeLayers(config),
-      withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 12, 15], 'text-letter-spacing': 0.02 }, paint: { 'text-color': label, 'text-opacity': isWatercolor ? 0.48 : 0.78, 'text-halo-color': labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES),
-      withScaleMetadata({ id: `${preset}-poi-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11], 'text-offset': ['literal', [0, 0.8]], 'text-anchor': 'top' }, paint: { 'text-color': label, 'text-opacity': isWatercolor ? 0.34 : 0.62, 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES),
+      ...(showPlaces ? [withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, atlasSettings.place?.font_size ?? 9, 12, (atlasSettings.place?.font_size ?? 15)], 'text-letter-spacing': 0.02 }, paint: { 'text-color': label, 'text-opacity': atlasNumberSetting(atlasSettings.place?.label_opacity ?? config.place_labels_opacity, isWatercolor ? 0.48 : 0.78), 'text-halo-color': atlasSettings.place?.halo_color || labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES)] : []),
+      ...(showPois ? [withScaleMetadata({ id: `${preset}-poi-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11], 'text-offset': ['literal', [0, 0.8]], 'text-anchor': 'top' }, paint: { 'text-color': poiLabel, 'text-opacity': atlasNumberSetting(atlasSettings.poi?.label_opacity ?? config.poi_labels_opacity, isWatercolor ? 0.34 : 0.62), 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES)] : []),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],

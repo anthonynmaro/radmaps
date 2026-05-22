@@ -172,6 +172,20 @@ describe('contourDetails', () => {
   })
 })
 
+describe('Atlas map layers', () => {
+  it('uses the Atlas-native map layer panel instead of legacy detail cards', () => {
+    const sections = compute({
+      preset: 'radmaps-field-topo',
+      showRoads: true,
+      showContours: true,
+    })
+
+    expect(sections.mapDetailCard).toBe(false)
+    expect(sections.waterCard).toBe(false)
+    expect(sections.contourToggle).toBe(true)
+  })
+})
+
 describe('map detail controls', () => {
   it('hides baked raster road and label controls', () => {
     const s = compute({ preset: 'topographic', showRoads: true })

@@ -221,6 +221,47 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-place-labels'))
     expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-poi-labels'))
   })
+
+  it('honors Atlas layer toggles by removing disabled source layers', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      show_contours: true,
+      atlas_layers: {
+        contour: false,
+        water: false,
+        transportation: false,
+        poi: false,
+        place: true,
+      },
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(layerById(style, 'contours-minor')).toBeUndefined()
+    expect(layerById(style, 'radmaps-field-topo-water')).toBeUndefined()
+    expect(layerById(style, 'radmaps-field-topo-roads-major')).toBeUndefined()
+    expect(layerById(style, 'radmaps-field-topo-poi-labels')).toBeUndefined()
+    expect(layerById(style, 'radmaps-field-topo-place-labels')).toBeDefined()
+  })
+
+  it('applies Atlas layer style settings to vector paint properties', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      atlas_layer_settings: {
+        water: { fill_color: '#2BA9E0', fill_opacity: 0.42 },
+        transportation: { major_color: '#FF4F1F', opacity: 0.5, major_width: 3.25 },
+        place: { label_color: '#211A16', label_opacity: 0.33 },
+      },
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-field-topo-water')?.paint?.['fill-color']).toBe('#2BA9E0')
+    expect(layerById(style, 'radmaps-field-topo-water')?.paint?.['fill-opacity']).toBe(0.42)
+    expect(layerById(style, 'radmaps-field-topo-roads-major')?.paint?.['line-color']).toBe('#FF4F1F')
+    expect(layerById(style, 'radmaps-field-topo-roads-major')?.paint?.['line-opacity']).toBe(0.5)
+    expect(layerById(style, 'radmaps-field-topo-roads-major')?.paint?.['line-width']).toEqual(['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, 3.25, 16, 3.25])
+    expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-color']).toBe('#211A16')
+    expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-opacity']).toBe(0.33)
+  })
 })
 
 describe('road network styling', () => {

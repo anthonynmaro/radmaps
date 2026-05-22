@@ -326,6 +326,130 @@
           </div>
         </V4Card>
 
+        <V4Card
+          v-if="isAtlasPresetActive && showAtlasEditor"
+          title="Map layers"
+          hint="Owned Atlas vector layers; each can be styled or hidden"
+          :default-open="true"
+        >
+          <div class="grid grid-cols-3 gap-1.5 mb-3">
+            <button
+              v-for="layer in ATLAS_LAYER_OPTIONS"
+              :key="layer.id"
+              class="text-left rounded-lg cursor-pointer transition-colors"
+              style="border: 1.5px solid; padding: 7px 7px; min-height: 42px;"
+              :style="activeAtlasLayerId === layer.id
+                ? 'background: #DCEBE2; border-color: #2D6A4F; color: #1F4D38;'
+                : atlasLayerVisible(layer.id)
+                  ? 'background: white; border-color: #D6D3D1; color: #44403C;'
+                  : 'background: #FAFAF9; border-color: #E7E5E4; color: #A8A29E;'"
+              @click="activeAtlasLayerId = layer.id"
+            >
+              <span class="block text-[10px] font-bold leading-tight">{{ layer.label }}</span>
+              <span class="block text-[8px] uppercase font-bold mt-1" style="letter-spacing: 0.10em;">
+                {{ atlasLayerVisible(layer.id) ? 'on' : 'off' }}
+              </span>
+            </button>
+          </div>
+
+          <div class="pt-2" style="border-top: 1px solid #F5F5F4;">
+            <ToggleRow
+              :label="`${activeAtlasLayerOption.label} layer`"
+              :value="atlasLayerVisible(activeAtlasLayerId)"
+              @change="setAtlasLayerVisible(activeAtlasLayerId, $event)"
+            />
+
+            <template v-if="activeAtlasLayerId === 'contour' && atlasLayerVisible('contour')">
+              <SliderRow label="Density" :value="local.contour_detail ?? 3" :min="0" :max="5" :step="1"
+                :display="(v: number) => (['regional','broad','medium','detailed','dense','ultra'] as const)[Math.round(v)]"
+                @change="set('contour_detail', $event)" />
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs" style="color: #44403C;">Minor / index</span>
+                <div class="flex gap-2">
+                  <ColorSwatch :value="atlasContourMinorColor" title="Minor contour color" @change="setAtlasLayerSetting('contour', { minor_color: $event })" />
+                  <ColorSwatch :value="atlasContourMajorColor" title="Index contour color" @change="setAtlasLayerSetting('contour', { major_color: $event, index_color: $event })" />
+                </div>
+              </div>
+              <SliderRow label="Opacity" :value="atlasContourOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('contour', { minor_opacity: $event, index_opacity: $event, major_opacity: $event })" />
+              <ToggleRow label="Elevation labels" :value="atlasContourLabels" @change="setAtlasLayerSetting('contour', { labels: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'water' && atlasLayerVisible('water')">
+              <ColorRow label="Water fill" :value="atlasWaterFillColor" @change="setAtlasLayerSetting('water', { fill_color: $event })" />
+              <SliderRow label="Opacity" :value="atlasWaterOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('water', { fill_opacity: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'waterway' && atlasLayerVisible('waterway')">
+              <ColorRow label="River color" :value="atlasWaterwayColor" @change="setAtlasLayerSetting('waterway', { color: $event })" />
+              <SliderRow label="Opacity" :value="atlasWaterwayOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('waterway', { opacity: $event })" />
+              <SliderRow label="Width" :value="atlasWaterwayWidth" :min="0.25" :max="4" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('waterway', { width: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'park' && atlasLayerVisible('park')">
+              <ColorRow label="Park fill" :value="atlasParkFillColor" @change="setAtlasLayerSetting('park', { fill_color: $event })" />
+              <SliderRow label="Opacity" :value="atlasParkOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('park', { opacity: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'landcover' && atlasLayerVisible('landcover')">
+              <ColorRow label="Land color" :value="atlasLandcoverColor" @change="setAtlasLayerSetting('landcover', { color: $event })" />
+              <SliderRow label="Opacity" :value="atlasLandcoverOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('landcover', { opacity: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'transportation' && atlasLayerVisible('transportation')">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs" style="color: #44403C;">Major / minor / trail</span>
+                <div class="flex gap-2">
+                  <ColorSwatch :value="atlasRoadMajorColor" title="Major roads" @change="setAtlasLayerSetting('transportation', { major_color: $event, road_color: $event })" />
+                  <ColorSwatch :value="atlasRoadMinorColor" title="Minor roads" @change="setAtlasLayerSetting('transportation', { minor_color: $event })" />
+                  <ColorSwatch :value="atlasTrailColor" title="Trails" @change="setAtlasLayerSetting('transportation', { trail_color: $event })" />
+                </div>
+              </div>
+              <SliderRow label="Opacity" :value="atlasRoadOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('transportation', { opacity: $event })" />
+              <SliderRow label="Major width" :value="atlasRoadMajorWidth" :min="0.5" :max="8" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('transportation', { major_width: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'building' && atlasLayerVisible('building')">
+              <ColorRow label="Building fill" :value="atlasBuildingFillColor" @change="setAtlasLayerSetting('building', { fill_color: $event })" />
+              <SliderRow label="Opacity" :value="atlasBuildingOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('building', { opacity: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'place' && atlasLayerVisible('place')">
+              <ColorRow label="Label color" :value="atlasPlaceLabelColor" @change="setAtlasLayerSetting('place', { label_color: $event })" />
+              <SliderRow label="Label opacity" :value="atlasPlaceLabelOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('place', { label_opacity: $event })" />
+              <SliderRow label="Label scale" :value="atlasPlaceFontSize" :min="7" :max="20" :step="1"
+                :display="(v: number) => Math.round(v) + 'pt'"
+                @change="setAtlasLayerSetting('place', { font_size: $event })" />
+            </template>
+
+            <template v-else-if="activeAtlasLayerId === 'poi' && atlasLayerVisible('poi')">
+              <ColorRow label="POI label" :value="atlasPoiLabelColor" @change="setAtlasLayerSetting('poi', { label_color: $event })" />
+              <SliderRow label="Label opacity" :value="atlasPoiLabelOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('poi', { label_opacity: $event })" />
+            </template>
+          </div>
+        </V4Card>
+
         <V4Card v-if="sections.mapDetailCard" title="Map detail" :default-open="true">
           <ToggleRow v-if="sections.roadsToggle" label="Roads" :value="local.show_roads ?? false" @change="set('show_roads', $event)" />
           <template v-if="sections.roadsExpanded">
@@ -1204,7 +1328,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
+import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
 import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
@@ -1326,6 +1450,101 @@ const sections = computed(() => computeSectionVisibility({
   showStartPin: local.show_start_pin !== false,
   showFinishPin: local.show_finish_pin !== false,
 }))
+
+const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
+  contour: true,
+  water: true,
+  waterway: true,
+  park: true,
+  landcover: true,
+  transportation: true,
+  building: true,
+  poi: true,
+  place: true,
+}
+
+const ATLAS_LAYER_OPTIONS: Array<{ id: AtlasLayerId; label: string }> = [
+  { id: 'contour', label: 'Contour' },
+  { id: 'water', label: 'Water' },
+  { id: 'waterway', label: 'Rivers' },
+  { id: 'park', label: 'Parks' },
+  { id: 'landcover', label: 'Land' },
+  { id: 'transportation', label: 'Roads' },
+  { id: 'building', label: 'Build' },
+  { id: 'place', label: 'Places' },
+  { id: 'poi', label: 'POIs' },
+]
+
+const activeAtlasLayerId = ref<AtlasLayerId>('contour')
+const isAtlasPresetActive = computed(() => local.preset?.startsWith('radmaps-') ?? false)
+const atlasEditorEnabled = useFeatureFlag(FLAGS.RADMAPS_ATLAS_EDITOR)
+const showAtlasEditor = computed(() => import.meta.dev || atlasEditorEnabled.value || isAtlasPresetActive.value)
+const activeAtlasLayerOption = computed(() =>
+  ATLAS_LAYER_OPTIONS.find(layer => layer.id === activeAtlasLayerId.value) ?? ATLAS_LAYER_OPTIONS[0],
+)
+
+function atlasLayerVisible(layer: AtlasLayerId) {
+  return local.atlas_layers?.[layer] ?? DEFAULT_ATLAS_LAYER_VISIBILITY[layer]
+}
+
+function atlasLayerSettings<L extends keyof AtlasLayerSettings>(layer: L): NonNullable<AtlasLayerSettings[L]> {
+  return ((local.atlas_layer_settings ?? {})[layer] ?? {}) as NonNullable<AtlasLayerSettings[L]>
+}
+
+function setAtlasLayerVisible(layer: AtlasLayerId, visible: boolean) {
+  local.atlas_layers = {
+    ...(local.atlas_layers ?? {}),
+    [layer]: visible,
+  }
+
+  if (layer === 'contour') local.show_contours = visible
+  if (layer === 'transportation') local.show_roads = visible
+  if (layer === 'place') local.show_place_labels = visible
+  if (layer === 'poi') local.show_poi_labels = visible
+
+  emit('update:modelValue', { ...local })
+}
+
+function setAtlasLayerSetting<L extends keyof AtlasLayerSettings>(
+  layer: L,
+  patch: Partial<NonNullable<AtlasLayerSettings[L]>>,
+) {
+  const currentLayer = atlasLayerSettings(layer)
+  local.atlas_layer_settings = {
+    ...(local.atlas_layer_settings ?? {}),
+    [layer]: {
+      ...currentLayer,
+      ...patch,
+    },
+  }
+  emit('update:modelValue', { ...local })
+}
+
+const atlasContourMinorColor = computed(() => atlasLayerSettings('contour').minor_color ?? local.contour_color)
+const atlasContourMajorColor = computed(() => atlasLayerSettings('contour').major_color ?? atlasLayerSettings('contour').index_color ?? local.contour_major_color)
+const atlasContourOpacity = computed(() => atlasLayerSettings('contour').minor_opacity ?? local.contour_opacity ?? 0.75)
+const atlasContourLabels = computed(() => atlasLayerSettings('contour').labels ?? local.show_elevation_labels)
+const atlasWaterFillColor = computed(() => atlasLayerSettings('water').fill_color ?? local.water_color ?? '#79B7C8')
+const atlasWaterOpacity = computed(() => atlasLayerSettings('water').fill_opacity ?? 0.76)
+const atlasWaterwayColor = computed(() => atlasLayerSettings('waterway').color ?? atlasLayerSettings('water').waterway_color ?? atlasWaterFillColor.value)
+const atlasWaterwayOpacity = computed(() => atlasLayerSettings('waterway').opacity ?? atlasLayerSettings('water').waterway_opacity ?? 0.78)
+const atlasWaterwayWidth = computed(() => atlasLayerSettings('waterway').width ?? atlasLayerSettings('water').waterway_width ?? 1.1)
+const atlasParkFillColor = computed(() => atlasLayerSettings('park').fill_color ?? '#C9D29A')
+const atlasParkOpacity = computed(() => atlasLayerSettings('park').opacity ?? 0.58)
+const atlasLandcoverColor = computed(() => atlasLayerSettings('landcover').color ?? local.land_color ?? '#E7DFBF')
+const atlasLandcoverOpacity = computed(() => atlasLayerSettings('landcover').opacity ?? 0.82)
+const atlasRoadMajorColor = computed(() => atlasLayerSettings('transportation').major_color ?? atlasLayerSettings('transportation').road_color ?? local.roads_color ?? '#B7663C')
+const atlasRoadMinorColor = computed(() => atlasLayerSettings('transportation').minor_color ?? atlasRoadMajorColor.value)
+const atlasTrailColor = computed(() => atlasLayerSettings('transportation').trail_color ?? '#405340')
+const atlasRoadOpacity = computed(() => atlasLayerSettings('transportation').opacity ?? local.roads_opacity ?? 0.82)
+const atlasRoadMajorWidth = computed(() => atlasLayerSettings('transportation').major_width ?? 2)
+const atlasBuildingFillColor = computed(() => atlasLayerSettings('building').fill_color ?? local.label_text_color ?? '#405340')
+const atlasBuildingOpacity = computed(() => atlasLayerSettings('building').opacity ?? 0.16)
+const atlasPlaceLabelColor = computed(() => atlasLayerSettings('place').label_color ?? local.place_labels_color ?? local.label_text_color)
+const atlasPlaceLabelOpacity = computed(() => atlasLayerSettings('place').label_opacity ?? local.place_labels_opacity ?? 0.78)
+const atlasPlaceFontSize = computed(() => atlasLayerSettings('place').font_size ?? 15)
+const atlasPoiLabelColor = computed(() => atlasLayerSettings('poi').label_color ?? local.poi_labels_color ?? atlasPlaceLabelColor.value)
+const atlasPoiLabelOpacity = computed(() => atlasLayerSettings('poi').label_opacity ?? local.poi_labels_opacity ?? 0.62)
 
 const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
@@ -2207,14 +2426,22 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
   },
 ]
 
-const MAP_PRESETS: MapPresetOption[] = [
+const MAP_PRESETS = computed<MapPresetOption[]>(() => [
   ...CORE_MAP_PRESETS,
-  ...ATLAS_MAP_PRESETS,
+  ...(showAtlasEditor.value ? ATLAS_MAP_PRESETS : []),
   ...BETA_MAP_PRESETS,
-]
+])
 
 function applyMapPreset(p: MapPresetOption) {
-  Object.assign(local, { preset: p.id, ...(p.defaults ?? {}) })
+  const atlasDefaults: Partial<StyleConfig> = p.id.startsWith('radmaps-')
+    ? {
+        atlas_style_id: p.id,
+        atlas_layers: { ...DEFAULT_ATLAS_LAYER_VISIBILITY },
+        show_place_labels: true,
+        show_poi_labels: true,
+      }
+    : {}
+  Object.assign(local, { preset: p.id, ...atlasDefaults, ...(p.defaults ?? {}) })
   emit('update:modelValue', { ...local })
 }
 </script>

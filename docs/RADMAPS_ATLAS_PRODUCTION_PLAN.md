@@ -18,7 +18,7 @@ usage accounting all share one contract.
 
 ## Current Status
 
-As of 2026-05-21, the owned atlas has crossed the first real coverage
+As of 2026-05-22, the owned atlas has crossed the first real coverage
 milestone, but it is not fully production-integrated.
 
 Completed:
@@ -36,6 +36,15 @@ Completed:
 - The production strategy for contours has pivoted to browser/Browserless
   `maplibre-contour` generation plus terrain illusion layers, avoiding
   expensive global high-detail contour PMTiles for now.
+- The customer editor now exposes the owned Atlas presets in the map picker and
+  has an Atlas-only **Map Layers** panel for `contour`, `water`, `waterway`,
+  `park`, `landcover`, `transportation`, `building`, `place`, and `poi`.
+  Local development always shows these controls; production customer access is
+  gated by `radmaps_atlas_editor`.
+- Atlas layer visibility and v1 style settings now flow into `buildMapStyle()`,
+  so local editor tests can turn layers off and tune water, roads/trails,
+  labels, landcover, parks, buildings, and contour styling from saved
+  `StyleConfig` JSON.
 
 Not done yet:
 
@@ -44,9 +53,9 @@ Not done yet:
 - The Cloudflare Worker code exists, but the production tile route/custom
   domain must be deployed and verified against the staging manifest before it
   becomes the customer path.
-- Atlas Lab demonstrates styles and coverage, but the customer editor still
-  needs first-class Atlas style presets, layer controls, and feature-flagged
-  rollout.
+- The customer editor has first-pass Atlas style presets and layer controls,
+  but `radmaps_atlas_editor` should remain disabled for broad customer traffic
+  until Browserless print QA and attribution checks pass.
 - Browserless print QA across large sizes and house styles is still required.
 - Public lands, richer recreation POIs, and destination-specific overlay packs
   are not complete.
@@ -759,11 +768,15 @@ This lets us answer:
 
 ### Milestone 2: Editor Layer Controls
 
-- Add Map Layers section to `StylePanel.vue`.
-- Expose only style-supported layers.
-- Add per-layer controls for contour, water, transportation, POI, park, and
-  labels.
-- Wire controls through `styleLayerGraph.ts`.
+- Status: first local integration pass complete.
+- `StylePanel.vue` includes an Atlas-only Map Layers section.
+- `buildMapStyle()` consumes `atlas_layers` and `atlas_layer_settings` for
+  visibility, color, opacity, width, and label controls.
+- Unit coverage confirms disabled Atlas layers are removed from MapLibre style
+  JSON and v1 settings update water, roads, and label paint properties.
+- Remaining work: make the controls richer and cleaner, add category/density
+  controls for POIs/roads, wire layer-specific live `setPaintProperty` updates
+  where possible, and gate the public editor with `radmaps_atlas_editor`.
 
 ### Milestone 3: Simple Contour Product
 

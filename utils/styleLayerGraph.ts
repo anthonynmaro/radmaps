@@ -583,9 +583,9 @@ const graphs: Record<StylePreset, LayerGraph> = {
     sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
   }),
   'radmaps-toner': atlasGraph('radmaps-toner'),
-  'radmaps-field-topo': atlasGraph('radmaps-field-topo', { contours: 'required', requiredFields: { show_contours: true } }),
-  'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { contours: 'required', hillshade: 'unsupported', requiredFields: { show_contours: true } }),
-  'radmaps-night-relief': atlasGraph('radmaps-night-relief', { contours: 'required', requiredFields: { show_contours: true } }),
+  'radmaps-field-topo': atlasGraph('radmaps-field-topo'),
+  'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { hillshade: 'unsupported' }),
+  'radmaps-night-relief': atlasGraph('radmaps-night-relief'),
   'radmaps-watercolor-pigment-wash': atlasGraph('radmaps-watercolor-pigment-wash'),
   'radmaps-watercolor-brush-ink': atlasGraph('radmaps-watercolor-brush-ink'),
 }

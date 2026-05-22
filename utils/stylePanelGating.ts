@@ -72,6 +72,7 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
   const hasLogo = !!(input.logoUrl && input.logoUrl.length > 0) || (input.logoAssetCount ?? 0) > 0
   const controls = getVisibleStyleControls(input.preset)
   const graph = getPresetGraph(input.preset)
+  const isAtlasPreset = graph.preset.startsWith('radmaps-')
   const isVisible = (field: keyof StyleConfig) => controls[field]?.visible === true
   const contourActive = styleGraphUsesContours({
     preset: graph.preset,
@@ -82,10 +83,10 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
   const poiDetails = input.showRoads && isVisible('poi_labels_color')
   const waterFeature = graph.features.water
   const waterColorControl = isVisible('water_color')
-  const mapDetailCard = isVisible('show_roads')
+  const mapDetailCard = !isAtlasPreset && (isVisible('show_roads')
     || isVisible('roads_color')
     || isVisible('show_place_labels')
-    || isVisible('show_poi_labels')
+    || isVisible('show_poi_labels'))
 
   return {
     // Quick tab
@@ -125,7 +126,7 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
     logoPositionControls: hasLogo && input.showLogo,
     trailSegmentsCard: input.hasRoute,
     trailLegendControls: input.trailSegmentCount > 0,
-    waterCard: waterColorControl || waterFeature === 'baked-raster' || waterFeature === 'required',
+    waterCard: !isAtlasPreset && (waterColorControl || waterFeature === 'baked-raster' || waterFeature === 'required'),
     waterColorControl,
     waterBakedNotice: waterFeature === 'baked-raster',
     waterThemeLockedNotice: waterFeature === 'required',
