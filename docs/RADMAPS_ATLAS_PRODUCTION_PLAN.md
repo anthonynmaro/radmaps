@@ -16,6 +16,43 @@ usage accounting all share one contract.
   order so we know what users like and what each map costs.
 - Keep the system global-ready without blocking near-term U.S. sales.
 
+## Current Status
+
+As of 2026-05-21, the owned atlas has crossed the first real coverage
+milestone, but it is not fully production-integrated.
+
+Completed:
+
+- Contiguous-U.S. base PMTiles exist in staging R2 as `radmaps-us-base`.
+- North America base PMTiles exist in staging R2 as
+  `radmaps-north-america-base`, covering `[-170, 5, -50, 84]` at z0-14.
+- The North America archive is `20,296,668,015` bytes and verified
+  range-readable from R2.
+- The staging manifest is a composite manifest with `2` base artifacts and
+  `177` contour artifacts from the verified `us-terrain-phase1` terrain run.
+- Atlas styles, watercolor experiments, route-under-label ordering, manifest
+  resolution, usage-event hardening, the Worker tile-service code, and
+  documentation/catalog pages have been added on the Atlas branch.
+- The production strategy for contours has pivoted to browser/Browserless
+  `maplibre-contour` generation plus terrain illusion layers, avoiding
+  expensive global high-detail contour PMTiles for now.
+
+Not done yet:
+
+- Production still uses the older Driftless atlas manifest until staging QA is
+  complete and the production manifest is promoted.
+- The Cloudflare Worker code exists, but the production tile route/custom
+  domain must be deployed and verified against the staging manifest before it
+  becomes the customer path.
+- Atlas Lab demonstrates styles and coverage, but the customer editor still
+  needs first-class Atlas style presets, layer controls, and feature-flagged
+  rollout.
+- Browserless print QA across large sizes and house styles is still required.
+- Public lands, richer recreation POIs, and destination-specific overlay packs
+  are not complete.
+- Build/transfer/manifest publication is documented and scripted in pieces,
+  but should be automated into one budget-guarded workflow.
+
 ## Coverage Rollout
 
 ### Crawl: United States
@@ -49,7 +86,9 @@ terrain first. Enrich with national/provincial datasets where licensing and
 quality justify it.
 
 North America release should include:
-- base map for U.S., Canada, Mexico
+- base map for U.S., Canada, Mexico, Alaska, Greenland, and surrounding North
+  America areas. The first staging artifact already exists as
+  `radmaps-north-america-base`.
 - browser-generated contour coverage wherever Terrarium/global DEM coverage is available
 - terrain illusion layers for visual richness without global contour precompute
 - richer U.S. public lands
@@ -760,7 +799,9 @@ This lets us answer:
 
 ### Milestone 7: North America And Globe
 
-- Expand base coverage first.
+- Expand base coverage first. North America staging base coverage is complete;
+  the next base milestone is either production promotion after QA or a global
+  base archive if the cost/QA window is acceptable.
 - Use browser-generated contours and terrain illusion layers globally where DEM coverage allows.
 - Promote popular or failure-prone regions into cached contour artifacts based on actual usage.
 
@@ -774,3 +815,46 @@ precompute global terrain. The implementation benchmark is the existing
 `maplibre-contour` detail path, supplemented with hillshade, slope/wash,
 hachure, paper grain, and ghost-contour texture where styles need more terrain
 presence.
+
+## Next Phase Execution Plan
+
+The next phase should turn the staging atlas into a sellable production path.
+
+1. **Verify infrastructure**
+   - Deploy or confirm the Cloudflare Worker tile service.
+   - Test `/manifests/staging.json` and representative
+     `/tiles/staging/{artifactId}/{z}/{x}/{y}.mvt` requests for both the U.S.
+     and North America base artifacts.
+   - Keep `/api/atlas/tiles` for local/admin fallback and reject raw external
+     tile URLs in customer paths.
+2. **QA the staging manifest**
+   - Build an Atlas Lab coverage matrix for Yosemite, Rockies, Smokies,
+     Driftless, Chicago, Seattle/Cascades, Moab, Acadia, Vancouver/Whistler,
+     Banff, Baja, Mexico City, Alaska, and Greenland edge coverage.
+   - For each house style, confirm base layers, labels, route order, water,
+     roads/trails, parks, POIs, and runtime contours render together.
+3. **Print proofing**
+   - Render Browserless proofs/finals for `8x12`, `24x36`, and `32x48`.
+   - Measure render time with contours disabled, contour detail levels `0-5`,
+     and terrain illusion layers enabled.
+   - Fail render readiness if DEM/contour tiles are still pending.
+4. **Editor integration**
+   - Move Atlas Lab style recipes into shared `utils/atlasStyles.ts` and
+     `utils/atlasStyleBuilder.ts`.
+   - Add first-class Atlas presets to `StylePreset`.
+   - Add an Atlas-only "Map Layers" section to `StylePanel.vue` for contour,
+     water, waterway, park, landcover, transportation, building, POI, and
+     place.
+   - Gate customer access with `radmaps_atlas_editor`.
+5. **Promotion**
+   - Publish a production manifest only after Worker, Atlas Lab, editor,
+     Browserless, attribution, and analytics checks pass.
+   - Record the manifest version and artifact ids on proofs/finals/orders.
+   - Keep the previous production manifest and PMTiles objects for rollback.
+6. **Scale**
+   - Automate AWS build -> S3 handoff -> R2 transfer -> manifest merge ->
+     manifest publish with cost logging.
+   - Add public lands and recreation POI overlay artifacts.
+   - Build a global base archive when the North America QA/promotion path is
+     proven. Keep global high-detail contour PMTiles deferred unless render
+     reliability or paid demand requires a cache.

@@ -67,3 +67,18 @@ Before turning an idea into app code:
 - Add fixtures for Rockies, Utah desert, PNW forest/water, Chicago/urban
   Midwest, Wisconsin/Driftless, and Michigan/Great Lakes when the idea becomes
   an internal atlas-lab preset.
+
+Before publishing or promoting Atlas data:
+
+- Update `docs/RADMAPS_ATLAS_BUILD_PIPELINE.md`,
+  `docs/RADMAPS_ATLAS_STORAGE.md`, `docs/RADMAPS_ATLAS_PRODUCTION_PLAN.md`,
+  and `docs/MAP_TOOLS_CATALOG.md`.
+- Record artifact id, object path, source data, bounds, zooms, bytes, checksum
+  when available, manifest version, verification commands, and remaining
+  production blockers.
+- Merge large base artifacts into the current manifest with
+  `npm run atlas:merge-manifest-artifact` instead of replacing the manifest and
+  losing previously verified terrain or overlay artifacts.
+- Keep production promotion separate from staging publication until Worker,
+  Atlas Lab, editor, Browserless, attribution, analytics, and rollback checks
+  pass.

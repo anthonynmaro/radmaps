@@ -24,11 +24,14 @@ Current staging base archive:
 Current staging manifest:
 `atlas/v1/manifests/staging.json`
 
-The checked-in staging manifest includes the contiguous-US base atlas and the
-verified `us-terrain-phase1` contour shard set from the successful 2026-05-18
-build. Those contour shards are retained for QA, history, and optional cached
-coverage experiments. They are no longer the default strategy for scaling
-high-detail terrain globally.
+Current staging North America base archive:
+`atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`
+
+The checked-in staging manifest includes the contiguous-US base atlas, the
+North America base atlas, and the verified `us-terrain-phase1` contour shard
+set from the successful 2026-05-18 build. Those contour shards are retained for
+QA, history, and optional cached coverage experiments. They are no longer the
+default strategy for scaling high-detail terrain globally.
 
 Production direction: build global/North America base archives in R2, but keep
 high-detail terrain browser-rendered through `maplibre-contour` in both editor
@@ -116,6 +119,23 @@ Full-US staging verification on 2026-05-17:
 - zooms: `0-14`
 - upload mode: R2 multipart, `36` parts
 - public range check: HTTP `206 Partial Content`
+
+North America staging verification on 2026-05-21:
+- source build id: `north-america-base-20260521T203307Z`
+- AWS build object:
+  `s3://radmaps-atlas-build-470337544102-us-east-2/north-america/north-america-base-20260521T203307Z/radmaps-base-north-america.pmtiles`
+- R2 object:
+  `atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`
+- public URL:
+  `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`
+- bytes: `20,296,668,015`
+- SHA-256:
+  `b0409e5c1a02e32f6ecc4c522b09500f80ce7185388abd8f8ad67eaff908118f`
+- bounds: `[-170, 5, -50, 84]`
+- zooms: `0-14`
+- public range check: HTTP `206 Partial Content`
+- staging manifest version: `2026.05.21-staging-composite.1`
+- staging manifest counts: `2` base artifacts, `177` contour artifacts
 
 Regional terrain showcase verification on 2026-05-17:
 - workflow: `.github/workflows/atlas-terrain-pack.yml`
@@ -213,6 +233,32 @@ npm run atlas:merge-manifest-artifact -- \
    `atlas/v1/manifests/staging.json` only after the new R2 PMTiles object is
    present and range-readable.
 
+Current operational lesson: for large atlas builds, the Mac is not the right
+data plane. It is fine as the control plane for kicking off AWS, checking logs,
+and editing manifests, but the heavy PMTiles bytes should move from AWS S3 to
+R2 inside the cloud. The first North America archive was 18.9 GiB; attempting
+to stream that through the laptop was slow and failed under local disk pressure.
+
+## Production Promotion Checklist
+
+Do not promote the North America staging atlas to production until all of these
+are true:
+
+- The Cloudflare Worker tile route serves the staging manifest and at least one
+  known base tile by artifact id.
+- Atlas Lab proves base coverage in U.S., Canada, Mexico, Alaska, and at least
+  one coastal/ocean-heavy map.
+- Browserless proof and final renders complete for `8x12`, `24x36`, and
+  `32x48` using Atlas styles.
+- Route linework renders below labels and remains readable across house styles.
+- Runtime contours from `maplibre-contour` load before render readiness marks
+  final screenshots complete.
+- Attribution text and manifest source licenses are present for OSM-derived
+  base data and DEM-derived terrain.
+- Usage analytics can record `atlas_version`, `artifact_ids`,
+  `atlas_style_id`, enabled layers, render class, and print size.
+- The prior production manifest remains available for rollback.
+
 ## Budget Posture
 
 Monthly budget: `$30`.
@@ -228,6 +274,15 @@ Why not Vercel Blob for primary tile archives:
 - It is convenient, but blob data transfer is billable.
 - Large PMTiles and repeated map preview/render traffic can make tile delivery
   scale with usage faster than storage cost.
+
+Build compute is separate from tile serving. The first North America base build
+ran on temporary AWS compute and should be treated as a one-off build expense,
+not a monthly serving expense. The observed path was low single-digit dollars
+for compute/temporary transfer at this scale, but future global builds must log
+the exact instance hours, attached storage, S3 bytes, and transfer runner time
+before and after every run. Keep the `$300` AWS budget guardrail active for
+atlas experiments and prefer explicit stop/terminate verification after each
+runner.
 
 ## Upload Workflow
 

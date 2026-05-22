@@ -63,6 +63,48 @@ describe('Atlas manifest resolver', () => {
     expect(findAtlasArtifact(manifest, 'missing')).toBeNull()
   })
 
+  it('allows overlapping base artifacts while resolving only bbox-intersecting coverage', () => {
+    const northAmericaManifest: AtlasManifest = {
+      artifacts: {
+        base: [
+          {
+            id: 'base-us',
+            kind: 'base',
+            url: 'https://tiles.example/base-us.pmtiles',
+            objectPath: 'atlas/base-us.pmtiles',
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: [-125, 24, -66, 50],
+            layers: ['water', 'transportation'],
+          },
+          {
+            id: 'base-north-america',
+            kind: 'base',
+            url: 'https://tiles.example/base-na.pmtiles',
+            objectPath: 'atlas/base-na.pmtiles',
+            minzoom: 0,
+            maxzoom: 14,
+            bounds: [-170, 5, -50, 84],
+            layers: ['water', 'transportation', 'place', 'poi'],
+          },
+        ],
+      },
+    }
+
+    const canadaResolved = resolveAtlasArtifacts(northAmericaManifest, manifest, {
+      bbox: [-116.6, 51.0, -115.2, 52.0],
+      requiredKinds: ['base'],
+    })
+    const chicagoResolved = resolveAtlasArtifacts(northAmericaManifest, manifest, {
+      bbox: [-88.1, 41.6, -87.4, 42.1],
+      requiredKinds: ['base'],
+    })
+
+    expect(canadaResolved.baseArtifacts.map(artifact => artifact.id)).toEqual(['base-north-america'])
+    expect(chicagoResolved.baseArtifacts.map(artifact => artifact.id)).toEqual(['base-us', 'base-north-america'])
+    expect(chicagoResolved.baseUrl).toBe('https://tiles.example/base-us.pmtiles')
+  })
+
   it('does not fall back to legacy contours when a manifest explicitly has no contour artifacts', () => {
     const fallback: AtlasManifest = {
       artifacts: {

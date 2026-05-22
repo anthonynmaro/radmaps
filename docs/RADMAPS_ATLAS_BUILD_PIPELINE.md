@@ -70,6 +70,10 @@ Current entries:
 - `us-contiguous`: first full U.S. base-build target. Staging build
   `2026.05.17-us.1` produced a validated `9,593,839,310` byte PMTiles archive
   and published it to R2.
+- `north-america`: U.S., Canada, Mexico, Greenland, and surrounding North
+  America coverage. AWS build `north-america-base-20260521T203307Z` produced a
+  validated `20,296,668,015` byte PMTiles archive and published it to the
+  staging R2 manifest as artifact `radmaps-north-america-base`.
 
 The full U.S. source is the Geofabrik United States OSM PBF:
 
@@ -78,6 +82,56 @@ The full U.S. source is the Geofabrik United States OSM PBF:
 Geofabrik lists that extract as about 11GB, so the build runner needs enough
 scratch for the source, Planetiler working files, PMTiles output, validation,
 and upload retries.
+
+The current North America source is the Geofabrik North America OSM PBF:
+
+`https://download.geofabrik.de/north-america-latest.osm.pbf`
+
+The first successful run used an AWS `c7i.8xlarge` build instance with large
+ephemeral scratch, uploaded the finished archive to the private AWS build
+bucket, then used a short-lived in-region transfer runner to copy the object to
+Cloudflare R2. That avoided local laptop disk pressure and long residential
+upload times.
+
+## Current Progress Snapshot
+
+As of 2026-05-21:
+
+- Staging R2 has full contiguous-U.S. base coverage and North America base
+  coverage.
+- Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
+  selected U.S. terrain regions. These are retained for QA/history and optional
+  cached coverage, not treated as the default global contour strategy.
+- Production R2 still points at the earlier Driftless base and contour pack.
+  Production promotion is intentionally pending visual QA, Worker/custom-domain
+  verification, editor integration, and attribution/analytics checks.
+- The current staging manifest is a composite manifest. Do not overwrite it
+  with a single build runner manifest; merge new artifacts into it so existing
+  contour shards remain available.
+
+North America build details:
+
+| Field | Value |
+|---|---|
+| Build id | `north-america-base-20260521T203307Z` |
+| AWS build artifact | `s3://radmaps-atlas-build-470337544102-us-east-2/north-america/north-america-base-20260521T203307Z/radmaps-base-north-america.pmtiles` |
+| R2 object | `atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles` |
+| R2 public URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles` |
+| Size | `20,296,668,015` bytes (`18.9 GiB`) |
+| SHA-256 | `b0409e5c1a02e32f6ecc4c522b09500f80ce7185388abd8f8ad67eaff908118f` |
+| Bounds | `[-170, 5, -50, 84]` |
+| Zooms | `0-14` |
+| Verified range read | HTTP `206 Partial Content`, `Content-Range: bytes 0-1023/20296668015` |
+
+Current staged manifest details:
+
+| Field | Value |
+|---|---|
+| URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json` |
+| Atlas version | `2026.05.21-staging-composite.1` |
+| Base artifacts | `2` (`radmaps-us-base`, `radmaps-north-america-base`) |
+| Contour artifacts | `177` |
+| Coverage label | `north-america` |
 
 ## Planetiler Operating Model
 
@@ -138,6 +192,16 @@ The Worker only serves artifacts listed in the R2 manifest. It rejects unknown
 artifact ids, out-of-range z/x/y, tiles outside artifact bounds, and raw URL
 lookups. This keeps the customer tile path stable while allowing the manifest
 to move between immutable PMTiles releases.
+
+Repository tests that protect this workflow:
+
+- `tests/atlas-manifest.test.ts` verifies artifact resolution, including
+  overlapping U.S. and North America base artifacts.
+- `tests/atlas-merge-manifest-artifact.test.ts` verifies that publishing a new
+  large base artifact preserves existing contour coverage and rewrites public
+  R2 URLs correctly.
+- `tests/atlas-sync-terrain-manifest.test.ts` verifies terrain shard manifest
+  generation from the terrain pack registry.
 
 ## Map Update And PMTiles Refresh Process
 
@@ -240,6 +304,54 @@ PMTiles object into the matching immutable R2 path, then merge the base artifact
 into the existing staging manifest with `npm run atlas:merge-manifest-artifact`.
 That keeps already-verified terrain shard entries available while adding the
 new base coverage.
+
+Known handoff notes from the first North America build:
+
+- Direct laptop S3-to-R2 streaming was abandoned because the local machine had
+  too little free disk and the transfer was too slow. Use an AWS in-region
+  transfer runner or future automation for large artifacts.
+- Prefix-scoped temporary R2 credentials worked for object upload but returned
+  an internal error when replacing the staging manifest. Exact-object temporary
+  credentials for `atlas/v1/manifests/staging.json` succeeded. Prefer
+  least-privilege permanent CI credentials or exact-object temp credentials for
+  manifest publication.
+- Keep the AWS build bucket as the durable handoff until the R2 object and
+  public range reads have been verified.
+
+## Remaining Plan
+
+The owned atlas is useful but not production-complete. The remaining work is:
+
+1. **Production tile service verification**
+   - Deploy or verify `workers/atlas-tiles` against the staging manifest.
+   - Confirm `tiles.radmaps.studio` or the interim Worker URL serves manifests
+     and known tiles by artifact id.
+   - Keep the Nuxt tile proxy as local/admin fallback only.
+2. **Atlas Lab and editor QA**
+   - Validate North America base coverage in Atlas Lab across U.S., Canada,
+     Mexico, Alaska, and coastal edge cases.
+   - Run house-style visual checks for Toner, Field Topo, Watercolor variants,
+     Night Relief, and Simple Contour.
+   - Confirm Browserless proof/final renders match the editor at `8x12`,
+     `24x36`, and `32x48`.
+3. **Production editor integration**
+   - Move Atlas styles from Atlas Lab into the shared style builder path.
+   - Add the Atlas-only Map Layers section to `StylePanel.vue`.
+   - Gate customer access behind a feature flag until print QA and attribution
+     behavior are verified.
+4. **Automation**
+   - Convert the AWS build, S3 handoff, R2 transfer, manifest merge, and
+     manifest publish steps into a repeatable workflow with budget checks.
+   - Record checksums, build logs, source dates, object bytes, and manifest
+     versions every time.
+5. **Coverage expansion**
+   - Keep building base coverage first: North America staging is complete;
+     globe base is next when cost is acceptable.
+   - Keep high-detail contours browser-rendered through `maplibre-contour` for
+     editor and Browserless renders. Add cached contour PMTiles only where usage
+     or reliability proves the need.
+   - Add richer overlays for public lands, trail/recreation POIs, boundaries,
+     parks, and destination-specific upgrades.
 
 ## Contours
 

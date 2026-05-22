@@ -137,6 +137,15 @@ Map controls must be graph-gated. Do not show controls for baked-only or unsuppo
 
 Update both files whenever you add, remove, rename, or materially change any map provider, tile source, preset/source mapping, layer capability, attribution requirement, commercial licensing assumption, self-hosted atlas, or provider usage analytics dimension. If a change affects screenshot behavior, product geometry, or renderer/provider boundaries, also update `docs/RENDERING.md` or `docs/ARCHITECTURE_SECURITY_REVIEW.md` as appropriate. If a change adds provider usage tracking tables, follow the database change policy and include forward and rollback SQL.
 
+For owned Atlas builds, also update `docs/RADMAPS_ATLAS_BUILD_PIPELINE.md`,
+`docs/RADMAPS_ATLAS_STORAGE.md`, and
+`docs/RADMAPS_ATLAS_PRODUCTION_PLAN.md` with the artifact id, object path,
+bytes, bounds, zooms, source date, checksum when available, manifest version,
+verification commands, and what remains before production promotion. Large base
+builds should be merged into the existing manifest with
+`npm run atlas:merge-manifest-artifact` so validated contour/overlay artifacts
+are not accidentally dropped.
+
 ### Screenshot render (Browserless + render-worker-v4)
 The current renderer screenshots the real Nuxt/Vue/MapLibre poster in Chromium. `MapPreview.vue` is the only poster renderer.
 
