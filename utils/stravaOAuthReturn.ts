@@ -8,9 +8,17 @@ export function safeInternalPath(value: unknown, fallback = '/'): string {
 
   const trimmed = candidate.trim()
   if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return fallback
-  if (trimmed.startsWith('/\\') || /[\u0000-\u001f\u007f]/.test(trimmed)) return fallback
+  if (trimmed.startsWith('/\\') || containsControlCharacter(trimmed)) return fallback
 
   return trimmed
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index)
+    if (code <= 31 || code === 127) return true
+  }
+  return false
 }
 
 export function encodeReturnPathCookie(value: string): string {
