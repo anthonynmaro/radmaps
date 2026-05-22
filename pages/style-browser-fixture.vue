@@ -46,6 +46,12 @@ const composition = typeof route.query.composition === 'string'
 const themeId = typeof route.query.theme === 'string'
   ? route.query.theme
   : 'editorial-minimal'
+const preset = typeof route.query.preset === 'string'
+  ? route.query.preset as StyleConfig['preset']
+  : undefined
+const region = typeof route.query.region === 'string'
+  ? route.query.region
+  : 'chicago'
 const gridScope = route.query.gridScope === 'map' || route.query.gridScope === 'poster'
   ? route.query.gridScope
   : undefined
@@ -108,6 +114,7 @@ const initialStyleConfig: StyleConfig = {
       }
     : {}),
   composition: selectedComposition,
+  ...(preset ? { preset } : {}),
   ...(gridScope ? { show_grid: true, grid_scope: gridScope } : {}),
   ...(withOverlay
     ? {
@@ -250,22 +257,61 @@ const editorSurfaceFrameStyle = computed(() => ({
   maxWidth: '100%',
 }))
 
-const sampleRoute = [
-  [-87.733, 41.905],
-  [-87.71, 41.91],
-  [-87.698, 41.89],
-  [-87.682, 41.898],
-  [-87.664, 41.875],
-  [-87.647, 41.884],
-  [-87.628, 41.861],
-  [-87.609, 41.875],
-  [-87.592, 41.842],
-]
+const sampleRegions: Record<string, {
+  title: string
+  location: string
+  bbox: [number, number, number, number]
+  route: number[][]
+}> = {
+  chicago: {
+    title: 'Kickapoo Endurance Race',
+    location: 'Chicago, Illinois',
+    bbox: [-87.75, 41.83, -87.58, 41.92],
+    route: [
+      [-87.733, 41.905],
+      [-87.71, 41.91],
+      [-87.698, 41.89],
+      [-87.682, 41.898],
+      [-87.664, 41.875],
+      [-87.647, 41.884],
+      [-87.628, 41.861],
+      [-87.609, 41.875],
+      [-87.592, 41.842],
+    ],
+  },
+  banff: {
+    title: 'Banff Ridge Traverse',
+    location: 'Banff, Alberta',
+    bbox: [-115.66, 51.14, -115.49, 51.23],
+    route: [
+      [-115.625, 51.158],
+      [-115.600, 51.168],
+      [-115.574, 51.181],
+      [-115.548, 51.193],
+      [-115.522, 51.205],
+    ],
+  },
+  mexico: {
+    title: 'Volcanic Valley Run',
+    location: 'Mexico City, Mexico',
+    bbox: [-99.19, 19.40, -99.07, 19.47],
+    route: [
+      [-99.176, 19.412],
+      [-99.154, 19.422],
+      [-99.132, 19.434],
+      [-99.110, 19.446],
+      [-99.086, 19.456],
+    ],
+  },
+}
+
+const sampleRegion = sampleRegions[region] ?? sampleRegions.chicago
+const sampleRoute = sampleRegion.route
 
 const sampleMap: TrailMap = {
   id: 'style-browser-fixture',
   user_id: 'dev',
-  title: 'Kickapoo Endurance Race',
+  title: sampleRegion.title,
   geojson: {
     type: 'FeatureCollection',
     features: [{
@@ -277,7 +323,7 @@ const sampleMap: TrailMap = {
       },
     }],
   },
-  bbox: [-87.75, 41.83, -87.58, 41.92],
+  bbox: sampleRegion.bbox,
   stats: {
     distance_km: 30.7,
     elevation_gain_m: 1320,
@@ -285,7 +331,7 @@ const sampleMap: TrailMap = {
     min_elevation_m: 180,
     max_elevation_m: 390,
     date: '2026-05-11',
-    location: 'Kickapoo State Park',
+    location: sampleRegion.location,
   },
   style_config: initialStyleConfig,
   status: 'draft',

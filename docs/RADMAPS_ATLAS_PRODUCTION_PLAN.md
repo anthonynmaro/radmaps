@@ -858,3 +858,50 @@ The next phase should turn the staging atlas into a sellable production path.
    - Build a global base archive when the North America QA/promotion path is
      proven. Keep global high-detail contour PMTiles deferred unless render
      reliability or paid demand requires a cache.
+
+## Local Integration Testing
+
+Use local development against the Atlas `staging` manifest until production
+promotion passes. The goal is to prove the real app/render path, not only the
+Atlas Lab cards.
+
+1. Start Nuxt locally:
+
+   ```bash
+   npm run dev -- --host 127.0.0.1 --port 3002
+   ```
+
+2. Open `/admin/atlas-lab` and check the coverage matrix. U.S. showcase
+   regions should show cached terrain shard availability where present; Banff,
+   Vancouver, Baja, Mexico City, and Anchorage should show base coverage plus
+   browser-generated contours.
+3. Exercise the real `MapPreview` path with the dev fixture:
+
+   ```text
+   /style-browser-fixture?preset=radmaps-field-topo&region=chicago
+   /style-browser-fixture?preset=radmaps-field-topo&region=banff
+   /style-browser-fixture?preset=radmaps-night-relief&region=mexico
+   /style-browser-fixture?surface=1&preset=radmaps-field-topo&region=banff&width=1180&height=820
+   ```
+
+4. Verify the local tile API can serve approved composite coverage without a
+   raw URL:
+
+   ```bash
+   curl -s -o /tmp/radmaps-chicago.mvt \
+     -w 'chicago status=%{http_code} bytes=%{size_download}\n' \
+     'http://127.0.0.1:3002/api/atlas/tiles/base/8/65/95.mvt?environment=staging'
+
+   curl -s -o /tmp/radmaps-banff.mvt \
+     -w 'banff status=%{http_code} bytes=%{size_download}\n' \
+     'http://127.0.0.1:3002/api/atlas/tiles/base/8/45/85.mvt?environment=staging'
+
+   curl -s -o /tmp/radmaps-mexico-city.mvt \
+     -w 'mexico status=%{http_code} bytes=%{size_download}\n' \
+     'http://127.0.0.1:3002/api/atlas/tiles/base/8/57/113.mvt?environment=staging'
+   ```
+
+The local tile endpoint now selects the first manifest artifact that supports
+the requested tile. That keeps U.S. routes on the smaller U.S. base artifact
+while automatically serving Canada, Mexico, Alaska, and other North America
+coverage from `radmaps-north-america-base`.

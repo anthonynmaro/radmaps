@@ -105,6 +105,13 @@ function isRadMapsAtlasPreset(preset?: string) {
   return Boolean(preset?.startsWith('radmaps-'))
 }
 
+function sameOriginTileUrl(path: string) {
+  const origin = typeof globalThis !== 'undefined'
+    ? (globalThis as { location?: { origin?: string } }).location?.origin
+    : ''
+  return origin ? `${origin}${path}` : path
+}
+
 export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
   return styleGraphUsesContours(config)
 }
@@ -984,7 +991,7 @@ function buildRadMapsAtlasStyle(
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
       type: 'vector' as const,
-      tiles: ['/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging'],
+      tiles: [sameOriginTileUrl('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')],
       minzoom: 0,
       maxzoom: 14,
       attribution: '© OpenStreetMap contributors © RadMaps Atlas',
@@ -1019,9 +1026,10 @@ function buildRadMapsAtlasStyle(
   return {
     version: 8,
     name: `RadMaps Atlas ${preset}`,
-    glyphs: token
-      ? `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`
-      : 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    // Atlas labels use open MapLibre demo glyphs for local/proof testing so
+    // owned styles do not depend on Mapbox font stacks just because a token is
+    // present in the runtime config.
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources,
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': isNight ? '#081611' : land } },

@@ -1206,6 +1206,7 @@
 <script setup lang="ts">
 import type { StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
 import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
+import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
@@ -2133,8 +2134,82 @@ const BETA_MAP_PRESETS: MapPresetOption[] = [
   },
 ]
 
+const ATLAS_MAP_PRESETS: MapPresetOption[] = [
+  {
+    id: 'radmaps-field-topo',
+    label: 'Field Topo',
+    title: 'Owned Atlas topo — RadMaps vector base plus browser-rendered contours',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#F7EFD8"/>
+      <rect x="0" y="0" width="48" height="32" fill="#AFC982" opacity="0.32"/>
+      <path d="M0 22 Q12 17 24 20 Q34 23 48 15" stroke="#327F96" stroke-width="1.1" fill="none" opacity="0.8"/>
+      <ellipse cx="25" cy="18" rx="22" ry="12" stroke="#AA855C" stroke-width="0.55" fill="none" opacity="0.75"/>
+      <ellipse cx="25" cy="18" rx="15" ry="8" stroke="#604327" stroke-width="0.7" fill="none" opacity="0.8"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#C44F24" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: { show_contours: true, show_hillshade: true, contour_detail: 4, route_color: '#C44F24' },
+    beta: true,
+  },
+  {
+    id: 'radmaps-toner',
+    label: 'Atlas Toner',
+    title: 'Owned Atlas toner — crisp vector linework with no Stadia dependency',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#F7F6F1"/>
+      <rect x="0" y="0" width="48" height="32" fill="#D7DEE0" opacity="0.42"/>
+      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#17222A" stroke-width="1.25" fill="none" opacity="0.68"/>
+      <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#17222A" stroke-width="0.75" fill="none" opacity="0.45"/>
+      <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#17222A" stroke-width="0.95" fill="none" opacity="0.5"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#111111" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    defaults: { show_contours: false, show_hillshade: false, route_color: '#111111' },
+    beta: true,
+  },
+  {
+    id: 'radmaps-watercolor-pigment-wash',
+    label: 'Atlas Wash',
+    title: 'Owned Atlas watercolor — transparent pigments over editable vector layers',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#FFF4E2"/>
+      <ellipse cx="12" cy="12" rx="15" ry="10" fill="#96BA67" opacity="0.46"/>
+      <ellipse cx="35" cy="19" rx="14" ry="9" fill="#E7B58E" opacity="0.32"/>
+      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#49B6D0" stroke-width="2.1" fill="none" opacity="0.72"/>
+      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9A594A" stroke-width="1.1" fill="none" opacity="0.5"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#A43F2F" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: { show_contours: true, show_hillshade: false, contour_detail: 3, route_color: '#A43F2F' },
+    beta: true,
+  },
+  {
+    id: 'radmaps-night-relief',
+    label: 'Night Relief',
+    title: 'Owned Atlas dark terrain — contours, hydro, and copper route contrast',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#081611"/>
+      <rect x="0" y="0" width="48" height="32" fill="#1E5D78" opacity="0.22"/>
+      <ellipse cx="24" cy="18" rx="20" ry="11" stroke="#39495C" stroke-width="0.7" fill="none"/>
+      <ellipse cx="24" cy="18" rx="13" ry="7" stroke="#6C86A4" stroke-width="0.85" fill="none"/>
+      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#58A4C5" stroke-width="1" fill="none" opacity="0.75"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#F08A46" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
+    defaults: { show_contours: true, show_hillshade: true, contour_detail: 4, route_color: '#F08A46', background_color: '#151A1D', label_bg_color: '#151A1D', label_text_color: '#F3E8D0' },
+    beta: true,
+  },
+  {
+    id: 'radmaps-simple-contour',
+    label: 'Simple Contour',
+    title: 'Owned Atlas contour-first poster — sparse basemap, dense browser contours',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#FAF8F1"/>
+      <ellipse cx="24" cy="18" rx="22" ry="12" stroke="#B4A88E" stroke-width="0.55" fill="none"/>
+      <ellipse cx="24" cy="18" rx="17" ry="9" stroke="#B4A88E" stroke-width="0.55" fill="none"/>
+      <ellipse cx="24" cy="18" rx="12" ry="6.5" stroke="#7C6F56" stroke-width="0.8" fill="none"/>
+      <ellipse cx="24" cy="18" rx="7" ry="3.6" stroke="#7C6F56" stroke-width="0.9" fill="none"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#C24E2C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: { show_contours: true, show_hillshade: false, contour_detail: 5, route_color: '#C24E2C' },
+    beta: true,
+  },
+]
+
 const MAP_PRESETS: MapPresetOption[] = [
   ...CORE_MAP_PRESETS,
+  ...ATLAS_MAP_PRESETS,
   ...BETA_MAP_PRESETS,
 ]
 

@@ -9,6 +9,13 @@ function baseTileUrl(style: object): string {
   return tileUrl
 }
 
+function sourceTileUrl(style: object, sourceId: string): string {
+  const sources = (style as { sources?: Record<string, { tiles?: string[] }> }).sources
+  const tileUrl = sources?.[sourceId]?.tiles?.[0]
+  if (!tileUrl) throw new Error(`Missing ${sourceId} source URL`)
+  return tileUrl
+}
+
 interface TestLayer {
   id: string
   source?: string
@@ -189,6 +196,30 @@ describe('contour style requirements', () => {
       preset: 'minimalist',
       show_contours: false,
     })).toBe(false)
+  })
+})
+
+describe('RadMaps Atlas style integration', () => {
+  it('uses the local approved-artifact tile API for owned atlas presets', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      show_contours: true,
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')
+    expect(sourceTileUrl(style, 'contours')).toBe('contour://dem/{z}/{x}/{y}')
+    expect((style as { glyphs?: string }).glyphs).toBe('https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf')
+  })
+
+  it('keeps routes below Atlas labels so labels remain readable', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner',
+    }, 'mapbox-test-token')
+
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-place-labels'))
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-poi-labels'))
   })
 })
 

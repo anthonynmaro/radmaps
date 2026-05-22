@@ -141,10 +141,10 @@
             </div>
 
             <p class="mt-4 text-xs leading-5 text-stone-500">
-              Base coverage is the contiguous United States at z0-14. Existing contour PMTiles remain visible in
-              the coverage accounting for QA/history, but the production direction is browser-generated contours in
-              editor and Browserless renders, with cached terrain artifacts added only where usage proves they are
-              worth the compute.
+              Base coverage is staged for the contiguous United States and North America at z0-14. Existing contour
+              PMTiles remain visible in the coverage accounting for QA/history, but the production direction is
+              browser-generated contours in editor and Browserless renders, with cached terrain artifacts added only
+              where usage proves they are worth the compute.
             </p>
           </div>
         </div>
@@ -193,7 +193,7 @@
       <section class="rounded-lg border border-stone-200 bg-white p-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p class="text-sm font-semibold text-stone-900">US showcase window</p>
+            <p class="text-sm font-semibold text-stone-900">North America showcase window</p>
             <p class="mt-1 text-xs leading-5 text-stone-600">
               Jump the same owned PMTiles archive across contour regions and base-only city stress tests. Roads, trails,
               water, parks, places, POIs, and peaks are all styled from separate vector layers.
@@ -444,6 +444,41 @@ const showcases: ShowcaseLocation[] = [
     center: [-68.273, 44.338],
     zoom: 12.9,
     route: [[-68.315, 44.323], [-68.300, 44.332], [-68.282, 44.341], [-68.264, 44.350], [-68.246, 44.359]],
+  },
+  {
+    id: 'banff',
+    name: 'Banff',
+    center: [-115.570, 51.178],
+    zoom: 12.2,
+    route: [[-115.625, 51.158], [-115.600, 51.168], [-115.574, 51.181], [-115.548, 51.193], [-115.522, 51.205]],
+  },
+  {
+    id: 'vancouver',
+    name: 'Vancouver',
+    center: [-123.121, 49.282],
+    zoom: 12.4,
+    route: [[-123.167, 49.266], [-123.145, 49.274], [-123.120, 49.284], [-123.095, 49.292], [-123.070, 49.300]],
+  },
+  {
+    id: 'baja',
+    name: 'Baja',
+    center: [-110.312, 24.142],
+    zoom: 11.6,
+    route: [[-110.365, 24.105], [-110.342, 24.122], [-110.315, 24.143], [-110.288, 24.164], [-110.260, 24.183]],
+  },
+  {
+    id: 'mexico-city',
+    name: 'Mexico City',
+    center: [-99.133, 19.432],
+    zoom: 12.3,
+    route: [[-99.176, 19.412], [-99.154, 19.422], [-99.132, 19.434], [-99.110, 19.446], [-99.086, 19.456]],
+  },
+  {
+    id: 'anchorage',
+    name: 'Anchorage',
+    center: [-149.900, 61.218],
+    zoom: 11.9,
+    route: [[-149.965, 61.192], [-149.935, 61.205], [-149.900, 61.220], [-149.865, 61.235], [-149.830, 61.248]],
   },
 ]
 

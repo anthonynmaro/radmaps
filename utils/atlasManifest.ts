@@ -142,6 +142,36 @@ export function atlasArtifactIntersectsBbox(
     north >= artifactSouth
 }
 
+export function atlasTileToBbox(z: number, x: number, y: number): [number, number, number, number] {
+  const n = 2 ** z
+  const west = x / n * 360 - 180
+  const east = (x + 1) / n * 360 - 180
+  const north = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI
+  const south = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) * 180 / Math.PI
+  return [west, south, east, north]
+}
+
+export function atlasArtifactSupportsTile(
+  artifact: AtlasManifestArtifact,
+  z: number,
+  x: number,
+  y: number,
+) {
+  const minzoom = artifact.minzoom ?? 0
+  const maxzoom = artifact.maxzoom ?? 24
+  if (z < minzoom || z > maxzoom) return false
+  return atlasArtifactIntersectsBbox(artifact, atlasTileToBbox(z, x, y))
+}
+
+export function selectAtlasArtifactForTile(
+  artifacts: AtlasManifestArtifact[],
+  z: number,
+  x: number,
+  y: number,
+) {
+  return artifacts.find(artifact => atlasArtifactSupportsTile(artifact, z, x, y)) || null
+}
+
 export function findAtlasArtifact(
   manifest: AtlasManifest | null | undefined,
   artifactId: string,

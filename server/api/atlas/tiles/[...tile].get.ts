@@ -1,10 +1,15 @@
 import { PMTiles } from 'pmtiles'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+// @ts-expect-error vt-pbf does not publish bundled TypeScript declarations.
+import vtpbf from 'vt-pbf'
 import type { AtlasArtifactKey, AtlasManifest, AtlasManifestArtifact } from '~/utils/atlasManifest'
 import {
+  atlasArtifactIntersectsBbox,
   atlasManifestArtifacts,
+  atlasTileToBbox,
   findAtlasArtifact,
+  selectAtlasArtifactForTile,
 } from '~/utils/atlasManifest'
 
 const DEFAULT_BASE_URL = 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles'
@@ -12,6 +17,23 @@ const ALLOWED_TILE_URL_PREFIXES = [
   'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/',
   'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/',
 ]
+const EMPTY_BASE_TILE = Buffer.from(vtpbf.fromGeojsonVt(Object.fromEntries([
+  'landcover',
+  'landuse',
+  'mountain_peak',
+  'park',
+  'place',
+  'transportation',
+  'transportation_name',
+  'water',
+  'water_name',
+  'waterway',
+  'building',
+  'poi',
+].map(layer => [layer, { features: [] }]))))
+const EMPTY_TERRAIN_TILE = Buffer.from(vtpbf.fromGeojsonVt({
+  contour: { features: [] },
+}))
 
 const globalForAtlasTiles = globalThis as unknown as {
   __radmapsAtlasPmtilesCache?: Map<string, PMTiles>
@@ -55,21 +77,6 @@ function validateTileRange(z: number, x: number, y: number) {
   }
 }
 
-function tileToBbox(z: number, x: number, y: number): [number, number, number, number] {
-  const n = 2 ** z
-  const west = x / n * 360 - 180
-  const east = (x + 1) / n * 360 - 180
-  const north = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI
-  const south = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) * 180 / Math.PI
-  return [west, south, east, north]
-}
-
-function bboxIntersects(a: [number, number, number, number], b: [number, number, number, number]) {
-  const [west, south, east, north] = a
-  const [otherWest, otherSouth, otherEast, otherNorth] = b
-  return west <= otherEast && east >= otherWest && south <= otherNorth && north >= otherSouth
-}
-
 async function loadLocalManifest(environment: string) {
   if (environment !== 'staging' && environment !== 'production') {
     throw createError({ statusCode: 400, message: 'Unsupported atlas environment' })
@@ -88,13 +95,12 @@ function artifactKindForSource(source: string): AtlasArtifactKey {
   return source === 'terrain' ? 'contours' : 'base'
 }
 
-function firstArtifactForSource(manifest: AtlasManifest, source: string) {
-  return atlasManifestArtifacts(manifest, artifactKindForSource(source))[0] || null
-}
-
 async function artifactFromQuery(
   event: Parameters<typeof getRouterParam>[0],
   source: string,
+  z: number,
+  x: number,
+  y: number,
 ): Promise<AtlasManifestArtifact | null> {
   const query = getQuery(event)
   const environment = typeof query.environment === 'string' && query.environment.trim()
@@ -109,7 +115,14 @@ async function artifactFromQuery(
     }
     return artifact
   }
-  return firstArtifactForSource(manifest, source)
+
+  const artifacts = atlasManifestArtifacts(manifest, artifactKindForSource(source))
+  if (!artifacts.length) return null
+  const artifact = selectAtlasArtifactForTile(artifacts, z, x, y)
+  if (!artifact) {
+    throw createError({ statusCode: 404, message: 'Atlas tile outside available coverage' })
+  }
+  return artifact
 }
 
 function validateArtifactTile(
@@ -124,7 +137,7 @@ function validateArtifactTile(
   if (z < minzoom || z > maxzoom) {
     throw createError({ statusCode: 400, message: 'Atlas tile zoom outside artifact range' })
   }
-  if (artifact.bounds && !bboxIntersects(artifact.bounds, tileToBbox(z, x, y))) {
+  if (artifact.bounds && !atlasArtifactIntersectsBbox(artifact, atlasTileToBbox(z, x, y))) {
     throw createError({ statusCode: 404, message: 'Atlas tile outside artifact bounds' })
   }
 }
@@ -152,7 +165,7 @@ async function normalizeTileUrl(
     return requestedUrl
   }
 
-  const artifact = await artifactFromQuery(event, source)
+  const artifact = await artifactFromQuery(event, source, z, x, y)
   validateArtifactTile(artifact, z, x, y)
   return artifact?.url || DEFAULT_BASE_URL
 }
@@ -181,8 +194,14 @@ export default defineEventHandler(async (event) => {
   const tile = await pmtiles.getZxy(z, x, y)
 
   if (!tile) {
-    setResponseStatus(event, 204)
-    return ''
+    // MapLibre treats 204/empty vector tile responses as console errors. Return
+    // a valid empty MVT containing the expected source layers so sparse PMTiles
+    // archives and overscanned map views stay quiet during local QA.
+    const emptyTile = source === 'terrain' ? EMPTY_TERRAIN_TILE : EMPTY_BASE_TILE
+    setHeader(event, 'Content-Type', 'application/x-protobuf')
+    setHeader(event, 'Content-Length', emptyTile.byteLength)
+    setHeader(event, 'Cache-Control', 'public, max-age=86400')
+    return emptyTile
   }
 
   setHeader(event, 'Content-Type', 'application/x-protobuf')
