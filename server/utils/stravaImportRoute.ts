@@ -14,8 +14,8 @@ export interface StravaImportStreams {
   altitude?: { data: number[] }
 }
 
-export const STRAVA_IMPORT_TARGET_POINTS = 25_000
-export const STRAVA_IMPORT_MAX_POINTS = 45_000
+export const STRAVA_IMPORT_TARGET_POINTS = 90_000
+export const STRAVA_IMPORT_MAX_POINTS = 120_000
 const STRAVA_IMPORT_MAX_RDP_INPUT_POINTS = 250_000
 
 type RouteCoord = [number, number] | [number, number, number]
@@ -159,6 +159,12 @@ export function buildStravaImportRoute(activity: StravaImportActivity, streams: 
 
   const elevations = altitudeData.filter((e) => e !== undefined)
   let elevationLoss = 0
+  let maxElevation = -Infinity
+  let minElevation = Infinity
+  for (const elevation of elevations) {
+    if (elevation > maxElevation) maxElevation = elevation
+    if (elevation < minElevation) minElevation = elevation
+  }
   for (let i = 1; i < elevations.length; i++) {
     const diff = elevations[i] - elevations[i - 1]
     if (diff < 0) elevationLoss += Math.abs(diff)
@@ -188,8 +194,8 @@ export function buildStravaImportRoute(activity: StravaImportActivity, streams: 
       distance_km: Math.round((activity.distance / 1000) * 100) / 100,
       elevation_gain_m: Math.round(activity.total_elevation_gain),
       elevation_loss_m: Math.round(elevationLoss),
-      max_elevation_m: elevations.length ? Math.round(Math.max(...elevations)) : 0,
-      min_elevation_m: elevations.length ? Math.round(Math.min(...elevations)) : 0,
+      max_elevation_m: elevations.length ? Math.round(maxElevation) : 0,
+      min_elevation_m: elevations.length ? Math.round(minElevation) : 0,
       duration_seconds: activity.elapsed_time,
       date: activity.start_date,
       activity_type: activity.sport_type,

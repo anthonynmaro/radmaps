@@ -47,14 +47,15 @@ describe('Strava import route building', () => {
     expect(() => validateRouteGeojson(route.geojson)).not.toThrow()
   })
 
-  it('simplifies long Strava streams before the 50k route guard rejects them', () => {
+  it('keeps high-frequency all-day Strava streams when they are inside the app route budget', () => {
     const route = buildStravaImportRoute(activity, syntheticRideStream(60_001))
     const coordinates = route.geojson.features[0].geometry.type === 'LineString'
       ? route.geojson.features[0].geometry.coordinates
       : []
 
     expect(route.sourcePointCount).toBe(60_001)
-    expect(route.importedPointCount).toBeLessThanOrEqual(STRAVA_IMPORT_MAX_POINTS)
+    expect(route.importedPointCount).toBe(60_001)
+    expect(coordinates).toHaveLength(60_001)
     expect(coordinates.at(0)?.[0]).toBeCloseTo(-89.446)
     expect(coordinates.at(0)?.[1]).toBeCloseTo(43.05)
     expect(coordinates.at(-1)?.[0]).toBeCloseTo(-88.896)
@@ -66,9 +67,17 @@ describe('Strava import route building', () => {
     expect(() => validateRouteGeojson(route.geojson)).not.toThrow()
   })
 
+  it('simplifies unusually huge Strava streams to the import budget before validation', () => {
+    const route = buildStravaImportRoute(activity, syntheticRideStream(150_001))
+
+    expect(route.sourcePointCount).toBe(150_001)
+    expect(route.importedPointCount).toBeLessThanOrEqual(STRAVA_IMPORT_MAX_POINTS)
+    expect(() => validateRouteGeojson(route.geojson)).not.toThrow()
+  })
+
   it('falls back to endpoint-preserving sampling for extremely dense straight streams', () => {
-    const coords = Array.from({ length: 70_000 }, (_, i) => {
-      const pct = i / 69_999
+    const coords = Array.from({ length: 150_000 }, (_, i) => {
+      const pct = i / 149_999
       return [-89 + pct, 43 + pct] as [number, number]
     })
 
