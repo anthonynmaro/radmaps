@@ -23,8 +23,8 @@ function routeWithPointCount(count: number): GeoJSON.FeatureCollection {
 
 describe('route GeoJSON validation', () => {
   it('accepts detailed long activity routes up to the route point budget', () => {
-    expect(MAX_ROUTE_POINTS).toBe(200_000)
-    expect(() => validateRouteGeojson(routeWithPointCount(150_000))).not.toThrow()
+    expect(MAX_ROUTE_POINTS).toBe(100_000)
+    expect(() => validateRouteGeojson(routeWithPointCount(100_000))).not.toThrow()
   })
 
   it('rejects routes above the route point budget with a clear error', () => {

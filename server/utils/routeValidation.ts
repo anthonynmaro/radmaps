@@ -1,6 +1,6 @@
 import { createError } from 'h3'
 
-export const MAX_ROUTE_POINTS = 200_000
+export const MAX_ROUTE_POINTS = 100_000
 
 function assertFiniteLngLat(coord: unknown): asserts coord is [number, number, ...number[]] {
   if (!Array.isArray(coord) || coord.length < 2) {

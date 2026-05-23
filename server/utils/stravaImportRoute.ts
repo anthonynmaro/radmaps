@@ -15,7 +15,7 @@ export interface StravaImportStreams {
 }
 
 export const STRAVA_IMPORT_TARGET_POINTS = 90_000
-export const STRAVA_IMPORT_MAX_POINTS = 120_000
+export const STRAVA_IMPORT_MAX_POINTS = 100_000
 const STRAVA_IMPORT_MAX_RDP_INPUT_POINTS = 250_000
 
 type RouteCoord = [number, number] | [number, number, number]
