@@ -95,6 +95,16 @@ describe('theme application', () => {
       grid_opacity: 0.2,
       grid_weight: 3,
       grid_scope: 'map',
+      atlas_layers: {
+        water: false,
+        transportation: false,
+        place: false,
+      },
+      atlas_layer_settings: {
+        landcover: { color: '#111111', opacity: 0.1 },
+        water: { fill_color: '#222222', fill_opacity: 0.2 },
+        transportation: { major_color: '#333333', opacity: 0.3 },
+      },
     }), theme!)
 
     expect(next.roads_color).toBeUndefined()
@@ -104,6 +114,8 @@ describe('theme application', () => {
     expect(next.tile_shadow_color).toBeUndefined()
     expect(next.tile_midtone_color).toBeUndefined()
     expect(next.tile_highlight_color).toBeUndefined()
+    expect(next.atlas_layers).toBeUndefined()
+    expect(next.atlas_layer_settings).toBeUndefined()
     expect(next.pin_font_family).toBeUndefined()
     expect(next.leader_label_font_family).toBeUndefined()
     expect(next.grid_color).toBeUndefined()

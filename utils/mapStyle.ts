@@ -1055,17 +1055,19 @@ function buildRadMapsAtlasStyle(
   const tonerPaper = config.background_color && config.background_color !== DEFAULT_STYLE_CONFIG.background_color
     ? config.background_color
     : '#d7e8f8'
-  const ink = isDarkAtlas ? '#d8f2dc' : isToner ? tonerInk : '#405340'
-  const land = atlasSettings.landcover?.color || (isDarkAtlas ? '#102a1d' : isWatercolorClassic ? '#d9e4d3' : isPigmentWash ? '#e2ead2' : isWatercolorPaper ? '#eadfc8' : isBrushInk ? '#d7e4c9' : isContourWash ? '#d7e8f7' : isToner ? tonerPaper : '#e7dfbf')
-  const water = atlasSettings.water?.fill_color || (isDarkAtlas ? '#3f9fbd' : isWatercolorClassic ? '#78bdca' : isPigmentWash ? '#6bbfd0' : isWatercolorPaper ? '#8bbdc4' : isBrushInk ? '#43aec8' : isContourWash ? '#bad9ef' : isToner ? ink : '#79b7c8')
+  const themeLand = isContourWash ? undefined : config.land_color
+  const themeWater = isContourWash ? undefined : config.water_color
+  const ink = isDarkAtlas ? (config.label_text_color || '#d8f2dc') : isToner ? tonerInk : (config.label_text_color || '#405340')
+  const land = atlasSettings.landcover?.color || themeLand || (isDarkAtlas ? '#102a1d' : isWatercolorClassic ? '#d9e4d3' : isPigmentWash ? '#e2ead2' : isWatercolorPaper ? '#eadfc8' : isBrushInk ? '#d7e4c9' : isContourWash ? '#d7e8f7' : isToner ? tonerPaper : '#e7dfbf')
+  const water = atlasSettings.water?.fill_color || themeWater || (isDarkAtlas ? '#3f9fbd' : isWatercolorClassic ? '#78bdca' : isPigmentWash ? '#6bbfd0' : isWatercolorPaper ? '#8bbdc4' : isBrushInk ? '#43aec8' : isContourWash ? '#bad9ef' : isToner ? ink : '#79b7c8')
   const waterway = atlasSettings.waterway?.color || atlasSettings.water?.waterway_color || water
-  const park = atlasSettings.park?.fill_color || (isDarkAtlas ? '#193f25' : isWatercolorClassic ? '#c3d8b4' : isPigmentWash ? '#bdd3aa' : isWatercolorPaper ? '#d1c69f' : isBrushInk ? '#adc99b' : isContourWash ? '#d3e2ec' : isToner ? ink : '#c9d29a')
-  const road = atlasSettings.transportation?.road_color || (isWatercolorClassic ? '#9a8d86' : isPigmentWash ? '#a68b84' : isWatercolorPaper ? '#9b806d' : isBrushInk ? '#8f5966' : isDarkAtlas ? '#f18f45' : isContourWash ? '#8aa6bd' : isToner ? ink : '#b7663c')
+  const park = atlasSettings.park?.fill_color || themeLand || (isDarkAtlas ? '#193f25' : isWatercolorClassic ? '#c3d8b4' : isPigmentWash ? '#bdd3aa' : isWatercolorPaper ? '#d1c69f' : isBrushInk ? '#adc99b' : isContourWash ? '#d3e2ec' : isToner ? ink : '#c9d29a')
+  const road = atlasSettings.transportation?.road_color || config.roads_color || (isWatercolorClassic ? '#9a8d86' : isPigmentWash ? '#a68b84' : isWatercolorPaper ? '#9b806d' : isBrushInk ? '#8f5966' : isDarkAtlas ? '#f18f45' : isContourWash ? '#8aa6bd' : isToner ? ink : '#b7663c')
   const roadMajor = atlasSettings.transportation?.major_color || road
   const roadMinor = atlasSettings.transportation?.minor_color || road
   const trail = atlasSettings.transportation?.trail_color || (isWatercolorClassic ? '#8c9d7c' : isPigmentWash ? '#8ea27a' : isWatercolorPaper ? '#9b8c61' : isBrushInk ? '#7f8f70' : isContourWash ? '#7d9ab3' : ink)
   const labelHalo = isDarkAtlas ? '#0b1d15' : isWatercolorClassic ? '#edf1e4' : isPigmentWash ? '#eef1df' : isWatercolorPaper ? '#f2e8d3' : isBrushInk ? '#f4ebd8' : isContourWash ? '#d7e8f7' : isToner ? tonerPaper : '#f7f2e7'
-  const label = atlasSettings.place?.label_color || config.place_labels_color || (isDarkAtlas ? '#e5f3d8' : '#29362d')
+  const label = atlasSettings.place?.label_color || config.place_labels_color || config.label_text_color || (isDarkAtlas ? '#e5f3d8' : '#29362d')
   const poiLabel = atlasSettings.poi?.label_color || config.poi_labels_color || label
   const roadOpacity = atlasNumberSetting(atlasSettings.transportation?.opacity ?? config.roads_opacity, isWatercolorClassic ? 0.28 : isPigmentWash ? 0.34 : isWatercolorPaper ? 0.24 : isBrushInk ? 0.48 : isDarkAtlas ? 0.9 : isContourWash ? 0.18 : isToner ? 0.58 : 0.82)
   const usingMlContour = !!contourTileUrl

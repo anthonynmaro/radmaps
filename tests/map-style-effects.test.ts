@@ -436,6 +436,26 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-color']).toBe('#211A16')
     expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-opacity']).toBe(0.33)
   })
+
+  it('lets Quick theme palette colors drive Atlas map layers when no layer override is set', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-topographic',
+      land_color: '#F2EAD2',
+      water_color: '#3F6FB8',
+      label_text_color: '#1A1F45',
+      roads_color: '#E84A2A',
+      show_roads: true,
+      show_place_labels: true,
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-topographic-landcover')?.paint?.['fill-color']).toBe('#F2EAD2')
+    expect(layerById(style, 'radmaps-topographic-park')?.paint?.['fill-color']).toBe('#F2EAD2')
+    expect(layerById(style, 'radmaps-topographic-water')?.paint?.['fill-color']).toBe('#3F6FB8')
+    expect(layerById(style, 'radmaps-topographic-waterway')?.paint?.['line-color']).toBe('#3F6FB8')
+    expect(layerById(style, 'radmaps-topographic-roads-major')?.paint?.['line-color']).toBe('#E84A2A')
+    expect(layerById(style, 'radmaps-topographic-place-labels')?.paint?.['text-color']).toBe('#1A1F45')
+  })
 })
 
 describe('road network styling', () => {

@@ -25,6 +25,8 @@ const THEME_RESET_FIELDS = {
   tile_shadow_color: undefined,
   tile_midtone_color: undefined,
   tile_highlight_color: undefined,
+  atlas_layers: undefined,
+  atlas_layer_settings: undefined,
   grid_color: undefined,
   grid_opacity: 0.2,
   grid_weight: 1,
