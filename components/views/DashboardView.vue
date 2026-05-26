@@ -235,7 +235,7 @@
           class="group block cursor-pointer"
           role="link"
           tabindex="0"
-          @click="openMap(map)"
+          @click="openMap(map, $event)"
           @keydown.enter.prevent="openMap(map)"
           @keydown.space.prevent="openMap(map)"
         >
@@ -364,7 +364,7 @@
           class="group bg-white rounded-2xl border border-stone-200 p-4 flex items-center gap-4 hover:border-stone-300 hover:shadow-sm transition-all cursor-pointer"
           role="link"
           tabindex="0"
-          @click="openMap(map)"
+          @click="openMap(map, $event)"
           @keydown.enter.prevent="openMap(map)"
           @keydown.space.prevent="openMap(map)"
         >
@@ -670,6 +670,7 @@ import { h, defineComponent, ref, computed, onMounted, reactive } from 'vue'
 import { useRouter, useSupabaseClient, useSupabaseUser } from '#imports'
 import type { Order, PremadeMap, TrailMap } from '~/types'
 import { formatPrice } from '~/utils/products'
+import { shouldHandleDashboardCardClick } from '~/utils/dashboardNavigation'
 import {
   posterThumbnailFailureKey,
   posterThumbnailUrl as resolvePosterThumbnailUrl,
@@ -746,6 +747,7 @@ const view = ref<'grid' | 'list'>('grid')
 const showDeleteModal = ref(false)
 const mapPendingDelete = ref<DashboardMap | null>(null)
 const deletingMapId = ref<string | null>(null)
+const openingMapId = ref<string | null>(null)
 const failedPosterThumbnailUrls = reactive<PosterThumbnailFailures>({})
 
 const filters: { id: FilterId; label: string }[] = [
@@ -845,9 +847,17 @@ function markPosterThumbnailFailed(map: DashboardMap, url: string | null) {
   failedPosterThumbnailUrls[posterThumbnailFailureKey(map.id, url)] = true
 }
 
-function openMap(map: DashboardMap) {
+async function openMap(map: DashboardMap, event?: MouseEvent) {
   if (!map.id) return
-  router.push(`/create/${map.id}/style`)
+  if (event && !shouldHandleDashboardCardClick(event)) return
+  if (openingMapId.value === map.id) return
+
+  openingMapId.value = map.id
+  try {
+    await router.push(`/create/${map.id}/style`)
+  } finally {
+    openingMapId.value = null
+  }
 }
 
 // ─── Delete maps ───────────────────────────────────────────────────────────

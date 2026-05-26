@@ -5083,13 +5083,22 @@ async function initOverlayDrag() {
 
 // ── Style config watcher ──────────────────────────────────────────────────────
 
-watch(
-  () => props.styleConfig,
-  async (newConfig, oldConfig) => {
-    if (!mapInstance || !mapReady.value) return
+let queuedStyleConfig: StyleConfig | null = null
 
-    // Tile effect params are baked into tile URLs — require a full style rebuild
-    const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
+function styleConfigSignature(config: StyleConfig | undefined): string {
+  return JSON.stringify(config ?? null)
+}
+
+async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleConfig) {
+  if (!mapInstance) return
+  if (!mapReady.value) {
+    queuedStyleConfig = newConfig
+    return
+  }
+  queuedStyleConfig = null
+
+  // Tile effect params are baked into tile URLs — require a full style rebuild
+  const tileKeyChanged = effectiveTileKey(newConfig) !== effectiveTileKey(oldConfig ?? newConfig)
 
     // Segment source/layer structure changes when segment IDs are added/removed
     const newSegIds = (newConfig.trail_segments ?? []).map(s => `${s.id}:${s.visible}:${s.color_mode ?? 'solid'}`).join(',')
@@ -5125,6 +5134,14 @@ watch(
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
         if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
         if (props.segmentEditMode) nextTick(syncSegmentEditSources)
+        const latestConfig = props.styleConfig
+        const needsQueuedRefresh = queuedStyleConfig || styleConfigSignature(latestConfig) !== styleConfigSignature(newConfig)
+        if (needsQueuedRefresh) {
+          queuedStyleConfig = null
+          nextTick(() => {
+            void applyStyleConfigUpdate(latestConfig, newConfig)
+          })
+        }
       })
       return
     }
@@ -5267,6 +5284,12 @@ watch(
     ) {
       nextTick(recomputeOverlays)
     }
+}
+
+watch(
+  () => props.styleConfig,
+  (newConfig, oldConfig) => {
+    void applyStyleConfigUpdate(newConfig, oldConfig)
   },
   { deep: true },
 )

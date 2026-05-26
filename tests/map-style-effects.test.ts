@@ -18,9 +18,11 @@ function sourceTileUrl(style: object, sourceId: string): string {
 
 interface TestLayer {
   id: string
+  type?: string
   source?: string
   'source-layer'?: string
   filter?: unknown
+  layout?: Record<string, unknown>
   paint?: Record<string, unknown>
 }
 
@@ -200,6 +202,50 @@ describe('contour style requirements', () => {
 })
 
 describe('RadMaps Atlas style integration', () => {
+  it('routes owned Atlas provider-replacement presets through RadMaps Atlas tiles', () => {
+    const ownedProviderReplacementPresets = [
+      'radmaps-minimalist',
+      'radmaps-topographic',
+      'radmaps-natural',
+      'radmaps-toner',
+      'radmaps-contour-wash',
+      'radmaps-watercolor-pigment-wash',
+      'radmaps-watercolor-brush-ink',
+      'radmaps-alidade',
+      'radmaps-alidade-dark',
+    ] as const
+
+    for (const preset of ownedProviderReplacementPresets) {
+      const style = buildMapStyle({
+        ...DEFAULT_STYLE_CONFIG,
+        preset,
+      }, 'mapbox-test-token')
+
+      expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')
+    }
+  })
+
+  it('preserves the pale blue contour-wash look as a non-watercolor owned Atlas preset', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-contour-wash',
+      show_contours: true,
+      show_roads: false,
+      show_place_labels: false,
+      contour_detail: 5,
+      route_color: '#9A5E57',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#d7e8f7')
+    expect(layerById(style, 'radmaps-contour-wash-landcover')?.paint?.['fill-color']).toBe('#d7e8f7')
+    expect(layerById(style, 'radmaps-contour-wash-roads-major')).toBeUndefined()
+    expect(layerById(style, 'radmaps-contour-wash-place-labels')).toBeUndefined()
+    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#9A5E57')
+    expect(layerById(style, 'route-line-wash')).toBeUndefined()
+    expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#75a8d2')
+    expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#4c7fa9')
+  })
+
   it('uses the local approved-artifact tile API for owned atlas presets', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
@@ -222,6 +268,26 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-poi-labels'))
   })
 
+  it('reserves route collision space and lets Atlas point labels move around the route', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-night-relief',
+    }, 'mapbox-test-token')
+    const routeCollisionLayer = layerById(style, 'route-label-collision')
+    const placeLabelLayer = layerById(style, 'radmaps-night-relief-place-labels')
+    const poiLabelLayer = layerById(style, 'radmaps-night-relief-poi-labels')
+
+    expect(routeCollisionLayer?.source).toBe('route')
+    expect(routeCollisionLayer?.layout?.['symbol-placement']).toBe('line')
+    expect(routeCollisionLayer?.paint?.['text-opacity']).toBe(0)
+    expect(layerIndex(style, 'route-label-collision')).toBeGreaterThan(layerIndex(style, 'route-line'))
+    expect(layerIndex(style, 'route-label-collision')).toBeLessThan(layerIndex(style, 'radmaps-night-relief-place-labels'))
+    expect(placeLabelLayer?.layout?.['text-variable-anchor']).toContain('top-left')
+    expect(placeLabelLayer?.layout?.['text-radial-offset']).toBeGreaterThan(0)
+    expect(poiLabelLayer?.layout?.['text-variable-anchor']).toContain('bottom-right')
+    expect(poiLabelLayer?.layout?.['text-justify']).toBe('auto')
+  })
+
   it('honors Atlas layer toggles by removing disabled source layers', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
@@ -241,6 +307,114 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-field-topo-roads-major')).toBeUndefined()
     expect(layerById(style, 'radmaps-field-topo-poi-labels')).toBeUndefined()
     expect(layerById(style, 'radmaps-field-topo-place-labels')).toBeDefined()
+  })
+
+  it('lets Atlas major roads, minor roads, and trails be toggled independently', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      atlas_layer_settings: {
+        transportation: {
+          show_major: true,
+          show_minor: false,
+          show_trails: false,
+        },
+      },
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-field-topo-roads-major')).toBeDefined()
+    expect(layerById(style, 'radmaps-field-topo-roads-minor')).toBeUndefined()
+    expect(layerById(style, 'radmaps-field-topo-roads-trails')).toBeUndefined()
+  })
+
+  it('treats show_roads false as transportation off for Atlas presets', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner',
+      show_roads: false,
+      atlas_layers: {
+        transportation: true,
+      },
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-toner-roads-major')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-roads-minor')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-roads-trails')).toBeUndefined()
+  })
+
+  it('gives Atlas Toner restrained dot texture from owned vector features', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner',
+      label_text_color: '#24384A',
+    }, 'mapbox-test-token')
+    const textureLayer = layerById(style, 'radmaps-toner-toner-texture')
+
+    expect(textureLayer?.type).toBe('circle')
+    expect(textureLayer?.source).toBe('radmaps-atlas-base')
+    expect(textureLayer?.['source-layer']).toBe('poi')
+    expect(textureLayer?.paint?.['circle-color']).toBe('#24384A')
+    expect(textureLayer?.paint?.['circle-opacity']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 10, 0.14, 14, 0.24, 16, 0.18,
+    ])
+  })
+
+  it('makes Atlas Watercolor Wash use pigment blooms without over-blurring print linework', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-watercolor-pigment-wash',
+      show_roads: true,
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-watercolor-pigment-wash-paper-wash')?.paint?.['fill-translate']).toEqual([1.4, -1.2])
+    expect(layerById(style, 'radmaps-watercolor-pigment-wash-water-edge-bloom')?.paint?.['line-blur']).toBe(2.2)
+    expect(layerById(style, 'radmaps-watercolor-pigment-wash-waterway-bloom')?.paint?.['line-blur']).toBe(2.1)
+    expect(layerById(style, 'radmaps-watercolor-pigment-wash-roads-major-wash')?.paint?.['line-blur']).toBe(1.5)
+    expect(layerById(style, 'radmaps-watercolor-pigment-wash-roads-major')?.paint?.['line-blur']).toBe(0.18)
+  })
+
+  it('keeps Atlas Watercolor Brush more inked than the softer Wash variant', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-watercolor-brush-ink',
+      show_roads: true,
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-watercolor-brush-ink-water-edge-bloom')?.paint?.['line-blur']).toBe(1.4)
+    expect(layerById(style, 'radmaps-watercolor-brush-ink-roads-major-wash')?.paint?.['line-blur']).toBe(0.8)
+    expect(layerById(style, 'radmaps-watercolor-brush-ink-roads-major')?.paint?.['line-blur']).toBe(0.05)
+    expect(layerById(style, 'radmaps-watercolor-brush-ink-roads-trails')?.paint?.['line-dasharray']).toEqual([1.7, 1.1])
+  })
+
+  it('adds a drier Atlas Watercolor Paper option with sharper paper-grain linework', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-watercolor-paper',
+      show_roads: true,
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-watercolor-paper-paper-wash')?.paint?.['fill-translate']).toEqual([2.2, -1.8])
+    expect(layerById(style, 'radmaps-watercolor-paper-pigment-granulation')?.paint?.['circle-blur']).toBe(0.45)
+    expect(layerById(style, 'radmaps-watercolor-paper-water-edge-bloom')?.paint?.['line-blur']).toBe(1.8)
+    expect(layerById(style, 'radmaps-watercolor-paper-roads-major')?.paint?.['line-blur']).toBe(0.08)
+  })
+
+  it('keeps trail classes out of the Atlas minor-road layer', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-field-topo-roads-minor')?.filter).toEqual([
+      'in',
+      ['get', 'class'],
+      ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']],
+    ])
+    expect(layerById(style, 'radmaps-field-topo-roads-trails')?.filter).toEqual([
+      'in',
+      ['get', 'class'],
+      ['literal', ['path', 'track', 'trail', 'footway', 'cycleway', 'bridleway', 'pedestrian']],
+    ])
   })
 
   it('applies Atlas layer style settings to vector paint properties', () => {

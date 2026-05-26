@@ -8,12 +8,20 @@ export type StylePreset =
   | 'native-toner' | 'native-watercolor' | 'alidade-smooth' | 'alidade-smooth-dark'
   // RadMaps owned Atlas presets. These are MapLibre recipes over first-party
   // PMTiles data, not separate third-party basemap products.
+  | 'radmaps-minimalist'
+  | 'radmaps-topographic'
+  | 'radmaps-natural'
   | 'radmaps-toner'
   | 'radmaps-field-topo'
+  | 'radmaps-contour-wash'
   | 'radmaps-simple-contour'
   | 'radmaps-night-relief'
+  | 'radmaps-watercolor-classic'
   | 'radmaps-watercolor-pigment-wash'
+  | 'radmaps-watercolor-paper'
   | 'radmaps-watercolor-brush-ink'
+  | 'radmaps-alidade'
+  | 'radmaps-alidade-dark'
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
@@ -41,7 +49,7 @@ export type ColorTheme =
   // Refined design-update themes. Additive only: old ids stay renderable.
   | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
   | 'blueprint-strava' | 'field-journal' | 'bold-modern'
-  | 'splits-stats' | 'marathon-bib' | 'botanical'
+  | 'splits-stats' | 'marathon-bib' | 'botanical' | 'contour-wash'
 
 export type CompositionId =
   | 'editorial-tall'
@@ -102,6 +110,9 @@ export interface AtlasLayerSettings {
     road_color?: string
     trail_color?: string
     opacity?: number
+    show_major?: boolean
+    show_minor?: boolean
+    show_trails?: boolean
     major_width?: number
     minor_width?: number
     trail_width?: number

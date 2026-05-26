@@ -35,7 +35,8 @@ describe('theme application', () => {
     }), theme!)
 
     expect(next.color_theme).toBe('midcentury-travel')
-    expect(next.preset).toBe('contour-art')
+    expect(next.preset).toBe('radmaps-simple-contour')
+    expect(next.atlas_style_id).toBe('radmaps-simple-contour')
     expect(next.contour_detail).toBe(5)
     expect(next.contour_major_width).toBe(0.5)
     expect(next.background_color).toBe('#E8DAB8')

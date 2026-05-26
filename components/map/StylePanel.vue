@@ -237,10 +237,15 @@
       <!-- ─── MAP TAB ───────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'map'">
 
-        <V4Card title="Base map" :default-open="true">
+        <V4Card
+          v-if="showAtlasEditor"
+          title="Owned Atlas maps"
+          hint="RadMaps-hosted vector tiles; editable layers and lower provider dependency"
+          :default-open="true"
+        >
           <div class="grid grid-cols-3 gap-1.5">
             <button
-              v-for="p in MAP_PRESETS"
+              v-for="p in ATLAS_MAP_PRESETS"
               :key="p.id"
               @click="applyMapPreset(p)"
               class="flex flex-col items-center gap-1 cursor-pointer transition-all overflow-hidden border-none"
@@ -262,6 +267,54 @@
                 :style="local.preset === p.id ? 'color: #1F4D38;' : 'color: #78716C;'"
               >{{ p.label }}</span>
             </button>
+          </div>
+          <div
+            v-if="isAtlasPresetActive"
+            class="mt-3 flex items-start gap-2 px-2.5 py-2 rounded-lg"
+            style="background: #F0F7F3; border: 1px solid #C8E1D2;"
+          >
+            <div class="w-1.5 h-1.5 rounded-full shrink-0 mt-1" style="background: #2D6A4F;" />
+            <p class="text-[10px] leading-snug flex-1" style="color: #1F4D38;">Using owned Atlas vector tiles. Layer toggles and colors below apply directly to our hosted map data.</p>
+          </div>
+        </V4Card>
+
+        <V4Card
+          title="Classic / provider maps"
+          hint="Older Mapbox, CARTO, MapTiler, and Stadia-backed options"
+          :default-open="!isAtlasPresetActive || !showAtlasEditor"
+        >
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="p in PROVIDER_MAP_PRESETS"
+              :key="p.id"
+              @click="applyMapPreset(p)"
+              class="flex flex-col items-center gap-1 cursor-pointer transition-all overflow-hidden border-none"
+              style="padding: 6px; border-radius: 8px; border: 1.5px solid;"
+              :style="local.preset === p.id
+                ? 'background: #DCEBE2; border-color: #2D6A4F;'
+                : 'background: white; border-color: #E7E5E4;'"
+              :title="p.title"
+            >
+              <div class="w-full rounded overflow-hidden relative" style="aspect-ratio: 3/2">
+                <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
+                <span
+                  v-if="p.beta"
+                  class="absolute top-1 right-1"
+                  style="font-size: 7px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #9A6700; background: rgba(254, 243, 199, 0.92); border: 1px solid #FDE68A; border-radius: 4px; padding: 1px 4px; line-height: 1;"
+                >Beta</span>
+              </div>
+              <span class="text-[9px] leading-none font-semibold"
+                :style="local.preset === p.id ? 'color: #1F4D38;' : 'color: #78716C;'"
+              >{{ p.label }}</span>
+            </button>
+          </div>
+          <div
+            v-if="!isAtlasPresetActive"
+            class="mt-3 flex items-start gap-2 px-2.5 py-2 rounded-lg"
+            style="background: #FFFBEB; border: 1px solid #FDE68A;"
+          >
+            <div class="w-1.5 h-1.5 rounded-full shrink-0 mt-1" style="background: #D97706;" />
+            <p class="text-[10px] leading-snug flex-1" style="color: #92400E;">Classic maps may depend on outside tile providers and have fewer editable layer controls.</p>
           </div>
           <template v-if="sections.minimalistTileStyles">
             <p class="text-[10px] mt-3 mb-1.5" style="color: #A8A29E;">Tile style</p>
@@ -408,20 +461,41 @@
             </template>
 
             <template v-else-if="activeAtlasLayerId === 'transportation' && atlasLayerVisible('transportation')">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs" style="color: #44403C;">Major / minor / trail</span>
-                <div class="flex gap-2">
-                  <ColorSwatch :value="atlasRoadMajorColor" title="Major roads" @change="setAtlasLayerSetting('transportation', { major_color: $event, road_color: $event })" />
-                  <ColorSwatch :value="atlasRoadMinorColor" title="Minor roads" @change="setAtlasLayerSetting('transportation', { minor_color: $event })" />
-                  <ColorSwatch :value="atlasTrailColor" title="Trails" @change="setAtlasLayerSetting('transportation', { trail_color: $event })" />
+              <div class="space-y-2 mb-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: #44403C;">Major roads</span>
+                  <div class="flex items-center gap-2">
+                    <ToggleSwitch :value="atlasShowMajorRoads" @change="setAtlasLayerSetting('transportation', { show_major: $event })" />
+                    <ColorSwatch :value="atlasRoadMajorColor" title="Major roads" @change="setAtlasLayerSetting('transportation', { major_color: $event, road_color: $event })" />
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: #44403C;">Minor roads</span>
+                  <div class="flex items-center gap-2">
+                    <ToggleSwitch :value="atlasShowMinorRoads" @change="setAtlasLayerSetting('transportation', { show_minor: $event })" />
+                    <ColorSwatch :value="atlasRoadMinorColor" title="Minor roads" @change="setAtlasLayerSetting('transportation', { minor_color: $event })" />
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs" style="color: #44403C;">Trails</span>
+                  <div class="flex items-center gap-2">
+                    <ToggleSwitch :value="atlasShowTrails" @change="setAtlasLayerSetting('transportation', { show_trails: $event })" />
+                    <ColorSwatch :value="atlasTrailColor" title="Trails" @change="setAtlasLayerSetting('transportation', { trail_color: $event })" />
+                  </div>
                 </div>
               </div>
               <SliderRow label="Opacity" :value="atlasRoadOpacity" :min="0" :max="1" :step="0.05"
                 :display="(v: number) => Math.round(v * 100) + '%'"
                 @change="setAtlasLayerSetting('transportation', { opacity: $event })" />
-              <SliderRow label="Major width" :value="atlasRoadMajorWidth" :min="0.5" :max="8" :step="0.25"
+              <SliderRow v-if="atlasShowMajorRoads" label="Major width" :value="atlasRoadMajorWidth" :min="0.5" :max="8" :step="0.25"
                 :display="(v: number) => v.toFixed(2) + '×'"
                 @change="setAtlasLayerSetting('transportation', { major_width: $event })" />
+              <SliderRow v-if="atlasShowMinorRoads" label="Minor width" :value="atlasRoadMinorWidth" :min="0.25" :max="6" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('transportation', { minor_width: $event })" />
+              <SliderRow v-if="atlasShowTrails" label="Trail width" :value="atlasTrailWidth" :min="0.25" :max="5" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('transportation', { trail_width: $event })" />
             </template>
 
             <template v-else-if="activeAtlasLayerId === 'building' && atlasLayerVisible('building')">
@@ -1463,6 +1537,20 @@ const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
   place: true,
 }
 
+function atlasLayerVisibilityDefaults(
+  preset?: StylePreset,
+  defaults: Partial<StyleConfig> = {},
+): Record<AtlasLayerId, boolean> {
+  return {
+    ...DEFAULT_ATLAS_LAYER_VISIBILITY,
+    ...(preset === 'radmaps-toner' ? { contour: false, transportation: false } : {}),
+    ...(defaults.show_contours === false ? { contour: false } : {}),
+    ...(defaults.show_roads === false ? { transportation: false } : {}),
+    ...(defaults.show_place_labels === false ? { place: false } : {}),
+    ...(defaults.show_poi_labels === false ? { poi: false } : {}),
+  }
+}
+
 const ATLAS_LAYER_OPTIONS: Array<{ id: AtlasLayerId; label: string }> = [
   { id: 'contour', label: 'Contour' },
   { id: 'water', label: 'Water' },
@@ -1484,7 +1572,11 @@ const activeAtlasLayerOption = computed(() =>
 )
 
 function atlasLayerVisible(layer: AtlasLayerId) {
-  return local.atlas_layers?.[layer] ?? DEFAULT_ATLAS_LAYER_VISIBILITY[layer]
+  if (layer === 'contour' && local.show_contours === false) return false
+  if (layer === 'transportation' && local.show_roads === false) return false
+  if (layer === 'place' && local.show_place_labels === false) return false
+  if (layer === 'poi' && local.show_poi_labels === false) return false
+  return local.atlas_layers?.[layer] ?? atlasLayerVisibilityDefaults(local.preset)[layer]
 }
 
 function atlasLayerSettings<L extends keyof AtlasLayerSettings>(layer: L): NonNullable<AtlasLayerSettings[L]> {
@@ -1537,7 +1629,12 @@ const atlasRoadMajorColor = computed(() => atlasLayerSettings('transportation').
 const atlasRoadMinorColor = computed(() => atlasLayerSettings('transportation').minor_color ?? atlasRoadMajorColor.value)
 const atlasTrailColor = computed(() => atlasLayerSettings('transportation').trail_color ?? '#405340')
 const atlasRoadOpacity = computed(() => atlasLayerSettings('transportation').opacity ?? local.roads_opacity ?? 0.82)
+const atlasShowMajorRoads = computed(() => atlasLayerSettings('transportation').show_major ?? true)
+const atlasShowMinorRoads = computed(() => atlasLayerSettings('transportation').show_minor ?? true)
+const atlasShowTrails = computed(() => atlasLayerSettings('transportation').show_trails ?? true)
 const atlasRoadMajorWidth = computed(() => atlasLayerSettings('transportation').major_width ?? 2)
+const atlasRoadMinorWidth = computed(() => atlasLayerSettings('transportation').minor_width ?? 0.9)
+const atlasTrailWidth = computed(() => atlasLayerSettings('transportation').trail_width ?? 1.2)
 const atlasBuildingFillColor = computed(() => atlasLayerSettings('building').fill_color ?? local.label_text_color ?? '#405340')
 const atlasBuildingOpacity = computed(() => atlasLayerSettings('building').opacity ?? 0.16)
 const atlasPlaceLabelColor = computed(() => atlasLayerSettings('place').label_color ?? local.place_labels_color ?? local.label_text_color)
@@ -2314,8 +2411,8 @@ const BETA_MAP_PRESETS: MapPresetOption[] = [
     beta: true,
   },
   {
-    id: 'native-watercolor', label: 'Watercolor',
-    title: 'Warm paper wash — CARTO tiles at low opacity over cream background',
+    id: 'native-watercolor', label: 'Blue Contour',
+    title: 'Legacy pale-blue contour wash — preserved, but provider-backed',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#F0E8DC"/>
       <ellipse cx="12" cy="13" rx="11" ry="8" fill="#C8C0A8" opacity="0.45"/>
@@ -2355,23 +2452,93 @@ const BETA_MAP_PRESETS: MapPresetOption[] = [
 
 const ATLAS_MAP_PRESETS: MapPresetOption[] = [
   {
-    id: 'radmaps-field-topo',
-    label: 'Field Topo',
-    title: 'Owned Atlas topo — RadMaps vector base plus browser-rendered contours',
+    id: 'radmaps-minimalist',
+    label: 'Atlas Minimal',
+    title: 'Owned Atlas minimal — CARTO-like quiet context with editable vector layers',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#F7EFD8"/>
-      <rect x="0" y="0" width="48" height="32" fill="#AFC982" opacity="0.32"/>
-      <path d="M0 22 Q12 17 24 20 Q34 23 48 15" stroke="#327F96" stroke-width="1.1" fill="none" opacity="0.8"/>
-      <ellipse cx="25" cy="18" rx="22" ry="12" stroke="#AA855C" stroke-width="0.55" fill="none" opacity="0.75"/>
-      <ellipse cx="25" cy="18" rx="15" ry="8" stroke="#604327" stroke-width="0.7" fill="none" opacity="0.8"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#C44F24" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    defaults: { show_contours: true, show_hillshade: true, contour_detail: 4, route_color: '#C44F24' },
+    svg: `<rect width="48" height="32" fill="#F5F2EC"/>
+      <rect x="0" y="21" width="48" height="11" fill="#D8E6ED" opacity="0.42"/>
+      <path d="M0 11 Q12 9 24 11 Q36 13 48 10" stroke="#CFC7B8" stroke-width="0.7" fill="none" opacity="0.58"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#D43F3A" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: false,
+      show_hillshade: false,
+      show_roads: false,
+      show_poi_labels: false,
+      route_color: '#D43F3A',
+      atlas_layer_settings: {
+        landcover: { color: '#F5F2EC', opacity: 0.44 },
+        park: { fill_color: '#E2E9D7', opacity: 0.22 },
+        water: { fill_color: '#B9D3DF', fill_opacity: 0.46 },
+        waterway: { color: '#8DB2C4', opacity: 0.42, width: 0.85 },
+        transportation: { opacity: 0.22, major_color: '#B8AEA0', minor_color: '#D2CAC0', trail_color: '#AEA895', show_major: false, show_minor: false, show_trails: false },
+        place: { label_color: '#5B554F', label_opacity: 0.54, font_size: 12, halo_color: '#F5F2EC' },
+        poi: { label_opacity: 0.24 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-topographic',
+    label: 'Atlas Topo',
+    title: 'Owned Atlas topographic — Mapbox Outdoors-like terrain, trails, and labels',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#E8DFCF"/>
+      <rect x="0" y="0" width="48" height="32" fill="#AFC982" opacity="0.28"/>
+      <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#A78B5D" stroke-width="0.65" fill="none"/>
+      <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#7E6841" stroke-width="0.75" fill="none"/>
+      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#2D86A1" stroke-width="1" fill="none"/>
+      <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#C44F24" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: true,
+      show_roads: true,
+      contour_detail: 4,
+      route_color: '#C44F24',
+      atlas_layer_settings: {
+        landcover: { color: '#E7DFBF', opacity: 0.78 },
+        park: { fill_color: '#C9D29A', opacity: 0.52 },
+        water: { fill_color: '#79B7C8', fill_opacity: 0.72 },
+        waterway: { color: '#327F96', opacity: 0.78, width: 1.2 },
+        transportation: { opacity: 0.78, major_color: '#BA6A42', minor_color: '#C99B73', trail_color: '#786B3A', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#8B875E', major_color: '#68653F', minor_opacity: 0.36, major_width: 0.7 },
+        place: { label_color: '#29362D', label_opacity: 0.72, font_size: 14 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-natural',
+    label: 'Atlas Natural',
+    title: 'Owned Atlas natural terrain — MapTiler-like green topo without raster dependency',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#D3E0B0"/>
+      <rect x="0" y="18" width="48" height="14" fill="#A8C878" opacity="0.64"/>
+      <path d="M0 22 Q12 17 24 20 Q34 23 48 15" stroke="#297D98" stroke-width="1.2" fill="none"/>
+      <ellipse cx="24" cy="17" rx="18" ry="10" stroke="#6E7C4A" stroke-width="0.6" fill="none"/>
+      <path d="M6 20 Q16 16 26 18 Q36 20 44 16" stroke="#D94A32" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: true,
+      show_roads: true,
+      contour_detail: 4,
+      route_color: '#D94A32',
+      atlas_layer_settings: {
+        landcover: { color: '#D3E0B0', opacity: 0.86 },
+        park: { fill_color: '#9DBE72', opacity: 0.62 },
+        water: { fill_color: '#66AFC4', fill_opacity: 0.72 },
+        waterway: { color: '#297D98', opacity: 0.78, width: 1.2 },
+        transportation: { opacity: 0.48, major_color: '#CBA26C', minor_color: '#B8AA88', trail_color: '#6D7C45', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#6E7C4A', major_color: '#536031', minor_opacity: 0.30, major_width: 0.65 },
+        place: { label_color: '#2F4027', label_opacity: 0.64, font_size: 13 },
+      },
+    },
     beta: true,
   },
   {
     id: 'radmaps-toner',
     label: 'Atlas Toner',
-    title: 'Owned Atlas toner — crisp vector linework with no Stadia dependency',
+    title: 'Owned Atlas toner — Stamen-like monochrome linework with restrained dot texture',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#F7F6F1"/>
       <rect x="0" y="0" width="48" height="32" fill="#D7DEE0" opacity="0.42"/>
@@ -2379,13 +2546,93 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
       <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#17222A" stroke-width="0.75" fill="none" opacity="0.45"/>
       <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#17222A" stroke-width="0.95" fill="none" opacity="0.5"/>
       <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#111111" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
-    defaults: { show_contours: false, show_hillshade: false, route_color: '#111111' },
+    defaults: {
+      show_contours: false,
+      show_hillshade: false,
+      show_roads: false,
+      route_color: '#111111',
+      atlas_layer_settings: {
+        landcover: { color: '#D7E8F8', opacity: 0.82 },
+        park: { fill_color: '#24384A', opacity: 0.12 },
+        water: { fill_color: '#24384A', fill_opacity: 0.82 },
+        waterway: { color: '#24384A', opacity: 0.62, width: 1.05 },
+        building: { fill_color: '#24384A', opacity: 0.12 },
+        transportation: { opacity: 0.52, major_color: '#24384A', minor_color: '#24384A', trail_color: '#24384A', show_major: false, show_minor: false, show_trails: false },
+        place: { label_color: '#24384A', label_opacity: 0.64, font_size: 13, halo_color: '#D7E8F8' },
+        poi: { label_color: '#24384A', label_opacity: 0.18 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-contour-wash',
+    label: 'Contour Wash',
+    title: 'Owned Atlas pale-blue contour wash — preserved as a non-watercolor quick-map style',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#D7E8F7"/>
+      <ellipse cx="24" cy="17" rx="22" ry="12" stroke="#75A8D2" stroke-width="0.55" fill="none" opacity="0.68"/>
+      <ellipse cx="24" cy="17" rx="17" ry="9" stroke="#75A8D2" stroke-width="0.55" fill="none" opacity="0.64"/>
+      <ellipse cx="24" cy="17" rx="11" ry="6" stroke="#4C7FA9" stroke-width="0.65" fill="none" opacity="0.72"/>
+      <path d="M0 24 Q13 20 26 22 Q36 24 48 18" stroke="#9FC5E6" stroke-width="1.1" fill="none" opacity="0.5"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9A5E57" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: false,
+      show_roads: false,
+      show_place_labels: false,
+      show_poi_labels: false,
+      contour_detail: 5,
+      route_color: '#9A5E57',
+      background_color: '#EDE4D7',
+      label_bg_color: '#EDE4D7',
+      label_text_color: '#2A180B',
+      atlas_layer_settings: {
+        landcover: { color: '#D7E8F7', opacity: 0.94 },
+        park: { fill_color: '#CFE0EA', opacity: 0.26 },
+        water: { fill_color: '#B7D8EF', fill_opacity: 0.34 },
+        waterway: { color: '#75A8D2', opacity: 0.42, width: 0.9 },
+        transportation: { opacity: 0.16, major_color: '#8AA6BD', minor_color: '#B5C8D6', trail_color: '#7D9AB3', show_major: false, show_minor: false, show_trails: false },
+        contour: { minor_color: '#75A8D2', major_color: '#4C7FA9', minor_opacity: 0.46, major_width: 0.55 },
+        place: { label_color: '#4F6D83', label_opacity: 0.20, font_size: 12, halo_color: '#D7E8F7' },
+        poi: { label_opacity: 0.10 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-watercolor-classic',
+    label: 'Watercolor Classic',
+    title: 'Owned Atlas watercolor — closest provider-inspired wash with soft color fields and restrained linework',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#F1EAD9"/>
+      <ellipse cx="13" cy="12" rx="17" ry="11" fill="#C3D8B4" opacity="0.50"/>
+      <ellipse cx="36" cy="20" rx="12" ry="8" fill="#D6C7AE" opacity="0.32"/>
+      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#78BDCA" stroke-width="2.5" fill="none" opacity="0.42"/>
+      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9A8D86" stroke-width="0.9" fill="none" opacity="0.28"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#A44A3F" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: false,
+      show_roads: true,
+      contour_detail: 3,
+      route_color: '#A44A3F',
+      atlas_layer_settings: {
+        landcover: { color: '#D9E4D3', opacity: 0.50 },
+        park: { fill_color: '#C3D8B4', opacity: 0.30 },
+        water: { fill_color: '#78BDCA', fill_opacity: 0.46 },
+        waterway: { color: '#78BDCA', opacity: 0.48, width: 1.4 },
+        transportation: { opacity: 0.28, major_color: '#9A8D86', minor_color: '#B3A69A', trail_color: '#8C9D7C', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#8BA17E', major_color: '#748C68', minor_opacity: 0.14, major_width: 0.42 },
+        place: { label_color: '#777064', label_opacity: 0.28, font_size: 13, halo_color: '#EDF1E4' },
+        poi: { label_opacity: 0.16 },
+      },
+    },
     beta: true,
   },
   {
     id: 'radmaps-watercolor-pigment-wash',
-    label: 'Atlas Wash',
-    title: 'Owned Atlas watercolor — transparent pigments over editable vector layers',
+    label: 'Watercolor Wash',
+    title: 'Owned Atlas watercolor — wetter pigment pools and stronger blue hydro blooms',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#FFF4E2"/>
       <ellipse cx="12" cy="12" rx="15" ry="10" fill="#96BA67" opacity="0.46"/>
@@ -2393,7 +2640,83 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
       <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#49B6D0" stroke-width="2.1" fill="none" opacity="0.72"/>
       <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9A594A" stroke-width="1.1" fill="none" opacity="0.5"/>
       <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#A43F2F" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    defaults: { show_contours: true, show_hillshade: false, contour_detail: 3, route_color: '#A43F2F' },
+    defaults: {
+      show_contours: true,
+      show_hillshade: false,
+      show_roads: true,
+      contour_detail: 3,
+      route_color: '#A43F2F',
+      atlas_layer_settings: {
+        landcover: { color: '#E2EAD2', opacity: 0.58 },
+        park: { fill_color: '#BDD3AA', opacity: 0.34 },
+        water: { fill_color: '#6BBFD0', fill_opacity: 0.54 },
+        waterway: { color: '#58B8CE', opacity: 0.58, width: 1.6 },
+        transportation: { opacity: 0.34, major_color: '#A68B84', minor_color: '#B59D91', trail_color: '#8EA27A', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#88A47D', major_color: '#738D69', minor_opacity: 0.16, major_width: 0.45 },
+        place: { label_color: '#7A7467', label_opacity: 0.34, font_size: 13, halo_color: '#EEF1DF' },
+        poi: { label_opacity: 0.20 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-watercolor-paper',
+    label: 'Watercolor Paper',
+    title: 'Owned Atlas watercolor — dry paper/granulation direction with less blur and more pigment tooth',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#EFE4CF"/>
+      <ellipse cx="14" cy="13" rx="13" ry="9" fill="#D1C69F" opacity="0.42"/>
+      <ellipse cx="35" cy="20" rx="11" ry="7" fill="#C9B690" opacity="0.22"/>
+      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#8BBDC4" stroke-width="1.8" fill="none" opacity="0.48"/>
+      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9B806D" stroke-width="0.9" fill="none" stroke-dasharray="1.2 1" opacity="0.44"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9D4B32" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: false,
+      show_roads: true,
+      contour_detail: 3,
+      route_color: '#9D4B32',
+      atlas_layer_settings: {
+        landcover: { color: '#EADFC8', opacity: 0.56 },
+        park: { fill_color: '#D1C69F', opacity: 0.32 },
+        water: { fill_color: '#8BBDC4', fill_opacity: 0.38 },
+        waterway: { color: '#7CB3BC', opacity: 0.42, width: 1.25 },
+        transportation: { opacity: 0.24, major_color: '#9B806D', minor_color: '#B09A80', trail_color: '#9B8C61', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#A99A70', major_color: '#8A7B51', minor_opacity: 0.18, major_width: 0.45 },
+        place: { label_color: '#746B58', label_opacity: 0.30, font_size: 13, halo_color: '#F2E8D3' },
+        poi: { label_opacity: 0.18 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-watercolor-brush-ink',
+    label: 'Watercolor Brush',
+    title: 'Owned Atlas watercolor brush — more inked Stamen-like linework over soft washes',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#FFF3DF"/>
+      <ellipse cx="13" cy="14" rx="13" ry="9" fill="#A8C89A" opacity="0.46"/>
+      <ellipse cx="34" cy="19" rx="12" ry="8" fill="#DCA883" opacity="0.32"/>
+      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#2DAAC5" stroke-width="2.4" fill="none" opacity="0.82"/>
+      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#89584F" stroke-width="1.25" fill="none" stroke-dasharray="1.5 1.1" opacity="0.58"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9D3F32" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: true,
+      show_hillshade: false,
+      show_roads: true,
+      contour_detail: 3,
+      route_color: '#9D3F32',
+      atlas_layer_settings: {
+        landcover: { color: '#D9E3C9', opacity: 0.76 },
+        park: { fill_color: '#B8D0AA', opacity: 0.52 },
+        water: { fill_color: '#43B6D0', fill_opacity: 0.74 },
+        waterway: { color: '#20A6C4', opacity: 0.76, width: 1.55 },
+        transportation: { opacity: 0.44, major_color: '#9A6B75', minor_color: '#A78D84', trail_color: '#7F8F70', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#78996E', major_color: '#6F885F', minor_opacity: 0.20, major_width: 0.5 },
+        place: { label_color: '#6B665C', label_opacity: 0.46, font_size: 13, halo_color: '#F4EBD8' },
+        poi: { label_opacity: 0.30 },
+      },
+    },
     beta: true,
   },
   {
@@ -2424,19 +2747,80 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     defaults: { show_contours: true, show_hillshade: false, contour_detail: 5, route_color: '#C24E2C' },
     beta: true,
   },
+  {
+    id: 'radmaps-alidade',
+    label: 'Atlas Alidade',
+    title: 'Owned Atlas Alidade — clean modern cartography without MapTiler',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#F5F3EE"/>
+      <rect x="0" y="21" width="48" height="11" fill="#D0DDE8" opacity="0.70"/>
+      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#C8C0B8" stroke-width="0.8" fill="none" opacity="0.60"/>
+      <path d="M0 15 Q10 13 20 15 Q32 17 48 13" stroke="#C8C0B8" stroke-width="0.5" fill="none" opacity="0.40"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#E6463C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: false,
+      show_hillshade: false,
+      show_roads: true,
+      show_poi_labels: false,
+      route_color: '#E6463C',
+      background_color: '#F5F3EE',
+      label_bg_color: '#F5F3EE',
+      label_text_color: '#1C1917',
+      atlas_layer_settings: {
+        landcover: { color: '#F5F3EE', opacity: 0.72 },
+        park: { fill_color: '#E5EAD9', opacity: 0.26 },
+        water: { fill_color: '#D0DDE8', fill_opacity: 0.70 },
+        waterway: { color: '#A7BAC8', opacity: 0.62, width: 0.9 },
+        transportation: { opacity: 0.46, major_color: '#B8B0A8', minor_color: '#D2CBC2', trail_color: '#AAA49A', show_major: true, show_minor: true, show_trails: false },
+        place: { label_color: '#3C3832', label_opacity: 0.58, font_size: 12, halo_color: '#F5F3EE' },
+        poi: { label_opacity: 0.22 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-alidade-dark',
+    label: 'Atlas Dark',
+    title: 'Owned Atlas dark Alidade — dataviz-style clean dark basemap',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#141414"/>
+      <rect x="0" y="20" width="48" height="12" fill="#0A1820" opacity="0.90"/>
+      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#484848" stroke-width="0.8" fill="none" opacity="0.70"/>
+      <path d="M0 15 Q10 13 20 15 Q32 17 48 13" stroke="#383838" stroke-width="0.5" fill="none" opacity="0.50"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FB923C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: false,
+      show_hillshade: false,
+      show_roads: true,
+      show_poi_labels: false,
+      route_color: '#FB923C',
+      background_color: '#141414',
+      label_bg_color: '#141414',
+      label_text_color: '#F0F0F0',
+      atlas_layer_settings: {
+        landcover: { color: '#141414', opacity: 0.86 },
+        park: { fill_color: '#172A22', opacity: 0.30 },
+        water: { fill_color: '#0A2836', fill_opacity: 0.86 },
+        waterway: { color: '#2C5E73', opacity: 0.62, width: 0.95 },
+        transportation: { opacity: 0.52, major_color: '#585858', minor_color: '#383838', trail_color: '#4A544D', show_major: true, show_minor: true, show_trails: false },
+        place: { label_color: '#E8E4DC', label_opacity: 0.62, font_size: 12, halo_color: '#111111' },
+        poi: { label_opacity: 0.24 },
+      },
+    },
+    beta: true,
+  },
 ]
 
-const MAP_PRESETS = computed<MapPresetOption[]>(() => [
+const PROVIDER_MAP_PRESETS: MapPresetOption[] = [
   ...CORE_MAP_PRESETS,
-  ...(showAtlasEditor.value ? ATLAS_MAP_PRESETS : []),
   ...BETA_MAP_PRESETS,
-])
+]
 
 function applyMapPreset(p: MapPresetOption) {
   const atlasDefaults: Partial<StyleConfig> = p.id.startsWith('radmaps-')
     ? {
         atlas_style_id: p.id,
-        atlas_layers: { ...DEFAULT_ATLAS_LAYER_VISIBILITY },
+        atlas_layers: atlasLayerVisibilityDefaults(p.id, p.defaults),
         show_place_labels: true,
         show_poi_labels: true,
       }
@@ -2522,6 +2906,29 @@ export const ToggleRow = defineComponent({
           ].join(' '),
         }),
       ]),
+    ])
+  },
+})
+
+export const ToggleSwitch = defineComponent({
+  props: { value: Boolean },
+  emits: ['change'],
+  setup(props, { emit }) {
+    return () => h('button', {
+      type: 'button',
+      style: [
+        'position: relative; width: 30px; height: 18px; border-radius: 999px; border: none; cursor: pointer; padding: 0;',
+        `background: ${props.value ? '#2D6A4F' : '#D6D3D1'}; transition: background 0.2s;`,
+      ].join(' '),
+      onClick: () => emit('change', !props.value),
+    }, [
+      h('span', {
+        style: [
+          'position: absolute; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: white;',
+          'box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: left 0.2s;',
+          `left: ${props.value ? '14px' : '2px'};`,
+        ].join(' '),
+      }),
     ])
   },
 })

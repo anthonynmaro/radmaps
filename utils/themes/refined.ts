@@ -24,8 +24,13 @@ type RefinedThemeDefinition = ThemeDefinition & {
 }
 
 function mapDefaults(defaults: Partial<StyleConfig>): Partial<StyleConfig> {
+  const atlasStyleId = typeof defaults.preset === 'string' && defaults.preset.startsWith('radmaps-')
+    ? { atlas_style_id: defaults.preset }
+    : {}
+
   return {
     ...defaults,
+    ...atlasStyleId,
     ...(defaults.show_contours ? { contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH } : {}),
   }
 }
@@ -51,7 +56,7 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0,
     composition: 'editorial-tall',
-    map_defaults: mapDefaults({ preset: 'contour-art', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-simple-contour', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'usgs-vintage',
@@ -73,7 +78,7 @@ export const REFINED_THEMES = [
     border_style: 'thin',
     tile_grain: 0.32,
     composition: 'park-quad',
-    map_defaults: mapDefaults({ preset: 'natural-topo', show_roads: false, show_place_labels: true, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-topographic', show_roads: false, show_place_labels: true, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'midcentury-travel',
@@ -95,7 +100,7 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0.12,
     composition: 'travel-banner',
-    map_defaults: mapDefaults({ preset: 'contour-art', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-simple-contour', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'risograph',
@@ -117,7 +122,7 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0.40,
     composition: 'riso-stack',
-    map_defaults: mapDefaults({ preset: 'minimalist', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'duotone', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-minimalist', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'duotone', show_grid: false }),
   },
   {
     id: 'blueprint',
@@ -140,7 +145,7 @@ export const REFINED_THEMES = [
     tile_grain: 0.04,
     composition: 'blueprint-grid',
     show_grid: true,
-    map_defaults: mapDefaults({ preset: 'route-only', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
   },
   {
     id: 'blueprint-strava',
@@ -163,7 +168,7 @@ export const REFINED_THEMES = [
     tile_grain: 0.04,
     composition: 'blueprint-strava',
     show_grid: true,
-    map_defaults: mapDefaults({ preset: 'route-only', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
   },
   {
     id: 'field-journal',
@@ -185,7 +190,7 @@ export const REFINED_THEMES = [
     border_style: 'thin',
     tile_grain: 0.22,
     composition: 'journal-spread',
-    map_defaults: mapDefaults({ preset: 'natural-topo', show_roads: false, show_place_labels: true, show_hillshade: true, show_contours: true, contour_detail: 5, tile_effect: 'layer-color', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-natural', show_roads: false, show_place_labels: true, show_hillshade: true, show_contours: true, contour_detail: 5, tile_effect: 'layer-color', show_grid: false }),
   },
   {
     id: 'bold-modern',
@@ -208,7 +213,7 @@ export const REFINED_THEMES = [
     tile_grain: 0,
     composition: 'modernist-block',
     map_defaults: mapDefaults({
-      preset: 'contour-art',
+      preset: 'radmaps-toner',
       show_roads: false,
       show_place_labels: false,
       show_hillshade: false,
@@ -218,6 +223,51 @@ export const REFINED_THEMES = [
       contour_minor_width: 0.85,
       contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
       show_grid: false,
+    }),
+  },
+  {
+    id: 'contour-wash',
+    label: 'Contour Wash',
+    family: 'Contour study',
+    audience: 'Topo art / route keepsake',
+    dark: false,
+    background_color: '#EDE4D7',
+    label_bg_color: '#EDE4D7',
+    label_text_color: '#2A180B',
+    route_color: '#9A5E57',
+    water_color: '#B7D8EF',
+    land_color: '#D7E8F7',
+    base_tile_style: 'carto-light',
+    contour_color: '#75A8D2',
+    contour_major_color: '#4C7FA9',
+    font_family: 'Big Shoulders Display',
+    body_font_family: 'DM Sans',
+    border_style: 'thick',
+    tile_grain: 0.08,
+    composition: 'modernist-block',
+    map_defaults: mapDefaults({
+      preset: 'radmaps-contour-wash',
+      show_roads: false,
+      show_place_labels: false,
+      show_poi_labels: false,
+      show_hillshade: false,
+      show_contours: true,
+      contour_detail: 5,
+      contour_opacity: 0.46,
+      contour_minor_width: 0.7,
+      contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
+      tile_effect: 'none',
+      show_grid: false,
+      atlas_layer_settings: {
+        landcover: { color: '#D7E8F7', opacity: 0.94 },
+        park: { fill_color: '#CFE0EA', opacity: 0.26 },
+        water: { fill_color: '#B7D8EF', fill_opacity: 0.34 },
+        waterway: { color: '#75A8D2', opacity: 0.42, width: 0.9 },
+        transportation: { opacity: 0.16, major_color: '#8AA6BD', minor_color: '#B5C8D6', trail_color: '#7D9AB3', show_major: false, show_minor: false, show_trails: false },
+        contour: { minor_color: '#75A8D2', major_color: '#4C7FA9', minor_opacity: 0.46, major_width: 0.55 },
+        place: { label_color: '#4F6D83', label_opacity: 0.20, font_size: 12, halo_color: '#D7E8F7' },
+        poi: { label_opacity: 0.10 },
+      },
     }),
   },
   {
@@ -240,7 +290,7 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0.08,
     composition: 'splits-grid',
-    map_defaults: mapDefaults({ preset: 'road-network', show_roads: true, show_place_labels: false, show_hillshade: false, show_contours: false, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: true, show_place_labels: false, show_hillshade: false, show_contours: false, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'marathon-bib',
@@ -262,7 +312,7 @@ export const REFINED_THEMES = [
     border_style: 'thick',
     tile_grain: 0,
     composition: 'bib-numerals',
-    map_defaults: mapDefaults({ preset: 'road-network', show_roads: true, show_place_labels: false, show_hillshade: false, show_contours: false, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade', show_roads: true, show_place_labels: false, show_hillshade: false, show_contours: false, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'dark-sky',
@@ -284,7 +334,7 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0.18,
     composition: 'darksky-stars',
-    map_defaults: mapDefaults({ preset: 'contour-art', show_roads: false, show_place_labels: false, show_hillshade: true, show_contours: true, contour_detail: 5, tile_effect: 'layer-color', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-night-relief', show_roads: false, show_place_labels: false, show_hillshade: true, show_contours: true, contour_detail: 5, tile_effect: 'layer-color', show_grid: false }),
   },
   {
     id: 'botanical',
@@ -306,7 +356,7 @@ export const REFINED_THEMES = [
     border_style: 'thin',
     tile_grain: 0.10,
     composition: 'botanical-plate',
-    map_defaults: mapDefaults({ preset: 'natural-topo', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-natural', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
   {
     id: 'brutalist',
@@ -328,7 +378,7 @@ export const REFINED_THEMES = [
     border_style: 'thick',
     tile_grain: 0.06,
     composition: 'brutalist-slab',
-    map_defaults: mapDefaults({ preset: 'contour-art', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-toner', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
 ] as const satisfies readonly RefinedThemeDefinition[]
 

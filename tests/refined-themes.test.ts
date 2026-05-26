@@ -11,8 +11,8 @@ import {
 } from '../utils/themes/refined'
 
 describe('refined theme Phase 0 scaffolding', () => {
-  it('adds the 13 design-update theme definitions without changing current defaults', () => {
-    expect(REFINED_THEMES).toHaveLength(13)
+  it('adds the design-update theme definitions without changing current defaults', () => {
+    expect(REFINED_THEMES).toHaveLength(14)
     expect(DEFAULT_STYLE_CONFIG.color_theme).toBe('chalk')
     expect(DEFAULT_STYLE_CONFIG.show_roads).toBe(true)
     expect(DEFAULT_STYLE_CONFIG.show_hillshade).toBe(false)
@@ -24,6 +24,8 @@ describe('refined theme Phase 0 scaffolding', () => {
       expect(COMPOSITION_IDS).toContain(theme.composition)
       expect(theme.audience.length).toBeGreaterThan(0)
       expect(theme.map_defaults.preset, theme.id).toBeTruthy()
+      expect(theme.map_defaults.preset, theme.id).toMatch(/^radmaps-/)
+      expect(theme.map_defaults.atlas_style_id, theme.id).toBe(theme.map_defaults.preset)
       expect(typeof theme.map_defaults.show_grid, theme.id).toBe('boolean')
       if (theme.map_defaults.show_contours) {
         expect(theme.map_defaults.contour_detail, theme.id).toBeGreaterThanOrEqual(5)
@@ -54,6 +56,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(COMPOSITION_IDS).toContain(config.composition)
     expect(ALL_COLOR_THEME_IDS).toContain('chalk')
     expect(ALL_COLOR_THEME_IDS).toContain('blueprint-strava')
+    expect(ALL_COLOR_THEME_IDS).toContain('contour-wash')
   })
 
   it('keeps legacy themes renderable while declaring migration targets', () => {
@@ -65,15 +68,19 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(LEGACY_THEME_MIGRATION_TARGETS['mid-century']).toBe('midcentury-travel')
     expect(getThemeDefinition('chalk')?.legacy).toBe(true)
     expect(getRefinedThemeById('editorial-minimal')?.composition).toBe('editorial-tall')
-    expect(getRefinedThemeById('midcentury-travel')?.map_defaults.preset).toBe('contour-art')
+    expect(getRefinedThemeById('midcentury-travel')?.map_defaults.preset).toBe('radmaps-simple-contour')
   })
 
   it('keeps preview-forward contour themes backed by contour map detail', () => {
     const brutalist = getRefinedThemeById('brutalist')
+    const contourWash = getRefinedThemeById('contour-wash')
 
     expect(brutalist?.composition).toBe('brutalist-slab')
-    expect(brutalist?.map_defaults.preset).toBe('contour-art')
+    expect(brutalist?.map_defaults.preset).toBe('radmaps-toner')
     expect(brutalist?.map_defaults.show_contours).toBe(true)
     expect(brutalist?.map_defaults.contour_detail).toBeGreaterThanOrEqual(5)
+    expect(contourWash?.composition).toBe('modernist-block')
+    expect(contourWash?.map_defaults.preset).toBe('radmaps-contour-wash')
+    expect(contourWash?.map_defaults.show_contours).toBe(true)
   })
 })

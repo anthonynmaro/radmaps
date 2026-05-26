@@ -75,12 +75,20 @@ export const ALL_STYLE_PRESETS: readonly StylePreset[] = [
   'native-watercolor',
   'alidade-smooth',
   'alidade-smooth-dark',
+  'radmaps-minimalist',
+  'radmaps-topographic',
+  'radmaps-natural',
   'radmaps-toner',
   'radmaps-field-topo',
+  'radmaps-contour-wash',
   'radmaps-simple-contour',
   'radmaps-night-relief',
+  'radmaps-watercolor-classic',
   'radmaps-watercolor-pigment-wash',
+  'radmaps-watercolor-paper',
   'radmaps-watercolor-brush-ink',
+  'radmaps-alidade',
+  'radmaps-alidade-dark',
 ] as const
 
 export const CANONICAL_LAYER_SLOT_ORDER: readonly LayerSlot[] = [
@@ -582,12 +590,20 @@ const graphs: Record<StylePreset, LayerGraph> = {
     features: rasterPresetFeatures,
     sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
   }),
+  'radmaps-minimalist': atlasGraph('radmaps-minimalist', { hillshade: 'unsupported' }),
+  'radmaps-topographic': atlasGraph('radmaps-topographic'),
+  'radmaps-natural': atlasGraph('radmaps-natural'),
   'radmaps-toner': atlasGraph('radmaps-toner'),
   'radmaps-field-topo': atlasGraph('radmaps-field-topo'),
+  'radmaps-contour-wash': atlasGraph('radmaps-contour-wash', { hillshade: 'unsupported' }),
   'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { hillshade: 'unsupported' }),
   'radmaps-night-relief': atlasGraph('radmaps-night-relief'),
+  'radmaps-watercolor-classic': atlasGraph('radmaps-watercolor-classic'),
   'radmaps-watercolor-pigment-wash': atlasGraph('radmaps-watercolor-pigment-wash'),
+  'radmaps-watercolor-paper': atlasGraph('radmaps-watercolor-paper'),
   'radmaps-watercolor-brush-ink': atlasGraph('radmaps-watercolor-brush-ink'),
+  'radmaps-alidade': atlasGraph('radmaps-alidade', { hillshade: 'unsupported' }),
+  'radmaps-alidade-dark': atlasGraph('radmaps-alidade-dark', { hillshade: 'unsupported' }),
 }
 
 export function getPresetGraph(preset: StylePreset | string | undefined): LayerGraph {
