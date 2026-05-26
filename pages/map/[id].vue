@@ -8,13 +8,15 @@
 
     <header class="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
       <NuxtLink to="/" class="group flex items-center gap-2.5">
-        <svg class="h-7 w-7 text-[#2D6A4F] transition-transform duration-300 group-hover:-rotate-3" viewBox="0 0 32 32" fill="none">
-          <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.14" />
-          <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none" />
-          <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.45" />
-          <circle cx="11" cy="8" r="1.2" fill="currentColor" />
-        </svg>
-        <span class="text-[15px] font-bold tracking-tight" style="font-family:'Space Grotesk',sans-serif">Rad Maps</span>
+        <img
+          src="/radmaps-icon.png"
+          alt=""
+          width="32"
+          height="32"
+          class="h-8 w-8 object-contain transition-transform duration-300 group-hover:-rotate-3"
+          aria-hidden="true"
+        >
+        <span class="text-[15px] font-bold tracking-tight" style="font-family:'Space Grotesk',sans-serif">RadMaps</span>
         <span class="hidden rounded-full border border-stone-200 px-1.5 py-px text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-400 sm:inline">Studio</span>
       </NuxtLink>
 

@@ -1,6 +1,6 @@
 // utils/render/brandingMark.ts
 //
-// Shared "RAD MAPS" branding mark — the small mountain icon that
+// Shared "RADMAPS" branding mark — the small mountain icon that
 // appears with the radmaps.studio wordmark when show_branding=true.
 // Source of truth so the editor template and the worker SVG composer
 // emit byte-identical branding artwork.

@@ -124,6 +124,13 @@ export interface ProcessJobInput {
   workerId: string
 }
 
+class FulfillmentHoldError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'FulfillmentHoldError'
+  }
+}
+
 export async function processJob(input: ProcessJobInput): Promise<ProcessJobResult> {
   const { client, job, workerId } = input
   const t0 = Date.now()
@@ -163,7 +170,8 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
     const orderRes = await client.query(
       `SELECT id, user_id, quantity, shipping_address,
               gelato_order_id, fulfillment_status, status,
-              active_stripe_session_id
+              active_stripe_session_id, shipment_method_uid,
+              payment_status, dispute_status, refund_status, risk_level
          FROM orders
         WHERE active_stripe_session_id = $1
         LIMIT 1`,
@@ -180,8 +188,14 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
       gelato_order_id: string | null
       fulfillment_status: string | null
       status: string | null
+      shipment_method_uid: string | null
+      payment_status: string | null
+      dispute_status: string | null
+      refund_status: string | null
+      risk_level: string | null
     }
     orderId = order.id
+    assertOrderFulfillable(order)
 
     // ── 3. Idempotency: already-rendered + already-submitted ───────────────
     const existingRenderRes = await client.query(
@@ -260,6 +274,7 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
         id: order.id,
         quantity: order.quantity,
         user_id: order.user_id,
+        shipment_method_uid: order.shipment_method_uid,
       },
       shippingAddress: order.shipping_address,
       printFileUrl: renderResp.render_url,
@@ -300,6 +315,21 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    if (err instanceof FulfillmentHoldError) {
+      await markManualReview({
+        client,
+        jobId: job.id,
+        orderId,
+        errorMessage: message,
+      })
+      return {
+        status: 'manual_review',
+        jobId: job.id,
+        orderId,
+        durationMs: Date.now() - t0,
+        error: message,
+      }
+    }
     // attempts on the row was already incremented at claim time, so this
     // value is the post-claim count.
     const attemptsAfter = job.attempts
@@ -345,5 +375,30 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
       durationMs: Date.now() - t0,
       error: message,
     }
+  }
+}
+
+function assertOrderFulfillable(order: {
+  id: string
+  status: string | null
+  fulfillment_status: string | null
+  payment_status: string | null
+  dispute_status: string | null
+  refund_status: string | null
+  risk_level: string | null
+}) {
+  const paymentSettled = order.payment_status === 'paid' || order.status === 'paid'
+  if (!paymentSettled) throw new FulfillmentHoldError(`order_id=${order.id} is not paid`)
+  if (order.status === 'manual_review' || order.fulfillment_status === 'manual_review') {
+    throw new FulfillmentHoldError(`order_id=${order.id} is in manual review`)
+  }
+  if (order.fulfillment_status === 'fraud_review' || order.risk_level === 'review.opened' || order.risk_level === 'radar.early_fraud_warning.created') {
+    throw new FulfillmentHoldError(`order_id=${order.id} is held by Stripe risk review`)
+  }
+  if (order.dispute_status && order.dispute_status !== 'none' && order.dispute_status !== 'won') {
+    throw new FulfillmentHoldError(`order_id=${order.id} has an active dispute`)
+  }
+  if (order.status === 'cancelled' || order.refund_status === 'full') {
+    throw new FulfillmentHoldError(`order_id=${order.id} is cancelled or fully refunded`)
   }
 }

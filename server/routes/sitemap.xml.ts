@@ -13,8 +13,9 @@ const entries: SitemapEntry[] = [
   { loc: '/',         priority: 1.0, changefreq: 'daily' },
   { loc: '/shop',     priority: 0.9, changefreq: 'daily' },
   { loc: '/support',  priority: 0.5, changefreq: 'monthly' },
-  { loc: '/terms',    priority: 0.3, changefreq: 'yearly' },
-  { loc: '/privacy',  priority: 0.3, changefreq: 'yearly' },
+  { loc: '/returns',  priority: 0.3, changefreq: 'yearly' },
+  { loc: '/terms-of-service', priority: 0.3, changefreq: 'yearly' },
+  { loc: '/privacy-policy',   priority: 0.3, changefreq: 'yearly' },
   { loc: '/auth/login', priority: 0.4, changefreq: 'yearly' },
 ]
 

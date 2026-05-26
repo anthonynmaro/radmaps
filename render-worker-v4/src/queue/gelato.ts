@@ -31,6 +31,8 @@ export interface GelatoOrderInput {
     quantity: number | string | null
     user_id?: string | null
     guest_email?: string | null
+    order_reference_id?: string | null
+    shipment_method_uid?: string | null
   }
   /** address dict pulled off `orders.shipping_address` JSONB column */
   shippingAddress: GelatoShippingAddress
@@ -93,7 +95,7 @@ export async function placeGelatoOrder(
 
   const body = {
     orderType,
-    orderReferenceId: String(order.id),
+    orderReferenceId: String(order.order_reference_id || order.id),
     customerReferenceId: String(order.user_id ?? order.guest_email ?? order.id),
     currency: 'USD',
     items: [
@@ -109,7 +111,7 @@ export async function placeGelatoOrder(
         quantity,
       },
     ],
-    shipmentMethodUid: 'standard',
+    shipmentMethodUid: order.shipment_method_uid || 'standard',
     shippingAddress: {
       firstName,
       lastName,

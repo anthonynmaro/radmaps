@@ -975,6 +975,26 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'failed'
+  | 'fulfillment_failed'
+  | 'manual_review'
+  | 'refunded'
+  | 'partially_refunded'
+
+export type FulfillmentStatus =
+  | 'pending_payment'
+  | 'paid'
+  | 'rendering_print'
+  | 'print_ready'
+  | 'submitted_to_gelato'
+  | 'manual_review'
+  | 'failed'
+  | 'render_queue_failed'
+  | 'snapshot_missing'
+  | 'quote_mismatch'
+  | 'fraud_review'
+  | 'cancelled'
+  | 'refunded'
+  | 'partially_refunded'
 
 export interface ShippingAddress {
   name: string
@@ -993,6 +1013,9 @@ export interface Order {
   user_id: string | null         // nullable when guest_email is set
   map_id: string | null          // nullable when premade_slug is set
   stripe_pi_id: string
+  stripe_session_id?: string | null
+  stripe_customer_id?: string | null
+  stripe_charge_id?: string | null
   gelato_order_id?: string
   product_uid: string
   print_size: string
@@ -1001,8 +1024,24 @@ export interface Order {
   subtotal_cents: number
   discount_cents: number
   total_cents: number
+  amount_subtotal_cents?: number
+  amount_shipping_cents?: number
+  amount_tax_cents?: number
+  amount_discount_cents?: number
+  amount_total_cents?: number
+  amount_refunded_cents?: number
   currency: string
   status: OrderStatus
+  fulfillment_status?: FulfillmentStatus | null
+  payment_status?: string | null
+  payment_method_type?: string | null
+  receipt_url?: string | null
+  shipping_quote_id?: string | null
+  shipment_method_uid?: string | null
+  quote_expires_at?: string | null
+  refund_status?: 'none' | 'pending' | 'partial' | 'full' | 'failed'
+  dispute_status?: 'none' | 'warning_needs_response' | 'under_review' | 'needs_response' | 'won' | 'lost' | 'closed'
+  risk_level?: string | null
   tracking_code?: string
   carrier?: string
   digital_url?: string

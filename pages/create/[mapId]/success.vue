@@ -114,6 +114,7 @@ const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
 
 const mapId = route.params.mapId as string
+const sessionId = typeof route.query.session_id === 'string' ? route.query.session_id : null
 const orderId = ref<string | null>(null)
 const mapTitle = ref<string | null>(null)
 const digitalUrl = ref<string | null>(null)
@@ -129,7 +130,7 @@ async function pollForOrder() {
     const { data } = await supabase
       .from('orders')
       .select('id, digital_url, maps(title)')
-      .eq('map_id', mapId)
+      .eq(sessionId ? 'stripe_session_id' : 'map_id', sessionId || mapId)
       .eq('user_id', user.value?.id)
       .order('created_at', { ascending: false })
       .limit(1)

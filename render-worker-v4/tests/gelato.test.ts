@@ -54,4 +54,22 @@ describe('placeGelatoOrder', () => {
 
     expect(bodies[0]?.orderType).toBe('order')
   })
+
+  it('uses the locked shipment method from the paid quote', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    const fakeFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>)
+      return new Response(JSON.stringify({ id: 'gelato-order-1' }), { status: 200 })
+    }) as typeof fetch
+
+    await placeGelatoOrder({
+      ...baseInput,
+      order: {
+        ...baseInput.order,
+        shipment_method_uid: 'express-quote-123',
+      },
+    }, fakeFetch)
+
+    expect(bodies[0]?.shipmentMethodUid).toBe('express-quote-123')
+  })
 })

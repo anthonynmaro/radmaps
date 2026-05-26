@@ -40,8 +40,9 @@ ${premadeLines}
 ## Help and policies
 
 - [Support](${SITE_URL}/support): Help with shipping, returns, route imports, and design.
-- [Terms](${SITE_URL}/terms): Order, refund, and license terms.
-- [Privacy](${SITE_URL}/privacy): What data we collect and how it's used.
+- [Returns](${SITE_URL}/returns): Return, refund, cancellation, damaged print, and lost package policy.
+- [Terms](${SITE_URL}/terms-of-service): Account, order, refund, route data, and license terms.
+- [Privacy](${SITE_URL}/privacy-policy): What data we collect and how it's used.
 
 ## Optional
 

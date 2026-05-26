@@ -3,7 +3,8 @@
 
     <!-- Header -->
     <header class="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 bg-white/90 backdrop-blur border-b border-stone-200 z-40">
-      <NuxtLink :to="`/create/${mapId}/style`"
+      <NuxtLink
+:to="`/create/${mapId}/style`"
         class="flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors">
         <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
@@ -57,7 +58,7 @@
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
               alt="Print preview"
-            />
+            >
             <div v-else class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 flex items-center justify-center">
               <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
                 <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
@@ -67,7 +68,8 @@
           </div>
 
           <!-- Render status banner -->
-          <div v-if="renderError"
+          <div
+v-if="renderError"
             class="absolute top-4 left-4 right-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 z-10">
             <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -75,10 +77,11 @@
             <div>
               <p class="text-sm font-semibold text-red-800">Render failed</p>
               <p class="text-xs text-red-700 mt-0.5">{{ renderError }}</p>
-              <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
+              <button class="mt-1 text-xs font-medium text-red-700 underline" @click="startRenders">Try again</button>
             </div>
           </div>
-          <div v-else-if="renderInFlight && !printReady"
+          <div
+v-else-if="renderInFlight && !printReady"
             class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 z-10">
             <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -116,7 +119,7 @@
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
           <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
-            <img v-if="previewUrl" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" />
+            <img v-if="previewUrl" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" >
             <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
@@ -128,7 +131,7 @@
           </div>
           <div class="text-right shrink-0">
             <p class="font-bold text-[#2D6A4F]">{{ selectedProduct ? formatPrice(selectedProduct.price_cents) : '' }}</p>
-            <button @click="step = 'product'" class="text-xs text-stone-400 hover:text-stone-600 mt-1">Change</button>
+            <button class="text-xs text-stone-400 hover:text-stone-600 mt-1" @click="step = 'product'">Change</button>
           </div>
         </div>
 
@@ -141,7 +144,7 @@
                 {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your last saved proof while the print file renders.' }}
               </p>
             </div>
-            <button @click="step = 'product'" class="text-xs font-medium text-stone-500 hover:text-stone-800">Change product</button>
+            <button class="text-xs font-medium text-stone-500 hover:text-stone-800" @click="step = 'product'">Change product</button>
           </div>
           <div class="h-[58vh] min-h-[420px] max-h-[720px] bg-[#e8e5e0] flex items-center justify-center overflow-hidden">
             <img
@@ -149,7 +152,7 @@
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain rounded-none"
               alt="Print proof"
-            />
+            >
             <svg v-else class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
@@ -164,8 +167,9 @@
           </h2>
           <div>
             <label class="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
-            <input v-model="shippingAddress.email" type="email" placeholder="you@example.com"
-              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+            <input
+v-model="shippingAddress.email" type="email" placeholder="you@example.com"
+              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
           </div>
         </div>
 
@@ -178,50 +182,58 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">Full Name</label>
-              <input v-model="shippingAddress.name" type="text" placeholder="John Doe"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+              <input
+v-model="shippingAddress.name" type="text" placeholder="John Doe"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
             </div>
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
-              <input v-model="shippingAddress.email" type="email" placeholder="you@example.com"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+              <input
+v-model="shippingAddress.email" type="email" placeholder="you@example.com"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
             </div>
           </div>
 
           <div>
             <label class="block text-sm font-medium text-stone-700 mb-1.5">Street Address</label>
-            <input v-model="shippingAddress.address1" type="text" placeholder="123 Main St"
-              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+            <input
+v-model="shippingAddress.address1" type="text" placeholder="123 Main St"
+              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
           </div>
 
           <div>
             <label class="block text-sm font-medium text-stone-700 mb-1.5">Apt, suite, etc. (optional)</label>
-            <input v-model="shippingAddress.address2" type="text" placeholder="Apt 4B"
-              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+            <input
+v-model="shippingAddress.address2" type="text" placeholder="Apt 4B"
+              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div class="col-span-2 sm:col-span-1">
               <label class="block text-sm font-medium text-stone-700 mb-1.5">City</label>
-              <input v-model="shippingAddress.city" type="text" placeholder="Seattle"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+              <input
+v-model="shippingAddress.city" type="text" placeholder="Seattle"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
             </div>
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">State</label>
-              <input v-model="shippingAddress.state_code" type="text" placeholder="WA" maxlength="2"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]"/>
+              <input
+v-model="shippingAddress.state_code" type="text" placeholder="WA" maxlength="2"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]">
             </div>
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">ZIP</label>
-              <input v-model="shippingAddress.zip" type="text" placeholder="98101"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+              <input
+v-model="shippingAddress.zip" type="text" placeholder="98101"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">Country</label>
-              <select v-model="shippingAddress.country_code"
+              <select
+v-model="shippingAddress.country_code"
                 class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] bg-white min-h-[48px]">
                 <option value="US">United States</option>
                 <option value="CA">Canada</option>
@@ -236,8 +248,9 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-stone-700 mb-1.5">Phone</label>
-              <input v-model="shippingAddress.phone" type="tel" placeholder="(206) 555-0100"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]"/>
+              <input
+v-model="shippingAddress.phone" type="tel" placeholder="(206) 555-0100"
+                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
             </div>
           </div>
         </div>
@@ -248,7 +261,7 @@
             <div class="flex items-end gap-2">
               <label class="block flex-1">
                 <span class="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">Coupon</span>
-                <input v-model="couponCode" class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]" placeholder="TRAIL-25" />
+                <input v-model="couponCode" class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]" placeholder="TRAIL-25" >
               </label>
               <button
                 type="button"
@@ -266,7 +279,8 @@
             <p v-if="couponError" class="text-xs text-red-600">{{ couponError }}</p>
           </div>
 
-          <div v-if="renderError && !isDigital"
+          <div
+v-if="renderError && !isDigital"
             class="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -274,10 +288,11 @@
             <div>
               <p class="text-sm font-semibold text-red-800">Render failed</p>
               <p class="text-xs text-red-700 mt-0.5">{{ renderError }}</p>
-              <button @click="startRenders" class="mt-1 text-xs font-medium text-red-700 underline">Try again</button>
+              <button class="mt-1 text-xs font-medium text-red-700 underline" @click="startRenders">Try again</button>
             </div>
           </div>
-          <div v-else-if="renderInFlight && !printReady && !isDigital"
+          <div
+v-else-if="renderInFlight && !printReady && !isDigital"
             class="mb-4 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
             <svg class="w-4 h-4 text-sky-500 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -291,15 +306,25 @@
             <div class="text-right">
               <p v-if="couponPreview" class="text-sm text-stone-500 line-through">{{ formatPrice(subtotalCents) }}</p>
               <p v-if="couponPreview" class="text-sm font-semibold text-green-700">-{{ formatPrice(couponPreview.discount_cents) }}</p>
+              <p v-if="hardenedCheckoutEnabled && !isDigital && shippingQuote" class="text-sm text-stone-500">
+                Shipping {{ formatPrice(shippingCents) }}
+              </p>
               <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
                 {{ selectedProduct ? formatPrice(totalCents) : '' }}
               </span>
             </div>
           </div>
+          <div v-if="hardenedCheckoutEnabled && !isDigital" class="mb-4">
+            <p v-if="quoteLoading" class="text-xs text-stone-500">Updating shipping…</p>
+            <p v-else-if="quoteError" class="text-xs text-red-600">{{ quoteError }}</p>
+            <p v-else-if="shippingQuote" class="text-xs text-stone-500">
+              {{ shippingQuote.shipment_method_name }} locked for this checkout. Tax is calculated by Stripe.
+            </p>
+          </div>
           <button
-            @click="proceedToPayment"
             :disabled="!canProceed || isSubmitting"
             class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-3.5 transition-colors min-h-[52px]"
+            @click="proceedToPayment"
           >
             <svg v-if="isSubmitting" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -334,6 +359,7 @@ import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import { FLAGS } from '~/utils/knownFlags'
 import type { TrailMap, PrintProduct, ProductFraming } from '~/types'
 
 definePageMeta({
@@ -352,9 +378,9 @@ type CheckoutMap = Pick<TrailMap,
 >
 
 const route = useRoute()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
+const hardenedCheckoutEnabled = useFeatureFlag(FLAGS.STRIPE_HARDENED_CHECKOUT)
 
 const mapId = route.params.mapId as string
 const map = ref<CheckoutMap | null>(null)
@@ -382,7 +408,22 @@ const couponPreview = ref<null | {
   total_cents: number
 }>(null)
 const subtotalCents = computed(() => selectedProduct.value ? selectedProduct.value.price_cents : 0)
-const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0)))
+const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
+const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
+
+type ShippingQuoteSelection = {
+  checkout_attempt_id: string
+  quote_id: string
+  shipment_method_uid: string
+  shipment_method_name: string
+  amount_cents: number
+  currency: string
+  expires_at: string
+}
+const shippingQuote = ref<ShippingQuoteSelection | null>(null)
+const quoteLoading = ref(false)
+const quoteError = ref('')
+let quoteTimer: ReturnType<typeof setTimeout> | null = null
 
 const displayProofImage = computed(() =>
   !!previewUrl.value
@@ -428,7 +469,9 @@ const canProceed = computed(() => {
   if (!isDigital.value && (!printReady.value || renderTargetProductUid.value !== selectedProduct.value.product_uid)) return false
   if (isDigital.value) return !!shippingAddress.email
   const { name, email, address1, city, state_code, zip, phone } = shippingAddress
-  return !!(name && email && address1 && city && state_code && zip && phone)
+  const hasAddress = !!(name && email && address1 && city && state_code && zip && phone)
+  if (!hasAddress) return false
+  return hardenedCheckoutEnabled.value ? !!(shippingQuote.value && !quoteLoading.value) : true
 })
 
 async function applyCoupon() {
@@ -460,6 +503,75 @@ function removeCoupon() {
 
 watch([() => shippingAddress.email, selectedProduct], () => {
   if (couponPreview.value) removeCoupon()
+})
+
+function hasQuoteAddress() {
+  const { name, email, address1, city, state_code, zip, phone } = shippingAddress
+  return !!(hardenedCheckoutEnabled.value && selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip && phone)
+}
+
+function clearShippingQuote() {
+  shippingQuote.value = null
+  quoteError.value = ''
+}
+
+async function requestShippingQuote() {
+  if (!hasQuoteAddress() || !selectedProduct.value) {
+    clearShippingQuote()
+    return
+  }
+  quoteLoading.value = true
+  quoteError.value = ''
+  try {
+    const response = await $fetch<{
+      checkout_attempt_id: string
+      quote_id: string
+      selected: Omit<ShippingQuoteSelection, 'checkout_attempt_id' | 'quote_id'>
+    }>('/api/checkout/quote', {
+      method: 'POST',
+      body: {
+        cart_source: 'custom',
+        map_id: mapId,
+        product_uid: selectedProduct.value.product_uid,
+        print_size: selectedProduct.value.size_label,
+        quantity: 1,
+        shipping_address: shippingAddress,
+        digital_only: false,
+      },
+    })
+    shippingQuote.value = {
+      checkout_attempt_id: response.checkout_attempt_id,
+      quote_id: response.quote_id,
+      ...response.selected,
+    }
+  } catch (err: any) {
+    shippingQuote.value = null
+    quoteError.value = err?.data?.message || err?.message || 'Could not calculate shipping for this address.'
+  } finally {
+    quoteLoading.value = false
+  }
+}
+
+watch([
+  selectedProduct,
+  () => shippingAddress.name,
+  () => shippingAddress.email,
+  () => shippingAddress.address1,
+  () => shippingAddress.address2,
+  () => shippingAddress.city,
+  () => shippingAddress.state_code,
+  () => shippingAddress.zip,
+  () => shippingAddress.country_code,
+  () => shippingAddress.phone,
+  hardenedCheckoutEnabled,
+], () => {
+  if (quoteTimer) clearTimeout(quoteTimer)
+  if (!hardenedCheckoutEnabled.value || isDigital.value) {
+    clearShippingQuote()
+    return
+  }
+  clearShippingQuote()
+  quoteTimer = setTimeout(requestShippingQuote, 650)
 })
 
 // ─── Render state ───────────────────────────────────────────────────────────
@@ -681,6 +793,9 @@ const proceedToPayment = async () => {
   step.value = 'payment'
   try {
     const payload = {
+      cart_source: 'custom',
+      checkout_attempt_id: hardenedCheckoutEnabled.value ? shippingQuote.value?.checkout_attempt_id : undefined,
+      quote_id: hardenedCheckoutEnabled.value && !isDigital.value ? shippingQuote.value?.quote_id : null,
       map_id: mapId,
       product_uid: selectedProduct.value.product_uid,
       print_size: selectedProduct.value.size_label || 'digital',
@@ -691,7 +806,8 @@ const proceedToPayment = async () => {
       digital_only: isDigital.value,
       coupon_slug: couponPreview.value?.slug,
     }
-    const response = await fetch('/api/orders/checkout', {
+    const endpoint = hardenedCheckoutEnabled.value ? '/api/checkout/session' : '/api/orders/checkout'
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

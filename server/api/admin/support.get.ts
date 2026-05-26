@@ -2,7 +2,7 @@ import { serverSupabaseServiceRole } from '#supabase/server'
 import { requireStaff } from '~/server/utils/adminAuth'
 
 const PROFILE_SELECT = 'id, email, full_name, created_at'
-const ORDER_SELECT = 'id, user_id, guest_email, premade_slug, premade_title, status, product_uid, print_size, total_cents, currency, created_at, tracking_code, carrier'
+const ORDER_SELECT = 'id, user_id, guest_email, premade_slug, premade_title, status, fulfillment_status, refund_status, dispute_status, product_uid, print_size, total_cents, amount_total_cents, amount_shipping_cents, amount_tax_cents, currency, stripe_session_id, stripe_pi_id, stripe_customer_id, stripe_charge_id, gelato_order_id, tracking_code, carrier, created_at'
 
 function dedupeById(rows: any[][], limit: number): any[] {
   const byId = new Map<string, any>()
@@ -27,6 +27,11 @@ export default defineEventHandler(async (event) => {
     supabase.from('orders').select(ORDER_SELECT).ilike('guest_email', `%${q}%`).order('created_at', { ascending: false }).limit(20),
     supabase.from('orders').select(ORDER_SELECT).ilike('premade_slug', `%${q}%`).order('created_at', { ascending: false }).limit(20),
     supabase.from('orders').select(ORDER_SELECT).ilike('premade_title', `%${q}%`).order('created_at', { ascending: false }).limit(20),
+    supabase.from('orders').select(ORDER_SELECT).ilike('stripe_session_id', `%${q}%`).order('created_at', { ascending: false }).limit(20),
+    supabase.from('orders').select(ORDER_SELECT).ilike('stripe_pi_id', `%${q}%`).order('created_at', { ascending: false }).limit(20),
+    supabase.from('orders').select(ORDER_SELECT).ilike('stripe_customer_id', `%${q}%`).order('created_at', { ascending: false }).limit(20),
+    supabase.from('orders').select(ORDER_SELECT).ilike('gelato_order_id', `%${q}%`).order('created_at', { ascending: false }).limit(20),
+    supabase.from('orders').select(ORDER_SELECT).ilike('tracking_code', `%${q}%`).order('created_at', { ascending: false }).limit(20),
   ]
   if (uuidLike) {
     orderQueries.push(supabase.from('orders').select(ORDER_SELECT).eq('id', q).order('created_at', { ascending: false }).limit(1))

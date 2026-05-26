@@ -149,6 +149,9 @@ CREATE TABLE IF NOT EXISTS public.orders (
   premade_slug          TEXT,                                   -- set when map_id is null
   premade_title         TEXT,
   stripe_pi_id          TEXT NOT NULL UNIQUE,
+  stripe_session_id     TEXT,
+  stripe_customer_id    TEXT,
+  stripe_charge_id      TEXT,
   gelato_order_id       TEXT,              -- Gelato's internal order ID
   product_uid           TEXT NOT NULL,     -- Gelato productUid (e.g. 'flat_product_pf_18x24_...') or 'digital'
   print_size            TEXT NOT NULL,     -- Human-readable label (e.g. '18×24"')
@@ -157,11 +160,32 @@ CREATE TABLE IF NOT EXISTS public.orders (
   subtotal_cents         INT NOT NULL DEFAULT 0 CHECK (subtotal_cents >= 0),
   discount_cents         INT NOT NULL DEFAULT 0 CHECK (discount_cents >= 0),
   total_cents           INT NOT NULL,
+  amount_subtotal_cents INT NOT NULL DEFAULT 0 CHECK (amount_subtotal_cents >= 0),
+  amount_shipping_cents INT NOT NULL DEFAULT 0 CHECK (amount_shipping_cents >= 0),
+  amount_tax_cents      INT NOT NULL DEFAULT 0 CHECK (amount_tax_cents >= 0),
+  amount_discount_cents INT NOT NULL DEFAULT 0 CHECK (amount_discount_cents >= 0),
+  amount_total_cents    INT NOT NULL DEFAULT 0 CHECK (amount_total_cents >= 0),
+  amount_refunded_cents INT NOT NULL DEFAULT 0 CHECK (amount_refunded_cents >= 0),
   currency              TEXT NOT NULL DEFAULT 'usd',
+  payment_status        TEXT,
+  payment_method_type   TEXT,
+  receipt_url           TEXT,
+  shipping_quote_id     UUID,
+  shipment_method_uid   TEXT,
+  quote_expires_at      TIMESTAMPTZ,
+  refund_status         TEXT NOT NULL DEFAULT 'none'
+    CHECK (refund_status IN ('none','pending','partial','full','failed')),
+  dispute_status        TEXT NOT NULL DEFAULT 'none'
+    CHECK (dispute_status IN ('none','warning_needs_response','under_review','needs_response','won','lost','closed')),
+  risk_level            TEXT,
   coupon_id             UUID REFERENCES public.coupons(id) ON DELETE SET NULL,
   coupon_slug           TEXT CHECK (coupon_slug IS NULL OR coupon_slug ~ '^[A-Z0-9]+(-[A-Z0-9]+)*$'),
   status                TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending','paid','in_production','shipped','delivered','cancelled','failed','fulfillment_failed')),
+    CHECK (status IN ('pending','paid','in_production','shipped','delivered','cancelled','failed','fulfillment_failed','manual_review','refunded','partially_refunded')),
+  fulfillment_status    TEXT NOT NULL DEFAULT 'pending_payment'
+    CHECK (fulfillment_status IN ('pending_payment','paid','rendering_print','print_ready','submitted_to_gelato','manual_review','failed','render_queue_failed','snapshot_missing','quote_mismatch','fraud_review','cancelled','refunded','partially_refunded')),
+  active_stripe_session_id TEXT,
+  print_file_url        TEXT,
   tracking_code         TEXT,             -- Carrier tracking code from Gelato
   carrier               TEXT,             -- Shipping carrier name
   digital_url           TEXT,
@@ -176,6 +200,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE INDEX IF NOT EXISTS orders_user_id_idx      ON public.orders (user_id);
 CREATE INDEX IF NOT EXISTS orders_map_id_idx       ON public.orders (map_id);
 CREATE INDEX IF NOT EXISTS orders_stripe_pi_idx    ON public.orders (stripe_pi_id);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_stripe_session_uniq ON public.orders (stripe_session_id) WHERE stripe_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS orders_stripe_customer_idx ON public.orders (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS orders_payment_status_idx ON public.orders (payment_status) WHERE payment_status IS NOT NULL;
+CREATE INDEX IF NOT EXISTS orders_fulfillment_status_idx ON public.orders (fulfillment_status) WHERE fulfillment_status IS NOT NULL;
 CREATE INDEX IF NOT EXISTS orders_gelato_order_idx ON public.orders (gelato_order_id);
 CREATE INDEX IF NOT EXISTS orders_guest_email_idx  ON public.orders (guest_email);
 CREATE INDEX IF NOT EXISTS orders_premade_slug_idx ON public.orders (premade_slug);
@@ -458,6 +486,213 @@ ALTER TABLE public.processed_stripe_events ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS processed_stripe_events_created_at_idx
   ON public.processed_stripe_events (created_at);
 
+-- ─── Hardened checkout/support tables ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.checkout_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cart_source TEXT NOT NULL CHECK (cart_source IN ('custom','premade')),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  guest_email TEXT,
+  map_id UUID REFERENCES public.maps(id) ON DELETE SET NULL,
+  premade_slug TEXT,
+  product_uid TEXT NOT NULL,
+  print_size TEXT,
+  quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  shipping_address JSONB,
+  address_hash TEXT,
+  quote_id UUID,
+  stripe_session_id TEXT,
+  stripe_customer_id TEXT,
+  status TEXT NOT NULL DEFAULT 'started'
+    CHECK (status IN ('started','quoted','session_created','expired','completed','failed')),
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS checkout_attempts_user_idx ON public.checkout_attempts (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS checkout_attempts_session_idx ON public.checkout_attempts (stripe_session_id) WHERE stripe_session_id IS NOT NULL;
+
+DROP TRIGGER IF EXISTS set_checkout_attempts_updated_at ON public.checkout_attempts;
+CREATE TRIGGER set_checkout_attempts_updated_at
+  BEFORE UPDATE ON public.checkout_attempts
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS public.shipping_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  checkout_attempt_id UUID REFERENCES public.checkout_attempts(id) ON DELETE SET NULL,
+  cart_source TEXT NOT NULL CHECK (cart_source IN ('custom','premade')),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  guest_email TEXT,
+  map_id UUID REFERENCES public.maps(id) ON DELETE SET NULL,
+  premade_slug TEXT,
+  product_uid TEXT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  shipping_address JSONB NOT NULL,
+  address_hash TEXT NOT NULL,
+  shipment_method_uid TEXT NOT NULL,
+  shipment_method_name TEXT NOT NULL DEFAULT 'Standard shipping',
+  amount_cents INT NOT NULL CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'usd',
+  min_delivery_date TEXT,
+  max_delivery_date TEXT,
+  raw_quote JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'quoted'
+    CHECK (status IN ('quoted','selected','expired','used','failed')),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS shipping_quotes_lookup_idx ON public.shipping_quotes (id, status, expires_at);
+CREATE INDEX IF NOT EXISTS shipping_quotes_attempt_idx ON public.shipping_quotes (checkout_attempt_id);
+
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_shipping_quote_id_fkey;
+ALTER TABLE public.orders ADD CONSTRAINT orders_shipping_quote_id_fkey
+  FOREIGN KEY (shipping_quote_id) REFERENCES public.shipping_quotes(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS public.stripe_events (
+  event_id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  object_id TEXT,
+  object_type TEXT,
+  api_version TEXT,
+  livemode BOOLEAN NOT NULL DEFAULT false,
+  payload JSONB NOT NULL,
+  status TEXT NOT NULL DEFAULT 'received'
+    CHECK (status IN ('received','processed','ignored','failed')),
+  last_error TEXT,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS stripe_events_type_created_idx ON public.stripe_events (event_type, received_at DESC);
+CREATE INDEX IF NOT EXISTS stripe_events_object_idx ON public.stripe_events (object_type, object_id) WHERE object_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.payment_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+  checkout_attempt_id UUID REFERENCES public.checkout_attempts(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  guest_email TEXT,
+  stripe_session_id TEXT,
+  stripe_payment_intent_id TEXT,
+  stripe_charge_id TEXT,
+  amount_cents INT NOT NULL DEFAULT 0 CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'usd',
+  status TEXT NOT NULL,
+  failure_code TEXT,
+  failure_message TEXT,
+  payment_method_type TEXT,
+  raw_payment JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS payment_attempts_order_idx ON public.payment_attempts (order_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS payment_attempts_pi_idx ON public.payment_attempts (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.order_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  actor_type TEXT NOT NULL DEFAULT 'system' CHECK (actor_type IN ('system','staff','stripe','gelato','customer')),
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  message TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS order_events_order_idx ON public.order_events (order_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.order_refunds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+  stripe_refund_id TEXT UNIQUE,
+  amount_cents INT NOT NULL CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'usd',
+  reason TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  raw_refund JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS order_refunds_order_idx ON public.order_refunds (order_id, created_at DESC);
+DROP TRIGGER IF EXISTS set_order_refunds_updated_at ON public.order_refunds;
+CREATE TRIGGER set_order_refunds_updated_at
+  BEFORE UPDATE ON public.order_refunds
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS public.order_disputes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+  stripe_dispute_id TEXT NOT NULL UNIQUE,
+  amount_cents INT NOT NULL DEFAULT 0 CHECK (amount_cents >= 0),
+  currency TEXT NOT NULL DEFAULT 'usd',
+  reason TEXT,
+  status TEXT NOT NULL,
+  evidence_due_by TIMESTAMPTZ,
+  raw_dispute JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS order_disputes_order_idx ON public.order_disputes (order_id, created_at DESC);
+DROP TRIGGER IF EXISTS set_order_disputes_updated_at ON public.order_disputes;
+CREATE TRIGGER set_order_disputes_updated_at
+  BEFORE UPDATE ON public.order_disputes
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS public.support_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  body TEXT NOT NULL CHECK (length(btrim(body)) > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS support_notes_order_idx ON public.support_notes (order_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.fulfillment_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  job_type TEXT NOT NULL DEFAULT 'gelato_submit' CHECK (job_type IN ('gelato_submit','reprint')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','submitting','submitted','failed','manual_review','cancelled')),
+  attempts INT NOT NULL DEFAULT 0,
+  max_attempts INT NOT NULL DEFAULT 3,
+  last_error TEXT,
+  worker_id TEXT,
+  claimed_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS fulfillment_jobs_status_idx ON public.fulfillment_jobs (status, created_at);
+CREATE INDEX IF NOT EXISTS fulfillment_jobs_order_idx ON public.fulfillment_jobs (order_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_jobs_single_gelato_submit_idx
+  ON public.fulfillment_jobs (order_id)
+  WHERE job_type = 'gelato_submit';
+DROP TRIGGER IF EXISTS set_fulfillment_jobs_updated_at ON public.fulfillment_jobs;
+CREATE TRIGGER set_fulfillment_jobs_updated_at
+  BEFORE UPDATE ON public.fulfillment_jobs
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+ALTER TABLE public.checkout_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shipping_quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stripe_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_refunds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_disputes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fulfillment_jobs ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.checkout_attempts TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.shipping_quotes TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.stripe_events TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.payment_attempts TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_events TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_refunds TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.order_disputes TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.support_notes TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.fulfillment_jobs TO service_role;
+
 -- ─── admin_users ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.admin_users (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -596,6 +831,26 @@ VALUES (
   false,
   '[{"type":"admin_role","enabled":true,"roles":["admin","designer"]}]'::jsonb
 )
+ON CONFLICT (environment, key) DO NOTHING;
+
+INSERT INTO public.feature_flags (key, name, description, environment, enabled, rules)
+VALUES
+  (
+    'stripe_hardened_checkout',
+    'Stripe Hardened Checkout',
+    'Enables quote-first Gelato shipping and hardened Stripe Checkout session creation.',
+    'all',
+    false,
+    '[{"type":"all_staff","enabled":true}]'::jsonb
+  ),
+  (
+    'order_support_actions',
+    'Order Support Actions',
+    'Enables staff refund, reprint, cancellation, manual-review, and support-note actions.',
+    'all',
+    false,
+    '[{"type":"admin_role","enabled":true,"roles":["admin","support"]}]'::jsonb
+  )
 ON CONFLICT (environment, key) DO NOTHING;
 
 -- ─── Atlas usage accounting ─────────────────────────────────────────────────

@@ -12,19 +12,18 @@
 
         <!-- Logo -->
         <NuxtLink to="/" class="flex items-center gap-2.5 shrink-0 group">
-          <span class="relative">
-            <svg class="w-7 h-7 text-[#2D6A4F] transition-transform duration-300 group-hover:-rotate-3" viewBox="0 0 32 32" fill="none">
-              <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.14"/>
-              <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-              <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.5"/>
-              <path d="M8 18 Q13 16 16 17 Q19.5 18 23 16.5" stroke="currentColor" stroke-width="0.7" fill="none" opacity="0.35"/>
-              <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
-            </svg>
-          </span>
+          <img
+            src="/radmaps-icon.png"
+            alt=""
+            width="32"
+            height="32"
+            class="h-8 w-8 object-contain transition-transform duration-300 group-hover:-rotate-3"
+            aria-hidden="true"
+          >
           <span
             class="text-[16px] font-bold tracking-tight text-stone-900 group-hover:text-[#2D6A4F] transition-colors"
             style="font-family:'Space Grotesk',sans-serif"
-          >Rad Maps</span>
+          >RadMaps</span>
           <span class="hidden sm:inline-block text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 border border-stone-300/70 rounded-full px-1.5 py-px ml-1">
             Studio
           </span>
@@ -275,14 +274,16 @@
           <!-- Brand -->
           <div class="col-span-2 md:col-span-5 max-w-sm">
             <NuxtLink to="/" class="flex items-center gap-2.5 mb-4 group">
-              <svg class="w-7 h-7 text-[#2D6A4F] transition-transform duration-300 group-hover:-rotate-3" viewBox="0 0 32 32" fill="none">
-                <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.14"/>
-                <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-                <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.5"/>
-                <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
-              </svg>
+              <img
+                src="/radmaps-icon.png"
+                alt=""
+                width="32"
+                height="32"
+                class="h-8 w-8 object-contain transition-transform duration-300 group-hover:-rotate-3"
+                aria-hidden="true"
+              >
               <span class="text-[16px] font-bold tracking-tight text-stone-900" style="font-family:'Space Grotesk',sans-serif">
-                Rad Maps
+                RadMaps
               </span>
               <span class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 border border-stone-300/70 rounded-full px-1.5 py-px">
                 Studio
@@ -341,8 +342,8 @@
             <p class="text-[10px] font-semibold tracking-[0.22em] uppercase text-stone-400 mb-4">Company</p>
             <ul class="space-y-2.5">
               <li><NuxtLink to="/support" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Support</NuxtLink></li>
-              <li><NuxtLink to="/terms" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Terms</NuxtLink></li>
-              <li><NuxtLink to="/privacy" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Privacy</NuxtLink></li>
+              <li><NuxtLink to="/terms-of-service" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Terms</NuxtLink></li>
+              <li><NuxtLink to="/privacy-policy" class="text-sm text-stone-700 hover:text-[#2D6A4F] transition-colors">Privacy</NuxtLink></li>
             </ul>
           </div>
         </div>
@@ -350,7 +351,7 @@
         <!-- Bottom strip -->
         <div class="mt-12 pt-6 border-t border-stone-300/60 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p class="text-[11px] text-stone-400 tracking-wide">
-            © {{ new Date().getFullYear() }} Rad Maps Studio. All rights reserved.
+            © {{ new Date().getFullYear() }} RadMaps Studio. All rights reserved.
           </p>
           <p class="text-[11px] text-stone-400 tracking-wide italic"
             style="font-family:'Playfair Display',serif">

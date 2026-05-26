@@ -19,6 +19,7 @@ import { getPgPool, withPgClient } from '../db.js'
 import { log } from '../log.js'
 
 import { processJob, type PrintRenderJobRow } from './processJob.js'
+import { processFulfillmentJob, type FulfillmentJobRow } from './processFulfillmentJob.js'
 
 interface ConsumerOptions {
   concurrency?: number
@@ -86,6 +87,47 @@ export async function claimNextJob(workerId: string): Promise<PrintRenderJobRow 
   })
 }
 
+export async function claimNextFulfillmentJob(workerId: string): Promise<FulfillmentJobRow | null> {
+  return withPgClient(async (client) => {
+    await client.query('BEGIN')
+    try {
+      const { rows } = await client.query<FulfillmentJobRow>(
+        `SELECT id, order_id, job_type, status, attempts, max_attempts,
+                last_error, worker_id, claimed_at, completed_at, metadata,
+                created_at, updated_at
+           FROM fulfillment_jobs
+          WHERE status = 'queued'
+          ORDER BY created_at
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1`,
+      )
+      if (rows.length === 0) {
+        await client.query('COMMIT')
+        return null
+      }
+      const job = rows[0]
+      const updated = await client.query<FulfillmentJobRow>(
+        `UPDATE fulfillment_jobs
+            SET status = 'submitting',
+                worker_id = $1,
+                claimed_at = now(),
+                attempts = attempts + 1,
+                last_error = NULL
+          WHERE id = $2
+          RETURNING id, order_id, job_type, status, attempts, max_attempts,
+                    last_error, worker_id, claimed_at, completed_at, metadata,
+                    created_at, updated_at`,
+        [workerId, job.id],
+      )
+      await client.query('COMMIT')
+      return updated.rows[0] ?? null
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {})
+      throw err
+    }
+  })
+}
+
 /**
  * One slot's work loop. Repeatedly: claim → process → repeat. When no
  * job is available, sleep pollMs.
@@ -111,6 +153,46 @@ async function runSlot(
     }
 
     if (!job) {
+      let fulfillmentJob: FulfillmentJobRow | null = null
+      try {
+        fulfillmentJob = await claimNextFulfillmentJob(workerId)
+      } catch (err) {
+        log.error('fulfillment_queue_claim_error', {
+          slot: slotId,
+          worker_id: workerId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        await sleep(Math.max(pollMs, 5000))
+        continue
+      }
+
+      if (fulfillmentJob) {
+        log.info('fulfillment_job_claimed', {
+          slot: slotId,
+          worker_id: workerId,
+          job_id: fulfillmentJob.id,
+          order_id: fulfillmentJob.order_id,
+          attempts: fulfillmentJob.attempts,
+        })
+        try {
+          await withPgClient(async (client) => {
+            await processFulfillmentJob({
+              client,
+              job: fulfillmentJob!,
+              workerId,
+            })
+          })
+        } catch (err) {
+          log.error('fulfillment_job_unhandled_error', {
+            slot: slotId,
+            worker_id: workerId,
+            job_id: fulfillmentJob.id,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+        continue
+      }
+
       try {
         await sleep(pollMs, undefined, { signal })
       } catch {

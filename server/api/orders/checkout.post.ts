@@ -3,12 +3,13 @@
  * Create a Stripe Checkout session for a map order.
  * Returns { url } — redirect the user to this URL.
  */
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import { getProduct } from '~/utils/products'
 import { freezeOrderSnapshot } from '~/server/utils/snapshot'
 import { attachStripeSessionToCouponReservation, releaseCouponReservation, reserveCouponForCheckout } from '~/server/utils/coupons'
+import { getStripeClient } from '~/server/utils/stripe'
 
 const CheckoutBody = z.object({
   map_id: z.string().uuid(),
@@ -79,7 +80,7 @@ export default defineEventHandler(async (event) => {
         mapId: map_id,
       })
     : null
-  const stripe = new Stripe(config.stripeSecretKey)
+  const stripe = getStripeClient(config)
   const configuredSiteUrl = typeof config.public.siteUrl === 'string'
     ? config.public.siteUrl
     : ''
@@ -92,7 +93,6 @@ export default defineEventHandler(async (event) => {
   try {
     session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
       customer_email: shipping_address.email,
       discounts: couponReservation ? [{ coupon: couponReservation.stripe_coupon_id }] : undefined,
       line_items: [

@@ -224,7 +224,7 @@ otp_expiry = 3600
 
 # Customized auth email templates
 [auth.email.template.magic_link]
-subject = "Sign in to Rad Maps"
+subject = "Sign in to RadMaps"
 content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize notification email template

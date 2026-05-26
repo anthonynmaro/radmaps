@@ -9,6 +9,7 @@ export type AdminAction =
   | 'homepage:manage'
   | 'map-tools:read'
   | 'support:read'
+  | 'support:write'
   | 'flags:manage'
 
 const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
@@ -21,6 +22,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
     'homepage:manage',
     'map-tools:read',
     'support:read',
+    'support:write',
     'flags:manage',
   ],
   curator: [
@@ -38,6 +40,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
   support: [
     'map-tools:read',
     'support:read',
+    'support:write',
   ],
 }
 

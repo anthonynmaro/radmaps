@@ -40,6 +40,11 @@ interface FakeRowState {
         status: string | null
         active_stripe_session_id: string
         print_file_url?: string
+        shipment_method_uid?: string | null
+        payment_status?: string | null
+        dispute_status?: string | null
+        refund_status?: string | null
+        risk_level?: string | null
       }
     | null
   /** product_renders rows keyed by (session, print_hash). */
@@ -201,6 +206,11 @@ function baseState(overrides: Partial<FakeRowState> = {}): FakeRowState {
       fulfillment_status: 'rendering_print',
       status: 'paid',
       active_stripe_session_id: 'cs_test_1',
+      shipment_method_uid: 'express-quote-123',
+      payment_status: 'paid',
+      dispute_status: 'none',
+      refund_status: 'none',
+      risk_level: null,
     },
     productRenders: [],
     ...overrides,
@@ -464,6 +474,30 @@ describe('processJob: idempotency', () => {
 
     expect(result.status).toBe('noop')
     expect(state.job.status).toBe('submitted')
+    expect(renderFinal).not.toHaveBeenCalled()
+    expect(gelatoPlace).not.toHaveBeenCalled()
+  })
+})
+
+describe('processJob: fulfillment holds', () => {
+  it('does not render or submit while a dispute is active', async () => {
+    const state = baseState({
+      job: baseJob({ attempts: 3, max_attempts: 3 }),
+    })
+    state.order!.dispute_status = 'needs_response'
+    const { client } = createFakeClient(state)
+    const renderFinal = vi.fn()
+    const gelatoPlace = vi.fn()
+
+    const result = await processJob({
+      client,
+      job: state.job,
+      workerId: 'test/1',
+      deps: { renderFinal, gelatoPlace },
+    })
+
+    expect(result.status).toBe('manual_review')
+    expect(result.error).toContain('active dispute')
     expect(renderFinal).not.toHaveBeenCalled()
     expect(gelatoPlace).not.toHaveBeenCalled()
   })

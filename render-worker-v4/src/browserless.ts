@@ -19,14 +19,14 @@ export interface BrowserlessScreenshotResult {
 
 const NGROK_BYPASS_USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
 
-function getLocalTunnelUserAgent(url: string): { userAgent: string } | undefined {
+function getLocalTunnelUserAgent(url: string): string | undefined {
   try {
     const hostname = new URL(url).hostname
     // Free ngrok tunnels show a browser warning to ordinary headless browsers.
     // A bot-style UA bypasses that warning without adding custom request
     // headers, which would trigger CORS preflight failures for Google Fonts.
     return hostname.endsWith('.ngrok-free.dev')
-      ? { userAgent: NGROK_BYPASS_USER_AGENT }
+      ? NGROK_BYPASS_USER_AGENT
       : undefined
   } catch {
     return undefined

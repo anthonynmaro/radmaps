@@ -40,6 +40,25 @@ const { data: payload, pending, error } = await useFetch<RenderPayload>('/api/re
   query: { ticket: route.query.ticket },
 })
 
+watchEffect(() => {
+  if (!import.meta.client || pending.value || payload.value) return
+  const message = error.value?.message ?? 'Render payload unavailable'
+  const renderWindow = window as typeof window & {
+    __RADMAPS_RENDER_STATUS?: {
+      ready: boolean
+      routeLayerPresent: boolean
+      error: string
+    }
+    __RENDER_ERROR?: string
+  }
+  renderWindow.__RADMAPS_RENDER_STATUS = {
+    ready: false,
+    routeLayerPresent: false,
+    error: message,
+  }
+  renderWindow.__RENDER_ERROR = message
+})
+
 const cssWidth = computed(() => Math.ceil((payload.value?.ticket.widthPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
 const cssHeight = computed(() => Math.ceil((payload.value?.ticket.heightPx ?? 1) / (payload.value?.ticket.deviceScaleFactor ?? 1)))
 

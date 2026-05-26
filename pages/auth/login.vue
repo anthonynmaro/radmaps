@@ -24,13 +24,15 @@
 
       <!-- Top-left brand mark -->
       <NuxtLink to="/" class="absolute top-8 left-8 z-10 flex items-center gap-2.5 group">
-        <svg class="w-7 h-7 text-[#52B788] transition-transform duration-300 group-hover:-rotate-3" viewBox="0 0 32 32" fill="none">
-          <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.18"/>
-          <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-          <path d="M5 22 Q11 19 16 20.5 Q21 22 27 20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.55"/>
-          <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
-        </svg>
-        <span class="text-[15px] font-bold tracking-tight text-white" style="font-family:'Space Grotesk',sans-serif">Rad Maps</span>
+        <img
+          src="/radmaps-icon.png"
+          alt=""
+          width="32"
+          height="32"
+          class="h-8 w-8 object-contain transition-transform duration-300 group-hover:-rotate-3"
+          aria-hidden="true"
+        >
+        <span class="text-[15px] font-bold tracking-tight text-white" style="font-family:'Space Grotesk',sans-serif">RadMaps</span>
         <span class="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/40 border border-white/15 rounded-full px-1.5 py-px">Studio</span>
       </NuxtLink>
 
@@ -63,12 +65,15 @@
 
         <!-- Logo (mobile only — desktop has the left panel) -->
         <NuxtLink to="/" class="lg:hidden mb-10 flex items-center gap-2.5">
-          <svg class="w-7 h-7 text-[#2D6A4F]" viewBox="0 0 32 32" fill="none">
-            <path d="M2 26 L11 8 L16 16 L21 10 L30 26 Z" fill="currentColor" opacity="0.14"/>
-            <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-            <circle cx="11" cy="8" r="1.2" fill="currentColor"/>
-          </svg>
-          <span class="text-[15px] font-bold tracking-tight text-stone-900" style="font-family:'Space Grotesk',sans-serif">Rad Maps</span>
+          <img
+            src="/radmaps-icon.png"
+            alt=""
+            width="32"
+            height="32"
+            class="h-8 w-8 object-contain"
+            aria-hidden="true"
+          >
+          <span class="text-[15px] font-bold tracking-tight text-stone-900" style="font-family:'Space Grotesk',sans-serif">RadMaps</span>
         </NuxtLink>
 
         <!-- Eyebrow -->
@@ -202,9 +207,9 @@
         <!-- Tiny legal -->
         <p class="text-[10px] text-stone-400 mt-10 text-center leading-relaxed">
           By continuing, you agree to our
-          <NuxtLink to="/terms" class="underline hover:text-stone-600">Terms</NuxtLink>
+          <NuxtLink to="/terms-of-service" class="underline hover:text-stone-600">Terms</NuxtLink>
           and
-          <NuxtLink to="/privacy" class="underline hover:text-stone-600">Privacy Policy</NuxtLink>.
+          <NuxtLink to="/privacy-policy" class="underline hover:text-stone-600">Privacy Policy</NuxtLink>.
         </p>
       </div>
     </div>

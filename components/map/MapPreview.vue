@@ -978,7 +978,7 @@
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ occasionText }}</p>
 
-        <!-- Rad Maps mark (right) -->
+        <!-- RadMaps mark (right) -->
         <div v-if="styleConfig.show_branding !== false && chromeBrandVisible" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
@@ -987,7 +987,7 @@
             <path d="M8 18 Q13 16 16 17 Q19.5 18 23 16.5" stroke="currentColor" stroke-width="0.65" fill="none" opacity="0.6"/>
             <circle cx="11" cy="8" r="1.1" fill="currentColor"/>
           </svg>
-          <span class="mark-label" :style="markLabelStyle">RAD MAPS</span>
+          <span class="mark-label" :style="markLabelStyle">RADMAPS</span>
           <span class="branding-note" :style="brandingNoteStyle">radmaps.studio</span>
         </div>
 

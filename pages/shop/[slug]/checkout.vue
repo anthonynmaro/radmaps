@@ -40,13 +40,14 @@
             <span class="font-semibold">Already have an account?</span>
             <span class="text-stone-500">Sign in to save your order history.</span>
           </p>
-          <NuxtLink :to="`/auth/login?redirect=${encodeURIComponent(currentPath)}`"
+          <NuxtLink
+:to="`/auth/login?redirect=${encodeURIComponent(currentPath)}`"
             class="text-xs font-semibold text-[#2D6A4F] hover:text-[#1E5238] shrink-0 transition-colors whitespace-nowrap">
             Sign in →
           </NuxtLink>
         </div>
 
-        <form @submit.prevent="checkout" class="space-y-5">
+        <form class="space-y-5" @submit.prevent="checkout">
 
           <!-- Contact -->
           <fieldset class="space-y-4">
@@ -61,7 +62,7 @@
                 autocomplete="email"
                 placeholder="you@example.com"
                 class="form-input"
-              />
+              >
             </FormField>
           </fieldset>
 
@@ -71,17 +72,17 @@
               Shipping address
             </legend>
             <FormField label="Full name" required>
-              <input v-model="form.name" type="text" required autocomplete="name" class="form-input" />
+              <input v-model="form.name" type="text" required autocomplete="name" class="form-input" >
             </FormField>
             <FormField label="Address line 1" required>
-              <input v-model="form.address1" type="text" required autocomplete="address-line1" class="form-input" />
+              <input v-model="form.address1" type="text" required autocomplete="address-line1" class="form-input" >
             </FormField>
             <FormField label="Address line 2 (optional)">
-              <input v-model="form.address2" type="text" autocomplete="address-line2" class="form-input" />
+              <input v-model="form.address2" type="text" autocomplete="address-line2" class="form-input" >
             </FormField>
             <div class="grid grid-cols-2 gap-4">
               <FormField label="City" required>
-                <input v-model="form.city" type="text" required autocomplete="address-level2" class="form-input" />
+                <input v-model="form.city" type="text" required autocomplete="address-level2" class="form-input" >
               </FormField>
               <FormField label="State / Region" required>
                 <input
@@ -92,12 +93,12 @@
                   maxlength="2"
                   placeholder="CA"
                   class="form-input uppercase"
-                />
+                >
               </FormField>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <FormField label="ZIP / Postal code" required>
-                <input v-model="form.zip" type="text" required autocomplete="postal-code" class="form-input" />
+                <input v-model="form.zip" type="text" required autocomplete="postal-code" class="form-input" >
               </FormField>
               <FormField label="Country" required>
                 <select v-model="form.country_code" required class="form-input">
@@ -121,12 +122,13 @@
               </FormField>
             </div>
             <FormField label="Phone (optional)">
-              <input v-model="form.phone" type="tel" autocomplete="tel" class="form-input" />
+              <input v-model="form.phone" type="tel" autocomplete="tel" class="form-input" >
             </FormField>
           </fieldset>
 
           <!-- Error banner -->
-          <div v-if="errorMessage"
+          <div
+v-if="errorMessage"
             class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -139,7 +141,7 @@
 
           <button
             type="submit"
-            :disabled="submitting"
+            :disabled="submitting || (hardenedCheckoutEnabled && !isDigital && (!shippingQuote || quoteLoading))"
             class="w-full inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-500 text-white font-semibold px-6 py-4 rounded-full text-sm transition-all shadow-sm shadow-stone-900/10"
           >
             <svg v-if="submitting" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -173,7 +175,7 @@
               style="aspect-ratio:2/3"
               :style="{ backgroundColor: premade.style_config.background_color }"
             >
-              <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" />
+              <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" >
               <svg v-else viewBox="0 0 100 133" class="w-full h-full">
                 <path
                   v-if="routePath"
@@ -206,9 +208,11 @@
               <span>{{ couponPreview.slug }}</span>
               <span class="tabular-nums">-{{ formatPrice(couponPreview.discount_cents) }}</span>
             </div>
-            <div class="flex justify-between text-stone-600">
+            <div v-if="hardenedCheckoutEnabled" class="flex justify-between text-stone-600">
               <span>Shipping</span>
-              <span class="text-stone-400">Calculated at checkout</span>
+              <span v-if="quoteLoading" class="text-stone-400">Updating…</span>
+              <span v-else-if="shippingQuote" class="tabular-nums">{{ formatPrice(shippingCents) }}</span>
+              <span v-else class="text-stone-400">Enter address</span>
             </div>
           </div>
 
@@ -218,10 +222,14 @@
               {{ formatPrice(totalCents) }}
             </span>
           </div>
+          <p v-if="hardenedCheckoutEnabled && quoteError" class="mt-3 text-xs text-red-600">{{ quoteError }}</p>
+          <p v-else-if="hardenedCheckoutEnabled && shippingQuote" class="mt-3 text-xs text-stone-500">
+            {{ shippingQuote.shipment_method_name }}. Tax is calculated by Stripe.
+          </p>
 
           <div class="mt-5 pt-5 border-t border-stone-200 space-y-3">
             <div class="flex gap-2">
-              <input v-model="couponCode" class="form-input uppercase" placeholder="Coupon code" />
+              <input v-model="couponCode" class="form-input uppercase" placeholder="Coupon code" >
               <button
                 type="button"
                 class="rounded-full border border-stone-300 px-4 text-xs font-semibold text-stone-700 disabled:opacity-50"
@@ -272,12 +280,14 @@ import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import { getProduct, formatPrice, PRODUCTS } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import { FLAGS } from '~/utils/knownFlags'
 import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const user = useSupabaseUser()
+const hardenedCheckoutEnabled = useFeatureFlag(FLAGS.STRIPE_HARDENED_CHECKOUT)
 const slug = route.params.slug as string
 const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 const currentPath = computed(() => `/shop/${slug}/checkout${route.query.size ? `?size=${route.query.size}` : ''}${route.query.qty ? `&qty=${route.query.qty}` : ''}`)
@@ -303,7 +313,21 @@ const couponPreview = ref<null | {
   total_cents: number
 }>(null)
 const subtotalCents = computed(() => (selectedProduct.value?.price_cents ?? 0) * quantity.value)
-const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0)))
+const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
+const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
+type ShippingQuoteSelection = {
+  checkout_attempt_id: string
+  quote_id: string
+  shipment_method_uid: string
+  shipment_method_name: string
+  amount_cents: number
+  currency: string
+  expires_at: string
+}
+const shippingQuote = ref<ShippingQuoteSelection | null>(null)
+const quoteLoading = ref(false)
+const quoteError = ref('')
+let quoteTimer: ReturnType<typeof setTimeout> | null = null
 
 const form = ref({
   email: user.value?.email ?? '',
@@ -351,15 +375,111 @@ watch([() => form.value.email, selectedProduct, quantity], () => {
   if (couponPreview.value) removeCoupon()
 })
 
+function hasQuoteAddress() {
+  const value = form.value
+  return !!(
+    hardenedCheckoutEnabled.value
+    && premade.value
+    && selectedProduct.value
+    && !isDigital.value
+    && value.email
+    && value.name
+    && value.address1
+    && value.city
+    && value.state_code
+    && value.country_code
+    && value.zip
+  )
+}
+
+function clearShippingQuote() {
+  shippingQuote.value = null
+  quoteError.value = ''
+}
+
+async function requestShippingQuote() {
+  if (!hasQuoteAddress() || !premade.value || !selectedProduct.value) {
+    clearShippingQuote()
+    return
+  }
+  quoteLoading.value = true
+  quoteError.value = ''
+  try {
+    const response = await $fetch<{
+      checkout_attempt_id: string
+      quote_id: string
+      selected: Omit<ShippingQuoteSelection, 'checkout_attempt_id' | 'quote_id'>
+    }>('/api/checkout/quote', {
+      method: 'POST',
+      body: {
+        cart_source: 'premade',
+        premade_slug: premade.value.slug,
+        product_uid: selectedProductUid.value,
+        print_size: selectedProduct.value.size_label,
+        quantity: quantity.value,
+        shipping_address: {
+          name: form.value.name.trim(),
+          address1: form.value.address1.trim(),
+          address2: form.value.address2.trim() || undefined,
+          city: form.value.city.trim(),
+          state_code: form.value.state_code.trim().toUpperCase(),
+          country_code: form.value.country_code,
+          zip: form.value.zip.trim(),
+          email: form.value.email.trim(),
+          phone: form.value.phone.trim() || undefined,
+        },
+      },
+    })
+    shippingQuote.value = {
+      checkout_attempt_id: response.checkout_attempt_id,
+      quote_id: response.quote_id,
+      ...response.selected,
+    }
+  } catch (err: any) {
+    shippingQuote.value = null
+    quoteError.value = err?.data?.message || err?.message || 'Could not calculate shipping for this address.'
+  } finally {
+    quoteLoading.value = false
+  }
+}
+
+watch([
+  () => form.value.email,
+  () => form.value.name,
+  () => form.value.address1,
+  () => form.value.address2,
+  () => form.value.city,
+  () => form.value.state_code,
+  () => form.value.country_code,
+  () => form.value.zip,
+  () => form.value.phone,
+  selectedProduct,
+  quantity,
+  hardenedCheckoutEnabled,
+], () => {
+  if (quoteTimer) clearTimeout(quoteTimer)
+  if (!hardenedCheckoutEnabled.value || isDigital.value) {
+    clearShippingQuote()
+    return
+  }
+  clearShippingQuote()
+  quoteTimer = setTimeout(requestShippingQuote, 650)
+})
+
 async function checkout() {
   if (!premade.value) return
   errorMessage.value = ''
   submitting.value = true
   try {
-    const resp = await $fetch<{ url: string }>('/api/shop/checkout', {
+    const endpoint = hardenedCheckoutEnabled.value ? '/api/checkout/session' : '/api/shop/checkout'
+    const resp = await $fetch<{ url: string }>(endpoint, {
       method: 'POST',
       body: {
+        cart_source: 'premade',
         slug: premade.value.slug,
+        checkout_attempt_id: hardenedCheckoutEnabled.value ? shippingQuote.value?.checkout_attempt_id : undefined,
+        quote_id: hardenedCheckoutEnabled.value && !isDigital.value ? shippingQuote.value?.quote_id : null,
+        premade_slug: premade.value.slug,
         product_uid: selectedProductUid.value,
         print_size: selectedProduct.value?.size_label ?? '',
         quantity: quantity.value,

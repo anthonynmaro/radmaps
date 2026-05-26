@@ -144,8 +144,8 @@
       <div class="pt-6 border-t border-stone-200 flex items-center justify-between text-sm">
         <NuxtLink to="/" class="text-stone-500 hover:text-stone-900 transition-colors">← Back home</NuxtLink>
         <div class="flex gap-4">
-          <NuxtLink to="/terms" class="text-stone-500 hover:text-stone-900 transition-colors">Terms</NuxtLink>
-          <NuxtLink to="/privacy" class="text-stone-500 hover:text-stone-900 transition-colors">Privacy</NuxtLink>
+          <NuxtLink to="/terms-of-service" class="text-stone-500 hover:text-stone-900 transition-colors">Terms</NuxtLink>
+          <NuxtLink to="/privacy-policy" class="text-stone-500 hover:text-stone-900 transition-colors">Privacy</NuxtLink>
         </div>
       </div>
     </div>
@@ -195,17 +195,20 @@ async function lookupOrder() {
 
 function statusLabel(status: string): string {
   const labels: Record<string, string> = {
-    paid: 'Processing', in_production: 'In Production', shipped: 'Shipped',
-    delivered: 'Delivered', failed: 'Issue', cancelled: 'Cancelled',
+    paid: 'Paid', preparing_print: 'Preparing Print', in_production: 'In Production',
+    shipped: 'Shipped', delivered: 'Delivered', refunded: 'Refunded',
+    manual_review: 'Manual Review', issue_detected: 'Issue Detected',
   }
   return labels[status] ?? status
 }
 
 function statusClass(status: string): string {
   const classes: Record<string, string> = {
-    paid: 'bg-amber-100 text-amber-800', in_production: 'bg-sky-100 text-sky-800',
+    paid: 'bg-amber-100 text-amber-800', preparing_print: 'bg-amber-100 text-amber-800',
+    in_production: 'bg-sky-100 text-sky-800',
     shipped: 'bg-indigo-100 text-indigo-800', delivered: 'bg-emerald-100 text-emerald-800',
-    failed: 'bg-red-100 text-red-800', cancelled: 'bg-stone-100 text-stone-600',
+    refunded: 'bg-stone-100 text-stone-700', manual_review: 'bg-violet-100 text-violet-800',
+    issue_detected: 'bg-red-100 text-red-800',
   }
   return classes[status] ?? 'bg-stone-100 text-stone-600'
 }

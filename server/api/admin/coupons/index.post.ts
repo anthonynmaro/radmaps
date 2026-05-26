@@ -1,7 +1,7 @@
-import Stripe from 'stripe'
 import { z } from 'zod'
 import { serverSupabaseServiceRole } from '#supabase/server'
 import { requireStaff } from '~/server/utils/adminAuth'
+import { getStripeClient } from '~/server/utils/stripe'
 import { isValidCouponSlug, normalizeCouponEmail, normalizeCouponSlug } from '~/utils/coupons'
 
 const Body = z.object({
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const email = normalizeCouponEmail(body.email)
   const config = useRuntimeConfig()
-  const stripe = new Stripe(config.stripeSecretKey)
+  const stripe = getStripeClient(config)
   const supabase = await serverSupabaseServiceRole(event)
 
   const coupon = await stripe.coupons.create({
@@ -68,4 +68,3 @@ export default defineEventHandler(async (event) => {
     reserved_count: 0,
   }
 })
-

@@ -109,8 +109,8 @@ export default defineEventHandler(async (event) => {
           <path d="M0 25 L10 5 L16 16 L23 9 L35 25 Z" fill="#2D6A4F" opacity="0.16"/>
           <path d="M0 25 L10 5 L16 16 L23 9 L35 25" stroke="#2D6A4F" stroke-width="2" stroke-linejoin="round" fill="none"/>
           <circle cx="10" cy="5" r="1.6" fill="#2D6A4F"/>
-          <text x="48" y="23" fill="#1C1917" font-family="Space Grotesk, Arial, sans-serif" font-size="24" font-weight="700">Rad Maps</text>
-          <text x="171" y="22" fill="#78716C" font-family="Space Grotesk, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3">STUDIO</text>
+          <text x="48" y="23" fill="#1C1917" font-family="Space Grotesk, Arial, sans-serif" font-size="24" font-weight="700">RadMaps</text>
+          <text x="158" y="22" fill="#78716C" font-family="Space Grotesk, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3">STUDIO</text>
         </g>
         <text x="0" y="92" fill="#2D6A4F" font-family="Space Grotesk, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="4">SHARED TRAIL POSTER</text>
         <text x="0" y="172" fill="#1C1917" font-family="Playfair Display, Georgia, serif" font-size="66" font-weight="700">${titleSvg}</text>

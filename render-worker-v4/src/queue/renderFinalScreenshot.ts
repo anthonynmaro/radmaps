@@ -69,6 +69,11 @@ export async function renderFinalWithScreenshot(input: {
 
   const url = new URL(`/render/session/${input.stripeSessionId}`, CONFIG.appUrl)
   url.searchParams.set('ticket', ticket)
+  const payloadUrl = new URL('/api/render/payload', CONFIG.appUrl)
+  payloadUrl.searchParams.set('ticket', ticket)
+
+  await preflightRenderEndpoint(payloadUrl, 'payload')
+  await preflightRenderEndpoint(url, 'page')
 
   const screenshot = await takeBrowserlessScreenshot({
     url: url.toString(),
@@ -131,5 +136,32 @@ export async function renderFinalWithScreenshot(input: {
     render_url: renderUrl,
     validation_result: validation,
     render_ms: Date.now() - started,
+  }
+}
+
+function getPreflightHeaders(url: URL): Record<string, string> | undefined {
+  return url.hostname.endsWith('.ngrok-free.dev')
+    ? { 'ngrok-skip-browser-warning': 'true' }
+    : undefined
+}
+
+function redactTicket(url: URL): string {
+  const copy = new URL(url.toString())
+  if (copy.searchParams.has('ticket')) copy.searchParams.set('ticket', '[redacted]')
+  return copy.toString()
+}
+
+async function preflightRenderEndpoint(url: URL, label: 'payload' | 'page'): Promise<void> {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: getPreflightHeaders(url),
+  })
+  const contentType = res.headers.get('content-type') ?? ''
+  const body = await res.text()
+  if (!res.ok) {
+    throw new Error(`Render ${label} preflight failed (${res.status}) at ${redactTicket(url)}: ${body.slice(0, 500)}`)
+  }
+  if (label === 'payload' && !contentType.includes('application/json')) {
+    throw new Error(`Render payload preflight returned ${contentType || 'unknown content type'} at ${redactTicket(url)}`)
   }
 }

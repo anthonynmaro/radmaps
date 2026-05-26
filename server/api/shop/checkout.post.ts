@@ -9,12 +9,13 @@
  * Stripe webhook (`/api/orders/webhook`) on `checkout.session.completed`,
  * where we read the session metadata populated below.
  */
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { z } from 'zod'
 import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import { getProduct } from '~/utils/products'
 import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 import { attachStripeSessionToCouponReservation, releaseCouponReservation, reserveCouponForCheckout } from '~/server/utils/coupons'
+import { getStripeClient } from '~/server/utils/stripe'
 
 const ShopCheckoutBody = z.object({
   slug: z.string().min(1),
@@ -82,14 +83,14 @@ export default defineEventHandler(async (event) => {
     // not logged in — that's fine for the shop flow
   }
 
-  const stripe = new Stripe(config.stripeSecretKey)
+  const stripe = getStripeClient(config)
   const configuredSiteUrl = typeof config.public.siteUrl === 'string'
     ? config.public.siteUrl
     : ''
   const baseUrl = configuredSiteUrl || (process.env.NODE_ENV === 'production'
     ? 'https://radmaps.studio'
     : 'http://localhost:3001')
-  const productData: Stripe.Checkout.SessionCreateParams.LineItem.PriceData.ProductData = {
+  const productData: { name: string; description?: string; images?: string[] } = {
     name: digital_only
       ? `${premade.title} — Digital Download`
       : `${premade.title} — ${product?.name ?? print_size}`,
@@ -102,7 +103,6 @@ export default defineEventHandler(async (event) => {
   try {
     session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
       customer_email: shipping_address.email,
       discounts: couponReservation ? [{ coupon: couponReservation.stripe_coupon_id }] : undefined,
       line_items: [

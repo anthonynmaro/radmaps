@@ -1,6 +1,7 @@
-import { createHmac, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { Pool } from 'pg'
+import Stripe from 'stripe'
 
 import { PRODUCTS } from '~/utils/products'
 import { getProviderProfile } from '~/utils/print/providerProfile'
@@ -38,6 +39,46 @@ function argValue(name: string): string | null {
   return arg ? arg.slice(prefix.length) : null
 }
 
+function normalizeShippingAddress(input: {
+  name: string
+  email: string
+  phone?: string
+  address1: string
+  address2?: string
+  city: string
+  state_code: string
+  zip: string
+  country_code: string
+}) {
+  return {
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: (input.phone || '').trim(),
+    address1: input.address1.trim(),
+    address2: (input.address2 || '').trim(),
+    city: input.city.trim(),
+    state_code: input.state_code.trim().toUpperCase(),
+    zip: input.zip.trim(),
+    country_code: input.country_code.trim().toUpperCase(),
+  }
+}
+
+function shippingAddressHash(address: ReturnType<typeof normalizeShippingAddress>): string {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      name: address.name.toLowerCase(),
+      address1: address.address1.toLowerCase(),
+      address2: address.address2.toLowerCase(),
+      city: address.city.toLowerCase(),
+      state_code: address.state_code.toLowerCase(),
+      country_code: address.country_code.toLowerCase(),
+      zip: address.zip.toLowerCase(),
+      email: address.email.toLowerCase(),
+      phone: address.phone.replace(/\D/g, ''),
+    }))
+    .digest('hex')
+}
+
 const env = { ...readEnv('.env'), ...readEnv('../.env') }
 const mapId = argValue('--map-id')
 if (!mapId) {
@@ -49,6 +90,10 @@ const productUid = argValue('--product-uid')
   ?? 'flat_400x600-mm-16x24-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver'
 const product = PRODUCTS.find(item => item.product_uid === productUid)
 if (!product) throw new Error(`Unknown product UID: ${productUid}`)
+const stripe = new Stripe(requireEnv(env, 'STRIPE_SECRET_KEY'), {
+  apiVersion: '2026-04-22.dahlia',
+  maxNetworkRetries: 2,
+})
 
 const pool = new Pool({
   connectionString: requireEnv(env, 'DATABASE_URL'),
@@ -126,6 +171,67 @@ try {
     zip: env.STRIPE_SIM_SHIP_ZIP ?? '60601',
     country_code: env.STRIPE_SIM_SHIP_COUNTRY ?? 'US',
   }
+  const normalizedAddress = normalizeShippingAddress(shippingAddress)
+  const addressHash = shippingAddressHash(normalizedAddress)
+  const shippingCents = Number(env.STRIPE_SIM_SHIPPING_CENTS ?? '649')
+  const amountTotal = product.price_cents + shippingCents
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amountTotal,
+    currency: 'usd',
+    payment_method: 'pm_card_visa',
+    payment_method_types: ['card'],
+    confirm: true,
+    metadata: {
+      radmaps_smoke_test: 'stripe-webhook-sim',
+      map_id: map.id,
+      product_uid: productUid,
+    },
+  }, {
+    idempotencyKey: `radmaps-webhook-sim:${stripeSessionId}`,
+  })
+
+  const attemptRes = await client.query(
+    `INSERT INTO checkout_attempts (
+       cart_source, user_id, map_id, product_uid, print_size, quantity,
+       shipping_address, address_hash, stripe_session_id, status
+     )
+     VALUES ('custom',$1,$2,$3,$4,1,$5,$6,$7,'session_created')
+     RETURNING id`,
+    [
+      map.user_id,
+      map.id,
+      productUid,
+      product.size_label,
+      normalizedAddress,
+      addressHash,
+      stripeSessionId,
+    ],
+  )
+  const checkoutAttemptId = attemptRes.rows[0].id as string
+
+  const quoteRes = await client.query(
+    `INSERT INTO shipping_quotes (
+       checkout_attempt_id, cart_source, user_id, map_id, product_uid, quantity,
+       shipping_address, address_hash, shipment_method_uid, shipment_method_name,
+       amount_cents, currency, status
+     )
+     VALUES ($1,'custom',$2,$3,$4,1,$5,$6,$7,$8,$9,'usd','used')
+     RETURNING id`,
+    [
+      checkoutAttemptId,
+      map.user_id,
+      map.id,
+      productUid,
+      normalizedAddress,
+      addressHash,
+      env.STRIPE_SIM_SHIPMENT_METHOD_UID ?? 'usps_ground_advantage',
+      env.STRIPE_SIM_SHIPMENT_METHOD_NAME ?? 'USPS Ground Advantage',
+      shippingCents,
+    ],
+  )
+  const quoteId = quoteRes.rows[0].id as string
+  await client.query(`UPDATE checkout_attempts SET quote_id = $1 WHERE id = $2`, [quoteId, checkoutAttemptId])
 
   const payload = JSON.stringify({
     id: `evt_test_${Date.now()}_${randomUUID().slice(0, 8)}`,
@@ -140,17 +246,41 @@ try {
       object: {
         id: stripeSessionId,
         object: 'checkout.session',
-        amount_total: product.price_cents,
+        amount_subtotal: product.price_cents,
+        amount_total: amountTotal,
+        total_details: {
+          amount_discount: 0,
+          amount_shipping: shippingCents,
+          amount_tax: 0,
+        },
         currency: 'usd',
-        payment_intent: `pi_test_webhook_${Date.now()}`,
+        payment_intent: paymentIntent.id,
+        payment_status: 'paid',
         metadata: {
+          cart_source: 'custom',
+          checkout_attempt_id: checkoutAttemptId,
+          quote_id: quoteId,
           user_id: map.user_id,
           map_id: map.id,
           map_title: map.title ?? 'RadMaps Print',
           product_uid: productUid,
           print_size: product.size_label,
           quantity: '1',
-          shipping_address: JSON.stringify(shippingAddress),
+          digital_only: 'false',
+          address_hash: addressHash,
+        },
+        customer_details: {
+          name: normalizedAddress.name,
+          email: normalizedAddress.email,
+          phone: normalizedAddress.phone,
+          address: {
+            line1: normalizedAddress.address1,
+            line2: normalizedAddress.address2,
+            city: normalizedAddress.city,
+            state: normalizedAddress.state_code,
+            postal_code: normalizedAddress.zip,
+            country: normalizedAddress.country_code,
+          },
         },
       },
     },
@@ -171,7 +301,34 @@ try {
     body: payload,
   })
   const body = await res.text()
-  console.log(JSON.stringify({ httpStatus: res.status, body, stripeSessionId, printHash }, null, 2))
+  const orderRes = await client.query(
+    `SELECT id, status, fulfillment_status, payment_status, stripe_pi_id,
+            shipping_quote_id, shipment_method_uid, amount_shipping_cents
+       FROM orders
+      WHERE stripe_session_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [stripeSessionId],
+  )
+  const jobRes = await client.query(
+    `SELECT id, status, print_hash
+       FROM print_render_jobs
+      WHERE stripe_session_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [stripeSessionId],
+  )
+  console.log(JSON.stringify({
+    httpStatus: res.status,
+    body,
+    stripeSessionId,
+    paymentIntentId: paymentIntent.id,
+    checkoutAttemptId,
+    quoteId,
+    printHash,
+    order: orderRes.rows[0] ?? null,
+    printJob: jobRes.rows[0] ?? null,
+  }, null, 2))
 } finally {
   client.release()
   await pool.end()

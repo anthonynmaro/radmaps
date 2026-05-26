@@ -27,7 +27,15 @@
                 <span class="rounded-full bg-stone-100 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-600">{{ order.status }}</span>
               </div>
               <p class="text-xs text-stone-500 mt-1">{{ order.guest_email || order.user_id }} · {{ order.print_size }}</p>
+              <p class="text-xs text-stone-500 mt-1">
+                {{ order.fulfillment_status || 'no fulfillment status' }}
+                <span v-if="order.refund_status && order.refund_status !== 'none'"> · refund {{ order.refund_status }}</span>
+                <span v-if="order.dispute_status && order.dispute_status !== 'none'"> · dispute {{ order.dispute_status }}</span>
+              </p>
               <p class="text-xs text-stone-400 mt-1 font-mono">{{ order.id }}</p>
+              <p v-if="order.stripe_session_id || order.gelato_order_id" class="text-[11px] text-stone-400 mt-1 font-mono">
+                {{ order.stripe_session_id || 'no stripe session' }} · {{ order.gelato_order_id || 'not sent to Gelato' }}
+              </p>
             </div>
             <div v-if="results.orders.length === 0" class="p-6 text-sm text-stone-500">No orders.</div>
           </div>
@@ -45,7 +53,19 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 const q = ref('')
 const { data: results, refresh } = await useFetch<{
   profiles: Array<{ id: string; email: string; full_name?: string | null }>
-  orders: Array<{ id: string; user_id?: string | null; guest_email?: string | null; premade_title?: string | null; status: string; print_size: string }>
+  orders: Array<{
+    id: string
+    user_id?: string | null
+    guest_email?: string | null
+    premade_title?: string | null
+    status: string
+    fulfillment_status?: string | null
+    refund_status?: string | null
+    dispute_status?: string | null
+    print_size: string
+    stripe_session_id?: string | null
+    gelato_order_id?: string | null
+  }>
 }>('/api/admin/support', {
   query: { q },
   default: () => ({ profiles: [], orders: [] }),
