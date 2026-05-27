@@ -105,7 +105,7 @@ async function artifactFromQuery(
   const query = getQuery(event)
   const environment = typeof query.environment === 'string' && query.environment.trim()
     ? query.environment.trim()
-    : 'staging'
+    : 'production'
   const artifactId = typeof query.artifactId === 'string' ? query.artifactId.trim() : ''
   const manifest = await loadLocalManifest(environment)
   if (artifactId) {
