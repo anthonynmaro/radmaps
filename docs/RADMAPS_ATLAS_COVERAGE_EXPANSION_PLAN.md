@@ -10,8 +10,9 @@ builds.
 - Staging R2 has contiguous U.S., North America, New Zealand, Northern
   Spain/Camino, Mount Fuji/Japan, and Patagonia Andes proof-pack base PMTiles.
 - The active staging manifest is `2026.05.27-patagonia-andes.1`.
-- Production still points at the Driftless manifest until tile routing,
-  Browserless rendering, attribution, analytics, and rollback checks pass.
+- Production is now promoted to `2026.05.27-approved-coverage.1` with the
+  Driftless lab pack plus approved U.S., North America, New Zealand, Northern
+  Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts.
 - High-detail terrain remains browser/Browserless-generated through
   `maplibre-contour`; precomputed contour PMTiles are retained for QA/cache
   experiments only.
@@ -131,6 +132,26 @@ builds.
     `20,159` bytes.
 - Rendered review artifact:
   `artifacts/atlas-review/patagonia-andes-field-topo.png`.
+- Production promotion completed in GitHub Actions workflow run `26519815247`
+  after the approved staging base PMTiles were copied server-side from
+  `radmaps-atlas-staging` to `radmaps-atlas-prod`.
+- `GET /manifests/production.json` through `tiles.radmaps.studio` returns
+  `2026.05.27-approved-coverage.1` with `7` base artifacts and `1` contour
+  artifact.
+- Production tile checks through `tiles.radmaps.studio`:
+  - `/tiles/production/radmaps-us-base/8/65/95.mvt` -> `148,765` bytes.
+  - `/tiles/production/radmaps-north-america-base/8/45/85.mvt` -> `100,166`
+    bytes.
+  - `/tiles/production/radmaps-north-america-base/8/57/113.mvt` -> `121,538`
+    bytes.
+  - `/tiles/production/radmaps-new-zealand-outdoor-base/8/247/164.mvt` ->
+    `90,428` bytes.
+  - `/tiles/production/radmaps-northern-spain-camino-base/8/124/94.mvt` ->
+    `97,251` bytes.
+  - `/tiles/production/radmaps-mount-fuji-japan-base/8/226/101.mvt` ->
+    `114,160` bytes.
+  - `/tiles/production/radmaps-patagonia-andes-base/8/76/170.mvt` ->
+    `29,676` bytes.
 
 ## Coverage Target Matrix
 
@@ -140,12 +161,12 @@ guards, build status, and next actions in one machine-readable file.
 
 Current priority order:
 
-1. Promote the already-built North America base atlas after QA.
-2. Review the live New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and
-   Patagonia Andes staging proof packs.
-3. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
+1. Keep production atlas QA focused on approved U.S., North America, New
+   Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes
+   coverage now that those artifacts are live.
+2. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
    QA justifies it.
-4. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
+3. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
    Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
    justifies the spend.
 

@@ -144,11 +144,11 @@ As of 2026-05-27:
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
-- Production R2 still points at the earlier Driftless base and contour pack.
-  Production promotion is intentionally pending broader visual QA, editor
-  integration, and attribution/analytics checks. The public tile hostname is
-  live through the Cloudflare Worker custom domain, and the Vercel shim remains
-  available as fallback during DNS cache transition.
+- Production R2 now has the Driftless lab pack plus approved U.S., North
+  America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
+  Patagonia Andes base artifacts. The active production manifest is
+  `2026.05.27-approved-coverage.1` with `7` base artifacts and `1` contour
+  artifact. Promotion completed in workflow run `26519815247`.
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
@@ -253,6 +253,16 @@ Current staged manifest details:
 | Base artifacts | `6` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`) |
 | Contour artifacts | `177` |
 | Coverage label | `north-america` |
+
+Current production manifest details:
+
+| Field | Value |
+|---|---|
+| URL | `https://tiles.radmaps.studio/manifests/production.json` |
+| Atlas version | `2026.05.27-approved-coverage.1` |
+| Base artifacts | `7` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`) |
+| Contour artifacts | `1` |
+| Promotion workflow run | `26519815247` |
 
 What remains for the New Zealand proof pack:
 
@@ -406,8 +416,20 @@ Recommended base-atlas refresh flow:
    archive.
 8. Verify the Worker manifest and tile routes against staging artifacts.
 9. QA Atlas Lab plus representative print renders across all house styles.
-10. Promote by publishing the production manifest to the same immutable artifact
-   only after QA passes.
+10. Promote approved staging artifacts with server-side R2 copy, then publish
+   the production manifest:
+
+   ```bash
+   gh workflow run atlas-build.yml \
+     --ref <branch-or-main> \
+     -f region=north-america \
+     -f environment=production \
+     -f stage=promote-approved \
+     -f atlas_version=<yyyy.mm.dd-approved-coverage.n> \
+     -f runner_label=ubuntu-latest \
+     -f dry_run=false
+   ```
+
 11. Keep the previous object and manifest metadata for rollback.
 
 Rollback is a manifest change, not a rebuild. If a new archive has bad geometry,

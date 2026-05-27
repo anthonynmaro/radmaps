@@ -19,7 +19,7 @@ usage accounting all share one contract.
 ## Current Status
 
 As of 2026-05-27, the owned atlas has crossed the first real coverage
-milestone, but it is not fully production-integrated.
+milestone and the approved base coverage has been promoted to production.
 
 Completed:
 
@@ -52,6 +52,13 @@ Completed:
   `tiles.radmaps.studio` tile checks.
 - The staging manifest is now `2026.05.27-patagonia-andes.1` with `6` base
   artifacts and `177` contour artifacts.
+- The production manifest is now `2026.05.27-approved-coverage.1` with `7`
+  base artifacts and `1` contour artifact after GitHub Actions workflow run
+  `26519815247` copied approved staging PMTiles into `radmaps-atlas-prod` and
+  published the manifest.
+- Production tile checks through `tiles.radmaps.studio` pass for U.S., Banff,
+  Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia
+  Andes samples.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -75,12 +82,6 @@ Completed:
 
 Not done yet:
 
-- Production still uses the older Driftless atlas manifest until staging QA is
-  complete and the production manifest is promoted.
-- Production promotion of North America needs the large staging PMTiles copied
-  into `radmaps-atlas-prod` or an approved production manifest strategy; do not
-  publish a production manifest that points at objects missing from the prod
-  bucket.
 - The Cloudflare Worker is attached to `tiles.radmaps.studio`; some resolvers
   may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,

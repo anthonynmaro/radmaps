@@ -47,9 +47,9 @@ contour shard set from the successful 2026-05-18 build. Those contour shards
 are retained for QA, history, and optional cached coverage experiments. They
 are no longer the default strategy for scaling high-detail terrain globally.
 
-Production direction: build global/North America base archives in R2, but keep
-high-detail terrain browser-rendered through `maplibre-contour` in both editor
-and Browserless print renders. Only add/cache contour PMTiles for regions where
+Production direction: keep approved base archives in R2, but keep high-detail
+terrain browser-rendered through `maplibre-contour` in both editor and
+Browserless print renders. Only add/cache contour PMTiles for regions where
 usage, reliability, or render latency proves the extra compute is worth it.
 
 Current production tile service code:
@@ -82,6 +82,14 @@ CI validation, and pre-production tile QA before a manifest is promoted to
 
 Current production base archive:
 `atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles`
+
+Current promoted production base archives:
+- `atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles`
+- `atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`
+- `atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
+- `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
+- `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
+- `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
 
 Current production contour archive:
 `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles`
@@ -334,7 +342,8 @@ to stream that through the laptop was slow and failed under local disk pressure.
 
 ## Production Promotion Checklist
 
-Do not promote the North America staging atlas to production until all of these
+Production promotion for the approved May 2026 base coverage completed in
+workflow run `26519815247`. Future promotions should not run until all of these
 are true:
 
 - The hosted tile route serves the staging manifest and at least one known
@@ -405,6 +414,19 @@ credentials are not available:
 
 ```bash
 gh workflow run "Atlas Publish Manifest" --ref main -f environment=staging
+```
+
+Promote approved staging base artifacts to production with server-side R2 copy:
+
+```bash
+gh workflow run atlas-build.yml \
+  --ref <branch-or-main> \
+  -f region=north-america \
+  -f environment=production \
+  -f stage=promote-approved \
+  -f atlas_version=<yyyy.mm.dd-approved-coverage.n> \
+  -f runner_label=ubuntu-latest \
+  -f dry_run=false
 ```
 
 The R2 upload path:
