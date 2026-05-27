@@ -78,9 +78,12 @@ Current entries:
   staging R2 manifest as artifact `radmaps-north-america-base`.
 - `patagonia-andes`: first South America proof pack for Torres del Paine,
   Patagonia hiking/vacation maps, and Carretera Austral-style bikepacking.
-- `northern-spain-camino`: first Europe proof pack for Camino product coverage;
+- `northern-spain-camino`: Europe proof pack for Camino product coverage;
   intentionally uses the Spain extract to keep cost small and defers the French
-  start segment to a later Pyrenees multi-extract or Europe run.
+  start segment to a later Pyrenees multi-extract or Europe run. Staging build
+  `2026.05.27-northern-spain-camino.1` produced a validated `396,275,576` byte
+  PMTiles archive and published it to R2 as artifact
+  `radmaps-northern-spain-camino-base`.
 - `honshu-japan`: first Asia proof pack for Mount Fuji and Japan
   hiking/vacation maps.
 - `new-zealand-outdoor`: outdoor/vacation proof pack for Queenstown, Rotorua,
@@ -127,7 +130,8 @@ Run policy for new coverage targets:
 As of 2026-05-27:
 
 - Staging R2 has full contiguous-U.S. base coverage, North America base
-  coverage, and a New Zealand outdoor proof-pack base artifact.
+  coverage, a New Zealand outdoor proof-pack base artifact, and a Northern
+  Spain/Camino proof-pack base artifact.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
@@ -170,13 +174,30 @@ New Zealand build details:
 | Live tile check | `/tiles/staging/radmaps-new-zealand-outdoor-base/8/247/164.mvt` -> `90,428` bytes |
 | Rendered review artifact | `artifacts/atlas-review/queenstown-new-zealand-field-topo.png` |
 
+Northern Spain/Camino build details:
+
+| Field | Value |
+|---|---|
+| Workflow run | `26487824348` |
+| Duration | `12m8s` |
+| Atlas version | `2026.05.27-northern-spain-camino.1` |
+| Artifact id | `radmaps-northern-spain-camino-base` |
+| Source | `https://download.geofabrik.de/europe/spain-latest.osm.pbf` |
+| R2 object | `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles` |
+| Size | `396,275,576` bytes (`378 MiB`) |
+| ETag | `4fea855986806ff343573599869a0fa7` |
+| Bounds | `[-9.4, 41.7, -0.7, 43.6]` |
+| Zooms | `0-14` |
+| Live tile check | `/tiles/staging/radmaps-northern-spain-camino-base/8/124/94.mvt` -> `97,251` bytes |
+| Rendered review artifact | `artifacts/atlas-review/camino-northern-spain-field-topo.png` |
+
 Current staged manifest details:
 
 | Field | Value |
 |---|---|
 | URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json` |
-| Atlas version | `2026.05.27-new-zealand-outdoor.1` |
-| Base artifacts | `3` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`) |
+| Atlas version | `2026.05.27-northern-spain-camino.1` |
+| Base artifacts | `4` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`) |
 | Contour artifacts | `177` |
 | Coverage label | `north-america` |
 
@@ -187,6 +208,14 @@ What remains for the New Zealand proof pack:
 - Confirm runtime contour readiness on dense mountain views and coastal views.
 - Decide whether New Zealand stays staging-only or is copied/promoted with the
   next production manifest after North America passes.
+
+What remains for the Northern Spain/Camino proof pack:
+
+- Render Picos de Europa, Basque Country, and Galicia coast fixtures.
+- Decide whether the Saint-Jean-Pied-de-Port start needs an immediate Pyrenees
+  multi-extract or can wait for a later Europe build.
+- Confirm Camino labels/road/trail density in Field Topo, Simple Contour, and
+  Watercolor review renders.
 
 ## Planetiler Operating Model
 

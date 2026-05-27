@@ -319,6 +319,18 @@ const sampleRegions: Record<string, {
       [-99.086, 19.456],
     ],
   },
+  camino: {
+    title: 'Camino Frances',
+    location: 'Northern Spain',
+    bbox: [-2.55, 42.38, -1.55, 42.9],
+    route: [
+      [-1.644, 42.812],
+      [-1.814, 42.672],
+      [-2.031, 42.672],
+      [-2.192, 42.552],
+      [-2.445, 42.466],
+    ],
+  },
   newzealand: {
     title: 'Queenstown High Country',
     location: 'Queenstown, New Zealand',
@@ -339,7 +351,7 @@ if (region !== 'chicago') {
     ...styleConfig.value,
     trail_name: sampleRegion.title,
     location_text: sampleRegion.location,
-    occasion_text: 'Staging atlas proof',
+    occasion_text: '',
   }
 }
 const sampleRoute = sampleRegion.route
