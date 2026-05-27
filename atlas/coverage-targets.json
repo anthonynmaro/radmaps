@@ -95,8 +95,8 @@
       "priority": 4,
       "status": "build-candidate",
       "buildClass": "country-regional",
-      "atlasRegion": "honshu-japan",
-      "bbox": [136.0, 33.0, 142.2, 38.8],
+      "atlasRegion": "mount-fuji-japan",
+      "bbox": [138.35, 34.95, 139.3, 35.75],
       "activities": ["hiking", "bikepacking", "vacation"],
       "anchorPremades": ["mount-fuji"],
       "hotspots": [
@@ -106,7 +106,7 @@
         "Kyoto / Nara",
         "Shimanami Kaido"
       ],
-      "nextAction": "Run a dry-run pipeline for honshu-japan and render Fuji plus Hakuba/urban-vacation QA fixtures before promotion.",
+      "nextAction": "Run the narrower Mount Fuji proof pack first; the wider Honshu build exceeded ubuntu-latest memory during archive generation.",
       "maxNewBuildCostUsd": 25,
       "terrainStrategy": "runtime-contours"
     },

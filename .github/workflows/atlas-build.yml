@@ -16,6 +16,7 @@ on:
           - patagonia-andes
           - northern-spain-camino
           - honshu-japan
+          - mount-fuji-japan
           - new-zealand-outdoor
       environment:
         description: Atlas manifest target
@@ -58,7 +59,7 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       R2_SESSION_TOKEN: ${{ secrets.R2_SESSION_TOKEN }}
-      ATLAS_MIN_FREE_GB: ${{ inputs.region == 'north-america' && '900' || inputs.region == 'us-contiguous' && '500' || inputs.region == 'new-zealand-outdoor' && '60' || (inputs.region == 'patagonia-andes' || inputs.region == 'northern-spain-camino' || inputs.region == 'honshu-japan') && '80' || '120' }}
+      ATLAS_MIN_FREE_GB: ${{ inputs.region == 'north-america' && '900' || inputs.region == 'us-contiguous' && '500' || (inputs.region == 'new-zealand-outdoor' || inputs.region == 'mount-fuji-japan') && '60' || (inputs.region == 'patagonia-andes' || inputs.region == 'northern-spain-camino' || inputs.region == 'honshu-japan') && '80' || '120' }}
       PLANETILER_IMAGE: ghcr.io/onthegomap/planetiler:latest
     steps:
       - name: Checkout
