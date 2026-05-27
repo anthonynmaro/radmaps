@@ -27,11 +27,15 @@ Current staging manifest:
 Current staging North America base archive:
 `atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles`
 
+Current staging New Zealand outdoor base archive:
+`atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
+
 The checked-in staging manifest includes the contiguous-US base atlas, the
-North America base atlas, and the verified `us-terrain-phase1` contour shard
-set from the successful 2026-05-18 build. Those contour shards are retained for
-QA, history, and optional cached coverage experiments. They are no longer the
-default strategy for scaling high-detail terrain globally.
+North America base atlas, the New Zealand outdoor base atlas, and the verified
+`us-terrain-phase1` contour shard set from the successful 2026-05-18 build.
+Those contour shards are retained for QA, history, and optional cached coverage
+experiments. They are no longer the default strategy for scaling high-detail
+terrain globally.
 
 Production direction: build global/North America base archives in R2, but keep
 high-detail terrain browser-rendered through `maplibre-contour` in both editor
@@ -39,7 +43,14 @@ and Browserless print renders. Only add/cache contour PMTiles for regions where
 usage, reliability, or render latency proves the extra compute is worth it.
 
 Current production tile service code:
-`workers/atlas-tiles`
+- Preferred edge: `workers/atlas-tiles`
+- Live Worker verification URL:
+  `https://radmaps-atlas-tiles.radmaps-atlas.workers.dev`
+- Active `tiles.radmaps.studio` custom domain:
+  `workers/atlas-tiles`
+- Fallback Vercel/Nuxt shim:
+  `server/routes/manifests/*`, `server/routes/tiles/*`, and
+  `server/utils/atlasPublicTileService.ts`
 
 Preferred production service shape:
 
@@ -48,10 +59,10 @@ https://tiles.radmaps.studio/manifests/production.json
 https://tiles.radmaps.studio/tiles/production/{artifactId}/{z}/{x}/{y}.mvt
 ```
 
-The Worker reads approved manifest and PMTiles objects from R2. App code should
-address artifacts by `artifactId`, not by raw PMTiles URL. Direct public PMTiles
-URLs remain useful for validation, local development, and break-glass recovery,
-but they are not the desired customer-facing contract.
+The hosted tile edge reads approved manifest and PMTiles objects from R2. App
+code should address artifacts by `artifactId`, not by raw PMTiles URL. Direct
+public PMTiles URLs remain useful for validation, local development, and
+break-glass recovery, but they are not the desired customer-facing contract.
 
 Important environment naming note: RadMaps currently has a local app and a
 production app. There is not a separate deployed staging app. In Atlas docs,
@@ -137,6 +148,23 @@ North America staging verification on 2026-05-21:
 - staging manifest version: `2026.05.21-staging-composite.1`
 - staging manifest counts: `2` base artifacts, `177` contour artifacts
 
+New Zealand outdoor staging verification on 2026-05-27:
+- workflow run: `26487267646`
+- R2 object:
+  `atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
+- public URL:
+  `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
+- bytes: `403,714,835`
+- ETag: `d8a1c1e2b4bdb190e4916cbd056a33b3`
+- bounds: `[166, -47.4, 179, -34]`
+- zooms: `0-14`
+- tile checks through `tiles.radmaps.studio`:
+  `/tiles/staging/radmaps-new-zealand-outdoor-base/8/247/164.mvt` -> `90,428`
+  bytes and `/tiles/staging/radmaps-new-zealand-outdoor-base/10/991/659.mvt`
+  -> `11,954` bytes
+- staging manifest version: `2026.05.27-new-zealand-outdoor.1`
+- staging manifest counts: `3` base artifacts, `177` contour artifacts
+
 Regional terrain showcase verification on 2026-05-17:
 - workflow: `.github/workflows/atlas-terrain-pack.yml`
 - run: `25985273254`
@@ -172,10 +200,14 @@ Allowed methods are `GET` and `HEAD`. Exposed headers include
 `Cache-Control`.
 
 Custom domain status:
-- `tiles.radmaps.studio` is the desired production tile hostname.
-- It cannot be attached until `radmaps.studio` is present as a Cloudflare zone
-  in this account.
-- Use the R2-managed production domain until DNS is moved or delegated.
+- `tiles.radmaps.studio` is active and publicly serves manifests and MVT tiles
+  through the Cloudflare Worker custom domain.
+- `workers/atlas-tiles` is deployed on workers.dev and the custom domain, and
+  verified against the staging R2 manifest.
+- During DNS transition, some resolvers may briefly use the prior Vercel
+  wildcard address; the Vercel/Nuxt shim keeps those requests healthy.
+- Use the hosted tile route for product-facing checks and the R2-managed
+  domains for range-read validation and break-glass recovery.
 
 ## Immutability, Manifests, And Sync
 
@@ -244,8 +276,9 @@ to stream that through the laptop was slow and failed under local disk pressure.
 Do not promote the North America staging atlas to production until all of these
 are true:
 
-- The Cloudflare Worker tile route serves the staging manifest and at least one
-  known base tile by artifact id.
+- The hosted tile route serves the staging manifest and at least one known
+  U.S. and North America base tile by artifact id through
+  `tiles.radmaps.studio`.
 - Atlas Lab proves base coverage in U.S., Canada, Mexico, Alaska, and at least
   one coastal/ocean-heavy map.
 - Browserless proof and final renders complete for `8x12`, `24x36`, and
@@ -261,7 +294,7 @@ are true:
 
 ## Budget Posture
 
-Monthly budget: `$30`.
+AWS atlas experiment guardrail: `$300/month`.
 
 Current choice: Cloudflare R2.
 
@@ -362,10 +395,10 @@ For full US builds, use external build/storage capacity rather than this laptop.
 The local disk is too tight for a US Planetiler extract plus temp files.
 
 Target options:
-- Attach `tiles.radmaps.studio` after moving/delegating DNS to Cloudflare.
-- Deploy `workers/atlas-tiles` and point `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL`
-  at that Worker/custom domain in local dev while using the `staging` Atlas
-  manifest/data environment.
+- Keep `tiles.radmaps.studio` on the Cloudflare Worker edge and retain the
+  Vercel shim for break-glass recovery.
+- Point `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` at the Worker/custom domain
+  in local dev while using the `staging` Atlas manifest/data environment.
 - Add a permanent least-privilege R2 upload credential for build automation.
 - Run `.github/workflows/atlas-build.yml` on a larger GitHub runner or
   short-lived self-hosted cloud VM with enough scratch disk for Planetiler.

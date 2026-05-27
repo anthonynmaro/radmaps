@@ -16,7 +16,9 @@ Regional terrain packs are built by:
 
 It is manually dispatched with:
 
-- `region`: `driftless-lab`, `us-midwest`, or `us-contiguous`
+- `region`: `driftless-lab`, `us-midwest`, `us-contiguous`,
+  `north-america`, `patagonia-andes`, `northern-spain-camino`,
+  `honshu-japan`, or `new-zealand-outdoor`
 - `environment`: `staging` or `production`
 - `stage`: `all` or a comma-separated subset such as `preflight,download,base`
 - `atlas_version`: optional explicit manifest version
@@ -81,8 +83,11 @@ Current entries:
   start segment to a later Pyrenees multi-extract or Europe run.
 - `honshu-japan`: first Asia proof pack for Mount Fuji and Japan
   hiking/vacation maps.
-- `new-zealand-outdoor`: queued outdoor/vacation proof pack for Queenstown,
-  Rotorua, Great Walks, and bikepacking.
+- `new-zealand-outdoor`: outdoor/vacation proof pack for Queenstown, Rotorua,
+  Great Walks, and bikepacking. Staging build
+  `2026.05.27-new-zealand-outdoor.1` produced a validated `403,714,835` byte
+  PMTiles archive and published it to R2 as artifact
+  `radmaps-new-zealand-outdoor-base`.
 
 The broader product queue, including deferred Alps/Dolomites, Nepal, Peru,
 Iceland/Scotland, Madeira/Canaries, and Costa Rica targets, is tracked in
@@ -119,10 +124,10 @@ Run policy for new coverage targets:
 
 ## Current Progress Snapshot
 
-As of 2026-05-21:
+As of 2026-05-27:
 
-- Staging R2 has full contiguous-U.S. base coverage and North America base
-  coverage.
+- Staging R2 has full contiguous-U.S. base coverage, North America base
+  coverage, and a New Zealand outdoor proof-pack base artifact.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
@@ -149,15 +154,39 @@ North America build details:
 | Zooms | `0-14` |
 | Verified range read | HTTP `206 Partial Content`, `Content-Range: bytes 0-1023/20296668015` |
 
+New Zealand build details:
+
+| Field | Value |
+|---|---|
+| Workflow run | `26487267646` |
+| Atlas version | `2026.05.27-new-zealand-outdoor.1` |
+| Artifact id | `radmaps-new-zealand-outdoor-base` |
+| Source | `https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf` |
+| R2 object | `atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles` |
+| Size | `403,714,835` bytes (`385 MiB`) |
+| ETag | `d8a1c1e2b4bdb190e4916cbd056a33b3` |
+| Bounds | `[166, -47.4, 179, -34]` |
+| Zooms | `0-14` |
+| Live tile check | `/tiles/staging/radmaps-new-zealand-outdoor-base/8/247/164.mvt` -> `90,428` bytes |
+| Rendered review artifact | `artifacts/atlas-review/queenstown-new-zealand-field-topo.png` |
+
 Current staged manifest details:
 
 | Field | Value |
 |---|---|
 | URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json` |
-| Atlas version | `2026.05.21-staging-composite.1` |
-| Base artifacts | `2` (`radmaps-us-base`, `radmaps-north-america-base`) |
+| Atlas version | `2026.05.27-new-zealand-outdoor.1` |
+| Base artifacts | `3` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`) |
 | Contour artifacts | `177` |
 | Coverage label | `north-america` |
+
+What remains for the New Zealand proof pack:
+
+- Render Rotorua, Great Walks, and bikepacking fixtures across the same house
+  styles used for North America QA.
+- Confirm runtime contour readiness on dense mountain views and coastal views.
+- Decide whether New Zealand stays staging-only or is copied/promoted with the
+  next production manifest after North America passes.
 
 ## Planetiler Operating Model
 

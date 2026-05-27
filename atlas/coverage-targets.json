@@ -114,7 +114,7 @@
       "id": "new-zealand-outdoor",
       "label": "New Zealand outdoor",
       "priority": 5,
-      "status": "build-candidate",
+      "status": "staging-live",
       "buildClass": "country",
       "atlasRegion": "new-zealand-outdoor",
       "bbox": [166.0, -47.4, 179.0, -34.0],
@@ -127,7 +127,7 @@
         "Milford / Routeburn / Kepler",
         "Tasman / Nelson"
       ],
-      "nextAction": "Keep queued behind current premades unless search/order demand pulls New Zealand forward.",
+      "nextAction": "Staging base atlas is built and published; review Queenstown, Rotorua, Great Walks, and bikepacking fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
       "terrainStrategy": "runtime-contours"
     },
