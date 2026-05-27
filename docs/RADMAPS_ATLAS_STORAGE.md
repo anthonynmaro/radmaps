@@ -30,12 +30,15 @@ Current staging North America base archive:
 Current staging New Zealand outdoor base archive:
 `atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
 
+Current staging Northern Spain/Camino base archive:
+`atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
+
 The checked-in staging manifest includes the contiguous-US base atlas, the
-North America base atlas, the New Zealand outdoor base atlas, and the verified
-`us-terrain-phase1` contour shard set from the successful 2026-05-18 build.
-Those contour shards are retained for QA, history, and optional cached coverage
-experiments. They are no longer the default strategy for scaling high-detail
-terrain globally.
+North America base atlas, the New Zealand outdoor base atlas, the Northern
+Spain/Camino base atlas, and the verified `us-terrain-phase1` contour shard set
+from the successful 2026-05-18 build. Those contour shards are retained for QA,
+history, and optional cached coverage experiments. They are no longer the
+default strategy for scaling high-detail terrain globally.
 
 Production direction: build global/North America base archives in R2, but keep
 high-detail terrain browser-rendered through `maplibre-contour` in both editor
@@ -164,6 +167,23 @@ New Zealand outdoor staging verification on 2026-05-27:
   -> `11,954` bytes
 - staging manifest version: `2026.05.27-new-zealand-outdoor.1`
 - staging manifest counts: `3` base artifacts, `177` contour artifacts
+
+Northern Spain/Camino staging verification on 2026-05-27:
+- workflow run: `26487824348`
+- R2 object:
+  `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
+- public URL:
+  `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
+- bytes: `396,275,576`
+- ETag: `4fea855986806ff343573599869a0fa7`
+- bounds: `[-9.4, 41.7, -0.7, 43.6]`
+- zooms: `0-14`
+- tile checks through `tiles.radmaps.studio`:
+  `/tiles/staging/radmaps-northern-spain-camino-base/8/124/94.mvt` -> `97,251`
+  bytes and `/tiles/staging/radmaps-northern-spain-camino-base/10/499/378.mvt`
+  -> `25,960` bytes
+- staging manifest version: `2026.05.27-northern-spain-camino.1`
+- staging manifest counts: `4` base artifacts, `177` contour artifacts
 
 Regional terrain showcase verification on 2026-05-17:
 - workflow: `.github/workflows/atlas-terrain-pack.yml`

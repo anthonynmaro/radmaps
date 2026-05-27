@@ -35,8 +35,13 @@ Completed:
   z0-14.
 - The New Zealand archive is `403,714,835` bytes and verified through
   `tiles.radmaps.studio` tile checks.
-- The staging manifest is now `2026.05.27-new-zealand-outdoor.1` with `3` base
-  artifacts and `177` contour artifacts.
+- Northern Spain/Camino PMTiles exist in staging R2 as
+  `radmaps-northern-spain-camino-base`, covering `[-9.4, 41.7, -0.7, 43.6]`
+  at z0-14.
+- The Northern Spain archive is `396,275,576` bytes and verified through
+  `tiles.radmaps.studio` tile checks.
+- The staging manifest is now `2026.05.27-northern-spain-camino.1` with `4`
+  base artifacts and `177` contour artifacts.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -134,8 +139,9 @@ Global release should include:
 
 First global proof-pack queue:
 - New Zealand outdoor is live in staging and ready for broader visual review.
-- Patagonia Andes, Northern Spain/Camino, and Honshu/Japan have passed dry-run
-  build dispatch and remain the next small real builds.
+- Northern Spain/Camino is live in staging and ready for broader visual review.
+- Patagonia Andes and Honshu/Japan have passed dry-run build dispatch and
+  remain the next small real builds.
 
 ## Artifact Storage
 
@@ -183,6 +189,7 @@ tiles.radmaps.studio/
         us/2026-05-15/radmaps-base-us.pmtiles
         north-america/2026-07-01/radmaps-base-north-america.pmtiles
         new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles
+        northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles
         globe/2026-09-01/radmaps-base-globe.pmtiles
       terrain/
         cache/...

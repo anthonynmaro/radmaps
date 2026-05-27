@@ -7,8 +7,9 @@ builds.
 
 ## Current Baseline
 
-- Staging R2 has contiguous U.S., North America, and New Zealand base PMTiles.
-- The active staging manifest is `2026.05.27-new-zealand-outdoor.1`.
+- Staging R2 has contiguous U.S., North America, New Zealand, and Northern
+  Spain/Camino base PMTiles.
+- The active staging manifest is `2026.05.27-northern-spain-camino.1`.
 - Production still points at the Driftless manifest until tile routing,
   Browserless rendering, attribution, analytics, and rollback checks pass.
 - High-detail terrain remains browser/Browserless-generated through
@@ -75,6 +76,23 @@ builds.
     bytes.
 - Rendered review artifact:
   `artifacts/atlas-review/queenstown-new-zealand-field-topo.png`.
+- `northern-spain-camino` completed a real staging build in workflow run
+  `26487824348`.
+- Northern Spain artifact details:
+  - artifact id: `radmaps-northern-spain-camino-base`
+  - atlas version: `2026.05.27-northern-spain-camino.1`
+  - object path:
+    `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
+  - size: `396,275,576` bytes
+  - bounds: `[-9.4, 41.7, -0.7, 43.6]`
+  - zooms: `0-14`
+- Public tile checks through `tiles.radmaps.studio`:
+  - `/tiles/staging/radmaps-northern-spain-camino-base/8/124/94.mvt` ->
+    `97,251` bytes.
+  - `/tiles/staging/radmaps-northern-spain-camino-base/10/499/378.mvt` ->
+    `25,960` bytes.
+- Rendered review artifact:
+  `artifacts/atlas-review/camino-northern-spain-field-topo.png`.
 
 ## Coverage Target Matrix
 
@@ -86,9 +104,8 @@ Current priority order:
 
 1. Promote the already-built North America base atlas after QA.
 2. Build small global proof packs for current premade regions:
-   Patagonia, Northern Spain/Camino, and Honshu/Japan.
-3. Review the live New Zealand staging proof pack across Queenstown, Rotorua,
-   Great Walks, and bikepacking fixtures.
+   Patagonia and Honshu/Japan.
+3. Review the live New Zealand and Northern Spain/Camino staging proof packs.
 4. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
    Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
    justifies the spend.

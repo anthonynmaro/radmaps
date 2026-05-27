@@ -72,7 +72,7 @@
       "id": "northern-spain-camino",
       "label": "Northern Spain / Camino",
       "priority": 3,
-      "status": "build-candidate",
+      "status": "staging-live",
       "buildClass": "country-regional",
       "atlasRegion": "northern-spain-camino",
       "bbox": [-9.4, 41.7, -0.7, 43.6],
@@ -85,7 +85,7 @@
         "Pyrenees west",
         "Galicia coast"
       ],
-      "nextAction": "Build the Spain-side Camino pack first; plan a later Pyrenees multi-extract or Europe build for the French start segment.",
+      "nextAction": "Staging base atlas is built and published; review Camino, Picos, Basque Country, and Galicia fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
       "terrainStrategy": "runtime-contours"
     },
