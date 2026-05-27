@@ -35,7 +35,8 @@ flowchart LR
 | MapTiler Raster Styles | `maptiler-outdoor`, `maptiler-topo`, `maptiler-winter`, `alidade-smooth`, `alidade-smooth-dark` | Active | Paid/custom | Baked raster outdoor/topo/winter/dataviz styles | `base_tile_style`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires MapTiler and OpenStreetMap attribution unless written terms and non-OSM data remove parts of it. |
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Watercolor and toner raster art; toner label-family toggle | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
-| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles including `RadMaps Contour Wash` | Beta | Self-hosted | Staging R2 PMTiles base atlas for contiguous U.S. and North America; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests. Production still points at Driftless until QA/promotion. | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
+| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, Atlas Lab house styles including `RadMaps Contour Wash` | Beta | Self-hosted | Staging R2 PMTiles base atlas for contiguous U.S. and North America; hosted tile contract at `tiles.radmaps.studio`; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests. Production still points at Driftless until QA/promotion. | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
+| RadMaps Watercolor Geometry Painter | `watercolortile://`, `/api/watercolor/tiles/base`, `radmaps-watercolor` | Beta | Self-hosted server PNG tiles with browser protocol cache/status | Same-origin Atlas MVT tiles converted into deterministic 512px watercolor raster tiles by preserving feature geometry, painting water/park washes, brush-painted roads/trails/waterways, sketched boundaries/buildings, world-aligned paper/pigment textures, and crisp vector labels/route above. Legacy `radmaps-watercolor-*` ids are hidden aliases for saved maps. | `watercolor_seed`, canonical recipe, `atlas_layers`, `atlas_layer_settings`, `water_color`, `land_color`, `roads_color`, `show_roads` | Inherits RadMaps Atlas/OpenStreetMap attribution. Does not ship Stamen/Stadia watercolor raster assets. |
 | RadMaps Terrain Runtime | `radmaps-terrain`, browser-generated `contours`, `radmaps-hillshade`, `RadMaps Simple Contour` | Beta | Browser/Browserless compute first; self-hosted cache later only if needed | Atlas styles now prefer browser-generated `maplibre-contour` output from Terrarium DEM in both editor and Browserless print renders. Existing R2 contour PMTiles remain QA/history/coverage experiments, not the global production default. | `show_contours`, `contour_detail`, `contour_*`, `show_hillshade`, `hillshade_intensity`, `terrain_exaggeration`, Atlas style ids | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. Cached/self-hosted terrain artifacts must carry source DEM metadata. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
@@ -45,14 +46,14 @@ Current owned-atlas coverage accounting:
 
 | Environment | Base coverage | Terrain/contour coverage | Customer status |
 |---|---|---|---|
-| `staging` | Contiguous U.S. plus North America base artifacts in R2. North America artifact id: `radmaps-north-america-base`. | `177` `us-terrain-phase1` contour shards retained for QA/cache experiments; default strategy is browser-rendered contours. | Local/admin Atlas Lab and pre-production validation. |
+| `staging` | Contiguous U.S. plus North America base artifacts in R2. North America artifact id: `radmaps-north-america-base`. | `177` `us-terrain-phase1` contour shards retained for QA/cache experiments; default strategy is browser-rendered contours. | Hosted at `tiles.radmaps.studio` through the Cloudflare Worker custom domain and verified at `radmaps-atlas-tiles.radmaps-atlas.workers.dev`; the Vercel shim remains as fallback during DNS cache transition. |
 | `production` | Driftless production manifest only. | Driftless contour artifact only, plus existing live provider/runtime terrain paths. | Current production safety baseline until Atlas QA/promotion passes. |
 
 The next production step is not more precomputed terrain. It is to prove the
-North America base artifact through the Worker, Atlas Lab, editor, Browserless
-print renders, attribution, and usage accounting. High-detail contours remain
-runtime-generated through `maplibre-contour` unless usage or reliability makes a
-regional cache worthwhile.
+North America base artifact through the hosted tile edge, Atlas Lab, editor,
+Browserless print renders, attribution, and usage accounting. High-detail
+contours remain runtime-generated through `maplibre-contour` unless usage or
+reliability makes a regional cache worthwhile.
 
 Use these categories when documenting each preset or provider:
 
@@ -87,6 +88,11 @@ Recommended event points:
 | `map_final_render_started` | Queue worker starts paid final render | `map_id`, `stripe_session_id`, `render_class=final`, `product_uid`, `provider_ids`, `atlas_version`, `tile_schema_version` |
 | `map_final_render_completed` | Final render uploaded | Previous dimensions plus `duration_ms`, `pixel_width`, `pixel_height`, `tile_warning_count` |
 | `map_public_share_rendered` | Share flow forces latest proof | `map_id`, `user_id`, `preset`, `provider_ids`, `proof_age_seconds` |
+
+Atlas watercolor events should also include `watercolor_renderer_version`,
+`watercolor_texture_pack_version`, `watercolor_recipe_id`, `watercolor_seed_present`,
+`watercolor_tile_count`, and `watercolor_tile_render_ms_p95` once provider usage
+tracking is persisted.
 
 Candidate DB table, when we decide to implement this:
 
@@ -134,10 +140,21 @@ flowchart LR
 Why this is attractive:
 
 - PMTiles is designed as a single-file tile archive that can live on static object storage and be read by HTTP range requests.
-- Atlas Lab resolves approved PMTiles artifacts from the active Atlas manifest. When `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` is configured it prefers the Cloudflare Worker route `/tiles/{environment}/{artifactId}/{z}/{x}/{y}.mvt`; otherwise local/admin development uses the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` fallback. Production traffic should not use caller-supplied raw tile URLs.
+- Atlas Lab resolves approved PMTiles artifacts from the active Atlas manifest. When `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` is configured it prefers the hosted tile route `/tiles/{environment}/{artifactId}/{z}/{x}/{y}.mvt`; otherwise local/admin development uses the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` fallback. `tiles.radmaps.studio` is served by the Cloudflare Worker custom domain backed by R2 manifests, with the Vercel shim retained as fallback during DNS cache transition. Production traffic should not use caller-supplied raw tile URLs.
 - Planetiler can generate planet-scale vector tiles from OSM and other geographic sources without a PostGIS tile stack.
 - Tilemaker is simpler for local/regional experiments and lets us author Lua profiles for exactly the layer schema we want.
 - Vector layers let themes blend water, roads, labels, POIs, landcover, and buildings separately instead of pushing color transforms over baked rasters.
+- The Atlas watercolor preset consumes the same base MVT tiles through the
+  server `/api/watercolor/tiles/base/{z}/{x}/{y}.png` geometry painter, wrapped
+  by `watercolortile://` for browser/Browserless cache status. It preserves
+  feature geometry for brush-painted roads, sketched buildings/boundaries, and
+  water/park washes while keeping labels, POIs, route collision, and the GPX
+  route as vector layers above it.
+- Coverage expansion targets live in `atlas/coverage-targets.json`. North
+  America is the promote-first path; Patagonia, Northern Spain/Camino,
+  Honshu/Japan, and New Zealand are the first low-cost global proof packs.
+  Larger hotspots such as Alps/Dolomites and Himalaya stay deferred until
+  source-size, demand, and DEM quality gates clear.
 
 Proposed build stages:
 

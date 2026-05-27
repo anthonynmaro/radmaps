@@ -30,9 +30,14 @@ Completed:
   range-readable from R2.
 - The staging manifest is a composite manifest with `2` base artifacts and
   `177` contour artifacts from the verified `us-terrain-phase1` terrain run.
-- Atlas styles, watercolor experiments, route-under-label ordering, manifest
-  resolution, usage-event hardening, the Worker tile-service code, and
+- Atlas styles, watercolor, route-under-label ordering, manifest
+  resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
+- `https://tiles.radmaps.studio` now serves the hosted tile contract through
+  the Cloudflare Worker custom domain backed by R2 staging and production
+  manifests. The Vercel/Nuxt shim remains available as a fallback path.
+- The Worker is deployed and verified at
+  `https://radmaps-atlas-tiles.radmaps-atlas.workers.dev`.
 - The production strategy for contours has pivoted to browser/Browserless
   `maplibre-contour` generation plus terrain illusion layers, avoiding
   expensive global high-detail contour PMTiles for now.
@@ -50,9 +55,8 @@ Not done yet:
 
 - Production still uses the older Driftless atlas manifest until staging QA is
   complete and the production manifest is promoted.
-- The Cloudflare Worker code exists, but the production tile route/custom
-  domain must be deployed and verified against the staging manifest before it
-  becomes the customer path.
+- The Cloudflare Worker is attached to `tiles.radmaps.studio`; some resolvers
+  may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,
   but `radmaps_atlas_editor` should remain disabled for broad customer traffic
   until Browserless print QA and attribution checks pass.
@@ -123,12 +127,16 @@ Production storage should use immutable PMTiles archives on S3-compatible object
 storage with HTTP range request support. Cloudflare R2 is the preferred
 production target. Supabase Storage can remain staging/dev while usage is low.
 
-Production delivery is through the Cloudflare Worker in
-`workers/atlas-tiles`. The Worker is the scalable tile service; the Nuxt
-`/api/atlas/tiles` route is retained as a local/admin fallback and should not
-be the long-term customer tile path.
+Preferred production delivery is through the Cloudflare Worker in
+`workers/atlas-tiles`, deployed at
+`https://radmaps-atlas-tiles.radmaps-atlas.workers.dev` and attached to
+`tiles.radmaps.studio` as a custom domain. The Nuxt routes on Vercel,
+`server/routes/manifests/*`, `server/routes/tiles/*`, and shared logic in
+`server/utils/atlasPublicTileService.ts`, remain as a fallback shim. The Nuxt
+`/api/atlas/tiles` route is retained as a local/admin/editor fallback and
+resolves the same R2 manifests.
 
-Worker routes:
+Hosted tile routes:
 
 ```text
 GET /manifests/staging.json
@@ -136,12 +144,13 @@ GET /manifests/production.json
 GET /tiles/:environment/:artifactId/:z/:x/:y.mvt
 ```
 
-Worker requirements now implemented in code:
+Tile-edge requirements now implemented in code:
 - serve by approved manifest artifact id, not raw caller-supplied URLs
 - load manifests from R2 at `atlas/v1/manifests/{environment}.json`
 - validate environment, artifact id, z/x/y matrix, zoom range, and bounds
 - read PMTiles from R2 by byte range through the PMTiles source API
-- cache hot tile responses with Cloudflare Cache API
+- cache hot tile responses with immutable HTTP cache headers; Cloudflare Cache
+  API support remains Worker-specific
 - return MVT headers and immutable cache headers
 - expose manifests with artifact counts and the tile URL template
 
@@ -479,7 +488,7 @@ House style roles:
 | Simple Contour | minimal elevation poster | contour | water, waterway, place, route |
 | Field Topo | general outdoor topo | contour, water, transportation | park, landcover, poi, place |
 | Toner | crisp urban/trail linework | transportation, water, place | building, poi, contour |
-| Watercolor Wash | artistic poster | water, landcover, park | transportation, place, route, paper texture |
+| Watercolor | artistic poster | water, landcover, park | transportation, place, route, paper texture |
 | Night Relief | premium dark terrain | contour, water, transportation | building, poi, place, hillshade |
 
 ## Style Panel UX
@@ -813,10 +822,15 @@ This lets us answer:
 ### Milestone 7: North America And Globe
 
 - Expand base coverage first. North America staging base coverage is complete;
-  the next base milestone is either production promotion after QA or a global
-  base archive if the cost/QA window is acceptable.
+  the next base milestone is production promotion after QA, followed by small
+  regional proof packs for premade and high-intent global destinations.
+- Use `atlas/coverage-targets.json` as the coverage queue and cost gate. The
+  first runnable non-North-America targets are `patagonia-andes`,
+  `northern-spain-camino`, `honshu-japan`, and `new-zealand-outdoor`.
 - Use browser-generated contours and terrain illusion layers globally where DEM coverage allows.
 - Promote popular or failure-prone regions into cached contour artifacts based on actual usage.
+- Do not start a full-globe base archive until the regional proof packs and
+  manifest-promotion workflow are boring.
 
 ## Near-Term Decision
 

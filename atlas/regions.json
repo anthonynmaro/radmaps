@@ -116,5 +116,151 @@
       "enabled": false,
       "note": "North America launch uses browser/Browserless-generated contours from DEM. Do not precompute continental high-detail terrain by default."
     }
+  },
+  "patagonia-andes": {
+    "id": "patagonia-andes",
+    "label": "Patagonia Andes base atlas",
+    "coverage": "patagonia-andes",
+    "bbox": [-76.2, -55.2, -68.0, -40.0],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/south-america-latest.osm.pbf",
+      "note": "Uses the South America extract so Chilean and Argentine Patagonia are covered together."
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx32g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-patagonia-andes-base",
+      "localPath": "atlas/build/patagonia-andes/output/radmaps-base-patagonia-andes.pmtiles",
+      "objectPath": "atlas/v1/base/patagonia-andes/{date}/radmaps-base-patagonia-andes.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Patagonia launch uses browser/Browserless-generated contours first; cache terrain only if render reliability or paid-order demand justifies it."
+    }
+  },
+  "northern-spain-camino": {
+    "id": "northern-spain-camino",
+    "label": "Northern Spain / Camino base atlas",
+    "coverage": "northern-spain-camino",
+    "bbox": [-9.4, 41.7, -0.7, 43.6],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/europe/spain-latest.osm.pbf",
+      "note": "Keeps the first Camino build small. The Saint-Jean-Pied-de-Port start sits just outside Spain and should be covered later by a Pyrenees multi-extract or Europe build."
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx24g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-northern-spain-camino-base",
+      "localPath": "atlas/build/northern-spain-camino/output/radmaps-base-northern-spain-camino.pmtiles",
+      "objectPath": "atlas/v1/base/northern-spain-camino/{date}/radmaps-base-northern-spain-camino.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first. Add a Spain/Pyrenees terrain cache only after Browserless timing data proves it is useful."
+    }
+  },
+  "honshu-japan": {
+    "id": "honshu-japan",
+    "label": "Honshu / Japan base atlas",
+    "coverage": "honshu-japan",
+    "bbox": [136.0, 33.0, 142.2, 38.8],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/asia/japan-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx32g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-honshu-japan-base",
+      "localPath": "atlas/build/honshu-japan/output/radmaps-base-honshu-japan.pmtiles",
+      "objectPath": "atlas/v1/base/honshu-japan/{date}/radmaps-base-honshu-japan.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first; cache Fuji/Hakuba terrain only if proof/final renders need it."
+    }
+  },
+  "new-zealand-outdoor": {
+    "id": "new-zealand-outdoor",
+    "label": "New Zealand outdoor base atlas",
+    "coverage": "new-zealand-outdoor",
+    "bbox": [166.0, -47.4, 179.0, -34.0],
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx24g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-new-zealand-outdoor-base",
+      "localPath": "atlas/build/new-zealand-outdoor/output/radmaps-base-new-zealand-outdoor.pmtiles",
+      "objectPath": "atlas/v1/base/new-zealand-outdoor/{date}/radmaps-base-new-zealand-outdoor.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first; cache Queenstown/Rotorua/Great Walks terrain only after demand or reliability data appears."
+    }
   }
 }

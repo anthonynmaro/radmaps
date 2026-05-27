@@ -13,6 +13,10 @@ on:
           - us-midwest
           - us-contiguous
           - north-america
+          - patagonia-andes
+          - northern-spain-camino
+          - honshu-japan
+          - new-zealand-outdoor
       environment:
         description: Atlas manifest target
         required: true

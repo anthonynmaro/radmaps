@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "radmaps-atlas-coverage-targets-v1",
+  "updatedAt": "2026-05-26",
+  "costGuardrails": {
+    "awsExperimentBudgetUsdPerMonth": 300,
+    "observedAwsMonthToDateUsd": 3.75,
+    "observedAwsMonthToDateSource": "AWS Billing screenshot, 2026-05-26",
+    "defaultTerrainStrategy": "runtime-contours",
+    "baseBuildPolicy": "Prefer already-built coverage first, then small regional/country extracts, then continent/global builds only after manual approval.",
+    "manualApprovalRequiredFor": [
+      "source extracts estimated above 20 GB",
+      "single build runs estimated above 50 USD",
+      "cached terrain packs outside measured Browserless reliability gaps or paid-order demand",
+      "any full-globe base artifact"
+    ],
+    "perRunRequirements": [
+      "Run atlas:pipeline with --dry-run first",
+      "Record source URL/date, runner type, instance hours, scratch storage, S3 bytes, R2 bytes, manifest version, and actual AWS cost after the run",
+      "Publish immutable PMTiles objects and promote by manifest pointer only"
+    ]
+  },
+  "targets": [
+    {
+      "id": "north-america-release",
+      "label": "North America release QA",
+      "priority": 1,
+      "status": "qa-ready",
+      "buildClass": "already-built",
+      "atlasRegion": "north-america",
+      "bbox": [-170.0, 5.0, -50.0, 84.0],
+      "activities": ["mountain-biking", "hiking", "bikepacking", "vacation"],
+      "anchorPremades": ["john-muir-trail", "nyc-marathon", "grand-canyon-r2r"],
+      "hotspots": [
+        "Whistler / Squamish",
+        "Banff / Canmore",
+        "Moab / Canyonlands",
+        "Sedona / Flagstaff",
+        "Bentonville / Ozarks",
+        "Lake Tahoe",
+        "Bend / Oakridge",
+        "Pisgah / Blue Ridge",
+        "Acadia / New England",
+        "Baja California",
+        "Great Divide Mountain Bike Route"
+      ],
+      "nextAction": "Render and review QA fixtures, then promote the existing staging manifest to production if print output passes.",
+      "maxNewBuildCostUsd": 0,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "patagonia-andes",
+      "label": "Patagonia Andes",
+      "priority": 2,
+      "status": "build-candidate",
+      "buildClass": "regional",
+      "atlasRegion": "patagonia-andes",
+      "bbox": [-76.2, -55.2, -68.0, -40.0],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": ["torres-del-paine-w-trek"],
+      "hotspots": [
+        "Torres del Paine",
+        "El Chalten / Fitz Roy",
+        "Carretera Austral",
+        "Ushuaia",
+        "Bariloche / Nahuel Huapi"
+      ],
+      "nextAction": "Run a dry-run pipeline for patagonia-andes, then build only if the source and scratch estimate fit the current AWS budget.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "northern-spain-camino",
+      "label": "Northern Spain / Camino",
+      "priority": 3,
+      "status": "build-candidate",
+      "buildClass": "country-regional",
+      "atlasRegion": "northern-spain-camino",
+      "bbox": [-9.4, 41.7, -0.7, 43.6],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": ["camino-frances"],
+      "hotspots": [
+        "Camino Frances",
+        "Picos de Europa",
+        "Basque Country",
+        "Pyrenees west",
+        "Galicia coast"
+      ],
+      "nextAction": "Build the Spain-side Camino pack first; plan a later Pyrenees multi-extract or Europe build for the French start segment.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "honshu-japan",
+      "label": "Honshu / Japan",
+      "priority": 4,
+      "status": "build-candidate",
+      "buildClass": "country-regional",
+      "atlasRegion": "honshu-japan",
+      "bbox": [136.0, 33.0, 142.2, 38.8],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": ["mount-fuji"],
+      "hotspots": [
+        "Mount Fuji",
+        "Hakuba / Nagano",
+        "Nikko",
+        "Kyoto / Nara",
+        "Shimanami Kaido"
+      ],
+      "nextAction": "Run a dry-run pipeline for honshu-japan and render Fuji plus Hakuba/urban-vacation QA fixtures before promotion.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "new-zealand-outdoor",
+      "label": "New Zealand outdoor",
+      "priority": 5,
+      "status": "build-candidate",
+      "buildClass": "country",
+      "atlasRegion": "new-zealand-outdoor",
+      "bbox": [166.0, -47.4, 179.0, -34.0],
+      "activities": ["mountain-biking", "hiking", "bikepacking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": [
+        "Queenstown",
+        "Rotorua",
+        "Old Ghost Road",
+        "Milford / Routeburn / Kepler",
+        "Tasman / Nelson"
+      ],
+      "nextAction": "Keep queued behind current premades unless search/order demand pulls New Zealand forward.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "western-alps-dolomites",
+      "label": "Western Alps / Dolomites",
+      "priority": 6,
+      "status": "deferred-cost-gate",
+      "buildClass": "multi-country",
+      "atlasRegion": null,
+      "bbox": [5.5, 43.5, 14.5, 47.8],
+      "activities": ["mountain-biking", "hiking", "bikepacking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": [
+        "Chamonix",
+        "Zermatt",
+        "Innsbruck",
+        "Dolomites",
+        "Finale Ligure",
+        "Lake Garda"
+      ],
+      "nextAction": "Do not build from the full Europe extract until we add a multi-extract/cutline workflow or approve a larger Europe run.",
+      "maxNewBuildCostUsd": 75,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "atlantic-islands",
+      "label": "Atlantic island vacation hotspots",
+      "priority": 7,
+      "status": "deferred-source-selection",
+      "buildClass": "small-regional",
+      "atlasRegion": null,
+      "bbox": [-31.5, 27.5, -12.0, 40.5],
+      "activities": ["mountain-biking", "hiking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": ["Madeira", "Canary Islands", "Azores"],
+      "nextAction": "Choose the smallest reliable OSM extract path before adding runnable build targets.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "andes-peru-ecuador",
+      "label": "Peru / Ecuador Andes",
+      "priority": 8,
+      "status": "deferred-product-demand",
+      "buildClass": "regional",
+      "atlasRegion": null,
+      "bbox": [-81.5, -18.5, -68.5, 1.5],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": ["Machu Picchu / Salkantay", "Cordillera Blanca", "Cotopaxi", "Quilotoa", "Sacred Valley"],
+      "nextAction": "Queue after Patagonia unless customer/search demand indicates earlier interest.",
+      "maxNewBuildCostUsd": 35,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "nepal-himalaya",
+      "label": "Nepal Himalaya",
+      "priority": 9,
+      "status": "deferred-dem-risk",
+      "buildClass": "country-regional",
+      "atlasRegion": null,
+      "bbox": [80.0, 26.0, 89.5, 31.0],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": ["Everest Base Camp", "Annapurna Circuit", "Langtang", "Mustang"],
+      "nextAction": "Validate DEM/contour quality before committing to cached terrain or product promotion.",
+      "maxNewBuildCostUsd": 35,
+      "terrainStrategy": "runtime-contours-with-dem-qa"
+    },
+    {
+      "id": "iceland-scotland",
+      "label": "Iceland / Scotland adventure travel",
+      "priority": 10,
+      "status": "deferred-source-selection",
+      "buildClass": "regional",
+      "atlasRegion": null,
+      "bbox": [-25.0, 54.5, -0.5, 66.8],
+      "activities": ["hiking", "bikepacking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": ["Laugavegur", "Iceland Ring Road", "West Highland Way", "Skye", "Cairngorms"],
+      "nextAction": "Split into separate Iceland and Scotland targets before building so source downloads stay small.",
+      "maxNewBuildCostUsd": 35,
+      "terrainStrategy": "runtime-contours"
+    },
+    {
+      "id": "costa-rica-central-america",
+      "label": "Costa Rica / Central America vacation trails",
+      "priority": 11,
+      "status": "deferred-product-demand",
+      "buildClass": "regional",
+      "atlasRegion": null,
+      "bbox": [-86.5, 7.5, -82.0, 11.5],
+      "activities": ["mountain-biking", "hiking", "vacation"],
+      "anchorPremades": [],
+      "hotspots": ["Arenal", "Monteverde", "Rincon de la Vieja", "Nicoya", "Osa Peninsula"],
+      "nextAction": "Queue after premade-driven regions unless vacation poster demand pulls it forward.",
+      "maxNewBuildCostUsd": 25,
+      "terrainStrategy": "runtime-contours"
+    }
+  ]
+}
