@@ -319,6 +319,19 @@ const sampleRegions: Record<string, {
       [-99.086, 19.456],
     ],
   },
+  patagonia: {
+    title: 'Torres del Paine W Trek',
+    location: 'Patagonia, Chile',
+    bbox: [-73.18, -51.08, -72.75, -50.88],
+    route: [
+      [-73.139, -50.964],
+      [-73.071, -50.976],
+      [-73.006, -50.944],
+      [-72.941, -50.970],
+      [-72.870, -50.927],
+      [-72.792, -50.942],
+    ],
+  },
   camino: {
     title: 'Camino Frances',
     location: 'Northern Spain',

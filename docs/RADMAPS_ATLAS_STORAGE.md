@@ -36,13 +36,16 @@ Current staging Northern Spain/Camino base archive:
 Current staging Mount Fuji/Japan base archive:
 `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
 
+Current staging Patagonia Andes base archive:
+`atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+
 The checked-in staging manifest includes the contiguous-US base atlas, the
 North America base atlas, the New Zealand outdoor base atlas, the Northern
-Spain/Camino base atlas, the Mount Fuji/Japan proof-pack base atlas, and the
-verified `us-terrain-phase1` contour shard set from the successful 2026-05-18
-build. Those contour shards are retained for QA, history, and optional cached
-coverage experiments. They are no longer the default strategy for scaling
-high-detail terrain globally.
+Spain/Camino base atlas, the Mount Fuji/Japan proof-pack base atlas, the
+Patagonia Andes proof-pack base atlas, and the verified `us-terrain-phase1`
+contour shard set from the successful 2026-05-18 build. Those contour shards
+are retained for QA, history, and optional cached coverage experiments. They
+are no longer the default strategy for scaling high-detail terrain globally.
 
 Production direction: build global/North America base archives in R2, but keep
 high-detail terrain browser-rendered through `maplibre-contour` in both editor
@@ -205,6 +208,23 @@ Mount Fuji/Japan staging verification on 2026-05-27:
   -> `64,442` bytes
 - staging manifest version: `2026.05.27-mount-fuji-japan.1`
 - staging manifest counts: `5` base artifacts, `177` contour artifacts
+
+Patagonia Andes staging verification on 2026-05-27:
+- workflow run: `26489887144`
+- R2 object:
+  `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+- public URL:
+  `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+- bytes: `234,649,027`
+- ETag: `397eab9eb30cefa9c1935aab89ad1c30`
+- bounds: `[-76.2, -55.2, -68, -40]`
+- zooms: `0-14`
+- tile checks through `tiles.radmaps.studio`:
+  `/tiles/staging/radmaps-patagonia-andes-base/8/76/170.mvt` -> `29,676`
+  bytes and `/tiles/staging/radmaps-patagonia-andes-base/10/304/681.mvt`
+  -> `20,159` bytes
+- staging manifest version: `2026.05.27-patagonia-andes.1`
+- staging manifest counts: `6` base artifacts, `177` contour artifacts
 
 Regional terrain showcase verification on 2026-05-17:
 - workflow: `.github/workflows/atlas-terrain-pack.yml`

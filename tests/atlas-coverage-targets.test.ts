@@ -79,9 +79,7 @@ describe('atlas coverage target matrix', () => {
   it('keeps first-wave global builds under the small-pack cost cap', () => {
     const firstWave = coverageTargets.targets.filter(target => target.status === 'build-candidate')
 
-    expect(firstWave.map(target => target.id)).toEqual([
-      'patagonia-andes',
-    ])
+    expect(firstWave.map(target => target.id)).toEqual([])
 
     for (const target of firstWave) {
       expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(25)
@@ -90,5 +88,6 @@ describe('atlas coverage target matrix', () => {
     expect(coverageTargets.targets.find(target => target.id === 'new-zealand-outdoor')?.status).toBe('staging-live')
     expect(coverageTargets.targets.find(target => target.id === 'northern-spain-camino')?.status).toBe('staging-live')
     expect(coverageTargets.targets.find(target => target.id === 'honshu-japan')?.status).toBe('staging-live')
+    expect(coverageTargets.targets.find(target => target.id === 'patagonia-andes')?.status).toBe('staging-live')
   })
 })
