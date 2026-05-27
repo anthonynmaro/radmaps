@@ -297,7 +297,7 @@ async function multipartCopyObject(artifact) {
 
     const completeBody = [
       '<CompleteMultipartUpload>',
-      ...parts.map(part => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${escapeXml(part.etag)}</ETag></Part>`),
+      ...parts.map(part => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${part.etag}</ETag></Part>`),
       '</CompleteMultipartUpload>',
     ].join('')
     const complete = signedS3Request({
@@ -473,16 +473,16 @@ function copySourceHeader(bucket, objectPath) {
 
 function xmlValue(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`))
-  return match?.[1] || ''
+  return match ? decodeXml(match[1]) : ''
 }
 
-function escapeXml(value) {
+function decodeXml(value) {
   return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&')
 }
 
 function artifactArray(entry) {
