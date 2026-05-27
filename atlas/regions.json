@@ -122,6 +122,7 @@
     "label": "Patagonia Andes base atlas",
     "coverage": "patagonia-andes",
     "bbox": [-76.2, -55.2, -68.0, -40.0],
+    "scratchGb": 80,
     "source": {
       "provider": "Geofabrik",
       "license": "OpenStreetMap ODbL 1.0",
@@ -159,6 +160,7 @@
     "label": "Northern Spain / Camino base atlas",
     "coverage": "northern-spain-camino",
     "bbox": [-9.4, 41.7, -0.7, 43.6],
+    "scratchGb": 80,
     "source": {
       "provider": "Geofabrik",
       "license": "OpenStreetMap ODbL 1.0",
@@ -196,6 +198,7 @@
     "label": "Honshu / Japan base atlas",
     "coverage": "honshu-japan",
     "bbox": [136.0, 33.0, 142.2, 38.8],
+    "scratchGb": 80,
     "source": {
       "provider": "Geofabrik",
       "license": "OpenStreetMap ODbL 1.0",
@@ -232,6 +235,7 @@
     "label": "New Zealand outdoor base atlas",
     "coverage": "new-zealand-outdoor",
     "bbox": [166.0, -47.4, 179.0, -34.0],
+    "scratchGb": 60,
     "source": {
       "provider": "Geofabrik",
       "license": "OpenStreetMap ODbL 1.0",

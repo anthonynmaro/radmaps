@@ -98,7 +98,7 @@ function expandStage(value) {
 }
 
 function preflight() {
-  const defaultMinGb = region.id === 'north-america' ? 900 : region.id === 'us' ? 500 : 120
+  const defaultMinGb = region.scratchGb || (region.id === 'north-america' ? 900 : region.id === 'us' ? 500 : 120)
   const minGb = Number(env.ATLAS_MIN_FREE_GB || defaultMinGb)
   const freeKb = Number(command('df', ['-Pk', buildRoot], { capture: true }).trim().split(/\s+/).at(-3) || 0)
   const freeGb = freeKb / 1024 / 1024
@@ -233,6 +233,8 @@ function generateManifest() {
     console.log(`dry-run: base artifact is not present yet, manifest generation will run after build: ${baseArtifact}`)
     return
   }
+  const generatedManifestPath = resolve(buildRoot, 'manifest', `${environment}-${region.id}.json`)
+  mkdirSync(dirname(generatedManifestPath), { recursive: true })
   run('node', [
     'scripts/atlas-generate-manifest.mjs',
     '--region',
@@ -247,7 +249,28 @@ function generateManifest() {
     bucket,
     ...(publicBaseUrl ? ['--public-base-url', publicBaseUrl] : []),
     '--output',
+    generatedManifestPath,
+  ])
+  mergeGeneratedManifest(generatedManifestPath, 'base')
+  if (region.contours?.enabled && existsSync(resolve(repoRoot, fillPath(region.contours.localPath)))) {
+    mergeGeneratedManifest(generatedManifestPath, 'contours')
+  }
+}
+
+function mergeGeneratedManifest(source, kind) {
+  run('node', [
+    'scripts/atlas-merge-manifest-artifact.mjs',
+    '--source',
+    source,
+    '--target',
     manifestPath,
+    '--output',
+    manifestPath,
+    '--kind',
+    kind,
+    '--atlas-version',
+    version,
+    ...(publicBaseUrl ? ['--public-base-url', publicBaseUrl] : []),
   ])
 }
 
