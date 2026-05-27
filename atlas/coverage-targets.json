@@ -1,6 +1,6 @@
 {
   "schemaVersion": "radmaps-atlas-coverage-targets-v1",
-  "updatedAt": "2026-05-26",
+  "updatedAt": "2026-05-27",
   "costGuardrails": {
     "awsExperimentBudgetUsdPerMonth": 300,
     "observedAwsMonthToDateUsd": 3.75,
@@ -93,7 +93,7 @@
       "id": "honshu-japan",
       "label": "Honshu / Japan",
       "priority": 4,
-      "status": "build-candidate",
+      "status": "staging-live",
       "buildClass": "country-regional",
       "atlasRegion": "mount-fuji-japan",
       "bbox": [138.35, 34.95, 139.3, 35.75],
@@ -106,7 +106,7 @@
         "Kyoto / Nara",
         "Shimanami Kaido"
       ],
-      "nextAction": "Run the narrower Mount Fuji proof pack first; the wider Honshu build exceeded ubuntu-latest memory during archive generation.",
+      "nextAction": "Mount Fuji proof pack is built and published to staging; split wider Honshu into smaller regions or rerun on a larger runner after the ubuntu-latest archive-generation OOM.",
       "maxNewBuildCostUsd": 25,
       "terrainStrategy": "runtime-contours"
     },

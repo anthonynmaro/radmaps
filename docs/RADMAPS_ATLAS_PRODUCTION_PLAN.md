@@ -40,8 +40,13 @@ Completed:
   at z0-14.
 - The Northern Spain archive is `396,275,576` bytes and verified through
   `tiles.radmaps.studio` tile checks.
-- The staging manifest is now `2026.05.27-northern-spain-camino.1` with `4`
-  base artifacts and `177` contour artifacts.
+- Mount Fuji/Japan PMTiles exist in staging R2 as
+  `radmaps-mount-fuji-japan-base`, covering `[138.35, 34.95, 139.3, 35.75]`
+  at z0-14.
+- The Mount Fuji archive is `47,255,485` bytes and verified through
+  `tiles.radmaps.studio` tile checks.
+- The staging manifest is now `2026.05.27-mount-fuji-japan.1` with `5` base
+  artifacts and `177` contour artifacts.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -140,8 +145,10 @@ Global release should include:
 First global proof-pack queue:
 - New Zealand outdoor is live in staging and ready for broader visual review.
 - Northern Spain/Camino is live in staging and ready for broader visual review.
-- Patagonia Andes and Honshu/Japan have passed dry-run build dispatch and
-  remain the next small real builds.
+- Mount Fuji/Japan is live in staging and ready for broader visual review.
+- Patagonia Andes remains the next small real build. The wider Honshu/Japan
+  build needs regional splits or a larger runner after the first
+  `ubuntu-latest` attempt exited `137` during archive generation.
 
 ## Artifact Storage
 
@@ -190,6 +197,7 @@ tiles.radmaps.studio/
         north-america/2026-07-01/radmaps-base-north-america.pmtiles
         new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles
         northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles
+        mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles
         globe/2026-09-01/radmaps-base-globe.pmtiles
       terrain/
         cache/...
@@ -849,8 +857,9 @@ This lets us answer:
   the next base milestone is production promotion after QA, followed by small
   regional proof packs for premade and high-intent global destinations.
 - Use `atlas/coverage-targets.json` as the coverage queue and cost gate. The
-  first runnable non-North-America targets are `patagonia-andes`,
-  `northern-spain-camino`, `honshu-japan`, and `new-zealand-outdoor`.
+  first non-North-America proof packs are `new-zealand-outdoor`,
+  `northern-spain-camino`, and `mount-fuji-japan`; the remaining runnable
+  small-pack target is `patagonia-andes`.
 - Use browser-generated contours and terrain illusion layers globally where DEM coverage allows.
 - Promote popular or failure-prone regions into cached contour artifacts based on actual usage.
 - Do not start a full-globe base archive until the regional proof packs and

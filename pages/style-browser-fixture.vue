@@ -315,6 +315,19 @@ const sampleRegions: Record<string, {
       [-2.445, 42.466],
     ],
   },
+  fuji: {
+    title: 'Mount Fuji Ascent',
+    location: 'Fuji-Hakone, Japan',
+    bbox: [138.62, 35.28, 138.84, 35.46],
+    route: [
+      [138.731, 35.365],
+      [138.727, 35.377],
+      [138.724, 35.389],
+      [138.728, 35.401],
+      [138.735, 35.412],
+      [138.742, 35.421],
+    ],
+  },
   newzealand: {
     title: 'Queenstown High Country',
     location: 'Queenstown, New Zealand',

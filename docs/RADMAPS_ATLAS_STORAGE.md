@@ -33,12 +33,16 @@ Current staging New Zealand outdoor base archive:
 Current staging Northern Spain/Camino base archive:
 `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
 
+Current staging Mount Fuji/Japan base archive:
+`atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
+
 The checked-in staging manifest includes the contiguous-US base atlas, the
 North America base atlas, the New Zealand outdoor base atlas, the Northern
-Spain/Camino base atlas, and the verified `us-terrain-phase1` contour shard set
-from the successful 2026-05-18 build. Those contour shards are retained for QA,
-history, and optional cached coverage experiments. They are no longer the
-default strategy for scaling high-detail terrain globally.
+Spain/Camino base atlas, the Mount Fuji/Japan proof-pack base atlas, and the
+verified `us-terrain-phase1` contour shard set from the successful 2026-05-18
+build. Those contour shards are retained for QA, history, and optional cached
+coverage experiments. They are no longer the default strategy for scaling
+high-detail terrain globally.
 
 Production direction: build global/North America base archives in R2, but keep
 high-detail terrain browser-rendered through `maplibre-contour` in both editor
@@ -184,6 +188,23 @@ Northern Spain/Camino staging verification on 2026-05-27:
   -> `25,960` bytes
 - staging manifest version: `2026.05.27-northern-spain-camino.1`
 - staging manifest counts: `4` base artifacts, `177` contour artifacts
+
+Mount Fuji/Japan staging verification on 2026-05-27:
+- workflow run: `26489256148`
+- R2 object:
+  `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
+- public URL:
+  `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
+- bytes: `47,255,485`
+- ETag: `c9064f3ad83d7693ce564ab0f56e1974`
+- bounds: `[138.35, 34.95, 139.3, 35.75]`
+- zooms: `0-14`
+- tile checks through `tiles.radmaps.studio`:
+  `/tiles/staging/radmaps-mount-fuji-japan-base/8/226/101.mvt` -> `114,160`
+  bytes and `/tiles/staging/radmaps-mount-fuji-japan-base/10/906/404.mvt`
+  -> `64,442` bytes
+- staging manifest version: `2026.05.27-mount-fuji-japan.1`
+- staging manifest counts: `5` base artifacts, `177` contour artifacts
 
 Regional terrain showcase verification on 2026-05-17:
 - workflow: `.github/workflows/atlas-terrain-pack.yml`

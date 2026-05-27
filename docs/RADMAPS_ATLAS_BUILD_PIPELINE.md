@@ -18,7 +18,7 @@ It is manually dispatched with:
 
 - `region`: `driftless-lab`, `us-midwest`, `us-contiguous`,
   `north-america`, `patagonia-andes`, `northern-spain-camino`,
-  `honshu-japan`, or `new-zealand-outdoor`
+  `honshu-japan`, `mount-fuji-japan`, or `new-zealand-outdoor`
 - `environment`: `staging` or `production`
 - `stage`: `all` or a comma-separated subset such as `preflight,download,base`
 - `atlas_version`: optional explicit manifest version
@@ -84,8 +84,14 @@ Current entries:
   `2026.05.27-northern-spain-camino.1` produced a validated `396,275,576` byte
   PMTiles archive and published it to R2 as artifact
   `radmaps-northern-spain-camino-base`.
-- `honshu-japan`: first Asia proof pack for Mount Fuji and Japan
-  hiking/vacation maps.
+- `honshu-japan`: wider first Asia proof pack for Mount Fuji and Japan
+  hiking/vacation maps. The first `ubuntu-latest` real build failed with
+  exit `137` during archive generation, so split regions or use a larger runner
+  before retrying.
+- `mount-fuji-japan`: narrower Japan proof pack for Mount Fuji. Staging build
+  `2026.05.27-mount-fuji-japan.1` produced a validated `47,255,485` byte
+  PMTiles archive and published it to R2 as artifact
+  `radmaps-mount-fuji-japan-base`.
 - `new-zealand-outdoor`: outdoor/vacation proof pack for Queenstown, Rotorua,
   Great Walks, and bikepacking. Staging build
   `2026.05.27-new-zealand-outdoor.1` produced a validated `403,714,835` byte
@@ -130,8 +136,8 @@ Run policy for new coverage targets:
 As of 2026-05-27:
 
 - Staging R2 has full contiguous-U.S. base coverage, North America base
-  coverage, a New Zealand outdoor proof-pack base artifact, and a Northern
-  Spain/Camino proof-pack base artifact.
+  coverage, New Zealand outdoor, Northern Spain/Camino, and Mount Fuji/Japan
+  proof-pack base artifacts.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
@@ -191,13 +197,40 @@ Northern Spain/Camino build details:
 | Live tile check | `/tiles/staging/radmaps-northern-spain-camino-base/8/124/94.mvt` -> `97,251` bytes |
 | Rendered review artifact | `artifacts/atlas-review/camino-northern-spain-field-topo.png` |
 
+Mount Fuji/Japan build details:
+
+| Field | Value |
+|---|---|
+| Workflow run | `26489256148` |
+| Duration | `9m28s` |
+| Atlas version | `2026.05.27-mount-fuji-japan.1` |
+| Artifact id | `radmaps-mount-fuji-japan-base` |
+| Source | `https://download.geofabrik.de/asia/japan-latest.osm.pbf` |
+| R2 object | `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles` |
+| Size | `47,255,485` bytes (`45 MiB`) |
+| ETag | `c9064f3ad83d7693ce564ab0f56e1974` |
+| Bounds | `[138.35, 34.95, 139.3, 35.75]` |
+| Zooms | `0-14` |
+| Live tile check | `/tiles/staging/radmaps-mount-fuji-japan-base/8/226/101.mvt` -> `114,160` bytes |
+| Rendered review artifact | `artifacts/atlas-review/mount-fuji-japan-field-topo.png` |
+
+Wider Honshu/Japan build attempt:
+
+| Field | Value |
+|---|---|
+| Workflow run | `26488700331` |
+| Duration | `13m16s` |
+| Result | Failed before upload/manifest publication |
+| Failure | Docker/Planetiler exited `137` during archive generation on `ubuntu-latest`, consistent with runner memory exhaustion |
+| Next action | Split Honshu into smaller regional proof packs or rerun on a larger/self-hosted atlas runner |
+
 Current staged manifest details:
 
 | Field | Value |
 |---|---|
 | URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json` |
-| Atlas version | `2026.05.27-northern-spain-camino.1` |
-| Base artifacts | `4` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`) |
+| Atlas version | `2026.05.27-mount-fuji-japan.1` |
+| Base artifacts | `5` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`) |
 | Contour artifacts | `177` |
 | Coverage label | `north-america` |
 
@@ -216,6 +249,13 @@ What remains for the Northern Spain/Camino proof pack:
   multi-extract or can wait for a later Europe build.
 - Confirm Camino labels/road/trail density in Field Topo, Simple Contour, and
   Watercolor review renders.
+
+What remains for the Mount Fuji/Japan proof pack:
+
+- Render Hakuba/Nagano, Nikko, Kyoto/Nara, and Shimanami fixtures after the
+  wider Japan coverage is split or moved to a larger runner.
+- Confirm Japanese place labels, dense transportation geometry, and runtime
+  contours in Field Topo, Simple Contour, and Watercolor review renders.
 
 ## Planetiler Operating Model
 

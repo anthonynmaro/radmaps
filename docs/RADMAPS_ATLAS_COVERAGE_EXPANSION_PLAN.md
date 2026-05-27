@@ -7,9 +7,9 @@ builds.
 
 ## Current Baseline
 
-- Staging R2 has contiguous U.S., North America, New Zealand, and Northern
-  Spain/Camino base PMTiles.
-- The active staging manifest is `2026.05.27-northern-spain-camino.1`.
+- Staging R2 has contiguous U.S., North America, New Zealand, Northern
+  Spain/Camino, and Mount Fuji/Japan proof-pack base PMTiles.
+- The active staging manifest is `2026.05.27-mount-fuji-japan.1`.
 - Production still points at the Driftless manifest until tile routing,
   Browserless rendering, attribution, analytics, and rollback checks pass.
 - High-detail terrain remains browser/Browserless-generated through
@@ -93,6 +93,27 @@ builds.
     `25,960` bytes.
 - Rendered review artifact:
   `artifacts/atlas-review/camino-northern-spain-field-topo.png`.
+- The wider `honshu-japan` staging build failed in workflow run `26488700331`
+  after `13m16s` with Docker/Planetiler exit `137` during archive generation,
+  consistent with an `ubuntu-latest` runner memory kill. No partial artifact was
+  published.
+- `mount-fuji-japan` was added as the narrower Japan proof pack and completed a
+  real staging build in workflow run `26489256148`.
+- Mount Fuji artifact details:
+  - artifact id: `radmaps-mount-fuji-japan-base`
+  - atlas version: `2026.05.27-mount-fuji-japan.1`
+  - object path:
+    `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
+  - size: `47,255,485` bytes
+  - bounds: `[138.35, 34.95, 139.3, 35.75]`
+  - zooms: `0-14`
+- Public tile checks through `tiles.radmaps.studio`:
+  - `/tiles/staging/radmaps-mount-fuji-japan-base/8/226/101.mvt` ->
+    `114,160` bytes.
+  - `/tiles/staging/radmaps-mount-fuji-japan-base/10/906/404.mvt` ->
+    `64,442` bytes.
+- Rendered review artifact:
+  `artifacts/atlas-review/mount-fuji-japan-field-topo.png`.
 
 ## Coverage Target Matrix
 
@@ -103,9 +124,9 @@ guards, build status, and next actions in one machine-readable file.
 Current priority order:
 
 1. Promote the already-built North America base atlas after QA.
-2. Build small global proof packs for current premade regions:
-   Patagonia and Honshu/Japan.
-3. Review the live New Zealand and Northern Spain/Camino staging proof packs.
+2. Review the live New Zealand, Northern Spain/Camino, and Mount Fuji/Japan
+   staging proof packs.
+3. Build the remaining small Patagonia proof pack.
 4. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
    Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
    justifies the spend.

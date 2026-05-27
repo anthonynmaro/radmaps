@@ -81,7 +81,6 @@ describe('atlas coverage target matrix', () => {
 
     expect(firstWave.map(target => target.id)).toEqual([
       'patagonia-andes',
-      'honshu-japan',
     ])
 
     for (const target of firstWave) {
@@ -90,5 +89,6 @@ describe('atlas coverage target matrix', () => {
 
     expect(coverageTargets.targets.find(target => target.id === 'new-zealand-outdoor')?.status).toBe('staging-live')
     expect(coverageTargets.targets.find(target => target.id === 'northern-spain-camino')?.status).toBe('staging-live')
+    expect(coverageTargets.targets.find(target => target.id === 'honshu-japan')?.status).toBe('staging-live')
   })
 })
