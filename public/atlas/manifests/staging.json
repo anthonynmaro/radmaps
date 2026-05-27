@@ -1,5 +1,5 @@
 {
-  "atlasVersion": "2026.05.27-northern-spain-camino.1",
+  "atlasVersion": "2026.05.27-mount-fuji-japan.1",
   "schemaVersion": "radmaps-atlas-v1",
   "coverage": "north-america",
   "label": "RadMaps staging atlas: US + North America base",
@@ -150,6 +150,42 @@
           }
         ],
         "createdAt": "2026-05-27T03:04:23.785Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-mount-fuji-japan-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles",
+        "objectPath": "atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          138.35,
+          34.95,
+          139.3,
+          35.75
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 47255485,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T03:47:51.963Z",
         "status": "staging"
       }
     ],
@@ -4781,5 +4817,5 @@
       "url": "https://radmaps.studio"
     }
   ],
-  "updatedAt": "2026-05-27T03:04:23.820Z"
+  "updatedAt": "2026-05-27T03:47:52.003Z"
 }
