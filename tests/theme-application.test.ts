@@ -49,6 +49,8 @@ describe('theme application', () => {
     expect(next.title_scale).toBe(1)
     expect(next.occasion_scale).toBe(1)
     expect(next.subtitle_scale).toBe(1)
+    expect(next.show_start_pin).toBe(false)
+    expect(next.show_finish_pin).toBe(false)
   })
 
   it('strips stale per-slot visual overrides while preserving edited text', () => {
@@ -119,9 +121,9 @@ describe('theme application', () => {
     expect(next.pin_font_family).toBeUndefined()
     expect(next.leader_label_font_family).toBeUndefined()
     expect(next.grid_color).toBeUndefined()
-    expect(next.grid_opacity).toBe(0.2)
+    expect(next.grid_opacity).toBe(0.16)
     expect(next.grid_weight).toBe(1)
-    expect(next.grid_scope).toBe('poster')
+    expect(next.grid_scope).toBe('map')
   })
 
   it('can restore legacy marathon-era themes without forcing a refined composition', () => {

@@ -124,6 +124,15 @@
             </button>
           </div>
 
+          <button
+            v-if="showThemeBrowser"
+            class="mt-3 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold transition-colors hover:border-[#2D6A4F] hover:text-[#1F4D38]"
+            style="color: #57534E;"
+            @click="emit('browse-themes')"
+          >
+            Browse themes
+          </button>
+
           <!-- Classic themes -->
           <div class="mt-3 pt-3 border-t border-[#F5F5F4]">
             <button
@@ -1403,15 +1412,21 @@
 
 <script setup lang="ts">
 import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
-import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
-import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
-import { POSTER_COMPOSITIONS, getPosterCompositionProfile } from '~/utils/posterCompositions'
+import { getThemeDefinition } from '~/utils/themes/refined'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import {
+  CLASSIC_THEME_OPTIONS,
+  QUICK_THEME_OPTIONS as THEME_OPTIONS,
+  getThemeFontName,
+  getThemeFontPreview,
+  getThemeThumbnailProfile,
+} from '~/utils/themeOptions'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
 
@@ -1424,51 +1439,6 @@ type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
-
-const THEME_THUMB: Record<string, {
-  titlePosition: 'top' | 'bottom'
-  titleAlign: 'center' | 'left'
-  fontWeight: string
-  fontSize: string
-  letterSpacing: string
-  textTransform: string
-  lineHeight: string
-  headerBackground?: 'paper' | 'label'
-  footerBackground?: 'paper' | 'label'
-}> = {
-  chalk:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '300', fontSize: '5.5px', letterSpacing: '0.32em', textTransform: 'uppercase', lineHeight: '1.2'  },
-  topaz:           { titlePosition: 'top',    titleAlign: 'center', fontWeight: '700', fontSize: '7.5px', letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: '1.05' },
-  dusk:            { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.03em', textTransform: 'none',      lineHeight: '1.1'  },
-  obsidian:        { titlePosition: 'top',    titleAlign: 'center', fontWeight: '800', fontSize: '9px',   letterSpacing: '-0.01em', textTransform: 'uppercase', lineHeight: '0.95' },
-  forest:          { titlePosition: 'top',    titleAlign: 'center', fontWeight: '600', fontSize: '7.5px', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.05' },
-  midnight:        { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '7px',   letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: '1.05' },
-  editorial:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.02em', textTransform: 'none',      lineHeight: '1.1'  },
-  bauhaus:         { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '900', fontSize: '9.5px', letterSpacing: '-0.02em', textTransform: 'uppercase', lineHeight: '0.9'  },
-  vintage:         { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.04em', textTransform: 'none',      lineHeight: '1.08' },
-  brutalist:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '400', fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: '0.92' },
-  risograph:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '500', fontSize: '7px',   letterSpacing: '0.10em', textTransform: 'uppercase', lineHeight: '1.0'  },
-  blueprint:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.14em', textTransform: 'uppercase', lineHeight: '1.05' },
-  kertok:          { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '200', fontSize: '7px',   letterSpacing: '0.06em', textTransform: 'none',      lineHeight: '1.12' },
-  'mid-century':   { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '6px',   letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: '1.05' },
-  'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
-  'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
-}
-
-const DEFAULT_THEME_THUMB = {
-  titlePosition: 'top',
-  titleAlign: 'center',
-  fontWeight: '700',
-  fontSize: '7px',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  lineHeight: '1.1',
-} as const
-
-const THEME_OPTIONS: ThemeDefinition[] = [
-  ...REFINED_THEMES,
-  ...COLOR_THEMES.filter(theme => !theme.legacy && !REFINED_THEMES.some(refined => refined.id === theme.id)),
-]
-const CLASSIC_THEME_OPTIONS: ThemeDefinition[] = COLOR_THEMES
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1677,6 +1647,8 @@ const emit = defineEmits<{
   'request-view-reset': []
   /** User selected an additional GPX track to import into trail segments */
   'track-upload': [file: File]
+  /** User wants to reopen the first-run theme browser */
+  'browse-themes': []
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1741,6 +1713,8 @@ const BASE_TABS: Array<{ id: TabId; label: string }> = [
 ]
 
 const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
+const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
+const showThemeBrowser = computed(() => import.meta.dev || themePickerEnabled.value)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
 const visibleTabs = computed(() => showScoutTab.value
   ? [...BASE_TABS, { id: 'scout' as const, label: 'Scout' }]
@@ -2196,72 +2170,17 @@ const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
   { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
 
-const THEME_FONT_PREVIEW: Record<string, string> = {
-  chalk:       "'Work Sans', sans-serif",
-  topaz:       "'Space Grotesk', sans-serif",
-  dusk:        "'DM Serif Display', serif",
-  obsidian:    "'Big Shoulders Display', sans-serif",
-  forest:      "'Oswald', sans-serif",
-  midnight:    "'Fjalla One', sans-serif",
-  editorial:   "'Playfair Display', serif",
-  bauhaus:     "'Big Shoulders Display', sans-serif",
-  vintage:     "'DM Serif Display', serif",
-  brutalist:   "'Bebas Neue', sans-serif",
-  risograph:   "'Oswald', sans-serif",
-  blueprint:   "'Space Grotesk', sans-serif",
-  kertok:      "'Work Sans', sans-serif",
-  'mid-century': "'Oswald', sans-serif",
-  'topo-art':  "'Work Sans', sans-serif",
-  'dark-sky':  "'Fjalla One', sans-serif",
-}
-
-const THEME_FONT_NAME: Record<string, string> = {
-  chalk:       'Work Sans Light',
-  topaz:       'Space Grotesk Bold',
-  dusk:        'DM Serif Display',
-  obsidian:    'Big Shoulders Display',
-  forest:      'Oswald SemiBold',
-  midnight:    'Fjalla One',
-  editorial:   'Playfair Display',
-  bauhaus:     'Big Shoulders Display',
-  vintage:     'DM Serif Display',
-  brutalist:   'Bebas Neue',
-  risograph:   'Oswald',
-  blueprint:   'Space Grotesk',
-  kertok:      'Work Sans',
-  'mid-century': 'Oswald',
-  'topo-art':  'Work Sans',
-  'dark-sky':  'Fjalla One',
-}
-
 function themeThumb(theme: ThemeDefinition, classic = false) {
-  const composition = classic
-    ? POSTER_COMPOSITIONS['legacy-classic']
-    : getPosterCompositionProfile({
-        color_theme: theme.id,
-        composition: theme.composition,
-      })
-  const base = THEME_THUMB[theme.id] ?? DEFAULT_THEME_THUMB
-  return {
-    ...base,
-    titlePosition: composition.titlePosition,
-    titleAlign: composition.titleAlign,
-    fontWeight: theme.id === 'brutalist' || theme.id === 'marathon-bib' ? '900' : base.fontWeight,
-    fontSize: theme.id === 'brutalist' || theme.id === 'bold-modern' ? '8px' : base.fontSize,
-    letterSpacing: theme.id === 'editorial-minimal' ? '0.02em' : base.letterSpacing,
-    textTransform: theme.id === 'editorial-minimal' ? 'none' : base.textTransform,
-    headerBackground: composition.headerBackground,
-    footerBackground: 'label',
-  }
+  return getThemeThumbnailProfile(theme, classic)
 }
 
 function themeFontPreview(theme: ThemeDefinition): string {
-  return THEME_FONT_PREVIEW[theme.id] ?? (theme.font_family ? `'${theme.font_family}', sans-serif` : 'system-ui')
+  return getThemeFontPreview(theme)
 }
 
 const activeThemeDefinition = computed(() => getThemeDefinition(local.color_theme ?? 'chalk'))
 const activeThemeTypography = computed(() =>
-  THEME_FONT_NAME[local.color_theme ?? 'chalk'] ?? activeThemeDefinition.value?.font_family ?? 'Work Sans',
+  getThemeFontName(local.color_theme ?? 'chalk', activeThemeDefinition.value),
 )
 
 const contrastSafePinColor = computed(() =>

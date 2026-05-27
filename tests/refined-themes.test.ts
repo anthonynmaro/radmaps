@@ -30,12 +30,27 @@ describe('refined theme Phase 0 scaffolding', () => {
       if (theme.map_defaults.show_contours) {
         expect(theme.map_defaults.contour_detail, theme.id).toBeGreaterThanOrEqual(5)
         expect(theme.map_defaults.contour_major_width, theme.id).toBe(DEFAULT_CONTOUR_MAJOR_WIDTH)
+        expect(theme.map_defaults.contour_opacity, theme.id).toBeLessThanOrEqual(0.46)
       }
       if (theme.map_defaults.show_grid) {
-        expect(theme.map_defaults.grid_opacity, theme.id).toBe(0.2)
+        expect(theme.map_defaults.grid_opacity, theme.id).toBeGreaterThan(0)
+        expect(theme.map_defaults.grid_opacity, theme.id).toBeLessThanOrEqual(0.2)
         expect(theme.map_defaults.grid_scope, theme.id).toMatch(/^(poster|map)$/)
       }
     }
+  })
+
+  it('keeps blueprint grids inside the map area by default', () => {
+    expect(getRefinedThemeById('blueprint')?.map_defaults).toMatchObject({
+      show_grid: true,
+      grid_scope: 'map',
+      grid_opacity: 0.16,
+    })
+    expect(getRefinedThemeById('blueprint-strava')?.map_defaults).toMatchObject({
+      show_grid: true,
+      grid_scope: 'map',
+      grid_opacity: 0.16,
+    })
   })
 
   it('exposes new theme and composition ids through the shared unions', () => {
@@ -69,6 +84,14 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(getThemeDefinition('chalk')?.legacy).toBe(true)
     expect(getRefinedThemeById('editorial-minimal')?.composition).toBe('editorial-tall')
     expect(getRefinedThemeById('midcentury-travel')?.map_defaults.preset).toBe('radmaps-simple-contour')
+  })
+
+  it('keeps mid-century map labels readable on its warm map surface', () => {
+    const midcentury = getRefinedThemeById('midcentury-travel')
+
+    expect(midcentury?.map_defaults.place_labels_color).toBe('#3A4A2A')
+    expect(midcentury?.map_defaults.poi_labels_color).toBe('#3A4A2A')
+    expect(midcentury?.map_defaults.atlas_layer_settings?.place?.label_color).toBe('#3A4A2A')
   })
 
   it('keeps preview-forward contour themes backed by contour map detail', () => {

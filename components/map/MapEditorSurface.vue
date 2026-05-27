@@ -129,6 +129,7 @@
         @request-view-lock="mapPreviewRef?.freezeView()"
         @request-view-edit="mapPreviewRef?.unfreezeView()"
         @request-view-reset="mapPreviewRef?.resetViewToRoute()"
+        @browse-themes="emit('browse-themes')"
       />
       <div v-else class="flex-1 bg-white animate-pulse" />
     </aside>
@@ -204,6 +205,7 @@ const emit = defineEmits<{
   'logo-upload': [file: File]
   'image-upload': [payload: { file: File; kind: MapAssetKind; replaceAssetId?: string }]
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
+  'browse-themes': []
 }>()
 
 const styleConfig = computed({

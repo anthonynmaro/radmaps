@@ -68,6 +68,67 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-side-rail')).toBeVisible()
   })
 
+  test('theme picker previews themes before mutating saved style', async ({ page }, testInfo) => {
+    await page.goto('/style-browser-fixture?themePicker=1&width=1180&height=820')
+
+    await expect(page.getByTestId('theme-lineup-step')).toBeVisible()
+    expect(await page.getByTestId('theme-preview-card').count()).toBeGreaterThan(10)
+    await expect(page.locator('.theme-lineup-grid-head')).toHaveCount(0)
+    await expect(page.locator('.theme-lineup-icon-action')).toHaveCount(0)
+
+    await expect.poll(async () => page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle()?.color_theme ?? null
+    })).toBe('editorial-minimal')
+
+    await page.locator('[data-testid="theme-preview-card"][data-theme-id="blueprint"]').click()
+    const heroPoster = page.locator('[data-testid="theme-picker-hero"] [data-testid="poster-canvas"]').first()
+    await expect(heroPoster).toHaveAttribute('data-theme', 'blueprint')
+    const heroPosterBox = await heroPoster.boundingBox()
+    expect(heroPosterBox?.width).toBeGreaterThan(240)
+    expect(heroPosterBox?.height).toBeGreaterThan(360)
+
+    const afterSelectStyle = await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle()
+    })
+    expect(afterSelectStyle.color_theme).toBe('editorial-minimal')
+
+    if (testInfo.project.name === 'mobile') {
+      const applyBox = await page.getByTestId('theme-picker-apply-mobile').boundingBox()
+      const designBox = await page.getByTestId('theme-picker-design-myself-mobile').boundingBox()
+      expect(applyBox).toBeTruthy()
+      expect(designBox).toBeTruthy()
+      expect(designBox!.x + designBox!.width).toBeLessThanOrEqual(applyBox!.x)
+    }
+
+    await page.getByTestId(testInfo.project.name === 'mobile' ? 'theme-picker-apply-mobile' : 'theme-picker-apply').click()
+    await expect(page.getByTestId('theme-lineup-step')).toHaveCount(0)
+
+    const appliedStyle = await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle()
+    })
+    expect(appliedStyle.color_theme).toBe('blueprint')
+    expect(appliedStyle.composition).toBe('blueprint-grid')
+  })
+
+  test('theme picker design-myself exits without applying the selected preview', async ({ page }, testInfo) => {
+    await page.goto('/style-browser-fixture?themePicker=1&width=1180&height=820')
+    await expect(page.getByTestId('theme-lineup-step')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => Boolean((window as any).__RADMAPS_STYLE_FIXTURE__))).toBe(true)
+
+    await page.locator('[data-testid="theme-preview-card"][data-theme-id="blueprint"]').click()
+    await page.getByTestId(testInfo.project.name === 'mobile' ? 'theme-picker-design-myself-mobile' : 'theme-picker-design-myself').click()
+    await expect(page.getByTestId('theme-lineup-step')).toHaveCount(0)
+
+    const style = await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      return fixture?.getStyle()
+    })
+    expect(style.color_theme).toBe('editorial-minimal')
+  })
+
   test('renders composition-specific printed cues', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=park-quad&theme=usgs-vintage')
     await expect(page.getByTestId('composition-kicker')).toContainText('Department')

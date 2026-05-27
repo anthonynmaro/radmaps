@@ -23,15 +23,25 @@ type RefinedThemeDefinition = ThemeDefinition & {
   map_defaults: Partial<StyleConfig>
 }
 
+const REFINED_CONTOUR_OPACITY = 0.34
+const REFINED_CONTOUR_MINOR_WIDTH = 0.72
+
 function mapDefaults(defaults: Partial<StyleConfig>): Partial<StyleConfig> {
   const atlasStyleId = typeof defaults.preset === 'string' && defaults.preset.startsWith('radmaps-')
     ? { atlas_style_id: defaults.preset }
     : {}
+  const contourDefaults = defaults.show_contours
+    ? {
+        contour_opacity: REFINED_CONTOUR_OPACITY,
+        contour_minor_width: REFINED_CONTOUR_MINOR_WIDTH,
+        contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH,
+      }
+    : {}
 
   return {
+    ...contourDefaults,
     ...defaults,
     ...atlasStyleId,
-    ...(defaults.show_contours ? { contour_major_width: DEFAULT_CONTOUR_MAJOR_WIDTH } : {}),
   }
 }
 
@@ -100,7 +110,22 @@ export const REFINED_THEMES = [
     border_style: 'none',
     tile_grain: 0.12,
     composition: 'travel-banner',
-    map_defaults: mapDefaults({ preset: 'radmaps-simple-contour', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({
+      preset: 'radmaps-simple-contour',
+      show_roads: false,
+      show_place_labels: false,
+      show_hillshade: false,
+      show_contours: true,
+      contour_detail: 5,
+      tile_effect: 'none',
+      show_grid: false,
+      place_labels_color: '#3A4A2A',
+      poi_labels_color: '#3A4A2A',
+      atlas_layer_settings: {
+        place: { label_color: '#3A4A2A', halo_color: '#E8DAB8' },
+        poi: { label_color: '#3A4A2A' },
+      },
+    }),
   },
   {
     id: 'risograph',
@@ -145,7 +170,7 @@ export const REFINED_THEMES = [
     tile_grain: 0.04,
     composition: 'blueprint-grid',
     show_grid: true,
-    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'map', grid_opacity: 0.16, grid_weight: 1 }),
   },
   {
     id: 'blueprint-strava',
@@ -168,7 +193,7 @@ export const REFINED_THEMES = [
     tile_grain: 0.04,
     composition: 'blueprint-strava',
     show_grid: true,
-    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'poster', grid_opacity: 0.2, grid_weight: 1 }),
+    map_defaults: mapDefaults({ preset: 'radmaps-alidade-dark', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: true, grid_scope: 'map', grid_opacity: 0.16, grid_weight: 1 }),
   },
   {
     id: 'field-journal',

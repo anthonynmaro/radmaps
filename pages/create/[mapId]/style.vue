@@ -66,6 +66,7 @@
     </header>
 
     <MapEditorSurface
+      v-if="!showThemePicker"
       v-model="styleConfig"
       :map="mapData"
       :saving="saving"
@@ -73,6 +74,15 @@
       @logo-upload="handleLogoUpload"
       @image-upload="handleImageAssetUpload"
       @freeze-changed="onFreezeChanged"
+      @browse-themes="openThemePicker"
+    />
+
+    <ThemeLineupStep
+      v-else-if="mapData"
+      :model-value="styleConfig"
+      :map="mapData"
+      @apply-theme="applyThemePickerSelection"
+      @design-myself="dismissThemePicker"
     />
 
     <!-- ── Save version modal ─────────────────────────────────────────────── -->
@@ -144,8 +154,11 @@
 </template>
 
 <script setup lang="ts">
+import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
+import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import type { DeletedRange, MapAsset, MapAssetKind, PosterTextOverride, PosterTextSlot, StyleConfig, TextOverlay } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
+import { FLAGS } from '~/utils/knownFlags'
 import { buildElevationProfile, detectDisconnectedRanges, mergeDeletedRanges, mergeDeletedRangesForRoute } from '~/utils/trail'
 
 definePageMeta({ middleware: 'auth', layout: false })
@@ -176,6 +189,16 @@ const {
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
 const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
+const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
+const themePickerDismissed = ref(false)
+
+const themePickerDismissKey = computed(() => `radmaps_theme_picker_dismissed_${mapId.value}`)
+const themePickerRequested = computed(() => route.query.themePicker === '1' || route.query.themePicker === 'true')
+const themePickerAllowed = computed(() => import.meta.dev || themePickerEnabled.value)
+const themePickerForced = computed(() => import.meta.dev && themePickerRequested.value)
+const showThemePicker = computed(() =>
+  Boolean(mapData.value && themePickerRequested.value && themePickerAllowed.value && (themePickerForced.value || !themePickerDismissed.value)),
+)
 
 const hasElevationData = computed(() => {
   if (!mapData.value?.geojson) return false
@@ -187,7 +210,45 @@ const sheetState = ref<'closed' | 'half' | 'full'>('half')
 // Desktop renders the panel as a sidebar (the state has no effect there).
 onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'
+  themePickerDismissed.value = localStorage.getItem(themePickerDismissKey.value) === '1'
 })
+
+watch(themePickerDismissKey, (key) => {
+  if (import.meta.server) return
+  themePickerDismissed.value = localStorage.getItem(key) === '1'
+})
+
+function themePickerClearedQuery() {
+  const nextQuery = { ...route.query }
+  delete nextQuery.themePicker
+  return nextQuery
+}
+
+async function dismissThemePicker() {
+  if (import.meta.client) {
+    localStorage.setItem(themePickerDismissKey.value, '1')
+  }
+  themePickerDismissed.value = true
+  await navigateTo({ path: route.path, query: themePickerClearedQuery() }, { replace: true })
+}
+
+async function openThemePicker() {
+  if (!themePickerAllowed.value) return
+  if (import.meta.client) {
+    localStorage.removeItem(themePickerDismissKey.value)
+  }
+  themePickerDismissed.value = false
+  await navigateTo({ path: route.path, query: { ...route.query, themePicker: '1' } }, { replace: true })
+}
+
+async function applyThemePickerSelection(payload: { styleConfig: StyleConfig }) {
+  styleConfig.value = { ...payload.styleConfig }
+  if (mapData.value) {
+    mapData.value.style_config = { ...styleConfig.value }
+  }
+  await nextTick()
+  await dismissThemePicker()
+}
 
 function toggleSheet() {
   // Tap on the drag handle: closed → half → full → half

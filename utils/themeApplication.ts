@@ -34,6 +34,8 @@ const THEME_RESET_FIELDS = {
   title_scale: 1,
   occasion_scale: 1,
   subtitle_scale: 1,
+  show_start_pin: false,
+  show_finish_pin: false,
 } satisfies Partial<StyleConfig>
 
 function stripThemeOwnedTextOverride(override: PosterTextOverride): PosterTextOverride | undefined {

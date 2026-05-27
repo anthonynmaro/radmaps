@@ -1,6 +1,14 @@
 <template>
   <main class="min-h-screen bg-stone-200 p-6">
-    <div v-if="surfaceFixture" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
+    <div v-if="themePickerFixture && !themePickerClosed" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
+      <ThemeLineupStep
+        :model-value="styleConfig"
+        :map="sampleMap"
+        @apply-theme="onThemePickerApply"
+        @design-myself="themePickerClosed = true"
+      />
+    </div>
+    <div v-else-if="surfaceFixture" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
       <MapEditorSurface
         v-model="styleConfig"
         :map="sampleMap"
@@ -28,6 +36,7 @@
 <script setup lang="ts">
 import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
+import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
@@ -62,6 +71,7 @@ const printScale = typeof route.query.printScale === 'string' ? Number.parseFloa
 const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
 const surfaceFixture = route.query.surface === 'true' || route.query.surface === '1'
+const themePickerFixture = route.query.themePicker === 'true' || route.query.themePicker === '1'
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 const withAsset = route.query.asset === 'true' || route.query.asset === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
@@ -159,6 +169,7 @@ const initialStyleConfig: StyleConfig = {
 }
 
 const styleConfig = ref<StyleConfig>(initialStyleConfig)
+const themePickerClosed = ref(false)
 
 onMounted(() => {
   ;(window as unknown as {
@@ -225,6 +236,11 @@ function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
     ...styleConfig.value,
     poster_layout: value,
   }
+}
+
+function onThemePickerApply(payload: { styleConfig: StyleConfig }) {
+  styleConfig.value = payload.styleConfig
+  themePickerClosed.value = true
 }
 
 const finalFraming = getPrintFraming(styleConfig.value.print_size ?? '24x36', 'final')

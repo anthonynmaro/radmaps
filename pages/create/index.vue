@@ -826,7 +826,7 @@ async function savePlaceMap() {
       throw new Error((err as any).message ?? 'Failed to create map')
     }
     const data: any = await response.json()
-    router.push(`/create/${data.id}/style`)
+    router.push(`/create/${data.id}/style?themePicker=1`)
   } catch (err) {
     placeError.value = err instanceof Error ? err.message : 'Could not create map.'
   } finally {
@@ -1019,7 +1019,7 @@ async function saveDrawnMap() {
       throw new Error(err.message ?? 'Failed to save drawn map')
     }
     const data = await response.json()
-    router.push(`/create/${data.id}/style`)
+    router.push(`/create/${data.id}/style?themePicker=1`)
   } catch (err) {
     drawError.value = err instanceof Error ? err.message : 'Could not save your map.'
   } finally {
@@ -1220,7 +1220,7 @@ const createMap = async () => {
       throw new Error(err.message ?? 'Failed to create map')
     }
     const data = await response.json()
-    router.push(`/create/${data.id}/style`)
+    router.push(`/create/${data.id}/style?themePicker=1`)
   } catch (err) {
     parseError.value = err instanceof Error ? err.message : 'Failed to create map'
   } finally {
@@ -1279,7 +1279,7 @@ const importActivity = async (activity: any) => {
       throw new Error(err.message ?? 'Failed to import activity')
     }
     const data = await response.json()
-    router.push(`/create/${data.id}/style`)
+    router.push(`/create/${data.id}/style?themePicker=1`)
   } catch (err) {
     stravaError.value = err instanceof Error ? err.message : 'Failed to import activity'
     importingId.value = null
