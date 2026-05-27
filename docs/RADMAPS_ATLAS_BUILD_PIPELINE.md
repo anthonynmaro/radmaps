@@ -74,6 +74,20 @@ Current entries:
   America coverage. AWS build `north-america-base-20260521T203307Z` produced a
   validated `20,296,668,015` byte PMTiles archive and published it to the
   staging R2 manifest as artifact `radmaps-north-america-base`.
+- `patagonia-andes`: first South America proof pack for Torres del Paine,
+  Patagonia hiking/vacation maps, and Carretera Austral-style bikepacking.
+- `northern-spain-camino`: first Europe proof pack for Camino product coverage;
+  intentionally uses the Spain extract to keep cost small and defers the French
+  start segment to a later Pyrenees multi-extract or Europe run.
+- `honshu-japan`: first Asia proof pack for Mount Fuji and Japan
+  hiking/vacation maps.
+- `new-zealand-outdoor`: queued outdoor/vacation proof pack for Queenstown,
+  Rotorua, Great Walks, and bikepacking.
+
+The broader product queue, including deferred Alps/Dolomites, Nepal, Peru,
+Iceland/Scotland, Madeira/Canaries, and Costa Rica targets, is tracked in
+`atlas/coverage-targets.json` so strategic demand does not automatically become
+a runnable build.
 
 The full U.S. source is the Geofabrik United States OSM PBF:
 
@@ -93,6 +107,16 @@ bucket, then used a short-lived in-region transfer runner to copy the object to
 Cloudflare R2. That avoided local laptop disk pressure and long residential
 upload times.
 
+Run policy for new coverage targets:
+
+- Start with `workflow_dispatch` or `npm run atlas:pipeline -- --dry-run`.
+- Keep `dry_run=true` until source size, runner shape, and scratch storage are
+  reviewed.
+- Do not run any target marked `deferred-*` in `atlas/coverage-targets.json`
+  until the cost/demand gate has been explicitly cleared.
+- Keep cached contours disabled for these new base packs unless Browserless
+  render metrics show runtime contours are unreliable or too slow.
+
 ## Current Progress Snapshot
 
 As of 2026-05-21:
@@ -103,8 +127,10 @@ As of 2026-05-21:
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
 - Production R2 still points at the earlier Driftless base and contour pack.
-  Production promotion is intentionally pending visual QA, Worker/custom-domain
-  verification, editor integration, and attribution/analytics checks.
+  Production promotion is intentionally pending broader visual QA, editor
+  integration, and attribution/analytics checks. The public tile hostname is
+  live through the Cloudflare Worker custom domain, and the Vercel shim remains
+  available as fallback during DNS cache transition.
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
@@ -181,17 +207,19 @@ Stages:
 Large PMTiles uploads use S3 multipart upload through
 `scripts/upload-atlas-object.mjs`; the first full-US upload used `36` parts.
 
-After publish, production delivery is verified through the Cloudflare Worker:
+After publish, production delivery is verified through the hosted tile edge:
 
 ```bash
 curl https://tiles.radmaps.studio/manifests/staging.json
 curl -I https://tiles.radmaps.studio/tiles/staging/radmaps-us-base/8/44/97.mvt
 ```
 
-The Worker only serves artifacts listed in the R2 manifest. It rejects unknown
-artifact ids, out-of-range z/x/y, tiles outside artifact bounds, and raw URL
-lookups. This keeps the customer tile path stable while allowing the manifest
-to move between immutable PMTiles releases.
+The tile edge only serves artifacts listed in the R2 manifest. It rejects
+unknown artifact ids, out-of-range z/x/y, tiles outside artifact bounds, and
+raw URL lookups. This keeps the customer tile path stable while allowing the
+manifest to move between immutable PMTiles releases. Today the public hostname
+uses the Vercel/Nuxt shim; the Cloudflare Worker is deployed and verified on
+workers.dev and remains the preferred long-term edge.
 
 Repository tests that protect this workflow:
 
@@ -330,7 +358,7 @@ The owned atlas is useful but not production-complete. The remaining work is:
 2. **Atlas Lab and editor QA**
    - Validate North America base coverage in Atlas Lab across U.S., Canada,
      Mexico, Alaska, and coastal edge cases.
-   - Run house-style visual checks for Toner, Field Topo, Watercolor variants,
+   - Run house-style visual checks for Toner, Field Topo, Watercolor,
      Night Relief, and Simple Contour.
    - Confirm Browserless proof/final renders match the editor at `8x12`,
      `24x36`, and `32x48`.
