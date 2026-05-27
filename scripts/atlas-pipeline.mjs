@@ -57,6 +57,7 @@ if (stages.includes('validate')) validateArtifacts()
 if (stages.includes('upload')) uploadArtifacts()
 if (stages.includes('manifest')) generateManifest()
 if (stages.includes('publish')) publishManifest()
+if (stages.includes('promote-approved')) promoteApprovedArtifacts()
 
 function parseArgs(argv) {
   const parsed = { allowMissingContours: true }
@@ -79,7 +80,7 @@ Options:
   --region <id>                 Region key from atlas/regions.json
   --bucket <name>               R2 bucket override
   --environment <name>          staging or production
-  --stage <name>                all, preflight, download, base, contours, validate, upload, manifest, publish
+  --stage <name>                all, preflight, download, base, contours, validate, upload, manifest, publish, promote-approved
   --version <id>                Atlas version, defaults to date + coverage
   --date <yyyy-mm-dd>           Date inserted into R2 object paths
   --workdir <path>              Build scratch dir, defaults to atlas/build/<region>
@@ -288,6 +289,15 @@ function publishManifest() {
     '--verify',
     'json',
   ], { heavy: true })
+}
+
+function promoteApprovedArtifacts() {
+  run('node', [
+    'scripts/atlas-promote-approved.mjs',
+    '--atlas-version',
+    version,
+    ...(dryRun ? ['--dry-run'] : []),
+  ])
 }
 
 function sourcePbfPath() {

@@ -1,8 +1,8 @@
 {
-  "atlasVersion": "2026.05.15-driftless.1",
+  "atlasVersion": "2026.05.27-approved-coverage.1",
   "schemaVersion": "radmaps-atlas-v1",
-  "coverage": "driftless",
-  "label": "Driftless / Madison lab pack",
+  "coverage": "north-america-global-proof-packs",
+  "label": "RadMaps production atlas: approved coverage",
   "createdAt": "2026-05-15T14:52:47Z",
   "storage": {
     "provider": "cloudflare-r2",
@@ -18,12 +18,244 @@
         "objectPath": "atlas/v1/base/driftless/2026-05-15/radmaps-driftless-planetiler.pmtiles",
         "minzoom": 0,
         "maxzoom": 14,
-        "bounds": [-90.25, 42.85, -88.85, 43.55],
-        "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+        "bounds": [
+          -90.25,
+          42.85,
+          -88.85,
+          43.55
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
         "bytes": 24461506,
         "etag": "9bc9790b7bfe6d7c66b7452c2e5906b5",
-        "sourceLicenses": ["OpenStreetMap ODbL", "RadMaps derived tile packaging"],
+        "sourceLicenses": [
+          "OpenStreetMap ODbL",
+          "RadMaps derived tile packaging"
+        ],
         "createdAt": "2026-05-15T14:52:47Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-us-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles",
+        "objectPath": "atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -125,
+          24.4,
+          -66.8,
+          49.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 9593839310,
+        "sourceLicenses": [
+          "OpenStreetMap ODbL",
+          "RadMaps derived tile packaging"
+        ],
+        "createdAt": "2026-05-17T07:43:42.639Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-north-america-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles",
+        "objectPath": "atlas/v1/base/north-america/2026-05-21/radmaps-base-north-america.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -170,
+          5,
+          -50,
+          84
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 20296668015,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-21T21:42:06.249Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-new-zealand-outdoor-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles",
+        "objectPath": "atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          166,
+          -47.4,
+          179,
+          -34
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 403714835,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T02:39:37.393Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-northern-spain-camino-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles",
+        "objectPath": "atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -9.4,
+          41.7,
+          -0.7,
+          43.6
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 396275576,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T03:04:23.785Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-mount-fuji-japan-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles",
+        "objectPath": "atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          138.35,
+          34.95,
+          139.3,
+          35.75
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 47255485,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T03:47:51.963Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-patagonia-andes-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles",
+        "objectPath": "atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -76.2,
+          -55.2,
+          -68,
+          -40
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 234649027,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T04:14:43.073Z",
         "status": "production"
       }
     ],
@@ -35,17 +267,37 @@
         "objectPath": "atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles",
         "minzoom": 8,
         "maxzoom": 14,
-        "bounds": [-90.25, 42.85, -88.85, 43.55],
-        "layers": ["contour"],
+        "bounds": [
+          -90.25,
+          42.85,
+          -88.85,
+          43.55
+        ],
+        "layers": [
+          "contour"
+        ],
         "bytes": 29075770,
         "etag": "ba30af3fed2e4ffc05699d98327e851b",
-        "sourceLicenses": ["USGS 3DEP", "RadMaps generated contours"],
+        "sourceLicenses": [
+          "USGS 3DEP",
+          "RadMaps generated contours"
+        ],
         "createdAt": "2026-05-15T14:52:47Z",
         "status": "production"
       }
     ]
   },
-  "layerCatalog": ["contour", "water", "waterway", "park", "landcover", "transportation", "building", "poi", "place"],
+  "layerCatalog": [
+    "contour",
+    "water",
+    "waterway",
+    "park",
+    "landcover",
+    "transportation",
+    "building",
+    "poi",
+    "place"
+  ],
   "attribution": [
     {
       "name": "OpenStreetMap contributors",
@@ -57,5 +309,6 @@
       "requiredText": "Atlas styling and derived tile packaging © RadMaps",
       "url": "https://radmaps.studio"
     }
-  ]
+  ],
+  "updatedAt": "2026-05-27T14:55:10.511Z"
 }
