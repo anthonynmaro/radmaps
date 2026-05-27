@@ -1088,7 +1088,7 @@ function buildRadMapsAtlasStyle(
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
       type: 'vector' as const,
-      tiles: [sameOriginTileUrl('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')],
+      tiles: [sameOriginTileUrl('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')],
       minzoom: 0,
       maxzoom: 14,
       attribution: '© OpenStreetMap contributors © RadMaps Atlas',

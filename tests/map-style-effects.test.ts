@@ -221,7 +221,7 @@ describe('RadMaps Atlas style integration', () => {
         preset,
       }, 'mapbox-test-token')
 
-      expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')
+      expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
     }
   })
 
@@ -253,7 +253,7 @@ describe('RadMaps Atlas style integration', () => {
       show_contours: true,
     }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
 
-    expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=staging')
+    expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
     expect(sourceTileUrl(style, 'contours')).toBe('contour://dem/{z}/{x}/{y}')
     expect((style as { glyphs?: string }).glyphs).toBe('https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf')
   })
