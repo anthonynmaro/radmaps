@@ -51,7 +51,7 @@
       "id": "patagonia-andes",
       "label": "Patagonia Andes",
       "priority": 2,
-      "status": "build-candidate",
+      "status": "staging-live",
       "buildClass": "regional",
       "atlasRegion": "patagonia-andes",
       "bbox": [-76.2, -55.2, -68.0, -40.0],
@@ -64,7 +64,7 @@
         "Ushuaia",
         "Bariloche / Nahuel Huapi"
       ],
-      "nextAction": "Run a dry-run pipeline for patagonia-andes, then build only if the source and scratch estimate fit the current AWS budget.",
+      "nextAction": "Staging base atlas is built and published; review Torres del Paine, El Chalten, Bariloche, and Carretera Austral fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
       "terrainStrategy": "runtime-contours"
     },
@@ -179,7 +179,7 @@
       "activities": ["hiking", "bikepacking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Machu Picchu / Salkantay", "Cordillera Blanca", "Cotopaxi", "Quilotoa", "Sacred Valley"],
-      "nextAction": "Queue after Patagonia unless customer/search demand indicates earlier interest.",
+      "nextAction": "Queue after the live Patagonia proof pack passes visual review unless customer/search demand indicates earlier interest.",
       "maxNewBuildCostUsd": 35,
       "terrainStrategy": "runtime-contours"
     },

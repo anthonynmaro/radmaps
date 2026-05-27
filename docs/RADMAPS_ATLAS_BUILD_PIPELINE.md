@@ -78,6 +78,9 @@ Current entries:
   staging R2 manifest as artifact `radmaps-north-america-base`.
 - `patagonia-andes`: first South America proof pack for Torres del Paine,
   Patagonia hiking/vacation maps, and Carretera Austral-style bikepacking.
+  Staging build `2026.05.27-patagonia-andes.1` produced a validated
+  `234,649,027` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-patagonia-andes-base`.
 - `northern-spain-camino`: Europe proof pack for Camino product coverage;
   intentionally uses the Spain extract to keep cost small and defers the French
   start segment to a later Pyrenees multi-extract or Europe run. Staging build
@@ -136,8 +139,8 @@ Run policy for new coverage targets:
 As of 2026-05-27:
 
 - Staging R2 has full contiguous-U.S. base coverage, North America base
-  coverage, New Zealand outdoor, Northern Spain/Camino, and Mount Fuji/Japan
-  proof-pack base artifacts.
+  coverage, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
+  Patagonia Andes proof-pack base artifacts.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
@@ -163,6 +166,23 @@ North America build details:
 | Bounds | `[-170, 5, -50, 84]` |
 | Zooms | `0-14` |
 | Verified range read | HTTP `206 Partial Content`, `Content-Range: bytes 0-1023/20296668015` |
+
+Patagonia Andes build details:
+
+| Field | Value |
+|---|---|
+| Workflow run | `26489887144` |
+| Duration | `15m30s` |
+| Atlas version | `2026.05.27-patagonia-andes.1` |
+| Artifact id | `radmaps-patagonia-andes-base` |
+| Source | `https://download.geofabrik.de/south-america-latest.osm.pbf` |
+| R2 object | `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles` |
+| Size | `234,649,027` bytes (`224 MiB`) |
+| ETag | `397eab9eb30cefa9c1935aab89ad1c30` |
+| Bounds | `[-76.2, -55.2, -68, -40]` |
+| Zooms | `0-14` |
+| Live tile check | `/tiles/staging/radmaps-patagonia-andes-base/8/76/170.mvt` -> `29,676` bytes |
+| Rendered review artifact | `artifacts/atlas-review/patagonia-andes-field-topo.png` |
 
 New Zealand build details:
 
@@ -229,8 +249,8 @@ Current staged manifest details:
 | Field | Value |
 |---|---|
 | URL | `https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json` |
-| Atlas version | `2026.05.27-mount-fuji-japan.1` |
-| Base artifacts | `5` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`) |
+| Atlas version | `2026.05.27-patagonia-andes.1` |
+| Base artifacts | `6` (`radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`) |
 | Contour artifacts | `177` |
 | Coverage label | `north-america` |
 
@@ -241,6 +261,13 @@ What remains for the New Zealand proof pack:
 - Confirm runtime contour readiness on dense mountain views and coastal views.
 - Decide whether New Zealand stays staging-only or is copied/promoted with the
   next production manifest after North America passes.
+
+What remains for the Patagonia Andes proof pack:
+
+- Render El Chalten/Fitz Roy, Bariloche/Nahuel Huapi, Ushuaia, and Carretera
+  Austral fixtures.
+- Confirm sparse-road/trail density, glacier/lake labeling, runtime contour
+  legibility, and South America extract costs before any broader Andes build.
 
 What remains for the Northern Spain/Camino proof pack:
 

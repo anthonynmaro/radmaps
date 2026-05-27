@@ -8,8 +8,8 @@ builds.
 ## Current Baseline
 
 - Staging R2 has contiguous U.S., North America, New Zealand, Northern
-  Spain/Camino, and Mount Fuji/Japan proof-pack base PMTiles.
-- The active staging manifest is `2026.05.27-mount-fuji-japan.1`.
+  Spain/Camino, Mount Fuji/Japan, and Patagonia Andes proof-pack base PMTiles.
+- The active staging manifest is `2026.05.27-patagonia-andes.1`.
 - Production still points at the Driftless manifest until tile routing,
   Browserless rendering, attribution, analytics, and rollback checks pass.
 - High-detail terrain remains browser/Browserless-generated through
@@ -114,6 +114,23 @@ builds.
     `64,442` bytes.
 - Rendered review artifact:
   `artifacts/atlas-review/mount-fuji-japan-field-topo.png`.
+- `patagonia-andes` completed a real staging build in workflow run
+  `26489887144`.
+- Patagonia artifact details:
+  - artifact id: `radmaps-patagonia-andes-base`
+  - atlas version: `2026.05.27-patagonia-andes.1`
+  - object path:
+    `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+  - size: `234,649,027` bytes
+  - bounds: `[-76.2, -55.2, -68, -40]`
+  - zooms: `0-14`
+- Public tile checks through `tiles.radmaps.studio`:
+  - `/tiles/staging/radmaps-patagonia-andes-base/8/76/170.mvt` ->
+    `29,676` bytes.
+  - `/tiles/staging/radmaps-patagonia-andes-base/10/304/681.mvt` ->
+    `20,159` bytes.
+- Rendered review artifact:
+  `artifacts/atlas-review/patagonia-andes-field-topo.png`.
 
 ## Coverage Target Matrix
 
@@ -124,9 +141,10 @@ guards, build status, and next actions in one machine-readable file.
 Current priority order:
 
 1. Promote the already-built North America base atlas after QA.
-2. Review the live New Zealand, Northern Spain/Camino, and Mount Fuji/Japan
-   staging proof packs.
-3. Build the remaining small Patagonia proof pack.
+2. Review the live New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and
+   Patagonia Andes staging proof packs.
+3. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
+   QA justifies it.
 4. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
    Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
    justifies the spend.
