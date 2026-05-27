@@ -18,7 +18,7 @@ usage accounting all share one contract.
 
 ## Current Status
 
-As of 2026-05-22, the owned atlas has crossed the first real coverage
+As of 2026-05-27, the owned atlas has crossed the first real coverage
 milestone, but it is not fully production-integrated.
 
 Completed:
@@ -28,8 +28,15 @@ Completed:
   `radmaps-north-america-base`, covering `[-170, 5, -50, 84]` at z0-14.
 - The North America archive is `20,296,668,015` bytes and verified
   range-readable from R2.
-- The staging manifest is a composite manifest with `2` base artifacts and
-  `177` contour artifacts from the verified `us-terrain-phase1` terrain run.
+- The staging manifest is a composite manifest that preserves the verified
+  `us-terrain-phase1` contour shard set while new base artifacts are merged in.
+- New Zealand outdoor PMTiles exist in staging R2 as
+  `radmaps-new-zealand-outdoor-base`, covering `[166, -47.4, 179, -34]` at
+  z0-14.
+- The New Zealand archive is `403,714,835` bytes and verified through
+  `tiles.radmaps.studio` tile checks.
+- The staging manifest is now `2026.05.27-new-zealand-outdoor.1` with `3` base
+  artifacts and `177` contour artifacts.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -55,6 +62,10 @@ Not done yet:
 
 - Production still uses the older Driftless atlas manifest until staging QA is
   complete and the production manifest is promoted.
+- Production promotion of North America needs the large staging PMTiles copied
+  into `radmaps-atlas-prod` or an approved production manifest strategy; do not
+  publish a production manifest that points at objects missing from the prod
+  bucket.
 - The Cloudflare Worker is attached to `tiles.radmaps.studio`; some resolvers
   may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,
@@ -121,6 +132,11 @@ Global release should include:
 - usage-driven rebuild priorities
 - per-country attribution/license registry
 
+First global proof-pack queue:
+- New Zealand outdoor is live in staging and ready for broader visual review.
+- Patagonia Andes, Northern Spain/Camino, and Honshu/Japan have passed dry-run
+  build dispatch and remain the next small real builds.
+
 ## Artifact Storage
 
 Production storage should use immutable PMTiles archives on S3-compatible object
@@ -166,6 +182,7 @@ tiles.radmaps.studio/
       base/
         us/2026-05-15/radmaps-base-us.pmtiles
         north-america/2026-07-01/radmaps-base-north-america.pmtiles
+        new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles
         globe/2026-09-01/radmaps-base-globe.pmtiles
       terrain/
         cache/...

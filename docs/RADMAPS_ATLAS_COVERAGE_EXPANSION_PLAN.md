@@ -7,8 +7,8 @@ builds.
 
 ## Current Baseline
 
-- Staging R2 has contiguous U.S. and North America base PMTiles.
-- The active staging manifest is `2026.05.21-staging-composite.1`.
+- Staging R2 has contiguous U.S., North America, and New Zealand base PMTiles.
+- The active staging manifest is `2026.05.27-new-zealand-outdoor.1`.
 - Production still points at the Driftless manifest until tile routing,
   Browserless rendering, attribution, analytics, and rollback checks pass.
 - High-detail terrain remains browser/Browserless-generated through
@@ -50,6 +50,32 @@ builds.
   - `artifacts/atlas-review/banff-north-america-field-topo.png`
   - `artifacts/atlas-review/mexico-city-contour-wash.png`
 
+## 2026-05-27 Execution Log
+
+- Dry-run GitHub Actions builds passed for `patagonia-andes`,
+  `northern-spain-camino`, `honshu-japan`, and `new-zealand-outdoor` on the
+  pushed `codex/atlas-coverage-expansion` branch.
+- The pipeline now generates a per-region manifest and merges it into the
+  active environment manifest before publishing, so adding a base artifact does
+  not drop existing base or contour artifacts.
+- `new-zealand-outdoor` completed a real staging build in workflow run
+  `26487267646`.
+- New Zealand artifact details:
+  - artifact id: `radmaps-new-zealand-outdoor-base`
+  - atlas version: `2026.05.27-new-zealand-outdoor.1`
+  - object path:
+    `atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles`
+  - size: `403,714,835` bytes
+  - bounds: `[166, -47.4, 179, -34]`
+  - zooms: `0-14`
+- Public tile checks through `tiles.radmaps.studio`:
+  - `/tiles/staging/radmaps-new-zealand-outdoor-base/8/247/164.mvt` -> `90,428`
+    bytes.
+  - `/tiles/staging/radmaps-new-zealand-outdoor-base/10/991/659.mvt` -> `11,954`
+    bytes.
+- Rendered review artifact:
+  `artifacts/atlas-review/queenstown-new-zealand-field-topo.png`.
+
 ## Coverage Target Matrix
 
 The operational coverage queue lives in `atlas/coverage-targets.json`. It keeps
@@ -61,7 +87,8 @@ Current priority order:
 1. Promote the already-built North America base atlas after QA.
 2. Build small global proof packs for current premade regions:
    Patagonia, Northern Spain/Camino, and Honshu/Japan.
-3. Keep New Zealand as the next cheap outdoor/vacation candidate.
+3. Review the live New Zealand staging proof pack across Queenstown, Rotorua,
+   Great Walks, and bikepacking fixtures.
 4. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
    Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
    justifies the spend.

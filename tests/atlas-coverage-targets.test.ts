@@ -46,7 +46,7 @@ describe('atlas coverage target matrix', () => {
 
   it('points runnable targets at declared atlas build regions', () => {
     for (const target of coverageTargets.targets) {
-      if (target.status === 'build-candidate' || target.status === 'qa-ready') {
+      if (target.status === 'build-candidate' || target.status === 'qa-ready' || target.status === 'staging-live') {
         expect(target.atlasRegion, target.id).toBeTruthy()
         expect(atlasRegions[target.atlasRegion!], target.id).toBeTruthy()
       }
@@ -83,11 +83,12 @@ describe('atlas coverage target matrix', () => {
       'patagonia-andes',
       'northern-spain-camino',
       'honshu-japan',
-      'new-zealand-outdoor',
     ])
 
     for (const target of firstWave) {
       expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(25)
     }
+
+    expect(coverageTargets.targets.find(target => target.id === 'new-zealand-outdoor')?.status).toBe('staging-live')
   })
 })

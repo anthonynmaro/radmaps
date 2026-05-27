@@ -1,5 +1,5 @@
 {
-  "atlasVersion": "2026.05.21-staging-composite.1",
+  "atlasVersion": "2026.05.27-new-zealand-outdoor.1",
   "schemaVersion": "radmaps-atlas-v1",
   "coverage": "north-america",
   "label": "RadMaps staging atlas: US + North America base",
@@ -78,6 +78,42 @@
           }
         ],
         "createdAt": "2026-05-21T21:42:06.249Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-new-zealand-outdoor-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles",
+        "objectPath": "atlas/v1/base/new-zealand-outdoor/2026-05-27/radmaps-base-new-zealand-outdoor.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          166,
+          -47.4,
+          179,
+          -34
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 403714835,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-05-27T02:39:37.393Z",
         "status": "staging"
       }
     ],
@@ -4709,5 +4745,5 @@
       "url": "https://radmaps.studio"
     }
   ],
-  "updatedAt": "2026-05-21T21:47:15.144Z"
+  "updatedAt": "2026-05-27T02:39:37.428Z"
 }

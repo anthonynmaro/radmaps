@@ -319,9 +319,29 @@ const sampleRegions: Record<string, {
       [-99.086, 19.456],
     ],
   },
+  newzealand: {
+    title: 'Queenstown High Country',
+    location: 'Queenstown, New Zealand',
+    bbox: [168.55, -45.10, 168.78, -44.94],
+    route: [
+      [168.594, -45.046],
+      [168.622, -45.031],
+      [168.653, -45.010],
+      [168.684, -44.989],
+      [168.724, -44.965],
+    ],
+  },
 }
 
 const sampleRegion = sampleRegions[region] ?? sampleRegions.chicago
+if (region !== 'chicago') {
+  styleConfig.value = {
+    ...styleConfig.value,
+    trail_name: sampleRegion.title,
+    location_text: sampleRegion.location,
+    occasion_text: 'Staging atlas proof',
+  }
+}
 const sampleRoute = sampleRegion.route
 
 const sampleMap: TrailMap = {
