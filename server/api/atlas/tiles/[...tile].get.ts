@@ -1,6 +1,4 @@
 import { PMTiles } from 'pmtiles'
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 // @ts-expect-error vt-pbf does not publish bundled TypeScript declarations.
 import vtpbf from 'vt-pbf'
 import type { AtlasArtifactKey, AtlasManifest, AtlasManifestArtifact } from '~/utils/atlasManifest'
@@ -13,6 +11,11 @@ import {
 } from '~/utils/atlasManifest'
 
 const DEFAULT_BASE_URL = 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles'
+const DEFAULT_HOSTED_TILE_BASE_URL = 'https://tiles.radmaps.studio'
+const PUBLIC_MANIFEST_URLS = {
+  staging: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json',
+  production: 'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/manifests/production.json',
+} as const
 const ALLOWED_TILE_URL_PREFIXES = [
   'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/',
   'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/',
@@ -77,16 +80,29 @@ function validateTileRange(z: number, x: number, y: number) {
   }
 }
 
-async function loadLocalManifest(environment: string) {
-  if (environment !== 'staging' && environment !== 'production') {
+function assertAtlasEnvironment(environment: string): asserts environment is keyof typeof PUBLIC_MANIFEST_URLS {
+  if (!(environment in PUBLIC_MANIFEST_URLS)) {
     throw createError({ statusCode: 400, message: 'Unsupported atlas environment' })
   }
+}
+
+async function loadAtlasManifest(environment: string) {
+  assertAtlasEnvironment(environment)
+
   const cache = manifestCache()
   const cached = cache.get(environment)
   if (cached) return cached
 
-  const file = resolve(process.cwd(), 'public/atlas/manifests', `${environment}.json`)
-  const manifest = JSON.parse(await readFile(file, 'utf8')) as AtlasManifest
+  const response = await fetch(PUBLIC_MANIFEST_URLS[environment], {
+    headers: { accept: 'application/json' },
+  })
+  if (!response.ok) {
+    throw createError({
+      statusCode: 502,
+      message: `Atlas manifest fetch failed: ${response.status}`,
+    })
+  }
+  const manifest = await response.json() as AtlasManifest
   cache.set(environment, manifest)
   return manifest
 }
@@ -107,7 +123,7 @@ async function artifactFromQuery(
     ? query.environment.trim()
     : 'production'
   const artifactId = typeof query.artifactId === 'string' ? query.artifactId.trim() : ''
-  const manifest = await loadLocalManifest(environment)
+  const manifest = await loadAtlasManifest(environment)
   if (artifactId) {
     const artifact = findAtlasArtifact(manifest, artifactId)
     if (!artifact) {
@@ -142,15 +158,20 @@ function validateArtifactTile(
   }
 }
 
-async function normalizeTileUrl(
-  event: Parameters<typeof getRouterParam>[0],
-  source: string,
-  z: number,
-  x: number,
-  y: number,
-) {
+function atlasEnvironmentFromQuery(event: Parameters<typeof getRouterParam>[0]) {
   const query = getQuery(event)
-  const requestedUrl = typeof query.url === 'string' && query.url.trim() ? query.url.trim() : ''
+  return typeof query.environment === 'string' && query.environment.trim()
+    ? query.environment.trim()
+    : 'production'
+}
+
+function requestedPmtilesUrlFromQuery(event: Parameters<typeof getRouterParam>[0]) {
+  const query = getQuery(event)
+  return typeof query.url === 'string' && query.url.trim() ? query.url.trim() : ''
+}
+
+function normalizeRequestedTileUrl(event: Parameters<typeof getRouterParam>[0]) {
+  const requestedUrl = requestedPmtilesUrlFromQuery(event)
 
   if (requestedUrl) {
     if (!import.meta.dev) {
@@ -165,9 +186,39 @@ async function normalizeTileUrl(
     return requestedUrl
   }
 
-  const artifact = await artifactFromQuery(event, source, z, x, y)
-  validateArtifactTile(artifact, z, x, y)
-  return artifact?.url || DEFAULT_BASE_URL
+  return ''
+}
+
+async function hostedTileResponse(
+  event: Parameters<typeof getRouterParam>[0],
+  environment: string,
+  artifact: AtlasManifestArtifact,
+  z: number,
+  x: number,
+  y: number,
+) {
+  const runtimeConfig = useRuntimeConfig()
+  const configuredBaseUrl = typeof runtimeConfig.public.radmapsAtlasTileBaseUrl === 'string'
+    ? runtimeConfig.public.radmapsAtlasTileBaseUrl.trim()
+    : ''
+  const tileBaseUrl = (configuredBaseUrl || DEFAULT_HOSTED_TILE_BASE_URL).replace(/\/$/, '')
+  const tileUrl = `${tileBaseUrl}/tiles/${encodeURIComponent(environment)}/${encodeURIComponent(artifact.id)}/${z}/${x}/${y}.mvt`
+  const response = await fetch(tileUrl)
+  if (!response.ok) {
+    throw createError({
+      statusCode: response.status === 404 ? 404 : 502,
+      message: `Hosted atlas tile fetch failed: ${response.status}`,
+    })
+  }
+
+  const data = Buffer.from(await response.arrayBuffer())
+  setHeader(event, 'Content-Type', response.headers.get('content-type') || 'application/x-protobuf')
+  setHeader(event, 'Content-Length', data.byteLength)
+  setHeader(event, 'Cache-Control', response.headers.get('cache-control') || 'public, max-age=86400')
+  setHeader(event, 'X-RadMaps-Atlas-Environment', environment)
+  setHeader(event, 'X-RadMaps-Atlas-Artifact', artifact.id)
+  setHeader(event, 'X-RadMaps-Atlas-Delivery', 'nuxt-proxy')
+  return data
 }
 
 function getPmtiles(url: string) {
@@ -190,7 +241,18 @@ export default defineEventHandler(async (event) => {
   const x = numericTilePart(xPart, 'x')
   const y = numericTilePart(yPart, 'y')
   validateTileRange(z, x, y)
-  const pmtiles = getPmtiles(await normalizeTileUrl(event, source, z, x, y))
+  const requestedUrl = normalizeRequestedTileUrl(event)
+
+  if (!requestedUrl) {
+    const environment = atlasEnvironmentFromQuery(event)
+    const artifact = await artifactFromQuery(event, source, z, x, y)
+    validateArtifactTile(artifact, z, x, y)
+    if (artifact) {
+      return hostedTileResponse(event, environment, artifact, z, x, y)
+    }
+  }
+
+  const pmtiles = getPmtiles(requestedUrl || DEFAULT_BASE_URL)
   const tile = await pmtiles.getZxy(z, x, y)
 
   if (!tile) {
