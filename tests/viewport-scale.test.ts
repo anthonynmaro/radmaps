@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyViewportScaleToStyle,
+  applyViewportZoomCompensationToStyle,
   getViewportVisualScale,
 } from '../utils/render/viewportScale'
 
@@ -135,5 +136,29 @@ describe('applyViewportScaleToStyle', () => {
     expect(scaled).toEqual(style)
     expect(scaled).not.toBe(style)
     expect(layerById(style, 'route-line').paint['line-width']).toBe(4)
+  })
+})
+
+describe('applyViewportZoomCompensationToStyle', () => {
+  it('shifts layer zoom ranges and zoom-expression stops by the render delta', () => {
+    const shifted = applyViewportZoomCompensationToStyle({
+      version: 8,
+      sources: {},
+      layers: [{
+        id: 'labels',
+        type: 'symbol',
+        minzoom: 12,
+        layout: {
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11],
+        },
+        paint: {
+          'text-opacity': ['step', ['zoom'], 0, 12, 0.5, 14, 0.8],
+        },
+      }],
+    }, 1.5)
+
+    expect(shifted.layers?.[0].minzoom).toBe(13.5)
+    expect(shifted.layers?.[0].layout?.['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 13.5, 8, 16.5, 11])
+    expect(shifted.layers?.[0].paint?.['text-opacity']).toEqual(['step', ['zoom'], 0, 13.5, 0.5, 15.5, 0.8])
   })
 })

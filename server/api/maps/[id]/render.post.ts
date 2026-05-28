@@ -1,7 +1,7 @@
 /**
  * POST /api/maps/:id/render
  *
- * Browserless proof render path. Computes hashes, checks the proof cache,
+ * Browser screenshot proof render path. Computes hashes, checks the proof cache,
  * captures the dedicated Nuxt render page, validates the JPEG, uploads the
  * proof artifact, and stores proof metadata on the map row.
  */
@@ -12,9 +12,11 @@ import { computeMapContentHash, computeChromeHash, computeProofRenderHash } from
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { getProviderProfile } from '~/utils/print/providerProfile'
 import { createRenderTicket } from '~/utils/render/renderTicket'
+import { resolveBrowserRenderViewport } from '~/utils/render/renderViewport'
 import { getProofPath } from '~/utils/render/storagePaths'
 import { takeScreenshot } from '~/server/utils/screenshotService'
 import { validateJpegBasics } from '~/server/utils/jpegMeta'
+import { normalizeBrowserScreenshot } from '~/server/utils/normalizeBrowserScreenshot'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
@@ -108,7 +110,10 @@ export async function renderMapProof(args: V4Args) {
     }
   }
 
-  const deviceScaleFactor = 1
+  const renderViewport = resolveBrowserRenderViewport(framing, styleConfig, {
+    fallbackDeviceScaleFactor: 1,
+  })
+  const deviceScaleFactor = renderViewport.deviceScaleFactor
   const ticket = createRenderTicket({
     kind: 'map',
     subject: mapId,
@@ -124,17 +129,18 @@ export async function renderMapProof(args: V4Args) {
   const renderUrl = new URL(`/render/map/${mapId}`, siteUrl)
   renderUrl.searchParams.set('ticket', ticket)
 
-  const screenshotWidthPx = Math.round(framing.fullWidthPx / deviceScaleFactor)
-  const screenshotHeightPx = Math.round(framing.fullHeightPx / deviceScaleFactor)
+  const screenshotWidthPx = renderViewport.viewportWidthPx
+  const screenshotHeightPx = renderViewport.viewportHeightPx
   const timeoutMs = config.browserlessTimeoutMs
   const screenshotStartedAt = Date.now()
 
-  console.info('[render:v4] Browserless screenshot starting', {
+  console.info('[render:v4] proof screenshot starting', {
     mapId,
     productUid,
     widthPx: screenshotWidthPx,
     heightPx: screenshotHeightPx,
     deviceScaleFactor,
+    targetCssWidthPx: renderViewport.targetCssWidthPx,
     renderHost: renderUrl.hostname,
     timeoutMs,
   })
@@ -157,12 +163,13 @@ export async function renderMapProof(args: V4Args) {
       ? 'Render service timed out. Please try again in a moment.'
       : 'Render service unavailable. Please try again in a moment.'
 
-    console.error('[render:v4] Browserless screenshot failed', {
+  console.error('[render:v4] proof screenshot failed', {
       mapId,
       productUid,
       widthPx: screenshotWidthPx,
       heightPx: screenshotHeightPx,
       deviceScaleFactor,
+      targetCssWidthPx: renderViewport.targetCssWidthPx,
       renderHost: renderUrl.hostname,
       timeoutMs,
       durationMs: Date.now() - screenshotStartedAt,
@@ -177,7 +184,7 @@ export async function renderMapProof(args: V4Args) {
     throw createError({ statusCode: 503, message: friendlyMessage })
   }
 
-  console.info('[render:v4] Browserless screenshot complete', {
+  console.info('[render:v4] proof screenshot complete', {
     mapId,
     productUid,
     widthPx: screenshot.widthPx,
@@ -186,9 +193,17 @@ export async function renderMapProof(args: V4Args) {
     renderMs: screenshot.renderMs,
   })
 
+  const proofBuffer = await normalizeBrowserScreenshot({
+    buffer: screenshot.buffer,
+    expectedWidth: framing.fullWidthPx,
+    expectedHeight: framing.fullHeightPx,
+    maxOversizePx: deviceScaleFactor,
+    quality: 95,
+  })
+
   const profile = getProviderProfile(productUid)
   validateJpegBasics({
-    buffer: screenshot.buffer,
+    buffer: proofBuffer,
     expectedWidth: framing.fullWidthPx,
     expectedHeight: framing.fullHeightPx,
     maxFileSizeMb: profile.maxFileSizeMb,
@@ -197,7 +212,7 @@ export async function renderMapProof(args: V4Args) {
   const proofPath = getProofPath(mapId, proofRenderHash)
   const { error: uploadError } = await adminClient.storage
     .from('maps')
-    .upload(proofPath, screenshot.buffer, {
+    .upload(proofPath, proofBuffer, {
       contentType: screenshot.contentType,
       upsert: true,
       cacheControl: '3600',

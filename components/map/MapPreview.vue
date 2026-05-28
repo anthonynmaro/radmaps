@@ -1146,7 +1146,7 @@ import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoo
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
-import { applyViewportScaleToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
+import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
@@ -3220,6 +3220,14 @@ function correctedFrameZoom(savedZoom: number): number {
   return savedZoom + Math.log2(renderWidth / editorWidth)
 }
 
+function printZoomCompensationDelta(): number {
+  if (!isPrintRender.value) return 0
+  const editorWidth = props.styleConfig.map_editor_width ?? sessionFrameWidth ?? 0
+  const renderWidth = mapContainer.value?.offsetWidth ?? props.printContext?.cssWidthPx ?? 0
+  if (!editorWidth || !renderWidth) return 0
+  return Math.max(0, Math.log2(renderWidth / editorWidth))
+}
+
 function canUseSavedCamera(): boolean {
   if (props.styleConfig.map_zoom == null || props.styleConfig.map_center == null) return false
   // Legacy rows may have a frozen zoom/center without the editor frame width
@@ -3243,7 +3251,8 @@ function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecific
     getContourTileUrl(styleConfig),
     config.public.stadiaToken,
   ) as maplibregl.StyleSpecification
-  return applyViewportScaleToStyle(style, currentVisualScale()) as maplibregl.StyleSpecification
+  const zoomCompensatedStyle = applyViewportZoomCompensationToStyle(style, printZoomCompensationDelta())
+  return applyViewportScaleToStyle(zoomCompensatedStyle, currentVisualScale()) as maplibregl.StyleSpecification
 }
 
 function applyViewportScaledLayerProperties(styleConfig: StyleConfig = props.styleConfig) {

@@ -28,6 +28,10 @@
     "atlas:worker:deploy": "npx wrangler deploy --config workers/atlas-tiles/wrangler.jsonc",
     "premade:backfill-thumbnails": "node scripts/backfill-premade-thumbnails.mjs",
     "print-worker:dev": "node scripts/print-worker-dev.mjs",
+    "aws:render-worker:sync-secrets": "scripts/aws-render-worker-sync-secrets.sh",
+    "aws:render-worker:deploy-infra": "scripts/aws-render-worker-deploy-infra.sh",
+    "aws:render-worker:build": "scripts/aws-render-worker-codebuild.sh",
+    "aws:render-worker:build-local": "scripts/aws-render-worker-build-push.sh",
     "gelato:draft-bypass": "cd render-worker-v4 && npx tsx scripts/gelato-draft-bypass.ts",
     "stripe:webhook-sim": "cd render-worker-v4 && npx tsx scripts/stripe-webhook-sim.ts"
   },

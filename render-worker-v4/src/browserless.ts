@@ -1,37 +1,12 @@
 import { CONFIG } from './config.js'
+import {
+  getLocalTunnelUserAgent,
+  type BrowserScreenshotOptions,
+  type BrowserScreenshotResult,
+} from './screenshotProtocol.js'
 
-export interface BrowserlessScreenshotOptions {
-  url: string
-  widthPx: number
-  heightPx: number
-  deviceScaleFactor: number
-  format: 'jpeg' | 'png'
-  quality?: number
-  waitForFunction?: string
-  timeoutMs?: number
-}
-
-export interface BrowserlessScreenshotResult {
-  buffer: Buffer
-  contentType: string
-  renderMs: number
-}
-
-const NGROK_BYPASS_USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-
-function getLocalTunnelUserAgent(url: string): string | undefined {
-  try {
-    const hostname = new URL(url).hostname
-    // Free ngrok tunnels show a browser warning to ordinary headless browsers.
-    // A bot-style UA bypasses that warning without adding custom request
-    // headers, which would trigger CORS preflight failures for Google Fonts.
-    return hostname.endsWith('.ngrok-free.dev')
-      ? NGROK_BYPASS_USER_AGENT
-      : undefined
-  } catch {
-    return undefined
-  }
-}
+export type BrowserlessScreenshotOptions = BrowserScreenshotOptions
+export type BrowserlessScreenshotResult = BrowserScreenshotResult
 
 export async function takeBrowserlessScreenshot(opts: BrowserlessScreenshotOptions): Promise<BrowserlessScreenshotResult> {
   if (!CONFIG.browserlessToken) {
@@ -50,7 +25,7 @@ export async function takeBrowserlessScreenshot(opts: BrowserlessScreenshotOptio
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url: opts.url,
-      userAgent: getLocalTunnelUserAgent(opts.url),
+      userAgent: opts.userAgent ?? getLocalTunnelUserAgent(opts.url),
       options: {
         type: opts.format === 'jpeg' ? 'jpeg' : 'png',
         quality: opts.format === 'jpeg' ? (opts.quality ?? 95) : undefined,
@@ -63,7 +38,7 @@ export async function takeBrowserlessScreenshot(opts: BrowserlessScreenshotOptio
         deviceScaleFactor: opts.deviceScaleFactor,
       },
       gotoOptions: {
-        waitUntil: 'load',
+        waitUntil: opts.waitUntil ?? 'domcontentloaded',
         timeout: timeoutMs,
       },
       waitForFunction: opts.waitForFunction

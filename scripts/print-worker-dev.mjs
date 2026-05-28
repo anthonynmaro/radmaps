@@ -22,9 +22,9 @@ function readEnv(path) {
 const rootEnv = readEnv('.env')
 const workerEnv = readEnv('render-worker-v4/.env')
 const env = {
-  ...process.env,
   ...rootEnv,
   ...workerEnv,
+  ...process.env,
 }
 
 env.APP_URL ||= env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001'

@@ -123,3 +123,59 @@ export function applyViewportScaleToStyle<T extends MapStyle>(style: T, visualSc
 
   return out
 }
+
+function isZoomExpression(value: unknown): value is ['zoom'] {
+  return Array.isArray(value) && value.length === 1 && value[0] === 'zoom'
+}
+
+function shiftZoomExpressionStops(value: unknown, zoomDelta: number): unknown {
+  if (!Array.isArray(value)) return value
+
+  const head = value[0]
+  if ((head === 'interpolate' || head === 'interpolate-lab' || head === 'interpolate-hcl') && isZoomExpression(value[2])) {
+    const out = [...value]
+    for (let i = 3; i < out.length; i += 2) {
+      if (typeof out[i] === 'number') out[i] += zoomDelta
+      out[i + 1] = shiftZoomExpressionStops(out[i + 1], zoomDelta)
+    }
+    return out
+  }
+
+  if (head === 'step' && isZoomExpression(value[1])) {
+    const out = [...value]
+    out[2] = shiftZoomExpressionStops(out[2], zoomDelta)
+    for (let i = 3; i < out.length; i += 2) {
+      if (typeof out[i] === 'number') out[i] += zoomDelta
+      out[i + 1] = shiftZoomExpressionStops(out[i + 1], zoomDelta)
+    }
+    return out
+  }
+
+  return value.map(item => shiftZoomExpressionStops(item, zoomDelta))
+}
+
+export function applyViewportZoomCompensationToStyle<T extends MapStyle>(style: T, zoomDelta: number): T {
+  const out = cloneStyle(style)
+  if (!Number.isFinite(zoomDelta) || zoomDelta <= 0) return out
+  if (!Array.isArray(out.layers)) return out
+
+  for (const layer of out.layers) {
+    if (typeof layer.minzoom === 'number') layer.minzoom += zoomDelta
+    if (typeof layer.maxzoom === 'number') layer.maxzoom += zoomDelta
+
+    const paint = layer.paint as Record<string, unknown> | undefined
+    const layout = layer.layout as Record<string, unknown> | undefined
+    if (paint) {
+      for (const [key, value] of Object.entries(paint)) {
+        paint[key] = shiftZoomExpressionStops(value, zoomDelta)
+      }
+    }
+    if (layout) {
+      for (const [key, value] of Object.entries(layout)) {
+        layout[key] = shiftZoomExpressionStops(value, zoomDelta)
+      }
+    }
+  }
+
+  return out
+}

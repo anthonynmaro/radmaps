@@ -2,14 +2,18 @@ import { insertProductRender, loadOrderSnapshot, lookupProductRender } from '../
 import { CONFIG } from '../config.js'
 import { createSignedStorageUrl, uploadBuffer } from '../storage.js'
 import { takeBrowserlessScreenshot } from '../browserless.js'
+import { takeLocalChromiumScreenshot } from '../localChromium.js'
+import type { BrowserScreenshotOptions } from '../screenshotProtocol.js'
 import type { RenderFinalResponse } from './processJob.js'
 import { normalizeFinalScreenshot } from './normalizeFinalScreenshot.js'
 import { validateBrowserScreenshot } from './validateBrowserScreenshot.js'
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { getProviderProfile } from '~/utils/print/providerProfile'
 import { computePrintHash } from '~/utils/render/hash'
+import { resolveBrowserRenderViewport } from '~/utils/render/renderViewport'
 import { getFinalPrintPath } from '~/utils/render/storagePaths'
 import { createRenderTicket } from '~/utils/render/renderTicket'
+import type { StyleConfig } from '~/types'
 export async function renderFinalWithScreenshot(input: {
   stripeSessionId: string
   printHash: string
@@ -49,12 +53,15 @@ export async function renderFinalWithScreenshot(input: {
     }
   }
 
-  // Browserless caps screenshot timeouts at 60s on the current plan. Keep the
-  // physical output exact by rendering a half-size CSS viewport at DPR 2, then
-  // cropping any one-pixel bleed rounding surplus before validation/upload.
-  const deviceScaleFactor = 2
-  const viewportWidthPx = Math.ceil(framing.fullWidthPx / deviceScaleFactor)
-  const viewportHeightPx = Math.ceil(framing.fullHeightPx / deviceScaleFactor)
+  // Keep the CSS layout close to the saved editor map width, then use DPR to
+  // reach the physical pixel target. This avoids changing MapLibre's label and
+  // collision behavior just because the product render is high resolution.
+  const renderViewport = resolveBrowserRenderViewport(framing, snapshot.style_config as Pick<StyleConfig, 'map_editor_width'>, {
+    fallbackDeviceScaleFactor: 2,
+  })
+  const deviceScaleFactor = renderViewport.deviceScaleFactor
+  const viewportWidthPx = renderViewport.viewportWidthPx
+  const viewportHeightPx = renderViewport.viewportHeightPx
   const ticket = createRenderTicket({
     kind: 'session',
     subject: input.stripeSessionId,
@@ -75,16 +82,20 @@ export async function renderFinalWithScreenshot(input: {
   await preflightRenderEndpoint(payloadUrl, 'payload')
   await preflightRenderEndpoint(url, 'page')
 
-  const screenshot = await takeBrowserlessScreenshot({
+  const screenshotOptions: BrowserScreenshotOptions = {
     url: url.toString(),
     widthPx: viewportWidthPx,
     heightPx: viewportHeightPx,
     deviceScaleFactor,
     format: 'jpeg',
     quality: 95,
+    waitUntil: 'domcontentloaded',
     waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
-    timeoutMs: CONFIG.browserlessTimeoutMs,
-  })
+    timeoutMs: CONFIG.renderTimeoutMs,
+  } as const
+  const screenshot = CONFIG.renderBackend === 'local-chromium'
+    ? await takeLocalChromiumScreenshot(screenshotOptions)
+    : await takeBrowserlessScreenshot(screenshotOptions)
 
   const finalBuffer = await normalizeFinalScreenshot({
     buffer: screenshot.buffer,

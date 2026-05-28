@@ -1,0 +1,555 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: RadMaps final print render worker on ECS/Fargate.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: radmaps
+  EnvironmentName:
+    Type: String
+    Default: production
+  ServiceName:
+    Type: String
+    Default: render-worker-v4
+  ImageTag:
+    Type: String
+    Default: latest
+  DesiredCount:
+    Type: Number
+    Default: 0
+    MinValue: 0
+  Cpu:
+    Type: String
+    Default: '4096'
+  Memory:
+    Type: String
+    Default: '8192'
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  AssignPublicIp:
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+  WorkerSecretArn:
+    Type: String
+    NoEcho: true
+  ProofTokenSecretArn:
+    Type: String
+    NoEcho: true
+  AppUrl:
+    Type: String
+    Default: https://radmaps.studio
+  GelatoOrderType:
+    Type: String
+    Default: draft
+    AllowedValues:
+      - draft
+      - order
+  RenderTimeoutMs:
+    Type: Number
+    Default: 180000
+  WorkerConcurrency:
+    Type: Number
+    Default: 1
+    MinValue: 1
+  WorkerPollMs:
+    Type: Number
+    Default: 2000
+    MinValue: 250
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+  BuildComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_LARGE
+  BuildImage:
+    Type: String
+    Default: aws/codebuild/standard:7.0
+  ProofRenderTimeoutMs:
+    Type: Number
+    Default: 120000
+  ProofServiceCpu:
+    Type: String
+    Default: 2 vCPU
+  ProofServiceMemory:
+    Type: String
+    Default: 4 GB
+  ProofServiceMinSize:
+    Type: Number
+    Default: 1
+    MinValue: 1
+  ProofServiceMaxSize:
+    Type: Number
+    Default: 5
+    MinValue: 1
+  ProofServiceMaxConcurrency:
+    Type: Number
+    Default: 10
+    MinValue: 1
+
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-${ServiceName}'
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the latest 20 render worker images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 20
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ProjectName}-${ServiceName}'
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/${ProjectName}/${ServiceName}'
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  BuildBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${ServiceName}-build-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireBuildSources
+            Status: Enabled
+            ExpirationInDays: 7
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadRenderWorkerSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref WorkerSecretArn
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BuildAndPushRenderWorker
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !GetAtt BuildBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub '${BuildBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:DescribeRepositories
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !GetAtt EcrRepository.Arn
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - apprunner:StartDeployment
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-${ServiceName}-image-build'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: S3
+        Location: !Sub '${BuildBucket}/placeholder.zip'
+        BuildSpec: buildspec.yml
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        Image: !Ref BuildImage
+        ComputeType: !Ref BuildComputeType
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: ECR_REPOSITORY_URI
+            Value: !GetAtt EcrRepository.RepositoryUri
+          - Name: IMAGE_TAG
+            Value: !Ref ImageTag
+          - Name: ECS_CLUSTER
+            Value: !Ref Cluster
+          - Name: ECS_SERVICE
+            Value: !GetAtt Service.Name
+          - Name: PROOF_RENDERER_SERVICE_ARN
+            Value: !GetAtt ProofRendererService.ServiceArn
+      TimeoutInMinutes: 60
+      QueuedTimeoutInMinutes: 60
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  ProofRendererEcrAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: proof-renderer
+        - Key: ManagedBy
+          Value: codex
+
+  ProofRendererInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadProofRendererToken
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref ProofTokenSecretArn
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: proof-renderer
+        - Key: ManagedBy
+          Value: codex
+
+  ProofRendererAutoScaling:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: !Sub '${ProjectName}-proof-renderer'
+      MaxConcurrency: !Ref ProofServiceMaxConcurrency
+      MaxSize: !Ref ProofServiceMaxSize
+      MinSize: !Ref ProofServiceMinSize
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: proof-renderer
+        - Key: ManagedBy
+          Value: codex
+
+  ProofRendererService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-proof-renderer'
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !GetAtt ProofRendererEcrAccessRole.Arn
+        AutoDeploymentsEnabled: true
+        ImageRepository:
+          ImageIdentifier: !Sub '${EcrRepository.RepositoryUri}:${ImageTag}'
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: '3000'
+            StartCommand: node dist/proof-server.js
+            RuntimeEnvironmentVariables:
+              - Name: NODE_ENV
+                Value: production
+              - Name: PORT
+                Value: '3000'
+              - Name: APP_URL
+                Value: !Ref AppUrl
+              - Name: PROOF_RENDER_ALLOWED_ORIGINS
+                Value: !Ref AppUrl
+              - Name: PROOF_RENDER_TIMEOUT_MS
+                Value: !Ref ProofRenderTimeoutMs
+            RuntimeEnvironmentSecrets:
+              - Name: BROWSERLESS_TOKEN
+                Value: !Ref ProofTokenSecretArn
+      InstanceConfiguration:
+        Cpu: !Ref ProofServiceCpu
+        Memory: !Ref ProofServiceMemory
+        InstanceRoleArn: !GetAtt ProofRendererInstanceRole.Arn
+      AutoScalingConfigurationArn: !GetAtt ProofRendererAutoScaling.AutoScalingConfigurationArn
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: proof-renderer
+        - Key: ManagedBy
+          Value: codex
+
+  WorkerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RadMaps render worker egress-only security group
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${ServiceName}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${ServiceName}'
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+        CpuArchitecture: X86_64
+      ContainerDefinitions:
+        - Name: !Ref ServiceName
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}:${ImageTag}'
+          Essential: true
+          Environment:
+            - Name: NODE_ENV
+              Value: production
+            - Name: APP_URL
+              Value: !Ref AppUrl
+            - Name: RENDER_BACKEND
+              Value: local-chromium
+            - Name: RENDER_TIMEOUT_MS
+              Value: !Ref RenderTimeoutMs
+            - Name: PRINT_WORKER_CONCURRENCY
+              Value: !Ref WorkerConcurrency
+            - Name: PRINT_WORKER_POLL_MS
+              Value: !Ref WorkerPollMs
+            - Name: GELATO_ORDER_TYPE
+              Value: !Ref GelatoOrderType
+            - Name: LOG_LEVEL
+              Value: info
+          Secrets:
+            - Name: SUPABASE_URL
+              ValueFrom: !Sub '${WorkerSecretArn}:SUPABASE_URL::'
+            - Name: SUPABASE_SERVICE_KEY
+              ValueFrom: !Sub '${WorkerSecretArn}:SUPABASE_SERVICE_KEY::'
+            - Name: DATABASE_URL
+              ValueFrom: !Sub '${WorkerSecretArn}:DATABASE_URL::'
+            - Name: RENDER_TICKET_SECRET
+              ValueFrom: !Sub '${WorkerSecretArn}:RENDER_TICKET_SECRET::'
+            - Name: GELATO_API_KEY
+              ValueFrom: !Sub '${WorkerSecretArn}:GELATO_API_KEY::'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ServiceName
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${ServiceName}'
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 100
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          SecurityGroups:
+            - !Ref WorkerSecurityGroup
+          Subnets: !Ref SubnetIds
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: ManagedBy
+          Value: codex
+
+Outputs:
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !GetAtt Service.Name
+  EcrRepositoryUri:
+    Value: !GetAtt EcrRepository.RepositoryUri
+  LogGroupName:
+    Value: !Ref LogGroup
+  SecurityGroupId:
+    Value: !Ref WorkerSecurityGroup
+  BuildBucketName:
+    Value: !Ref BuildBucket
+  CodeBuildProjectName:
+    Value: !Ref CodeBuildProject
+  ProofRendererUrl:
+    Value: !Sub 'https://${ProofRendererService.ServiceUrl}'
+  ProofRendererServiceArn:
+    Value: !GetAtt ProofRendererService.ServiceArn

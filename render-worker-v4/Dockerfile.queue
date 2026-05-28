@@ -1,10 +1,12 @@
-# RadMaps final print queue worker
+# RadMaps final print queue worker and proof renderer
 # ─────────────────────────────────────────────────────────────────────────────
-# Queue-only service. Browserless does Chromium rendering externally; this
-# image only needs Node, network access, Postgres, Supabase, Gelato, and Sharp
-# for image metadata/sampling validation.
+# Default command runs the paid-order queue. AWS App Runner overrides the
+# command with `node dist/proof-server.js` for the Browserless-compatible proof
+# screenshot endpoint.
 
-FROM node:20-slim AS base
+FROM mcr.microsoft.com/playwright:v1.60.0-noble AS base
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -15,6 +17,8 @@ WORKDIR /app
 
 # ─── Build stage ────────────────────────────────────────────────────────────
 FROM base AS build
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 COPY render-worker-v4/package*.json ./
 RUN npm install
@@ -33,11 +37,12 @@ RUN npm prune --omit=dev
 FROM base AS runtime
 
 WORKDIR /app
+ENV NODE_ENV=production
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
 
-# No EXPOSE — this is a worker, not an HTTP service. Health checks can use
-# `pidof node` or a sidecar; Railway will restart on exit code != 0.
+EXPOSE 3000
+
 CMD ["node", "dist/queue.js"]

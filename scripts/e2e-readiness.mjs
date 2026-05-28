@@ -17,11 +17,16 @@ function readEnv(path) {
   return out
 }
 
-const main = readEnv('.env') ?? {}
-const worker = readEnv('render-worker-v4/.env') ?? {}
+const mainFile = readEnv('.env') ?? {}
+const workerFile = readEnv('render-worker-v4/.env') ?? {}
+const main = {
+  ...mainFile,
+  ...process.env,
+}
 const effectiveWorker = {
-  ...main,
-  ...worker,
+  ...mainFile,
+  ...workerFile,
+  ...process.env,
 }
 effectiveWorker.APP_URL ||= main.NUXT_PUBLIC_SITE_URL
 const allowLive = process.env.ALLOW_LIVE_E2E === 'true' || main.ALLOW_LIVE_E2E === 'true'
@@ -70,7 +75,30 @@ async function probeRenderPayload(siteUrl) {
   }
 }
 
+async function probeScreenshotEndpoint(endpointUrl) {
+  const probeUrl = new URL('/health', endpointUrl)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5_000)
+  try {
+    const res = await fetch(probeUrl, { signal: controller.signal })
+    return {
+      ok: res.ok,
+      detail: `${probeUrl.toString()} returned ${res.status}`,
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      detail: `${probeUrl.toString()} failed: ${(err instanceof Error ? err.message : String(err))}`,
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 const siteUrl = parseUrl(main.NUXT_PUBLIC_SITE_URL)
+const screenshotEndpoint = parseUrl(main.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io')
+const workerRenderBackend = effectiveWorker.RENDER_BACKEND || main.RENDER_BACKEND || 'browserless'
+const usesBrowserless = workerRenderBackend === 'browserless'
 
 check('main .env exists', existsSync('.env'), 'create .env from .env.example')
 check('worker .env exists', existsSync('render-worker-v4/.env'), 'optional locally; create render-worker-v4/.env only for worker-specific overrides', 'warn')
@@ -81,24 +109,31 @@ check('Stripe webhook secret present', main.STRIPE_WEBHOOK_SECRET?.startsWith('w
 check('Gelato order type is draft', main.GELATO_ORDER_TYPE === 'draft' || allowLive, 'set GELATO_ORDER_TYPE=draft for full faux E2E, or set ALLOW_LIVE_E2E=true intentionally')
 
 check('render ticket secret present', present(main.RENDER_TICKET_SECRET) && main.RENDER_TICKET_SECRET.length >= 32, 'set a long RENDER_TICKET_SECRET')
-check('public site URL valid', !!siteUrl, 'set NUXT_PUBLIC_SITE_URL to a valid public ngrok or deployed URL Browserless can reach')
+check('public site URL valid', !!siteUrl, 'set NUXT_PUBLIC_SITE_URL to a valid public tunnel or deployed URL the browser backend can reach')
 check('public site URL is not localhost', !!siteUrl && !isLocalHost(siteUrl.hostname), 'set NUXT_PUBLIC_SITE_URL to an https ngrok or deployed URL, not localhost')
 
 check('Supabase URL present', present(main.SUPABASE_URL), 'set SUPABASE_URL')
 check('Supabase service key present', present(main.SUPABASE_SERVICE_KEY), 'set SUPABASE_SERVICE_KEY')
-check('Browserless token present', present(main.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN')
+check('render backend valid', ['browserless', 'local-chromium'].includes(workerRenderBackend), 'set RENDER_BACKEND=browserless or local-chromium')
+check('screenshot endpoint valid', !!screenshotEndpoint, 'set BROWSERLESS_ENDPOINT to Browserless or the AWS proof renderer URL')
+check('screenshot token present', present(main.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN; AWS proof renderer reuses this as its /screenshot token')
 check('Gelato API key present', present(main.GELATO_API_KEY), 'set GELATO_API_KEY; use a sandbox/no-payment account for safe test orders')
 check('Resend API key present', present(main.RESEND_API_KEY), 'set RESEND_API_KEY or expect confirmation email send to fail', 'warn')
 
 check('worker DATABASE_URL present', present(effectiveWorker.DATABASE_URL), 'set Supabase pooler DATABASE_URL in .env or render-worker-v4/.env for the print queue consumer')
-for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'BROWSERLESS_TOKEN', 'RENDER_TICKET_SECRET', 'GELATO_API_KEY']) {
+for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'RENDER_TICKET_SECRET', 'GELATO_API_KEY']) {
   check(`worker ${key} effective`, present(effectiveWorker[key]), `set ${key} in .env or render-worker-v4/.env`)
 }
-check('worker APP_URL matches public site URL', present(effectiveWorker.APP_URL) && effectiveWorker.APP_URL === main.NUXT_PUBLIC_SITE_URL, 'set APP_URL or NUXT_PUBLIC_SITE_URL to the public URL Browserless should load')
+check('worker BROWSERLESS_TOKEN effective', !usesBrowserless || present(effectiveWorker.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN in .env or render-worker-v4/.env, or use RENDER_BACKEND=local-chromium')
+check('worker APP_URL matches public site URL', present(effectiveWorker.APP_URL) && effectiveWorker.APP_URL === main.NUXT_PUBLIC_SITE_URL, 'set APP_URL or NUXT_PUBLIC_SITE_URL to the public URL the browser backend should load')
 
 if (siteUrl && !isLocalHost(siteUrl.hostname)) {
   const probe = await probeRenderPayload(siteUrl)
   check('public site URL serves RadMaps app', probe.ok, `${probe.detail}; start Nuxt and point NUXT_PUBLIC_SITE_URL at the active tunnel`)
+}
+if (screenshotEndpoint?.hostname.endsWith('.awsapprunner.com')) {
+  const probe = await probeScreenshotEndpoint(screenshotEndpoint)
+  check('AWS proof renderer healthy', probe.ok, `${probe.detail}; check App Runner service health and logs`)
 }
 
 const failures = checks.filter((item) => !item.ok && item.severity === 'error')

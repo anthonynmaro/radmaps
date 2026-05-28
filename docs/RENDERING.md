@@ -10,7 +10,10 @@ also read [docs/ARCHITECTURE_SECURITY_REVIEW.md](/Users/anthonymaro/Documents/ap
 ## Current Renderer
 
 RadMaps renders posters by screenshotting the real Nuxt/Vue/MapLibre poster in
-Chromium through Browserless.
+Chromium. Proof and premade thumbnail renders still use the configured
+Browserless-compatible screenshot HTTP API. Final order renders can either call
+Browserless or run Playwright Chromium inside the AWS/ECS worker with
+`RENDER_BACKEND=local-chromium`.
 
 The key decision is that [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the only poster renderer. The editor and print render path must share the same Vue/MapLibre component instead of maintaining a separate SVG, Sharp, native, or worker-only poster template.
 
@@ -33,7 +36,7 @@ background -> base -> water-land-buildings -> terrain -> contours -> editable-ro
 
 Route linework renders below map labels by default so labels stay readable in editor previews, proofs, and final print renders. Interactive segment handles and editing overlays remain above labels.
 
-The editor, render pages, and Browserless output must all use the same
+The editor, render pages, and Chromium screenshot output must all use the same
 graph-derived effective config. Do not special-case render pages to show controls
 or layers that the editor graph would hide.
 
@@ -58,7 +61,7 @@ refined themes resolve their default composition from
 [utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts).
 
 Do not add a separate React/SVG/native composition renderer for print. The
-editor, proof renders, premade thumbnails, and final Browserless renders must
+editor, proof renders, premade thumbnails, and final browser screenshot renders must
 all screenshot `MapPreview.vue` so map pixels and poster chrome stay in parity.
 
 The dev-only `/style-browser-fixture` route exists for Playwright coverage. It is
@@ -90,13 +93,13 @@ Final order renders:
 2. [server/utils/snapshot.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/server/utils/snapshot.ts) writes an immutable snapshot keyed by `stripe_session_id`.
 3. The Stripe webhook inserts a `print_render_jobs` row.
 4. The `render-worker-v4` queue consumer calls [renderFinalScreenshot.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/render-worker-v4/src/queue/renderFinalScreenshot.ts).
-5. Browserless screenshots `/render/session/[stripeSessionId]?ticket=...`.
+5. The configured screenshot backend captures `/render/session/[stripeSessionId]?ticket=...`.
 6. The worker validates dimensions and image health, uploads the artifact, inserts `product_renders`, then submits to Gelato.
 
 `render-worker-v4` is not a second poster renderer anymore. It is the bounded
-final-order orchestrator: claim queued jobs, call Browserless, validate/upload,
-write product render rows, and submit to Gelato. Do not remove it without
-replacing the queue/orchestration layer.
+final-order orchestrator: claim queued jobs, call the configured browser
+screenshot backend, validate/upload, write product render rows, and submit to
+Gelato. Do not remove it without replacing the queue/orchestration layer.
 
 ### Thumbnails And Sharing
 
@@ -209,7 +212,7 @@ Do not reintroduce mixed-aspect product choices while the editor is single-aspec
 
 The final render includes bleed. For example, `24x36` with 3 mm bleed at 300 DPI renders to approximately `7271x10871` pixels, not `7200x10800`.
 
-This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Final renders use a half-size CSS viewport with `deviceScaleFactor: 2` to keep large products under Browserless' 60 second screenshot cap. The worker then normalizes the Browserless JPEG back to the exact `getPrintFraming(..., 'final')` dimensions before validation/upload. For odd bleed dimensions, this means cropping a one-pixel surplus from the right/bottom edge after capture. Do not remove this normalization or validate/upload the raw Browserless buffer.
+This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Proof and final renders keep the browser CSS layout close to the saved editor map width, then use `deviceScaleFactor` to reach the required print pixels. Print mode also compensates zoom-dependent MapLibre style stops so labels and minor-detail layers evaluate at the editor-equivalent zoom, not the high-resolution screenshot zoom. That keeps MapLibre label density and collision behavior aligned with the editor/product preview instead of changing it at large product viewport widths. The renderer then normalizes the screenshot JPEG back to the exact `getPrintFraming(...)` dimensions before validation/upload. For odd bleed dimensions, this means cropping a small right/bottom surplus after capture. Do not remove this normalization or validate/upload the raw screenshot buffer.
 
 Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
 
@@ -219,8 +222,11 @@ Required for screenshot rendering:
 
 ```bash
 BROWSERLESS_TOKEN=...
-BROWSERLESS_ENDPOINT=https://production-sfo.browserless.io
+BROWSERLESS_ENDPOINT=https://zfwtsxbyy2.us-east-2.awsapprunner.com
 BROWSERLESS_TIMEOUT_MS=60000
+PROOF_RENDER_ALLOWED_ORIGINS=https://radmaps.studio
+RENDER_BACKEND=local-chromium
+RENDER_TIMEOUT_MS=180000
 RENDER_TICKET_SECRET=...
 GELATO_API_KEY=...
 GELATO_ORDER_TYPE=draft
@@ -230,10 +236,17 @@ DATABASE_URL=...
 
 Local testing through ngrok should point `NUXT_PUBLIC_SITE_URL` at the ngrok URL so Browserless can reach your dev server. Vite must allow that host. Prefer a bot User-Agent over `ngrok-skip-browser-warning` headers when testing Google fonts, because the ngrok header can trigger CORS preflight behavior.
 
-Browserless currently rejects screenshot timeouts above `60000` on our plan.
-Keep `BROWSERLESS_TIMEOUT_MS=60000` unless the provider plan/API limit changes.
-Large final renders must stay on the DPR 2 normalized final path; do not set a
-larger timeout and expect it to work.
+`BROWSERLESS_ENDPOINT` is kept as the app-facing screenshot endpoint name for
+compatibility, but production should point it at the AWS proof renderer unless
+we intentionally fall back to Browserless. For Browserless-backed renders, keep
+`BROWSERLESS_TIMEOUT_MS=60000` unless the provider plan/API limit changes. For
+AWS local-Chromium final renders, use `RENDER_TIMEOUT_MS` to control the
+Playwright navigation/readiness timeout. Large final renders must stay on the
+saved-editor-width DPR path and normalized screenshot output.
+
+The AWS proof renderer is public but token-gated. It also restricts screenshot
+targets to `PROOF_RENDER_ALLOWED_ORIGINS`; the CloudFormation stack sets this to
+`APP_URL` by default so the renderer screenshots RadMaps render pages only.
 
 `RENDER_TICKET_SECRET` must be a long random secret, generated independently from Browserless and Stripe secrets. Use `openssl rand -hex 32`.
 
@@ -247,6 +260,32 @@ npm run print-worker:dev
 Use `render-worker-v4/.env` only for local worker-specific overrides, or when
 running the worker as a standalone Railway service. Standalone deployments must
 still define the same shared values in the worker service environment.
+
+### AWS Final Worker
+
+The AWS render infrastructure is defined in
+[infra/aws/render-worker](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/infra/aws/render-worker).
+It provisions ECR, ECS/Fargate, CloudWatch logs, Secrets Manager wiring, and an
+optional CodeBuild image builder. It also provisions an App Runner proof
+renderer at the `ProofRendererUrl` stack output. The App Runner service exposes a
+Browserless-compatible `/screenshot?token=...` endpoint over HTTPS, so the Nuxt
+proof, share, checkout, dashboard thumbnail, and premade thumbnail flows can
+switch off Browserless by setting `BROWSERLESS_ENDPOINT` to that URL.
+
+The ECS task runs the same `render-worker-v4` queue consumer with
+`RENDER_BACKEND=local-chromium`, so final orders no longer need Browserless
+units.
+
+Use:
+
+```bash
+npm run aws:render-worker:sync-secrets
+npm run aws:render-worker:deploy-infra
+npm run aws:render-worker:build
+```
+
+The stack defaults to `DesiredCount=0`; scale the ECS service to `1` only when
+you are ready for the AWS worker to claim queued final print jobs.
 
 Before a faux Stripe transaction or Gelato test order, run:
 
@@ -271,7 +310,7 @@ Run the trial with test payments and Gelato draft orders:
 2. Run Nuxt locally on `3001`: `npm run dev`.
 3. Start a public tunnel to Nuxt, for example `ngrok http 3001`, then set `NUXT_PUBLIC_SITE_URL` to that `https://...ngrok...` URL.
 4. Run Stripe CLI locally: `stripe listen --forward-to localhost:3001/api/orders/webhook`, then copy the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET`.
-5. Set `BROWSERLESS_TOKEN`, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, `GELATO_ORDER_TYPE=draft`, and a Supabase pooler `DATABASE_URL`.
+5. Set `RENDER_BACKEND=local-chromium`, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, `GELATO_ORDER_TYPE=draft`, and a Supabase pooler `DATABASE_URL`. Use `BROWSERLESS_TOKEN` only when the final worker is configured with `RENDER_BACKEND=browserless`.
 6. Run `npm run e2e:readiness`.
 7. In a second terminal, run `npm run print-worker:dev`.
 8. Click through checkout and pay with Stripe test card `4242 4242 4242 4242`.
@@ -298,11 +337,12 @@ npm run gelato:draft-bypass -- --map-id=<map-uuid> --product-uid=<gelato-product
 The script creates a synthetic checkout session, order snapshot, and
 `print_render_jobs` row, then calls the same `render-worker-v4` `processJob`
 function used by Railway. It still requires `GELATO_ORDER_TYPE=draft`,
-`DATABASE_URL`, `BROWSERLESS_TOKEN`, `RENDER_TICKET_SECRET`, `SUPABASE_URL`,
-`SUPABASE_SERVICE_KEY`, `GELATO_API_KEY`, and a public `APP_URL` or
-`NUXT_PUBLIC_SITE_URL` that Browserless can reach.
+`DATABASE_URL`, `RENDER_TICKET_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
+`GELATO_API_KEY`, and a public `APP_URL` or `NUXT_PUBLIC_SITE_URL` that the
+browser backend can reach. `BROWSERLESS_TOKEN` is required only when
+`RENDER_BACKEND=browserless`.
 
-This bypass is for preflight only. It proves Browserless final rendering,
+This bypass is for preflight only. It proves final browser rendering,
 Supabase Storage upload, `product_renders`, order status updates, and Gelato
 draft submission. It does not prove Stripe Checkout, Stripe webhooks, or
 payment metadata mapping.

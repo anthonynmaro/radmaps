@@ -15,9 +15,9 @@
 #
 # Idempotent — safe to re-run after `git pull` adds new font files.
 #
-# Production deployment: render-worker-v4/Dockerfile copies fonts/ to
-# /usr/share/fonts/radmaps and runs `fc-cache -f`. Linux fontconfig
-# recurses into that path. This script is NOT used in production.
+# Production deployment: Nuxt serves fonts/ through its public asset config and
+# renderer Chromium loads them from the RadMaps app URL. This script is NOT used
+# in production.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

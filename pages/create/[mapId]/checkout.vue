@@ -54,11 +54,31 @@
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
             <img
-              v-if="previewUrl"
+              v-if="displayProofImage"
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
               alt="Print preview"
             >
+            <div
+              v-else-if="livePreviewMap"
+              class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden"
+            >
+              <ClientOnly>
+                <MapPreview
+                  :map="livePreviewMap"
+                  :style-config="liveStyleConfig"
+                  class="w-full h-full"
+                />
+                <template #fallback>
+                  <div class="w-full h-full flex items-center justify-center">
+                    <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+                      <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+                      <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+                    </svg>
+                  </div>
+                </template>
+              </ClientOnly>
+            </div>
             <div v-else class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 flex items-center justify-center">
               <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
                 <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
@@ -119,7 +139,7 @@ v-else-if="renderInFlight && !printReady"
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
           <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
-            <img v-if="previewUrl" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" >
+            <img v-if="displayProofImage" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" >
             <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
@@ -141,18 +161,50 @@ v-else-if="renderInFlight && !printReady"
             <div>
               <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Poster preview</p>
               <p class="text-sm text-stone-600 mt-1">
-                {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your last saved proof while the print file renders.' }}
+                {{ displayProofImage ? 'Print-ready proof is ready.' : 'Showing your current saved design while the print file renders.' }}
               </p>
             </div>
-            <button class="text-xs font-medium text-stone-500 hover:text-stone-800" @click="step = 'product'">Change product</button>
+            <div class="flex flex-wrap items-center justify-end gap-3">
+              <a
+                v-if="displayProofImage && previewUrl"
+                :href="previewUrl"
+                target="_blank"
+                rel="noopener"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-[#2D6A4F] hover:text-[#235840]"
+              >
+                <UIcon name="i-heroicons-arrows-pointing-out" class="h-3.5 w-3.5" />
+                <span>Open full proof</span>
+              </a>
+              <button class="text-xs font-medium text-stone-500 hover:text-stone-800" @click="step = 'product'">Change product</button>
+            </div>
           </div>
           <div class="h-[58vh] min-h-[420px] max-h-[720px] bg-[#e8e5e0] flex items-center justify-center overflow-hidden">
             <img
-              v-if="previewUrl"
+              v-if="displayProofImage"
               :src="previewUrl!"
               class="max-w-full max-h-full object-contain rounded-none"
               alt="Print proof"
             >
+            <div
+              v-else-if="livePreviewMap"
+              class="h-full max-h-full aspect-[2/3] bg-white overflow-hidden"
+            >
+              <ClientOnly>
+                <MapPreview
+                  :map="livePreviewMap"
+                  :style-config="liveStyleConfig"
+                  class="w-full h-full"
+                />
+                <template #fallback>
+                  <div class="w-full h-full flex items-center justify-center">
+                    <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+                      <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+                      <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+                    </svg>
+                  </div>
+                </template>
+              </ClientOnly>
+            </div>
             <svg v-else class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
@@ -360,7 +412,7 @@ import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
 import { FLAGS } from '~/utils/knownFlags'
-import type { TrailMap, PrintProduct, ProductFraming } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type TrailMap, type PrintProduct, type ProductFraming, type StyleConfig } from '~/types'
 
 definePageMeta({
   middleware: 'auth',
@@ -371,10 +423,16 @@ type CheckoutMap = Pick<TrailMap,
   | 'id'
   | 'user_id'
   | 'title'
+  | 'geojson'
   | 'bbox'
+  | 'stats'
+  | 'style_config'
   | 'thumbnail_url'
   | 'render_url'
   | 'proof_render_url'
+  | 'status'
+  | 'created_at'
+  | 'updated_at'
 >
 
 const route = useRoute()
@@ -433,6 +491,17 @@ const displayProofImage = computed(() =>
 )
 
 const selectedProductName = computed(() => selectedProduct.value?.name ?? 'the selected print')
+const liveStyleConfig = computed<StyleConfig>(() => ({
+  ...DEFAULT_STYLE_CONFIG,
+  ...(map.value?.style_config ?? {}),
+}))
+const livePreviewMap = computed<TrailMap | null>(() => {
+  if (!map.value) return null
+  return {
+    ...map.value,
+    style_config: liveStyleConfig.value,
+  } as TrailMap
+})
 
 const productStepTitle = computed(() => {
   if (renderError.value) return 'Render needs attention'
@@ -681,7 +750,7 @@ async function pollStatus() {
     .single()
   if (!data) return
 
-  if (typeof data.thumbnail_url === 'string' && !data.thumbnail_url.startsWith('error:')) {
+  if (!v4 && typeof data.thumbnail_url === 'string' && !data.thumbnail_url.startsWith('error:')) {
     previewUrl.value = data.thumbnail_url
   }
 
@@ -852,22 +921,12 @@ onMounted(async () => {
   try {
     const { data, error } = await supabase
       .from('maps')
-      .select('id, user_id, title, bbox, thumbnail_url, render_url, proof_render_url')
+      .select('id, user_id, title, geojson, bbox, stats, style_config, thumbnail_url, render_url, proof_render_url, status, created_at, updated_at')
       .eq('id', mapId)
       .eq('user_id', user.value?.id)
       .single()
     if (error) throw error
     map.value = data as CheckoutMap
-
-    // Seed preview URL
-    const seedUrl = data.proof_render_url && !data.proof_render_url.startsWith('error:')
-      ? data.proof_render_url
-      : data.render_url && !data.render_url.startsWith('error:')
-        ? data.render_url
-        : data.thumbnail_url && !data.thumbnail_url.startsWith('error:')
-          ? data.thumbnail_url
-          : null
-    if (seedUrl) previewUrl.value = seedUrl
 
     // Seed map center from bbox
     if (data.bbox) {
