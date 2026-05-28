@@ -78,11 +78,14 @@ export const ALL_STYLE_PRESETS: readonly StylePreset[] = [
   'radmaps-minimalist',
   'radmaps-topographic',
   'radmaps-natural',
+  'radmaps-toner-light',
+  'radmaps-toner-dark',
   'radmaps-toner',
   'radmaps-field-topo',
   'radmaps-contour-wash',
   'radmaps-simple-contour',
   'radmaps-night-relief',
+  'radmaps-watercolor',
   'radmaps-watercolor-classic',
   'radmaps-watercolor-pigment-wash',
   'radmaps-watercolor-paper',
@@ -187,6 +190,13 @@ const atlasFields: Array<keyof StyleConfig> = [
   'atlas_layers',
   'atlas_layer_settings',
 ]
+const tonerAtlasFields: Array<keyof StyleConfig> = [...atlasFields, 'toner_variant']
+
+function isTonerAtlasPreset(preset: StylePreset | string | undefined): boolean {
+  return preset === 'radmaps-toner-light'
+    || preset === 'radmaps-toner-dark'
+    || preset === 'radmaps-toner'
+}
 
 function slotIndex(slot: LayerSlot): number {
   return CANONICAL_LAYER_SLOT_ORDER.indexOf(slot)
@@ -449,6 +459,7 @@ function atlasGraph(preset: StylePreset, options: {
   hillshade?: LayerFeatureSupport
   requiredFields?: LayerGraph['requiredFields']
 } = {}) {
+  const layerFields = preset === 'radmaps-toner' ? tonerAtlasFields : atlasFields
   return makeGraph({
     preset,
     features: {
@@ -466,16 +477,22 @@ function atlasGraph(preset: StylePreset, options: {
       atlas_layer_settings: { visible: true, update: 'paint' },
     },
     layers: [
-      { id: `${preset}-landcover`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
-      { id: `${preset}-park`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
-      { id: `${preset}-water`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
-      { id: `${preset}-waterway`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
-      { id: `${preset}-building`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: atlasFields },
-      { id: `${preset}-roads-minor`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
-      { id: `${preset}-roads-major`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
-      { id: `${preset}-roads-trails`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: atlasFields, scale: LINE_SCALE_PROPERTIES },
-      { id: `${preset}-place-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: atlasFields, scale: SYMBOL_SCALE_PROPERTIES },
-      { id: `${preset}-poi-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: atlasFields, scale: SYMBOL_SCALE_PROPERTIES },
+      { id: `${preset}-landcover`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
+      ...(isTonerAtlasPreset(preset)
+        ? [{ id: `${preset}-natural-dots`, slot: 'water-land-buildings' as const, source: 'radmaps-atlas-base', consumes: layerFields }]
+        : []),
+      { id: `${preset}-park`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
+      ...(isTonerAtlasPreset(preset)
+        ? [{ id: `${preset}-park-dots`, slot: 'water-land-buildings' as const, source: 'radmaps-atlas-base', consumes: layerFields }]
+        : []),
+      { id: `${preset}-water`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
+      { id: `${preset}-waterway`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-building`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
+      { id: `${preset}-roads-minor`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-roads-major`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-roads-trails`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-place-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
+      { id: `${preset}-poi-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
     ],
   })
 }
@@ -593,11 +610,14 @@ const graphs: Record<StylePreset, LayerGraph> = {
   'radmaps-minimalist': atlasGraph('radmaps-minimalist', { hillshade: 'unsupported' }),
   'radmaps-topographic': atlasGraph('radmaps-topographic'),
   'radmaps-natural': atlasGraph('radmaps-natural'),
+  'radmaps-toner-light': atlasGraph('radmaps-toner-light'),
+  'radmaps-toner-dark': atlasGraph('radmaps-toner-dark'),
   'radmaps-toner': atlasGraph('radmaps-toner'),
   'radmaps-field-topo': atlasGraph('radmaps-field-topo'),
   'radmaps-contour-wash': atlasGraph('radmaps-contour-wash', { hillshade: 'unsupported' }),
   'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { hillshade: 'unsupported' }),
   'radmaps-night-relief': atlasGraph('radmaps-night-relief'),
+  'radmaps-watercolor': atlasGraph('radmaps-watercolor'),
   'radmaps-watercolor-classic': atlasGraph('radmaps-watercolor-classic'),
   'radmaps-watercolor-pigment-wash': atlasGraph('radmaps-watercolor-pigment-wash'),
   'radmaps-watercolor-paper': atlasGraph('radmaps-watercolor-paper'),

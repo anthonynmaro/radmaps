@@ -662,12 +662,12 @@
                 :font-family="pinLabelFontFamily(pin.id)"
                 :fill="pinLabelColor(pin.id)"
                 :opacity="pinLabelOpacity(pin.id, pin.opacity)"
-                :stroke="styleConfig.background_color ?? '#FFFFFF'"
+                :stroke="pinLabelHaloColor"
                 stroke-width="3"
                 paint-order="stroke fill"
                 :font-weight="pinLabelWeight(pin.id)"
                 :font-style="pinLabelItalic(pin.id)"
-                letter-spacing="0.12em"
+                :letter-spacing="pinLabelLetterSpacing"
                 dominant-baseline="middle"
                 :data-testid="`pin-label-${pin.id}`"
                 :style="editable ? 'pointer-events: all; cursor: grab; user-select: none;' : 'pointer-events: none;'"
@@ -677,7 +677,7 @@
                 @pointermove="draggingPin === pin.id && onLabelDragMove($event)"
                 @pointerup="draggingPin === pin.id && onLabelDragEnd($event)"
                 @pointercancel="draggingPin = null"
-              >{{ pin.label.toUpperCase() }}</text>
+              >{{ pinLabelDisplayText(pin.label) }}</text>
             </template>
           </g>
 
@@ -1141,7 +1141,7 @@ import { autoUpdate, computePosition, flip, offset, shift, type Placement } from
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, styleUsesContours } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveTonerRouteStyle, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
@@ -2528,6 +2528,8 @@ const previewRootStyle = computed(() => ({
   justifyContent: chromeMobileDrawerOpen.value ? 'center' : undefined,
 }))
 
+const effectiveRoutePaint = computed(() => resolveTonerRouteStyle(props.styleConfig))
+
 const posterCanvasClass = computed(() => ({
   'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
   'poster-canvas--print': isPrintRender.value,
@@ -2551,7 +2553,7 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
       '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
-      '--route-color': props.styleConfig.route_color,
+      '--route-color': effectiveRoutePaint.value.route_color,
     }
   : {
       aspectRatio: '2 / 3',
@@ -2567,7 +2569,7 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
       '--label-bg-color': props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
-      '--route-color': props.styleConfig.route_color,
+      '--route-color': effectiveRoutePaint.value.route_color,
     })
 
 const typography = computed(() => getPosterTypography(props.styleConfig))
@@ -3129,8 +3131,30 @@ function pinSlot(pin: 'start' | 'finish'): PosterTextSlot {
 function pinLabelFontFamily(pin: 'start' | 'finish') {
   const slot = pinSlot(pin)
   const family = slotOverride(slot).font_family ?? props.styleConfig.pin_font_family
-  return family ? toFontStack(family) : typography.value.statsFont
+  return family
+    ? toFontStack(family)
+    : props.styleConfig.preset === 'radmaps-toner'
+      || props.styleConfig.preset === 'radmaps-toner-light'
+      || props.styleConfig.preset === 'radmaps-toner-dark'
+      ? toFontStack('Work Sans')
+      : typography.value.statsFont
 }
+
+function pinLabelDisplayText(label: string) {
+  return props.styleConfig.preset === 'radmaps-toner'
+    || props.styleConfig.preset === 'radmaps-toner-light'
+    || props.styleConfig.preset === 'radmaps-toner-dark'
+    ? label
+    : label.toUpperCase()
+}
+
+const pinLabelLetterSpacing = computed(() =>
+  props.styleConfig.preset === 'radmaps-toner'
+  || props.styleConfig.preset === 'radmaps-toner-light'
+  || props.styleConfig.preset === 'radmaps-toner-dark'
+    ? '0.04em'
+    : '0.12em',
+)
 
 function pinLabelColor(pin: 'start' | 'finish') {
   return effectiveSlotColor(pinSlot(pin), contrastSafePinColor.value)
@@ -3253,6 +3277,48 @@ function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecific
   ) as maplibregl.StyleSpecification
   const zoomCompensatedStyle = applyViewportZoomCompensationToStyle(style, printZoomCompensationDelta())
   return applyViewportScaleToStyle(zoomCompensatedStyle, currentVisualScale()) as maplibregl.StyleSpecification
+}
+
+function addTonerDotPatternImage(instance: maplibregl.Map, id: string): boolean {
+  if (!id.startsWith(TONER_DOT_PATTERN_ID_PREFIX) || typeof document === 'undefined') return false
+  if (instance.hasImage(id)) return true
+
+  const match = id.match(/^radmaps-toner-dot-(light|dark)-(soft|medium|dense)$/)
+  if (!match) return false
+  const [, variant, density] = match
+  const size = density === 'dense' ? 6 : density === 'medium' ? 7 : 8
+  const radius = density === 'dense' ? 0.86 : density === 'medium' ? 0.82 : 0.78
+  const offset = density === 'dense' ? 1.5 : density === 'medium' ? 1.75 : 2
+  const color = variant === 'dark' ? 'rgba(190, 190, 190, 0.96)' : 'rgba(0, 0, 0, 0.88)'
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return false
+
+  ctx.clearRect(0, 0, size, size)
+  ctx.fillStyle = color
+  for (const [x, y] of [[offset, offset], [size - offset, size - offset]] as const) {
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  try {
+    instance.addImage(id, ctx.getImageData(0, 0, size, size), { pixelRatio: 1 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function onStyleImageMissing(event: { id: string }) {
+  if (!mapInstance) return
+  addTonerDotPatternImage(mapInstance, event.id)
+}
+
+function ensureTonerDotPatternImages(instance: maplibregl.Map) {
+  for (const id of TONER_DOT_PATTERN_IDS) addTonerDotPatternImage(instance, id)
 }
 
 function applyViewportScaledLayerProperties(styleConfig: StyleConfig = props.styleConfig) {
@@ -4087,11 +4153,13 @@ const showPinOverlay = computed(() =>
   ),
 )
 
+const pinLabelHaloColor = computed(() => mapBackgroundColor(props.styleConfig))
+
 const contrastSafePinColor = computed(() =>
   props.styleConfig.pin_color ?? pickContrastSafeColor(
     mapBackgroundColor(props.styleConfig),
     [
-      props.styleConfig.route_color,
+      effectiveRoutePaint.value.route_color,
       props.styleConfig.label_bg_color,
       props.styleConfig.label_text_color,
       props.styleConfig.background_color,
@@ -4590,11 +4658,15 @@ function publishDevCameraHandle() {
       get: () => MapCameraSnapshot | null
       jumpTo: (camera: Partial<MapCameraSnapshot>) => void
       getLayerIds: () => string[]
+      hasImage: (id: string) => boolean
+      getPaintProperty: (layerId: string, property: string) => unknown
     }
   }).__RADMAPS_MAP_CAMERA__ = {
     get: snapshotCurrentCamera,
     jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
     getLayerIds: () => mapInstance?.getStyle().layers?.map(layer => layer.id) ?? [],
+    hasImage: (id) => mapInstance?.hasImage(id) ?? false,
+    getPaintProperty: (layerId, property) => mapInstance?.getPaintProperty(layerId, property) ?? null,
   }
 }
 
@@ -4627,6 +4699,10 @@ onMounted(async () => {
     bearing: effectiveBearing(),
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
+  })
+  mapInstance.on('styleimagemissing', onStyleImageMissing)
+  mapInstance.on('styledata', () => {
+    if (mapInstance) ensureTonerDotPatternImages(mapInstance)
   })
   publishDevCameraHandle()
 
@@ -5303,13 +5379,14 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
     }
 
     if (mapInstance.getLayer('route-line')) {
+      const routePaint = resolveTonerRouteStyle(newConfig)
       if ((newConfig.route_color_mode ?? 'solid') !== 'gradient') {
-        mapInstance.setPaintProperty('route-line', 'line-color', newConfig.route_color)
+        mapInstance.setPaintProperty('route-line', 'line-color', routePaint.route_color)
       }
-      mapInstance.setPaintProperty('route-line', 'line-width', newConfig.route_width)
-      mapInstance.setPaintProperty('route-line', 'line-opacity', newConfig.route_opacity)
-      mapInstance.setPaintProperty('route-line-casing', 'line-width', newConfig.route_width + 4)
-      mapInstance.setPaintProperty('route-line-casing', 'line-opacity', newConfig.route_opacity)
+      mapInstance.setPaintProperty('route-line', 'line-width', routePaint.route_width)
+      mapInstance.setPaintProperty('route-line', 'line-opacity', routePaint.route_opacity)
+      mapInstance.setPaintProperty('route-line-casing', 'line-width', routePaint.route_width + 4)
+      mapInstance.setPaintProperty('route-line-casing', 'line-opacity', routePaint.route_opacity)
       mapInstance.setPaintProperty('route-line-casing', 'line-color', mapBackgroundColor(newConfig))
     }
     applyViewportScaledLayerProperties(newConfig)

@@ -31,7 +31,7 @@ export const HASH_VERSION = {
     /** Map renderer engine and its major version. */
     renderer: 'chromium-maplibre-gl-v1',
     /** mapStyle.ts compiler revision. */
-    styleCompiler: 'style-v3',
+    styleCompiler: 'style-v17',
     /** DPI tiering policy (currently per-product via maxDpi). */
     dpiPolicy: 'dpi-tiered-v1',
     /** Pixel-density and oversized-viewport math. */

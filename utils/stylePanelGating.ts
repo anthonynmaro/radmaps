@@ -50,6 +50,7 @@ export interface SectionVisibility {
   elevationProfileToggle: boolean   // show/hide the toggle itself
   elevationProfileExpanded: boolean // show sub-controls when enabled
   rasterEffectControls: boolean
+  tonerVariantControls: boolean
   duotoneControls: boolean
   posterizeControls: boolean
   layerColorControls: boolean
@@ -112,6 +113,7 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
     elevationProfileToggle: input.hasElevationData && input.hasRoute,
     elevationProfileExpanded: input.showElevationProfile && input.hasRoute && input.hasElevationData,
     rasterEffectControls: isVisible('tile_effect'),
+    tonerVariantControls: isVisible('toner_variant'),
     duotoneControls: isVisible('tile_duotone_strength') && input.tileEffect === 'duotone',
     posterizeControls: isVisible('tile_posterize_levels') && input.tileEffect === 'posterize',
     layerColorControls: isVisible('tile_shadow_color') && input.tileEffect === 'layer-color',

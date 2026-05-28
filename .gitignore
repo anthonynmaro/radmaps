@@ -29,7 +29,11 @@ npm-debug.log*
 
 # Testing
 coverage/
+test-results/
 .vercel
+
+# Local dev/runtime state
+.wrangler/
 
 # Local atlas build artifacts
 atlas/planetiler/

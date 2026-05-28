@@ -10,6 +10,7 @@ import {
   shippingAddressHash,
   type CheckoutCartSource,
 } from '~/server/utils/checkoutHardened'
+import { pricingDbColumns, publicPricingPayload, resolveProductPricing } from '~/server/utils/gelatoPricing'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 
 const Body = z.object({
@@ -38,6 +39,10 @@ export default defineEventHandler(async (event) => {
   const product = productOrThrow(body.product_uid, body.digital_only)
   const address = normalizeShippingAddress(body.shipping_address)
   const addressHash = shippingAddressHash(address)
+  const productPricing = await resolveProductPricing(adminClient, {
+    productUid: product.product_uid,
+    countryCode: address.country_code,
+  })
 
   let mapId: string | null = null
   let premadeSlug: string | null = null
@@ -82,6 +87,7 @@ export default defineEventHandler(async (event) => {
       quantity: body.quantity,
       shipping_address: address,
       address_hash: addressHash,
+      ...pricingDbColumns(productPricing),
       status: body.digital_only ? 'started' : 'quoted',
     })
     .select('id')
@@ -97,6 +103,7 @@ export default defineEventHandler(async (event) => {
       options: [],
       selected: null,
       expires_at: null,
+      pricing: publicPricingPayload(productPricing),
     }
   }
 
@@ -148,5 +155,6 @@ export default defineEventHandler(async (event) => {
     options: quotes,
     selected,
     expires_at: selected.expires_at,
+    pricing: publicPricingPayload(productPricing),
   }
 })

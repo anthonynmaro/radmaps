@@ -302,6 +302,18 @@ const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as strin
 
 const selectedProduct = computed(() => getProduct(selectedProductUid.value))
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
+const productPrices = ref<Record<string, number>>({})
+const lockedProductPriceCents = ref<number | null>(null)
+try {
+  const productPriceResponse = await $fetch<{ prices: Array<{ product_uid: string; retail_price_cents: number }> }>('/api/product-prices', {
+    query: { country: 'US' },
+  })
+  productPrices.value = Object.fromEntries(
+    productPriceResponse.prices.map((price) => [price.product_uid, price.retail_price_cents]),
+  )
+} catch {
+  productPrices.value = {}
+}
 const couponCode = ref('')
 const couponBusy = ref(false)
 const couponError = ref('')
@@ -312,7 +324,10 @@ const couponPreview = ref<null | {
   subtotal_cents: number
   total_cents: number
 }>(null)
-const subtotalCents = computed(() => (selectedProduct.value?.price_cents ?? 0) * quantity.value)
+const selectedUnitPriceCents = computed(() =>
+  lockedProductPriceCents.value ?? productPrices.value[selectedProductUid.value] ?? selectedProduct.value?.price_cents ?? 0
+)
+const subtotalCents = computed(() => selectedUnitPriceCents.value * quantity.value)
 const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
 const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
 type ShippingQuoteSelection = {
@@ -371,7 +386,7 @@ function removeCoupon() {
   couponError.value = ''
 }
 
-watch([() => form.value.email, selectedProduct, quantity], () => {
+watch([() => form.value.email, selectedProduct, quantity, subtotalCents], () => {
   if (couponPreview.value) removeCoupon()
 })
 
@@ -395,6 +410,7 @@ function hasQuoteAddress() {
 function clearShippingQuote() {
   shippingQuote.value = null
   quoteError.value = ''
+  lockedProductPriceCents.value = null
 }
 
 async function requestShippingQuote() {
@@ -409,6 +425,7 @@ async function requestShippingQuote() {
       checkout_attempt_id: string
       quote_id: string
       selected: Omit<ShippingQuoteSelection, 'checkout_attempt_id' | 'quote_id'>
+      pricing?: { product_uid: string; retail_price_cents: number }
     }>('/api/checkout/quote', {
       method: 'POST',
       body: {
@@ -435,6 +452,7 @@ async function requestShippingQuote() {
       quote_id: response.quote_id,
       ...response.selected,
     }
+    if (response.pricing?.retail_price_cents) lockedProductPriceCents.value = response.pricing.retail_price_cents
   } catch (err: any) {
     shippingQuote.value = null
     quoteError.value = err?.data?.message || err?.message || 'Could not calculate shipping for this address.'

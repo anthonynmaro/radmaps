@@ -176,7 +176,7 @@
               >
                 <p class="text-xs font-semibold text-stone-500 mb-0.5">{{ opt.size_label }}</p>
                 <p class="text-lg font-bold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">
-                  {{ formatPrice(opt.price_cents) }}
+                  {{ formatPrice(productPriceCents(opt)) }}
                 </p>
                 <span
                   v-if="selectedProductUid === opt.product_uid"
@@ -310,6 +310,21 @@ const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 
 // Poster products only for shop (no framed/canvas/digital for this flow)
 const posterOptions = PRODUCTS.filter((p) => p.type === 'poster' && p.size_label !== '5×7"')
+const productPrices = ref<Record<string, number>>({})
+try {
+  const productPriceResponse = await $fetch<{ prices: Array<{ product_uid: string; retail_price_cents: number }> }>('/api/product-prices', {
+    query: { country: 'US' },
+  })
+  productPrices.value = Object.fromEntries(
+    productPriceResponse.prices.map((price) => [price.product_uid, price.retail_price_cents]),
+  )
+} catch {
+  productPrices.value = {}
+}
+
+function productPriceCents(product: typeof posterOptions[number]): number {
+  return productPrices.value[product.product_uid] ?? product.price_cents
+}
 
 // Default size: 12x16 → falls back to first available
 const defaultSizeUid =
@@ -332,7 +347,7 @@ const checkoutReassurance = computed(() =>
 )
 
 const totalCents = computed(() =>
-  (selectedProduct.value?.price_cents ?? 0) * quantity.value
+  (selectedProduct.value ? productPriceCents(selectedProduct.value) : 0) * quantity.value
 )
 
 const posterAspect = computed(() => {
@@ -348,7 +363,7 @@ if (premadeMap) {
     '@type': 'Offer',
     sku: p.product_uid,
     name: `${premadeMap.title} — ${p.size_label} Poster`,
-    price: (p.price_cents / 100).toFixed(2),
+    price: (productPriceCents(p) / 100).toFixed(2),
     priceCurrency: 'USD',
     availability: 'https://schema.org/InStock',
     url: `${SITE_URL}/shop/${premadeMap.slug}`,
@@ -377,8 +392,8 @@ if (premadeMap) {
     offers: {
       '@type': 'AggregateOffer',
       offerCount: offers.length,
-      lowPrice: (Math.min(...posterOptions.map((p) => p.price_cents)) / 100).toFixed(2),
-      highPrice: (Math.max(...posterOptions.map((p) => p.price_cents)) / 100).toFixed(2),
+      lowPrice: (Math.min(...posterOptions.map(productPriceCents)) / 100).toFixed(2),
+      highPrice: (Math.max(...posterOptions.map(productPriceCents)) / 100).toFixed(2),
       priceCurrency: 'USD',
       offers,
     },

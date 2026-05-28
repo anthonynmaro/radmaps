@@ -170,6 +170,13 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_status        TEXT,
   payment_method_type   TEXT,
   receipt_url           TEXT,
+  pricing_snapshot_id   UUID,
+  pricing_country_code  TEXT CHECK (pricing_country_code IS NULL OR pricing_country_code ~ '^[A-Z]{2}$'),
+  gelato_product_cost_cents INT CHECK (gelato_product_cost_cents IS NULL OR gelato_product_cost_cents > 0),
+  retail_unit_price_cents INT CHECK (retail_unit_price_cents IS NULL OR retail_unit_price_cents > 0),
+  pricing_markup_bps    INT CHECK (pricing_markup_bps IS NULL OR pricing_markup_bps >= 0),
+  pricing_rounding_rule TEXT CHECK (pricing_rounding_rule IS NULL OR pricing_rounding_rule IN ('nearest_dollar')),
+  pricing_synced_at     TIMESTAMPTZ,
   shipping_quote_id     UUID,
   shipment_method_uid   TEXT,
   quote_expires_at      TIMESTAMPTZ,
@@ -209,6 +216,7 @@ CREATE INDEX IF NOT EXISTS orders_guest_email_idx  ON public.orders (guest_email
 CREATE INDEX IF NOT EXISTS orders_premade_slug_idx ON public.orders (premade_slug);
 CREATE INDEX IF NOT EXISTS orders_coupon_id_idx    ON public.orders (coupon_id) WHERE coupon_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS orders_coupon_slug_idx  ON public.orders (coupon_slug) WHERE coupon_slug IS NOT NULL;
+CREATE INDEX IF NOT EXISTS orders_pricing_snapshot_idx ON public.orders (pricing_snapshot_id) WHERE pricing_snapshot_id IS NOT NULL;
 
 DROP TRIGGER IF EXISTS set_orders_updated_at ON public.orders;
 CREATE TRIGGER set_orders_updated_at
@@ -487,6 +495,38 @@ CREATE INDEX IF NOT EXISTS processed_stripe_events_created_at_idx
   ON public.processed_stripe_events (created_at);
 
 -- ─── Hardened checkout/support tables ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.gelato_product_prices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_uid TEXT NOT NULL,
+  country_code TEXT NOT NULL CHECK (country_code ~ '^[A-Z]{2}$'),
+  currency TEXT NOT NULL DEFAULT 'usd' CHECK (currency ~ '^[a-z]{3}$'),
+  quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  gelato_cost_cents INT NOT NULL CHECK (gelato_cost_cents > 0),
+  retail_price_cents INT NOT NULL CHECK (retail_price_cents > 0),
+  markup_bps INT NOT NULL DEFAULT 5000 CHECK (markup_bps >= 0),
+  rounding_rule TEXT NOT NULL DEFAULT 'nearest_dollar'
+    CHECK (rounding_rule IN ('nearest_dollar')),
+  raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (product_uid, country_code, currency, quantity)
+);
+
+CREATE INDEX IF NOT EXISTS gelato_product_prices_lookup_idx
+  ON public.gelato_product_prices (product_uid, country_code, currency, quantity);
+CREATE INDEX IF NOT EXISTS gelato_product_prices_synced_idx
+  ON public.gelato_product_prices (synced_at DESC);
+
+DROP TRIGGER IF EXISTS set_gelato_product_prices_updated_at ON public.gelato_product_prices;
+CREATE TRIGGER set_gelato_product_prices_updated_at
+  BEFORE UPDATE ON public.gelato_product_prices
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_pricing_snapshot_id_fkey;
+ALTER TABLE public.orders ADD CONSTRAINT orders_pricing_snapshot_id_fkey
+  FOREIGN KEY (pricing_snapshot_id) REFERENCES public.gelato_product_prices(id) ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS public.checkout_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cart_source TEXT NOT NULL CHECK (cart_source IN ('custom','premade')),
@@ -502,6 +542,13 @@ CREATE TABLE IF NOT EXISTS public.checkout_attempts (
   quote_id UUID,
   stripe_session_id TEXT,
   stripe_customer_id TEXT,
+  pricing_snapshot_id UUID REFERENCES public.gelato_product_prices(id) ON DELETE SET NULL,
+  pricing_country_code TEXT CHECK (pricing_country_code IS NULL OR pricing_country_code ~ '^[A-Z]{2}$'),
+  gelato_product_cost_cents INT CHECK (gelato_product_cost_cents IS NULL OR gelato_product_cost_cents > 0),
+  retail_unit_price_cents INT CHECK (retail_unit_price_cents IS NULL OR retail_unit_price_cents > 0),
+  pricing_markup_bps INT CHECK (pricing_markup_bps IS NULL OR pricing_markup_bps >= 0),
+  pricing_rounding_rule TEXT CHECK (pricing_rounding_rule IS NULL OR pricing_rounding_rule IN ('nearest_dollar')),
+  pricing_synced_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'started'
     CHECK (status IN ('started','quoted','session_created','expired','completed','failed')),
   error_message TEXT,
@@ -511,6 +558,7 @@ CREATE TABLE IF NOT EXISTS public.checkout_attempts (
 
 CREATE INDEX IF NOT EXISTS checkout_attempts_user_idx ON public.checkout_attempts (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS checkout_attempts_session_idx ON public.checkout_attempts (stripe_session_id) WHERE stripe_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS checkout_attempts_pricing_snapshot_idx ON public.checkout_attempts (pricing_snapshot_id) WHERE pricing_snapshot_id IS NOT NULL;
 
 DROP TRIGGER IF EXISTS set_checkout_attempts_updated_at ON public.checkout_attempts;
 CREATE TRIGGER set_checkout_attempts_updated_at
@@ -673,6 +721,7 @@ CREATE TRIGGER set_fulfillment_jobs_updated_at
   BEFORE UPDATE ON public.fulfillment_jobs
   FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
+ALTER TABLE public.gelato_product_prices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.checkout_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shipping_quotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stripe_events ENABLE ROW LEVEL SECURITY;
@@ -683,6 +732,7 @@ ALTER TABLE public.order_disputes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fulfillment_jobs ENABLE ROW LEVEL SECURITY;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.gelato_product_prices TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.checkout_attempts TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.shipping_quotes TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.stripe_events TO service_role;

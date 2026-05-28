@@ -88,9 +88,11 @@ describe('theme application', () => {
       place_labels_color: '#234567',
       poi_labels_color: '#345678',
       pin_color: '#456789',
+      elevation_profile_color: '#ABCDEF',
       tile_shadow_color: '#56789A',
       tile_midtone_color: '#6789AB',
       tile_highlight_color: '#789ABC',
+      toner_variant: 'dark',
       pin_font_family: 'Bebas Neue',
       leader_label_font_family: 'Bebas Neue',
       grid_color: '#ABCDEF',
@@ -113,9 +115,12 @@ describe('theme application', () => {
     expect(next.place_labels_color).toBeUndefined()
     expect(next.poi_labels_color).toBeUndefined()
     expect(next.pin_color).toBeUndefined()
+    expect(next.elevation_profile_color).toBeUndefined()
+    expect(next.route_color).toBe(theme!.route_color)
     expect(next.tile_shadow_color).toBeUndefined()
     expect(next.tile_midtone_color).toBeUndefined()
     expect(next.tile_highlight_color).toBeUndefined()
+    expect(next.toner_variant).toBeUndefined()
     expect(next.atlas_layers).toBeUndefined()
     expect(next.atlas_layer_settings).toBeUndefined()
     expect(next.pin_font_family).toBeUndefined()

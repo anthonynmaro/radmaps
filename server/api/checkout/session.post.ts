@@ -12,6 +12,14 @@ import {
   shippingAddressHash,
   stripeCustomerAddress,
 } from '~/server/utils/checkoutHardened'
+import {
+  GELATO_PRICING_DEFAULT_COUNTRY,
+  pricingDbColumns,
+  pricingFromRecord,
+  pricingMetadata,
+  resolveProductPricing,
+  type ResolvedProductPricing,
+} from '~/server/utils/gelatoPricing'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 
 const Body = z.object({
@@ -50,7 +58,6 @@ export default defineEventHandler(async (event) => {
   const product = productOrThrow(body.product_uid, body.digital_only)
   const isDigital = body.digital_only || product.type === 'digital'
   const quantity = body.quantity
-  const subtotalCents = product.price_cents * quantity
   const addressHash = shippingAddressHash(address)
 
   let mapId: string | null = null
@@ -59,6 +66,7 @@ export default defineEventHandler(async (event) => {
   let previewImageUrl: string | undefined
   let quote: any = null
   let checkoutAttemptId = body.checkout_attempt_id || null
+  let productPricing: ResolvedProductPricing | null = null
 
   if (body.cart_source === 'custom') {
     if (!user?.id) throw createError({ statusCode: 401, message: 'Unauthorized' })
@@ -126,6 +134,28 @@ export default defineEventHandler(async (event) => {
     checkoutAttemptId = checkoutAttemptId || data.checkout_attempt_id
   }
 
+  if (checkoutAttemptId) {
+    const { data: attempt, error: attemptError } = await adminClient
+      .from('checkout_attempts')
+      .select('pricing_snapshot_id, pricing_country_code, gelato_product_cost_cents, retail_unit_price_cents, pricing_markup_bps, pricing_rounding_rule, pricing_synced_at')
+      .eq('id', checkoutAttemptId)
+      .maybeSingle()
+    if (attemptError) throw createError({ statusCode: 500, message: attemptError.message })
+    productPricing = pricingFromRecord(attempt, product.product_uid)
+    if (productPricing && !isDigital && productPricing.country_code !== address.country_code) {
+      throw createError({ statusCode: 409, message: 'Locked product price no longer matches this shipping address.' })
+    }
+  }
+
+  if (!productPricing) {
+    productPricing = await resolveProductPricing(adminClient, {
+      productUid: product.product_uid,
+      countryCode: isDigital ? GELATO_PRICING_DEFAULT_COUNTRY : address.country_code,
+    })
+  }
+
+  const subtotalCents = productPricing.retail_unit_price_cents * quantity
+
   if (!checkoutAttemptId) {
     const { data: attempt, error: attemptError } = await adminClient
       .from('checkout_attempts')
@@ -141,6 +171,7 @@ export default defineEventHandler(async (event) => {
         shipping_address: address,
         address_hash: addressHash,
         quote_id: quote?.id || null,
+        ...pricingDbColumns(productPricing),
         status: 'started',
       })
       .select('id')
@@ -224,7 +255,7 @@ export default defineEventHandler(async (event) => {
       line_items: [{
         price_data: {
           currency: 'usd',
-          unit_amount: product.price_cents,
+          unit_amount: productPricing.retail_unit_price_cents,
           product_data: {
             name: title,
             images: previewImageUrl ? [previewImageUrl] : undefined,
@@ -257,6 +288,7 @@ export default defineEventHandler(async (event) => {
         coupon_id: couponReservation?.coupon_id,
         coupon_slug: couponReservation?.slug,
         coupon_redemption_id: couponReservation?.redemption_id,
+        ...pricingMetadata(productPricing),
       }),
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -272,6 +304,7 @@ export default defineEventHandler(async (event) => {
       quote_id: quote?.id || null,
       stripe_session_id: session.id,
       stripe_customer_id: stripeCustomerId || null,
+      ...pricingDbColumns(productPricing),
       status: 'session_created',
     }).eq('id', checkoutAttemptId)
     if (quote) {

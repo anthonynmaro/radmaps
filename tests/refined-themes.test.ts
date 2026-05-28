@@ -99,7 +99,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     const contourWash = getRefinedThemeById('contour-wash')
 
     expect(brutalist?.composition).toBe('brutalist-slab')
-    expect(brutalist?.map_defaults.preset).toBe('radmaps-toner')
+    expect(brutalist?.map_defaults.preset).toBe('radmaps-toner-light')
     expect(brutalist?.map_defaults.show_contours).toBe(true)
     expect(brutalist?.map_defaults.contour_detail).toBeGreaterThanOrEqual(5)
     expect(contourWash?.composition).toBe('modernist-block')

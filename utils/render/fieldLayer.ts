@@ -49,8 +49,10 @@ export const FIELD_LAYER = {
   base_tile_style: 'map',
   atlas_manifest_id: 'map',
   atlas_style_id: 'map',
+  toner_variant: 'map',
   atlas_layers: 'map',
   atlas_layer_settings: 'map',
+  watercolor_seed: 'map',
 
   // ── Background (paints the canvas behind the map; chrome layer concern) ────
   background_color: 'chrome',
@@ -179,11 +181,13 @@ export const FIELD_LAYER = {
   trail_show_stats: 'map',
   trail_show_elevation_gain: 'map',
 
-  // ── Elevation profile (drawn on the map raster) ───────────────────────────
+  // ── Elevation profile (drawn in the map/profile visual layer) ─────────────
   show_elevation_profile: 'map',
   elevation_profile_color: 'map',
   elevation_profile_opacity: 'map',
   elevation_profile_height: 'map',
+  elevation_profile_position: 'map',
+  elevation_profile_relief: 'map',
 
   // ── Tile post-processing effects ──────────────────────────────────────────
   tile_effect: 'map',

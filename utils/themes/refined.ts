@@ -238,7 +238,7 @@ export const REFINED_THEMES = [
     tile_grain: 0,
     composition: 'modernist-block',
     map_defaults: mapDefaults({
-      preset: 'radmaps-toner',
+      preset: 'radmaps-toner-light',
       show_roads: false,
       show_place_labels: false,
       show_hillshade: false,
@@ -403,7 +403,7 @@ export const REFINED_THEMES = [
     border_style: 'thick',
     tile_grain: 0.06,
     composition: 'brutalist-slab',
-    map_defaults: mapDefaults({ preset: 'radmaps-toner', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
+    map_defaults: mapDefaults({ preset: 'radmaps-toner-light', show_roads: false, show_place_labels: false, show_hillshade: false, show_contours: true, contour_detail: 5, tile_effect: 'none', show_grid: false }),
   },
 ] as const satisfies readonly RefinedThemeDefinition[]
 

@@ -184,6 +184,14 @@ describe('Atlas map layers', () => {
     expect(sections.waterCard).toBe(false)
     expect(sections.contourToggle).toBe(true)
   })
+
+  it('does not show a Toner variant control for explicit Toner presets', () => {
+    expect(compute({ preset: 'radmaps-toner' }).tonerVariantControls).toBe(false)
+    expect(compute({ preset: 'radmaps-toner-light' }).tonerVariantControls).toBe(false)
+    expect(compute({ preset: 'radmaps-toner-dark' }).tonerVariantControls).toBe(false)
+    expect(compute({ preset: 'stadia-toner' }).tonerVariantControls).toBe(false)
+    expect(compute({ preset: 'radmaps-field-topo' }).tonerVariantControls).toBe(false)
+  })
 })
 
 describe('map detail controls', () => {
