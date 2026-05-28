@@ -47,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { buildElevationProfile } from '~/utils/trail'
+import { resolveTonerRouteStyle } from '~/utils/mapStyle'
 import type { TrailMap, StyleConfig } from '~/types'
 
 const props = defineProps<{
@@ -56,7 +57,7 @@ const props = defineProps<{
 
 const gradientId = `elev-grad-${Math.random().toString(36).slice(2, 8)}`
 
-const color = computed(() => props.styleConfig.elevation_profile_color || props.styleConfig.route_color || '#C1121F')
+const color = computed(() => props.styleConfig.elevation_profile_color || resolveTonerRouteStyle(props.styleConfig).route_color || '#C1121F')
 const opacity = computed(() => props.styleConfig.elevation_profile_opacity ?? 0.65)
 const heightCss = computed(() => `${props.styleConfig.elevation_profile_height ?? 22}%`)
 const showLabels = computed(() => (props.styleConfig.elevation_profile_height ?? 22) >= 14)

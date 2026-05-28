@@ -6,6 +6,7 @@ import { computePrintHash } from '~/utils/render/hash'
 import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 import { getStripeClient } from '~/server/utils/stripe'
 import { normalizeShippingAddress, recordOrderEvent, shippingAddressHash, type CheckoutShippingAddress } from '~/server/utils/checkoutHardened'
+import { pricingDbColumns, pricingFromMetadata, pricingFromRecord } from '~/server/utils/gelatoPricing'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -109,6 +110,15 @@ async function handleCheckoutCompleted(input: {
   const quote = meta.quote_id
     ? (await supabase.from('shipping_quotes').select('*').eq('id', meta.quote_id).maybeSingle()).data
     : null
+  const checkoutAttempt = meta.checkout_attempt_id
+    ? (await supabase
+        .from('checkout_attempts')
+        .select('pricing_snapshot_id, pricing_country_code, gelato_product_cost_cents, retail_unit_price_cents, pricing_markup_bps, pricing_rounding_rule, pricing_synced_at')
+        .eq('id', meta.checkout_attempt_id)
+        .maybeSingle()).data
+    : null
+  const lockedPricing = pricingFromRecord(checkoutAttempt, productUid)
+    ?? pricingFromMetadata(meta as Record<string, string | undefined>, productUid)
   const shippingAddress = normalizeShippingAddress(resolveShippingAddress(session, meta, quote))
   const addressHash = shippingAddressHash(shippingAddress)
   const quoteVerified = isDigital || (
@@ -156,6 +166,7 @@ async function handleCheckoutCompleted(input: {
     payment_status: session.payment_status,
     payment_method_type: paymentMethodType ?? null,
     receipt_url: receiptUrl,
+    ...(lockedPricing ? pricingDbColumns(lockedPricing) : {}),
     product_uid: productUid,
     print_size: meta.print_size || (isDigital ? 'digital' : null),
     quantity,

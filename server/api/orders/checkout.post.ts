@@ -10,6 +10,7 @@ import { getProduct } from '~/utils/products'
 import { freezeOrderSnapshot } from '~/server/utils/snapshot'
 import { attachStripeSessionToCouponReservation, releaseCouponReservation, reserveCouponForCheckout } from '~/server/utils/coupons'
 import { getStripeClient } from '~/server/utils/stripe'
+import { GELATO_PRICING_DEFAULT_COUNTRY, pricingMetadata, resolveProductPricing } from '~/server/utils/gelatoPricing'
 
 const CheckoutBody = z.object({
   map_id: z.string().uuid(),
@@ -60,12 +61,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 422, message: 'Map must be rendered before ordering a print' })
   }
 
-  // Look up product + price from Gelato catalogue
-  const product = digital_only ? null : getProduct(product_uid)
-  const DIGITAL_PRICE = 999 // $9.99
-  const unitPrice = digital_only ? DIGITAL_PRICE : product?.price_cents ?? 0
+  // Resolve server-trusted product pricing from the stored Gelato snapshot.
+  const product = getProduct(digital_only ? 'digital' : product_uid)
+  const pricing = await resolveProductPricing(adminClient, {
+    productUid: product?.product_uid || product_uid,
+    countryCode: digital_only ? GELATO_PRICING_DEFAULT_COUNTRY : shipping_address.country_code,
+  })
+  const unitPrice = pricing.retail_unit_price_cents
 
-  if (!unitPrice) {
+  if (!product || !unitPrice) {
     throw createError({ statusCode: 400, message: 'Invalid product UID' })
   }
 
@@ -124,10 +128,11 @@ export default defineEventHandler(async (event) => {
         coupon_id: couponReservation?.coupon_id || '',
         coupon_slug: couponReservation?.slug || '',
         coupon_redemption_id: couponReservation?.redemption_id || '',
+        ...pricingMetadata(pricing),
       },
       shipping_address_collection: digital_only
         ? undefined
-        : { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'SE', 'NO'] },
+        : { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'SE', 'NO', 'ES', 'IT', 'IE', 'DK', 'FI', 'NZ', 'JP'] },
       success_url: `${baseUrl}/create/${map_id}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/create/${map_id}/checkout`,
     })

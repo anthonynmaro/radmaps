@@ -78,6 +78,7 @@ export default defineNuxtConfig({
     gelatoApiKey: process.env.GELATO_API_KEY,
     gelatoOrderType: process.env.GELATO_ORDER_TYPE === 'draft' ? 'draft' : 'order',
     gelatoWebhookSecret: process.env.GELATO_WEBHOOK_SECRET,
+    cronSecret: process.env.CRON_SECRET,
     stravaClientId: process.env.STRAVA_CLIENT_ID,
     stravaClientSecret: process.env.STRAVA_CLIENT_SECRET,
     stravaRedirectUri: process.env.STRAVA_REDIRECT_URI,

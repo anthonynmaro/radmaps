@@ -150,7 +150,7 @@ v-else-if="renderInFlight && !printReady"
             <p class="text-xs text-stone-500 mt-0.5">{{ selectedProduct?.name }}</p>
           </div>
           <div class="text-right shrink-0">
-            <p class="font-bold text-[#2D6A4F]">{{ selectedProduct ? formatPrice(selectedProduct.price_cents) : '' }}</p>
+            <p class="font-bold text-[#2D6A4F]">{{ selectedProduct ? formatPrice(selectedUnitPriceCents) : '' }}</p>
             <button class="text-xs text-stone-400 hover:text-stone-600 mt-1" @click="step = 'product'">Change</button>
           </div>
         </div>
@@ -455,6 +455,7 @@ const mapCenter = ref<[number, number]>([0, 0])
 const mapZoom = ref(10)
 
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
+const lockedProductPriceCents = ref<number | null>(null)
 const couponCode = ref('')
 const couponBusy = ref(false)
 const couponError = ref('')
@@ -465,7 +466,10 @@ const couponPreview = ref<null | {
   subtotal_cents: number
   total_cents: number
 }>(null)
-const subtotalCents = computed(() => selectedProduct.value ? selectedProduct.value.price_cents : 0)
+const selectedUnitPriceCents = computed(() =>
+  lockedProductPriceCents.value ?? selectedProduct.value?.price_cents ?? 0
+)
+const subtotalCents = computed(() => selectedProduct.value ? selectedUnitPriceCents.value : 0)
 const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
 const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
 
@@ -592,7 +596,7 @@ function removeCoupon() {
   couponError.value = ''
 }
 
-watch([() => shippingAddress.email, selectedProduct], () => {
+watch([() => shippingAddress.email, selectedProduct, subtotalCents], () => {
   if (couponPreview.value) removeCoupon()
 })
 
@@ -604,6 +608,7 @@ function hasQuoteAddress() {
 function clearShippingQuote() {
   shippingQuote.value = null
   quoteError.value = ''
+  lockedProductPriceCents.value = null
 }
 
 async function requestShippingQuote() {
@@ -618,6 +623,7 @@ async function requestShippingQuote() {
       checkout_attempt_id: string
       quote_id: string
       selected: Omit<ShippingQuoteSelection, 'checkout_attempt_id' | 'quote_id'>
+      pricing?: { retail_price_cents: number }
     }>('/api/checkout/quote', {
       method: 'POST',
       body: {
@@ -634,6 +640,9 @@ async function requestShippingQuote() {
       checkout_attempt_id: response.checkout_attempt_id,
       quote_id: response.quote_id,
       ...response.selected,
+    }
+    if (response.pricing?.retail_price_cents) {
+      lockedProductPriceCents.value = response.pricing.retail_price_cents
     }
   } catch (err: any) {
     shippingQuote.value = null

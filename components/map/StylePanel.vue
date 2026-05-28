@@ -1507,17 +1507,23 @@ const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
   place: true,
 }
 
+function isTonerAtlasPreset(preset?: StylePreset) {
+  return preset === 'radmaps-toner-light'
+    || preset === 'radmaps-toner-dark'
+    || preset === 'radmaps-toner'
+}
+
 function atlasLayerVisibilityDefaults(
   preset?: StylePreset,
   defaults: Partial<StyleConfig> = {},
 ): Record<AtlasLayerId, boolean> {
   return {
     ...DEFAULT_ATLAS_LAYER_VISIBILITY,
-    ...(preset === 'radmaps-toner' ? { contour: false, transportation: false } : {}),
+    ...(isTonerAtlasPreset(preset) ? { contour: false } : {}),
     ...(defaults.show_contours === false ? { contour: false } : {}),
     ...(defaults.show_roads === false ? { transportation: false } : {}),
     ...(defaults.show_place_labels === false ? { place: false } : {}),
-    ...(defaults.show_poi_labels === false ? { poi: false } : {}),
+    ...(defaults.show_poi_labels === false && !isTonerAtlasPreset(preset) ? { poi: false } : {}),
   }
 }
 
@@ -2456,30 +2462,75 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     beta: true,
   },
   {
-    id: 'radmaps-toner',
-    label: 'Atlas Toner',
-    title: 'Owned Atlas toner — Stamen-like monochrome linework with restrained dot texture',
+    id: 'radmaps-toner-light',
+    label: 'Toner Light',
+    title: 'First-party light toner — monochrome linework with restrained dot texture',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#F7F6F1"/>
       <rect x="0" y="0" width="48" height="32" fill="#D7DEE0" opacity="0.42"/>
       <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#17222A" stroke-width="1.25" fill="none" opacity="0.68"/>
       <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#17222A" stroke-width="0.75" fill="none" opacity="0.45"/>
       <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#17222A" stroke-width="0.95" fill="none" opacity="0.5"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#111111" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#C1121F" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
     defaults: {
       show_contours: false,
       show_hillshade: false,
-      show_roads: false,
-      route_color: '#111111',
+      show_roads: true,
+      show_place_labels: true,
+      show_poi_labels: false,
+      route_color: '#C1121F',
+      route_width: 4.5,
+      route_opacity: 1,
+      pin_font_family: 'Work Sans',
+      pin_opacity: 1,
       atlas_layer_settings: {
-        landcover: { color: '#D7E8F8', opacity: 0.82 },
-        park: { fill_color: '#24384A', opacity: 0.12 },
-        water: { fill_color: '#24384A', fill_opacity: 0.82 },
-        waterway: { color: '#24384A', opacity: 0.62, width: 1.05 },
-        building: { fill_color: '#24384A', opacity: 0.12 },
-        transportation: { opacity: 0.52, major_color: '#24384A', minor_color: '#24384A', trail_color: '#24384A', show_major: false, show_minor: false, show_trails: false },
-        place: { label_color: '#24384A', label_opacity: 0.64, font_size: 13, halo_color: '#D7E8F8' },
-        poi: { label_color: '#24384A', label_opacity: 0.18 },
+        landcover: { opacity: 1 },
+        park: { opacity: 0.08 },
+        water: { fill_opacity: 0.34 },
+        waterway: { opacity: 0.74, width: 1.05 },
+        building: { opacity: 0.05 },
+        transportation: { opacity: 0.94, show_major: true, show_minor: true, show_trails: false, major_width: 3.3, minor_width: 1.2, trail_width: 1.5 },
+        place: { label_opacity: 0.76, font_size: 13 },
+        poi: { label_opacity: 0.18 },
+      },
+    },
+    beta: true,
+  },
+  {
+    id: 'radmaps-toner-dark',
+    label: 'Toner Dark',
+    title: 'First-party dark toner — high-contrast roads with restrained dot texture',
+    viewBox: '0 0 48 32',
+    svg: `<rect width="48" height="32" fill="#050505"/>
+      <rect x="0" y="0" width="48" height="32" fill="#1F2933" opacity="0.52"/>
+      <circle cx="9" cy="7" r="0.7" fill="#808A93" opacity="0.5"/>
+      <circle cx="13" cy="11" r="0.7" fill="#808A93" opacity="0.5"/>
+      <circle cx="17" cy="7" r="0.7" fill="#808A93" opacity="0.5"/>
+      <circle cx="21" cy="11" r="0.7" fill="#808A93" opacity="0.5"/>
+      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#FFFFFF" stroke-width="1.25" fill="none" opacity="0.78"/>
+      <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#5F6B75" stroke-width="0.85" fill="none" opacity="0.86"/>
+      <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#5F6B75" stroke-width="0.95" fill="none" opacity="0.72"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FF4A3D" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    defaults: {
+      show_contours: false,
+      show_hillshade: false,
+      show_roads: true,
+      show_place_labels: true,
+      show_poi_labels: false,
+      route_color: '#FF4A3D',
+      route_width: 4.5,
+      route_opacity: 1,
+      pin_font_family: 'Work Sans',
+      pin_opacity: 1,
+      atlas_layer_settings: {
+        landcover: { opacity: 1 },
+        park: { opacity: 0.08 },
+        water: { fill_opacity: 0.34 },
+        waterway: { opacity: 0.74, width: 1.05 },
+        building: { opacity: 0.05 },
+        transportation: { opacity: 0.94, show_major: true, show_minor: true, show_trails: false, major_width: 3.3, minor_width: 1.2, trail_width: 1.5 },
+        place: { label_opacity: 0.76, font_size: 13 },
+        poi: { label_opacity: 0.18 },
       },
     },
     beta: true,
@@ -2741,6 +2792,7 @@ function applyMapPreset(p: MapPresetOption) {
     ? {
         atlas_style_id: p.id,
         atlas_layers: atlasLayerVisibilityDefaults(p.id, p.defaults),
+        toner_variant: undefined,
         show_place_labels: true,
         show_poi_labels: true,
       }

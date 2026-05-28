@@ -320,7 +320,7 @@
             >{{ map.title }}</h3>
             <p v-if="map.tagline" class="text-[13px] italic text-stone-500 mt-1 truncate" style="font-family:'Playfair Display',serif">{{ map.tagline }}</p>
             <p class="mt-3 text-[11px] font-semibold tracking-[0.22em] uppercase text-stone-700">
-              from {{ formatPrice(map.base_price_cents) }}
+              from {{ formatPrice(shopStartingPriceCents(map)) }}
             </p>
           </div>
         </NuxtLink>
@@ -397,6 +397,10 @@ const { data: premadeMaps, pending, refresh } = await useFetch<PremadeMap[]>('/a
   query: searchParams,
   default: () => [],
 })
+const { data: productPriceData } = await useFetch<{ prices: Array<{ retail_price_cents: number; type?: string }> }>('/api/product-prices', {
+  query: { country: 'US' },
+  default: () => ({ prices: [] }),
+})
 
 function readCategoryFromQuery(value: unknown): PremadeMap['category'] | null {
   const raw = Array.isArray(value) ? value[0] : value
@@ -410,6 +414,17 @@ watch(() => route.query.category, (next) => {
 })
 
 const allCount = computed(() => premadeMaps.value.length)
+const defaultShopPriceCents = computed(() => {
+  const prices = (productPriceData.value?.prices ?? [])
+    .filter((price) => price.type === 'poster')
+    .map((price) => price.retail_price_cents)
+    .filter((price) => price > 0)
+  return prices.length ? Math.min(...prices) : 0
+})
+
+function shopStartingPriceCents(map: PremadeMap): number {
+  return defaultShopPriceCents.value || map.base_price_cents
+}
 
 const filteredMaps = computed(() => {
   if (activeCategory.value) {

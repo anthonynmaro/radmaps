@@ -37,7 +37,7 @@
 import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
-import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
@@ -75,6 +75,10 @@ const themePickerFixture = route.query.themePicker === 'true' || route.query.the
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 const withAsset = route.query.asset === 'true' || route.query.asset === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
+const showFixtureRoads = queryFlag(route.query.roads, false)
+const showFixtureLabels = queryFlag(route.query.labels, false)
+const showFixturePois = queryFlag(route.query.pois, false)
+const fixtureTonerVariant = parseTonerVariant(route.query.tonerVariant)
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -90,8 +94,9 @@ const baseConfig: StyleConfig = {
     ...DEFAULT_STYLE_CONFIG.labels,
     show_date: true,
   },
-  show_roads: false,
-  show_place_labels: false,
+  show_roads: showFixtureRoads,
+  show_place_labels: showFixtureLabels,
+  show_poi_labels: showFixturePois,
   show_contours: true,
   show_start_pin: withPins,
   show_finish_pin: withPins,
@@ -168,7 +173,71 @@ const initialStyleConfig: StyleConfig = {
     : {}),
 }
 
-const styleConfig = ref<StyleConfig>(initialStyleConfig)
+const fixturePresetIsRadMapsToner = initialStyleConfig.preset === 'radmaps-toner'
+  || initialStyleConfig.preset === 'radmaps-toner-light'
+  || initialStyleConfig.preset === 'radmaps-toner-dark'
+const hasFixtureLayerOverrides = showFixtureRoads || showFixtureLabels || showFixturePois
+const baseFixtureLayerSettings = fixturePresetIsRadMapsToner ? undefined : initialStyleConfig.atlas_layer_settings
+const fixtureLayerSettings: StyleConfig['atlas_layer_settings'] = {
+  ...(baseFixtureLayerSettings ?? {}),
+  ...(showFixtureRoads
+    ? {
+        transportation: {
+          ...baseFixtureLayerSettings?.transportation,
+          opacity: 0.9,
+          show_major: true,
+          show_minor: true,
+          show_trails: true,
+          major_width: 3.3,
+          minor_width: 1.2,
+          trail_width: 1.5,
+          ...(fixturePresetIsRadMapsToner
+            ? {}
+            : {
+                major_color: '#314256',
+                minor_color: '#52677A',
+                trail_color: '#2D6A4F',
+              }),
+        },
+      }
+    : {}),
+  ...(showFixtureLabels
+    ? {
+        place: {
+          ...baseFixtureLayerSettings?.place,
+          label_opacity: 0.82,
+          font_size: 13,
+          ...(fixturePresetIsRadMapsToner
+            ? {}
+            : {
+                label_color: '#263746',
+                halo_color: initialStyleConfig.land_color ?? initialStyleConfig.background_color,
+              }),
+        },
+      }
+    : {}),
+  ...(showFixturePois
+    ? {
+        poi: {
+          ...baseFixtureLayerSettings?.poi,
+          label_opacity: 0.74,
+        },
+      }
+    : {}),
+}
+const fixtureQueryOverrides: Partial<StyleConfig> = {
+  show_roads: showFixtureRoads,
+  show_place_labels: showFixtureLabels,
+  show_poi_labels: showFixturePois,
+  ...(fixtureTonerVariant ? { toner_variant: fixtureTonerVariant } : {}),
+  ...(showFixtureRoads ? { roads_opacity: 0.9 } : {}),
+  ...(hasFixtureLayerOverrides || fixturePresetIsRadMapsToner ? { atlas_layer_settings: fixtureLayerSettings } : {}),
+}
+
+const styleConfig = ref<StyleConfig>({
+  ...initialStyleConfig,
+  ...fixtureQueryOverrides,
+})
 const themePickerClosed = ref(false)
 
 onMounted(() => {
@@ -241,6 +310,16 @@ function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
 function onThemePickerApply(payload: { styleConfig: StyleConfig }) {
   styleConfig.value = payload.styleConfig
   themePickerClosed.value = true
+}
+
+function queryFlag(value: unknown, fallback = false): boolean {
+  if (value === 'true' || value === '1') return true
+  if (value === 'false' || value === '0') return false
+  return fallback
+}
+
+function parseTonerVariant(value: unknown): TonerVariant | undefined {
+  return value === 'auto' || value === 'light' || value === 'dark' ? value : undefined
 }
 
 const finalFraming = getPrintFraming(styleConfig.value.print_size ?? '24x36', 'final')

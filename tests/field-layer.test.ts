@@ -16,6 +16,7 @@ import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
 const fullConfig: StyleConfig = {
   ...DEFAULT_STYLE_CONFIG,
   // Optional map fields
+  toner_variant: 'dark',
   route_deleted_ranges: [],
   route_color_mode: 'solid',
   show_roads: false,
@@ -120,5 +121,9 @@ describe('FIELD_LAYER — locked decisions', () => {
   it('preset and base_tile_style are "map"', () => {
     expect(FIELD_LAYER.preset).toBe('map')
     expect(FIELD_LAYER.base_tile_style).toBe('map')
+  })
+
+  it('legacy toner_variant is "map"', () => {
+    expect(FIELD_LAYER.toner_variant).toBe('map')
   })
 })

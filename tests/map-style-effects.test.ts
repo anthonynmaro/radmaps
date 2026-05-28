@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
-import { buildMapStyle, styleUsesContours } from '../utils/mapStyle'
+import {
+  buildMapStyle,
+  mapBackgroundColor,
+  mapInkColor,
+  resolveTonerPalette,
+  resolveTonerRouteStyle,
+  resolveTonerVariant,
+  styleUsesContours,
+  tonerDotNaturalFilter,
+  tonerDotParkFilter,
+  tonerDotPatternId,
+} from '../utils/mapStyle'
 
 function baseTileUrl(style: object): string {
   const sources = (style as { sources?: Record<string, { tiles?: string[] }> }).sources
@@ -202,12 +213,42 @@ describe('contour style requirements', () => {
 })
 
 describe('RadMaps Atlas style integration', () => {
+  it('resolves Toner palettes from explicit light/dark presets', () => {
+    expect(resolveTonerVariant({ preset: 'radmaps-toner-light', toner_variant: 'dark', dark: true })).toBe('light')
+    expect(resolveTonerVariant({ preset: 'radmaps-toner-dark', toner_variant: 'light', dark: false })).toBe('dark')
+    expect(resolveTonerVariant({ toner_variant: 'auto', dark: true })).toBe('dark')
+    expect(resolveTonerVariant({ toner_variant: 'auto', dark: false })).toBe('light')
+    expect(resolveTonerVariant({ toner_variant: 'dark', dark: false })).toBe('dark')
+    expect(resolveTonerVariant({ toner_variant: 'light', dark: true })).toBe('light')
+
+    const dark = resolveTonerPalette({ preset: 'radmaps-toner-dark' })
+    const light = resolveTonerPalette({ preset: 'radmaps-toner-light' })
+
+    expect(dark.background).toBe('#000000')
+    expect(dark.roadMajor).toBe('#FFFFFF')
+    expect(dark.roadMinor).toBe('#5F6B75')
+    expect(light.background).toBe('#FFFFFF')
+    expect(light.roadMajor).toBe('#000000')
+    expect(light.roadMinor).toBe('#3F3F3F')
+    expect(mapBackgroundColor({ ...DEFAULT_STYLE_CONFIG, preset: 'radmaps-toner-dark' })).toBe('#000000')
+    expect(mapInkColor({ ...DEFAULT_STYLE_CONFIG, preset: 'radmaps-toner-light' })).toBe('#000000')
+    expect(resolveTonerRouteStyle({ ...DEFAULT_STYLE_CONFIG, preset: 'radmaps-toner-dark', route_color: '#111111' })).toMatchObject({
+      route_color: '#FF4A3D',
+      route_width: DEFAULT_STYLE_CONFIG.route_width,
+      route_opacity: 0.96,
+    })
+    expect(resolveTonerRouteStyle({ ...DEFAULT_STYLE_CONFIG, preset: 'radmaps-toner-dark', route_width: 1.5 })).toMatchObject({
+      route_width: 1.5,
+    })
+  })
+
   it('routes owned Atlas provider-replacement presets through RadMaps Atlas tiles', () => {
     const ownedProviderReplacementPresets = [
       'radmaps-minimalist',
       'radmaps-topographic',
       'radmaps-natural',
-      'radmaps-toner',
+      'radmaps-toner-light',
+      'radmaps-toner-dark',
       'radmaps-contour-wash',
       'radmaps-watercolor-pigment-wash',
       'radmaps-watercolor-brush-ink',
@@ -223,6 +264,67 @@ describe('RadMaps Atlas style integration', () => {
 
       expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
     }
+  })
+
+  it('renders the dark first-party Toner style without Stadia tiles', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner-dark',
+      show_roads: true,
+      show_place_labels: true,
+      show_poi_labels: true,
+    }, 'mapbox-test-token')
+
+    expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
+    expect(JSON.stringify(style)).not.toContain('tiles.stadiamaps.com')
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#000000')
+    expect(layerById(style, 'radmaps-toner-dark-water')?.paint?.['fill-color']).toBe('#8595A2')
+    expect(layerById(style, 'radmaps-toner-dark-water')?.paint?.['fill-opacity']).toBe(0.44)
+    expect(layerById(style, 'radmaps-toner-dark-water')?.paint?.['fill-antialias']).toBe(false)
+    expect(layerById(style, 'radmaps-toner-dark-roads-major')?.paint?.['line-color']).toBe('#FFFFFF')
+    expect(layerById(style, 'radmaps-toner-dark-roads-major')?.paint?.['line-opacity']).toBe(1)
+    expect(layerById(style, 'radmaps-toner-dark-roads-minor')?.paint?.['line-color']).toBe('#5F6B75')
+    expect(layerById(style, 'radmaps-toner-dark-roads-minor')?.paint?.['line-width']).toEqual(['interpolate', ['linear'], ['zoom'], 8, 0.38, 13, 1.35, 16, 2.65])
+    expect(layerById(style, 'radmaps-toner-dark-place-labels')?.paint?.['text-color']).toBe('#FFFFFF')
+    expect(layerById(style, 'radmaps-toner-dark-place-labels')?.paint?.['text-halo-color']).toBe('#000000')
+    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#FF4A3D')
+    expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(DEFAULT_STYLE_CONFIG.route_width)
+    expect(layerById(style, 'route-line-casing')?.paint?.['line-color']).toBe('#000000')
+  })
+
+  it('renders the light first-party Toner style with black linework', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner-light',
+      show_roads: true,
+      show_place_labels: true,
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#FFFFFF')
+    expect(layerById(style, 'radmaps-toner-light-water')?.paint?.['fill-color']).toBe('#B7B7B7')
+    expect(layerById(style, 'radmaps-toner-light-water')?.paint?.['fill-opacity']).toBe(0.34)
+    expect(layerById(style, 'radmaps-toner-light-water')?.paint?.['fill-antialias']).toBe(false)
+    expect(layerById(style, 'radmaps-toner-light-roads-major')?.paint?.['line-color']).toBe('#000000')
+    expect(layerById(style, 'radmaps-toner-light-roads-minor')?.paint?.['line-color']).toBe('#3F3F3F')
+    expect(layerById(style, 'radmaps-toner-light-place-labels')?.paint?.['text-color']).toBe('#000000')
+    expect(layerById(style, 'radmaps-toner-light-place-labels')?.paint?.['text-halo-color']).toBe('#FFFFFF')
+  })
+
+  it('adds Toner polygon dot patterns only for selected Atlas area features', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner-dark',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-toner-dark-landcover-dots')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-building-dots')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-toner-texture')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-natural-dots')?.filter).toEqual(tonerDotNaturalFilter())
+    expect(layerById(style, 'radmaps-toner-dark-natural-dots')?.paint?.['fill-pattern']).toBe(tonerDotPatternId('dark', 'soft'))
+    expect(layerById(style, 'radmaps-toner-dark-natural-dots')?.paint?.['fill-opacity']).toBe(0.22)
+    expect(layerById(style, 'radmaps-toner-dark-park-dots')?.filter).toEqual(tonerDotParkFilter())
+    expect(layerById(style, 'radmaps-toner-dark-park-dots')?.paint?.['fill-pattern']).toBe(tonerDotPatternId('dark', 'soft'))
+    expect(layerById(style, 'radmaps-toner-dark-park-dots')?.paint?.['fill-opacity']).toBe(0.24)
   })
 
   it('preserves the pale blue contour-wash look as a non-watercolor owned Atlas preset', () => {
@@ -274,14 +376,14 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-alidade-dark-roads-major')?.paint?.['line-color']).toBe('#f18f45')
   })
 
-  it('keeps routes below Atlas labels so labels remain readable', () => {
+  it('keeps routes below Toner labels so labels remain readable', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
-      preset: 'radmaps-toner',
+      preset: 'radmaps-toner-dark',
     }, 'mapbox-test-token')
 
-    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-place-labels'))
-    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-poi-labels'))
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-dark-place-labels'))
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-toner-dark-poi-labels'))
   })
 
   it('reserves route collision space and lets Atlas point labels move around the route', () => {
@@ -346,33 +448,25 @@ describe('RadMaps Atlas style integration', () => {
   it('treats show_roads false as transportation off for Atlas presets', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
-      preset: 'radmaps-toner',
+      preset: 'radmaps-toner-dark',
       show_roads: false,
       atlas_layers: {
         transportation: true,
       },
     }, 'mapbox-test-token')
 
-    expect(layerById(style, 'radmaps-toner-roads-major')).toBeUndefined()
-    expect(layerById(style, 'radmaps-toner-roads-minor')).toBeUndefined()
-    expect(layerById(style, 'radmaps-toner-roads-trails')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-roads-major')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-roads-minor')).toBeUndefined()
+    expect(layerById(style, 'radmaps-toner-dark-roads-trails')).toBeUndefined()
   })
 
-  it('gives Atlas Toner restrained dot texture from owned vector features', () => {
+  it('does not use POI noise as Toner dot texture', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
-      preset: 'radmaps-toner',
-      label_text_color: '#24384A',
+      preset: 'radmaps-toner-dark',
     }, 'mapbox-test-token')
-    const textureLayer = layerById(style, 'radmaps-toner-toner-texture')
 
-    expect(textureLayer?.type).toBe('circle')
-    expect(textureLayer?.source).toBe('radmaps-atlas-base')
-    expect(textureLayer?.['source-layer']).toBe('poi')
-    expect(textureLayer?.paint?.['circle-color']).toBe('#24384A')
-    expect(textureLayer?.paint?.['circle-opacity']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 10, 0.14, 14, 0.24, 16, 0.18,
-    ])
+    expect(layerById(style, 'radmaps-toner-dark-toner-texture')).toBeUndefined()
   })
 
   it('makes Atlas Watercolor Wash use pigment blooms without over-blurring print linework', () => {

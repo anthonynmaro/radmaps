@@ -19,10 +19,11 @@ export default defineEventHandler(async (event) => {
   const posters = PRODUCTS.filter((p) => p.type === 'poster')
   const framed = PRODUCTS.filter((p) => p.type === 'framed')
   const canvas = PRODUCTS.filter((p) => p.type === 'canvas')
+  const aluminum = PRODUCTS.filter((p) => p.type === 'aluminum')
   const digital = PRODUCTS.find((p) => p.type === 'digital')
 
   const productRow = (p: typeof PRODUCTS[number]) =>
-    `- ${p.size_label} ${p.name.replace(/^.*?Poster|Framed Print|Canvas/i, '').trim()}: ${formatPrice(p.price_cents)}`
+    `- ${p.name}: ${formatPrice(p.price_cents)}`
 
   const supabase = await serverSupabaseServiceRole(event)
   const premadeMaps = await listPublishedPremadeMaps(supabase)
@@ -60,7 +61,7 @@ Three things you can do:
 2. **Design a custom poster from your route** — upload a GPX file, import a Strava activity, or draw a route on a map. Requires a free account.
 3. **Customize a premade** — start with a curated trail, then swap colors, typography, title, and size. Requires a free account.
 
-All prints are produced on demand by Gelato (a global print-on-demand fulfilment network) on 170 gsm archival matte paper at 300 DPI, then shipped from the closest of 130+ production facilities worldwide.
+All physical prints are produced on demand by Gelato (a global print-on-demand fulfilment network) using the selected RadMaps product format, then shipped from the closest available production facility worldwide.
 
 ## Site URL
 
@@ -92,6 +93,9 @@ ${framed.map(productRow).join('\n')}
 
 ### Stretched canvas
 ${canvas.map(productRow).join('\n')}
+
+### Aluminum prints
+${aluminum.map(productRow).join('\n')}
 
 ### Digital download
 ${digital ? `- ${digital.size_label} (${digital.recommended_px_w}×${digital.recommended_px_h} px): ${formatPrice(digital.price_cents)}` : ''}

@@ -61,6 +61,26 @@ describe('style layer graph contracts', () => {
     expect(getVisibleStyleControls('contour-art').show_roads?.visible).toBe(true)
   })
 
+  it('models Toner as explicit light/dark presets without a variant control', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      const visible = getVisibleStyleControls(preset).toner_variant?.visible === true
+      expect(visible, preset).toBe(false)
+      expect(styleFieldUpdateMode(preset, 'toner_variant'), preset).toBe('ignored')
+    }
+
+    expect(styleUsesField('radmaps-toner-light', 'toner_variant')).toBe(false)
+    expect(styleUsesField('radmaps-toner-dark', 'toner_variant')).toBe(false)
+    expect(styleUsesField('radmaps-toner', 'toner_variant')).toBe(true)
+    expect(getGraphFullReloadFields('radmaps-toner-light')).not.toContain('toner_variant')
+    expect(graphLayerIds('radmaps-toner-light')).toContain('radmaps-toner-light-natural-dots')
+    expect(graphLayerIds('radmaps-toner-light')).toContain('radmaps-toner-light-park-dots')
+    expect(graphLayerIds('radmaps-toner-dark')).toContain('radmaps-toner-dark-natural-dots')
+    expect(graphLayerIds('radmaps-toner-dark')).toContain('radmaps-toner-dark-park-dots')
+    expect(graphLayerIds('radmaps-toner-dark')).not.toContain('radmaps-toner-dark-landcover-dots')
+    expect(graphLayerIds('radmaps-toner-dark')).not.toContain('radmaps-toner-dark-building-dots')
+    expect(graphLayerIds('radmaps-field-topo')).not.toContain('radmaps-field-topo-park-dots')
+  })
+
   it('does not expose destructive toggles for required preset features', () => {
     const controls = getVisibleStyleControls('contour-art')
     expect(controls.show_contours?.visible).toBe(false)

@@ -16,6 +16,7 @@ import { getProduct } from '~/utils/products'
 import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 import { attachStripeSessionToCouponReservation, releaseCouponReservation, reserveCouponForCheckout } from '~/server/utils/coupons'
 import { getStripeClient } from '~/server/utils/stripe'
+import { GELATO_PRICING_DEFAULT_COUNTRY, pricingMetadata, resolveProductPricing } from '~/server/utils/gelatoPricing'
 
 const ShopCheckoutBody = z.object({
   slug: z.string().min(1),
@@ -55,11 +56,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Premade map not found' })
   }
 
-  // Resolve pricing
-  const product = digital_only ? null : getProduct(product_uid)
-  const DIGITAL_PRICE = 999 // $9.99
-  const unitPrice = digital_only ? DIGITAL_PRICE : product?.price_cents ?? 0
-  if (!unitPrice) {
+  // Resolve server-trusted product pricing from the stored Gelato snapshot.
+  const product = getProduct(digital_only ? 'digital' : product_uid)
+  const pricing = await resolveProductPricing(adminClient, {
+    productUid: product?.product_uid || product_uid,
+    countryCode: digital_only ? GELATO_PRICING_DEFAULT_COUNTRY : shipping_address.country_code,
+  })
+  const unitPrice = pricing.retail_unit_price_cents
+  if (!product || !unitPrice) {
     throw createError({ statusCode: 400, message: 'Invalid product UID' })
   }
   const totalCents = unitPrice * quantity
@@ -130,6 +134,7 @@ export default defineEventHandler(async (event) => {
         coupon_id: couponReservation?.coupon_id || '',
         coupon_slug: couponReservation?.slug || '',
         coupon_redemption_id: couponReservation?.redemption_id || '',
+        ...pricingMetadata(pricing),
       },
       shipping_address_collection: digital_only
         ? undefined

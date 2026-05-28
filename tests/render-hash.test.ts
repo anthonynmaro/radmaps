@@ -209,6 +209,20 @@ describe('two-layer isolation', () => {
     expect(a).toBe(b)
   })
 
+  it('changing explicit Toner presets changes map_content_hash but not chrome_hash', () => {
+    const dark: StyleConfig = {
+      ...baseConfig,
+      preset: 'radmaps-toner-dark',
+    }
+    const light: StyleConfig = {
+      ...dark,
+      preset: 'radmaps-toner-light',
+    }
+
+    expect(computeMapContentHash(light, geojson, framing)).not.toBe(computeMapContentHash(dark, geojson, framing))
+    expect(computeChromeHash(light, stats)).toBe(computeChromeHash(dark, stats))
+  })
+
   it('label_position is treated as chrome (changes chrome_hash, not map_content_hash)', () => {
     const mapA = computeMapContentHash(baseConfig, geojson, framing)
     const chromeA = computeChromeHash(baseConfig, stats)

@@ -4,7 +4,7 @@
  * check availability, and get pricing for a given destination country.
  *
  * Query params:
- *   ?catalog=posters|framed-posters|canvas  (default: all)
+ *   ?catalog=posters|framed-posters|canvas|metallic  (default: all)
  *   ?country=US                             (for pricing, default: US)
  *
  * This endpoint caches Gelato responses for 1 hour to avoid rate limits.
@@ -56,6 +56,12 @@ interface GelatoPriceResponse {
   }>
 }
 
+function unwrapGelatoData<T>(payload: T | { data: T }): T {
+  return payload && typeof payload === 'object' && 'data' in payload
+    ? (payload as { data: T }).data
+    : payload as T
+}
+
 // Simple in-memory cache (1 hour TTL)
 const cache = new Map<string, { data: unknown; expires: number }>()
 const CACHE_TTL_MS = 60 * 60 * 1000
@@ -76,7 +82,7 @@ export default defineEventHandler(async (event) => {
 
   const catalogTypes = query.catalog
     ? [query.catalog as string]
-    : ['posters', 'framed-posters', 'canvas']
+    : ['posters', 'framed-posters', 'canvas', 'metallic']
   const country = (query.country as string) || 'US'
 
   const apiKey = config.gelatoApiKey as string
@@ -97,14 +103,15 @@ export default defineEventHandler(async (event) => {
 
     try {
       // 1. Fetch catalog attributes (paper formats, orientations, etc.)
-      const catalog = await $fetch<GelatoCatalogResponse>(
+      const catalogPayload = await $fetch<GelatoCatalogResponse | { data: GelatoCatalogResponse }>(
         `https://product.gelatoapis.com/v3/catalogs/${catalogUid}`,
         { headers }
       )
+      const catalog = unwrapGelatoData(catalogPayload)
 
       // 2. Search for products in this catalog that match portrait orientation
       //    and the paper sizes we care about for trail map prints
-      const searchResponse = await $fetch<{ products: GelatoProductResponse[] }>(
+      const searchPayload = await $fetch<{ products: GelatoProductResponse[] } | { data: { products: GelatoProductResponse[] } }>(
         `https://product.gelatoapis.com/v3/catalogs/${catalogUid}/products:search`,
         {
           method: 'POST',
@@ -116,6 +123,7 @@ export default defineEventHandler(async (event) => {
           },
         }
       ).catch(() => ({ products: [] }))
+      const searchResponse = unwrapGelatoData(searchPayload)
 
       // 3. Get pricing for the products in the target country
       const productUids = searchResponse.products.map(p => p.productUid).slice(0, 50)

@@ -15,12 +15,6 @@
            ═══════════════════════════════════════════════════════════════ -->
       <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
         <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-[10px] font-semibold tracking-[0.22em] uppercase text-stone-400">
-              {{ todayLabel }}
-            </span>
-            <span class="h-px flex-1 w-10 bg-stone-300/70" />
-          </div>
           <h1
             class="text-[44px] sm:text-[56px] leading-[1.02] tracking-tight text-stone-900"
             style="font-family:'Playfair Display',serif"
@@ -47,43 +41,6 @@
           </NuxtLink>
         </div>
       </header>
-
-      <!-- ═══════════════════════════════════════════════════════════════
-           STATS STRIP
-           ═══════════════════════════════════════════════════════════════ -->
-      <section
-        class="grid grid-cols-2 md:grid-cols-4 border border-stone-200 rounded-2xl overflow-hidden bg-white/60 backdrop-blur-sm mb-12 divide-y divide-stone-200 md:divide-y-0 md:divide-x"
-      >
-        <StatCell
-          label="Posters"
-          :value="stats.posters"
-          suffix=""
-          icon="poster"
-          :loading="loading"
-        />
-        <StatCell
-          label="Distance"
-          :value="stats.distanceKm"
-          :decimals="1"
-          suffix="km"
-          icon="compass"
-          :loading="loading"
-        />
-        <StatCell
-          label="Elevation"
-          :value="stats.elevationM"
-          suffix="m"
-          icon="mountain"
-          :loading="loading"
-        />
-        <StatCell
-          label="Ordered"
-          :value="stats.orders"
-          suffix=""
-          icon="package"
-          :loading="loading"
-        />
-      </section>
 
       <!-- ═══════════════════════════════════════════════════════════════
            TAB BAR + CONTROLS
@@ -521,7 +478,7 @@
                 </div>
               </div>
               <span class="absolute top-2 right-2 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-stone-900 text-white">
-                from {{ formatPrice(premade.base_price_cents) }}
+                from {{ formatPrice(premadeStartingPriceCents(premade)) }}
               </span>
             </div>
             <div class="mt-3">
@@ -724,6 +681,10 @@ const { data: premadeMaps } = useLazyFetch<DashboardPremadeMap[]>('/api/premade'
   query: { view: 'cards', limit: 4 },
   default: () => [],
 })
+const { data: productPriceData } = useLazyFetch<{ prices: Array<{ retail_price_cents: number; type?: string }> }>('/api/product-prices', {
+  query: { country: 'US' },
+  default: () => ({ prices: [] }),
+})
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
@@ -733,6 +694,17 @@ const router = useRouter()
 const featuredPremades = computed<DashboardPremadeMap[]>(() =>
   premadeMaps.value
 )
+const defaultPremadePriceCents = computed(() => {
+  const prices = (productPriceData.value?.prices ?? [])
+    .filter((price) => price.type === 'poster')
+    .map((price) => price.retail_price_cents)
+    .filter((price) => price > 0)
+  return prices.length ? Math.min(...prices) : 0
+})
+
+function premadeStartingPriceCents(premade: DashboardPremadeMap): number {
+  return defaultPremadePriceCents.value || premade.base_price_cents
+}
 
 const maps = ref<DashboardMap[]>([])
 const orders = ref<DashboardOrder[]>([])
@@ -772,23 +744,6 @@ const firstName = computed(() => {
   const cleaned = local.replace(/[._-]/g, ' ').replace(/\d+$/, '').trim()
   const first = cleaned.split(' ')[0] || cleaned
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()
-})
-
-const todayLabel = computed(() =>
-  new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
-)
-
-// ─── Stats ────────────────────────────────────────────────────────────────
-const stats = computed(() => {
-  const posters = maps.value.length
-  const distanceKm = maps.value.reduce((acc, m) => acc + (m.stats?.distance_km ?? 0), 0)
-  const elevationM = Math.round(maps.value.reduce((acc, m) => acc + (m.stats?.elevation_gain_m ?? 0), 0))
-  const orderCount = orders.value.length
-  return { posters, distanceKm, elevationM, orders: orderCount }
 })
 
 // ─── Filtering / sorting ──────────────────────────────────────────────────
@@ -958,62 +913,6 @@ onMounted(async () => {
 })
 
 // ─── Inline sub-components ────────────────────────────────────────────────
-
-const StatCell = defineComponent({
-  props: {
-    label: { type: String, required: true },
-    value: { type: Number, required: true },
-    decimals: { type: Number, default: 0 },
-    suffix: { type: String, default: '' },
-    icon: { type: String, default: '' },
-    loading: { type: Boolean, default: false },
-  },
-  setup(props) {
-    const icons: Record<string, () => any> = {
-      poster: () => h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-4 h-4' }, [
-        h('path', { d: 'M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v10H5V5z', 'clip-rule': 'evenodd', 'fill-rule': 'evenodd' }),
-        h('path', { d: 'M7 8a1 1 0 112 0 1 1 0 01-2 0zm2 3l1.5-2 3 4H7l1.5-2z' }),
-      ]),
-      compass: () => h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-4 h-4' }, [
-        h('path', { 'fill-rule': 'evenodd', 'clip-rule': 'evenodd', d: 'M10 18a8 8 0 100-16 8 8 0 000 16zm3.5-11.5L11 11l-4.5 2.5L9 9l4.5-2.5z' }),
-      ]),
-      mountain: () => h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-4 h-4' }, [
-        h('path', { d: 'M2 16 L7 6 L10.5 11 L13 8 L18 16 Z' }),
-      ]),
-      package: () => h('svg', { viewBox: '0 0 20 20', fill: 'currentColor', class: 'w-4 h-4' }, [
-        h('path', { 'fill-rule': 'evenodd', 'clip-rule': 'evenodd', d: 'M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm1 4h12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V8zm4 2a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z' }),
-      ]),
-    }
-    const format = () => {
-      const v = props.value || 0
-      const fixed = props.decimals > 0 ? v.toFixed(props.decimals) : Math.round(v).toString()
-      // insert thousand separators
-      const [int, dec] = fixed.split('.')
-      const withSep = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-      return dec ? `${withSep}.${dec}` : withSep
-    }
-    return () =>
-      h('div', { class: 'relative px-5 py-5 sm:py-6 flex flex-col' }, [
-        h('div', { class: 'flex items-center gap-2 mb-3' }, [
-          h('span', { class: 'w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center' }, [
-            icons[props.icon]?.() ?? null,
-          ]),
-          h('span', { class: 'text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400' }, props.label),
-        ]),
-        h('div', { class: 'flex items-baseline gap-1.5' }, [
-          props.loading
-            ? h('span', { class: 'inline-block h-8 w-16 bg-stone-200/70 rounded animate-pulse' })
-            : h('span', {
-                class: 'text-[32px] font-semibold tracking-tight text-stone-900 leading-none',
-                style: "font-family:'Space Grotesk',sans-serif",
-              }, format()),
-          props.suffix
-            ? h('span', { class: 'text-sm font-semibold text-stone-400' }, props.suffix)
-            : null,
-        ]),
-      ])
-  },
-})
 
 const FilterTab = defineComponent({
   props: {

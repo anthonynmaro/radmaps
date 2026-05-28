@@ -58,7 +58,7 @@ test.describe('style browser visual harness', () => {
   })
 
   test('renders composition-specific overlays', async ({ page }) => {
-    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint')
+    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&gridScope=poster')
     await expect(page.getByTestId('composition-grid-overlay')).toBeVisible()
 
     await page.goto('/style-browser-fixture?composition=darksky-stars&theme=dark-sky')
@@ -508,15 +508,57 @@ test.describe('style browser visual harness', () => {
     expect(after.center[1]).toBeCloseTo(before.center[1], 5)
   })
 
-  test('loads contour-art waterway layers into the live MapLibre style', async ({ page }) => {
-    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern&editable=1')
+  test('loads owned Atlas contour-wash waterway layers into the live MapLibre style', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=contour-wash&editable=1')
     await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
-      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.().includes('contour-art-waterways') ?? false
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.().includes('radmaps-contour-wash-waterway') ?? false
     })).toBe(true)
+  })
+
+  test('renders first-party Toner light and dark presets with generated dot texture', async ({ page }) => {
+    for (const { preset, variant } of [
+      { preset: 'radmaps-toner-light', variant: 'light' },
+      { preset: 'radmaps-toner-dark', variant: 'dark' },
+    ] as const) {
+      await page.goto(`/style-browser-fixture?preset=${preset}&roads=1&labels=1`)
+      await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+      await expect.poll(async () => page.evaluate(() => {
+        const win = window as unknown as {
+          __RADMAPS_STYLE_FIXTURE__?: { getStyle: () => { preset?: string; show_roads?: boolean; show_place_labels?: boolean } }
+          __RADMAPS_MAP_CAMERA__?: {
+            getLayerIds?: () => string[]
+            hasImage?: (id: string) => boolean
+            getPaintProperty?: (layerId: string, property: string) => unknown
+          }
+        }
+        const style = win.__RADMAPS_STYLE_FIXTURE__?.getStyle()
+        const camera = win.__RADMAPS_MAP_CAMERA__
+        const layerIds = win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+        return {
+          preset: style?.preset,
+          roads: style?.show_roads,
+          labels: style?.show_place_labels,
+          hasDotsLayer: layerIds.includes(`${style?.preset}-park-dots`),
+          hasDotsImage: camera?.hasImage?.(`radmaps-toner-dot-${style?.preset === 'radmaps-toner-dark' ? 'dark' : 'light'}-soft`) ?? false,
+          background: camera?.getPaintProperty?.('background', 'background-color'),
+          majorRoad: camera?.getPaintProperty?.(`${style?.preset}-roads-major`, 'line-color'),
+          parkPattern: camera?.getPaintProperty?.(`${style?.preset}-park-dots`, 'fill-pattern'),
+        }
+      }), { timeout: 20_000 }).toMatchObject({
+        preset,
+        roads: true,
+        labels: true,
+        hasDotsLayer: true,
+        hasDotsImage: true,
+        background: variant === 'dark' ? '#000000' : '#FFFFFF',
+        majorRoad: variant === 'dark' ? '#FFFFFF' : '#000000',
+        parkPattern: `radmaps-toner-dot-${variant}-soft`,
+      })
+    }
   })
 
   test('preserves 3D map camera when paint-only map settings change', async ({ page }) => {

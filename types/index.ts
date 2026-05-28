@@ -11,11 +11,16 @@ export type StylePreset =
   | 'radmaps-minimalist'
   | 'radmaps-topographic'
   | 'radmaps-natural'
+  | 'radmaps-toner-light'
+  | 'radmaps-toner-dark'
+  // Legacy hidden alias retained for existing saved maps.
   | 'radmaps-toner'
   | 'radmaps-field-topo'
   | 'radmaps-contour-wash'
   | 'radmaps-simple-contour'
   | 'radmaps-night-relief'
+  | 'radmaps-watercolor'
+  // Legacy hidden aliases retained for existing saved maps.
   | 'radmaps-watercolor-classic'
   | 'radmaps-watercolor-pigment-wash'
   | 'radmaps-watercolor-paper'
@@ -50,6 +55,8 @@ export type ColorTheme =
   | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
   | 'blueprint-strava' | 'field-journal' | 'bold-modern'
   | 'splits-stats' | 'marathon-bib' | 'botanical' | 'contour-wash'
+  | 'classic-trail' | 'ranch-ochre' | 'blackline' | 'copper-night'
+  | 'moonstone' | 'night-ride' | 'daybreak-trace' | 'electric-atlas'
 
 export type CompositionId =
   | 'editorial-tall'
@@ -72,6 +79,7 @@ export type BaseTileStyle =
   | 'maptiler-outdoor'
   | 'maptiler-topo'
   | 'maptiler-winter'
+export type TonerVariant = 'auto' | 'light' | 'dark'
 
 export type AtlasLayerId =
   | 'contour'
@@ -412,8 +420,10 @@ export interface StyleConfig {
   // Owned atlas state. Optional during rollout; legacy provider presets ignore it.
   atlas_manifest_id?: string
   atlas_style_id?: string
+  toner_variant?: TonerVariant
   atlas_layers?: AtlasLayerVisibility
   atlas_layer_settings?: AtlasLayerSettings
+  watercolor_seed?: string
   composition?: CompositionId
   audience?: string
   dark?: boolean
@@ -480,11 +490,13 @@ export interface StyleConfig {
   leader_label_font_family?: FontFamily
   trail_show_stats?: boolean
   trail_show_elevation_gain?: boolean
-  // Elevation profile (SVG chart overlaid at bottom of map area)
+  // Elevation profile (SVG chart overlaid on the map or rendered as a slim poster band)
   show_elevation_profile?: boolean
   elevation_profile_color?: string    // default: route_color
   elevation_profile_opacity?: number  // 0–1, default: 0.65
-  elevation_profile_height?: number   // % of map area height, 8–40, default: 22
+  elevation_profile_height?: number   // overlay: % of map height; band: cqh of poster height, default: 10–12
+  elevation_profile_position?: 'map-overlay' | 'separate-band'
+  elevation_profile_relief?: number   // 0.35–1, compresses vertical profile amplitude, default: 0.65
   // Tile post-processing effects
   tile_effect?: 'none' | 'duotone' | 'posterize' | 'layer-color' | 'invert'
   tile_duotone_strength?: number    // 0–1, blend strength (default 0.9)
@@ -1047,6 +1059,13 @@ export interface Order {
   payment_status?: string | null
   payment_method_type?: string | null
   receipt_url?: string | null
+  pricing_snapshot_id?: string | null
+  pricing_country_code?: string | null
+  gelato_product_cost_cents?: number | null
+  retail_unit_price_cents?: number | null
+  pricing_markup_bps?: number | null
+  pricing_rounding_rule?: string | null
+  pricing_synced_at?: string | null
   shipping_quote_id?: string | null
   shipment_method_uid?: string | null
   quote_expires_at?: string | null
@@ -1199,7 +1218,7 @@ export interface PremadeMap extends LocationMetadata {
 export interface PrintProduct {
   product_uid: string
   name: string
-  type: 'poster' | 'framed' | 'canvas' | 'wall_hanging' | 'digital'
+  type: 'poster' | 'framed' | 'canvas' | 'wall_hanging' | 'aluminum' | 'digital'
   size_label: string
   width_in: number
   height_in: number
@@ -1207,6 +1226,12 @@ export interface PrintProduct {
   price_cents: number
   recommended_px_w: number
   recommended_px_h: number
+  format_label?: string
+  material_key?: string
+  material_label?: string
+  material_description?: string
+  material_warning?: string
+  catalog_uid?: string
 }
 
 // ─── Product Selection State ─────────────────────────────────────────────────
