@@ -258,6 +258,22 @@ describe('RadMaps Atlas style integration', () => {
     expect((style as { glyphs?: string }).glyphs).toBe('https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf')
   })
 
+  it('keeps dark Atlas base layers readable when poster chrome colors are near black', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-alidade-dark',
+      background_color: '#0E0E10',
+      land_color: '#161618',
+      water_color: '#101820',
+      label_text_color: '#F4F2EE',
+    }, 'mapbox-test-token')
+
+    expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-color']).toBe('#102a1d')
+    expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-color']).toBe('#3f9fbd')
+    expect(layerById(style, 'radmaps-alidade-dark-park')?.paint?.['fill-color']).toBe('#193f25')
+    expect(layerById(style, 'radmaps-alidade-dark-roads-major')?.paint?.['line-color']).toBe('#f18f45')
+  })
+
   it('keeps routes below Atlas labels so labels remain readable', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,

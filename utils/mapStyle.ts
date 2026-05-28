@@ -1055,8 +1055,9 @@ function buildRadMapsAtlasStyle(
   const tonerPaper = config.background_color && config.background_color !== DEFAULT_STYLE_CONFIG.background_color
     ? config.background_color
     : '#d7e8f8'
-  const themeLand = isContourWash ? undefined : config.land_color
-  const themeWater = isContourWash ? undefined : config.water_color
+  const useThemeLayerColors = !isDarkAtlas && !isContourWash
+  const themeLand = useThemeLayerColors ? config.land_color : undefined
+  const themeWater = useThemeLayerColors ? config.water_color : undefined
   const ink = isDarkAtlas ? (config.label_text_color || '#d8f2dc') : isToner ? tonerInk : (config.label_text_color || '#405340')
   const land = atlasSettings.landcover?.color || themeLand || (isDarkAtlas ? '#102a1d' : isWatercolorClassic ? '#d9e4d3' : isPigmentWash ? '#e2ead2' : isWatercolorPaper ? '#eadfc8' : isBrushInk ? '#d7e4c9' : isContourWash ? '#d7e8f7' : isToner ? tonerPaper : '#e7dfbf')
   const water = atlasSettings.water?.fill_color || themeWater || (isDarkAtlas ? '#3f9fbd' : isWatercolorClassic ? '#78bdca' : isPigmentWash ? '#6bbfd0' : isWatercolorPaper ? '#8bbdc4' : isBrushInk ? '#43aec8' : isContourWash ? '#bad9ef' : isToner ? ink : '#79b7c8')

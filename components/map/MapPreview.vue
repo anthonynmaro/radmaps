@@ -4997,6 +4997,47 @@ function applyRasterPaint(config: StyleConfig) {
   setLayerPaint(rasterLayerId, 'raster-hue-rotate', config.tile_hue_rotate ?? 0)
 }
 
+type GeneratedStyleLayer = {
+  id?: string
+  paint?: Record<string, unknown>
+  layout?: Record<string, unknown>
+}
+
+function atlasLayerSettingsStructureKey(config: StyleConfig | undefined): string {
+  const settings = config?.atlas_layer_settings
+  return JSON.stringify({
+    contourLabels: settings?.contour?.labels,
+    showMajorRoads: settings?.transportation?.show_major,
+    showMinorRoads: settings?.transportation?.show_minor,
+    showTrails: settings?.transportation?.show_trails,
+  })
+}
+
+function applyAtlasLayerSettingsPaint(config: StyleConfig) {
+  if (!mapInstance) return
+  const preset = config.preset ?? ''
+  if (!preset.startsWith('radmaps-')) return
+
+  const nextStyle = buildScaledMapStyle(config) as { layers?: GeneratedStyleLayer[] }
+  for (const layer of nextStyle.layers ?? []) {
+    if (!layer.id || !mapInstance.getLayer(layer.id)) continue
+    const isAtlasLayer = layer.id.startsWith(`${preset}-`)
+      || layer.id === 'contours-ghost-texture'
+      || layer.id === 'contours-minor'
+      || layer.id === 'contours-mid'
+      || layer.id === 'contours-major'
+      || layer.id === 'contours-labels'
+    if (!isAtlasLayer) continue
+
+    for (const [property, value] of Object.entries(layer.paint ?? {})) {
+      mapInstance.setPaintProperty(layer.id, property, value)
+    }
+    for (const [property, value] of Object.entries(layer.layout ?? {})) {
+      mapInstance.setLayoutProperty(layer.id, property, value)
+    }
+  }
+}
+
 // ── interactjs drag for text overlays ────────────────────────────────────────
 
 async function initOverlayDrag() {
@@ -5105,7 +5146,9 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
     const oldSegIds = (oldConfig?.trail_segments ?? []).map(s => `${s.id}:${s.visible}:${s.color_mode ?? 'solid'}`).join(',')
     const segStructureChanged = newSegIds !== oldSegIds
 
-    const needsFullReload = tileKeyChanged || segStructureChanged || fullReloadKeysFor(newConfig).some(
+    const atlasLayerSettingsStructureChanged = atlasLayerSettingsStructureKey(newConfig) !== atlasLayerSettingsStructureKey(oldConfig)
+
+    const needsFullReload = tileKeyChanged || segStructureChanged || atlasLayerSettingsStructureChanged || fullReloadKeysFor(newConfig).some(
       key => JSON.stringify(newConfig[key]) !== JSON.stringify(oldConfig?.[key]),
     )
 
@@ -5194,6 +5237,10 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
       newConfig.label_text_color !== oldConfig?.label_text_color
     ) {
       applyRoadPaint(newConfig)
+    }
+
+    if (JSON.stringify(newConfig.atlas_layer_settings) !== JSON.stringify(oldConfig?.atlas_layer_settings)) {
+      applyAtlasLayerSettingsPaint(newConfig)
     }
 
     if (

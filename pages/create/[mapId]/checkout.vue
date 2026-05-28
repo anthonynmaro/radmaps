@@ -96,10 +96,10 @@ v-else-if="renderInFlight && !printReady"
           <div class="p-5 sm:p-6 border-b border-stone-200">
             <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
             <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
-              Select a product first
+              {{ productStepTitle }}
             </h2>
             <p class="mt-2 text-sm leading-6 text-stone-600">
-              We will render the print-ready proof only for the product you continue with.
+              {{ productStepDescription }}
             </p>
           </div>
           <MapProductSelector
@@ -431,6 +431,28 @@ const displayProofImage = computed(() =>
   && !!selectedProduct.value
   && renderTargetProductUid.value === selectedProduct.value.product_uid
 )
+
+const selectedProductName = computed(() => selectedProduct.value?.name ?? 'the selected print')
+
+const productStepTitle = computed(() => {
+  if (renderError.value) return 'Render needs attention'
+  if (renderInFlight.value && !printReady.value) return 'Rendering print proof'
+  if (printReady.value && selectedProduct.value && renderTargetProductUid.value === selectedProduct.value.product_uid) {
+    return 'Print-ready proof is ready'
+  }
+  if (selectedProduct.value) return 'Ready to render proof'
+  return 'Select a product first'
+})
+
+const productStepDescription = computed(() => {
+  if (renderError.value) return 'The selected proof did not render. Try again or choose another product.'
+  if (renderInFlight.value && !printReady.value) return `Preparing the print-ready proof for ${selectedProductName.value}.`
+  if (printReady.value && selectedProduct.value && renderTargetProductUid.value === selectedProduct.value.product_uid) {
+    return `The print-ready proof for ${selectedProductName.value} is ready for checkout.`
+  }
+  if (selectedProduct.value) return `We will render the print-ready proof for ${selectedProductName.value} before shipping details.`
+  return 'We will render the print-ready proof only for the product you continue with.'
+})
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
   selectedProduct.value = payload.product
