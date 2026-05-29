@@ -2571,99 +2571,9 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     beta: true,
   },
   {
-    id: 'radmaps-watercolor-classic',
-    label: 'Watercolor Classic',
-    title: 'Owned Atlas watercolor — closest provider-inspired wash with soft color fields and restrained linework',
-    viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#F1EAD9"/>
-      <ellipse cx="13" cy="12" rx="17" ry="11" fill="#C3D8B4" opacity="0.50"/>
-      <ellipse cx="36" cy="20" rx="12" ry="8" fill="#D6C7AE" opacity="0.32"/>
-      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#78BDCA" stroke-width="2.5" fill="none" opacity="0.42"/>
-      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9A8D86" stroke-width="0.9" fill="none" opacity="0.28"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#A44A3F" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    defaults: {
-      show_contours: true,
-      show_hillshade: false,
-      show_roads: true,
-      contour_detail: 3,
-      route_color: '#A44A3F',
-      atlas_layer_settings: {
-        landcover: { color: '#D9E4D3', opacity: 0.50 },
-        park: { fill_color: '#C3D8B4', opacity: 0.30 },
-        water: { fill_color: '#78BDCA', fill_opacity: 0.46 },
-        waterway: { color: '#78BDCA', opacity: 0.48, width: 1.4 },
-        transportation: { opacity: 0.28, major_color: '#9A8D86', minor_color: '#B3A69A', trail_color: '#8C9D7C', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#8BA17E', major_color: '#748C68', minor_opacity: 0.14, major_width: 0.42 },
-        place: { label_color: '#777064', label_opacity: 0.28, font_size: 13, halo_color: '#EDF1E4' },
-        poi: { label_opacity: 0.16 },
-      },
-    },
-    beta: true,
-  },
-  {
-    id: 'radmaps-watercolor-pigment-wash',
-    label: 'Watercolor Wash',
-    title: 'Owned Atlas watercolor — wetter pigment pools and stronger blue hydro blooms',
-    viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#FFF4E2"/>
-      <ellipse cx="12" cy="12" rx="15" ry="10" fill="#96BA67" opacity="0.46"/>
-      <ellipse cx="35" cy="19" rx="14" ry="9" fill="#E7B58E" opacity="0.32"/>
-      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#49B6D0" stroke-width="2.1" fill="none" opacity="0.72"/>
-      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9A594A" stroke-width="1.1" fill="none" opacity="0.5"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#A43F2F" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    defaults: {
-      show_contours: true,
-      show_hillshade: false,
-      show_roads: true,
-      contour_detail: 3,
-      route_color: '#A43F2F',
-      atlas_layer_settings: {
-        landcover: { color: '#E2EAD2', opacity: 0.58 },
-        park: { fill_color: '#BDD3AA', opacity: 0.34 },
-        water: { fill_color: '#6BBFD0', fill_opacity: 0.54 },
-        waterway: { color: '#58B8CE', opacity: 0.58, width: 1.6 },
-        transportation: { opacity: 0.34, major_color: '#A68B84', minor_color: '#B59D91', trail_color: '#8EA27A', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#88A47D', major_color: '#738D69', minor_opacity: 0.16, major_width: 0.45 },
-        place: { label_color: '#7A7467', label_opacity: 0.34, font_size: 13, halo_color: '#EEF1DF' },
-        poi: { label_opacity: 0.20 },
-      },
-    },
-    beta: true,
-  },
-  {
-    id: 'radmaps-watercolor-paper',
-    label: 'Watercolor Paper',
-    title: 'Owned Atlas watercolor — dry paper/granulation direction with less blur and more pigment tooth',
-    viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#EFE4CF"/>
-      <ellipse cx="14" cy="13" rx="13" ry="9" fill="#D1C69F" opacity="0.42"/>
-      <ellipse cx="35" cy="20" rx="11" ry="7" fill="#C9B690" opacity="0.22"/>
-      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#8BBDC4" stroke-width="1.8" fill="none" opacity="0.48"/>
-      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#9B806D" stroke-width="0.9" fill="none" stroke-dasharray="1.2 1" opacity="0.44"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9D4B32" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
-    defaults: {
-      show_contours: true,
-      show_hillshade: false,
-      show_roads: true,
-      contour_detail: 3,
-      route_color: '#9D4B32',
-      atlas_layer_settings: {
-        landcover: { color: '#EADFC8', opacity: 0.56 },
-        park: { fill_color: '#D1C69F', opacity: 0.32 },
-        water: { fill_color: '#8BBDC4', fill_opacity: 0.38 },
-        waterway: { color: '#7CB3BC', opacity: 0.42, width: 1.25 },
-        transportation: { opacity: 0.24, major_color: '#9B806D', minor_color: '#B09A80', trail_color: '#9B8C61', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#A99A70', major_color: '#8A7B51', minor_opacity: 0.18, major_width: 0.45 },
-        place: { label_color: '#746B58', label_opacity: 0.30, font_size: 13, halo_color: '#F2E8D3' },
-        poi: { label_opacity: 0.18 },
-      },
-    },
-    beta: true,
-  },
-  {
-    id: 'radmaps-watercolor-brush-ink',
-    label: 'Watercolor Brush',
-    title: 'Owned Atlas watercolor brush — more inked Stamen-like linework over soft washes',
+    id: 'radmaps-watercolor',
+    label: 'Watercolor',
+    title: 'First-party watercolor art tiles — painted paper, washes, roads, trails, water, parks, and sparse pigment artifacts',
     viewBox: '0 0 48 32',
     svg: `<rect width="48" height="32" fill="#FFF3DF"/>
       <ellipse cx="13" cy="14" rx="13" ry="9" fill="#A8C89A" opacity="0.46"/>
@@ -2672,18 +2582,18 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
       <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#89584F" stroke-width="1.25" fill="none" stroke-dasharray="1.5 1.1" opacity="0.58"/>
       <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9D3F32" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
     defaults: {
-      show_contours: true,
+      show_contours: false,
       show_hillshade: false,
       show_roads: true,
       contour_detail: 3,
       route_color: '#9D3F32',
       atlas_layer_settings: {
-        landcover: { color: '#D9E3C9', opacity: 0.76 },
-        park: { fill_color: '#B8D0AA', opacity: 0.52 },
-        water: { fill_color: '#43B6D0', fill_opacity: 0.74 },
-        waterway: { color: '#20A6C4', opacity: 0.76, width: 1.55 },
-        transportation: { opacity: 0.44, major_color: '#9A6B75', minor_color: '#A78D84', trail_color: '#7F8F70', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#78996E', major_color: '#6F885F', minor_opacity: 0.20, major_width: 0.5 },
+        landcover: { opacity: 1 },
+        park: { fill_color: '#98BF8A', opacity: 0.42 },
+        water: { fill_color: '#38B8D0', fill_opacity: 0.54 },
+        waterway: { color: '#14A9C8', opacity: 0.64, width: 1.6 },
+        transportation: { opacity: 0.62, major_color: '#C87938', minor_color: '#D0B171', trail_color: '#6F6B50', show_major: true, show_minor: true, show_trails: true },
+        contour: { minor_color: '#8AA17F', major_color: '#6F885F', minor_opacity: 0.14, major_width: 0.45 },
         place: { label_color: '#6B665C', label_opacity: 0.46, font_size: 13, halo_color: '#F4EBD8' },
         poi: { label_opacity: 0.30 },
       },

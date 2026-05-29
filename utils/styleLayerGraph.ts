@@ -454,6 +454,20 @@ const atlasVectorFeatures: LayerGraphFeatureSet = {
   trailSegments: 'editable-vector',
 }
 
+const watercolorArtTileFeatures: LayerGraphFeatureSet = {
+  baseRaster: 'baked-raster',
+  water: 'baked-raster',
+  roads: 'baked-raster',
+  placeLabels: 'editable-vector',
+  pois: 'editable-vector',
+  contours: 'unsupported',
+  hillshade: 'unsupported',
+  rasterEffects: 'unsupported',
+  routeCasing: 'required',
+  route: 'required',
+  trailSegments: 'editable-vector',
+}
+
 function atlasGraph(preset: StylePreset, options: {
   contours?: LayerFeatureSupport
   hillshade?: LayerFeatureSupport
@@ -493,6 +507,36 @@ function atlasGraph(preset: StylePreset, options: {
       { id: `${preset}-roads-trails`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-place-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
       { id: `${preset}-poi-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
+    ],
+  })
+}
+
+function watercolorArtTileGraph(): LayerGraph {
+  const artTileFields: Array<keyof StyleConfig> = [
+    ...atlasFields,
+    'watercolor_seed',
+    'show_roads',
+    'water_color',
+    'land_color',
+    'roads_color',
+  ]
+  return makeGraph({
+    preset: 'radmaps-watercolor',
+    features: watercolorArtTileFeatures,
+    sources: ['radmaps-watercolor-base', 'radmaps-atlas-base', 'route'],
+    includeDefaultRoadLayers: false,
+    controls: {
+      atlas_manifest_id: { visible: false, update: 'full-reload' },
+      atlas_style_id: { visible: false, update: 'full-reload' },
+      atlas_layers: { visible: true, update: 'full-reload' },
+      atlas_layer_settings: { visible: true, update: 'full-reload' },
+      watercolor_seed: { visible: false, update: 'full-reload' },
+      show_roads: { visible: true, update: 'full-reload' },
+    },
+    layers: [
+      { id: 'radmaps-watercolor-base', slot: 'base', source: 'radmaps-watercolor-base', consumes: artTileFields },
+      { id: 'radmaps-watercolor-place-labels', slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: [...atlasFields, ...labelFields], scale: SYMBOL_SCALE_PROPERTIES },
+      { id: 'radmaps-watercolor-poi-labels', slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: [...atlasFields, ...poiFields], scale: SYMBOL_SCALE_PROPERTIES },
     ],
   })
 }
@@ -617,7 +661,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
   'radmaps-contour-wash': atlasGraph('radmaps-contour-wash', { hillshade: 'unsupported' }),
   'radmaps-simple-contour': atlasGraph('radmaps-simple-contour', { hillshade: 'unsupported' }),
   'radmaps-night-relief': atlasGraph('radmaps-night-relief'),
-  'radmaps-watercolor': atlasGraph('radmaps-watercolor'),
+  'radmaps-watercolor': watercolorArtTileGraph(),
   'radmaps-watercolor-classic': atlasGraph('radmaps-watercolor-classic'),
   'radmaps-watercolor-pigment-wash': atlasGraph('radmaps-watercolor-pigment-wash'),
   'radmaps-watercolor-paper': atlasGraph('radmaps-watercolor-paper'),
@@ -676,7 +720,7 @@ export function effectiveStyleConfig<T extends StyleConfig>(config: T): T {
     ;(effective as Record<keyof StyleConfig, unknown>)[field] = value
   }
 
-  if (graph.features.roads !== 'editable-vector') effective.show_roads = false
+  if (graph.features.roads !== 'editable-vector' && graph.preset !== 'radmaps-watercolor') effective.show_roads = false
   if (graph.features.placeLabels !== 'editable-vector' && graph.preset !== 'stadia-toner') effective.show_place_labels = false
   if (graph.features.pois !== 'editable-vector') effective.show_poi_labels = false
   if (graph.features.contours === 'unsupported') effective.show_contours = false

@@ -1,23 +1,120 @@
 <template>
-  <div v-if="!premade" class="max-w-3xl mx-auto px-6 py-24 text-center">
-    <h1 class="text-2xl font-semibold text-stone-900 mb-2" style="font-family:'Space Grotesk',sans-serif">
-      Print not found
-    </h1>
-    <p class="text-stone-500">Back to <NuxtLink to="/shop" class="text-[#2D6A4F] font-semibold hover:underline">the shop</NuxtLink>.</p>
-  </div>
+  <div class="h-screen flex flex-col bg-[#e8e5e0]">
+    <header class="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 bg-white/90 backdrop-blur border-b border-stone-200 z-40">
+      <NuxtLink
+        :to="premade ? `/shop/${premade.slug}` : '/shop'"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+        </svg>
+      </NuxtLink>
+      <h1 class="text-lg font-bold text-stone-900" style="font-family:'Space Grotesk',sans-serif">
+        Order a Print
+      </h1>
+      <span v-if="premade" class="text-sm text-stone-400 hidden sm:inline">&mdash; {{ premade.title }}</span>
 
-  <div v-else class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+      <div class="ml-auto flex items-center gap-2 text-xs">
+        <span :class="step === 'product' ? 'text-[#2D6A4F] font-semibold' : 'text-stone-400'">
+          1. Product
+        </span>
+        <svg class="w-3 h-3 text-stone-300" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+        </svg>
+        <span :class="step === 'shipping' ? 'text-[#2D6A4F] font-semibold' : 'text-stone-400'">
+          2. Shipping
+        </span>
+        <svg class="w-3 h-3 text-stone-300" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+        </svg>
+        <span :class="step === 'payment' ? 'text-[#2D6A4F] font-semibold' : 'text-stone-400'">
+          3. Payment
+        </span>
+      </div>
+    </header>
 
-    <!-- Breadcrumb -->
-    <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] uppercase text-stone-400 mb-8">
-      <NuxtLink to="/shop" class="hover:text-stone-900 transition-colors">Shop</NuxtLink>
-      <span class="opacity-40">/</span>
-      <NuxtLink :to="`/shop/${premade.slug}`" class="hover:text-stone-900 transition-colors truncate">{{ premade.title }}</NuxtLink>
-      <span class="opacity-40">/</span>
-      <span class="text-stone-700">Checkout</span>
+    <div v-if="!premade" class="flex-1 flex items-center justify-center px-6 text-center">
+      <div>
+        <h1 class="text-2xl font-semibold text-stone-900 mb-2" style="font-family:'Space Grotesk',sans-serif">
+          Print not found
+        </h1>
+        <p class="text-stone-500">Back to <NuxtLink to="/shop" class="text-[#2D6A4F] font-semibold hover:underline">the shop</NuxtLink>.</p>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-14 items-start">
+    <div v-else-if="step === 'product'" class="flex-1 overflow-y-auto">
+      <div class="min-h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
+          <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+            <div
+              class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden"
+              :style="{ backgroundColor: premade.style_config?.background_color || '#F7F4EF' }"
+            >
+              <img
+                v-if="premade.preview_image_url"
+                :src="premade.preview_image_url"
+                :alt="premade.title"
+                class="w-full h-full object-cover"
+              >
+              <svg v-else viewBox="0 0 100 133" class="w-full h-full">
+                <path
+                  v-if="routePath"
+                  :d="routePath"
+                  fill="none"
+                  :stroke="premade.style_config.route_color"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </main>
+
+        <aside class="bg-white border-t lg:border-t-0 lg:border-l border-stone-200">
+          <div class="p-5 sm:p-6 border-b border-stone-200">
+            <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
+            <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
+              {{ premade.title }}
+            </h2>
+            <p class="mt-2 text-sm leading-6 text-stone-600">
+              Pick the same product options used for custom maps. Shipping is quoted separately after your address.
+            </p>
+          </div>
+
+          <MapProductSelector
+            v-model="selectedProduct"
+            :show-confirm="true"
+            :include-digital="false"
+            confirm-label="Continue to shipping"
+            @confirm="onProductConfirmed"
+          />
+
+          <div class="p-5 sm:p-6 border-t border-stone-200">
+            <div class="flex items-center justify-between gap-4">
+              <label class="text-xs font-semibold tracking-[0.18em] uppercase text-stone-500">Quantity</label>
+              <div class="inline-flex items-center rounded-full bg-white border border-stone-200 p-1 gap-1">
+                <button
+                  type="button"
+                  class="w-8 h-8 rounded-full text-stone-500 hover:bg-stone-100 font-bold text-base"
+                  @click="quantity = Math.max(1, quantity - 1)"
+                >−</button>
+                <span class="w-8 text-center font-semibold text-stone-900 tabular-nums">{{ quantity }}</span>
+                <button
+                  type="button"
+                  class="w-8 h-8 rounded-full text-stone-500 hover:bg-stone-100 font-bold text-base"
+                  @click="quantity = Math.min(10, quantity + 1)"
+                >+</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div v-else class="flex-1 overflow-y-auto">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-14 items-start">
 
       <!-- ═══════════════════════════════════════════════════════════
            SHIPPING FORM
@@ -141,7 +238,7 @@ v-if="errorMessage"
 
           <button
             type="submit"
-            :disabled="submitting || (hardenedCheckoutEnabled && !isDigital && (!shippingQuote || quoteLoading))"
+            :disabled="submitting || !selectedProduct || (!isDigital && (!shippingQuote || quoteLoading))"
             class="w-full inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-500 text-white font-semibold px-6 py-4 rounded-full text-sm transition-all shadow-sm shadow-stone-900/10"
           >
             <svg v-if="submitting" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -194,8 +291,15 @@ v-if="errorMessage"
               </p>
               <p class="text-xs text-stone-500 mt-1 truncate">{{ premade.subtitle }}</p>
               <p class="text-xs font-semibold text-stone-700 mt-2">
-                {{ selectedProduct?.size_label }} · Qty {{ quantity }}
+                {{ selectedProduct?.name ?? 'Selected print' }} · Qty {{ quantity }}
               </p>
+              <button
+                type="button"
+                class="mt-2 text-xs font-semibold text-[#2D6A4F] hover:text-[#235840]"
+                @click="step = 'product'"
+              >
+                Change product
+              </button>
             </div>
           </div>
 
@@ -208,7 +312,7 @@ v-if="errorMessage"
               <span>{{ couponPreview.slug }}</span>
               <span class="tabular-nums">-{{ formatPrice(couponPreview.discount_cents) }}</span>
             </div>
-            <div v-if="hardenedCheckoutEnabled" class="flex justify-between text-stone-600">
+            <div v-if="!isDigital" class="flex justify-between text-stone-600">
               <span>Shipping</span>
               <span v-if="quoteLoading" class="text-stone-400">Updating…</span>
               <span v-else-if="shippingQuote" class="tabular-nums">{{ formatPrice(shippingCents) }}</span>
@@ -222,8 +326,8 @@ v-if="errorMessage"
               {{ formatPrice(totalCents) }}
             </span>
           </div>
-          <p v-if="hardenedCheckoutEnabled && quoteError" class="mt-3 text-xs text-red-600">{{ quoteError }}</p>
-          <p v-else-if="hardenedCheckoutEnabled && shippingQuote" class="mt-3 text-xs text-stone-500">
+          <p v-if="!isDigital && quoteError" class="mt-3 text-xs text-red-600">{{ quoteError }}</p>
+          <p v-else-if="!isDigital && shippingQuote" class="mt-3 text-xs text-stone-500">
             {{ shippingQuote.shipment_method_name }}. Tax is calculated by Stripe.
           </p>
 
@@ -270,6 +374,8 @@ v-if="errorMessage"
         </div>
       </aside>
 
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -278,29 +384,34 @@ v-if="errorMessage"
 import { h, defineComponent, ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
-import { getProduct, formatPrice, PRODUCTS } from '~/utils/products'
+import { getProduct, formatPrice, PRODUCTS, getDefaultPhysicalProduct } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
-import { FLAGS } from '~/utils/knownFlags'
 import type { PremadeMap } from '~/types'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: false })
 
 const route = useRoute()
 const user = useSupabaseUser()
-const hardenedCheckoutEnabled = useFeatureFlag(FLAGS.STRIPE_HARDENED_CHECKOUT)
 const slug = route.params.slug as string
 const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
-const currentPath = computed(() => `/shop/${slug}/checkout${route.query.size ? `?size=${route.query.size}` : ''}${route.query.qty ? `&qty=${route.query.qty}` : ''}`)
+const currentPath = computed(() => {
+  const params = new URLSearchParams()
+  if (typeof route.query.size === 'string') params.set('size', route.query.size)
+  if (typeof route.query.qty === 'string') params.set('qty', route.query.qty)
+  const query = params.toString()
+  return `/shop/${slug}/checkout${query ? `?${query}` : ''}`
+})
+const step = ref<'product' | 'shipping' | 'payment'>('product')
 
 // Read size + qty from query (set by detail page)
-const selectedProductUid = ref(
-  (route.query.size as string) ||
-    PRODUCTS.find((p) => p.type === 'poster' && p.size_label === '12×18"')?.product_uid ||
-    'flat_product_pf_12x16_pt_170-gsm-uncoated_cl_4-0_ver'
-)
+const queryProduct = typeof route.query.size === 'string' ? getProduct(route.query.size) : undefined
+const initialProduct = queryProduct && queryProduct.type !== 'digital'
+  ? queryProduct
+  : getDefaultPhysicalProduct() || PRODUCTS.find(product => product.type !== 'digital') || null
+const selectedProduct = ref(initialProduct)
+const selectedProductUid = computed(() => selectedProduct.value?.product_uid ?? '')
 const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as string) || '1', 10) || 1)))
 
-const selectedProduct = computed(() => getProduct(selectedProductUid.value))
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
 const productPrices = ref<Record<string, number>>({})
 const lockedProductPriceCents = ref<number | null>(null)
@@ -330,6 +441,11 @@ const selectedUnitPriceCents = computed(() =>
 const subtotalCents = computed(() => selectedUnitPriceCents.value * quantity.value)
 const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
 const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
+
+function onProductConfirmed() {
+  clearShippingQuote()
+  step.value = 'shipping'
+}
 type ShippingQuoteSelection = {
   checkout_attempt_id: string
   quote_id: string
@@ -393,8 +509,7 @@ watch([() => form.value.email, selectedProduct, quantity, subtotalCents], () => 
 function hasQuoteAddress() {
   const value = form.value
   return !!(
-    hardenedCheckoutEnabled.value
-    && premade.value
+    premade.value
     && selectedProduct.value
     && !isDigital.value
     && value.email
@@ -432,7 +547,6 @@ async function requestShippingQuote() {
         cart_source: 'premade',
         premade_slug: premade.value.slug,
         product_uid: selectedProductUid.value,
-        print_size: selectedProduct.value.size_label,
         quantity: quantity.value,
         shipping_address: {
           name: form.value.name.trim(),
@@ -473,10 +587,9 @@ watch([
   () => form.value.phone,
   selectedProduct,
   quantity,
-  hardenedCheckoutEnabled,
 ], () => {
   if (quoteTimer) clearTimeout(quoteTimer)
-  if (!hardenedCheckoutEnabled.value || isDigital.value) {
+  if (isDigital.value) {
     clearShippingQuote()
     return
   }
@@ -488,18 +601,17 @@ async function checkout() {
   if (!premade.value) return
   errorMessage.value = ''
   submitting.value = true
+  step.value = 'payment'
   try {
-    const endpoint = hardenedCheckoutEnabled.value ? '/api/checkout/session' : '/api/shop/checkout'
-    const resp = await $fetch<{ url: string }>(endpoint, {
+    const resp = await $fetch<{ url: string }>('/api/checkout/session', {
       method: 'POST',
       body: {
         cart_source: 'premade',
         slug: premade.value.slug,
-        checkout_attempt_id: hardenedCheckoutEnabled.value ? shippingQuote.value?.checkout_attempt_id : undefined,
-        quote_id: hardenedCheckoutEnabled.value && !isDigital.value ? shippingQuote.value?.quote_id : null,
+        checkout_attempt_id: !isDigital.value ? shippingQuote.value?.checkout_attempt_id : undefined,
+        quote_id: !isDigital.value ? shippingQuote.value?.quote_id : null,
         premade_slug: premade.value.slug,
         product_uid: selectedProductUid.value,
-        print_size: selectedProduct.value?.size_label ?? '',
         quantity: quantity.value,
         shipping_address: {
           name: form.value.name.trim(),
@@ -523,6 +635,7 @@ async function checkout() {
     }
   } catch (err: any) {
     errorMessage.value = err?.data?.message || err?.message || 'Could not start checkout.'
+    step.value = 'shipping'
     submitting.value = false
   }
 }

@@ -3999,18 +3999,19 @@ const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
 const showTerrainIllusionOverlay = computed(() => {
   const preset = props.styleConfig.preset ?? ''
   return preset.startsWith('radmaps-')
+    && preset !== 'radmaps-watercolor'
     && (props.styleConfig.show_contours || props.styleConfig.show_hillshade || preset.includes('watercolor') || preset === 'radmaps-night-relief')
 })
 
 const terrainIllusionClass = computed(() => ({
-  'terrain-illusion-overlay--watercolor': props.styleConfig.preset?.includes('watercolor'),
+  'terrain-illusion-overlay--watercolor': props.styleConfig.preset?.includes('watercolor') && props.styleConfig.preset !== 'radmaps-watercolor',
   'terrain-illusion-overlay--night': props.styleConfig.preset === 'radmaps-night-relief',
   'terrain-illusion-overlay--topo': props.styleConfig.preset === 'radmaps-field-topo' || props.styleConfig.preset === 'radmaps-simple-contour',
 }))
 
 const terrainIllusionStyle = computed(() => {
   const preset = props.styleConfig.preset ?? ''
-  const base = preset.includes('watercolor') ? 0.10 : preset === 'radmaps-night-relief' ? 0.12 : 0.07
+  const base = preset.includes('watercolor') && preset !== 'radmaps-watercolor' ? 0.10 : preset === 'radmaps-night-relief' ? 0.12 : 0.07
   const contourBoost = Math.min(0.05, Math.max(0, (props.styleConfig.contour_detail ?? 3) - 2) * 0.012)
   const hillshadeBoost = (props.styleConfig.show_hillshade ? props.styleConfig.hillshade_intensity ?? 0.35 : 0) * 0.05
   return { opacity: Math.min(0.18, base + contourBoost + hillshadeBoost).toFixed(3) }

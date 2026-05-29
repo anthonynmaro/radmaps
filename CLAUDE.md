@@ -52,11 +52,10 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── maps/[id]/logo.post.ts         — upload poster logo to Supabase Storage
 │   ├── maps/[id]/versions.*.ts        — map version history
 │   ├── maps/public/[id].get.ts        — public map share (⚠ IDOR — see REMEDIATION.md)
-│   ├── orders/checkout.post.ts        — create Stripe Checkout session
+│   ├── checkout/                      — quote-locked checkout and Stripe session APIs
 │   ├── orders/webhook.post.ts         — Stripe webhook → Gelato order placement
 │   ├── gelato/webhook.post.ts         — Gelato fulfillment status updates
 │   ├── agent/style.post.ts            — Claude AI styling agent (SSE)
-│   ├── shop/checkout.post.ts          — premade map Stripe checkout
 │   ├── shop/customize.post.ts         — premade map customization
 │   └── strava/                        — Strava OAuth + activity import
 ├── utils/
@@ -188,6 +187,30 @@ Important details:
 - legacy aliases exist only for old rows and stale requests: `8x10→8x12`, `11x14→12x18`, `16x20→16x24`, `18x24→24x36`.
 
 Changing aspect ratio later is a product project, not a catalog tweak. Add explicit editor aspect state, update MapPreview/editor frozen camera/overlays/thumbnails/checkout, separate aspect family from size if needed, update hashes, build visual regression fixtures, and order physical samples before enabling production sales.
+
+## Pricing, Product, And Checkout Guardrails
+
+`utils/products.ts` is the only application catalog source for sellable product metadata, format/material/size availability, Gelato product UIDs, and local development fallback prices. Do not create another static product matrix in checkout, shop, admin, routes, or tests. UI selectors must derive availability from `PRODUCTS`.
+
+Physical product pricing is destination-based Gelato product cost plus 50% markup: `retail_price_cents = Math.round((gelato_cost_cents * 1.5) / 100) * 100`. Store this as `markup_bps = 5000` and `rounding_rule = nearest_dollar`. Shipping is never marked up by product pricing; it remains a separate Gelato shipping quote passed through to Stripe as shipping.
+
+Checkout must always follow the locked path: `/api/checkout/quote` creates a checkout attempt, locks the product price snapshot and shipping quote, then `/api/checkout/session` revalidates the cart and creates the Stripe Checkout Session. Do not recreate direct Stripe session endpoints such as `/api/orders/checkout` or `/api/shop/checkout`, and do not create Stripe sessions anywhere except `/api/checkout/session`.
+
+Never trust client-submitted unit price, subtotal, total, shipping price, Gelato cost, markup, raw Gelato payload, or `print_size`. The client may choose product UID, quantity, address/contact details, and coupon code. The server must derive canonical print size from the catalog, resolve/lock pricing from stored snapshots, verify quote/address/product/quantity/cart identity, and set Stripe `unit_amount` from the locked server price.
+
+Pricing update process:
+- Update pricing constants and docs together: `server/utils/gelatoPricing.ts`, `docs/PRODUCT_PRICING_STRATEGY.md`, and this guardrail section.
+- Update `utils/products.ts` static fallback prices only for local/dev estimates; production must use `gelato_product_prices` snapshots.
+- If schema defaults or lock fields change, add forward and rollback SQL migrations and keep `supabase/schema.sql` in sync.
+- Run Gelato pricing sync via admin `pricing:manage` or Vercel Cron with `CRON_SECRET`.
+- Before production traffic, confirm `/api/product-prices?country=US` returns every enabled product with `estimated: false`.
+- Run checkout/pricing tests before shipping any catalog, pricing, checkout, Stripe, or Gelato change.
+
+Security gates:
+- Gelato costs and raw payloads are private server/admin data; public APIs return retail prices only.
+- Pricing sync endpoints require `pricing:manage` or `Authorization: Bearer ${CRON_SECRET}`.
+- Stripe webhooks must verify Stripe signatures and dedupe events; Gelato webhooks must require the configured authorization secret.
+- Paid physical orders with checkout attempt, pricing, quote, shipping amount, product UID, quantity, cart source, or address-hash mismatches must be held in manual review and must not be submitted to Gelato automatically.
 
 ## StylePanel.vue patterns
 - Local reactive copy of `modelValue` (StyleConfig)

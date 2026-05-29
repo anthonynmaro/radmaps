@@ -10,6 +10,7 @@
  * This endpoint caches Gelato responses for 1 hour to avoid rate limits.
  * Use it at build time or from an admin panel — not from the checkout flow.
  */
+import { requireStaff } from '~/server/utils/adminAuth'
 
 interface GelatoCatalogResponse {
   catalogUid: string
@@ -77,6 +78,8 @@ function setCache(key: string, data: unknown) {
 }
 
 export default defineEventHandler(async (event) => {
+  await requireStaff(event, 'pricing:manage')
+
   const config = useRuntimeConfig()
   const query = getQuery(event)
 

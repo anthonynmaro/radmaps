@@ -234,6 +234,62 @@ export function productOrThrow(productUid: string, digitalOnly = false): PrintPr
   return product
 }
 
+export interface CheckoutAttemptCartLock {
+  cart_source?: string | null
+  user_id?: string | null
+  guest_email?: string | null
+  map_id?: string | null
+  premade_slug?: string | null
+  product_uid?: string | null
+  quantity?: number | string | null
+  address_hash?: string | null
+  quote_id?: string | null
+  status?: string | null
+}
+
+export interface ExpectedCheckoutAttemptCart {
+  cartSource: CheckoutCartSource
+  userId?: string | null
+  guestEmail?: string | null
+  mapId?: string | null
+  premadeSlug?: string | null
+  productUid: string
+  quantity: number
+  addressHash: string
+  quoteId?: string | null
+}
+
+const REUSABLE_ATTEMPT_STATUSES = new Set(['started', 'quoted', 'session_created'])
+
+function nullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+export function checkoutAttemptMismatchReasons(
+  attempt: CheckoutAttemptCartLock | null | undefined,
+  expected: ExpectedCheckoutAttemptCart,
+): string[] {
+  if (!attempt) return ['missing_attempt']
+
+  const reasons: string[] = []
+  if (!REUSABLE_ATTEMPT_STATUSES.has(String(attempt.status || ''))) reasons.push('status')
+  if (attempt.cart_source !== expected.cartSource) reasons.push('cart_source')
+  if (attempt.product_uid !== expected.productUid) reasons.push('product_uid')
+  if (Number(attempt.quantity) !== expected.quantity) reasons.push('quantity')
+  if (attempt.address_hash !== expected.addressHash) reasons.push('address_hash')
+  if (nullableString(attempt.map_id) !== nullableString(expected.mapId)) reasons.push('map_id')
+  if (nullableString(attempt.premade_slug) !== nullableString(expected.premadeSlug)) reasons.push('premade_slug')
+  if (nullableString(attempt.user_id) !== nullableString(expected.userId)) reasons.push('user_id')
+  if (nullableString(attempt.guest_email) !== nullableString(expected.guestEmail)) reasons.push('guest_email')
+  if (nullableString(attempt.quote_id) !== nullableString(expected.quoteId)) reasons.push('quote_id')
+
+  return reasons
+}
+
+export function canonicalPrintSize(product: PrintProduct, digitalOnly = false): string {
+  return digitalOnly || product.type === 'digital' ? 'digital' : product.size_label
+}
+
 export async function currentOptionalUser(event: Parameters<typeof serverSupabaseUser>[0]) {
   return await serverSupabaseUser(event).catch(() => null)
 }

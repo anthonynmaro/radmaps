@@ -6,6 +6,7 @@ import { computePrintHash } from '~/utils/render/hash'
 import { getPublishedPremadeBySlug } from '~/server/utils/premadeCatalog'
 import { getStripeClient } from '~/server/utils/stripe'
 import { normalizeShippingAddress, recordOrderEvent, shippingAddressHash, type CheckoutShippingAddress } from '~/server/utils/checkoutHardened'
+import { paidCheckoutIntegrityIssues } from '~/server/utils/checkoutIntegrity'
 import { pricingDbColumns, pricingFromMetadata, pricingFromRecord } from '~/server/utils/gelatoPricing'
 
 export default defineEventHandler(async (event) => {
@@ -106,6 +107,7 @@ async function handleCheckoutCompleted(input: {
   const isDigital = productUid === 'digital' || meta.digital_only === 'true'
   const isPremade = cartSource === 'premade'
   const quantity = Math.max(1, parseInt(String(meta.quantity || '1'), 10) || 1)
+  const catalogProduct = getProduct(isDigital ? 'digital' : productUid)
 
   const quote = meta.quote_id
     ? (await supabase.from('shipping_quotes').select('*').eq('id', meta.quote_id).maybeSingle()).data
@@ -119,19 +121,11 @@ async function handleCheckoutCompleted(input: {
     : null
   const lockedPricing = pricingFromRecord(checkoutAttempt, productUid)
     ?? pricingFromMetadata(meta as Record<string, string | undefined>, productUid)
-  const shippingAddress = normalizeShippingAddress(resolveShippingAddress(session, meta, quote))
+  const shippingAddress = normalizeShippingAddress(resolveShippingAddress(session, meta, quote, isDigital))
   const addressHash = shippingAddressHash(shippingAddress)
-  const quoteVerified = isDigital || (
-    !meta.quote_id
-    && !!meta.shipping_address
-  ) || (
-    quote
-    && quote.product_uid === productUid
-    && Number(quote.quantity) === quantity
-    && quote.address_hash === addressHash
-    && quote.cart_source === cartSource
-  )
-
+  const expectedSubtotalCents = lockedPricing
+    ? lockedPricing.retail_unit_price_cents * quantity
+    : null
   const paymentIntent = typeof session.payment_intent === 'string'
     ? await stripe.paymentIntents.retrieve(session.payment_intent, { expand: ['latest_charge', 'payment_method'] })
     : session.payment_intent as Stripe.PaymentIntent | null
@@ -168,7 +162,7 @@ async function handleCheckoutCompleted(input: {
     receipt_url: receiptUrl,
     ...(lockedPricing ? pricingDbColumns(lockedPricing) : {}),
     product_uid: productUid,
-    print_size: meta.print_size || (isDigital ? 'digital' : null),
+    print_size: isDigital ? 'digital' : (catalogProduct?.size_label ?? meta.print_size ?? null),
     quantity,
     shipping_address: shippingAddress,
     subtotal_cents: session.amount_subtotal ?? session.amount_total ?? 0,
@@ -241,17 +235,35 @@ async function handleCheckoutCompleted(input: {
     return
   }
 
-  if (!quoteVerified) {
+  const checkoutIntegrityIssues = paidCheckoutIntegrityIssues({
+    isDigital,
+    hasCatalogProduct: !!catalogProduct,
+    hasLockedPricing: !!lockedPricing,
+    requirePricingSnapshot: process.env.NODE_ENV === 'production',
+    hasPricingSnapshot: !!lockedPricing?.pricing_snapshot_id,
+    expectedSubtotalCents,
+    paidSubtotalCents: session.amount_subtotal ?? 0,
+    paidShippingCents: session.total_details?.amount_shipping ?? null,
+    quoteId: meta.quote_id,
+    checkoutAttemptId: meta.checkout_attempt_id,
+    quote,
+    productUid,
+    quantity,
+    addressHash,
+    cartSource,
+  })
+
+  if (checkoutIntegrityIssues.length) {
     await supabase.from('orders').update({
       status: 'manual_review',
       fulfillment_status: 'quote_mismatch',
     }).eq('id', order.id)
     await recordOrderEvent(supabase, {
       orderId: order.id,
-      eventType: 'quote_mismatch',
+      eventType: 'checkout_integrity_mismatch',
       actorType: 'system',
-      message: 'Paid order held because the locked shipping quote did not match the paid cart.',
-      metadata: { quote_id: meta.quote_id, address_hash: addressHash },
+      message: 'Paid order held because the locked checkout data did not match the paid cart.',
+      metadata: { issues: checkoutIntegrityIssues, quote_id: meta.quote_id, address_hash: addressHash },
     })
     await sendConfirmation(resend, shippingAddress.email, order, productTitle, undefined, isDigital, !meta.user_id)
     return
@@ -312,10 +324,28 @@ async function enqueuePremadeFulfillment(supabase: any, orderId: string, stripeS
   if (error) throw createError({ statusCode: 500, message: error.message })
 }
 
-function resolveShippingAddress(session: Stripe.Checkout.Session, meta: Stripe.Metadata | null, quote: any): CheckoutShippingAddress {
+function resolveShippingAddress(
+  session: Stripe.Checkout.Session,
+  meta: Stripe.Metadata | null,
+  quote: any,
+  isDigital = false,
+): CheckoutShippingAddress {
   if (quote?.shipping_address) return quote.shipping_address
   if (meta?.shipping_address) return JSON.parse(meta.shipping_address)
   const details = session.customer_details
+  if (isDigital) {
+    return {
+      name: details?.name || 'Digital Customer',
+      address1: '-',
+      address2: '',
+      city: '-',
+      state_code: '--',
+      country_code: 'US',
+      zip: '-',
+      email: details?.email || 'support@radmaps.studio',
+      phone: details?.phone || '',
+    }
+  }
   const addr = details?.address
   if (addr) {
     return {

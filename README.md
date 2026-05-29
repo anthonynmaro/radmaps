@@ -39,7 +39,7 @@ trailmaps-app/
 │   ├── maps/                       # Map CRUD + render trigger
 │   ├── premade/                    # Public database-backed premade catalog APIs
 │   ├── render/payload.get.ts        # Server-only render payload for signed tickets
-│   ├── orders/checkout.post.ts     # Stripe Checkout
+│   ├── checkout/                   # Quote-locked Stripe Checkout session creation
 │   ├── orders/webhook.post.ts      # Stripe webhook → print queue / Gelato
 │   ├── gelato/webhook.post.ts      # Gelato webhook → order status updates
 │   ├── strava/callback.get.ts      # Strava OAuth callback

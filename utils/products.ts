@@ -38,6 +38,12 @@ export interface ProductSizeAvailability {
   reason?: string
 }
 
+export const DEFAULT_PHYSICAL_PRODUCT_SELECTION: ProductSelection = {
+  type: 'poster',
+  sizeLabel: '12×18"',
+  materialKey: 'poster_archival_250',
+}
+
 // All six sizes share a 2:3 aspect ratio so the map never reframes when
 // switching sizes. Individual product availability is derived from PRODUCTS.
 export const SIZES: SizeOption[] = [
@@ -190,6 +196,26 @@ export const PRODUCTS: PrintProduct[] = [
     ...POSTER_SILK,
   },
   {
+    product_uid: 'flat_a4-8x12-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
+    name: '8×12" Poster, Archival Matte 250 gsm',
+    type: 'poster',
+    size_label: '8×12"',
+    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
+    price_cents: 1400,
+    recommended_px_w: 2400, recommended_px_h: 3600,
+    ...POSTER_ARCHIVAL,
+  },
+  {
+    product_uid: 'flat_300x450-mm-12x18-inch_200-gsm-80lb-coated-silk_4-0_ver',
+    name: '12×18" Poster, Silk 200 gsm',
+    type: 'poster',
+    size_label: '12×18"',
+    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
+    price_cents: 1200,
+    recommended_px_w: 3600, recommended_px_h: 5400,
+    ...POSTER_SILK,
+  },
+  {
     product_uid: 'flat_300x450-mm-12x18-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
     name: '12×18" Poster, Archival Matte 250 gsm',
     type: 'poster',
@@ -200,6 +226,16 @@ export const PRODUCTS: PrintProduct[] = [
     ...POSTER_ARCHIVAL,
   },
   {
+    product_uid: 'flat_400x600-mm-16x24-inch_200-gsm-80lb-coated-silk_4-0_ver',
+    name: '16×24" Poster, Silk 200 gsm',
+    type: 'poster',
+    size_label: '16×24"',
+    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
+    price_cents: 1500,
+    recommended_px_w: 4800, recommended_px_h: 7200,
+    ...POSTER_SILK,
+  },
+  {
     product_uid: 'flat_400x600-mm-16x24-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
     name: '16×24" Poster, Archival Matte 250 gsm',
     type: 'poster',
@@ -208,6 +244,16 @@ export const PRODUCTS: PrintProduct[] = [
     price_cents: 2100,
     recommended_px_w: 4800, recommended_px_h: 7200,
     ...POSTER_ARCHIVAL,
+  },
+  {
+    product_uid: 'flat_600x900-mm-24x36-inch_200-gsm-80lb-coated-silk_4-0_ver',
+    name: '24×36" Poster, Silk 200 gsm',
+    type: 'poster',
+    size_label: '24×36"',
+    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
+    price_cents: 2300,
+    recommended_px_w: 7200, recommended_px_h: 10800,
+    ...POSTER_SILK,
   },
   {
     product_uid: 'flat_600x900-mm-24x36-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
@@ -329,7 +375,7 @@ export const PRODUCTS: PrintProduct[] = [
 
   // ─── Framed Prints ────────────────────────────────────────────────────────────
   {
-    product_uid: 'frame_and_poster_product_frs_8x12-inch_frc_black_frm_aluminum_frp_w10xt22-mm_gt_plexiglass__pf_8x12-inch_pt_80-lb-cover-coated-silk_cl_4-0_ct_none_prt_none_ver',
+    product_uid: 'framed_poster_8x12-inch-210x297-mm_black_aluminum_w10xt22-mm_plexiglass_8x12-inch-a4_200-gsm-80lb-coated-silk_4-0_ver',
     name: '8×12" Framed Print',
     type: 'framed',
     size_label: '8×12"',
@@ -339,7 +385,7 @@ export const PRODUCTS: PrintProduct[] = [
     ...FRAMED,
   },
   {
-    product_uid: 'frame_and_poster_product_frs_12x18-inch_frc_black_frm_aluminum_frp_w10xt22-mm_gt_plexiglass__pf_12x18-inch_pt_80-lb-cover-coated-silk_cl_4-0_ct_none_prt_none_ver',
+    product_uid: 'framed_poster_12x18-inch-300x450-mm_black_aluminum_w10xt22-mm_plexiglass_12x18-inch-300x450-mm_200-gsm-80lb-coated-silk_4-0_ver',
     name: '12×18" Framed Print',
     type: 'framed',
     size_label: '12×18"',
@@ -349,33 +395,23 @@ export const PRODUCTS: PrintProduct[] = [
     ...FRAMED,
   },
   {
-    product_uid: 'frame_and_poster_product_frs_16x24-inch_frc_black_frm_aluminum_frp_w12xt22-mm_gt_plexiglass__pf_16x24-inch_pt_100-lb-cover-uncoated_cl_4-0_ct_none_prt_none_ver',
+    product_uid: 'framed_poster_400x600-mm-16x24-inch_black_aluminum_w12xt22-mm_plexiglass_400x600-mm-16x24-inch_200-gsm-80lb-coated-silk_4-0_ver',
     name: '16×24" Framed Print',
     type: 'framed',
     size_label: '16×24"',
     width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 11999,
+    price_cents: 6800,
     recommended_px_w: 4800, recommended_px_h: 7200,
     ...FRAMED,
   },
   {
-    product_uid: 'frame_and_poster_product_frs_24x36-inch_frc_black_frm_aluminum_frp_w10xt22-mm_gt_plexiglass__pf_24x36-inch_pt_80-lb-cover-coated-silk_cl_4-0_ct_none_prt_none_ver',
+    product_uid: 'framed_poster_24x36-inch-600x900-mm_black_aluminum_w10xt22-mm_plexiglass_24x36-inch-600x900-mm_200-gsm-80lb-coated-silk_4-0_ver',
     name: '24×36" Framed Print',
     type: 'framed',
     size_label: '24×36"',
     width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
     price_cents: 12100,
     recommended_px_w: 7200, recommended_px_h: 10800,
-    ...FRAMED,
-  },
-  {
-    product_uid: 'frame_and_poster_product_frs_32x48-inch_frc_black_frm_aluminum_frp_w10xt22-mm_gt_plexiglass__pf_32x48-inch_pt_80-lb-cover-coated-silk_cl_4-0_ct_none_prt_none_ver',
-    name: '32×48" Framed Print',
-    type: 'framed',
-    size_label: '32×48"',
-    width_in: 32, height_in: 48, aspect_ratio: 2 / 3,
-    price_cents: 19999,
-    recommended_px_w: 6400, recommended_px_h: 9600,
     ...FRAMED,
   },
 
@@ -521,6 +557,21 @@ export function formatHasMaterialChoice(type: ProductFormat): boolean {
 
 export function getProduct(uid: string): PrintProduct | undefined {
   return PRODUCTS.find(p => p.product_uid === uid)
+}
+
+export function getDefaultPhysicalProduct(): PrintProduct | undefined {
+  return getProductForSelection(DEFAULT_PHYSICAL_PRODUCT_SELECTION)
+    ?? PRODUCTS.find(product => product.type !== 'digital')
+}
+
+export function productPriceCents(product: PrintProduct, pricesByProductUid?: Record<string, number>): number {
+  const price = pricesByProductUid?.[product.product_uid]
+  return typeof price === 'number' && Number.isInteger(price) && price > 0 ? price : product.price_cents
+}
+
+export function withRetailPrice(product: PrintProduct, pricesByProductUid?: Record<string, number>): PrintProduct {
+  const price = productPriceCents(product, pricesByProductUid)
+  return price !== product.price_cents ? { ...product, price_cents: price } : product
 }
 
 export function getProductsByType(type: ProductFormat): PrintProduct[] {

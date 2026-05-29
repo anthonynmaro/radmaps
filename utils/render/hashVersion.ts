@@ -38,6 +38,10 @@ export const HASH_VERSION = {
     printScaling: 'browser-screenshot-dpr-v7',
     /** Tile fetch + LRU disk-cache pipeline. */
     tilePipeline: 'browser-tiles-v1',
+    /** First-party watercolor art-tile compositor revision. */
+    watercolorRenderer: 'watercolor-art-compositor-v5',
+    /** First-party watercolor texture/artwork pack revision. */
+    watercolorTexturePack: 'watercolor-asset-pack-v2-dev',
   },
   chrome: {
     /** Vue/MapPreview poster chrome template. */
