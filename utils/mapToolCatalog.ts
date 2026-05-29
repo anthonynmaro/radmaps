@@ -134,7 +134,7 @@ export const MAP_TOOL_CATALOG: MapToolCatalogItem[] = [
   },
   {
     id: 'radmaps-watercolor-tile-compositor',
-    name: 'RadMaps Watercolor Geometry Painter',
+    name: 'RadMaps Watercolor Art Tile Renderer',
     provider: 'RadMaps generated from RadMaps Open Vector Atlas',
     status: 'beta',
     costModel: 'self-hosted',
@@ -142,12 +142,12 @@ export const MAP_TOOL_CATALOG: MapToolCatalogItem[] = [
     usedByPresets: ['radmaps-watercolor'],
     runtimeSurfaces: ['Server PNG watercolor tile endpoint', 'Editor MapPreview', 'Browserless proof/final renders'],
     sources: ['Same-origin RadMaps Atlas base MVT tiles', 'First-party deterministic generated/scanned paper/pigment/drybrush/edge/splash texture pack'],
-    capabilities: ['Geometry-first feature painting', 'World-aligned texture sampling', 'Brush-painted road/trail/waterway strokes', 'Sketched building and boundary outlines', 'Water/park pigment washes and sparse splashes', 'Crisp vector labels and route above watercolor raster base'],
+    capabilities: ['High-resolution 1024px art tiles displayed as 512px MapLibre raster tiles', 'World-aligned texture sampling', 'Filled watercolor water and park washes', 'Brush-painted road/trail/waterway strokes', 'Sketched building and boundary outlines', 'Sparse pigment pooling and paper aging artifacts', 'Crisp vector labels and route above watercolor raster base'],
     layerAttributes: ['watercolor_seed', 'atlas_layers', 'atlas_layer_settings', 'water_color', 'land_color', 'roads_color', 'show_roads', 'show_place_labels', 'show_poi_labels'],
     attribution: 'Inherits RadMaps Atlas/OpenStreetMap attribution; no Stamen/Stadia raster assets are shipped by this compositor.',
     spendRisk: 'Moves watercolor rendering cost into first-party server CPU, tile cache, and Browserless tile waits; no per-tile third-party watercolor API spend.',
     trackingKeys: ['atlas_version', 'watercolor_renderer_version', 'watercolor_texture_pack_version', 'watercolor_recipe_id', 'watercolor_seed_present', 'render_class', 'tile_count', 'tile_render_ms_p95'],
-    notes: 'V3 renders one canonical Atlas watercolor recipe through server-generated PNG tiles wrapped by watercolortile:// for bounded encoded-tile caches and readiness diagnostics. Legacy radmaps-watercolor-* preset ids remain hidden aliases for saved maps. Labels, POIs, route collision, and GPX route linework remain vector MapLibre layers above the raster watercolor base.',
+    notes: 'V4 routes the single visible radmaps-watercolor preset to server-generated scale=2 PNG art tiles. Legacy radmaps-watercolor-* preset ids remain hidden aliases for saved maps. Labels, POIs, route collision, and GPX route linework remain vector MapLibre layers above the raster watercolor base; no Stadia/Stamen raster assets are shipped by this path.',
   },
   {
     id: 'radmaps-terrain-atlas',

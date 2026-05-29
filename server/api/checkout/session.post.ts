@@ -6,6 +6,8 @@ import { freezeOrderSnapshot } from '~/server/utils/snapshot'
 import { getStripeClient, stripeMetadata } from '~/server/utils/stripe'
 import {
   CheckoutShippingAddress,
+  canonicalPrintSize,
+  checkoutAttemptMismatchReasons,
   currentOptionalUser,
   normalizeShippingAddress,
   productOrThrow,
@@ -29,7 +31,6 @@ const Body = z.object({
   map_id: z.string().uuid().optional(),
   premade_slug: z.string().min(1).optional(),
   product_uid: z.string().min(1),
-  print_size: z.string().optional(),
   quantity: z.number().int().min(1).max(10).default(1),
   shipping_address: CheckoutShippingAddress,
   digital_only: z.boolean().default(false),
@@ -59,6 +60,7 @@ export default defineEventHandler(async (event) => {
   const isDigital = body.digital_only || product.type === 'digital'
   const quantity = body.quantity
   const addressHash = shippingAddressHash(address)
+  const guestEmail = user?.id ? null : address.email
 
   let mapId: string | null = null
   let premadeSlug: string | null = null
@@ -137,10 +139,27 @@ export default defineEventHandler(async (event) => {
   if (checkoutAttemptId) {
     const { data: attempt, error: attemptError } = await adminClient
       .from('checkout_attempts')
-      .select('pricing_snapshot_id, pricing_country_code, gelato_product_cost_cents, retail_unit_price_cents, pricing_markup_bps, pricing_rounding_rule, pricing_synced_at')
+      .select('cart_source, user_id, guest_email, map_id, premade_slug, product_uid, quantity, address_hash, quote_id, status, pricing_snapshot_id, pricing_country_code, gelato_product_cost_cents, retail_unit_price_cents, pricing_markup_bps, pricing_rounding_rule, pricing_synced_at')
       .eq('id', checkoutAttemptId)
       .maybeSingle()
     if (attemptError) throw createError({ statusCode: 500, message: attemptError.message })
+    const mismatches = checkoutAttemptMismatchReasons(attempt, {
+      cartSource: body.cart_source,
+      userId: user?.id ?? null,
+      guestEmail,
+      mapId,
+      premadeSlug,
+      productUid: product.product_uid,
+      quantity,
+      addressHash,
+      quoteId: quote?.id ?? null,
+    })
+    if (mismatches.length) {
+      throw createError({
+        statusCode: 409,
+        message: 'Checkout attempt no longer matches this cart. Please refresh the quote.',
+      })
+    }
     productPricing = pricingFromRecord(attempt, product.product_uid)
     if (productPricing && !isDigital && productPricing.country_code !== address.country_code) {
       throw createError({ statusCode: 409, message: 'Locked product price no longer matches this shipping address.' })
@@ -162,11 +181,11 @@ export default defineEventHandler(async (event) => {
       .insert({
         cart_source: body.cart_source,
         user_id: user?.id ?? null,
-        guest_email: user?.id ? null : address.email,
+        guest_email: guestEmail,
         map_id: mapId,
         premade_slug: premadeSlug,
         product_uid: product.product_uid,
-        print_size: body.print_size || product.size_label,
+        print_size: canonicalPrintSize(product, isDigital),
         quantity,
         shipping_address: address,
         address_hash: addressHash,
@@ -281,7 +300,7 @@ export default defineEventHandler(async (event) => {
         map_id: mapId,
         premade_slug: premadeSlug,
         product_uid: isDigital ? 'digital' : product.product_uid,
-        print_size: isDigital ? 'digital' : (body.print_size || product.size_label),
+        print_size: canonicalPrintSize(product, isDigital),
         quantity,
         digital_only: isDigital,
         address_hash: addressHash,

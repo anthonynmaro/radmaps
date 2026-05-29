@@ -269,9 +269,14 @@ Fix:
 
 ### 10. Stripe metadata contains full shipping address JSON
 
+Status: fixed for new checkout on 2026-05-29. The legacy direct Stripe checkout
+routes were removed, `/api/checkout/session` no longer writes
+`metadata.shipping_address`, and the webhook only reads that field as a
+historical fallback for already-created sessions.
+
 Evidence:
 
-- Checkout writes `metadata.shipping_address = JSON.stringify(shipping_address)`.
+- Legacy checkout wrote `metadata.shipping_address = JSON.stringify(shipping_address)`.
 - Stripe already collects customer/payment details, and checkout can provide
   shipping details through first-class fields.
 
@@ -293,8 +298,9 @@ Fix:
 - JSON map creation validates GeoJSON size and bbox, but not coordinate
   finiteness, geometry type, or point count. Add a strict GeoJSON schema and
   max coordinate count.
-- `orders/lookup` uses email plus partial order id and service role. Return data
-  is mostly sanitized, but add rate limiting and require a longer id fragment.
+- `orders/lookup` uses email plus order id and service role. It is rate limited
+  and requires at least 8 UUID characters; continue monitoring for support-flow
+  enumeration attempts.
 - Privacy policy is a placeholder and claims users can delete account data "at
   any time", but the app does not appear to provide a complete deletion/export
   flow.

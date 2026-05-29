@@ -10,6 +10,13 @@ import {
   type ScaledMapLibreProperty,
 } from '~/utils/styleLayerGraph'
 import { contrastRatio } from '~/utils/colorContrast'
+import {
+  WATERCOLOR_MAPLIBRE_TILE_SIZE,
+  WATERCOLOR_RECIPE_ID,
+  WATERCOLOR_RENDER_MAXZOOM,
+  WATERCOLOR_TEXTURE_PACK_VERSION,
+  WATERCOLOR_RENDERER_VERSION,
+} from '~/utils/watercolor/constants'
 
 type MapStyleObject = Record<string, unknown> & {
   layers?: Array<Record<string, unknown>>
@@ -126,6 +133,39 @@ function sameOriginTileUrl(path: string) {
     ? (globalThis as { location?: { origin?: string } }).location?.origin
     : ''
   return origin ? `${origin}${path}` : path
+}
+
+function watercolorTileUrl(config: StyleConfig) {
+  const atlasSettings = config.atlas_layer_settings ?? {}
+  const enabledLayers = [
+    atlasLayerEnabled(config, 'water') ? 'water' : '',
+    atlasLayerEnabled(config, 'park') ? 'park' : '',
+    atlasLayerEnabled(config, 'waterway') ? 'waterway' : '',
+    atlasLayerEnabled(config, 'building') ? 'building' : '',
+    atlasLayerEnabled(config, 'transportation', config.show_roads ?? true) && config.show_roads !== false ? 'transportation' : '',
+  ].filter(Boolean).join(',')
+  const params = new URLSearchParams({
+    scale: '2',
+    recipe: WATERCOLOR_RECIPE_ID,
+    seed: config.watercolor_seed || 'default',
+    renderer: WATERCOLOR_RENDERER_VERSION,
+    texturePack: WATERCOLOR_TEXTURE_PACK_VERSION,
+    layers: enabledLayers,
+    environment: 'production',
+  })
+  if (config.atlas_manifest_id) params.set('artifactId', config.atlas_manifest_id)
+  const watercolorPalette = {
+    water: atlasSettings.water?.fill_color || config.water_color,
+    park: atlasSettings.park?.fill_color || config.land_color,
+    waterway: atlasSettings.waterway?.color || atlasSettings.water?.waterway_color || config.water_color,
+    roadMajor: atlasSettings.transportation?.major_color || config.roads_color,
+    roadMinor: atlasSettings.transportation?.minor_color || config.roads_color,
+    trail: atlasSettings.transportation?.trail_color,
+  }
+  for (const [key, value] of Object.entries(watercolorPalette)) {
+    if (value) params.set(key, value)
+  }
+  return sameOriginTileUrl(`/api/watercolor/tiles/base/{z}/{x}/{y}.png?${params.toString()}`)
 }
 
 export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
@@ -1184,6 +1224,7 @@ function buildRadMapsAtlasStyle(
   const token = mapboxToken || ''
   const preset = config.preset || 'radmaps-field-topo'
   const isWatercolor = preset.includes('watercolor')
+  const isWatercolorArtTile = preset === 'radmaps-watercolor'
   const isWatercolorClassic = preset === 'radmaps-watercolor-classic'
   const isPigmentWash = preset === 'radmaps-watercolor-pigment-wash'
   const isWatercolorPaper = preset === 'radmaps-watercolor-paper'
@@ -1212,7 +1253,7 @@ function buildRadMapsAtlasStyle(
   const poiLabel = atlasSettings.poi?.label_color || (isToner ? tonerPalette?.poiLabel : config.poi_labels_color) || label
   const roadOpacity = atlasNumberSetting(atlasSettings.transportation?.opacity ?? config.roads_opacity, isWatercolorClassic ? 0.28 : isPigmentWash ? 0.34 : isWatercolorPaper ? 0.24 : isBrushInk ? 0.48 : isDarkAtlas ? 0.9 : isContourWash ? 0.18 : tonerPalette?.roadOpacity ?? 0.82)
   const usingMlContour = !!contourTileUrl
-  const defaultContours = config.show_contours || isSimpleContour || isContourWash || preset === 'radmaps-field-topo' || preset === 'radmaps-topographic' || preset === 'radmaps-natural' || preset === 'radmaps-night-relief'
+  const defaultContours = !isWatercolorArtTile && (config.show_contours || isSimpleContour || isContourWash || preset === 'radmaps-field-topo' || preset === 'radmaps-topographic' || preset === 'radmaps-natural' || preset === 'radmaps-night-relief')
   const wantsContours = atlasLayerEnabled(config, 'contour', defaultContours) && defaultContours
   const showLandcover = atlasLayerEnabled(config, 'landcover')
   const showPark = atlasLayerEnabled(config, 'park')
@@ -1238,6 +1279,16 @@ function buildRadMapsAtlasStyle(
     route: routeSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
+  }
+  if (isWatercolorArtTile) {
+    sources['radmaps-watercolor-base'] = {
+      type: 'raster' as const,
+      tiles: [watercolorTileUrl(config)],
+      tileSize: WATERCOLOR_MAPLIBRE_TILE_SIZE,
+      minzoom: 0,
+      maxzoom: WATERCOLOR_RENDER_MAXZOOM,
+      attribution: '© OpenStreetMap contributors © RadMaps Atlas',
+    }
   }
 
   if (wantsContours) {
@@ -1281,27 +1332,28 @@ function buildRadMapsAtlasStyle(
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources,
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': tonerPalette?.background ?? (isDarkAtlas ? '#081611' : isWatercolorPaper ? '#efe4cf' : land) } },
-      ...(isWatercolor && showLandcover ? [{ id: `${preset}-paper-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': isWatercolorPaper ? '#f7ecd6' : '#f6efd8', 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.28 : 0.12, 'fill-translate': isWatercolorPaper ? [2.2, -1.8] : [1.4, -1.2] } }] : []),
-      ...(isWatercolor && showPois ? [withScaleMetadata({ id: `${preset}-pigment-granulation`, type: 'circle', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 8, paint: { 'circle-color': isWatercolorPaper ? '#a79068' : '#719471', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, isWatercolorPaper ? 0.95 : 0.7, 16, isWatercolorPaper ? 1.35 : 1.0], 'circle-opacity': ['interpolate', ['linear'], ['zoom'], 8, isWatercolorPaper ? 0.10 : 0.055, 14, isWatercolorPaper ? 0.16 : 0.08], 'circle-blur': isWatercolorPaper ? 0.45 : 0.75 } }, ['circle-radius'])] : []),
-      ...(showLandcover ? [{ id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': atlasNumberSetting(atlasSettings.landcover?.opacity, tonerPalette?.landOpacity ?? (isContourWash ? 0.94 : isSimpleContour ? 0.12 : isWatercolorClassic ? 0.50 : isPigmentWash ? 0.52 : isWatercolorPaper ? 0.56 : isBrushInk ? 0.68 : 0.82)), ...tonerFillSmoothing } }] : []),
-      ...(tonerPatternVariant && showLandcover ? [{ id: `${preset}-natural-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', filter: tonerDotNaturalFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.22 : 0.14, ...tonerFillSmoothing } }] : []),
-      ...(isWatercolor && showPark ? [{ id: `${preset}-park-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.24 : 0.22, 'fill-translate': [-1.2, 1.1] } }] : []),
-      ...(showPark ? [{ id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': atlasNumberSetting(atlasSettings.park?.opacity, tonerPalette?.parkOpacity ?? (isContourWash ? 0.28 : isSimpleContour ? 0.10 : isWatercolorClassic ? 0.30 : isPigmentWash ? 0.30 : isWatercolorPaper ? 0.32 : isBrushInk ? 0.46 : 0.58)), ...tonerFillSmoothing } }] : []),
-      ...(tonerPatternVariant && showPark ? [{ id: `${preset}-park-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', filter: tonerDotParkFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.24 : 0.16, ...tonerFillSmoothing } }] : []),
-      ...(isWatercolor && showWater ? [{ id: `${preset}-water-pigment-pool`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolorPaper ? 0.20 : 0.24, 'fill-translate': [-1.6, 1.2] } }] : []),
-      ...(isWatercolor && showWater ? [withScaleMetadata({ id: `${preset}-water-edge-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'line-color': water, 'line-opacity': isWatercolorClassic ? 0.30 : isPigmentWash ? 0.28 : isWatercolorPaper ? 0.24 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.4, 12, isWatercolorPaper ? 3.8 : isBrushInk ? 3.2 : 4.6, 16, isWatercolorPaper ? 5.8 : isBrushInk ? 5.2 : 6.6], 'line-blur': isWatercolorPaper ? 1.8 : isBrushInk ? 1.4 : 2.2 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showWater ? [{ id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': atlasNumberSetting(atlasSettings.water?.fill_opacity, tonerPalette?.waterOpacity ?? (isContourWash ? 0.36 : isWatercolorClassic ? 0.46 : isPigmentWash ? 0.48 : isWatercolorPaper ? 0.38 : isBrushInk ? 0.58 : 0.76)), ...tonerFillSmoothing, ...(isWatercolor ? { 'fill-translate': [0.7, -0.4] } : {}) } }] : []),
-      ...(isWatercolor && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': isWatercolorClassic ? 0.34 : isPigmentWash ? 0.32 : isWatercolorPaper ? 0.28 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 13, isWatercolorPaper ? 2.6 : isBrushInk ? 2.6 : 3.6, 15, isWatercolorPaper ? 4.4 : isBrushInk ? 4.6 : 5.8], 'line-blur': isWatercolorPaper ? 1.5 : isBrushInk ? 1.2 : 2.1 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showWaterway ? [withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': atlasNumberSetting(atlasSettings.waterway?.opacity ?? atlasSettings.water?.waterway_opacity, isWatercolorClassic ? 0.48 : isPigmentWash ? 0.50 : isWatercolorPaper ? 0.42 : isBrushInk ? 0.68 : 0.78), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, Math.max(0.05, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 1) * (isWatercolor ? 0.55 : 0.35)), 13, atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 1.6 : 1.1), 15, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 2.8 : 2.0))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.25 : isBrushInk ? 0.15 : 0.45 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showBuildings ? [{ id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': atlasSettings.building?.fill_color || tonerPalette?.building || ink, 'fill-opacity': atlasNumberSetting(atlasSettings.building?.opacity, tonerPalette?.buildingOpacity ?? (isSimpleContour ? 0.05 : 0.16)), ...tonerFillSmoothing } }] : []),
+      { id: 'background', type: 'background', paint: { 'background-color': isWatercolorArtTile ? '#eee5cd' : tonerPalette?.background ?? (isDarkAtlas ? '#081611' : isWatercolorPaper ? '#efe4cf' : land) } },
+      ...(isWatercolorArtTile ? [{ id: 'radmaps-watercolor-base', type: 'raster', source: 'radmaps-watercolor-base', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showLandcover ? [{ id: `${preset}-paper-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': isWatercolorPaper ? '#f7ecd6' : '#f6efd8', 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.28 : 0.12, 'fill-translate': isWatercolorPaper ? [2.2, -1.8] : [1.4, -1.2] } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showPois ? [withScaleMetadata({ id: `${preset}-pigment-granulation`, type: 'circle', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 8, paint: { 'circle-color': isWatercolorPaper ? '#a79068' : '#719471', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, isWatercolorPaper ? 0.95 : 0.7, 16, isWatercolorPaper ? 1.35 : 1.0], 'circle-opacity': ['interpolate', ['linear'], ['zoom'], 8, isWatercolorPaper ? 0.10 : 0.055, 14, isWatercolorPaper ? 0.16 : 0.08], 'circle-blur': isWatercolorPaper ? 0.45 : 0.75 } }, ['circle-radius'])] : []),
+      ...(!isWatercolorArtTile && showLandcover ? [{ id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': atlasNumberSetting(atlasSettings.landcover?.opacity, tonerPalette?.landOpacity ?? (isContourWash ? 0.94 : isSimpleContour ? 0.12 : isWatercolorClassic ? 0.50 : isPigmentWash ? 0.52 : isWatercolorPaper ? 0.56 : isBrushInk ? 0.68 : 0.82)), ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && tonerPatternVariant && showLandcover ? [{ id: `${preset}-natural-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', filter: tonerDotNaturalFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.22 : 0.14, ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showPark ? [{ id: `${preset}-park-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.24 : 0.22, 'fill-translate': [-1.2, 1.1] } }] : []),
+      ...(!isWatercolorArtTile && showPark ? [{ id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': atlasNumberSetting(atlasSettings.park?.opacity, tonerPalette?.parkOpacity ?? (isContourWash ? 0.28 : isSimpleContour ? 0.10 : isWatercolorClassic ? 0.30 : isPigmentWash ? 0.30 : isWatercolorPaper ? 0.32 : isBrushInk ? 0.46 : 0.58)), ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && tonerPatternVariant && showPark ? [{ id: `${preset}-park-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', filter: tonerDotParkFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.24 : 0.16, ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showWater ? [{ id: `${preset}-water-pigment-pool`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolorPaper ? 0.20 : 0.24, 'fill-translate': [-1.6, 1.2] } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showWater ? [withScaleMetadata({ id: `${preset}-water-edge-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'line-color': water, 'line-opacity': isWatercolorClassic ? 0.30 : isPigmentWash ? 0.28 : isWatercolorPaper ? 0.24 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.4, 12, isWatercolorPaper ? 3.8 : isBrushInk ? 3.2 : 4.6, 16, isWatercolorPaper ? 5.8 : isBrushInk ? 5.2 : 6.6], 'line-blur': isWatercolorPaper ? 1.8 : isBrushInk ? 1.4 : 2.2 } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showWater ? [{ id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': atlasNumberSetting(atlasSettings.water?.fill_opacity, tonerPalette?.waterOpacity ?? (isContourWash ? 0.36 : isWatercolorClassic ? 0.46 : isPigmentWash ? 0.48 : isWatercolorPaper ? 0.38 : isBrushInk ? 0.58 : 0.76)), ...tonerFillSmoothing, ...(isWatercolor ? { 'fill-translate': [0.7, -0.4] } : {}) } }] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': isWatercolorClassic ? 0.34 : isPigmentWash ? 0.32 : isWatercolorPaper ? 0.28 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 13, isWatercolorPaper ? 2.6 : isBrushInk ? 2.6 : 3.6, 15, isWatercolorPaper ? 4.4 : isBrushInk ? 4.6 : 5.8], 'line-blur': isWatercolorPaper ? 1.5 : isBrushInk ? 1.2 : 2.1 } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': atlasNumberSetting(atlasSettings.waterway?.opacity ?? atlasSettings.water?.waterway_opacity, isWatercolorClassic ? 0.48 : isPigmentWash ? 0.50 : isWatercolorPaper ? 0.42 : isBrushInk ? 0.68 : 0.78), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, Math.max(0.05, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 1) * (isWatercolor ? 0.55 : 0.35)), 13, atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 1.6 : 1.1), 15, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 2.8 : 2.0))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.25 : isBrushInk ? 0.15 : 0.45 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showBuildings ? [{ id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': atlasSettings.building?.fill_color || tonerPalette?.building || ink, 'fill-opacity': atlasNumberSetting(atlasSettings.building?.opacity, tonerPalette?.buildingOpacity ?? (isSimpleContour ? 0.05 : 0.16)), ...tonerFillSmoothing } }] : []),
       ...(config.show_hillshade && !isSimpleContour ? hillshadeLayers(config) : []),
       ...atlasContourLayers,
-      ...(isWatercolor && showMinorRoads ? [withScaleMetadata({ id: `${preset}-roads-minor-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.22 : isBrushInk ? 0.34 : 0.30), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, isWatercolorPaper ? 2.0 : 2.6, 16, isWatercolorPaper ? 3.7 : 4.4], 'line-blur': isWatercolorPaper ? 0.9 : isBrushInk ? 0.7 : 1.3 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showMinorRoads ? [withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * (tonerPalette?.minorRoadOpacity ?? (isWatercolorClassic ? 0.42 : isPigmentWash ? 0.46 : isWatercolorPaper ? 0.36 : 0.62)), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, tonerPalette ? 0.38 : 0.25, 13, atlasSettings.transportation?.minor_width ?? (tonerPalette ? 1.35 : isWatercolor ? 1.05 : 0.9), 16, (atlasSettings.transportation?.minor_width ?? (tonerPalette ? 2.65 : isWatercolor ? 2.1 : 2.1))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.1 : isBrushInk ? 0.08 : 0.25 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(isWatercolor && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.28 : isBrushInk ? 0.44 : 0.38), 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 12, isWatercolorPaper ? 3.2 : 4.0, 16, isWatercolorPaper ? 5.4 : 6.4], 'line-blur': isWatercolorPaper ? 1.0 : isBrushInk ? 0.8 : 1.5 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, tonerPalette ? 0.95 : 0.55, 12, atlasSettings.transportation?.major_width ?? (tonerPalette ? 3.3 : isWatercolor ? 2.0 : 2.0), 16, (atlasSettings.transportation?.major_width ?? (tonerPalette ? 6.6 : isWatercolor ? 4.0 : 4.2))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.18 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(showTrails ? [withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail', 'footway', 'cycleway', 'bridleway', 'pedestrian']]], paint: { 'line-color': trail, 'line-opacity': tonerPalette ? Math.min(roadOpacity, tonerPalette.trailOpacity) : isWatercolorClassic ? Math.min(roadOpacity, 0.28) : isPigmentWash ? Math.min(roadOpacity, 0.30) : isWatercolorPaper ? Math.min(roadOpacity, 0.24) : isWatercolor ? Math.min(roadOpacity, 0.42) : Math.min(roadOpacity, 0.65), 'line-width': ['interpolate', ['linear'], ['zoom'], 10, tonerPalette ? 0.45 : 0.35, 14, atlasSettings.transportation?.trail_width ?? (tonerPalette ? 1.5 : 1.2), 16, (atlasSettings.transportation?.trail_width ?? (tonerPalette ? 2.6 : 2.0))], 'line-dasharray': isBrushInk || isWatercolorPaper ? [1.7, 1.1] : [1.2, 1.6], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.16 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showMinorRoads ? [withScaleMetadata({ id: `${preset}-roads-minor-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.22 : isBrushInk ? 0.34 : 0.30), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, isWatercolorPaper ? 2.0 : 2.6, 16, isWatercolorPaper ? 3.7 : 4.4], 'line-blur': isWatercolorPaper ? 0.9 : isBrushInk ? 0.7 : 1.3 } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showMinorRoads ? [withScaleMetadata({ id: `${preset}-roads-minor`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * (tonerPalette?.minorRoadOpacity ?? (isWatercolorClassic ? 0.42 : isPigmentWash ? 0.46 : isWatercolorPaper ? 0.36 : 0.62)), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, tonerPalette ? 0.38 : 0.25, 13, atlasSettings.transportation?.minor_width ?? (tonerPalette ? 1.35 : isWatercolor ? 1.05 : 0.9), 16, (atlasSettings.transportation?.minor_width ?? (tonerPalette ? 2.65 : isWatercolor ? 2.1 : 2.1))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.1 : isBrushInk ? 0.08 : 0.25 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && isWatercolor && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.28 : isBrushInk ? 0.44 : 0.38), 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 12, isWatercolorPaper ? 3.2 : 4.0, 16, isWatercolorPaper ? 5.4 : 6.4], 'line-blur': isWatercolorPaper ? 1.0 : isBrushInk ? 0.8 : 1.5 } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, tonerPalette ? 0.95 : 0.55, 12, atlasSettings.transportation?.major_width ?? (tonerPalette ? 3.3 : isWatercolor ? 2.0 : 2.0), 16, (atlasSettings.transportation?.major_width ?? (tonerPalette ? 6.6 : isWatercolor ? 4.0 : 4.2))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.18 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showTrails ? [withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail', 'footway', 'cycleway', 'bridleway', 'pedestrian']]], paint: { 'line-color': trail, 'line-opacity': tonerPalette ? Math.min(roadOpacity, tonerPalette.trailOpacity) : isWatercolorClassic ? Math.min(roadOpacity, 0.28) : isPigmentWash ? Math.min(roadOpacity, 0.30) : isWatercolorPaper ? Math.min(roadOpacity, 0.24) : isWatercolor ? Math.min(roadOpacity, 0.42) : Math.min(roadOpacity, 0.65), 'line-width': ['interpolate', ['linear'], ['zoom'], 10, tonerPalette ? 0.45 : 0.35, 14, atlasSettings.transportation?.trail_width ?? (tonerPalette ? 1.5 : 1.2), 16, (atlasSettings.transportation?.trail_width ?? (tonerPalette ? 2.6 : 2.0))], 'line-dasharray': isBrushInk || isWatercolorPaper ? [1.7, 1.1] : [1.2, 1.6], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.16 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
       ...routeLayers(routeConfig),
       routeLabelCollisionLayer(config),
       ...(showPlaces ? [withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, atlasSettings.place?.font_size ?? 9, 12, (atlasSettings.place?.font_size ?? 15)], 'text-letter-spacing': 0.02, 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': isWatercolor ? 0.62 : 0.46, 'text-justify': 'auto' }, paint: { 'text-color': label, 'text-opacity': atlasNumberSetting(atlasSettings.place?.label_opacity ?? config.place_labels_opacity, isWatercolor ? 0.48 : 0.78), 'text-halo-color': atlasSettings.place?.halo_color || labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES)] : []),

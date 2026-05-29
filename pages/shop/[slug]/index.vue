@@ -112,7 +112,7 @@
             </div>
           </div>
           <p class="text-center text-[10px] font-medium tracking-[0.18em] uppercase text-stone-400 mt-4">
-            Shown at {{ selectedProduct?.size_label || '18×24"' }} · 170 gsm archival matte
+            {{ previewProductCaption }}
           </p>
         </div>
 
@@ -138,85 +138,19 @@
           <p class="text-base text-stone-500 mb-6">{{ premade.subtitle }}</p>
           <p class="text-[15px] text-stone-700 leading-relaxed mb-8">{{ premade.description }}</p>
 
-          <!-- Stats row -->
-          <div class="grid grid-cols-3 border border-stone-200 rounded-xl overflow-hidden bg-white/60 mb-8 divide-x divide-stone-200">
-            <div class="p-4">
-              <p class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 mb-1">Distance</p>
-              <p class="text-lg font-semibold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">{{ formatKm(premade.stats.distance_km) }}</p>
-            </div>
-            <div class="p-4">
-              <p class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 mb-1">Elevation</p>
-              <p class="text-lg font-semibold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">{{ formatM(premade.stats.elevation_gain_m) }}</p>
-            </div>
-            <div class="p-4">
-              <p class="text-[10px] font-semibold tracking-[0.18em] uppercase text-stone-400 mb-1">Max altitude</p>
-              <p class="text-lg font-semibold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">
-                {{ premade.stats.max_elevation_m ? `${premade.stats.max_elevation_m.toLocaleString()} m` : '—' }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Size selector -->
-          <div class="mb-6">
-            <div class="flex items-center justify-between mb-3">
-              <label class="text-xs font-semibold tracking-[0.18em] uppercase text-stone-500">Print size</label>
-              <span class="text-xs text-stone-400">170 gsm archival matte</span>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <button
-                v-for="opt in posterOptions"
-                :key="opt.product_uid"
-                @click="selectedProductUid = opt.product_uid"
-                :class="[
-                  'relative p-4 rounded-xl border-2 text-left transition-all',
-                  selectedProductUid === opt.product_uid
-                    ? 'border-stone-900 bg-white shadow-sm'
-                    : 'border-stone-200 bg-white/60 hover:border-stone-300',
-                ]"
-              >
-                <p class="text-xs font-semibold text-stone-500 mb-0.5">{{ opt.size_label }}</p>
-                <p class="text-lg font-bold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">
-                  {{ formatPrice(productPriceCents(opt)) }}
-                </p>
-                <span
-                  v-if="selectedProductUid === opt.product_uid"
-                  class="absolute top-2 right-2 w-5 h-5 rounded-full bg-stone-900 flex items-center justify-center"
-                >
-                  <svg class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                  </svg>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Quantity -->
-          <div class="mb-8 flex items-center gap-4">
-            <label class="text-xs font-semibold tracking-[0.18em] uppercase text-stone-500">Quantity</label>
-            <div class="inline-flex items-center rounded-full bg-white border border-stone-200 p-1 gap-1">
-              <button
-                @click="quantity = Math.max(1, quantity - 1)"
-                class="w-8 h-8 rounded-full text-stone-500 hover:bg-stone-100 font-bold text-base"
-              >−</button>
-              <span class="w-8 text-center font-semibold text-stone-900 tabular-nums">{{ quantity }}</span>
-              <button
-                @click="quantity = Math.min(10, quantity + 1)"
-                class="w-8 h-8 rounded-full text-stone-500 hover:bg-stone-100 font-bold text-base"
-              >+</button>
-            </div>
-          </div>
-
-          <!-- Total & CTA -->
+          <!-- CTA -->
           <div class="border-t border-stone-200 pt-6">
             <div class="flex items-baseline justify-between mb-5">
-              <span class="text-xs font-semibold tracking-[0.18em] uppercase text-stone-500">Total</span>
+              <span class="text-xs font-semibold tracking-[0.18em] uppercase text-stone-500">Prints from</span>
               <span class="text-3xl font-semibold text-stone-900 tabular-nums" style="font-family:'Space Grotesk',sans-serif">
-                {{ formatPrice(totalCents) }}
+                {{ formatPrice(startingPriceCents) }}
               </span>
             </div>
 
             <a :href="checkoutHref" class="block">
-              <button class="w-full group inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 text-white font-semibold px-6 py-4 rounded-full text-sm transition-all shadow-sm shadow-stone-900/10">
+              <button
+                class="w-full group inline-flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-500 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-full text-sm transition-all shadow-sm shadow-stone-900/10"
+              >
                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
                   <path d="M16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
@@ -296,8 +230,8 @@ import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import { useSeo } from '~/composables/useSeo'
 import { breadcrumbSchema, SITE_URL } from '~/utils/seo'
-import { PRODUCTS, getProduct, formatPrice } from '~/utils/products'
-import type { PremadeMap } from '~/types'
+import { PRODUCTS, formatPrice, getDefaultPhysicalProduct, productPriceCents, withRetailPrice } from '~/utils/products'
+import type { PremadeMap, PrintProduct } from '~/types'
 
 definePageMeta({
   layout: 'default',
@@ -308,8 +242,6 @@ const user = useSupabaseUser()
 const slug = route.params.slug as string
 const { data: premade } = await useFetch<PremadeMap>(`/api/premade/${slug}`)
 
-// Poster products only for shop (no framed/canvas/digital for this flow)
-const posterOptions = PRODUCTS.filter((p) => p.type === 'poster' && p.size_label !== '5×7"')
 const productPrices = ref<Record<string, number>>({})
 try {
   const productPriceResponse = await $fetch<{ prices: Array<{ product_uid: string; retail_price_cents: number }> }>('/api/product-prices', {
@@ -322,23 +254,17 @@ try {
   productPrices.value = {}
 }
 
-function productPriceCents(product: typeof posterOptions[number]): number {
-  return productPrices.value[product.product_uid] ?? product.price_cents
-}
+const shopProducts = PRODUCTS.filter(product => product.type !== 'digital')
 
-// Default size: 12x16 → falls back to first available
-const defaultSizeUid =
-  posterOptions.find((p) => p.size_label === '12×18"')?.product_uid ||
-  posterOptions[0]?.product_uid ||
-  ''
+// The detail page is discovery only. Product/quantity choices happen in checkout.
+const defaultProduct =
+  getDefaultPhysicalProduct() ||
+  shopProducts[0] ||
+  null
 
-const selectedProductUid = ref<string>(defaultSizeUid)
-const quantity = ref(1)
-
-const selectedProduct = computed(() => getProduct(selectedProductUid.value))
-const checkoutHref = computed(() =>
-  `/shop/${slug}/checkout?size=${encodeURIComponent(selectedProductUid.value)}&qty=${quantity.value}`,
-)
+const previewProduct = computed<PrintProduct | null>(() => defaultProduct ? withRetailPrice(defaultProduct, productPrices.value) : null)
+const startingPriceCents = computed(() => Math.min(...shopProducts.map(product => productPriceCents(product, productPrices.value))))
+const checkoutHref = computed(() => `/shop/${slug}/checkout`)
 const buyCtaLabel = computed(() => user.value ? 'Buy now' : 'Buy now — checkout as guest')
 const checkoutReassurance = computed(() =>
   user.value
@@ -346,24 +272,26 @@ const checkoutReassurance = computed(() =>
     : 'No account needed · Secure payment via Stripe · Ships worldwide',
 )
 
-const totalCents = computed(() =>
-  (selectedProduct.value ? productPriceCents(selectedProduct.value) : 0) * quantity.value
-)
-
 const posterAspect = computed(() => {
-  const p = selectedProduct.value
+  const p = previewProduct.value
   if (!p || !p.width_in || !p.height_in) return '3 / 4'
   return `${p.width_in} / ${p.height_in}`
+})
+
+const previewProductCaption = computed(() => {
+  const product = previewProduct.value
+  if (!product) return 'Choose a print format'
+  return `Shown at ${product.size_label} · ${product.material_label ?? product.format_label ?? product.name}`
 })
 
 const premadeMap = premade.value
 if (premadeMap) {
   // Build a Product schema with one Offer per available size.
-  const offers = posterOptions.map((p) => ({
+  const offers = shopProducts.map((p) => ({
     '@type': 'Offer',
     sku: p.product_uid,
-    name: `${premadeMap.title} — ${p.size_label} Poster`,
-    price: (productPriceCents(p) / 100).toFixed(2),
+    name: `${premadeMap.title} — ${p.name}`,
+    price: (productPriceCents(p, productPrices.value) / 100).toFixed(2),
     priceCurrency: 'USD',
     availability: 'https://schema.org/InStock',
     url: `${SITE_URL}/shop/${premadeMap.slug}`,
@@ -392,8 +320,8 @@ if (premadeMap) {
     offers: {
       '@type': 'AggregateOffer',
       offerCount: offers.length,
-      lowPrice: (Math.min(...posterOptions.map(productPriceCents)) / 100).toFixed(2),
-      highPrice: (Math.max(...posterOptions.map(productPriceCents)) / 100).toFixed(2),
+      lowPrice: (Math.min(...shopProducts.map(product => productPriceCents(product, productPrices.value))) / 100).toFixed(2),
+      highPrice: (Math.max(...shopProducts.map(product => productPriceCents(product, productPrices.value))) / 100).toFixed(2),
       priceCurrency: 'USD',
       offers,
     },
@@ -403,7 +331,7 @@ if (premadeMap) {
       { '@type': 'PropertyValue', name: 'Region', value: premadeMap.region },
       { '@type': 'PropertyValue', name: 'Country', value: premadeMap.country },
       { '@type': 'PropertyValue', name: 'Activity', value: premadeMap.stats.activity_type ?? 'hiking' },
-      { '@type': 'PropertyValue', name: 'Paper', value: '170 gsm archival matte' },
+      { '@type': 'PropertyValue', name: 'Products', value: 'Posters, framed prints, canvas, wall hangings, and aluminum prints' },
       { '@type': 'PropertyValue', name: 'Print resolution', value: '300 DPI' },
     ],
   }

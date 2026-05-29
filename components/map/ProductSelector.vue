@@ -143,12 +143,13 @@
 
       <!-- CTA -->
       <button
+        v-if="showConfirmButton"
         type="button"
         :disabled="!selectedProduct"
         class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#2D6A4F] py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#235840] disabled:cursor-not-allowed disabled:opacity-50"
         @click="confirmSelection"
       >
-        <span>{{ selectedProduct ? `Render ${selectedProduct.name}` : 'Choose an enabled size' }}</span>
+        <span>{{ confirmButtonLabel }}</span>
         <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
       </button>
 
@@ -162,6 +163,7 @@ import {
   PRODUCT_FORMAT_META,
   SIZES,
   formatPrice,
+  getDefaultPhysicalProduct,
   getDefaultMaterialKeyForFormat,
   getProductForSelection,
   getProductFormatOptions,
@@ -176,6 +178,9 @@ const props = defineProps<{
   modelValue?: PrintProduct | null
   mapCenter?: [number, number]
   mapZoom?: number
+  showConfirm?: boolean
+  includeDigital?: boolean
+  confirmLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -184,16 +189,21 @@ const emit = defineEmits<{
   'confirm': [payload: { product: PrintProduct; framing: ProductFraming }]
 }>()
 
+const defaultProduct = getDefaultPhysicalProduct()
 const isExpanded = ref(true)
 
 const selectedSizeLabel = ref<string>(
   props.modelValue?.size_label && props.modelValue.size_label !== 'Digital'
     ? props.modelValue.size_label
-    : SIZES[2].label, // default to 16×24"
+    : defaultProduct?.size_label ?? SIZES[0].label,
 )
 
+const initialType = props.modelValue?.type === 'digital' && props.includeDigital === false
+  ? defaultProduct?.type ?? 'poster'
+  : props.modelValue?.type ?? defaultProduct?.type ?? 'poster'
+
 const selectedType = ref<ProductFormat>(
-  props.modelValue?.type ?? 'poster',
+  initialType,
 )
 
 const selectedMaterialKey = ref<string | undefined>(
@@ -201,7 +211,10 @@ const selectedMaterialKey = ref<string | undefined>(
 )
 
 const productPrices = ref<Record<string, number>>({})
-const formatOptions = computed(() => getProductFormatOptions())
+const showConfirmButton = computed(() => props.showConfirm !== false)
+const formatOptions = computed(() =>
+  getProductFormatOptions().filter(option => props.includeDigital !== false || option.type !== 'digital'),
+)
 const visibleMaterialOptions = computed(() => getVisibleProductMaterialOptions(selectedType.value))
 const selectedFormatMeta = computed(() => PRODUCT_FORMAT_META[selectedType.value])
 
@@ -228,6 +241,10 @@ const selectedProduct = computed<PrintProduct | null>(() => {
 })
 
 const selectedSummaryName = computed(() => selectedProduct.value?.name ?? invalidSelectionMessage.value)
+const confirmButtonLabel = computed(() => {
+  if (!selectedProduct.value) return 'Choose an enabled size'
+  return props.confirmLabel || `Render ${selectedProduct.value.name}`
+})
 
 const invalidSelectionMessage = computed(() => {
   if (selectedType.value === 'digital') return 'Digital Download'
@@ -265,6 +282,7 @@ function sizeButtonClass(label: string) {
 }
 
 function selectFormat(type: ProductFormat) {
+  if (type === 'digital' && props.includeDigital === false) return
   selectedType.value = type
   selectedMaterialKey.value = getDefaultMaterialKeyForFormat(type, selectedSizeLabel.value)
   emitCurrentProduct()

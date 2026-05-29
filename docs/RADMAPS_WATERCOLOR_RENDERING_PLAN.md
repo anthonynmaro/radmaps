@@ -1,285 +1,579 @@
-# RadMaps Watercolor Rendering Plan
+# RadMaps Watercolor Art Tile Plan
 
-## Goal
+## Summary
 
-Create a believable, print-repeatable watercolor map style powered by owned
-RadMaps Atlas vector data. The result should look like an intentionally painted
-map, not a blurred vector style, and must reproduce deterministically in editor
-previews, proof renders, and final Browserless print renders.
+Build RadMaps watercolor as a first-party, high-resolution art tile renderer.
+The visible `radmaps-watercolor` preset should render one painted raster base
+tile beneath crisp MapLibre labels, POIs, route layers, editor overlays, and
+segment handles.
 
-## Product Direction
+This plan supersedes the older CSS overlay, viewport blur, mask-first, and
+hybrid vector-plus-texture watercolor attempts. Those approaches produced
+blurred maps, vector-looking water, point-chain roads, and cluttered synthetic
+texture. The current direction is a geometry-driven art compositor with
+dedicated paint passes for paper, water, parks, roads, trails, junctions,
+buildings, contours, stains, and sparse color events.
 
-Watercolor is a premium art treatment. It should be distinct from:
+The near-term visual baseline is the local POC direction represented by:
 
-- `RadMaps Contour Wash`: pale blue contour-art style, not watercolor.
-- `RadMaps Field/Atlas Topo`: functional topographic cartography.
-- `RadMaps Toner`: graphic monochrome linework and dot texture.
+- `v13b`: quieter paper, stronger road pigment, lower-saturation water.
+- `v7`: joined 3-way and 4-way junction masks instead of stamped junction art.
 
-The watercolor family should eventually include:
+These are visual references only. Production behavior must be implemented from
+Atlas geometry and first-party texture assets.
 
-- `Watercolor Classic`: closest to the legacy provider watercolor feel.
-- `Watercolor Wash`: wet pigment pools, softer land and hydro blooms.
-- `Watercolor Paper`: dry paper grain, lighter pigment, less blur.
-- `Watercolor Brush`: stronger hand-inked roads/rivers over translucent washes.
+## Product Goal
 
-## Core Strategy
+Watercolor should look like a print-quality scan of a painted cartographic
+composition, not a blurred digital map. It should be:
 
-Do not try to make MapLibre paint properties alone simulate watercolor. Use
-MapLibre and Atlas PMTiles for geography, then add a deterministic watercolor
-renderer/compositor that derives masks from visible vector layers.
+- painterly but readable
+- sparse enough for posters
+- deterministic across editor, proof, and final print renders
+- based on owned RadMaps Atlas data and first-party texture assets
+- distinct from provider/Stadia/Stamen tiles, which should eventually leave the
+  app entirely
 
-The system should render from the same data in:
+Labels, POIs, and the GPX route core must remain crisp vector layers above the
+painted base tile. A watercolor route underwash can be added later, but the
+route core should not be baked into the base tile for V1.
 
-- editor preview
-- proof render
-- final Browserless render
-- style-browser visual fixtures
+## Non-Goals
 
-Same inputs plus same seed must produce the same final pixels.
+- Do not use CSS filters, full-viewport blur, haze overlays, or terrain illusion
+  overlays for watercolor.
+- Do not bake text labels into watercolor tiles.
+- Do not distort the GPX route core.
+- Do not render ordinary vector water, parks, roads, trails, or waterways above
+  the watercolor base except behind a debug flag.
+- Do not copy, trace, or prompt for "Stamen style." Use first-party physical
+  watercolor assets and RadMaps-specific recipes.
+- Do not treat procedural texture placeholders as production-approved artwork.
 
-## Rendering Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
-  A["Owned Atlas vector layers"] --> B["MapLibre base style"]
-  A --> C["Layer masks"]
-  C --> D["Seeded watercolor renderer"]
-  D --> E["Canvas/SVG overlay passes"]
-  B --> F["Editor / Browserless scene"]
-  E --> F
-  F --> G["Proof and final print image"]
+  A["Atlas PMTiles MVT"] --> B["Geometry extractor"]
+  B --> C["Feature classification"]
+  C --> D["Watercolor art compositor"]
+  E["First-party texture pack"] --> D
+  F["Seeded recipe"] --> D
+  D --> G["1024px PNG art tile"]
+  G --> H["MapLibre raster source"]
+  H --> I["Crisp labels, POIs, route above"]
 ```
 
-## Inputs
+The MapLibre style should use a single watercolor raster source/layer:
 
-The watercolor renderer should accept a stable recipe object:
+- source id: `radmaps-watercolor-base`
+- protocol or URL: server-rendered watercolor tiles
+- logical tile size: `512`
+- encoded image size: `1024` for `scale=2`
+- max source zoom: `14`
+- overzoom behavior: editor zooms above `14` use z14 art tiles
 
-```ts
-interface WatercolorRenderRecipe {
-  mapId: string
-  styleVersion: string
-  seed: string
-  width: number
-  height: number
-  deviceScaleFactor: number
-  palette: {
-    paper: string
-    land: string
-    park: string
-    water: string
-    waterway: string
-    road: string
-    trail: string
-    contour: string
-    route: string
-    ink: string
-  }
-  intensity: {
-    paperGrain: number
-    pigmentBloom: number
-    edgeBleed: number
-    granulation: number
-    strokeWobble: number
-    lineBreakup: number
-  }
-  enabledLayers: {
-    landcover: boolean
-    park: boolean
-    water: boolean
-    waterway: boolean
-    transportation: boolean
-    contour: boolean
-  }
-}
-```
+The default path should be server-rendered PNG tiles. Browser-local rendering is
+dev-only for recipe tuning and single-tile benchmarks.
 
-## Technique Stack
+## Tile Contract
 
-### 1. Paper Foundation
+Each watercolor tile is keyed by:
 
-Add a seeded paper grain pass before the map layer:
+- `z/x/y`
+- `scale`
+- `rendererVersion`
+- `texturePackVersion`
+- `atlasArtifactId`
+- `recipeId`
+- `watercolor_seed`
+- palette id or resolved palette values
+- enabled layer set
 
-- low-frequency fiber texture
-- subtle warm/cool pigment variation
-- no obvious square tiling
-- deterministic seed based on `map.id`, `atlas_style_id`, and render size
+Initial constants:
 
-Editor can use a lower-resolution cached texture. Final print should render at
-the final CSS/device scale so texture is crisp enough for 24x36 and 32x48.
+- `rendererVersion`: `watercolor-art-compositor-v5`
+- `texturePackVersion`: `watercolor-asset-pack-v2-dev`
+- `scale`: `2`
+- output PNG: `1024x1024`
+- displayed MapLibre tile: `512x512`
+- Atlas maxzoom: `14`
 
-### 2. Vector Layer Masks
+`watercolor_seed?: string` remains the only persisted V1 style field.
 
-Use Atlas layers as masks:
+## Source Geometry
 
-- `landcover`: broad wash base
-- `park`: green pigment bloom and soft edges
-- `water`: blue pigment pools and shoreline blooms
-- `waterway`: brushed wet line with edge bleed
-- `transportation`: dry brush/ink linework
-- `contour`: faint pencil/pigment contour lines
+Use the existing Atlas MVT base layers:
 
-The first implementation can approximate masks using MapLibre layer duplication
-and blend modes. The production-grade implementation should support offscreen
-canvas masks for deterministic compositing.
+- `landcover`
+- `landuse`
+- `park`
+- `water`
+- `waterway`
+- `building`
+- `transportation`
+- `transportation_name`
+- `place`
+- `poi`
 
-### 3. Pigment Washes
+Painted tiles may consume geometry from `water`, `waterway`, `park`,
+`landcover`, `landuse`, `building`, and `transportation`. Label-only layers such
+as `transportation_name`, `place`, and `poi` must never be baked into watercolor
+tiles.
 
-Render multiple transparent passes per filled layer:
+The geometry extractor should return:
 
-- base fill at low opacity
-- offset wash pass
-- noise-modulated pigment density
-- edge bloom pass
-- slight mask expansion/erosion for organic borders
+- source layer
+- feature id when available
+- feature group
+- properties
+- tile-local pixel geometry
+- world pixel geometry
+- stable feature seed
+- line/ring metrics such as length, bounding box, and node endpoints
 
-Avoid whole-map blur. Blur should apply only to pigment bloom passes.
+Stable seeds should prefer feature identity. When that is missing, use a
+quantized world-geometry hash. Do not seed visual variation from tile-local
+`z/x/y` randomness.
 
-### 4. Brushed Lines
+## Paint Model
 
-Roads, trails, rivers, and route art need line-specific treatment:
+### 1. Paper
 
-- jittered or wobble-sampled line geometry
-- broken alpha texture along the stroke
-- dry-brush side gaps
-- softer underwash below a sharper ink stroke
-- capped blur so print remains crisp
+Land is paper, not broad watercolor wash.
 
-Route line should stay readable and above basemap linework, but can get a subtle
-painted edge in watercolor presets.
+Use first-party cold-press paper texture as the base:
 
-### 5. Labels
+- warm ivory tone
+- subtle cotton fiber
+- low-contrast aging
+- sparse damp stains
+- no cloudy procedural haze
+- no repeated tile motif
 
-Labels should remain legible:
+Paper texture should be sampled in world pixel coordinates where possible so
+adjacent tiles match without seams.
 
-- keep type mostly crisp
-- use soft paper-colored halos
-- route collision layer should keep labels away from the route when possible
-- no watercolor distortion on text
+### 2. Water
 
-### 6. Print Reproducibility
+Water needs its own wash renderer. It must not be a hard blue polygon fill plus
+outline.
 
-Final render must be deterministic:
+Required water passes:
 
-- seeded PRNG, no `Math.random()`
-- recipe version included in render hash
-- no time-based noise
-- no external raster effects that can change between renders
-- same browser path for editor/proof/final, with higher quality settings for final
+- smooth filled wash mask
+- gentle outside bleed beyond the shoreline
+- interior pigment density variation
+- granulation sampled from texture
+- sparse interior blooms
+- tide-ring/backrun marks
+- restrained edge darkening
 
-## Implementation Phases
+The current visual target is lower saturation than the first saturated pass, but
+with visible pigment body and pooling. Missing ocean/coast water is an Atlas data
+blocker, not something the client should invent from tile boundaries.
 
-### Phase 1: Watercolor Overlay v1
+### 3. Parks
 
-Create a shared module:
+Parks should be quiet green watercolor washes, not opaque GIS polygons.
 
-- `utils/watercolorRenderer.ts`
-- deterministic seeded noise helpers
-- paper grain canvas generation
-- CSS/canvas overlay component in `MapPreview.vue`
-- style config fields for watercolor intensity and seed
+Required park passes:
 
-Acceptance:
+- very light clipped wash
+- soft edge irregularity
+- subtle granulation
+- restrained edge darkening
 
-- editor and Browserless render both show the same watercolor paper base
-- no visible square tiling at normal editor zoom
-- final render waits for overlay readiness before `__RENDER_READY`
+Parks should stay secondary to water, route, and roads.
 
-### Phase 2: Masked Pigment Passes
+### 4. Roads And Trails
 
-Add vector-derived pigment layers:
+Roads and trails should read as continuous hand-painted strokes, not point
+blobs, separate stamps, or vector lines with blur.
 
-- water pigment pool
-- shoreline bloom
-- park/land wash
-- waterway wet stroke
-- contour pigment line treatment
+Required road passes:
 
-Acceptance:
+- continuous line mask from full feature geometry
+- wet understroke
+- pigment body clipped through a drybrush/pigment texture
+- subtle dry edge deposits
+- low center reserve or paper glint where useful
+- width and opacity variation from continuous world-coordinate noise
+- no visible line caps inside a tile for through-roads
 
-- water and rivers look painted, not simply vector blue
-- land/park areas blend rather than appearing as hard polygons
-- overlays scale cleanly in 24x36 proof/final tests
+Major roads, minor roads, trails, and waterways need separate recipes. Roads can
+be more opaque than the surrounding paper and park washes, but should still show
+paper texture through the pigment.
 
-### Phase 3: Brushed Transportation And Route Treatment
+### 5. Joined Junctions
 
-Add linework effects:
+Junctions should be intentional paint events. They should not be stickers or
+short art chunks placed on top of roads.
 
-- dry-brush road underlay
-- trail broken stroke option
-- route underwash plus crisp route core
-- independent major/minor/trail controls still work
+For each detected 3-way, 4-way, Y, route/road, trail/road, or waterway junction:
 
-Acceptance:
+1. Build a local union mask from all connected stroke bodies.
+2. Clip the junction effect to a local radius around the node.
+3. Suppress the pale center reserve inside the junction radius.
+4. Paint a shared pigment pool over the unioned body.
+5. Add sparse overflow/backrun outside the road edge.
+6. Pick the variant deterministically from the junction seed.
 
-- roads/rivers/trails look hand-rendered enough to justify the style name
-- route remains clear over all watercolor variants
-- labels remain above route where feasible
+Variant families:
 
-### Phase 4: Print QA Matrix
+- joined 4-way pool
+- feathered 3-way tee
+- Y split/fork pool
+- dry overlap
+- repainted pass
+- trail meet
+- waterway join
+- route/road underwash
 
-Run sample renders across:
+The key lesson from the POCs: junction variants are mask operations, not stamped
+images.
 
-- Yosemite
-- Rockies
-- Smokies
-- North Shore
+### 6. Waterways
+
+Waterways should use the line renderer, but with water pigment:
+
+- saturated enough to read as water
+- mostly filled stroke body
+- edge overflow and pooling
+- restrained center glints
+- joined masks at confluences
+
+### 7. Buildings
+
+Buildings are optional at supported zooms and should remain faint.
+
+Treatment:
+
+- thin jittered outline only
+- no building fill
+- no building wash
+- no bloom
+
+### 8. Contours
+
+Contours should read as faint underdrawing or pencil linework:
+
+- low opacity
+- thin line
+- no dominant watercolor color
+- no heavy blur
+
+### 9. Sparse Stains And Color Events
+
+The background paper can have sparse color drops and water stains, but they must
+remain tasteful and infrequent.
+
+Rules:
+
+- large, dispersed, low-alpha events
+- deterministic world-grid or feature-adjacent placement
+- favor water, parks, road junctions, and open paper
+- avoid dense speckle fields
+- avoid the "weathered quilt" look
+
+## Texture Pack
+
+Use the first-party dev texture pack as `watercolor-asset-pack-v2-dev` until
+legal, print, and visual approval. Production should replace or augment the AI
+dev pack with scanned or hand-painted RadMaps assets.
+
+Required asset families:
+
+- cold-press paper clean
+- cold-press paper aged
+- damp paper stains
+- blue wash plates
+- green wash plates
+- umber wash plates
+- rose wash plates
+- neutral gray wash plates
+- drybrush road strips
+- thin trail/waterway strips
+- boundary edge strips
+- backrun/bloom masks
+- granulation plates
+- splash/drop masks
+- pigment pool stamps
+- pencil/contour underdrawing
+- building outline strokes
+
+Every texture asset should have recorded provenance:
+
+- prompt or scan notes
+- generation or scan date
+- source file path
+- checksum
+- approved usage status
+
+## Implementation Plan
+
+### Phase 0: Preserve The Visual Baseline
+
+Capture the current POC direction in docs and fixtures:
+
+- v13b full tile: road opacity up, water saturation down, paper preserved
+- v7 joined junction model: unioned 3-way and 4-way junction bodies
+
+Create committed renderer fixtures instead of relying on `/tmp` files.
+
+Deliverables:
+
+- `docs/RADMAPS_WATERCOLOR_RENDERING_PLAN.md`
+- fixture images under a committed or ignored visual fixture path
+- notes for the accepted visual direction
+
+### Phase 1: Core Art Tile Modules
+
+Create runtime-agnostic modules under `utils/watercolor/`:
+
+- `constants.ts`
+- `types.ts`
+- `seed.ts`
+- `geometryExtractor.ts`
+- `texturePack.ts`
+- `textureSampler.ts`
+- `paper.ts`
+- `waterWash.ts`
+- `paintedLines.ts`
+- `junctions.ts`
+- `parks.ts`
+- `buildings.ts`
+- `contours.ts`
+- `splashes.ts`
+- `artTileComposer.ts`
+
+The compositor should produce raw RGBA pixels. Server code encodes PNG with
+`sharp`. Browser-local dev mode may use `OffscreenCanvas`, but it is not the
+shipping path.
+
+### Phase 2: Real Atlas Geometry Tile
+
+Render one real `1024x1024` art tile from Atlas MVT using the new modules.
+
+First target:
+
+- Mexico City current editor area
+
+Then expand to:
+
 - Driftless
-- Chicago
-- Moab
+- Chicago urban grid
 - Seattle/Cascades
-- Acadia
-
-Sizes:
-
-- `8x12`
-- `24x36`
-- `32x48`
+- Moab
+- Yosemite/Rockies
+- Acadia/coast
+- water-heavy route
 
 Acceptance:
 
-- no blurry full-map haze
-- no repeating texture squares
-- no illegible labels
-- route is readable
-- contours preserve enough density
-- final Browserless renders complete inside timeout
+- water is filled, not stroked
+- roads are continuous
+- junctions are joined
+- no full-map blur
+- no hard vector-looking water outline
+- no route distortion
+
+### Phase 3: Server Tile Endpoint
+
+Add a server tile endpoint:
+
+```text
+/api/watercolor/tiles/base/{z}/{x}/{y}.png
+```
+
+Query/config inputs:
+
+- `scale=2`
+- recipe id
+- seed
+- palette
+- enabled layer set
+- atlas artifact id
+
+The endpoint should:
+
+- validate tile params
+- clamp/overzoom above Atlas maxzoom 14
+- fetch Atlas MVT from the same PMTiles lookup path used elsewhere
+- extract geometry
+- compose raw RGBA art tile
+- encode PNG with `sharp`
+- return hard errors for invalid params or render failures
+- set cache headers appropriate for deterministic tile keys
+
+### Phase 4: MapLibre Integration
+
+Keep `watercolortile://` or route the visible preset to the server tile URL,
+depending on the cleanest integration path. The visible `radmaps-watercolor`
+preset should use only one raster base layer beneath crisp vector overlays.
+
+MapLibre layer behavior:
+
+- watercolor base below labels, POIs, route, route labels, handles, and editor UI
+- no ordinary vector water/park/road/trail layers above the base
+- debug vector layers allowed only behind a dev flag
+- overzoom z14 art tiles above Atlas maxzoom 14
+
+### Phase 5: Readiness And Error Tracking
+
+Watercolor tiles must participate in render readiness.
+
+`__RENDER_READY` should wait for:
+
+- visible watercolor tile requests settled
+- no hard watercolor tile errors
+- MapLibre style loaded
+- route source loaded
+- labels and route layers ready
+
+`window.__RADMAPS_RENDER_STATUS` should report a hard render error if any
+required watercolor tile fails.
+
+### Phase 6: Performance And Cache
+
+Default cache limits:
+
+- editor: 48 encoded tiles or 64 MB, concurrency 2
+- print/render: 160 encoded tiles or 192 MB, concurrency 4
+
+Do not cache decoded canvases or ImageBitmaps.
+
+Performance gates:
+
+- server-rendered 24x36 proof settles watercolor tiles within 15 seconds
+- full Browserless proof/final render remains under the existing 60 second
+  timeout
+- dense Manhattan/Chicago tile benchmark recorded before production enablement
+
+If server tile rendering is too slow, add a deterministic PNG tile cache by the
+full watercolor tile key before enabling the preset broadly.
+
+### Phase 7: Pre-Render Strategy
+
+After V1 proves visually and operationally:
+
+- Tier 1: exact premade/catalog map tile sets
+- Tier 2: default recipe/seed/palette low zoom tiles
+- Tier 3: on-demand server PNG cache by full watercolor tile key
+
+This is not required for the first editor proof, but the renderer contract
+should allow it.
 
 ## Tests
 
-Unit tests:
+### Unit Tests
 
-- seeded renderer returns stable values
-- recipe hash changes when watercolor parameters change
-- default watercolor recipes do not enable whole-map blur
-- route wash/casing layers remain below labels
-- Atlas watercolor presets continue to use owned `radmaps-atlas-base`
+- deterministic output for identical tile keys
+- no `Math.random()` affects pixels
+- seed changes invalidate pixels
+- renderer version changes invalidate pixels
+- texture pack version changes invalidate pixels
+- MVT extraction for all Atlas source layers
+- label-only layers never enter painted tiles
+- water fill pixels exist for water fixtures
+- building treatment has outline pixels and no fill/wash alpha
+- junction detector classifies 3-way, 4-way, Y, trail meet, and waterway join
 
-Integration tests:
+### Mosaic And Seam Tests
 
-- `MapPreview.vue` marks watercolor overlay ready before render readiness
-- switching Atlas watercolor presets rebuilds/replays latest style config
-- Browserless fixture renders deterministic screenshots for same seed
+Add 2x2 mosaic tests for:
 
-Visual tests:
+- paper texture continuity
+- water wash continuity
+- crossing roads
+- crossing waterways
+- junctions near tile edges
 
-- style-browser matrix for watercolor variants
-- compare provider watercolor reference against owned watercolor attempts
-- print-size fixtures at 24x36 and 32x48
+Fail if:
 
-## Open Questions
+- seam mean RGB delta is greater than `max(10, 2x adjacent internal-edge delta)`
+- seam p95 exceeds `28`
+- crossing-line fixtures have a stroke gap greater than `1.5px`
 
-- Whether masks should be generated entirely in-browser from rendered vector
-  layers or precomputed per viewport in an offscreen canvas helper.
-- Whether p5.js style techniques are useful as implementation inspiration, or
-  whether we should keep the final implementation in direct Canvas/WebGL helpers
-  for smaller dependencies and tighter render control.
-- Whether route-specific watercolor treatment should be a per-style default or a
-  user-facing toggle.
-- Whether final print should increase watercolor sample count based on print size.
+### Browser Tests
 
-## Near-Term Next Step
+For the editor watercolor preset:
 
-Build `Watercolor Overlay v1` as a deterministic paper and pigment texture layer
-behind labels and above/below selected Atlas layers. Keep `Contour Wash` separate
-as a preserved quick theme, and do not rename it watercolor unless it receives
-the full pigment/brush treatment.
+- tiles are nonblank
+- water is filled
+- roads are continuous
+- labels remain crisp
+- GPX route core remains crisp and undistorted
+- panning and zooming request new watercolor tiles
+- watercolor terrain/blur overlays are not active
+- tile errors hard-fail render readiness
+
+### Visual Fixtures
+
+Maintain visual fixtures for:
+
+- Mexico City
+- Driftless
+- Chicago urban grid
+- Seattle/Cascades
+- Moab
+- Yosemite/Rockies
+- Acadia/coast
+- water-heavy route
+
+Use these fixtures to compare recipe changes before tuning the live editor.
+
+### Physical QA
+
+Before production enablement, order or produce:
+
+- one `24x36` sample
+- one `32x48` sample
+
+Evaluate:
+
+- paper realism
+- water depth
+- road clarity
+- label sharpness
+- route clarity
+- color saturation under real print conditions
+
+## Rollout
+
+1. Keep current watercolor work behind a dev/staff flag.
+2. Add real Atlas tile POC endpoint.
+3. Test Mexico City in the editor.
+4. Add visual fixtures.
+5. Enable staff-only preview.
+6. Run Browserless proof tests.
+7. Run physical QA.
+8. Promote `radmaps-watercolor` only after visual, print, and performance gates
+   pass.
+
+## Documentation Updates
+
+When implementation lands, update:
+
+- `docs/RENDERING.md` for watercolor readiness and tile-error behavior
+- `docs/MAP_TOOLS_CATALOG.md` for first-party watercolor tile source details
+- `utils/mapToolCatalog.ts` for provider/catalog metadata
+- Atlas docs if the renderer requires a specific Atlas artifact or geometry
+  buffer
+
+## Open Risks
+
+- Real Atlas geometry may be denser and messier than the POC geometry.
+- Coast/ocean water may be incomplete in Atlas data.
+- Tile-edge seams may appear unless geometry buffer and world-coordinate texture
+  sampling are correct.
+- Warm paper and warm road colors are hard to separate with post-processing, so
+  all real tuning should happen through geometry masks and paint recipes.
+- AI-generated dev textures may not pass print/legal/visual approval.
+- Server render time may require pre-rendered or cached watercolor PNG tiles.
+
+## Immediate Next Step
+
+Build the first real Atlas-backed `1024x1024` watercolor art tile from the
+Mexico City editor area, using the v13b visual recipe and v7 joined-junction
+model as the target.

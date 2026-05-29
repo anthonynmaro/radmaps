@@ -27,6 +27,10 @@ function sourceTileUrl(style: object, sourceId: string): string {
   return tileUrl
 }
 
+function sourceById(style: object, sourceId: string): Record<string, unknown> | undefined {
+  return (style as { sources?: Record<string, Record<string, unknown>> }).sources?.[sourceId]
+}
+
 interface TestLayer {
   id: string
   type?: string
@@ -358,6 +362,38 @@ describe('RadMaps Atlas style integration', () => {
     expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
     expect(sourceTileUrl(style, 'contours')).toBe('contour://dem/{z}/{x}/{y}')
     expect((style as { glyphs?: string }).glyphs).toBe('https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf')
+  })
+
+  it('renders visible Atlas Watercolor as one high-resolution art raster below crisp vectors', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-watercolor',
+      watercolor_seed: 'studio-proof',
+      show_contours: true,
+      show_roads: true,
+      show_place_labels: true,
+      show_poi_labels: true,
+    }, 'mapbox-test-token')
+
+    expect(sourceTileUrl(style, 'radmaps-atlas-base')).toBe('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')
+    expect(sourceTileUrl(style, 'radmaps-watercolor-base')).toBe('/api/watercolor/tiles/base/{z}/{x}/{y}.png?scale=2&recipe=watercolor&seed=studio-proof&renderer=watercolor-art-compositor-v5&texturePack=watercolor-asset-pack-v2-dev&layers=water%2Cpark%2Cwaterway%2Cbuilding%2Ctransportation&environment=production&water=%23B8D8E8&park=%23EDE8DF&waterway=%23B8D8E8')
+    expect(sourceById(style, 'radmaps-watercolor-base')).toMatchObject({
+      type: 'raster',
+      tileSize: 512,
+      maxzoom: 18,
+    })
+    expect(layerById(style, 'radmaps-watercolor-base')).toMatchObject({
+      type: 'raster',
+      source: 'radmaps-watercolor-base',
+    })
+    expect(layerById(style, 'radmaps-watercolor-water')).toBeUndefined()
+    expect(layerById(style, 'radmaps-watercolor-park')).toBeUndefined()
+    expect(layerById(style, 'radmaps-watercolor-roads-major')).toBeUndefined()
+    expect(layerById(style, 'contours-minor')).toBeUndefined()
+    expect(layerById(style, 'radmaps-watercolor-place-labels')).toBeDefined()
+    expect(layerById(style, 'route-line')).toBeDefined()
+    expect(layerIndex(style, 'radmaps-watercolor-base')).toBeLessThan(layerIndex(style, 'route-line'))
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'radmaps-watercolor-place-labels'))
   })
 
   it('keeps dark Atlas base layers readable when poster chrome colors are near black', () => {

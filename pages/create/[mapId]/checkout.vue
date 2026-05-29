@@ -296,6 +296,13 @@ v-model="shippingAddress.country_code"
                 <option value="NL">Netherlands</option>
                 <option value="SE">Sweden</option>
                 <option value="NO">Norway</option>
+                <option value="ES">Spain</option>
+                <option value="IT">Italy</option>
+                <option value="IE">Ireland</option>
+                <option value="DK">Denmark</option>
+                <option value="FI">Finland</option>
+                <option value="NZ">New Zealand</option>
+                <option value="JP">Japan</option>
               </select>
             </div>
             <div>
@@ -358,7 +365,7 @@ v-else-if="renderInFlight && !printReady && !isDigital"
             <div class="text-right">
               <p v-if="couponPreview" class="text-sm text-stone-500 line-through">{{ formatPrice(subtotalCents) }}</p>
               <p v-if="couponPreview" class="text-sm font-semibold text-green-700">-{{ formatPrice(couponPreview.discount_cents) }}</p>
-              <p v-if="hardenedCheckoutEnabled && !isDigital && shippingQuote" class="text-sm text-stone-500">
+              <p v-if="!isDigital && shippingQuote" class="text-sm text-stone-500">
                 Shipping {{ formatPrice(shippingCents) }}
               </p>
               <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
@@ -366,7 +373,7 @@ v-else-if="renderInFlight && !printReady && !isDigital"
               </span>
             </div>
           </div>
-          <div v-if="hardenedCheckoutEnabled && !isDigital" class="mb-4">
+          <div v-if="!isDigital" class="mb-4">
             <p v-if="quoteLoading" class="text-xs text-stone-500">Updating shipping…</p>
             <p v-else-if="quoteError" class="text-xs text-red-600">{{ quoteError }}</p>
             <p v-else-if="shippingQuote" class="text-xs text-stone-500">
@@ -411,7 +418,6 @@ import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
-import { FLAGS } from '~/utils/knownFlags'
 import { DEFAULT_STYLE_CONFIG, type TrailMap, type PrintProduct, type ProductFraming, type StyleConfig } from '~/types'
 
 definePageMeta({
@@ -438,7 +444,6 @@ type CheckoutMap = Pick<TrailMap,
 const route = useRoute()
 const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
-const hardenedCheckoutEnabled = useFeatureFlag(FLAGS.STRIPE_HARDENED_CHECKOUT)
 
 const mapId = route.params.mapId as string
 const map = ref<CheckoutMap | null>(null)
@@ -566,7 +571,7 @@ const canProceed = computed(() => {
   const { name, email, address1, city, state_code, zip, phone } = shippingAddress
   const hasAddress = !!(name && email && address1 && city && state_code && zip && phone)
   if (!hasAddress) return false
-  return hardenedCheckoutEnabled.value ? !!(shippingQuote.value && !quoteLoading.value) : true
+  return !!(shippingQuote.value && !quoteLoading.value)
 })
 
 async function applyCoupon() {
@@ -602,7 +607,7 @@ watch([() => shippingAddress.email, selectedProduct, subtotalCents], () => {
 
 function hasQuoteAddress() {
   const { name, email, address1, city, state_code, zip, phone } = shippingAddress
-  return !!(hardenedCheckoutEnabled.value && selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip && phone)
+  return !!(selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip && phone)
 }
 
 function clearShippingQuote() {
@@ -630,7 +635,6 @@ async function requestShippingQuote() {
         cart_source: 'custom',
         map_id: mapId,
         product_uid: selectedProduct.value.product_uid,
-        print_size: selectedProduct.value.size_label,
         quantity: 1,
         shipping_address: shippingAddress,
         digital_only: false,
@@ -663,10 +667,9 @@ watch([
   () => shippingAddress.zip,
   () => shippingAddress.country_code,
   () => shippingAddress.phone,
-  hardenedCheckoutEnabled,
 ], () => {
   if (quoteTimer) clearTimeout(quoteTimer)
-  if (!hardenedCheckoutEnabled.value || isDigital.value) {
+  if (isDigital.value) {
     clearShippingQuote()
     return
   }
@@ -894,11 +897,10 @@ const proceedToPayment = async () => {
   try {
     const payload = {
       cart_source: 'custom',
-      checkout_attempt_id: hardenedCheckoutEnabled.value ? shippingQuote.value?.checkout_attempt_id : undefined,
-      quote_id: hardenedCheckoutEnabled.value && !isDigital.value ? shippingQuote.value?.quote_id : null,
+      checkout_attempt_id: !isDigital.value ? shippingQuote.value?.checkout_attempt_id : undefined,
+      quote_id: !isDigital.value ? shippingQuote.value?.quote_id : null,
       map_id: mapId,
       product_uid: selectedProduct.value.product_uid,
-      print_size: selectedProduct.value.size_label || 'digital',
       quantity: 1,
       shipping_address: isDigital.value
         ? { name: 'Digital', email: shippingAddress.email, address1: '-', city: '-', state_code: '--', zip: '-', country_code: 'US' }
@@ -906,8 +908,7 @@ const proceedToPayment = async () => {
       digital_only: isDigital.value,
       coupon_slug: couponPreview.value?.slug,
     }
-    const endpoint = hardenedCheckoutEnabled.value ? '/api/checkout/session' : '/api/orders/checkout'
-    const response = await fetch(endpoint, {
+    const response = await fetch('/api/checkout/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

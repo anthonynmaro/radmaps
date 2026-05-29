@@ -5,7 +5,13 @@
  * No auth required — uses email + order ID as verification.
  */
 import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
 import { assertRateLimit } from '~/server/utils/rateLimit'
+
+const Body = z.object({
+  email: z.string().email(),
+  order_id: z.string().trim().min(8).max(36).regex(/^[0-9a-f-]+$/i),
+})
 
 function publicOrderStatus(order: Record<string, unknown>): string {
   const status = String(order.status || '')
@@ -35,20 +41,17 @@ function publicOrderStatus(order: Record<string, unknown>): string {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   assertRateLimit(event, { key: 'order-lookup', limit: 10, windowMs: 15 * 60_000 })
-  const body = await readBody(event)
+  const parsed = Body.safeParse(await readBody(event))
+  if (!parsed.success) throw createError({ statusCode: 400, message: 'Enter a valid email and at least 8 characters of the order ID.' })
 
-  const email = (body.email ?? '').toLowerCase().trim()
-  const orderId = (body.order_id ?? '').trim()
-
-  if (!email || !orderId) {
-    throw createError({ statusCode: 400, message: 'Email and order ID are required' })
-  }
+  const email = parsed.data.email.toLowerCase().trim()
+  const orderId = parsed.data.order_id.toLowerCase()
 
   // Use service key to bypass RLS (guest orders have no user_id)
   const supabase = createClient(config.public.supabaseUrl as string, config.supabaseServiceKey as string) as any
 
   // Search for orders matching the email in shipping_address and the order ID.
-  // We support partial order ID matching (first 8 chars) for convenience.
+  // We support partial order ID matching after at least 8 UUID characters.
   const { data: orders, error } = await supabase
     .from('orders')
     .select('id, status, fulfillment_status, refund_status, dispute_status, product_uid, print_size, tracking_code, carrier, digital_url, created_at, shipping_address, premade_title')

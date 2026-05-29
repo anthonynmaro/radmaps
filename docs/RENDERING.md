@@ -151,6 +151,7 @@ Browserless must wait for the render page to be truly ready, not just loaded.
 - `renderMode="print"` removes editor chrome, shadows, background padding, and interactivity.
 - `printContext` supplies exact framing, render class, and device scale.
 - The component sets `window.__RENDER_READY === true` only after MapLibre, route data, style reloads, tiles, fonts, logos/images, overlays, and render diagnostics are ready.
+- For the `radmaps-watercolor` preset, the MapLibre tile set includes the server-rendered `/api/watercolor/tiles/base/{z}/{x}/{y}.png` art tiles. Any missing or failed watercolor tile must surface through render diagnostics; proof/final capture should hard-fail rather than screenshot a partially painted map.
 - The component also writes `window.__RADMAPS_RENDER_STATUS` so the caller can diagnose internal render failures.
 
 The screenshot caller should wait on:
