@@ -567,8 +567,8 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <UModal v-model="showDeleteModal">
-      <UCard>
+    <UModal v-model="showDeleteModal" :ui="{ background: 'bg-white', ring: 'ring-1 ring-stone-200' }">
+      <UCard :ui="{ background: 'bg-white', ring: '', divide: 'divide-y divide-stone-100' }">
         <template #header>
           <div class="flex items-center justify-between gap-4">
             <div>
@@ -623,7 +623,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, defineComponent, ref, computed, onMounted, reactive } from 'vue'
+import { h, defineComponent, ref, computed, onMounted, reactive, nextTick, watch } from 'vue'
 import { useRouter, useSupabaseClient, useSupabaseUser } from '#imports'
 import type { Order, PremadeMap, TrailMap } from '~/types'
 import { formatPrice } from '~/utils/products'
@@ -838,6 +838,15 @@ function closeDeleteModal() {
   mapPendingDelete.value = null
 }
 
+// Whenever the modal closes — via the buttons, the Escape key, or a backdrop
+// click — drop the pending selection so a dismissed-then-reopened modal never
+// shows a stale map name. Skipped while a delete is in flight.
+watch(showDeleteModal, (open) => {
+  if (!open && !deletingMapId.value) {
+    mapPendingDelete.value = null
+  }
+})
+
 function apiErrorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
     const candidate = err as {
@@ -857,9 +866,15 @@ async function confirmDeleteMap() {
   deletingMapId.value = map.id
   try {
     await $fetch(`/api/maps/${map.id}`, { method: 'DELETE' })
-    maps.value = maps.value.filter((item) => item.id !== map.id)
+    // Close the modal and clear the pending selection FIRST, then drop the
+    // card on the next tick. The delete trigger lives inside the map card, so
+    // removing the card in the same tick we close the modal would tear the
+    // focused trigger element out from under the modal's focus trap mid-close,
+    // leaving the page stuck/inert on the next delete attempt.
     showDeleteModal.value = false
     mapPendingDelete.value = null
+    await nextTick()
+    maps.value = maps.value.filter((item) => item.id !== map.id)
     toast.add({
       title: 'Map deleted',
       description: `${map.title} was removed from your collection.`,
