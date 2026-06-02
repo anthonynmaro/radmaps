@@ -51,7 +51,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
 - Current template placement version: `gelato-saved-template-room-scenes-v2`.
-- Current compositor version: `template-asset-compositor-v13`.
+- Current compositor version: `template-asset-compositor-v14`.
 
 Checkout uses a two-layer preview path. The first frame is instant: the browser
 loads the saved template image and positions the already-rendered map inside the

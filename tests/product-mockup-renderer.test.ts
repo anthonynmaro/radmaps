@@ -48,6 +48,12 @@ function aluminum12x18() {
   return product
 }
 
+function framed24x36() {
+  const product = PRODUCTS.find(item => item.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))
+  if (!product) throw new Error('Missing 24x36 framed fixture product')
+  return product
+}
+
 async function meanLuminance(buffer: Buffer, box: { left: number; top: number; width: number; height: number }): Promise<number> {
   const { data, info } = await sharp(buffer)
     .extract(box)
@@ -170,6 +176,33 @@ describe('product mockup renderer', () => {
 
     await expect(meanLuminance(rendered.buffer, topEdgeSample)).resolves.toBeGreaterThan(170)
     await expect(meanLuminance(rendered.buffer, rightEdgeSample)).resolves.toBeGreaterThan(170)
+  }, 10000)
+
+  it('overprints framed poster edges and restores frame chrome above the artwork', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#e7f4ee',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const rendered = await renderProductTemplateMockup({ product: framed24x36(), artworkBuffer })
+    const artworkBox = rendered.validation.artwork_box as { left: number; top: number; width: number; height: number }
+    const compositeBox = rendered.validation.composite_artwork_box as { left: number; top: number; width: number; height: number }
+    const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
+
+    expect(compositeBox.left).toBeLessThan(artworkBox.left)
+    expect(compositeBox.top).toBeLessThan(artworkBox.top)
+    expect(compositeBox.left + compositeBox.width).toBeGreaterThan(artworkBox.left + artworkBox.width)
+    expect(compositeBox.top + compositeBox.height).toBeGreaterThan(artworkBox.top + artworkBox.height)
+    expect(Object.keys(chromeBoxes).sort()).toEqual(['frame_bottom', 'frame_left', 'frame_right', 'frame_top'])
+    expect(chromeBoxes.frame_top.top).toBeLessThan(artworkBox.top)
+    expect(chromeBoxes.frame_left.left).toBeLessThan(artworkBox.left)
+    expect(chromeBoxes.frame_bottom.top).toBeGreaterThanOrEqual(artworkBox.top + artworkBox.height)
+    expect(chromeBoxes.frame_right.left).toBeGreaterThanOrEqual(artworkBox.left + artworkBox.width)
   }, 10000)
 
   it('restores wall-hanging chrome without leaking source artwork in gallery scenes', async () => {

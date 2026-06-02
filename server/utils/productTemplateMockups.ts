@@ -92,6 +92,18 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
     }
   }
 
+  if (template.finish === 'framed') {
+    const frameOverlays = await framedPosterChromeOverlays(templateBuffer, width, height, artworkBox)
+    for (const overlay of frameOverlays) {
+      chromeBoxes[overlay.id] = overlay.box
+      composites.push({
+        input: overlay.input,
+        left: overlay.left,
+        top: overlay.top,
+      })
+    }
+  }
+
   if (template.finish === 'acrylic') {
     composites.push({ input: await acrylicChromeOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
   }
@@ -172,6 +184,9 @@ function artworkOverprintBleed(template: ProductMockupTemplate): PixelBleed {
     }
     return { left: 6, top: 4, right: 6, bottom: 6 }
   }
+  if (template.finish === 'framed') {
+    return { left: 20, top: 20, right: 20, bottom: 20 }
+  }
   if (template.finish === 'metallic') {
     return { left: 4, top: 12, right: 14, bottom: 4 }
   }
@@ -188,6 +203,37 @@ function overprintedArtworkBox(box: PixelBox, width: number, height: number, ble
     width: box.width + bleed.left + bleed.right,
     height: box.height + bleed.top + bleed.bottom,
   }, width, height)
+}
+
+async function framedPosterChromeOverlays(templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {
+  const frameBleed = Math.max(16, Math.round(box.width * 0.025))
+  const left = clampInt(box.left - frameBleed, 0, width - 1)
+  const right = clampInt(box.left + box.width, 0, width - 1)
+  const top = clampInt(box.top - frameBleed, 0, height - 1)
+  const bottom = clampInt(box.top + box.height, 0, height - 1)
+  const stripWidth = Math.min(width - left, box.width + frameBleed * 2)
+  const stripHeight = Math.min(height - top, box.height + frameBleed * 2)
+
+  const overlays: Array<{ id: string; box: PixelBox }> = [
+    {
+      id: 'frame_top',
+      box: clampPixelBox({ left, top, width: stripWidth, height: frameBleed }, width, height),
+    },
+    {
+      id: 'frame_bottom',
+      box: clampPixelBox({ left, top: bottom, width: stripWidth, height: frameBleed }, width, height),
+    },
+    {
+      id: 'frame_left',
+      box: clampPixelBox({ left, top, width: frameBleed, height: stripHeight }, width, height),
+    },
+    {
+      id: 'frame_right',
+      box: clampPixelBox({ left: right, top, width: frameBleed, height: stripHeight }, width, height),
+    },
+  ]
+
+  return Promise.all(overlays.map(overlay => chromeOverlayFromTemplate(overlay.id, templateBuffer, overlay.box)))
 }
 
 async function wallHangingRailOverlays(template: ProductMockupTemplate, templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {

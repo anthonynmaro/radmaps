@@ -38,7 +38,7 @@ export interface ProductMockupHashInput {
 }
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
-export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v13'
+export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v14'
 export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-room-scenes-v2'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
