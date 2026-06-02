@@ -8,7 +8,7 @@
     >
     <span
       class="product-mockup-preview__artwork"
-      :style="artworkStyle(overprintedArtworkBox(artworkBox, finish), artworkUrl)"
+      :style="artworkStyle(overprintedArtworkBox(artworkBox, finish, sceneFile), artworkUrl)"
       aria-hidden="true"
     />
     <img
@@ -36,6 +36,8 @@
 </template>
 
 <script setup lang="ts">
+import { getProductMockupArtworkBleedUnit } from '~/utils/productMockupGeometry'
+
 type Box = {
   x: number
   y: number
@@ -67,16 +69,14 @@ function pct(value: number): string {
   return `${value * 100}%`
 }
 
-const FRAMED_ARTWORK_OVERPRINT_BLEED = 8 / 3000
-
-function overprintedArtworkBox(box: Box, finish?: string): Box {
-  if (finish !== 'framed') return box
+function overprintedArtworkBox(box: Box, finish?: string, sceneFile?: string): Box {
+  const bleed = getProductMockupArtworkBleedUnit(finish, sceneFile)
 
   return clampBox({
-    x: box.x - FRAMED_ARTWORK_OVERPRINT_BLEED,
-    y: box.y - FRAMED_ARTWORK_OVERPRINT_BLEED,
-    w: box.w + FRAMED_ARTWORK_OVERPRINT_BLEED * 2,
-    h: box.h + FRAMED_ARTWORK_OVERPRINT_BLEED * 2,
+    x: box.x - bleed.left,
+    y: box.y - bleed.top,
+    w: box.w + bleed.left + bleed.right,
+    h: box.h + bleed.top + bleed.bottom,
   })
 }
 

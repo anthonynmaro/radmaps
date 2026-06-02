@@ -19,6 +19,7 @@ export function getProductMockupChromeBoxes(template: ProductMockupTemplate): Pr
 
 function framedPosterChromeBoxes(box: ProductMockupBox): ProductMockupChromeBox[] {
   const frameBleed = 42 / 3000
+  const frameTopBleed = 28 / 3000
   const left = clamp(box.x - frameBleed, 0, 1)
   const top = clamp(box.y - frameBleed, 0, 1)
   const right = clamp(box.x + box.w, 0, 1)
@@ -29,7 +30,7 @@ function framedPosterChromeBoxes(box: ProductMockupBox): ProductMockupChromeBox[
   return [
     {
       id: 'frame_top',
-      box: clampBox({ x: left, y: top, w: width, h: frameBleed }),
+      box: clampBox({ x: left, y: top, w: width, h: frameTopBleed }),
     },
     {
       id: 'frame_bottom',

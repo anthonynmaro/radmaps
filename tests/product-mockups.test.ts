@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '~/utils/products'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
+import { getProductMockupArtworkBleedPx } from '~/utils/productMockupGeometry'
 import {
   computeProductMockupHash,
   getMockupSupportedProducts,
@@ -112,6 +113,23 @@ describe('product mockups', () => {
     }
   })
 
+  it('keeps the room wall-hanging artwork inside the traced rail body', () => {
+    const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_black'))!
+    const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    const chromeBoxes = getProductMockupChromeBoxes(template)
+    const topRail = chromeBoxes.find(chrome => chrome.id === 'top_rail')!
+    const artworkLeft = Math.round(template.artworkBox.x * 3000)
+    const artworkRight = Math.round((template.artworkBox.x + template.artworkBox.w) * 3000)
+    const railRight = Math.round((topRail.box.x + topRail.box.w) * 3000)
+    const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
+
+    expect(artworkLeft).toBe(935)
+    expect(artworkRight).toBe(2083)
+    expect(artworkRight).toBeLessThan(railRight)
+    expect(bleed.left).toBeGreaterThan(0)
+    expect(bleed.right).toBe(0)
+  })
+
   it('exposes framed chrome boxes for browser template previews', () => {
     const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
     const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald)!
@@ -142,8 +160,8 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, sourceRenderHash: 'proof-b' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v4' })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v3' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v5' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v18' })).not.toBe(hash)
   })
 
   it('keeps the mockup storage path helper stable', () => {

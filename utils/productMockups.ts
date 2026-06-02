@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PrintProduct } from '~/types'
+import type { ProductMockupFinishKey } from '~/utils/productMockupGeometry'
 import { PRODUCTS } from '~/utils/products'
 import { stableStringify } from '~/utils/render/hash'
 
 export type ProductMockupSourceType = 'map' | 'premade'
-export type ProductMockupFinish = 'paper' | 'framed' | 'wall_hanging' | 'metallic' | 'acrylic'
+export type ProductMockupFinish = ProductMockupFinishKey
 
 export interface ProductMockupBox {
   x: number
@@ -39,8 +40,8 @@ export interface ProductMockupHashInput {
 }
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
-export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v16'
-export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v3'
+export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v17'
+export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v4'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
 
@@ -95,7 +96,7 @@ const FRAMED_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockup
 }
 
 const WALL_HANGING_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
-  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: slot(944, 500, 1148, 1660),
+  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: slot(935, 500, 1148, 1660),
   [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(858, 620, 1195, 1760),
   [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(654, 298, 1688, 2420),
 }

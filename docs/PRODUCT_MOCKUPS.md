@@ -50,8 +50,8 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
-- Current template placement version: `gelato-saved-template-traced-slots-v3`.
-- Current compositor version: `template-asset-compositor-v16`.
+- Current template placement version: `gelato-saved-template-traced-slots-v4`.
+- Current compositor version: `template-asset-compositor-v17`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
 selected SKU resolves to a canonical large saved Gelato asset for its product
@@ -61,6 +61,12 @@ wall-hanging chrome is replayed from cropped regions of the saved template above
 the inserted map. Size selection still controls proof/final print geometry and
 Gelato ordering, but merchandising mockups use one stable visual scale per
 product family/material. Mockup failures never block payment.
+
+The browser preview and server compositor share the same artwork edge overprint
+rules so the replacement map sits slightly underneath paper, frame, rail, and
+surface edges. The room wall-hanging slot is traced from the visible product
+body rather than the rail crop, which keeps the inserted poster from spilling
+past the right edge of the hanging.
 
 ## Catalog Notes
 

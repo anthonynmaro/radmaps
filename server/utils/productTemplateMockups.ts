@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import type { PrintProduct } from '~/types'
+import { getProductMockupArtworkBleedPx } from '~/utils/productMockupGeometry'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
-import { getProductMockupTemplate, PRODUCT_MOCKUP_SCENE_FILES, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
+import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
 
 export interface RenderProductTemplateMockupInput {
   product: PrintProduct
@@ -65,7 +66,12 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
   }
 
   const artworkBox = toPixelBox(template.artworkBox, width, height)
-  const compositeArtworkBox = overprintedArtworkBox(artworkBox, width, height, artworkOverprintBleed(template))
+  const compositeArtworkBox = overprintedArtworkBox(
+    artworkBox,
+    width,
+    height,
+    getProductMockupArtworkBleedPx(template.finish, template.sceneFile),
+  )
   const artworkLayer = await sharp(artworkBuffer)
     .rotate()
     .resize(compositeArtworkBox.width, compositeArtworkBox.height, { fit: 'cover' })
@@ -165,25 +171,6 @@ function toPixelBox(box: ProductMockupBox, width: number, height: number): Pixel
     width: Math.round(box.w * width),
     height: Math.round(box.h * height),
   }
-}
-
-function artworkOverprintBleed(template: ProductMockupTemplate): PixelBleed {
-  if (template.finish === 'wall_hanging') {
-    if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite) {
-      return { left: 6, top: 13, right: 6, bottom: 6 }
-    }
-    return { left: 6, top: 4, right: 6, bottom: 6 }
-  }
-  if (template.finish === 'framed') {
-    return { left: 8, top: 8, right: 8, bottom: 8 }
-  }
-  if (template.finish === 'metallic') {
-    return { left: 4, top: 12, right: 14, bottom: 4 }
-  }
-  if (template.finish === 'acrylic') {
-    return { left: 3, top: 8, right: 10, bottom: 3 }
-  }
-  return { left: 0, top: 0, right: 0, bottom: 0 }
 }
 
 function overprintedArtworkBox(box: PixelBox, width: number, height: number, bleed: PixelBleed): PixelBox {

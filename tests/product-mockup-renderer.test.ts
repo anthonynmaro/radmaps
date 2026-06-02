@@ -178,6 +178,27 @@ describe('product mockup renderer', () => {
     await expect(meanLuminance(rendered.buffer, rightEdgeSample)).resolves.toBeGreaterThan(170)
   }, 10000)
 
+  it('overprints flat poster edges so the saved template border does not leak through', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#14345b',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const rendered = await renderProductTemplateMockup({ product: productFor('poster'), artworkBuffer })
+    const artworkBox = rendered.validation.artwork_box as { left: number; top: number; width: number; height: number }
+    const compositeBox = rendered.validation.composite_artwork_box as { left: number; top: number; width: number; height: number }
+
+    expect(artworkBox.left - compositeBox.left).toBe(14)
+    expect(artworkBox.top - compositeBox.top).toBe(14)
+    expect(compositeBox.left + compositeBox.width - artworkBox.left - artworkBox.width).toBe(14)
+    expect(compositeBox.top + compositeBox.height - artworkBox.top - artworkBox.height).toBe(14)
+  }, 10000)
+
   it('overprints framed poster edges and restores frame chrome above the artwork', async () => {
     const artworkBuffer = await sharp({
       create: {
@@ -198,10 +219,8 @@ describe('product mockup renderer', () => {
     expect(compositeBox.top).toBeLessThan(artworkBox.top)
     expect(compositeBox.left + compositeBox.width).toBeGreaterThan(artworkBox.left + artworkBox.width)
     expect(compositeBox.top + compositeBox.height).toBeGreaterThan(artworkBox.top + artworkBox.height)
-    expect(artworkBox.left - compositeBox.left).toBeGreaterThanOrEqual(6)
-    expect(artworkBox.top - compositeBox.top).toBeGreaterThanOrEqual(6)
-    expect(artworkBox.left - compositeBox.left).toBeLessThanOrEqual(16)
-    expect(artworkBox.top - compositeBox.top).toBeLessThanOrEqual(16)
+    expect(artworkBox.left - compositeBox.left).toBe(24)
+    expect(artworkBox.top - compositeBox.top).toBe(24)
     expect(Object.keys(chromeBoxes).sort()).toEqual(['frame_bottom', 'frame_left', 'frame_right', 'frame_top'])
     expect(chromeBoxes.frame_top.top).toBeLessThan(artworkBox.top)
     expect(chromeBoxes.frame_left.left).toBeLessThan(artworkBox.left)
