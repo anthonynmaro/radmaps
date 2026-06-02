@@ -62,7 +62,10 @@
               :finish="selectedProductMockupItem.finish"
               :scene-file="selectedProductMockupItem.sceneFile"
               :label="selectedProductMockupItem.label"
-              class="aspect-square w-full max-w-[720px] shadow-2xl shadow-stone-900/15"
+              :class="[
+                'aspect-square w-full max-w-[720px] shadow-2xl shadow-stone-900/15 transition-opacity duration-200 ease-out',
+                mockupPreviewUpdating ? 'opacity-85' : 'opacity-100',
+              ]"
             />
             <img
               v-else-if="primaryProductPreviewUrl"
@@ -629,6 +632,12 @@ const selectedProductMockupItem = computed(() =>
     ? selectedPreviewItem.value
     : null
 )
+const mockupPreviewUpdating = computed(() =>
+  mockupInFlight.value
+  && mockupTemplates.value.length > 0
+  && !!mockupTargetProductUid.value
+  && mockupTargetProductUid.value !== mockupTemplatesProductUid.value
+)
 const primaryProductPreviewUrl = computed(() => {
   const selected = selectedPreviewItem.value
   if (selected?.kind === 'mockup' && displayProductMockup.value) return selected.url ?? mockupArtworkUrl.value
@@ -878,6 +887,7 @@ const mockupInFlight = ref(false)
 const mockupError = ref<string | null>(null)
 const mockupTargetProductUid = ref<string | null>(null)
 const mockupTargetProofUrl = ref<string | null>(null)
+const mockupTemplatesProductUid = ref<string | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -912,7 +922,9 @@ async function requestProductMockup() {
     return
   }
 
-  mockupTemplates.value = []
+  const preferredSceneFile = selectedPreviewItem.value?.kind === 'mockup'
+    ? selectedPreviewItem.value.sceneFile
+    : null
   mockupInFlight.value = true
   mockupError.value = null
   mockupTargetProductUid.value = product.product_uid
@@ -925,9 +937,14 @@ async function requestProductMockup() {
     if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` !== targetKey) return
     const templates = templateResponse.templates
     mockupTemplates.value = templates
-    selectedPreviewId.value = templates[0]?.id ? `mockup:${templates[0].id}` : 'proof'
+    mockupTemplatesProductUid.value = product.product_uid
+    const selectedTemplate = templates.find(template => template.scene_file === preferredSceneFile) ?? templates[0]
+    selectedPreviewId.value = selectedTemplate?.id ? `mockup:${selectedTemplate.id}` : 'proof'
   } catch (err: any) {
     mockupError.value = err?.data?.message || err?.message || 'Could not create the wall mockup.'
+    if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
+      resetProductMockup()
+    }
   } finally {
     if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
       mockupInFlight.value = false
@@ -935,13 +952,16 @@ async function requestProductMockup() {
   }
 }
 
-function resetProductMockup() {
-  mockupTemplates.value = []
+function resetProductMockup(options: { preservePreview?: boolean } = {}) {
+  if (!options.preservePreview) {
+    mockupTemplates.value = []
+    mockupTemplatesProductUid.value = null
+    selectedPreviewId.value = mockupArtworkUrl.value ? 'proof' : ''
+  }
   mockupInFlight.value = false
   mockupError.value = null
   mockupTargetProductUid.value = null
   mockupTargetProofUrl.value = null
-  selectedPreviewId.value = mockupArtworkUrl.value ? 'proof' : ''
 }
 
 async function triggerRender(quality: 'preview' | 'print') {
@@ -1124,6 +1144,7 @@ watch(selectedProduct, (product, previousProduct) => {
     renderTargetProductUid.value = product.product_uid
     clearShippingQuote()
     stopPolling()
+    resetProductMockup()
     return
   }
 
@@ -1135,16 +1156,17 @@ watch(selectedProduct, (product, previousProduct) => {
     v4ExpectedHash.value = null
     v4Cached.value = false
     renderError.value = null
-    resetProductMockup()
+    resetProductMockup({ preservePreview: productMockupsEnabled.value && mockupTemplates.value.length > 0 })
     stopPolling()
   }
 }, { flush: 'post' })
 
 watch([mockupArtworkUrl, selectedProduct, productMockupsEnabled], () => {
-  resetProductMockup()
-  if (mockupArtworkUrl.value && selectedProduct.value && productMockupsEnabled.value) {
-    void requestProductMockup()
+  if (!mockupArtworkUrl.value || !selectedProduct.value || !productMockupsEnabled.value) {
+    resetProductMockup()
+    return
   }
+  void requestProductMockup()
 }, { flush: 'post' })
 
 watch([selectedProduct, () => map.value?.id, productMockupsEnabled], () => {

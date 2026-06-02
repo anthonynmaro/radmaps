@@ -61,7 +61,10 @@
                 :finish="selectedPremadeMockupItem.finish"
                 :scene-file="selectedPremadeMockupItem.sceneFile"
                 :label="selectedPremadeMockupItem.label"
-                class="h-full w-full drop-shadow-2xl"
+                :class="[
+                  'h-full w-full drop-shadow-2xl transition-opacity duration-200 ease-out',
+                  mockupPreviewUpdating ? 'opacity-85' : 'opacity-100',
+                ]"
               />
               <img
                 v-else-if="primaryPremadePreviewUrl"
@@ -450,6 +453,7 @@ const productMockupsEnabled = useFeatureFlag(FLAGS.PRODUCT_MOCKUPS)
 const mockupInFlight = ref(false)
 const mockupTargetProductUid = ref<string | null>(null)
 const mockupTargetSourceId = ref<string | null>(null)
+const mockupTemplatesProductUid = ref<string | null>(null)
 const selectedPreviewId = ref('map')
 const mockupTemplates = ref<MockupTemplateOption[]>([])
 type MockupTemplateOption = {
@@ -528,6 +532,12 @@ const selectedPremadeMockupItem = computed(() =>
   displayPremadeMockup.value && selectedPreviewItem.value?.kind === 'mockup'
     ? selectedPreviewItem.value
     : null
+)
+const mockupPreviewUpdating = computed(() =>
+  mockupInFlight.value
+  && mockupTemplates.value.length > 0
+  && !!mockupTargetProductUid.value
+  && mockupTargetProductUid.value !== mockupTemplatesProductUid.value
 )
 const primaryPremadePreviewUrl = computed(() =>
   selectedPreviewItem.value?.kind === 'mockup'
@@ -726,12 +736,15 @@ async function requestShippingQuote() {
 
 watch(currentQuoteFingerprint, () => scheduleShippingQuote(650))
 
-function resetPremadeMockups() {
-  mockupTemplates.value = []
+function resetPremadeMockups(options: { preservePreview?: boolean } = {}) {
+  if (!options.preservePreview) {
+    mockupTemplates.value = []
+    mockupTemplatesProductUid.value = null
+    selectedPreviewId.value = fullPremadeMapUrl.value ? 'map' : ''
+  }
   mockupInFlight.value = false
   mockupTargetProductUid.value = null
   mockupTargetSourceId.value = null
-  selectedPreviewId.value = fullPremadeMapUrl.value ? 'map' : ''
 }
 
 async function requestPremadeMockups() {
@@ -740,7 +753,9 @@ async function requestPremadeMockups() {
   if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value) return
 
   const targetKey = `${sourceId}:${productUid}`
-  mockupTemplates.value = []
+  const preferredSceneFile = selectedPreviewItem.value?.kind === 'mockup'
+    ? selectedPreviewItem.value.sceneFile
+    : null
   mockupInFlight.value = true
   mockupTargetProductUid.value = productUid
   mockupTargetSourceId.value = sourceId
@@ -752,7 +767,9 @@ async function requestPremadeMockups() {
     if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` !== targetKey) return
     const templates = templateResponse.templates
     mockupTemplates.value = templates
-    selectedPreviewId.value = templates[0]?.id ? `mockup:${templates[0].id}` : (fullPremadeMapUrl.value ? 'map' : '')
+    mockupTemplatesProductUid.value = productUid
+    const selectedTemplate = templates.find(template => template.scene_file === preferredSceneFile) ?? templates[0]
+    selectedPreviewId.value = selectedTemplate?.id ? `mockup:${selectedTemplate.id}` : (fullPremadeMapUrl.value ? 'map' : '')
   } catch {
     if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
       resetPremadeMockups()
@@ -765,8 +782,12 @@ async function requestPremadeMockups() {
 }
 
 watch([selectedProductUid, productMockupsEnabled], () => {
-  resetPremadeMockups()
-  if (productMockupsEnabled.value) void requestPremadeMockups()
+  if (!productMockupsEnabled.value || !selectedProductUid.value || isDigital.value) {
+    resetPremadeMockups()
+    return
+  }
+  resetPremadeMockups({ preservePreview: mockupTemplates.value.length > 0 })
+  void requestPremadeMockups()
 }, { immediate: true })
 
 async function checkout() {

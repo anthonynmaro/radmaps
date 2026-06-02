@@ -68,6 +68,19 @@ surface edges. The room wall-hanging slot is traced from the visible product
 body rather than the rail crop, which keeps the inserted poster from spilling
 past the right edge of the hanging.
 
+Checkout keeps the currently displayed mockup mounted while templates for a new
+format, finish, or size are loading. This avoids flashing back to the raw map
+image during product selection; once the next template response is ready, the
+gallery swaps to the matching scene for the newly selected product.
+
+Artwork is stretched into the traced product slot instead of cropped with
+`cover`. The templates are straight-on merchandising scenes, and preserving the
+full poster inside the rails/frame is more important than pixel-perfect map
+inspection in this gallery preview.
+Wall-hanging templates use zero artwork bleed so the top/bottom rail and hanger
+details remain owned by the template chrome layer rather than being covered by
+the inserted map.
+
 ## Catalog Notes
 
 The six template families currently represented are:

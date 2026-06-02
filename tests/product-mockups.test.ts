@@ -123,11 +123,13 @@ describe('product mockups', () => {
     const railRight = Math.round((topRail.box.x + topRail.box.w) * 3000)
     const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
 
-    expect(artworkLeft).toBe(935)
-    expect(artworkRight).toBe(2083)
+    expect(artworkLeft).toBe(942)
+    expect(artworkRight).toBe(2075)
     expect(artworkRight).toBeLessThan(railRight)
-    expect(bleed.left).toBeGreaterThan(0)
+    expect(bleed.left).toBe(0)
+    expect(bleed.top).toBe(0)
     expect(bleed.right).toBe(0)
+    expect(bleed.bottom).toBe(0)
   })
 
   it('exposes framed chrome boxes for browser template previews', () => {

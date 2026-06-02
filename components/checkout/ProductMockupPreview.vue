@@ -93,6 +93,7 @@ function artworkStyle(box: Box, url: string) {
   return {
     ...boxStyle(box),
     backgroundImage: `url("${url}")`,
+    backgroundSize: '100% 100%',
   }
 }
 
@@ -148,7 +149,6 @@ function clamp(value: number, min: number, max: number): number {
   z-index: 2;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
 }
 
 .product-mockup-preview__chrome {

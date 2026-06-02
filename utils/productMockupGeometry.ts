@@ -24,8 +24,7 @@ export function getProductMockupArtworkBleedPx(
   }
 
   if (finish === 'wall_hanging') {
-    const top = sceneFile === 'Close-Up-Bed-Room-White-0.jpeg' ? 18 : 14
-    return { left: 10, top, right: 0, bottom: 12 }
+    return ZERO_BLEED
   }
 
   if (finish === 'metallic') {
