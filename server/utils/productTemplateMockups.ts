@@ -167,6 +167,9 @@ function toPixelBox(box: ProductMockupBox, width: number, height: number): Pixel
 
 function artworkOverprintBleed(template: ProductMockupTemplate): PixelBleed {
   if (template.finish === 'wall_hanging') {
+    if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite) {
+      return { left: 6, top: 13, right: 6, bottom: 6 }
+    }
     return { left: 6, top: 4, right: 6, bottom: 6 }
   }
   if (template.finish === 'metallic') {
@@ -224,6 +227,17 @@ function wallHangingTopChromeBox(
       top: box.top - Math.round(railHeight * 1.85),
       width: strip.width,
       height: Math.round(railHeight * 2.55),
+    }, width, height)
+  }
+
+  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite) {
+    const topChromeHeight = Math.round(railHeight * 1.5)
+    const hiddenRailOverlap = Math.round(railHeight * 0.16)
+    return clampPixelBox({
+      left: strip.left,
+      top: box.top - topChromeHeight,
+      width: strip.width,
+      height: topChromeHeight - hiddenRailOverlap,
     }, width, height)
   }
 

@@ -33,6 +33,15 @@ function wallHanging12x18() {
   return product
 }
 
+function wallHanging16x24() {
+  const product = PRODUCTS.find(item =>
+    item.product_uid.includes('wall_hanging_poster_410-mm_black_wood')
+    && item.product_uid.includes('400x600-mm-16x24-inch')
+    && item.product_uid.includes('250-gsm-100lb-uncoated-offwhite-archival'))
+  if (!product) throw new Error('Missing 16x24 black rail wall-hanging fixture product')
+  return product
+}
+
 function aluminum12x18() {
   const product = PRODUCTS.find(item => item.product_uid.startsWith('metallic_300x450-mm-12x18-inch'))
   if (!product) throw new Error('Missing 12x18 aluminum fixture product')
@@ -49,6 +58,36 @@ async function meanLuminance(buffer: Buffer, box: { left: number; top: number; w
     sum += (data[index] + data[index + 1] + data[index + 2]) / 3
   }
   return sum / (data.length / info.channels)
+}
+
+async function maxDarkBandHeight(
+  buffer: Buffer,
+  box: { left: number; top: number; width: number; height: number },
+  threshold = 80,
+): Promise<number> {
+  const { data, info } = await sharp(buffer)
+    .extract(box)
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  let maxRun = 0
+  let currentRun = 0
+
+  for (let y = 0; y < info.height; y++) {
+    let rowSum = 0
+    for (let x = 0; x < info.width; x++) {
+      const index = (y * info.width + x) * info.channels
+      rowSum += (data[index] + data[index + 1] + data[index + 2]) / 3
+    }
+    const rowMean = rowSum / info.width
+    if (rowMean < threshold) {
+      currentRun++
+      maxRun = Math.max(maxRun, currentRun)
+    } else {
+      currentRun = 0
+    }
+  }
+
+  return maxRun
 }
 
 describe('product mockup renderer', () => {
@@ -219,5 +258,44 @@ describe('product mockup renderer', () => {
       height: Math.max(2, Math.round(chromeBoxes.bottom_rail.height * 0.12 * scale)),
     }
     await expect(meanLuminance(rendered.buffer, bottomRailSample)).resolves.toBeLessThan(90)
+  }, 10000)
+
+  it('keeps the room wall-hanging top and bottom rail thickness matched', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#e7f4ee',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const product = wallHanging16x24()
+    const template = getProductMockupTemplate(product, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    const rendered = await renderProductTemplateMockup({ product, template, artworkBuffer })
+    const artworkBox = rendered.validation.artwork_box as { left: number; top: number; width: number; height: number }
+    const templateWidth = rendered.validation.template_width_px as number
+    const scale = rendered.widthPx / templateWidth
+    const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
+    const sampleX = artworkBox.left + artworkBox.width * 0.18
+    const sampleWidth = artworkBox.width * 0.64
+
+    const topBandHeight = await maxDarkBandHeight(rendered.buffer, {
+      left: Math.round(sampleX * scale),
+      top: Math.round(chromeBoxes.top_rail.top * scale),
+      width: Math.round(sampleWidth * scale),
+      height: Math.round((artworkBox.top - chromeBoxes.top_rail.top) * scale),
+    })
+    const bottomBandHeight = await maxDarkBandHeight(rendered.buffer, {
+      left: Math.round(sampleX * scale),
+      top: Math.round(chromeBoxes.bottom_rail.top * scale),
+      width: Math.round(sampleWidth * scale),
+      height: Math.round(chromeBoxes.bottom_rail.height * scale),
+    })
+
+    expect(topBandHeight).toBeGreaterThan(8)
+    expect(bottomBandHeight).toBeGreaterThan(8)
+    expect(Math.abs(topBandHeight - bottomBandHeight)).toBeLessThanOrEqual(2)
   }, 10000)
 })
