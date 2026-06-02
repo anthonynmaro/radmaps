@@ -101,11 +101,11 @@ These routes previously created Stripe sessions without a locked Gelato shipping
   accepts missing phone values and Gelato receives an empty string when the
   customer leaves it blank.
 - Custom checkout renders the selected proof before collecting shipping for a
-  physical print, then lazily asks `/api/mockups/templates` and
-  `/api/mockups/render` for the selected product's saved scene mockups. Custom
-  and premade checkout show those scene variants plus the unmocked map/proof in
-  the product preview gallery. Mockup failures are merchandising-only and must
-  not block payment.
+  physical print. Custom and premade checkout ask `/api/mockups/templates` for
+  saved scene metadata and immediately compose the current map into the template
+  in the browser; `/api/mockups/render` only warms the durable cached JPEG for
+  the selected scene and lazily for other selected scenes. Mockup failures are
+  merchandising-only and must not block payment.
 - Checkout session errors should stay inline on the page, preserving server
   messages such as quote conflicts. Avoid generic browser alerts that hide
   actionable recovery text.

@@ -105,12 +105,14 @@ Product mockups:
 
 Product mockups are merchandising previews, not print artifacts. They are
 sourced from saved Gelato template exports in `assets/product_mockup_templates`.
-RadMaps composites the current proof/premade artwork into the matching template
-asset, uploads the JPEG to `renders/mockups/...`, and stores the durable URL in
-`product_mockups`. Checkout can render multiple saved scene variants for the
-selected product and shows those mockups alongside the plain proof/premade map
-in the product preview gallery. They do not replace the Browserless/worker print
-path, and Gelato still receives the existing final print render. See
+Checkout should show them through browser-side template composition first: load
+the saved scene JPEG, place the current proof/premade artwork into the template's
+normalized artwork box, and replay wall-hanging chrome crops above the inserted
+map. The Sharp compositor is a background cache/polish path that uploads JPEGs
+to `renders/mockups/...` and stores durable URLs in `product_mockups`; it must
+not be the thing that makes checkout feel alive. They do not replace the
+Browserless/worker print path, and Gelato still receives the existing final
+print render. See
 [docs/PRODUCT_MOCKUPS.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/PRODUCT_MOCKUPS.md)
 for the template policy, cache key, API, and backfill workflow.
 

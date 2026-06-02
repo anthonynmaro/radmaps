@@ -34,7 +34,13 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   checkout can be visually tested without seeding a flag row.
 - Cache table: `product_mockups`.
 - Template API: `GET /api/mockups/templates?product_uid=...` returns the
-  available saved scene templates for a physical SKU.
+  available saved scene templates for a physical SKU, including the normalized
+  artwork box, wall-hanging chrome crop boxes, and a validated
+  `template_image_url`.
+- Template image API: `GET /api/mockups/template-image?product_uid=...&mockup_template_id=...`
+  streams the saved JPEG template for browser-side preview composition. The
+  route resolves the product/template through the registry instead of accepting
+  arbitrary file paths.
 - Render API: `POST /api/mockups/render` with
   `{ source: { type: "map" | "premade", id }, product_uid, mockup_template_id? }`.
 - Mockup `source.id` is a map UUID for custom maps. For premade maps it can be
@@ -47,11 +53,13 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Current template placement version: `gelato-saved-template-room-scenes-v2`.
 - Current compositor version: `template-asset-compositor-v13`.
 
-Custom checkout lazily renders the selected physical product's saved scene
-variants after the selected print proof is ready. Premade checkout renders the
-selected product's saved scene variants when a premade render is available. Both
-flows show those mockups in a compact gallery with the unmocked proof/premade
-map as an additional selectable image. Mockup failures never block payment.
+Checkout uses a two-layer preview path. The first frame is instant: the browser
+loads the saved template image and positions the already-rendered map inside the
+template's artwork box. For wall hangings, the browser replays the saved
+top/bottom rail crop boxes above the inserted map so the frame chrome remains
+visible. The Sharp render API now acts as a background cache/polish path for the
+selected scene and lazily renders additional scenes only when the customer
+selects them. Mockup failures never block payment.
 
 ## Catalog Notes
 

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '~/utils/products'
+import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
 import {
   computeProductMockupHash,
   getMockupSupportedProducts,
@@ -94,6 +95,20 @@ describe('product mockups', () => {
     expect(poster24.artworkBox.h).toBeGreaterThan(poster8.artworkBox.h)
     expect(framed12.artworkBox.x + framed12.artworkBox.w).toBeLessThan(0.6)
     expect(framed12.artworkBox.y + framed12.artworkBox.h).toBeLessThan(0.7)
+  })
+
+  it('exposes wall-hanging chrome boxes for browser template previews', () => {
+    const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_black'))!
+    const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    const chromeBoxes = getProductMockupChromeBoxes(template)
+
+    expect(chromeBoxes.map(chrome => chrome.id)).toEqual(['top_rail', 'bottom_rail'])
+    for (const chrome of chromeBoxes) {
+      expect(chrome.box.x).toBeGreaterThanOrEqual(0)
+      expect(chrome.box.y).toBeGreaterThanOrEqual(0)
+      expect(chrome.box.x + chrome.box.w).toBeLessThanOrEqual(1)
+      expect(chrome.box.y + chrome.box.h).toBeLessThanOrEqual(1)
+    }
   })
 
   it('changes hash when the source render, product, template, or renderer changes', () => {

@@ -53,8 +53,19 @@
         <!-- Map Preview Area -->
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex flex-col items-center justify-center gap-3 p-4 sm:p-6 overflow-hidden">
+            <ProductMockupPreview
+              v-if="selectedProductMockupItem && mockupArtworkUrl"
+              :template-image-url="selectedProductMockupItem.templateImageUrl!"
+              :artwork-url="mockupArtworkUrl"
+              :artwork-box="selectedProductMockupItem.artworkBox!"
+              :chrome-boxes="selectedProductMockupItem.chromeBoxes"
+              :rendered-url="selectedProductMockupItem.url"
+              :finish="selectedProductMockupItem.finish"
+              :label="selectedProductMockupItem.label"
+              class="aspect-square w-full max-w-[720px] shadow-2xl shadow-stone-900/15"
+            />
             <img
-              v-if="displayProductMockup || displayProofImage"
+              v-else-if="primaryProductPreviewUrl"
               :src="primaryProductPreviewUrl!"
               class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
               :alt="displayProductMockup ? 'Wall mockup preview' : 'Print preview'"
@@ -102,8 +113,19 @@
                     class="relative flex aspect-square items-center justify-center overflow-hidden rounded-md border bg-white transition-colors"
                     :class="selectedPreviewId === item.id ? 'border-[#2D6A4F] ring-2 ring-[#2D6A4F]/20' : 'border-stone-200 group-hover:border-stone-300'"
                   >
+                    <ProductMockupPreview
+                      v-if="item.kind === 'mockup' && item.templateImageUrl && item.artworkBox && mockupArtworkUrl"
+                      :template-image-url="item.templateImageUrl"
+                      :artwork-url="mockupArtworkUrl"
+                      :artwork-box="item.artworkBox"
+                      :chrome-boxes="item.chromeBoxes"
+                      :rendered-url="item.url"
+                      :finish="item.finish"
+                      :label="item.label"
+                      class="h-full w-full"
+                    />
                     <img
-                      v-if="item.url"
+                      v-else-if="item.url"
                       :src="item.url"
                       :alt="item.label"
                       class="h-full w-full object-cover"
@@ -198,7 +220,7 @@ v-else-if="renderInFlight && !printReady"
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
           <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
             <img
-              v-if="displayProductMockup || displayProofImage"
+              v-if="primaryProductPreviewUrl"
               :src="primaryProductPreviewUrl!"
               class="w-full h-full object-contain rounded-none"
               :alt="displayProductMockup ? 'Wall mockup preview' : 'Preview'"
@@ -293,88 +315,17 @@ v-model="shippingAddress.email" type="email" placeholder="you@example.com"
           <h2 class="text-lg font-semibold text-stone-900" style="font-family:'Space Grotesk',sans-serif">
             Shipping Information
           </h2>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">Full Name</label>
-              <input
-v-model="shippingAddress.name" type="text" placeholder="John Doe"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
-              <input
-v-model="shippingAddress.email" type="email" placeholder="you@example.com"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1.5">Street Address</label>
-            <input
-v-model="shippingAddress.address1" type="text" placeholder="123 Main St"
-              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1.5">Apt, suite, etc. (optional)</label>
-            <input
-v-model="shippingAddress.address2" type="text" placeholder="Apt 4B"
-              class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div class="col-span-2 sm:col-span-1">
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">City</label>
-              <input
-v-model="shippingAddress.city" type="text" placeholder="Seattle"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">State</label>
-              <input
-v-model="shippingAddress.state_code" type="text" placeholder="WA" maxlength="2"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] uppercase min-h-[48px]">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">ZIP</label>
-              <input
-v-model="shippingAddress.zip" type="text" placeholder="98101"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">Country</label>
-              <select
-v-model="shippingAddress.country_code"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] bg-white min-h-[48px]">
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="GB">United Kingdom</option>
-                <option value="AU">Australia</option>
-                <option value="DE">Germany</option>
-                <option value="FR">France</option>
-                <option value="NL">Netherlands</option>
-                <option value="SE">Sweden</option>
-                <option value="NO">Norway</option>
-                <option value="ES">Spain</option>
-                <option value="IT">Italy</option>
-                <option value="IE">Ireland</option>
-                <option value="DK">Denmark</option>
-                <option value="FI">Finland</option>
-                <option value="NZ">New Zealand</option>
-                <option value="JP">Japan</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-stone-700 mb-1.5">Phone</label>
-              <input
-v-model="shippingAddress.phone" type="tel" placeholder="(206) 555-0100"
-                class="w-full px-4 py-3 text-base border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] min-h-[48px]">
-            </div>
-          </div>
+          <CheckoutShippingAddressForm
+            :model-value="shippingAddress"
+            :mapbox-token="mapboxToken"
+            :quote-loading="quoteLoading"
+            :quote-error="quoteError"
+            :shipping-quote="shippingQuote"
+            :disabled="isSubmitting"
+            @update:model-value="assignShippingAddress"
+            @address-selected="onAddressSelected"
+            @manual-edit="onAddressManualEdit"
+          />
         </div>
 
         <!-- Proceed to payment -->
@@ -428,7 +379,7 @@ v-else-if="renderInFlight && !printReady && !isDigital"
             <div class="text-right">
               <p v-if="couponPreview" class="text-sm text-stone-500 line-through">{{ formatPrice(subtotalCents) }}</p>
               <p v-if="couponPreview" class="text-sm font-semibold text-green-700">-{{ formatPrice(couponPreview.discount_cents) }}</p>
-              <p v-if="!isDigital && shippingQuote" class="text-sm text-stone-500">
+              <p v-if="!isDigital && shippingQuote" class="text-sm" :class="shippingQuoteIsStale ? 'text-stone-400' : 'text-stone-500'">
                 Shipping {{ formatPrice(shippingCents) }}
               </p>
               <span class="text-xl font-bold text-[#2D6A4F]" style="font-family:'Space Grotesk',sans-serif">
@@ -439,6 +390,9 @@ v-else-if="renderInFlight && !printReady && !isDigital"
           <div v-if="!isDigital" class="mb-4">
             <p v-if="quoteLoading" class="text-xs text-stone-500">Updating shipping…</p>
             <p v-else-if="quoteError" class="text-xs text-red-600">{{ quoteError }}</p>
+            <p v-else-if="shippingQuoteIsStale" class="text-xs text-stone-500">
+              Shipping will refresh before payment.
+            </p>
             <p v-else-if="shippingQuote" class="text-xs text-stone-500">
               {{ shippingQuote.shipment_method_name }} locked for this checkout. Tax is calculated by Stripe.
             </p>
@@ -489,8 +443,16 @@ v-else-if="renderInFlight && !printReady && !isDigital"
 import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
+import ProductMockupPreview from '~/components/checkout/ProductMockupPreview.vue'
+import CheckoutShippingAddressForm from '~/components/checkout/ShippingAddressForm.vue'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import {
+  checkoutAddressFingerprint,
+  missingCheckoutAddressFields,
+  normalizeCheckoutAddress,
+  type CheckoutAddress,
+} from '~/utils/checkoutAddress'
 import { FLAGS } from '~/utils/knownFlags'
 import { DEFAULT_STYLE_CONFIG, type TrailMap, type PrintProduct, type ProductFraming, type StyleConfig } from '~/types'
 
@@ -518,6 +480,8 @@ type CheckoutMap = Pick<TrailMap,
 const route = useRoute()
 const supabase = useSupabaseClient() as any
 const user = useSupabaseUser()
+const runtimeConfig = useRuntimeConfig()
+const mapboxToken = computed(() => String(runtimeConfig.public.mapboxToken || ''))
 
 const mapId = route.params.mapId as string
 const map = ref<CheckoutMap | null>(null)
@@ -566,6 +530,8 @@ const shippingQuote = ref<ShippingQuoteSelection | null>(null)
 const quoteLoading = ref(false)
 const quoteError = ref('')
 let quoteTimer: ReturnType<typeof setTimeout> | null = null
+let quoteRequestRun = 0
+const quotedFingerprint = ref('')
 
 const displayProofImage = computed(() =>
   !!previewUrl.value
@@ -579,7 +545,21 @@ type MockupTemplateOption = {
   id: string
   label: string
   scene_file: string
+  finish: string
+  template_image_url: string
+  artwork_box: ProductMockupBox
+  chrome_boxes: ProductMockupChromeBox[]
   is_default: boolean
+}
+type ProductMockupBox = {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+type ProductMockupChromeBox = {
+  id: string
+  box: ProductMockupBox
 }
 type PreviewGalleryItem = {
   id: string
@@ -587,10 +567,24 @@ type PreviewGalleryItem = {
   label: string
   url: string | null
   loading?: boolean
+  finish?: string
+  templateImageUrl?: string
+  artworkBox?: ProductMockupBox
+  chromeBoxes?: ProductMockupChromeBox[]
 }
 const mockupTemplates = ref<MockupTemplateOption[]>([])
 const mockupUrlsByTemplate = ref<Record<string, string>>({})
 const mockupLoadingByTemplate = ref<Record<string, boolean>>({})
+function usableRenderUrl(value: string | null | undefined): string | null {
+  if (!value || value.startsWith('error:')) return null
+  return value
+}
+const mockupArtworkUrl = computed(() =>
+  usableRenderUrl(previewUrl.value)
+  ?? usableRenderUrl(map.value?.proof_render_url)
+  ?? usableRenderUrl(map.value?.thumbnail_url)
+  ?? usableRenderUrl(map.value?.render_url)
+)
 const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
   const items: PreviewGalleryItem[] = mockupTemplates.value.map(template => ({
     id: `mockup:${template.id}`,
@@ -598,13 +592,17 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
     label: template.label,
     url: mockupUrlsByTemplate.value[template.id] ?? null,
     loading: !!mockupLoadingByTemplate.value[template.id],
+    finish: template.finish,
+    templateImageUrl: template.template_image_url,
+    artworkBox: template.artwork_box,
+    chromeBoxes: template.chrome_boxes,
   }))
-  if (displayProofImage.value && previewUrl.value) {
+  if (mockupArtworkUrl.value) {
     items.push({
       id: 'proof',
       kind: 'proof',
       label: 'Map',
-      url: previewUrl.value,
+      url: mockupArtworkUrl.value,
     })
   }
   return items
@@ -619,14 +617,21 @@ const selectedPreviewItem = computed(() => (
 const displayProductMockup = computed(() =>
   productMockupsEnabled.value
   && selectedPreviewItem.value?.kind === 'mockup'
-  && !!selectedPreviewItem.value.url
+  && (!!selectedPreviewItem.value.url || !!selectedPreviewItem.value.templateImageUrl)
   && !!selectedProduct.value
-  && mockupTargetProductUid.value === selectedProduct.value.product_uid
-  && mockupTargetProofUrl.value === previewUrl.value
+  && !!mockupArtworkUrl.value
 )
-const primaryProductPreviewUrl = computed(() =>
-  selectedPreviewItem.value?.url ?? previewUrl.value
+const selectedProductMockupItem = computed(() =>
+  displayProductMockup.value && selectedPreviewItem.value?.kind === 'mockup'
+    ? selectedPreviewItem.value
+    : null
 )
+const primaryProductPreviewUrl = computed(() => {
+  const selected = selectedPreviewItem.value
+  if (selected?.kind === 'mockup' && displayProductMockup.value) return selected.url ?? mockupArtworkUrl.value
+  if (selected?.kind === 'proof' && selected.url) return selected.url
+  return mockupArtworkUrl.value
+})
 
 const selectedProductName = computed(() => selectedProduct.value?.name ?? 'the selected print')
 const liveStyleConfig = computed<StyleConfig>(() => ({
@@ -699,7 +704,7 @@ function isSyntheticEmail(email: string | null | undefined): boolean {
   return /^strava-\d+@auth\./i.test(email)
 }
 
-const shippingAddress = reactive({
+const shippingAddress = reactive<CheckoutAddress>({
   name: '',
   email: isSyntheticEmail(user.value?.email) ? '' : (user.value?.email || ''),
   address1: '',
@@ -710,15 +715,23 @@ const shippingAddress = reactive({
   country_code: 'US',
   phone: '',
 })
+const currentQuoteFingerprint = computed(() =>
+  selectedProduct.value
+    ? checkoutAddressFingerprint(shippingAddress, selectedProduct.value.product_uid, 1)
+    : '',
+)
+const quoteIsCurrent = computed(() =>
+  !!shippingQuote.value
+  && !!quotedFingerprint.value
+  && quotedFingerprint.value === currentQuoteFingerprint.value
+)
+const shippingQuoteIsStale = computed(() => !!shippingQuote.value && !quoteIsCurrent.value)
 
 const canProceed = computed(() => {
   if (!selectedProduct.value) return false
   if (!isDigital.value && (!printReady.value || renderTargetProductUid.value !== selectedProduct.value.product_uid)) return false
   if (isDigital.value) return !!shippingAddress.email
-  const { name, email, address1, city, state_code, zip } = shippingAddress
-  const hasAddress = !!(name && email && address1 && city && state_code && zip)
-  if (!hasAddress) return false
-  return !!(shippingQuote.value && !quoteLoading.value)
+  return quoteIsCurrent.value && !quoteLoading.value
 })
 
 async function applyCoupon() {
@@ -753,22 +766,57 @@ watch([() => shippingAddress.email, selectedProduct, subtotalCents], () => {
 })
 
 function hasQuoteAddress() {
-  const { name, email, address1, city, state_code, zip } = shippingAddress
-  return !!(selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip)
+  return !!(
+    selectedProduct.value
+    && !isDigital.value
+    && missingCheckoutAddressFields(shippingAddress).length === 0
+  )
 }
 
 function clearShippingQuote() {
+  if (quoteTimer) clearTimeout(quoteTimer)
+  quoteRequestRun += 1
   shippingQuote.value = null
   quoteError.value = ''
   checkoutError.value = ''
   lockedProductPriceCents.value = null
+  quotedFingerprint.value = ''
+  quoteLoading.value = false
+}
+
+function assignShippingAddress(next: CheckoutAddress) {
+  Object.assign(shippingAddress, normalizeCheckoutAddress(next))
+}
+
+function scheduleShippingQuote(delay = 650) {
+  if (quoteTimer) clearTimeout(quoteTimer)
+  if (isDigital.value) {
+    clearShippingQuote()
+    return
+  }
+  checkoutError.value = ''
+  quoteError.value = ''
+  if (!hasQuoteAddress()) return
+  quoteTimer = setTimeout(() => requestShippingQuote(), delay)
+}
+
+function onAddressSelected() {
+  scheduleShippingQuote(0)
+}
+
+function onAddressManualEdit() {
+  scheduleShippingQuote(650)
 }
 
 async function requestShippingQuote() {
   if (!hasQuoteAddress() || !selectedProduct.value) {
-    clearShippingQuote()
+    if (!shippingQuote.value) clearShippingQuote()
     return
   }
+  const quoteFingerprint = currentQuoteFingerprint.value
+  if (shippingQuote.value && quotedFingerprint.value === quoteFingerprint) return
+  const requestRun = ++quoteRequestRun
+  const normalizedAddress = normalizeCheckoutAddress(shippingAddress)
   quoteLoading.value = true
   quoteError.value = ''
   try {
@@ -784,46 +832,31 @@ async function requestShippingQuote() {
         map_id: mapId,
         product_uid: selectedProduct.value.product_uid,
         quantity: 1,
-        shipping_address: shippingAddress,
+        shipping_address: normalizedAddress,
         digital_only: false,
       },
     })
+    if (requestRun !== quoteRequestRun) return
     shippingQuote.value = {
       checkout_attempt_id: response.checkout_attempt_id,
       quote_id: response.quote_id,
       ...response.selected,
     }
+    quotedFingerprint.value = quoteFingerprint
     if (response.pricing?.retail_price_cents) {
       lockedProductPriceCents.value = response.pricing.retail_price_cents
     }
   } catch (err: any) {
+    if (requestRun !== quoteRequestRun) return
     shippingQuote.value = null
+    quotedFingerprint.value = ''
     quoteError.value = err?.data?.message || err?.message || 'Could not calculate shipping for this address.'
   } finally {
-    quoteLoading.value = false
+    if (requestRun === quoteRequestRun) quoteLoading.value = false
   }
 }
 
-watch([
-  selectedProduct,
-  () => shippingAddress.name,
-  () => shippingAddress.email,
-  () => shippingAddress.address1,
-  () => shippingAddress.address2,
-  () => shippingAddress.city,
-  () => shippingAddress.state_code,
-  () => shippingAddress.zip,
-  () => shippingAddress.country_code,
-  () => shippingAddress.phone,
-], () => {
-  if (quoteTimer) clearTimeout(quoteTimer)
-  if (isDigital.value) {
-    clearShippingQuote()
-    return
-  }
-  clearShippingQuote()
-  quoteTimer = setTimeout(requestShippingQuote, 650)
-})
+watch(currentQuoteFingerprint, () => scheduleShippingQuote(650))
 
 // ─── Render state ───────────────────────────────────────────────────────────
 
@@ -852,22 +885,31 @@ const v4ExpectedHash = ref<string | null>(null)
 // server side — when true, the print is already ready and we skip the
 // status poll entirely.
 const v4Cached = ref(false)
+const autoStartedInitialRender = ref(false)
 
 async function requestProductMockup() {
   const product = selectedProduct.value
-  const proofUrl = previewUrl.value
-  if (!productMockupsEnabled.value || !map.value?.id || !product || product.type === 'digital' || !proofUrl || !displayProofImage.value) {
+  const artworkUrl = mockupArtworkUrl.value
+  if (!productMockupsEnabled.value || !map.value?.id || !product || product.type === 'digital' || !artworkUrl) {
     return
   }
 
-  const targetKey = `${map.value.id}:${product.product_uid}:${proofUrl}`
+  const targetKey = `${map.value.id}:${product.product_uid}:${artworkUrl}`
+  if (
+    mockupTargetProductUid.value === product.product_uid
+    && mockupTargetProofUrl.value === artworkUrl
+    && (mockupInFlight.value || mockupTemplates.value.length > 0)
+  ) {
+    return
+  }
+
   mockupTemplates.value = []
   mockupUrlsByTemplate.value = {}
   mockupLoadingByTemplate.value = {}
   mockupInFlight.value = true
   mockupError.value = null
   mockupTargetProductUid.value = product.product_uid
-  mockupTargetProofUrl.value = proofUrl
+  mockupTargetProofUrl.value = artworkUrl
 
   try {
     const templateResponse = await $fetch<{ templates: MockupTemplateOption[] }>('/api/mockups/templates', {
@@ -877,50 +919,64 @@ async function requestProductMockup() {
     const templates = templateResponse.templates
     mockupTemplates.value = templates
     selectedPreviewId.value = templates[0]?.id ? `mockup:${templates[0].id}` : 'proof'
-    mockupLoadingByTemplate.value = Object.fromEntries(templates.map(template => [template.id, true]))
-    updateProductMockupLoading()
-
-    await Promise.all(templates.map(async (template) => {
-      try {
-        const response = await $fetch<{
-          status: 'ready'
-          mockup_url: string
-          product_uid: string
-          mockup_template_id: string
-          mockup_hash: string
-        }>('/api/mockups/render', {
-          method: 'POST',
-          body: {
-            source: { type: 'map', id: map.value!.id },
-            product_uid: product.product_uid,
-            mockup_template_id: template.id,
-          },
-        })
-        if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
-          mockupUrlsByTemplate.value = {
-            ...mockupUrlsByTemplate.value,
-            [template.id]: response.mockup_url,
-          }
-        }
-      } catch (err: any) {
-        if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
-          mockupError.value = err?.data?.message || err?.message || 'Could not create one of the wall mockups.'
-        }
-      } finally {
-        if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
-          mockupLoadingByTemplate.value = {
-            ...mockupLoadingByTemplate.value,
-            [template.id]: false,
-          }
-          updateProductMockupLoading()
-        }
-      }
-    }))
+    mockupLoadingByTemplate.value = {}
+    if (templates[0]) void renderProductMockupTemplate(templates[0])
   } catch (err: any) {
     mockupError.value = err?.data?.message || err?.message || 'Could not create the wall mockup.'
   } finally {
     if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
       mockupInFlight.value = false
+    }
+  }
+}
+
+async function renderProductMockupTemplate(template: MockupTemplateOption) {
+  const productUid = mockupTargetProductUid.value
+  const artworkUrl = mockupTargetProofUrl.value
+  const sourceId = map.value?.id
+  if (!sourceId || !productUid || !artworkUrl || mockupUrlsByTemplate.value[template.id] || mockupLoadingByTemplate.value[template.id]) {
+    return
+  }
+
+  const targetKey = `${sourceId}:${productUid}:${artworkUrl}`
+  mockupLoadingByTemplate.value = {
+    ...mockupLoadingByTemplate.value,
+    [template.id]: true,
+  }
+  updateProductMockupLoading()
+
+  try {
+    const response = await $fetch<{
+      status: 'ready'
+      mockup_url: string
+      product_uid: string
+      mockup_template_id: string
+      mockup_hash: string
+    }>('/api/mockups/render', {
+      method: 'POST',
+      body: {
+        source: { type: 'map', id: sourceId },
+        product_uid: productUid,
+        mockup_template_id: template.id,
+      },
+    })
+    if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
+      mockupUrlsByTemplate.value = {
+        ...mockupUrlsByTemplate.value,
+        [template.id]: response.mockup_url,
+      }
+    }
+  } catch (err: any) {
+    if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
+      mockupError.value = err?.data?.message || err?.message || 'Could not create one of the wall mockups.'
+    }
+  } finally {
+    if (`${map.value?.id}:${mockupTargetProductUid.value}:${mockupTargetProofUrl.value}` === targetKey) {
+      mockupLoadingByTemplate.value = {
+        ...mockupLoadingByTemplate.value,
+        [template.id]: false,
+      }
+      updateProductMockupLoading()
     }
   }
 }
@@ -937,7 +993,7 @@ function resetProductMockup() {
   mockupError.value = null
   mockupTargetProductUid.value = null
   mockupTargetProofUrl.value = null
-  selectedPreviewId.value = displayProofImage.value ? 'proof' : ''
+  selectedPreviewId.value = mockupArtworkUrl.value ? 'proof' : ''
 }
 
 async function triggerRender(quality: 'preview' | 'print') {
@@ -1118,11 +1174,13 @@ watch(selectedProduct, (product, previousProduct) => {
     printReady.value = true
     renderInFlight.value = false
     renderTargetProductUid.value = product.product_uid
+    clearShippingQuote()
     stopPolling()
     return
   }
 
   if (previousProduct?.product_uid !== product.product_uid) {
+    clearShippingQuote()
     printReady.value = false
     renderInFlight.value = false
     renderTargetProductUid.value = null
@@ -1134,20 +1192,52 @@ watch(selectedProduct, (product, previousProduct) => {
   }
 }, { flush: 'post' })
 
-watch([displayProofImage, productMockupsEnabled], () => {
-  if (displayProofImage.value && productMockupsEnabled.value) {
+watch([mockupArtworkUrl, selectedProduct, productMockupsEnabled], () => {
+  resetProductMockup()
+  if (mockupArtworkUrl.value && selectedProduct.value && productMockupsEnabled.value) {
     void requestProductMockup()
   }
+}, { flush: 'post' })
+
+watch(selectedPreviewId, () => {
+  const template = mockupTemplates.value.find(candidate => `mockup:${candidate.id}` === selectedPreviewId.value)
+  if (template) void renderProductMockupTemplate(template)
 })
+
+watch([selectedProduct, () => map.value?.id, productMockupsEnabled], () => {
+  const product = selectedProduct.value
+  if (
+    autoStartedInitialRender.value
+    || !productMockupsEnabled.value
+    || !map.value?.id
+    || !product
+    || product.type === 'digital'
+    || mockupArtworkUrl.value
+    || renderInFlight.value
+    || printReady.value
+  ) {
+    return
+  }
+
+  autoStartedInitialRender.value = true
+  void startRenders()
+}, { flush: 'post' })
 
 // ─── Payment ────────────────────────────────────────────────────────────────
 
 const proceedToPayment = async () => {
   if (!map.value || !user.value?.id || !selectedProduct.value) return
   checkoutError.value = ''
+  if (!isDigital.value && !quoteIsCurrent.value) {
+    checkoutError.value = quoteLoading.value
+      ? 'Please wait for shipping to finish updating.'
+      : 'Please enter a complete shipping address and wait for shipping to update.'
+    return
+  }
   isSubmitting.value = true
   step.value = 'payment'
   try {
+    const normalizedAddress = normalizeCheckoutAddress(shippingAddress)
     const payload = {
       cart_source: 'custom',
       checkout_attempt_id: !isDigital.value ? shippingQuote.value?.checkout_attempt_id : undefined,
@@ -1157,7 +1247,7 @@ const proceedToPayment = async () => {
       quantity: 1,
       shipping_address: isDigital.value
         ? { name: 'Digital', email: shippingAddress.email, address1: '-', city: '-', state_code: '--', zip: '-', country_code: 'US' }
-        : shippingAddress,
+        : normalizedAddress,
       digital_only: isDigital.value,
       coupon_slug: couponPreview.value?.slug,
     }

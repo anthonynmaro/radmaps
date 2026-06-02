@@ -192,7 +192,7 @@ async function loadMapSource(supabase: any, mapId: string, userId?: string | nul
 
   const { data, error } = await supabase
     .from('maps')
-    .select('id, proof_render_url, proof_render_hash, render_url')
+    .select('id, proof_render_url, proof_render_hash, thumbnail_url, render_url')
     .eq('id', mapId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -200,8 +200,8 @@ async function loadMapSource(supabase: any, mapId: string, userId?: string | nul
   if (error) throw createError({ statusCode: 500, message: error.message })
   if (!data) throw createError({ statusCode: 404, message: 'Map not found' })
 
-  const artworkUrl = data.proof_render_url || data.render_url
-  if (!artworkUrl || String(artworkUrl).startsWith('error:')) {
+  const artworkUrl = firstUsableRenderUrl(data.proof_render_url, data.thumbnail_url, data.render_url)
+  if (!artworkUrl) {
     throw createError({ statusCode: 422, message: 'Render a print proof before creating a product mockup' })
   }
 
@@ -211,6 +211,11 @@ async function loadMapSource(supabase: any, mapId: string, userId?: string | nul
     artworkUrl,
     sourceRenderHash: data.proof_render_hash || hashString(artworkUrl),
   }
+}
+
+function firstUsableRenderUrl(...values: Array<string | null | undefined>): string | null {
+  const value = values.find(candidate => !!candidate && !candidate.startsWith('error:'))
+  return value ?? null
 }
 
 function isUuid(value: string): boolean {

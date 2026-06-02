@@ -273,6 +273,41 @@ function sizeAvailability(label: string) {
   })
 }
 
+function firstAvailableSizeLabel(type: ProductFormat, materialKey: string | undefined, preferredSizeLabel?: string): string | undefined {
+  const labels = [
+    preferredSizeLabel,
+    ...SIZES.map(size => size.label),
+  ].filter((label, index, all): label is string => !!label && all.indexOf(label) === index)
+
+  return labels.find(label => !!getProductForSelection({ type, sizeLabel: label, materialKey }))
+}
+
+function applyValidSelection(type: ProductFormat, materialKey?: string, preferredSizeLabel = selectedSizeLabel.value) {
+  selectedType.value = type
+
+  if (type === 'digital') {
+    selectedMaterialKey.value = materialKey
+    return
+  }
+
+  let nextMaterialKey = materialKey ?? getDefaultMaterialKeyForFormat(type, preferredSizeLabel)
+  let nextSizeLabel = preferredSizeLabel
+
+  if (!getProductForSelection({ type, sizeLabel: nextSizeLabel, materialKey: nextMaterialKey })) {
+    nextSizeLabel = firstAvailableSizeLabel(type, nextMaterialKey, preferredSizeLabel)
+      ?? firstAvailableSizeLabel(type, undefined, preferredSizeLabel)
+      ?? defaultProduct?.size_label
+      ?? SIZES[0].label
+  }
+
+  if (!getProductForSelection({ type, sizeLabel: nextSizeLabel, materialKey: nextMaterialKey })) {
+    nextMaterialKey = getDefaultMaterialKeyForFormat(type, nextSizeLabel)
+  }
+
+  selectedSizeLabel.value = nextSizeLabel
+  selectedMaterialKey.value = nextMaterialKey
+}
+
 function sizeButtonClass(label: string) {
   const availability = sizeAvailability(label)
   const selected = selectedSizeLabel.value === label
@@ -294,13 +329,12 @@ function formatVisualClass(type: ProductFormat): string {
 
 function selectFormat(type: ProductFormat) {
   if (type === 'digital' && props.includeDigital === false) return
-  selectedType.value = type
-  selectedMaterialKey.value = getDefaultMaterialKeyForFormat(type, selectedSizeLabel.value)
+  applyValidSelection(type, getDefaultMaterialKeyForFormat(type, selectedSizeLabel.value))
   emitCurrentProduct()
 }
 
 function selectMaterial(materialKey: string) {
-  selectedMaterialKey.value = materialKey
+  applyValidSelection(selectedType.value, materialKey)
   emitCurrentProduct()
 }
 
@@ -335,6 +369,18 @@ function confirmSelection() {
 if (!props.modelValue) {
   onMounted(emitCurrentProduct)
 }
+
+watch(() => props.modelValue?.product_uid ?? null, () => {
+  const product = props.modelValue
+  if (!product) {
+    applyValidSelection(selectedType.value, selectedMaterialKey.value)
+    emitCurrentProduct()
+    return
+  }
+  selectedType.value = product.type
+  selectedSizeLabel.value = product.size_label
+  selectedMaterialKey.value = product.material_key
+}, { flush: 'post' })
 
 onMounted(async () => {
   try {
