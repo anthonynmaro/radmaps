@@ -38,7 +38,7 @@ export interface ProductMockupHashInput {
 }
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
-export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v7'
+export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v12'
 export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-room-scenes-v2'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
@@ -110,6 +110,15 @@ const CLOSE_UP_PLACEMENT: ScenePlacementProfile = {
   pxPerPrintIn: 111.5,
 }
 
+const WALL_HANGING_CLOSE_UP_PLACEMENT: ScenePlacementProfile = {
+  artworkBox: {
+    x: 665 / 3000,
+    y: 383 / 3000,
+    w: 1660 / 3000,
+    h: 2407 / 3000,
+  },
+}
+
 const SIMPLE_PLACEMENT: ScenePlacementProfile = {
   artworkBox: { x: 0, y: 0, w: 1, h: 1 },
 }
@@ -127,7 +136,7 @@ const SCENE_PLACEMENTS: Record<ProductMockupFinish, Partial<Record<ProductMockup
   wall_hanging: {
     [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.wall_hanging,
     [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: WALL_HANGING_CLOSE_UP_PLACEMENT,
   },
   metallic: {
     [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.metallic,

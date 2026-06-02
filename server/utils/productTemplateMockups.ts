@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import type { PrintProduct } from '~/types'
-import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
+import { getProductMockupTemplate, PRODUCT_MOCKUP_SCENE_FILES, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
 
 export interface RenderProductTemplateMockupInput {
   product: PrintProduct
@@ -81,7 +81,7 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
   const chromeBoxes: Record<string, PixelBox> = {}
 
   if (template.finish === 'wall_hanging') {
-    const railOverlays = await wallHangingRailOverlays(templateBuffer, width, height, artworkBox)
+    const railOverlays = await wallHangingRailOverlays(template, templateBuffer, width, height, artworkBox)
     for (const overlay of railOverlays) {
       chromeBoxes[overlay.id] = overlay.box
       composites.push({
@@ -166,6 +166,9 @@ function toPixelBox(box: ProductMockupBox, width: number, height: number): Pixel
 }
 
 function artworkOverprintBleed(template: ProductMockupTemplate): PixelBleed {
+  if (template.finish === 'wall_hanging') {
+    return { left: 6, top: 4, right: 6, bottom: 6 }
+  }
   if (template.finish === 'metallic') {
     return { left: 4, top: 12, right: 14, bottom: 4 }
   }
@@ -184,28 +187,89 @@ function overprintedArtworkBox(box: PixelBox, width: number, height: number, ble
   }, width, height)
 }
 
-async function wallHangingRailOverlays(templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {
+async function wallHangingRailOverlays(template: ProductMockupTemplate, templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {
   const railHeight = Math.max(16, Math.round(box.width * 0.11))
   const sideBleed = Math.max(6, Math.round(box.width * 0.045))
   const left = clampInt(box.left - sideBleed, 0, width - 1)
   const stripWidth = Math.min(width - left, box.width + sideBleed * 2)
-  const topRail = clampPixelBox({
-    left,
-    top: box.top - railHeight,
-    width: stripWidth,
-    height: railHeight,
-  }, width, height)
-  const bottomRail = clampPixelBox({
-    left,
-    top: box.top + box.height - Math.round(railHeight * 0.7),
-    width: stripWidth,
-    height: Math.round(railHeight * 1.18),
-  }, width, height)
+  const topRail = wallHangingTopChromeBox(template, { left, width: stripWidth }, box, railHeight, width, height)
+  const bottomRail = wallHangingBottomChromeBox(template, { left, width: stripWidth }, box, railHeight, width, height)
 
   return Promise.all([
     chromeOverlayFromTemplate('top_rail', templateBuffer, topRail),
     chromeOverlayFromTemplate('bottom_rail', templateBuffer, bottomRail),
   ])
+}
+
+function wallHangingTopChromeBox(
+  template: ProductMockupTemplate,
+  strip: { left: number; width: number },
+  box: PixelBox,
+  railHeight: number,
+  width: number,
+  height: number,
+): PixelBox {
+  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.plainGray) {
+    return clampPixelBox({
+      left: strip.left,
+      top: box.top - railHeight,
+      width: strip.width,
+      height: Math.round(railHeight * 0.92),
+    }, width, height)
+  }
+
+  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald) {
+    return clampPixelBox({
+      left: strip.left,
+      top: box.top - Math.round(railHeight * 1.85),
+      width: strip.width,
+      height: Math.round(railHeight * 2.55),
+    }, width, height)
+  }
+
+  const topChromeHeight = Math.round(railHeight * 1.5)
+
+  return clampPixelBox({
+    left: strip.left,
+    top: box.top - topChromeHeight,
+    width: strip.width,
+    height: topChromeHeight,
+  }, width, height)
+}
+
+function wallHangingBottomChromeBox(
+  template: ProductMockupTemplate,
+  strip: { left: number; width: number },
+  box: PixelBox,
+  railHeight: number,
+  width: number,
+  height: number,
+): PixelBox {
+  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.plainGray) {
+    const railOverlap = Math.round(railHeight * 0.38)
+    return clampPixelBox({
+      left: strip.left,
+      top: box.top + box.height - railOverlap,
+      width: strip.width,
+      height: Math.round(railHeight * 0.45),
+    }, width, height)
+  }
+
+  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald) {
+    return clampPixelBox({
+      left: strip.left,
+      top: box.top + box.height - Math.round(railHeight * 0.12),
+      width: strip.width,
+      height: Math.round(railHeight * 1.08),
+    }, width, height)
+  }
+
+  return clampPixelBox({
+    left: strip.left,
+    top: box.top + box.height - Math.round(railHeight * 0.7),
+    width: strip.width,
+    height: Math.round(railHeight * 1.18),
+  }, width, height)
 }
 
 async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {

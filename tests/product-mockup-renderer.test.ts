@@ -133,6 +133,57 @@ describe('product mockup renderer', () => {
     await expect(meanLuminance(rendered.buffer, rightEdgeSample)).resolves.toBeGreaterThan(170)
   }, 10000)
 
+  it('restores wall-hanging chrome without leaking source artwork in gallery scenes', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#e7f4ee',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const product = wallHanging12x18()
+
+    for (const sceneFile of [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald, PRODUCT_MOCKUP_SCENE_FILES.plainGray]) {
+      const template = getProductMockupTemplate(product, sceneFile)!
+      const rendered = await renderProductTemplateMockup({ product, template, artworkBuffer })
+      const artworkBox = rendered.validation.artwork_box as { left: number; width: number }
+      const templateWidth = rendered.validation.template_width_px as number
+      const scale = rendered.widthPx / templateWidth
+      const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
+      const topRailSampleOffset = sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald ? 0.9 : 0.72
+
+      const topRailSample = {
+        left: Math.round((chromeBoxes.top_rail.left + chromeBoxes.top_rail.width * 0.12) * scale),
+        top: Math.round((chromeBoxes.top_rail.top + chromeBoxes.top_rail.height * topRailSampleOffset) * scale),
+        width: Math.round(chromeBoxes.top_rail.width * 0.76 * scale),
+        height: Math.max(2, Math.round(chromeBoxes.top_rail.height * 0.12 * scale)),
+      }
+      const clearFooterSample = {
+        left: Math.round((artworkBox.left + artworkBox.width * 0.14) * scale),
+        top: Math.round((chromeBoxes.bottom_rail.top - 16) * scale),
+        width: Math.round(artworkBox.width * 0.72 * scale),
+        height: Math.max(2, Math.round(6 * scale)),
+      }
+      const bottomRailSample = {
+        left: Math.round((chromeBoxes.bottom_rail.left + chromeBoxes.bottom_rail.width * 0.12) * scale),
+        top: Math.round((chromeBoxes.bottom_rail.top + chromeBoxes.bottom_rail.height * 0.45) * scale),
+        width: Math.round(chromeBoxes.bottom_rail.width * 0.76 * scale),
+        height: Math.max(2, Math.round(chromeBoxes.bottom_rail.height * 0.14 * scale)),
+      }
+
+      const topRailLuminance = await meanLuminance(rendered.buffer, topRailSample)
+      const clearFooterLuminance = await meanLuminance(rendered.buffer, clearFooterSample)
+      const bottomRailLuminance = await meanLuminance(rendered.buffer, bottomRailSample)
+
+      expect(topRailLuminance, `${sceneFile} top rail`).toBeLessThan(105)
+      expect(clearFooterLuminance, `${sceneFile} cleared footer area`).toBeGreaterThan(170)
+      expect(bottomRailLuminance, `${sceneFile} bottom rail`).toBeLessThan(105)
+    }
+  }, 16000)
+
   it('restores wall-hanging rails above the replacement artwork', async () => {
     const artworkBuffer = await sharp({
       create: {

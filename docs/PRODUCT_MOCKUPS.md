@@ -45,7 +45,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
 - Current template placement version: `gelato-saved-template-room-scenes-v2`.
-- Current compositor version: `template-asset-compositor-v7`.
+- Current compositor version: `template-asset-compositor-v12`.
 
 Custom checkout lazily renders the selected physical product's saved scene
 variants after the selected print proof is ready. Premade checkout renders the
