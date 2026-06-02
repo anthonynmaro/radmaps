@@ -28,7 +28,6 @@ describe('product mockups', () => {
     for (const product of PRODUCTS.filter(product => product.type !== 'digital')) {
       const template = getProductMockupTemplate(product)
       expect(template, product.product_uid).toBeTruthy()
-      expect(template?.relativePath).toContain(product.product_uid)
       expect(
         existsSync(join(process.cwd(), template!.relativePath)),
         template!.relativePath,
@@ -86,15 +85,17 @@ describe('product mockups', () => {
     expect(getProductMockupTemplate(product, closeUp!.id)?.id).toBe(closeUp!.id)
   })
 
-  it('scales insertion boxes by product size inside the provided scenes', () => {
+  it('uses canonical traced template assets instead of resizing mockups per product size', () => {
     const poster8 = getProductMockupTemplate(PRODUCTS.find(product => product.product_uid.startsWith('flat_a4-8x12-inch'))!)!
     const poster24 = getProductMockupTemplate(PRODUCTS.find(product => product.product_uid.startsWith('flat_600x900-mm-24x36-inch'))!)!
+    const framed8 = getProductMockupTemplate(PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_210x297mm-8x12-inch_black'))!)!
     const framed12 = getProductMockupTemplate(PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_300x450-mm-12x18-inch'))!)!
 
-    expect(poster24.artworkBox.w).toBeGreaterThan(poster8.artworkBox.w)
-    expect(poster24.artworkBox.h).toBeGreaterThan(poster8.artworkBox.h)
-    expect(framed12.artworkBox.x + framed12.artworkBox.w).toBeLessThan(0.6)
-    expect(framed12.artworkBox.y + framed12.artworkBox.h).toBeLessThan(0.7)
+    expect(poster8.assetProductUid).toBe(poster24.assetProductUid)
+    expect(poster8.artworkBox).toEqual(poster24.artworkBox)
+    expect(framed8.assetProductUid).toBe(framed12.assetProductUid)
+    expect(framed8.artworkBox).toEqual(framed12.artworkBox)
+    expect(framed12.assetProductUid).toContain('600x900-mm-24x36-inch')
   })
 
   it('exposes wall-hanging chrome boxes for browser template previews', () => {
@@ -103,6 +104,20 @@ describe('product mockups', () => {
     const chromeBoxes = getProductMockupChromeBoxes(template)
 
     expect(chromeBoxes.map(chrome => chrome.id)).toEqual(['top_rail', 'bottom_rail'])
+    for (const chrome of chromeBoxes) {
+      expect(chrome.box.x).toBeGreaterThanOrEqual(0)
+      expect(chrome.box.y).toBeGreaterThanOrEqual(0)
+      expect(chrome.box.x + chrome.box.w).toBeLessThanOrEqual(1)
+      expect(chrome.box.y + chrome.box.h).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('exposes framed chrome boxes for browser template previews', () => {
+    const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
+    const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald)!
+    const chromeBoxes = getProductMockupChromeBoxes(template)
+
+    expect(chromeBoxes.map(chrome => chrome.id).sort()).toEqual(['frame_bottom', 'frame_left', 'frame_right', 'frame_top'])
     for (const chrome of chromeBoxes) {
       expect(chrome.box.x).toBeGreaterThanOrEqual(0)
       expect(chrome.box.y).toBeGreaterThanOrEqual(0)
@@ -127,7 +142,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, sourceRenderHash: 'proof-b' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-room-scenes-v3' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v4' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v3' })).not.toBe(hash)
   })
 

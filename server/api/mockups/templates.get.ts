@@ -21,6 +21,7 @@ export default defineEventHandler((event) => {
       label: template.sceneLabel,
       scene_file: template.sceneFile,
       finish: template.finish,
+      asset_product_uid: template.assetProductUid,
       artwork_box: template.artworkBox,
       chrome_boxes: getProductMockupChromeBoxes(template),
       template_image_url: `/api/mockups/template-image?product_uid=${encodeURIComponent(product.product_uid)}&mockup_template_id=${encodeURIComponent(template.id)}`,

@@ -50,16 +50,17 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
-- Current template placement version: `gelato-saved-template-room-scenes-v2`.
-- Current compositor version: `template-asset-compositor-v14`.
+- Current template placement version: `gelato-saved-template-traced-slots-v3`.
+- Current compositor version: `template-asset-compositor-v16`.
 
-Checkout uses a two-layer preview path. The first frame is instant: the browser
-loads the saved template image and positions the already-rendered map inside the
-template's artwork box. For wall hangings, the browser replays the saved
-top/bottom rail crop boxes above the inserted map so the frame chrome remains
-visible. The Sharp render API now acts as a background cache/polish path for the
-selected scene and lazily renders additional scenes only when the customer
-selects them. Mockup failures never block payment.
+Checkout uses traced template slots instead of product-size scaling. Each
+selected SKU resolves to a canonical large saved Gelato asset for its product
+family/material, then the browser places the already-rendered map as a
+`background-size: cover` fill inside the traced product surface. Frame and
+wall-hanging chrome is replayed from cropped regions of the saved template above
+the inserted map. Size selection still controls proof/final print geometry and
+Gelato ordering, but merchandising mockups use one stable visual scale per
+product family/material. Mockup failures never block payment.
 
 ## Catalog Notes
 

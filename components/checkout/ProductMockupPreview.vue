@@ -1,18 +1,16 @@
 <template>
-  <div class="product-mockup-preview">
+  <span class="product-mockup-preview">
     <img
       :src="templateImageUrl"
       :alt="label"
       class="product-mockup-preview__scene"
       draggable="false"
     >
-    <img
-      :src="artworkUrl"
-      alt=""
+    <span
       class="product-mockup-preview__artwork"
-      :style="boxStyle(artworkBox)"
-      draggable="false"
-    >
+      :style="artworkStyle(overprintedArtworkBox(artworkBox, finish), artworkUrl)"
+      aria-hidden="true"
+    />
     <img
       v-for="chrome in chromeBoxes"
       :key="chrome.id"
@@ -34,14 +32,7 @@
       :style="boxStyle(artworkBox)"
       aria-hidden="true"
     />
-    <img
-      v-if="renderedUrl"
-      :src="renderedUrl"
-      :alt="label"
-      class="product-mockup-preview__rendered"
-      draggable="false"
-    >
-  </div>
+  </span>
 </template>
 
 <script setup lang="ts">
@@ -62,18 +53,31 @@ withDefaults(defineProps<{
   artworkUrl: string
   artworkBox: Box
   chromeBoxes?: ChromeBox[]
-  renderedUrl?: string | null
   label?: string
   finish?: string
+  sceneFile?: string
 }>(), {
   chromeBoxes: () => [],
-  renderedUrl: null,
   label: 'Wall mockup preview',
   finish: 'paper',
+  sceneFile: '',
 })
 
 function pct(value: number): string {
   return `${value * 100}%`
+}
+
+const FRAMED_ARTWORK_OVERPRINT_BLEED = 8 / 3000
+
+function overprintedArtworkBox(box: Box, finish?: string): Box {
+  if (finish !== 'framed') return box
+
+  return clampBox({
+    x: box.x - FRAMED_ARTWORK_OVERPRINT_BLEED,
+    y: box.y - FRAMED_ARTWORK_OVERPRINT_BLEED,
+    w: box.w + FRAMED_ARTWORK_OVERPRINT_BLEED * 2,
+    h: box.h + FRAMED_ARTWORK_OVERPRINT_BLEED * 2,
+  })
 }
 
 function boxStyle(box: Box) {
@@ -85,25 +89,48 @@ function boxStyle(box: Box) {
   }
 }
 
+function artworkStyle(box: Box, url: string) {
+  return {
+    ...boxStyle(box),
+    backgroundImage: `url("${url}")`,
+  }
+}
+
 function chromeStyle(box: Box) {
   return {
     clipPath: `inset(${pct(box.y)} ${pct(1 - box.x - box.w)} ${pct(1 - box.y - box.h)} ${pct(box.x)})`,
   }
 }
+
+function clampBox(box: Box): Box {
+  const x = clamp(box.x, 0, 1)
+  const y = clamp(box.y, 0, 1)
+
+  return {
+    x,
+    y,
+    w: clamp(box.w, 0.001, 1 - x),
+    h: clamp(box.h, 0.001, 1 - y),
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
 </script>
 
 <style scoped>
 .product-mockup-preview {
+  display: block;
   position: relative;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   background: #f5f3ef;
 }
 
 .product-mockup-preview__scene,
-.product-mockup-preview__chrome,
-.product-mockup-preview__rendered {
+.product-mockup-preview__chrome {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -119,8 +146,9 @@ function chromeStyle(box: Box) {
 .product-mockup-preview__artwork {
   position: absolute;
   z-index: 2;
-  object-fit: fill;
-  user-select: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .product-mockup-preview__chrome {
@@ -147,7 +175,4 @@ function chromeStyle(box: Box) {
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
 }
 
-.product-mockup-preview__rendered {
-  z-index: 5;
-}
 </style>

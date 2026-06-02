@@ -58,8 +58,8 @@
                 :artwork-url="galleryPremadeMapUrl"
                 :artwork-box="selectedPremadeMockupItem.artworkBox!"
                 :chrome-boxes="selectedPremadeMockupItem.chromeBoxes"
-                :rendered-url="selectedPremadeMockupItem.url"
                 :finish="selectedPremadeMockupItem.finish"
+                :scene-file="selectedPremadeMockupItem.sceneFile"
                 :label="selectedPremadeMockupItem.label"
                 class="h-full w-full drop-shadow-2xl"
               />
@@ -95,7 +95,7 @@
                   @click="selectedPreviewId = item.id"
                 >
                   <span
-                    class="relative flex aspect-square items-center justify-center overflow-hidden rounded-md border bg-white transition-colors"
+                    class="relative flex h-[74px] w-[74px] items-center justify-center overflow-hidden rounded-md border bg-white transition-colors"
                     :class="selectedPreviewId === item.id ? 'border-[#2D6A4F] ring-2 ring-[#2D6A4F]/20' : 'border-stone-200 group-hover:border-stone-300'"
                   >
                     <ProductMockupPreview
@@ -104,8 +104,8 @@
                       :artwork-url="galleryPremadeMapUrl"
                       :artwork-box="item.artworkBox"
                       :chrome-boxes="item.chromeBoxes"
-                      :rendered-url="item.url"
                       :finish="item.finish"
+                      :scene-file="item.sceneFile"
                       :label="item.label"
                       class="h-full w-full"
                     />
@@ -113,7 +113,7 @@
                       v-else-if="item.url"
                       :src="item.url"
                       :alt="item.label"
-                      class="h-full w-full object-cover"
+                      class="h-full w-full bg-stone-100 object-contain"
                     >
                     <span v-else class="flex h-full w-full items-center justify-center bg-stone-100 text-stone-400">
                       <UIcon
@@ -452,13 +452,12 @@ const mockupTargetProductUid = ref<string | null>(null)
 const mockupTargetSourceId = ref<string | null>(null)
 const selectedPreviewId = ref('map')
 const mockupTemplates = ref<MockupTemplateOption[]>([])
-const mockupUrlsByTemplate = ref<Record<string, string>>({})
-const mockupLoadingByTemplate = ref<Record<string, boolean>>({})
 type MockupTemplateOption = {
   id: string
   label: string
   scene_file: string
   finish: string
+  asset_product_uid: string
   template_image_url: string
   artwork_box: ProductMockupBox
   chrome_boxes: ProductMockupChromeBox[]
@@ -481,6 +480,7 @@ type PreviewGalleryItem = {
   url: string | null
   loading?: boolean
   finish?: string
+  sceneFile?: string
   templateImageUrl?: string
   artworkBox?: ProductMockupBox
   chromeBoxes?: ProductMockupChromeBox[]
@@ -492,9 +492,10 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
     id: `mockup:${template.id}`,
     kind: 'mockup' as const,
     label: template.label,
-    url: mockupUrlsByTemplate.value[template.id] ?? null,
-    loading: !!mockupLoadingByTemplate.value[template.id],
+    url: null,
+    loading: false,
     finish: template.finish,
+    sceneFile: template.scene_file,
     templateImageUrl: template.template_image_url,
     artworkBox: template.artwork_box,
     chromeBoxes: template.chrome_boxes,
@@ -511,7 +512,7 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
 })
 const selectedPreviewItem = computed(() => (
   previewGalleryItems.value.find(item => item.id === selectedPreviewId.value)
-  ?? previewGalleryItems.value.find(item => item.kind === 'mockup' && item.url)
+  ?? previewGalleryItems.value.find(item => item.kind === 'mockup')
   ?? previewGalleryItems.value.find(item => item.url)
   ?? previewGalleryItems.value[0]
   ?? null
@@ -727,16 +728,10 @@ watch(currentQuoteFingerprint, () => scheduleShippingQuote(650))
 
 function resetPremadeMockups() {
   mockupTemplates.value = []
-  mockupUrlsByTemplate.value = {}
-  mockupLoadingByTemplate.value = {}
   mockupInFlight.value = false
   mockupTargetProductUid.value = null
   mockupTargetSourceId.value = null
   selectedPreviewId.value = fullPremadeMapUrl.value ? 'map' : ''
-}
-
-function updatePremadeMockupLoading() {
-  mockupInFlight.value = Object.values(mockupLoadingByTemplate.value).some(Boolean)
 }
 
 async function requestPremadeMockups() {
@@ -746,8 +741,6 @@ async function requestPremadeMockups() {
 
   const targetKey = `${sourceId}:${productUid}`
   mockupTemplates.value = []
-  mockupUrlsByTemplate.value = {}
-  mockupLoadingByTemplate.value = {}
   mockupInFlight.value = true
   mockupTargetProductUid.value = productUid
   mockupTargetSourceId.value = sourceId
@@ -760,8 +753,6 @@ async function requestPremadeMockups() {
     const templates = templateResponse.templates
     mockupTemplates.value = templates
     selectedPreviewId.value = templates[0]?.id ? `mockup:${templates[0].id}` : (fullPremadeMapUrl.value ? 'map' : '')
-    mockupLoadingByTemplate.value = {}
-    if (templates[0]) void renderPremadeMockupTemplate(templates[0])
   } catch {
     if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
       resetPremadeMockups()
@@ -773,63 +764,10 @@ async function requestPremadeMockups() {
   }
 }
 
-async function renderPremadeMockupTemplate(template: MockupTemplateOption) {
-  const sourceId = mockupTargetSourceId.value
-  const productUid = mockupTargetProductUid.value
-  if (!sourceId || !productUid || mockupUrlsByTemplate.value[template.id] || mockupLoadingByTemplate.value[template.id]) {
-    return
-  }
-
-  const targetKey = `${sourceId}:${productUid}`
-  mockupLoadingByTemplate.value = {
-    ...mockupLoadingByTemplate.value,
-    [template.id]: true,
-  }
-  updatePremadeMockupLoading()
-
-  try {
-    const response = await $fetch<{
-      status: 'ready'
-      mockup_url: string
-      product_uid: string
-      mockup_template_id: string
-      mockup_hash: string
-    }>('/api/mockups/render', {
-      method: 'POST',
-      body: {
-        source: { type: 'premade', id: sourceId },
-        product_uid: productUid,
-        mockup_template_id: template.id,
-      },
-    })
-    if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
-      mockupUrlsByTemplate.value = {
-        ...mockupUrlsByTemplate.value,
-        [template.id]: response.mockup_url,
-      }
-    }
-  } catch {
-    // Individual scene failures should not hide template previews or block checkout.
-  } finally {
-    if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
-      mockupLoadingByTemplate.value = {
-        ...mockupLoadingByTemplate.value,
-        [template.id]: false,
-      }
-      updatePremadeMockupLoading()
-    }
-  }
-}
-
 watch([selectedProductUid, productMockupsEnabled], () => {
   resetPremadeMockups()
   if (productMockupsEnabled.value) void requestPremadeMockups()
 }, { immediate: true })
-
-watch(selectedPreviewId, () => {
-  const template = mockupTemplates.value.find(candidate => `mockup:${candidate.id}` === selectedPreviewId.value)
-  if (template) void renderPremadeMockupTemplate(template)
-})
 
 async function checkout() {
   if (!premade.value) return

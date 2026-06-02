@@ -6,99 +6,73 @@ export interface ProductMockupChromeBox {
 }
 
 export function getProductMockupChromeBoxes(template: ProductMockupTemplate): ProductMockupChromeBox[] {
-  if (template.finish !== 'wall_hanging') return []
+  if (template.finish === 'framed') {
+    return framedPosterChromeBoxes(template.artworkBox)
+  }
 
-  const box = template.artworkBox
-  const railHeight = Math.max(16 / 3000, box.w * 0.11)
-  const sideBleed = Math.max(6 / 3000, box.w * 0.045)
-  const left = clamp(box.x - sideBleed, 0, 1)
-  const width = Math.min(1 - left, box.w + sideBleed * 2)
+  if (template.finish === 'wall_hanging') {
+    return wallHangingChromeBoxes(template)
+  }
+
+  return []
+}
+
+function framedPosterChromeBoxes(box: ProductMockupBox): ProductMockupChromeBox[] {
+  const frameBleed = 42 / 3000
+  const left = clamp(box.x - frameBleed, 0, 1)
+  const top = clamp(box.y - frameBleed, 0, 1)
+  const right = clamp(box.x + box.w, 0, 1)
+  const bottom = clamp(box.y + box.h, 0, 1)
+  const width = Math.min(1 - left, box.w + frameBleed * 2)
+  const height = Math.min(1 - top, box.h + frameBleed * 2)
 
   return [
     {
-      id: 'top_rail',
-      box: wallHangingTopChromeBox(template, { left, width }, box, railHeight),
+      id: 'frame_top',
+      box: clampBox({ x: left, y: top, w: width, h: frameBleed }),
     },
     {
-      id: 'bottom_rail',
-      box: wallHangingBottomChromeBox(template, { left, width }, box, railHeight),
+      id: 'frame_bottom',
+      box: clampBox({ x: left, y: bottom, w: width, h: frameBleed }),
+    },
+    {
+      id: 'frame_left',
+      box: clampBox({ x: left, y: top, w: frameBleed, h: height }),
+    },
+    {
+      id: 'frame_right',
+      box: clampBox({ x: right, y: top, w: frameBleed, h: height }),
     },
   ]
 }
 
-function wallHangingTopChromeBox(
-  template: ProductMockupTemplate,
-  strip: { left: number; width: number },
-  box: ProductMockupBox,
-  railHeight: number,
-): ProductMockupBox {
+function wallHangingChromeBoxes(template: ProductMockupTemplate): ProductMockupChromeBox[] {
   if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.plainGray) {
-    return clampBox({
-      x: strip.left,
-      y: box.y - railHeight,
-      w: strip.width,
-      h: railHeight * 0.92,
-    })
+    return [
+      { id: 'top_rail', box: slot(635, 235, 1725, 70) },
+      { id: 'bottom_rail', box: slot(635, 2718, 1725, 70) },
+    ]
   }
 
   if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald) {
-    return clampBox({
-      x: strip.left,
-      y: box.y - railHeight * 1.85,
-      w: strip.width,
-      h: railHeight * 2.55,
-    })
+    return [
+      { id: 'top_rail', box: slot(850, 588, 1210, 70) },
+      { id: 'bottom_rail', box: slot(850, 2335, 1210, 70) },
+    ]
   }
 
-  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite) {
-    const topChromeHeight = railHeight * 1.5
-    const hiddenRailOverlap = railHeight * 0.16
-    return clampBox({
-      x: strip.left,
-      y: box.y - topChromeHeight,
-      w: strip.width,
-      h: topChromeHeight - hiddenRailOverlap,
-    })
-  }
-
-  const topChromeHeight = railHeight * 1.5
-  return clampBox({
-    x: strip.left,
-    y: box.y - topChromeHeight,
-    w: strip.width,
-    h: topChromeHeight,
-  })
+  return [
+    { id: 'top_rail', box: slot(940, 455, 1160, 70) },
+    { id: 'bottom_rail', box: slot(940, 2140, 1160, 70) },
+  ]
 }
 
-function wallHangingBottomChromeBox(
-  template: ProductMockupTemplate,
-  strip: { left: number; width: number },
-  box: ProductMockupBox,
-  railHeight: number,
-): ProductMockupBox {
-  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.plainGray) {
-    return clampBox({
-      x: strip.left,
-      y: box.y + box.h - railHeight * 0.38,
-      w: strip.width,
-      h: railHeight * 0.45,
-    })
-  }
-
-  if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald) {
-    return clampBox({
-      x: strip.left,
-      y: box.y + box.h - railHeight * 0.12,
-      w: strip.width,
-      h: railHeight * 1.08,
-    })
-  }
-
+function slot(leftPx: number, topPx: number, widthPx: number, heightPx: number): ProductMockupBox {
   return clampBox({
-    x: strip.left,
-    y: box.y + box.h - railHeight * 0.7,
-    w: strip.width,
-    h: railHeight * 1.18,
+    x: leftPx / 3000,
+    y: topPx / 3000,
+    w: widthPx / 3000,
+    h: heightPx / 3000,
   })
 }
 

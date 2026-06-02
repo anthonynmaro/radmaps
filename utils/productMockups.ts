@@ -19,6 +19,7 @@ export interface ProductMockupTemplate {
   id: string
   setId: string
   productUid: string
+  assetProductUid: string
   sceneFile: string
   sceneLabel: string
   relativePath: string
@@ -38,8 +39,8 @@ export interface ProductMockupHashInput {
 }
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
-export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v14'
-export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-room-scenes-v2'
+export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v16'
+export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v3'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
 
@@ -68,86 +69,59 @@ const TEMPLATE_SET_IDS = {
   acrylic: 'd8315dd7-f2d3-4a7f-9f5c-3a0460734c2d',
 } as const
 
-interface ScenePlacementProfile {
-  centerXPx?: number
-  centerYPx?: number
-  pxPerPrintIn?: number
-  artworkBox?: ProductMockupBox
+const CANONICAL_POSTER_PRODUCT_UID = 'flat_600x900-mm-24x36-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver'
+const CANONICAL_ALUMINUM_PRODUCT_UID = 'metallic_600x900-mm-24x36-inch_3-mm_4-0_ver'
+const CANONICAL_ACRYLIC_PRODUCT_UID = 'acrylic_600x900-mm-24x36-inch_4-mm_4-0_ver'
+
+function slot(leftPx: number, topPx: number, widthPx: number, heightPx: number): ProductMockupBox {
+  return {
+    x: leftPx / 3000,
+    y: topPx / 3000,
+    w: widthPx / 3000,
+    h: heightPx / 3000,
+  }
 }
 
-const BEDROOM_PLACEMENTS: Record<Exclude<ProductMockupFinish, 'framed'>, ScenePlacementProfile> = {
+const RIGID_SURFACE_SLOTS: Record<ProductMockupSceneFile, ProductMockupBox> = {
+  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: slot(938, 440, 1160, 1740),
+  [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(852, 594, 1205, 1808),
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(620, 178, 1760, 2640),
+  [PRODUCT_MOCKUP_SCENE_FILES.simple]: slot(0, 0, 3000, 3000),
+}
+
+const FRAMED_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
+  [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(850, 590, 1210, 1815),
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(660, 245, 1688, 2532),
+}
+
+const WALL_HANGING_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
+  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: slot(944, 500, 1148, 1660),
+  [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(858, 620, 1195, 1760),
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(654, 298, 1688, 2420),
+}
+
+const SCENE_PLACEMENTS: Record<ProductMockupFinish, Partial<Record<ProductMockupSceneFile, ProductMockupBox>>> = {
   paper: {
-    centerXPx: 1506,
-    centerYPx: 1305,
-    pxPerPrintIn: 47.8,
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
   },
+  framed: FRAMED_SURFACE_SLOTS,
   wall_hanging: {
-    centerXPx: 1510,
-    centerYPx: 1356,
-    pxPerPrintIn: 47.5,
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: WALL_HANGING_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: WALL_HANGING_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: WALL_HANGING_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
   },
   metallic: {
-    centerXPx: 1506,
-    centerYPx: 1305,
-    pxPerPrintIn: 47.8,
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
+    [PRODUCT_MOCKUP_SCENE_FILES.simple]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.simple],
   },
   acrylic: {
-    centerXPx: 1506,
-    centerYPx: 1305,
-    pxPerPrintIn: 47.8,
-  },
-}
-
-const LOBBY_PLACEMENT: ScenePlacementProfile = {
-  centerXPx: 1456,
-  centerYPx: 1498,
-  pxPerPrintIn: 50.0,
-}
-
-const CLOSE_UP_PLACEMENT: ScenePlacementProfile = {
-  centerXPx: 1500,
-  centerYPx: 1518,
-  pxPerPrintIn: 111.5,
-}
-
-const WALL_HANGING_CLOSE_UP_PLACEMENT: ScenePlacementProfile = {
-  artworkBox: {
-    x: 665 / 3000,
-    y: 383 / 3000,
-    w: 1660 / 3000,
-    h: 2407 / 3000,
-  },
-}
-
-const SIMPLE_PLACEMENT: ScenePlacementProfile = {
-  artworkBox: { x: 0, y: 0, w: 1, h: 1 },
-}
-
-const SCENE_PLACEMENTS: Record<ProductMockupFinish, Partial<Record<ProductMockupSceneFile, ScenePlacementProfile>>> = {
-  paper: {
-    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.paper,
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
-  },
-  framed: {
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
-  },
-  wall_hanging: {
-    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.wall_hanging,
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: WALL_HANGING_CLOSE_UP_PLACEMENT,
-  },
-  metallic: {
-    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.metallic,
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.simple]: SIMPLE_PLACEMENT,
-  },
-  acrylic: {
-    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.acrylic,
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
   },
 }
 
@@ -159,20 +133,53 @@ const DEFAULT_SCENE_BY_FINISH: Record<ProductMockupFinish, ProductMockupSceneFil
   acrylic: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
 }
 
-function templateSetForProduct(product: PrintProduct): { setId: string; finish: ProductMockupFinish } | null {
-  if (product.type === 'poster') return { setId: TEMPLATE_SET_IDS.flatArchival, finish: 'paper' }
-  if (product.type === 'framed') return { setId: TEMPLATE_SET_IDS.framedPremium, finish: 'framed' }
-  if (product.type === 'aluminum') return { setId: TEMPLATE_SET_IDS.metallic, finish: 'metallic' }
-  if (product.type === 'acrylic') return { setId: TEMPLATE_SET_IDS.acrylic, finish: 'acrylic' }
+function templateSetForProduct(product: PrintProduct): { setId: string; finish: ProductMockupFinish; assetProductUid: string } | null {
+  if (product.type === 'poster') {
+    return { setId: TEMPLATE_SET_IDS.flatArchival, finish: 'paper', assetProductUid: CANONICAL_POSTER_PRODUCT_UID }
+  }
+  if (product.type === 'framed') {
+    return { setId: TEMPLATE_SET_IDS.framedPremium, finish: 'framed', assetProductUid: canonicalFramedProductUid(product.product_uid) }
+  }
+  if (product.type === 'aluminum') {
+    return { setId: TEMPLATE_SET_IDS.metallic, finish: 'metallic', assetProductUid: CANONICAL_ALUMINUM_PRODUCT_UID }
+  }
+  if (product.type === 'acrylic') {
+    return { setId: TEMPLATE_SET_IDS.acrylic, finish: 'acrylic', assetProductUid: CANONICAL_ACRYLIC_PRODUCT_UID }
+  }
   if (product.type === 'wall_hanging') {
+    const isSilk = product.product_uid.includes('_170-gsm-65lb-coated-silk_')
     return {
-      setId: product.product_uid.includes('_170-gsm-65lb-coated-silk_')
+      setId: isSilk
         ? TEMPLATE_SET_IDS.wallHangingSilk
         : TEMPLATE_SET_IDS.wallHangingArchival,
       finish: 'wall_hanging',
+      assetProductUid: canonicalWallHangingProductUid(product.product_uid, isSilk),
     }
   }
   return null
+}
+
+function canonicalFramedProductUid(productUid: string): string {
+  const finish = productUid.includes('_white_wood_')
+    ? 'white_wood'
+    : productUid.includes('_natural-wood_wood_')
+      ? 'natural-wood_wood'
+      : 'black_wood'
+  return `framed_poster_mounted_premium_600x900-mm-24x36-inch_${finish}_w20xt20-mm_plexiglass_600x900-mm-24x36-inch_200-gsm-80lb-coated-silk_4-0_ver`
+}
+
+function canonicalWallHangingProductUid(productUid: string, isSilk: boolean): string {
+  const rail = productUid.includes('_white_wood_')
+    ? 'white_wood'
+    : productUid.includes('_natural-wood_wood_')
+      ? 'natural-wood_wood'
+      : productUid.includes('_dark-wood_wood_')
+        ? 'dark-wood_wood'
+        : 'black_wood'
+  const paper = isSilk
+    ? '170-gsm-65lb-coated-silk'
+    : '250-gsm-100lb-uncoated-offwhite-archival'
+  return `wall_hanging_poster_635-mm_${rail}_w14xt20-mm_600x900-mm-24x36-inch_${paper}_4-0_ver`
 }
 
 export function getProductMockupTemplates(product: PrintProduct | null | undefined): ProductMockupTemplate[] {
@@ -184,10 +191,12 @@ export function getProductMockupTemplates(product: PrintProduct | null | undefin
 
   return Object.entries(placements)
     .map(([sceneFile, placement]) => {
+      if (!placement) return null
       const template = buildProductMockupTemplate(
         product,
         templateSet.setId,
         templateSet.finish,
+        templateSet.assetProductUid,
         sceneFile as ProductMockupSceneFile,
         placement,
         sceneFile === defaultScene,
@@ -215,42 +224,28 @@ function buildProductMockupTemplate(
   product: PrintProduct,
   setId: string,
   finish: ProductMockupFinish,
+  assetProductUid: string,
   sceneFile: ProductMockupSceneFile,
-  placement: ScenePlacementProfile,
+  artworkBox: ProductMockupBox,
   isDefault: boolean,
 ): ProductMockupTemplate {
-  const artworkBox = scaledArtworkBox(product, placement)
   const relativePath = [
     PRODUCT_MOCKUP_TEMPLATE_ROOT,
     setId,
-    product.product_uid,
+    assetProductUid,
     sceneFile,
   ].join('/')
   return {
-    id: `${setId}/${product.product_uid}/${sceneFile.replace(/\.[^.]+$/, '')}`,
+    id: `${setId}/${assetProductUid}/${sceneFile.replace(/\.[^.]+$/, '')}`,
     setId,
     productUid: product.product_uid,
+    assetProductUid,
     sceneFile,
     sceneLabel: PRODUCT_MOCKUP_SCENE_LABELS[sceneFile],
     relativePath,
     finish,
     artworkBox,
     isDefault,
-  }
-}
-
-function scaledArtworkBox(product: PrintProduct, placement: ScenePlacementProfile): ProductMockupBox {
-  if (placement.artworkBox) return placement.artworkBox
-  if (!placement.centerXPx || !placement.centerYPx || !placement.pxPerPrintIn) {
-    throw new Error('Mockup scene placement is missing geometry')
-  }
-  const widthPx = product.width_in * placement.pxPerPrintIn
-  const heightPx = widthPx * (product.height_in / product.width_in)
-  return {
-    x: (placement.centerXPx - widthPx / 2) / 3000,
-    y: (placement.centerYPx - heightPx / 2) / 3000,
-    w: widthPx / 3000,
-    h: heightPx / 3000,
   }
 }
 
