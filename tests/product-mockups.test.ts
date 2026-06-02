@@ -163,6 +163,22 @@ describe('product mockups', () => {
     }
   })
 
+  it('keeps framed close-up artwork out of the side frame', () => {
+    const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
+    const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.plainGray)!
+    const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
+    const artworkLeft = Math.round(template.artworkBox.x * 3000)
+    const artworkRight = Math.round((template.artworkBox.x + template.artworkBox.w) * 3000)
+    const artworkTop = Math.round(template.artworkBox.y * 3000)
+    const artworkBottom = Math.round((template.artworkBox.y + template.artworkBox.h) * 3000)
+
+    expect(artworkLeft).toBe(657)
+    expect(artworkRight).toBe(2333)
+    expect(artworkTop).toBe(233)
+    expect(artworkBottom).toBe(2748)
+    expect(bleed).toEqual({ left: 0, top: 0, right: 0, bottom: 0 })
+  })
+
   it('changes hash when the source render, product, template, or renderer changes', () => {
     const product = getMockupSupportedProducts()[0]
     const template = getProductMockupTemplate(product)!

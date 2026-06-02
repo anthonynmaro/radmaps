@@ -92,7 +92,7 @@ const RIGID_SURFACE_SLOTS: Record<ProductMockupSceneFile, ProductMockupBox> = {
 
 const FRAMED_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
   [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(850, 590, 1210, 1815),
-  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(660, 245, 1688, 2532),
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(657, 233, 1676, 2515),
 }
 
 const WALL_HANGING_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {

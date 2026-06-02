@@ -83,6 +83,8 @@ the inserted map.
 The Emerald wall wall-hanging scene has its own rail/body trace because its
 bottom rail sits lower than the Room scene; the artwork ends before that rail so
 the footer band cannot spill into the rail edge.
+The framed Close-up scene also uses scene-specific face bounds with zero
+artwork bleed so the replacement map does not tint or cover the side frame.
 
 ## Catalog Notes
 
