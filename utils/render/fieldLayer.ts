@@ -170,6 +170,7 @@ export const FIELD_LAYER = {
   // HASH_VERSION.chrome.chromeTemplate AND HASH_VERSION.map.styleCompiler.
   text_overlays: 'map',
   trail_segments: 'map',
+  show_primary_route: 'map',
   trail_legend: 'map',
   trail_label_style: 'map',
   segment_casing_width: 'map',

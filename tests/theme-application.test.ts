@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLOR_THEMES, DEFAULT_STYLE_CONFIG, type StyleConfig } from '~/types'
+import { COLOR_THEMES, DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH, type StyleConfig } from '~/types'
 import { contrastRatio, pickContrastSafeColor } from '~/utils/colorContrast'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
 import { getThemeDefinition } from '~/utils/themes/refined'
@@ -129,6 +129,50 @@ describe('theme application', () => {
     expect(next.grid_opacity).toBe(0.16)
     expect(next.grid_weight).toBe(1)
     expect(next.grid_scope).toBe('map')
+  })
+
+  it('applies Dark Sky as a no-hillshade gold leader-line segment theme', () => {
+    const theme = getThemeDefinition('dark-sky')
+    expect(theme).toBeTruthy()
+
+    const next = applyThemeToStyleConfig(config({
+      show_hillshade: true,
+      trail_label_style: 'legend',
+      leader_label_scale: 1.4,
+      segment_casing_color: '#FFFFFF',
+      trail_segments: [
+        {
+          id: 'trail-1',
+          name: 'Trail 1',
+          color: '#2D6A4F',
+          visible: true,
+          section_start: 0,
+          section_end: 50,
+          color_mode: 'gradient',
+          label_lnglat: [-89, 40],
+        },
+        {
+          id: 'trail-2',
+          name: 'Trail 2',
+          color: '#C1121F',
+          visible: true,
+          section_start: 50,
+          section_end: 100,
+        },
+      ],
+    }), theme!)
+
+    expect(next.show_hillshade).toBe(false)
+    expect(next.trail_label_style).toBe('leader-lines')
+    expect(next.leader_label_auto_fit).toBe(true)
+    expect(next.leader_label_scale).toBe(0.9)
+    expect(next.segment_casing_color).toBe('#050814')
+    expect(next.atlas_layer_settings?.landcover?.color).toBe('#070A14')
+    expect(next.atlas_layer_settings?.park?.fill_color).toBe('#0B1020')
+    expect(next.trail_segments?.map(segment => segment.color)).toEqual(['#F4B942', '#F4B942'])
+    expect(next.trail_segments?.map(segment => segment.color_mode)).toEqual(['solid', 'solid'])
+    expect(next.trail_segments?.map(segment => segment.width)).toEqual([DEFAULT_TRAIL_SEGMENT_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH])
+    expect(next.trail_segments?.some(segment => segment.label_lnglat)).toBe(false)
   })
 
   it('can restore legacy marathon-era themes without forcing a refined composition', () => {

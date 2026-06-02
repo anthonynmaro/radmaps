@@ -149,7 +149,7 @@ import type {
   TrailMap,
   TrailSegment,
 } from '~/types'
-import { DEFAULT_STYLE_CONFIG } from '~/types'
+import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import { FLAGS } from '~/utils/knownFlags'
 import {
   buildElevationProfile,
@@ -158,6 +158,7 @@ import {
   mergeDeletedRangesForRoute,
   bboxContainsBbox,
   buildGeometryBackedSegmentPatch,
+  defaultTrailSegmentColor,
   extendSegmentCoordinates,
   isGeometryBackedSegment,
   normalizeLineCoords,
@@ -490,9 +491,7 @@ function onSegmentPlotted({ segId, field, pct }: { segId: string; field: 'start'
 }
 
 function nextSegmentColor(segments: TrailSegment[]) {
-  const colors = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
-  const usedColors = segments.map(segment => segment.color)
-  return colors.find(color => !usedColors.includes(color)) ?? colors[0]
+  return defaultTrailSegmentColor(styleConfig.value, segments)
 }
 
 function onSegmentDrawFinished({ mode, coords }: { mode: SegmentDrawMode; coords: Array<[number, number]> }) {
@@ -506,7 +505,7 @@ function onSegmentDrawFinished({ mode, coords }: { mode: SegmentDrawMode; coords
       color: nextSegmentColor(segments),
       visible: true,
       source: 'drawn-track',
-      width: 3,
+      width: DEFAULT_TRAIL_SEGMENT_WIDTH,
       opacity: 0.9,
       smooth: 0,
       bend: 0,

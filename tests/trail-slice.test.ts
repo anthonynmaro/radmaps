@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bboxForCoords, bendLineCoords, buildGeometryBackedSegmentPatch, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import { bboxForCoords, bendLineCoords, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
 import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
@@ -53,7 +53,67 @@ describe('sliceRouteByPercent', () => {
   })
 })
 
+describe('defaultTrailSegmentColor', () => {
+  it('uses the active route color for Dark Sky segments', () => {
+    expect(defaultTrailSegmentColor(
+      { color_theme: 'dark-sky', route_color: '#F4B942' },
+      [{ color: '#F4B942' }],
+    )).toBe('#F4B942')
+  })
+
+  it('keeps the normal unique-color palette for other themes', () => {
+    expect(defaultTrailSegmentColor(
+      { color_theme: 'chalk', route_color: '#C1121F' },
+      [{ color: '#2D6A4F' }],
+    )).toBe('#3A7CA5')
+  })
+})
+
 describe('trail segment geometry', () => {
+  it('extracts named GPX tracks as exact uploaded-track geometries', () => {
+    const primary: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { name: '\nTiny Connector\n' },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-90, 41],
+              [-90.001, 41],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { name: 'Long Trail' },
+          geometry: {
+            type: 'LineString',
+            coordinates: Array.from({ length: 400 }, (_, i) => [-89 - i * 0.0001, 40]),
+          },
+        },
+      ],
+    }
+
+    const segments = extractNamedTrackSegments(primary)
+    const resolvedTiny = resolveTrailSegmentGeojson(primary, segments[0])
+
+    expect(segments).toHaveLength(2)
+    expect(segments[0]).toMatchObject({
+      name: 'Tiny Connector',
+      source: 'uploaded-track',
+      section_start: 0,
+      section_end: 100,
+      bbox: [-90.001, 41, -90, 41],
+    })
+    expect(segments[0].geojson?.features).toHaveLength(1)
+    expect((resolvedTiny.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-90, 41],
+      [-90.001, 41],
+    ])
+  })
+
   it('resolves legacy segments as slices of the primary route', () => {
     const primary = lineRoute([
       [-89, 40],

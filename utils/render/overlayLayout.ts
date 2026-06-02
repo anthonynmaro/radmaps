@@ -19,7 +19,7 @@
 // worker. The drift moat lives here: structurally identical output for
 // the same inputs guarantees proof-vs-print parity.
 
-import { getAllRouteCoords, getRouteEndpoints } from '../trail'
+import { getAllRouteCoords, getRouteEndpoints, resolveTrailSegmentGeojson } from '../trail'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -78,9 +78,17 @@ interface OverlayStyleConfig {
     name: string
     color: string
     visible: boolean
+    source?: 'route-slice' | 'uploaded-track' | 'drawn-track'
+    geojson?: GeoJSON.FeatureCollection
     section_start: number
     section_end: number
     label_lnglat?: [number, number]
+  }>
+  route_deleted_ranges?: Array<{
+    start: number
+    end: number
+    start_index?: number
+    end_index?: number
   }>
 }
 
@@ -149,6 +157,15 @@ export function mercatorProjector(opts: {
       y: viewport.h / 2 + (w.y - c.y),
     }
   }
+}
+
+export function leaderAnchorCoord(coords: number[][]): [number, number] | null {
+  const valid = coords.filter((coord): coord is [number, number] =>
+    coord.length >= 2 &&
+    Number.isFinite(coord[0]) &&
+    Number.isFinite(coord[1]),
+  )
+  return valid[0] ?? null
 }
 
 // ─── Layout function (the port of recomputeOverlays) ────────────────────────
@@ -256,8 +273,6 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
     (styleConfig.trail_segments ?? []).some((s) => s.visible && s.name)
 
   if (showLeaderLines) {
-    const allCoords = getAllRouteCoords(geojson)
-
     interface Candidate {
       seg: NonNullable<OverlayStyleConfig['trail_segments']>[number]
       dotX: number
@@ -267,13 +282,14 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
 
     for (const seg of styleConfig.trail_segments ?? []) {
       if (!seg.visible || !seg.name) continue
-      const idx = Math.min(
-        Math.floor((allCoords.length * seg.section_start) / 100),
-        allCoords.length - 1,
+      const segmentGeojson = resolveTrailSegmentGeojson(
+        geojson,
+        seg,
+        styleConfig.route_deleted_ranges ?? [],
       )
-      if (idx < 0) continue
-      const [lng, lat] = allCoords[idx]
-      const pt = project([lng, lat])
+      const anchor = leaderAnchorCoord(getAllRouteCoords(segmentGeojson))
+      if (!anchor) continue
+      const pt = project(anchor)
       // Include slightly off-screen segments — leader still useful.
       if (
         pt.x < -W * 0.5 ||
@@ -286,15 +302,64 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
       candidates.push({ seg, dotX: pt.x, dotY: pt.y })
     }
 
-    // Distribute candidates left/right of the canvas centerline,
-    // sorted top-to-bottom by dotY.
-    const left = candidates.filter((c) => c.dotX <= W / 2).sort((a, b) => a.dotY - b.dotY)
-    const right = candidates.filter((c) => c.dotX > W / 2).sort((a, b) => a.dotY - b.dotY)
+    // Distribute candidates into side label columns. Center-cluster labels are
+    // assigned by side capacity plus vertical spacing so dense trail networks
+    // do not pile every name onto the route body.
+    const left: Candidate[] = []
+    const right: Candidate[] = []
+    const center: Candidate[] = []
+    const minGap = Math.max(15, H * 0.018)
+
+    for (const c of candidates) {
+      if (c.dotX < W * 0.36) left.push(c)
+      else if (c.dotX > W * 0.64) right.push(c)
+      else center.push(c)
+    }
+
+    function sideCost(side: Candidate[], candidate: Candidate, target: 'left' | 'right'): number {
+      const nearestGap = side.length
+        ? Math.min(...side.map((item) => Math.abs(item.dotY - candidate.dotY)))
+        : Number.POSITIVE_INFINITY
+      const collisionPenalty = nearestGap < minGap ? (minGap - nearestGap) * 4 : 0
+      const sidePreference = target === 'left' ? candidate.dotX / W : (W - candidate.dotX) / W
+      return side.length * 100 + collisionPenalty + sidePreference * 18
+    }
+
+    center
+      .sort((a, b) => a.dotY - b.dotY)
+      .forEach((candidate) => {
+        if (sideCost(left, candidate, 'left') <= sideCost(right, candidate, 'right')) {
+          left.push(candidate)
+        } else {
+          right.push(candidate)
+        }
+      })
+
+    function moveCenterMost(from: Candidate[], to: Candidate[]) {
+      if (!from.length) return
+      let moveIndex = 0
+      let bestDistance = Number.POSITIVE_INFINITY
+      for (let i = 0; i < from.length; i++) {
+        const distance = Math.abs(from[i].dotX - W / 2)
+        if (distance < bestDistance) {
+          bestDistance = distance
+          moveIndex = i
+        }
+      }
+      const [moved] = from.splice(moveIndex, 1)
+      to.push(moved)
+    }
+
+    while (left.length > right.length + 1) moveCenterMost(left, right)
+    while (right.length > left.length + 1) moveCenterMost(right, left)
+
+    left.sort((a, b) => a.dotY - b.dotY)
+    right.sort((a, b) => a.dotY - b.dotY)
 
     // Editor parity: leader labels sit in side columns, then pack near
     // their route anchors instead of spreading across the full map height.
-    const leftX = W * 0.16
-    const rightX = W * 0.84
+    const leftX = W * 0.10
+    const rightX = W * 0.90
     // Stay inside the map area: above the footer band and below the
     // header band. Without headerH/footerH passed, we fall back to the
     // editor's vMargin = H*0.08. The editor renders its leader-label
@@ -314,7 +379,6 @@ export function computeOverlayLayout(input: OverlayLayoutInput): OverlayLayoutRe
       const minY = topMargin
       const maxY = H - bottomMargin
 
-      const minGap = Math.max(15, H * 0.018)
       const ys = cands.map((c) => Math.min(Math.max(c.dotY, minY), maxY))
 
       for (let i = 1; i < ys.length; i++) {

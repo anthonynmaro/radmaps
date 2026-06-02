@@ -125,6 +125,7 @@ describe('style layer graph contracts', () => {
     expect(styleFieldUpdateMode('native-toner', 'roads_opacity')).toBe('paint')
     expect(styleFieldUpdateMode('native-toner', 'tile_effect')).toBe('ignored')
     expect(styleFieldUpdateMode('minimalist', 'route_width')).toBe('paint')
+    expect(styleFieldUpdateMode('minimalist', 'show_primary_route')).toBe('full-reload')
     expect(styleFieldUpdateMode('natural-topo', 'hillshade_intensity')).toBe('paint')
     expect(styleFieldUpdateMode('contour-art', 'contour_color')).toBe('paint')
     expect(styleFieldUpdateMode('contour-art', 'contour_major_color')).toBe('paint')

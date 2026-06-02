@@ -1,14 +1,17 @@
 import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { DEFAULT_STYLE_CONFIG, type StyleConfig, type TrailSegment } from '~/types'
+import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH, type StyleConfig, type TrailSegment } from '~/types'
 import { GPX_MAX_BYTES, parseGpxServer } from '~/utils/gpx'
 import { validateRouteGeojson } from '~/server/utils/routeValidation'
+import { defaultTrailSegmentColor } from '~/utils/trail'
 
 const MapIdSchema = z.string().uuid()
 
 const SEGMENT_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
 
-function nextSegmentColor(segments: TrailSegment[]): string {
+function nextSegmentColor(styleConfig: StyleConfig, segments: TrailSegment[]): string {
+  if (styleConfig.color_theme === 'dark-sky') return defaultTrailSegmentColor(styleConfig, segments)
+
   const used = new Set(segments.map(segment => segment.color))
   return SEGMENT_COLORS.find(color => !used.has(color)) ?? SEGMENT_COLORS[0]
 }
@@ -62,7 +65,7 @@ export default defineEventHandler(async (event) => {
   const segment: TrailSegment = {
     id: crypto.randomUUID(),
     name: segmentName(parsed.trackName, gpxFile.name, existingSegments.length),
-    color: nextSegmentColor(existingSegments),
+    color: nextSegmentColor(styleConfig, existingSegments),
     visible: true,
     source: 'uploaded-track',
     geojson: parsed.geojson,
@@ -71,7 +74,7 @@ export default defineEventHandler(async (event) => {
     source_filename: gpxFile.name,
     section_start: 0,
     section_end: 100,
-    width: 3,
+    width: DEFAULT_TRAIL_SEGMENT_WIDTH,
     opacity: 0.9,
     smooth: 0,
     bend: 0,

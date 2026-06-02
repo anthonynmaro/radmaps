@@ -12,6 +12,7 @@ import { computeMapContentHash, computeChromeHash, computeProofRenderHash } from
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { getProviderProfile } from '~/utils/print/providerProfile'
 import { createRenderTicket } from '~/utils/render/renderTicket'
+import { RENDER_READY_EXPRESSION } from '~/utils/render/readiness'
 import { resolveBrowserRenderViewport } from '~/utils/render/renderViewport'
 import { getProofPath } from '~/utils/render/storagePaths'
 import { takeScreenshot } from '~/server/utils/screenshotService'
@@ -154,7 +155,7 @@ export async function renderMapProof(args: V4Args) {
       deviceScaleFactor,
       format: 'jpeg',
       quality: 95,
-      waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
+      waitForFunction: RENDER_READY_EXPRESSION,
       timeoutMs,
     })
   } catch (error) {

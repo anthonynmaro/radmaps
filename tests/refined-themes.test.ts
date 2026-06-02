@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
+import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
 import {
   ALL_COLOR_THEME_IDS,
   COMPOSITION_IDS,
@@ -17,6 +17,8 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(DEFAULT_STYLE_CONFIG.show_roads).toBe(true)
     expect(DEFAULT_STYLE_CONFIG.show_hillshade).toBe(false)
     expect(DEFAULT_STYLE_CONFIG.composition).toBeUndefined()
+    expect(DEFAULT_STYLE_CONFIG.route_width).toBe(DEFAULT_ROUTE_WIDTH)
+    expect(DEFAULT_STYLE_CONFIG.segment_casing_width).toBe(DEFAULT_SEGMENT_CASING_WIDTH)
   })
 
   it('keeps every refined theme wired to a valid composition and map defaults', () => {

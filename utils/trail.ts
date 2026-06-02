@@ -1,4 +1,4 @@
-import type { TrailSegment, DeletedRange, RouteStats } from '~/types'
+import { DEFAULT_TRAIL_SEGMENT_WIDTH, type TrailSegment, type DeletedRange, type RouteStats, type StyleConfig } from '~/types'
 
 export const DEFAULT_COORD_GAP_THRESHOLD_METERS = 50
 
@@ -6,6 +6,16 @@ const SEGMENT_COLORS = [
   '#2D6A4F', '#3A7CA5', '#C1121F', '#E87722',
   '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E',
 ]
+
+export function defaultTrailSegmentColor(
+  config: Pick<StyleConfig, 'color_theme' | 'route_color'>,
+  segments: Array<Pick<TrailSegment, 'color'>> = [],
+): string {
+  if (config.color_theme === 'dark-sky') return config.route_color || '#F4B942'
+
+  const usedColors = new Set(segments.map(segment => segment.color))
+  return SEGMENT_COLORS.find(color => !usedColors.has(color)) ?? SEGMENT_COLORS[0]
+}
 
 export function distanceMeters(a: number[], b: number[]): number {
   const [lng1, lat1] = a
@@ -559,41 +569,83 @@ export function routeRangesToGeojson(
   return featureCollectionFromLines(lineCoords)
 }
 
+function routeStatsForLineGroups(lines: number[][][]): RouteStats {
+  let distanceKm = 0
+  let elevationGainM = 0
+  let elevationLossM = 0
+  let maxElevationM = -Infinity
+  let minElevationM = Infinity
+  let hasElevation = false
+
+  for (const line of lines) {
+    for (let i = 1; i < line.length; i++) {
+      distanceKm += distanceMeters(line[i - 1], line[i]) / 1000
+
+      const prev = line[i - 1][2]
+      const next = line[i][2]
+      if (Number.isFinite(prev) && Number.isFinite(next)) {
+        const delta = next - prev
+        if (delta > 0) elevationGainM += delta
+        else elevationLossM += Math.abs(delta)
+      }
+    }
+
+    for (const coord of line) {
+      const elevation = coord[2]
+      if (!Number.isFinite(elevation)) continue
+      hasElevation = true
+      if (elevation > maxElevationM) maxElevationM = elevation
+      if (elevation < minElevationM) minElevationM = elevation
+    }
+  }
+
+  return {
+    distance_km: Math.round(distanceKm * 100) / 100,
+    elevation_gain_m: hasElevation ? Math.round(elevationGainM) : 0,
+    elevation_loss_m: hasElevation ? Math.round(elevationLossM) : 0,
+    max_elevation_m: hasElevation ? Math.round(maxElevationM) : 0,
+    min_elevation_m: hasElevation ? Math.round(minElevationM) : 0,
+    activity_type: 'drawn',
+  }
+}
+
+function lineGroupsForFeature(feature: GeoJSON.Feature): number[][][] {
+  const geometry = feature.geometry
+  if (!geometry) return []
+  if (geometry.type === 'LineString') return geometry.coordinates.length >= 2 ? [geometry.coordinates] : []
+  if (geometry.type === 'MultiLineString') return geometry.coordinates.filter(line => line.length >= 2)
+  return []
+}
+
 /**
  * Extract named tracks from a multi-track GeoJSON (produced by @tmcw/togeojson).
- * Each <trk> with a <name> becomes a TrailSegment with section_start/end
- * computed from its coordinate share of the full flattened route.
+ * Each <trk> with a <name> becomes a geometry-backed TrailSegment using that
+ * feature's exact coordinates. This keeps imported Trailforks-style trail
+ * networks from being reconstructed later as inaccurate route-percentage slices.
  *
  * Returns [] when there is only one (or zero) named tracks — no auto-segmentation needed.
  */
 export function extractNamedTrackSegments(geojson: GeoJSON.FeatureCollection): TrailSegment[] {
-  const namedFeatures = geojson.features.filter(
-    f => f.properties?.name && (f.geometry.type === 'LineString' || f.geometry.type === 'MultiLineString'),
-  )
+  const namedFeatures = geojson.features
+    .map(feature => ({ feature, lines: lineGroupsForFeature(feature) }))
+    .filter(({ feature, lines }) => feature.properties?.name && lines.length > 0)
   if (namedFeatures.length <= 1) return []
 
-  // Count coordinates per feature and total
-  const counts = namedFeatures.map(f => {
-    const g = f.geometry as GeoJSON.LineString | GeoJSON.MultiLineString
-    if (g.type === 'LineString') return g.coordinates.length
-    return g.coordinates.reduce((sum, line) => sum + line.length, 0)
-  })
-  const total = counts.reduce((s, c) => s + c, 0)
-  if (total === 0) return []
-
-  let cumulative = 0
-  return namedFeatures.map((f, i) => {
-    const start = Math.round((cumulative / total) * 100)
-    cumulative += counts[i]
-    const end = Math.round((cumulative / total) * 100)
+  return namedFeatures.map(({ feature, lines }, i) => {
+    const coords = lines.flat()
+    const bbox = bboxForCoords(coords)
     return {
       id: Math.random().toString(36).slice(2, 10),
-      name: String(f.properties!.name),
+      name: String(feature.properties!.name).trim(),
       color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
       visible: true,
-      section_start: start,
-      section_end: end,
-      width: 3,
+      source: 'uploaded-track',
+      geojson: featureCollectionFromLines(lines),
+      ...(bbox ? { bbox } : {}),
+      stats: routeStatsForLineGroups(lines),
+      section_start: 0,
+      section_end: 100,
+      width: DEFAULT_TRAIL_SEGMENT_WIDTH,
       opacity: 0.9,
       smooth: 0,
       bend: 0,

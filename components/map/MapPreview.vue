@@ -1141,14 +1141,16 @@ import { autoUpdate, computePosition, flip, offset, shift, type Placement } from
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveTonerRouteStyle, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
+import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
+import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
 import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import type { PrintFraming } from '~/utils/print/printFraming'
@@ -3380,12 +3382,25 @@ function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
       : null
   const demExpected = props.styleConfig.show_hillshade === true || props.styleConfig.map_3d === true
   const tilesLoaded = typeof instance.areTilesLoaded === 'function' ? instance.areTilesLoaded() : instance.loaded()
+  const visibleSegmentCount = (props.styleConfig.trail_segments ?? []).filter(segment => segment.visible).length
+  const visibleSegmentLayerCount = (props.styleConfig.trail_segments ?? []).filter(segment =>
+    segment.visible && !!instance.getLayer(`trail-seg-line-${segment.id}`),
+  ).length
+  const primaryRouteExpected = shouldRenderPrimaryRoute(props.styleConfig)
+  const routeLayerPresent = !!instance.getLayer('route-line')
+  const segmentLayersPresent = visibleSegmentCount === 0 || visibleSegmentLayerCount === visibleSegmentCount
+  const routeContentPresent = (primaryRouteExpected ? routeLayerPresent : true) && segmentLayersPresent
   return {
     ready: true,
     mapLoaded: instance.loaded(),
     tilesLoaded,
-    routeLayerPresent: !!instance.getLayer('route-line'),
+    primaryRouteExpected,
+    routeLayerPresent,
     routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
+    visibleSegmentCount,
+    visibleSegmentLayerCount,
+    segmentLayersPresent,
+    routeContentPresent,
     contoursExpected,
     contourSourcePresent: !!contourSourceId,
     contourSourceLoaded: !contoursExpected || (!!contourSourceId && sourceLoaded(instance, contourSourceId)),
@@ -3398,7 +3413,7 @@ function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
 function printableMapComplete(status: ReturnType<typeof printableMapStatus>) {
   return status.mapLoaded
     && status.tilesLoaded
-    && status.routeLayerPresent
+    && status.routeContentPresent
     && status.contourSourceLoaded
     && status.demSourceLoaded
 }
@@ -4243,8 +4258,9 @@ function recomputeOverlays() {
       const seg = (props.styleConfig.trail_segments ?? []).find(s => s.id === item.id)
       if (!seg) return item
       const allC = segmentResolvedCoords(seg)
-      if (!allC.length) return item
-      const pt = instance.project([allC[0][0], allC[0][1]] as [number, number])
+      const anchor = leaderAnchorCoord(allC)
+      if (!anchor) return item
+      const pt = instance.project(anchor)
       return { ...item, dotX: pt.x, dotY: pt.y }
     })
     return
@@ -4265,9 +4281,9 @@ function recomputeOverlays() {
   for (const seg of (props.styleConfig.trail_segments ?? [])) {
     if (!seg.visible || !seg.name) continue
     const resolvedCoords = segmentResolvedCoords(seg)
-    if (!resolvedCoords.length) continue
-    const [lng, lat] = resolvedCoords[0]
-    const pt = mapInstance.project([lng, lat])
+    const anchor = leaderAnchorCoord(resolvedCoords)
+    if (!anchor) continue
+    const pt = mapInstance.project(anchor)
     const meta = segmentMetaText(seg)
     // Include segments slightly off-screen too (leader line still useful)
     if (pt.x < -W * 0.5 || pt.x > W * 1.5 || pt.y < -H * 0.5 || pt.y > H * 1.5) continue
@@ -4306,12 +4322,35 @@ function recomputeOverlays() {
     })
   }
 
-  // Start labels on the side nearest their segment start, then rebalance near-center
-  // labels so dense routes don't pile every name onto one edge.
-  const leftCandidates: Candidate[] = candidates
-    .filter(c => c.dotX <= W / 2)
-  const rightCandidates: Candidate[] = candidates
-    .filter(c => c.dotX > W / 2)
+  let minLeaderGap = Math.max(posterContentMinPx(15), labelFontSize * (props.styleConfig.trail_show_stats ? 2.05 : 1.45))
+  const leftCandidates: Candidate[] = []
+  const rightCandidates: Candidate[] = []
+  const centerCandidates: Candidate[] = []
+
+  for (const c of candidates) {
+    if (c.dotX < W * 0.36) leftCandidates.push(c)
+    else if (c.dotX > W * 0.64) rightCandidates.push(c)
+    else centerCandidates.push(c)
+  }
+
+  function sideCost(side: Candidate[], candidate: Candidate, target: 'left' | 'right'): number {
+    const nearestGap = side.length
+      ? Math.min(...side.map(item => Math.abs(item.dotY - candidate.dotY)))
+      : Number.POSITIVE_INFINITY
+    const collisionPenalty = nearestGap < minLeaderGap ? (minLeaderGap - nearestGap) * 4 : 0
+    const sidePreference = target === 'left' ? candidate.dotX / W : (W - candidate.dotX) / W
+    return side.length * 100 + collisionPenalty + sidePreference * 18
+  }
+
+  centerCandidates
+    .sort((a, b) => a.dotY - b.dotY)
+    .forEach(candidate => {
+      if (sideCost(leftCandidates, candidate, 'left') <= sideCost(rightCandidates, candidate, 'right')) {
+        leftCandidates.push(candidate)
+      } else {
+        rightCandidates.push(candidate)
+      }
+    })
 
   function moveCenterMost(from: Candidate[], to: Candidate[]) {
     if (!from.length) return
@@ -4350,7 +4389,7 @@ function recomputeOverlays() {
     )
     const maxSideCount = Math.max(leftCandidates.length, rightCandidates.length, Math.ceil(fitLabelNames.length / 2))
     const widthLimit = maxMeasuredWidth > 0 ? labelFontSize * (W * 0.34) / maxMeasuredWidth : labelFontSize
-    const verticalLimit = maxSideCount > 1 ? (H * 0.38 / (maxSideCount - 1)) / 1.45 : labelFontSize
+    const verticalLimit = maxSideCount > 1 ? (H * 0.70 / (maxSideCount - 1)) / 1.45 : labelFontSize
     const minFontSize = Math.max(posterContentMinPx(7), H * 0.008)
     const fittedFontSize = clampValue(Math.min(labelFontSize, widthLimit, verticalLimit), minFontSize, labelFontSize)
 
@@ -4360,6 +4399,7 @@ function recomputeOverlays() {
         c.labelWidth = estimateLeaderLabelWidth(c.seg.name, c.meta, labelFontSize, fontFamily)
       }
       for (const item of manualItems) item.fontSize = labelFontSize
+      minLeaderGap = Math.max(posterContentMinPx(15), labelFontSize * (props.styleConfig.trail_show_stats ? 2.05 : 1.45))
     }
   }
 
@@ -4371,15 +4411,15 @@ function recomputeOverlays() {
   const rightBounds = leaderLabelBounds(W, H, maxRightWidth, labelFontSize)
   const hMargin = Math.max(leftBounds.hMargin, rightBounds.hMargin)
   const vMargin = Math.max(leftBounds.vMargin, rightBounds.vMargin)
-  const leftX = clampValue(Math.max(W * 0.16, hMargin + maxLeftWidth), hMargin, W - hMargin)
-  const rightX = clampValue(Math.min(W * 0.84, W - hMargin - maxRightWidth), hMargin, W - hMargin)
+  const leftX = clampValue(Math.max(W * 0.10, hMargin + maxLeftWidth), hMargin, W - hMargin)
+  const rightX = clampValue(Math.min(W * 0.90, W - hMargin - maxRightWidth), hMargin, W - hMargin)
 
   function packLabelYs(cands: Candidate[]): number[] {
     if (cands.length === 0) return []
 
     const minY = vMargin
     const maxY = H - vMargin
-    const minGap = Math.max(posterContentMinPx(15), labelFontSize * (props.styleConfig.trail_show_stats ? 2.05 : 1.45))
+    const minGap = minLeaderGap
     const ys = cands.map(c => clampValue(c.dotY, minY, maxY))
 
     for (let i = 1; i < ys.length; i++) {
@@ -5015,6 +5055,17 @@ function setLayerPaint(layerId: string, property: string, value: unknown) {
   mapInstance.setPaintProperty(layerId, property, value)
 }
 
+const PRIMARY_ROUTE_LAYER_IDS = ['route-line-wash', 'route-line-casing', 'route-line', 'route-label-collision'] as const
+
+function syncPrimaryRouteLayerVisibility(config: StyleConfig) {
+  if (!mapInstance) return
+  const visibility = shouldRenderPrimaryRoute(config) ? 'visible' : 'none'
+  for (const layerId of PRIMARY_ROUTE_LAYER_IDS) {
+    if (!mapInstance.getLayer(layerId)) continue
+    mapInstance.setLayoutProperty(layerId, 'visibility', visibility)
+  }
+}
+
 function applyRoadPaint(config: StyleConfig) {
   const color = config.roads_color ?? config.label_text_color
   const opacity = config.roads_opacity ?? 0.6
@@ -5254,6 +5305,7 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
         populateSegmentSources()
         placePinMarkers()
         apply3DTerrain({ animate: false })
+        syncPrimaryRouteLayerVisibility(newConfig)
         // setStyle() can reset the viewport; layer toggles must not reframe the poster.
         restoreCameraAfterStyleReload(cameraAfterReload)
         applyViewportScaledLayerProperties(newConfig)
@@ -5292,7 +5344,7 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
           if (seg.color_mode !== 'gradient') mapInstance.setPaintProperty(lineId, 'line-color', seg.color)
           mapInstance.setPaintProperty(lineId, 'line-width', width)
           mapInstance.setPaintProperty(lineId, 'line-opacity', seg.opacity ?? 0.9)
-          mapInstance.setPaintProperty(casingId, 'line-width', width + (newConfig.segment_casing_width ?? 3))
+          mapInstance.setPaintProperty(casingId, 'line-width', width + (newConfig.segment_casing_width ?? DEFAULT_SEGMENT_CASING_WIDTH))
         }
       }
       applyViewportScaledLayerProperties(newConfig)
@@ -5380,13 +5432,14 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
     }
 
     if (mapInstance.getLayer('route-line')) {
+      syncPrimaryRouteLayerVisibility(newConfig)
       const routePaint = resolveTonerRouteStyle(newConfig)
       if ((newConfig.route_color_mode ?? 'solid') !== 'gradient') {
         mapInstance.setPaintProperty('route-line', 'line-color', routePaint.route_color)
       }
       mapInstance.setPaintProperty('route-line', 'line-width', routePaint.route_width)
       mapInstance.setPaintProperty('route-line', 'line-opacity', routePaint.route_opacity)
-      mapInstance.setPaintProperty('route-line-casing', 'line-width', routePaint.route_width + 4)
+      mapInstance.setPaintProperty('route-line-casing', 'line-width', routePaint.route_width + DEFAULT_ROUTE_CASING_WIDTH)
       mapInstance.setPaintProperty('route-line-casing', 'line-opacity', routePaint.route_opacity)
       mapInstance.setPaintProperty('route-line-casing', 'line-color', mapBackgroundColor(newConfig))
     }
@@ -5532,7 +5585,7 @@ function ensureDeleteBrushPreviewLayer() {
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': props.styleConfig.background_color ?? '#FFFFFF',
-        'line-width': (props.styleConfig.route_width ?? 3) + 6,
+        'line-width': (props.styleConfig.route_width ?? DEFAULT_ROUTE_WIDTH) + DEFAULT_ROUTE_CASING_WIDTH + 1.4,
         'line-opacity': 0.92,
       },
     })
@@ -5545,7 +5598,7 @@ function ensureDeleteBrushPreviewLayer() {
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': '#EF4444',
-        'line-width': (props.styleConfig.route_width ?? 3) + 2,
+        'line-width': (props.styleConfig.route_width ?? DEFAULT_ROUTE_WIDTH) + 1.4,
         'line-opacity': 0.96,
       },
     })

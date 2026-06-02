@@ -117,6 +117,7 @@ const routeFields: Array<keyof StyleConfig> = [
   'route_width',
   'route_opacity',
   'route_color_mode',
+  'show_primary_route',
 ]
 
 const segmentFields: Array<keyof StyleConfig> = [
@@ -198,6 +199,10 @@ function isTonerAtlasPreset(preset: StylePreset | string | undefined): boolean {
     || preset === 'radmaps-toner'
 }
 
+function isAtlasWatercolorPreset(preset: StylePreset | string | undefined): boolean {
+  return typeof preset === 'string' && preset.includes('watercolor')
+}
+
 function slotIndex(slot: LayerSlot): number {
   return CANONICAL_LAYER_SLOT_ORDER.indexOf(slot)
 }
@@ -215,6 +220,7 @@ function baseControls(): Partial<Record<keyof StyleConfig, LayerGraphControl>> {
     route_crop_end: { visible: true, update: 'source' },
     route_deleted_ranges: { visible: true, update: 'source' },
     route_color_mode: { visible: true, update: 'full-reload' },
+    show_primary_route: { visible: false, update: 'full-reload', reason: 'Primary route visibility is automatic when trail segments exist; saved overrides are render-only intent.' },
     map_3d: { visible: true, update: 'full-reload' },
     map_pitch: { visible: true, update: 'paint' },
     map_bearing: { visible: true, update: 'paint' },
@@ -474,6 +480,12 @@ function atlasGraph(preset: StylePreset, options: {
   requiredFields?: LayerGraph['requiredFields']
 } = {}) {
   const layerFields = preset === 'radmaps-toner' ? tonerAtlasFields : atlasFields
+  const waterEdgeLayerId = isAtlasWatercolorPreset(preset)
+    ? `${preset}-water-edge-bloom`
+    : `${preset}-water-edge-soften`
+  const waterwaySoftLayerId = isAtlasWatercolorPreset(preset)
+    ? `${preset}-waterway-bloom`
+    : `${preset}-waterway-soften`
   return makeGraph({
     preset,
     features: {
@@ -499,7 +511,9 @@ function atlasGraph(preset: StylePreset, options: {
       ...(isTonerAtlasPreset(preset)
         ? [{ id: `${preset}-park-dots`, slot: 'water-land-buildings' as const, source: 'radmaps-atlas-base', consumes: layerFields }]
         : []),
+      { id: waterEdgeLayerId, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-water`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
+      { id: waterwaySoftLayerId, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-waterway`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-building`, slot: 'water-land-buildings', source: 'radmaps-atlas-base', consumes: layerFields },
       { id: `${preset}-roads-minor`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },

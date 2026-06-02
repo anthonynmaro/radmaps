@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { defineComponent, h } from 'vue'
-import type { ColorTheme, StyleConfig, ThemeDefinition, TrailMap } from '~/types'
+import { DEFAULT_ROUTE_WIDTH, type ColorTheme, type StyleConfig, type ThemeDefinition, type TrailMap } from '~/types'
 import MapPreview from '~/components/map/MapPreview.vue'
 import { getThemeFontPreview, getThemeThumbnailProfile } from '~/utils/themeOptions'
 
@@ -83,7 +83,7 @@ const routeGeometry = computed(() => routePreviewGeometry(props.map.geojson as G
 const routePath = computed(() => routeGeometry.value.path)
 const routePoint = computed(() => routeGeometry.value.point)
 const previewRouteWidth = computed(() => {
-  const configuredWidth = props.previewConfig.route_width ?? 3
+  const configuredWidth = props.previewConfig.route_width ?? DEFAULT_ROUTE_WIDTH
   return Math.min(2.2, Math.max(1.15, configuredWidth * 0.42))
 })
 const previewRouteOpacity = computed(() => Math.min(0.92, Math.max(0.55, props.previewConfig.route_opacity ?? 0.9)))
@@ -204,11 +204,24 @@ const ThemePlaceholder = defineComponent({
         }, titleText),
       ])
 
+      const isDarkSky = componentProps.theme.id === 'dark-sky'
       const map = h('div', {
         class: 'theme-placeholder-map',
-        style: { order: thumb.titlePosition === 'bottom' ? 0 : 1 },
+        style: {
+          order: thumb.titlePosition === 'bottom' ? 0 : 1,
+          backgroundColor: isDarkSky ? componentProps.theme.land_color : undefined,
+        },
       }, [
         h('svg', { viewBox: '0 0 100 100', preserveAspectRatio: 'xMidYMid meet' }, [
+          isDarkSky
+            ? h('path', {
+                d: 'M-8 70 C12 58 34 66 54 48 C72 30 92 34 108 18',
+                fill: 'none',
+                stroke: componentProps.theme.water_color,
+                'stroke-width': '10',
+                opacity: '0.92',
+              })
+            : null,
           h('path', {
             d: 'M-6 78 C16 62 35 70 54 52 C72 34 88 36 108 18',
             fill: 'none',
@@ -242,11 +255,25 @@ const ThemePlaceholder = defineComponent({
                 d: componentProps.path,
                 fill: 'none',
                 stroke: componentProps.theme.route_color,
-                'stroke-width': String(componentProps.routeWidth),
+                'stroke-width': String(isDarkSky ? componentProps.routeWidth + 0.5 : componentProps.routeWidth),
                 'stroke-linecap': 'round',
                 'stroke-linejoin': 'round',
                 opacity: String(componentProps.routeOpacity),
               })
+            : null,
+          isDarkSky
+            ? [
+                h('path', {
+                  d: 'M30 56 L13 36 M58 52 L82 31 M70 38 L88 63',
+                  fill: 'none',
+                  stroke: componentProps.theme.route_color,
+                  'stroke-width': '0.85',
+                  opacity: '0.58',
+                }),
+                h('circle', { cx: '30', cy: '56', r: '2', fill: componentProps.theme.route_color }),
+                h('circle', { cx: '58', cy: '52', r: '2', fill: componentProps.theme.route_color }),
+                h('circle', { cx: '70', cy: '38', r: '2', fill: componentProps.theme.route_color }),
+              ]
             : null,
           componentProps.point
             ? h('circle', {

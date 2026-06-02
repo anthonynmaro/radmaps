@@ -13,6 +13,7 @@ import { computePrintHash } from '~/utils/render/hash'
 import { resolveBrowserRenderViewport } from '~/utils/render/renderViewport'
 import { getFinalPrintPath } from '~/utils/render/storagePaths'
 import { createRenderTicket } from '~/utils/render/renderTicket'
+import { RENDER_READY_EXPRESSION } from '~/utils/render/readiness'
 import type { StyleConfig } from '~/types'
 export async function renderFinalWithScreenshot(input: {
   stripeSessionId: string
@@ -90,7 +91,7 @@ export async function renderFinalWithScreenshot(input: {
     format: 'jpeg',
     quality: 95,
     waitUntil: 'domcontentloaded',
-    waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
+    waitForFunction: RENDER_READY_EXPRESSION,
     timeoutMs: CONFIG.renderTimeoutMs,
   } as const
   const screenshot = CONFIG.renderBackend === 'local-chromium'

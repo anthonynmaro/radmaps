@@ -45,6 +45,43 @@ viewport carry `metadata.radmaps.scale`, and
 [utils/render/viewportScale.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/viewportScale.ts)
 uses that metadata rather than layer-ID regexes.
 
+### Route And Trail Segment Parity
+
+The uploaded GPX route and named trail segments are separate MapLibre layer
+families. This is intentional, but it creates a sharp renderer invariant:
+once visible `trail_segments` exist, the primary/full GPX route must not be
+drawn underneath them by default. Otherwise a trail can appear twice: once as
+its named segment and again as the original full route. The style builder gates
+the primary route through `shouldRenderPrimaryRoute(config)` in
+[utils/mapStyle.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/mapStyle.ts).
+`show_primary_route: true` is the explicit escape hatch for rare maps that
+really need both layer families.
+
+Because primary-route visibility changes the MapLibre source/layer graph, the
+field is classified as a map field in
+[utils/render/fieldLayer.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/fieldLayer.ts)
+and a full-reload graph field in
+[utils/styleLayerGraph.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleLayerGraph.ts).
+Do not treat it as a paint-only opacity toggle. A stale `route-line` layer in an
+already-open editor session is hidden defensively by
+[MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue),
+but proof/final correctness comes from not generating the source/layers in the
+first place.
+
+Global route controls in the StylePanel are also segment-aware. When named
+segments are present, changes to route color, width, opacity, smoothness, and
+gradient mode must propagate into the visible segment linework rather than only
+updating the hidden or absent primary route. Keep this behavior in
+[utils/styleControlSync.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/styleControlSync.ts)
+so it remains unit-testable outside Vue.
+
+Leader-line labels use resolved segment geometry, not percentage guesses from
+the primary route. The leader dot anchors to the first valid coordinate of the
+related segment, including uploaded-track and drawn-track segment geometries.
+Both editor overlays and print overlays use the shared
+[utils/render/overlayLayout.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/overlayLayout.ts)
+helper; do not reimplement leader placement in the worker or render pages.
+
 ### Composition-Driven Poster Chrome
 
 Refined theme layouts are implemented in the same renderer through
@@ -166,13 +203,16 @@ Browserless must wait for the render page to be truly ready, not just loaded.
 - `renderMode="print"` removes editor chrome, shadows, background padding, and interactivity.
 - `printContext` supplies exact framing, render class, and device scale.
 - The component sets `window.__RENDER_READY === true` only after MapLibre, route data, style reloads, tiles, fonts, logos/images, overlays, and render diagnostics are ready.
+- `window.__RADMAPS_RENDER_STATUS.routeContentPresent` is true when the visible route content is renderable. This can be the primary `route-line`, the named trail segment layers, or both when `show_primary_route: true`.
 - For the `radmaps-watercolor` preset, the MapLibre tile set includes the server-rendered `/api/watercolor/tiles/base/{z}/{x}/{y}.png` art tiles. Any missing or failed watercolor tile must surface through render diagnostics; proof/final capture should hard-fail rather than screenshot a partially painted map.
 - The component also writes `window.__RADMAPS_RENDER_STATUS` so the caller can diagnose internal render failures.
 
-The screenshot caller should wait on:
+The screenshot caller should use `RENDER_READY_EXPRESSION` from
+[utils/render/readiness.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/readiness.ts),
+which currently expands to:
 
 ```js
-window.__RENDER_READY === true && !window.__RADMAPS_RENDER_STATUS?.errors?.length
+window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeContentPresent === true
 ```
 
 Do not replace this with `networkidle`, a fixed sleep, or a CSS selector alone.

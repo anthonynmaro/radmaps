@@ -1,4 +1,4 @@
-import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_STYLE_CONFIG, type StyleConfig, type TonerVariant, type TrailSegment } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_STYLE_CONFIG, DEFAULT_SEGMENT_CASING_WIDTH, type StyleConfig, type TonerVariant, type TrailSegment } from '~/types'
 import {
   CIRCLE_SCALE_PROPERTIES,
   LINE_SCALE_PROPERTIES,
@@ -840,7 +840,7 @@ export function trailSegmentLayers(segments: TrailSegment[] = [], config: StyleC
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.segment_casing_color ?? '#FFFFFF',
-        'line-width': width + (config.segment_casing_width ?? 3),
+        'line-width': width + (config.segment_casing_width ?? DEFAULT_SEGMENT_CASING_WIDTH),
         'line-opacity': opacity,
       },
     }, LINE_SCALE_PROPERTIES))
@@ -920,6 +920,28 @@ function routeSource(config: StyleConfig): object {
   }
 }
 
+function hasVisibleTrailSegments(config: Pick<StyleConfig, 'trail_segments'>): boolean {
+  return (config.trail_segments ?? []).some(segment => segment.visible)
+}
+
+export function shouldRenderPrimaryRoute(
+  config: Pick<StyleConfig, 'trail_segments' | 'show_primary_route'>,
+): boolean {
+  return config.show_primary_route ?? !hasVisibleTrailSegments(config)
+}
+
+function primaryRouteSource(config: StyleConfig): Record<string, object> {
+  return shouldRenderPrimaryRoute(config) ? { route: routeSource(config) } : {}
+}
+
+function primaryRouteLayers(config: StyleConfig, visibilityConfig: StyleConfig = config): object[] {
+  return shouldRenderPrimaryRoute(visibilityConfig) ? routeLayers(config) : []
+}
+
+function primaryRouteLabelCollisionLayer(config: StyleConfig): object[] {
+  return shouldRenderPrimaryRoute(config) ? [routeLabelCollisionLayer(config)] : []
+}
+
 // ─── Route layers ─────────────────────────────────────────────────────────────
 
 function routeLayers(config: StyleConfig) {
@@ -934,7 +956,7 @@ function routeLayers(config: StyleConfig) {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.route_color,
-          'line-width': config.route_width + 6,
+          'line-width': config.route_width + (isWatercolorRoute ? 4.2 : DEFAULT_ROUTE_CASING_WIDTH + 1.4),
           'line-opacity': Math.min(config.route_opacity * 0.24, 0.28),
           'line-blur': 2.8,
         },
@@ -947,7 +969,7 @@ function routeLayers(config: StyleConfig) {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': isWatercolorRoute ? '#f6eed8' : mapBackgroundColor(config),
-      'line-width': config.route_width + (isWatercolorRoute ? 5 : 4),
+      'line-width': config.route_width + (isWatercolorRoute ? 3.5 : DEFAULT_ROUTE_CASING_WIDTH),
       'line-opacity': isWatercolorRoute ? Math.min(config.route_opacity, 0.78) : config.route_opacity,
       ...(isWatercolorRoute ? { 'line-blur': 0.65 } : {}),
     },
@@ -1085,7 +1107,7 @@ function buildMinimalistStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1103,7 +1125,7 @@ function buildMinimalistStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1248,7 +1270,7 @@ function buildRadMapsAtlasStyle(
   const roadMajor = atlasSettings.transportation?.major_color || tonerPalette?.roadMajor || road
   const roadMinor = atlasSettings.transportation?.minor_color || tonerPalette?.roadMinor || road
   const trail = atlasSettings.transportation?.trail_color || tonerPalette?.trail || (isWatercolorClassic ? '#8c9d7c' : isPigmentWash ? '#8ea27a' : isWatercolorPaper ? '#9b8c61' : isBrushInk ? '#7f8f70' : isContourWash ? '#7d9ab3' : ink)
-  const labelHalo = isDarkAtlas ? '#0b1d15' : isWatercolorClassic ? '#edf1e4' : isPigmentWash ? '#eef1df' : isWatercolorPaper ? '#f2e8d3' : isBrushInk ? '#f4ebd8' : isContourWash ? '#d7e8f7' : tonerPalette?.labelHalo ?? '#f7f2e7'
+  const labelHalo = atlasSettings.place?.halo_color || (isDarkAtlas ? '#0b1d15' : isWatercolorClassic ? '#edf1e4' : isPigmentWash ? '#eef1df' : isWatercolorPaper ? '#f2e8d3' : isBrushInk ? '#f4ebd8' : isContourWash ? '#d7e8f7' : tonerPalette?.labelHalo ?? '#f7f2e7')
   const label = atlasSettings.place?.label_color || (isToner ? tonerPalette?.label : config.place_labels_color) || config.label_text_color || (isDarkAtlas ? '#e5f3d8' : '#29362d')
   const poiLabel = atlasSettings.poi?.label_color || (isToner ? tonerPalette?.poiLabel : config.poi_labels_color) || label
   const roadOpacity = atlasNumberSetting(atlasSettings.transportation?.opacity ?? config.roads_opacity, isWatercolorClassic ? 0.28 : isPigmentWash ? 0.34 : isWatercolorPaper ? 0.24 : isBrushInk ? 0.48 : isDarkAtlas ? 0.9 : isContourWash ? 0.18 : tonerPalette?.roadOpacity ?? 0.82)
@@ -1266,7 +1288,34 @@ function buildRadMapsAtlasStyle(
   const showTrails = showTransportation && (atlasSettings.transportation?.show_trails ?? true)
   const showPlaces = atlasLayerEnabled(config, 'place', config.show_place_labels !== false) && config.show_place_labels !== false
   const showPois = atlasLayerEnabled(config, 'poi', config.show_poi_labels ?? true) && config.show_poi_labels !== false
-  const tonerFillSmoothing = tonerPalette ? { 'fill-antialias': false } : {}
+  const atlasFillSmoothing = { 'fill-antialias': !tonerPalette }
+  const waterEdgeLayerId = isWatercolor ? `${preset}-water-edge-bloom` : `${preset}-water-edge-soften`
+  const waterEdgeOpacity = isWatercolor
+    ? (isWatercolorClassic ? 0.30 : isPigmentWash ? 0.28 : isWatercolorPaper ? 0.24 : 0.42)
+    : (tonerPalette ? 0.12 : isDarkAtlas ? 0.32 : isContourWash ? 0.22 : isSimpleContour ? 0.16 : 0.24)
+  const waterEdgeBlur = isWatercolor
+    ? (isWatercolorPaper ? 1.8 : isBrushInk ? 1.4 : 2.2)
+    : (tonerPalette ? 0.65 : isDarkAtlas ? 1.35 : isContourWash ? 1.1 : 1.0)
+  const waterEdgeWidth = isWatercolor
+    ? ['interpolate', ['linear'], ['zoom'], 5, 1.4, 12, isWatercolorPaper ? 3.8 : isBrushInk ? 3.2 : 4.6, 16, isWatercolorPaper ? 5.8 : isBrushInk ? 5.2 : 6.6]
+    : ['interpolate', ['linear'], ['zoom'], 5, tonerPalette ? 0.7 : 0.95, 12, isDarkAtlas ? 3.4 : 2.8, 16, isDarkAtlas ? 5.0 : 4.0]
+  const waterwaySoftLayerId = isWatercolor ? `${preset}-waterway-bloom` : `${preset}-waterway-soften`
+  const waterwayConfiguredWidth = atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width
+  const waterwayMinWidth = Math.max(0.05, (waterwayConfiguredWidth ?? 1) * (isWatercolor ? 0.55 : 0.35))
+  const waterwayMidWidth = waterwayConfiguredWidth ?? (isPigmentWash ? 1.6 : 1.1)
+  const waterwayMaxWidth = waterwayConfiguredWidth ?? (isPigmentWash ? 2.8 : 2.0)
+  const waterwaySoftOpacity = isWatercolor
+    ? (isWatercolorClassic ? 0.34 : isPigmentWash ? 0.32 : isWatercolorPaper ? 0.28 : 0.42)
+    : (tonerPalette ? 0.10 : isDarkAtlas ? 0.26 : isContourWash ? 0.18 : 0.20)
+  const waterwaySoftBlur = isWatercolor
+    ? (isWatercolorPaper ? 1.5 : isBrushInk ? 1.2 : 2.1)
+    : (tonerPalette ? 0.45 : isDarkAtlas ? 0.85 : 0.65)
+  const waterwaySoftWidth = isWatercolor
+    ? ['interpolate', ['linear'], ['zoom'], 8, 1.2, 13, isWatercolorPaper ? 2.6 : isBrushInk ? 2.6 : 3.6, 15, isWatercolorPaper ? 4.4 : isBrushInk ? 4.6 : 5.8]
+    : ['interpolate', ['linear'], ['zoom'], 8, waterwayMinWidth + 0.7, 13, waterwayMidWidth + 1.6, 15, waterwayMaxWidth + 2.4]
+  const waterwayCoreBlur = isWatercolor
+    ? (isWatercolorPaper ? 0.25 : isBrushInk ? 0.15 : 0.45)
+    : (tonerPalette ? 0.04 : 0.12)
 
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
@@ -1276,7 +1325,7 @@ function buildRadMapsAtlasStyle(
       maxzoom: 14,
       attribution: '© OpenStreetMap contributors © RadMaps Atlas',
     },
-    route: routeSource(config),
+    ...primaryRouteSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
   }
@@ -1332,21 +1381,21 @@ function buildRadMapsAtlasStyle(
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources,
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': isWatercolorArtTile ? '#eee5cd' : tonerPalette?.background ?? (isDarkAtlas ? '#081611' : isWatercolorPaper ? '#efe4cf' : land) } },
+      { id: 'background', type: 'background', paint: { 'background-color': isWatercolorArtTile ? '#eee5cd' : tonerPalette?.background ?? (isDarkAtlas ? atlasSettings.landcover?.color || land : isWatercolorPaper ? '#efe4cf' : land) } },
       ...(isWatercolorArtTile ? [{ id: 'radmaps-watercolor-base', type: 'raster', source: 'radmaps-watercolor-base', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showLandcover ? [{ id: `${preset}-paper-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': isWatercolorPaper ? '#f7ecd6' : '#f6efd8', 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.28 : 0.12, 'fill-translate': isWatercolorPaper ? [2.2, -1.8] : [1.4, -1.2] } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showPois ? [withScaleMetadata({ id: `${preset}-pigment-granulation`, type: 'circle', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 8, paint: { 'circle-color': isWatercolorPaper ? '#a79068' : '#719471', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, isWatercolorPaper ? 0.95 : 0.7, 16, isWatercolorPaper ? 1.35 : 1.0], 'circle-opacity': ['interpolate', ['linear'], ['zoom'], 8, isWatercolorPaper ? 0.10 : 0.055, 14, isWatercolorPaper ? 0.16 : 0.08], 'circle-blur': isWatercolorPaper ? 0.45 : 0.75 } }, ['circle-radius'])] : []),
-      ...(!isWatercolorArtTile && showLandcover ? [{ id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': atlasNumberSetting(atlasSettings.landcover?.opacity, tonerPalette?.landOpacity ?? (isContourWash ? 0.94 : isSimpleContour ? 0.12 : isWatercolorClassic ? 0.50 : isPigmentWash ? 0.52 : isWatercolorPaper ? 0.56 : isBrushInk ? 0.68 : 0.82)), ...tonerFillSmoothing } }] : []),
-      ...(!isWatercolorArtTile && tonerPatternVariant && showLandcover ? [{ id: `${preset}-natural-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', filter: tonerDotNaturalFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.22 : 0.14, ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && showLandcover ? [{ id: `${preset}-landcover`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': land, 'fill-opacity': atlasNumberSetting(atlasSettings.landcover?.opacity, tonerPalette?.landOpacity ?? (isContourWash ? 0.94 : isSimpleContour ? 0.12 : isWatercolorClassic ? 0.50 : isPigmentWash ? 0.52 : isWatercolorPaper ? 0.56 : isBrushInk ? 0.68 : 0.82)), ...atlasFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && tonerPatternVariant && showLandcover ? [{ id: `${preset}-natural-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', filter: tonerDotNaturalFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.22 : 0.14, ...atlasFillSmoothing } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showPark ? [{ id: `${preset}-park-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.24 : 0.22, 'fill-translate': [-1.2, 1.1] } }] : []),
-      ...(!isWatercolorArtTile && showPark ? [{ id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': atlasNumberSetting(atlasSettings.park?.opacity, tonerPalette?.parkOpacity ?? (isContourWash ? 0.28 : isSimpleContour ? 0.10 : isWatercolorClassic ? 0.30 : isPigmentWash ? 0.30 : isWatercolorPaper ? 0.32 : isBrushInk ? 0.46 : 0.58)), ...tonerFillSmoothing } }] : []),
-      ...(!isWatercolorArtTile && tonerPatternVariant && showPark ? [{ id: `${preset}-park-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', filter: tonerDotParkFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.24 : 0.16, ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && showPark ? [{ id: `${preset}-park`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', paint: { 'fill-color': park, 'fill-opacity': atlasNumberSetting(atlasSettings.park?.opacity, tonerPalette?.parkOpacity ?? (isContourWash ? 0.28 : isSimpleContour ? 0.10 : isWatercolorClassic ? 0.30 : isPigmentWash ? 0.30 : isWatercolorPaper ? 0.32 : isBrushInk ? 0.46 : 0.58)), ...atlasFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && tonerPatternVariant && showPark ? [{ id: `${preset}-park-dots`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'park', filter: tonerDotParkFilter(), paint: { 'fill-pattern': tonerDotPatternId(tonerPatternVariant, 'soft'), 'fill-opacity': tonerPatternVariant === 'dark' ? 0.24 : 0.16, ...atlasFillSmoothing } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showWater ? [{ id: `${preset}-water-pigment-pool`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': isWatercolorPaper ? 0.20 : 0.24, 'fill-translate': [-1.6, 1.2] } }] : []),
-      ...(!isWatercolorArtTile && isWatercolor && showWater ? [withScaleMetadata({ id: `${preset}-water-edge-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'line-color': water, 'line-opacity': isWatercolorClassic ? 0.30 : isPigmentWash ? 0.28 : isWatercolorPaper ? 0.24 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.4, 12, isWatercolorPaper ? 3.8 : isBrushInk ? 3.2 : 4.6, 16, isWatercolorPaper ? 5.8 : isBrushInk ? 5.2 : 6.6], 'line-blur': isWatercolorPaper ? 1.8 : isBrushInk ? 1.4 : 2.2 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(!isWatercolorArtTile && showWater ? [{ id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': atlasNumberSetting(atlasSettings.water?.fill_opacity, tonerPalette?.waterOpacity ?? (isContourWash ? 0.36 : isWatercolorClassic ? 0.46 : isPigmentWash ? 0.48 : isWatercolorPaper ? 0.38 : isBrushInk ? 0.58 : 0.76)), ...tonerFillSmoothing, ...(isWatercolor ? { 'fill-translate': [0.7, -0.4] } : {}) } }] : []),
-      ...(!isWatercolorArtTile && isWatercolor && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway-bloom`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': isWatercolorClassic ? 0.34 : isPigmentWash ? 0.32 : isWatercolorPaper ? 0.28 : 0.42, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 13, isWatercolorPaper ? 2.6 : isBrushInk ? 2.6 : 3.6, 15, isWatercolorPaper ? 4.4 : isBrushInk ? 4.6 : 5.8], 'line-blur': isWatercolorPaper ? 1.5 : isBrushInk ? 1.2 : 2.1 } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(!isWatercolorArtTile && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', paint: { 'line-color': waterway, 'line-opacity': atlasNumberSetting(atlasSettings.waterway?.opacity ?? atlasSettings.water?.waterway_opacity, isWatercolorClassic ? 0.48 : isPigmentWash ? 0.50 : isWatercolorPaper ? 0.42 : isBrushInk ? 0.68 : 0.78), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, Math.max(0.05, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? 1) * (isWatercolor ? 0.55 : 0.35)), 13, atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 1.6 : 1.1), 15, (atlasSettings.waterway?.width ?? atlasSettings.water?.waterway_width ?? (isPigmentWash ? 2.8 : 2.0))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.25 : isBrushInk ? 0.15 : 0.45 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
-      ...(!isWatercolorArtTile && showBuildings ? [{ id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': atlasSettings.building?.fill_color || tonerPalette?.building || ink, 'fill-opacity': atlasNumberSetting(atlasSettings.building?.opacity, tonerPalette?.buildingOpacity ?? (isSimpleContour ? 0.05 : 0.16)), ...tonerFillSmoothing } }] : []),
+      ...(!isWatercolorArtTile && showWater ? [withScaleMetadata({ id: waterEdgeLayerId, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'water', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': water, 'line-opacity': waterEdgeOpacity, 'line-width': waterEdgeWidth, 'line-blur': waterEdgeBlur } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showWater ? [{ id: `${preset}-water`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'water', paint: { 'fill-color': water, 'fill-opacity': atlasNumberSetting(atlasSettings.water?.fill_opacity, tonerPalette?.waterOpacity ?? (isContourWash ? 0.36 : isWatercolorClassic ? 0.46 : isPigmentWash ? 0.48 : isWatercolorPaper ? 0.38 : isBrushInk ? 0.58 : 0.76)), ...atlasFillSmoothing, ...(isWatercolor ? { 'fill-translate': [0.7, -0.4] } : {}) } }] : []),
+      ...(!isWatercolorArtTile && showWaterway ? [withScaleMetadata({ id: waterwaySoftLayerId, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': waterway, 'line-opacity': waterwaySoftOpacity, 'line-width': waterwaySoftWidth, 'line-blur': waterwaySoftBlur } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showWaterway ? [withScaleMetadata({ id: `${preset}-waterway`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'waterway', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': waterway, 'line-opacity': atlasNumberSetting(atlasSettings.waterway?.opacity ?? atlasSettings.water?.waterway_opacity, isWatercolorClassic ? 0.48 : isPigmentWash ? 0.50 : isWatercolorPaper ? 0.42 : isBrushInk ? 0.68 : 0.78), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, waterwayMinWidth, 13, waterwayMidWidth, 15, waterwayMaxWidth], 'line-blur': waterwayCoreBlur } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showBuildings ? [{ id: `${preset}-building`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': atlasSettings.building?.fill_color || tonerPalette?.building || ink, 'fill-opacity': atlasNumberSetting(atlasSettings.building?.opacity, tonerPalette?.buildingOpacity ?? (isSimpleContour ? 0.05 : 0.16)), ...atlasFillSmoothing } }] : []),
       ...(config.show_hillshade && !isSimpleContour ? hillshadeLayers(config) : []),
       ...atlasContourLayers,
       ...(!isWatercolorArtTile && isWatercolor && showMinorRoads ? [withScaleMetadata({ id: `${preset}-roads-minor-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'street', 'residential', 'tertiary', 'unclassified']]], paint: { 'line-color': roadMinor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.22 : isBrushInk ? 0.34 : 0.30), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, isWatercolorPaper ? 2.0 : 2.6, 16, isWatercolorPaper ? 3.7 : 4.4], 'line-blur': isWatercolorPaper ? 0.9 : isBrushInk ? 0.7 : 1.3 } }, LINE_SCALE_PROPERTIES)] : []),
@@ -1354,8 +1403,8 @@ function buildRadMapsAtlasStyle(
       ...(!isWatercolorArtTile && isWatercolor && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.28 : isBrushInk ? 0.44 : 0.38), 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 12, isWatercolorPaper ? 3.2 : 4.0, 16, isWatercolorPaper ? 5.4 : 6.4], 'line-blur': isWatercolorPaper ? 1.0 : isBrushInk ? 0.8 : 1.5 } }, LINE_SCALE_PROPERTIES)] : []),
       ...(!isWatercolorArtTile && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, tonerPalette ? 0.95 : 0.55, 12, atlasSettings.transportation?.major_width ?? (tonerPalette ? 3.3 : isWatercolor ? 2.0 : 2.0), 16, (atlasSettings.transportation?.major_width ?? (tonerPalette ? 6.6 : isWatercolor ? 4.0 : 4.2))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.18 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
       ...(!isWatercolorArtTile && showTrails ? [withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail', 'footway', 'cycleway', 'bridleway', 'pedestrian']]], paint: { 'line-color': trail, 'line-opacity': tonerPalette ? Math.min(roadOpacity, tonerPalette.trailOpacity) : isWatercolorClassic ? Math.min(roadOpacity, 0.28) : isPigmentWash ? Math.min(roadOpacity, 0.30) : isWatercolorPaper ? Math.min(roadOpacity, 0.24) : isWatercolor ? Math.min(roadOpacity, 0.42) : Math.min(roadOpacity, 0.65), 'line-width': ['interpolate', ['linear'], ['zoom'], 10, tonerPalette ? 0.45 : 0.35, 14, atlasSettings.transportation?.trail_width ?? (tonerPalette ? 1.5 : 1.2), 16, (atlasSettings.transportation?.trail_width ?? (tonerPalette ? 2.6 : 2.0))], 'line-dasharray': isBrushInk || isWatercolorPaper ? [1.7, 1.1] : [1.2, 1.6], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.16 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
-      ...routeLayers(routeConfig),
-      routeLabelCollisionLayer(config),
+      ...primaryRouteLayers(routeConfig, config),
+      ...primaryRouteLabelCollisionLayer(config),
       ...(showPlaces ? [withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, atlasSettings.place?.font_size ?? 9, 12, (atlasSettings.place?.font_size ?? 15)], 'text-letter-spacing': 0.02, 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': isWatercolor ? 0.62 : 0.46, 'text-justify': 'auto' }, paint: { 'text-color': label, 'text-opacity': atlasNumberSetting(atlasSettings.place?.label_opacity ?? config.place_labels_opacity, isWatercolor ? 0.48 : 0.78), 'text-halo-color': atlasSettings.place?.halo_color || labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES)] : []),
       ...(showPois ? [withScaleMetadata({ id: `${preset}-poi-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11], 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': 0.72, 'text-justify': 'auto' }, paint: { 'text-color': poiLabel, 'text-opacity': atlasNumberSetting(atlasSettings.poi?.label_opacity ?? config.poi_labels_opacity, isWatercolor ? 0.34 : 0.62), 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES)] : []),
       ...trailSegmentLayers(config.trail_segments, config),
@@ -1384,7 +1433,7 @@ function buildRouteOnlyStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1393,7 +1442,7 @@ function buildRouteOnlyStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1420,7 +1469,7 @@ function buildRoadNetworkStyle(
   const sources: Record<string, object> = {
     ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
     ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
-    route: routeSource(config),
+    ...primaryRouteSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
   }
@@ -1535,7 +1584,7 @@ function buildRoadNetworkStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...roadLineLayers,
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1567,7 +1616,7 @@ function buildContourArtStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...contourSource(token, contourTileUrl),
       ...(token ? roadsSource(token) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1659,7 +1708,7 @@ function buildContourArtStyle(
         : contourLayers(artConfig, false)
       ),
       ...(token ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1705,7 +1754,7 @@ function buildNaturalTopoStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1725,7 +1774,7 @@ function buildNaturalTopoStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1770,7 +1819,7 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1788,7 +1837,7 @@ function buildStadiaWatercolorStyle(config: StyleConfig, contourTileUrl?: string
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
       ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1825,7 +1874,7 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
       ...((config.show_hillshade || config.map_3d) ? demSource('') : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -1843,7 +1892,7 @@ function buildStadiaTonerStyle(config: StyleConfig, contourTileUrl?: string, sta
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
       ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1868,7 +1917,7 @@ function buildNativeTonerStyle(
   const sources: Record<string, object> = {
     ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
     ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
-    route: routeSource(config),
+    ...primaryRouteSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
   }
@@ -1949,7 +1998,7 @@ function buildNativeTonerStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...roadLineLayers,
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -1987,7 +2036,7 @@ function buildNativeWatercolorStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -2005,7 +2054,7 @@ function buildNativeWatercolorStyle(
       ...(config.show_hillshade ? hillshadeLayers(config) : []),
       ...(config.show_contours ? contourLayers(config, usingMlContour) : []),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -2041,7 +2090,7 @@ function buildAlidadeSmoothStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -2059,7 +2108,7 @@ function buildAlidadeSmoothStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -2096,7 +2145,7 @@ function buildAlidadeSmoothDarkStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(mapboxTk) : {}),
       ...(config.show_contours ? contourSource(mapboxTk, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && mapboxTk ? roadsSource(mapboxTk) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -2114,7 +2163,7 @@ function buildAlidadeSmoothDarkStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(mapboxTk ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],
@@ -2145,7 +2194,7 @@ function buildTopographicStyle(
       ...((config.show_hillshade || config.map_3d) ? demSource(token) : {}),
       ...(config.show_contours ? contourSource(token, contourTileUrl) : {}),
       ...(usesRoadOverlay(config) && token ? roadsSource(token) : {}),
-      route: routeSource(config),
+      ...primaryRouteSource(config),
       ...trailSegmentSources(config.trail_segments),
       ...segmentHandleSource(),
     },
@@ -2165,7 +2214,7 @@ function buildTopographicStyle(
       ...hillshadeLayers(config),
       ...contourLayers(config, usingMlContour),
       ...(token ? roadsLayers(config) : []),
-      ...routeLayers(config),
+      ...primaryRouteLayers(config),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],

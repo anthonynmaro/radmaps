@@ -95,11 +95,20 @@
                   order: themeThumb(theme).titlePosition === 'bottom' ? 0 : 1,
                   flex: 1,
                   overflow: 'hidden',
+                  backgroundColor: theme.id === 'dark-sky' ? theme.land_color : 'transparent',
                 }">
                   <svg viewBox="0 0 60 40" style="width: 100%; height: 100%;" fill="none" preserveAspectRatio="xMidYMid slice">
+                    <path v-if="theme.id === 'dark-sky'" d="M-3 28 Q12 22 24 24 Q38 27 63 16" :stroke="theme.water_color" stroke-width="5" fill="none" opacity="0.9"/>
                     <ellipse cx="30" cy="22" rx="22" ry="12" :stroke="theme.label_text_color" stroke-width="0.4" fill="none" opacity="0.18"/>
                     <ellipse cx="30" cy="22" rx="14" ry="8" :stroke="theme.label_text_color" stroke-width="0.4" fill="none" opacity="0.14"/>
-                    <path d="M6 32 Q16 26 24 28 Q34 30 44 18 Q50 12 56 14" :stroke="theme.route_color" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                    <template v-if="theme.id === 'dark-sky'">
+                      <path d="M8 30 Q18 22 26 24 Q34 26 42 17 Q49 9 56 12" :stroke="theme.route_color" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                      <path d="M18 20 L6 12 M35 23 L51 10 M43 17 L54 25" :stroke="theme.route_color" stroke-width="0.45" fill="none" opacity="0.58"/>
+                      <circle cx="18" cy="20" r="0.9" :fill="theme.route_color"/>
+                      <circle cx="35" cy="23" r="0.9" :fill="theme.route_color"/>
+                      <circle cx="43" cy="17" r="0.9" :fill="theme.route_color"/>
+                    </template>
+                    <path v-else d="M6 32 Q16 26 24 28 Q34 30 44 18 Q50 12 56 14" :stroke="theme.route_color" stroke-width="1.6" fill="none" stroke-linecap="round"/>
                   </svg>
                 </div>
 
@@ -236,9 +245,9 @@
         </V4Card>
 
         <V4Card v-if="sections.routeLineQuick" title="Route line" :default-open="true">
-          <ColorRow label="Color" :value="local.route_color" @change="set('route_color', $event)" />
+          <ColorRow label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
           <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
-            :display="(v: number) => v + 'px'" @change="set('route_width', $event)" />
+            :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
         </V4Card>
 
       </template>
@@ -585,15 +594,15 @@
 
         <V4Card v-if="sections.routeMapCard" title="Route" :default-open="false">
           <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
-            @change="set('route_color_mode', $event ? 'gradient' : 'solid')" />
-          <ColorRow label="Color" :value="local.route_color" @change="set('route_color', $event)" />
+            @change="setRouteLineStyle('route_color_mode', $event ? 'gradient' : 'solid')" />
+          <ColorRow label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
           <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
-            :display="(v: number) => v + 'px'" @change="set('route_width', $event)" />
+            :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
           <SliderRow label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
-            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('route_opacity', $event)" />
+            :display="(v: number) => Math.round(v * 100) + '%'" @change="setRouteLineStyle('route_opacity', $event)" />
           <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="10" :step="1"
             :display="(v: number) => v === 0 ? 'Off' : v === 10 ? 'Max' : String(v)"
-            @change="set('route_smooth', $event)" />
+            @change="setRouteLineStyle('route_smooth', $event)" />
           <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
           <div class="flex items-center justify-between mb-2">
             <p class="text-[10px] font-semibold uppercase" style="letter-spacing: 0.14em; color: #A8A29E;">Crop route</p>
@@ -812,10 +821,10 @@
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Width</span>
-                  <input type="range" min="1" max="8" step="0.5" :value="(local.trail_segments ?? [])[0]?.width ?? 3"
+                  <input type="range" min="1" max="8" step="0.5" :value="(local.trail_segments ?? [])[0]?.width ?? DEFAULT_TRAIL_SEGMENT_WIDTH"
                     class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
                     @change="applyToAll({ width: parseFloat(($event.target as HTMLInputElement).value) })" />
-                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ ((local.trail_segments ?? [])[0]?.width ?? 3) }}px</span>
+                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ ((local.trail_segments ?? [])[0]?.width ?? DEFAULT_TRAIL_SEGMENT_WIDTH) }}px</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Smooth</span>
@@ -826,10 +835,10 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs shrink-0" style="color: #44403C; width: 44px;">Border</span>
-                  <input type="range" min="0" max="8" step="0.5" :value="local.segment_casing_width ?? 3"
+                  <input type="range" min="0" max="8" step="0.5" :value="local.segment_casing_width ?? DEFAULT_SEGMENT_CASING_WIDTH"
                     class="flex-1 h-1 rounded-full appearance-none cursor-pointer" style="accent-color: #2D6A4F;"
                     @change="set('segment_casing_width', parseFloat(($event.target as HTMLInputElement).value))" />
-                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ local.segment_casing_width ?? 3 }}px</span>
+                  <span class="text-[10px] shrink-0 text-right" style="color: #78716C; width: 24px;">{{ local.segment_casing_width ?? DEFAULT_SEGMENT_CASING_WIDTH }}px</span>
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-xs" style="color: #44403C;">Border color</span>
@@ -974,7 +983,7 @@
                   <SliderRow label="Start" :value="seg.section_start" :min="0" :max="100" :step="segmentStep(seg)" :display="isGeometryBackedSegmentSource(seg) ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_start: Math.min($event, seg.section_end - segmentStep(seg)) })" />
                   <SliderRow label="End" :value="seg.section_end" :min="0" :max="100" :step="segmentStep(seg)" :display="isGeometryBackedSegmentSource(seg) ? segmentPercentDisplay : segmentPctDisplay" @change="setSegment(seg.id, { section_end: Math.max($event, seg.section_start + segmentStep(seg)) })" />
                 </div>
-                <SliderRow label="Width" :value="seg.width ?? 3" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
+                <SliderRow label="Width" :value="seg.width ?? local.route_width ?? DEFAULT_TRAIL_SEGMENT_WIDTH" :min="1" :max="8" :step="0.5" :display="(v: number) => v + 'px'" @change="setSegment(seg.id, { width: $event })" />
                 <SliderRow label="Smooth" :value="seg.smooth ?? 0" :min="0" :max="10" :step="1" :display="segmentSmoothDisplay" @change="setSegment(seg.id, { smooth: $event })" />
                 <div class="flex items-center justify-between">
                   <span class="text-xs" style="color: #44403C;">Dashed</span>
@@ -1412,7 +1421,7 @@
 
 <script setup lang="ts">
 import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
-import { DEFAULT_CONTOUR_MAJOR_WIDTH } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
@@ -1429,6 +1438,8 @@ import {
 } from '~/utils/themeOptions'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
+import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
+import { defaultTrailSegmentColor } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type SegmentDrawMode =
@@ -1593,19 +1604,19 @@ const atlasContourMajorColor = computed(() => atlasLayerSettings('contour').majo
 const atlasContourOpacity = computed(() => atlasLayerSettings('contour').minor_opacity ?? local.contour_opacity ?? 0.75)
 const atlasContourLabels = computed(() => atlasLayerSettings('contour').labels ?? local.show_elevation_labels)
 const isDarkAtlasPreset = computed(() => local.preset === 'radmaps-night-relief' || local.preset === 'radmaps-alidade-dark')
-const atlasWaterFillColor = computed(() => atlasLayerSettings('water').fill_color ?? (isDarkAtlasPreset.value ? '#3F9FBD' : local.water_color ?? '#79B7C8'))
+const atlasWaterFillColor = computed(() => atlasLayerSettings('water').fill_color ?? (isDarkAtlasPreset.value ? '#040712' : local.water_color ?? '#79B7C8'))
 const atlasWaterOpacity = computed(() => atlasLayerSettings('water').fill_opacity ?? 0.76)
 const atlasWaterwayColor = computed(() => atlasLayerSettings('waterway').color ?? atlasLayerSettings('water').waterway_color ?? atlasWaterFillColor.value)
 const atlasWaterwayOpacity = computed(() => atlasLayerSettings('waterway').opacity ?? atlasLayerSettings('water').waterway_opacity ?? 0.78)
 const atlasWaterwayWidth = computed(() => atlasLayerSettings('waterway').width ?? atlasLayerSettings('water').waterway_width ?? 1.1)
-const atlasParkFillColor = computed(() => atlasLayerSettings('park').fill_color ?? (isDarkAtlasPreset.value ? '#193F25' : '#C9D29A'))
+const atlasParkFillColor = computed(() => atlasLayerSettings('park').fill_color ?? (isDarkAtlasPreset.value ? '#0B1020' : '#C9D29A'))
 const atlasParkOpacity = computed(() => atlasLayerSettings('park').opacity ?? 0.58)
-const atlasLandcoverColor = computed(() => atlasLayerSettings('landcover').color ?? (isDarkAtlasPreset.value ? '#102A1D' : local.land_color ?? '#E7DFBF'))
+const atlasLandcoverColor = computed(() => atlasLayerSettings('landcover').color ?? (isDarkAtlasPreset.value ? '#070A14' : local.land_color ?? '#E7DFBF'))
 const atlasLandcoverOpacity = computed(() => atlasLayerSettings('landcover').opacity ?? 0.82)
 const atlasRoadMajorColor = computed(() => atlasLayerSettings('transportation').major_color ?? atlasLayerSettings('transportation').road_color ?? local.roads_color ?? (isDarkAtlasPreset.value ? '#F18F45' : '#B7663C'))
 const atlasRoadMinorColor = computed(() => atlasLayerSettings('transportation').minor_color ?? atlasRoadMajorColor.value)
-const atlasTrailColor = computed(() => atlasLayerSettings('transportation').trail_color ?? (isDarkAtlasPreset.value ? local.label_text_color ?? '#D8F2DC' : '#405340'))
-const atlasRoadOpacity = computed(() => atlasLayerSettings('transportation').opacity ?? local.roads_opacity ?? (isDarkAtlasPreset.value ? 0.9 : 0.82))
+const atlasTrailColor = computed(() => atlasLayerSettings('transportation').trail_color ?? (isDarkAtlasPreset.value ? local.route_color ?? '#F4B942' : '#405340'))
+const atlasRoadOpacity = computed(() => atlasLayerSettings('transportation').opacity ?? local.roads_opacity ?? (isDarkAtlasPreset.value ? 0.38 : 0.82))
 const atlasShowMajorRoads = computed(() => atlasLayerSettings('transportation').show_major ?? true)
 const atlasShowMinorRoads = computed(() => atlasLayerSettings('transportation').show_minor ?? true)
 const atlasShowTrails = computed(() => atlasLayerSettings('transportation').show_trails ?? true)
@@ -1840,6 +1851,11 @@ function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   emit('update:modelValue', { ...local })
 }
 
+function setRouteLineStyle<K extends RouteLineControlField>(key: K, value: StyleConfig[K]) {
+  Object.assign(local, applyRouteLineControl(local as StyleConfig, key, value))
+  emit('update:modelValue', { ...local })
+}
+
 function applyScoutUpdate(updates: Partial<StyleConfig>) {
   Object.assign(local, updates)
   emit('update:modelValue', { ...local })
@@ -2036,8 +2052,7 @@ function requestSegmentEdit(segId: string) {
 }
 
 function addSegment() {
-  const usedColors = (local.trail_segments ?? []).map(s => s.color)
-  const nextColor = SEGMENT_COLORS.find(c => !usedColors.includes(c)) ?? SEGMENT_COLORS[0]
+  const nextColor = defaultTrailSegmentColor(local, local.trail_segments ?? [])
   const seg: TrailSegment = {
     id: crypto.randomUUID(),
     name: `Trail ${(local.trail_segments?.length ?? 0) + 1}`,
@@ -2045,7 +2060,7 @@ function addSegment() {
     visible: true,
     section_start: 0,
     section_end: 100,
-    width: 3,
+    width: DEFAULT_TRAIL_SEGMENT_WIDTH,
     opacity: 0.9,
     smooth: 0,
     bend: 0,

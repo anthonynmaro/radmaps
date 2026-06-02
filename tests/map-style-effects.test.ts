@@ -12,6 +12,8 @@ import {
   tonerDotParkFilter,
   tonerDotPatternId,
 } from '../utils/mapStyle'
+import { applyThemeToStyleConfig } from '../utils/themeApplication'
+import { getThemeDefinition } from '../utils/themes/refined'
 
 function baseTileUrl(style: object): string {
   const sources = (style as { sources?: Record<string, { tiles?: string[] }> }).sources
@@ -412,6 +414,33 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-alidade-dark-roads-major')?.paint?.['line-color']).toBe('#f18f45')
   })
 
+  it('softens Atlas water and waterway edges in Night Relief', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-night-relief',
+      show_roads: false,
+      show_place_labels: false,
+      show_hillshade: true,
+      show_contours: true,
+    }, 'mapbox-test-token')
+
+    const waterEdge = layerById(style, 'radmaps-night-relief-water-edge-soften')
+    const water = layerById(style, 'radmaps-night-relief-water')
+    const waterwaySoft = layerById(style, 'radmaps-night-relief-waterway-soften')
+    const waterway = layerById(style, 'radmaps-night-relief-waterway')
+
+    expect(waterEdge?.layout).toMatchObject({ 'line-join': 'round', 'line-cap': 'round' })
+    expect(waterEdge?.paint?.['line-blur']).toBeGreaterThan(0)
+    expect(waterEdge?.paint?.['line-width']).toEqual(['interpolate', ['linear'], ['zoom'], 5, 0.95, 12, 3.4, 16, 5.0])
+    expect(layerIndex(style, 'radmaps-night-relief-water-edge-soften')).toBeLessThan(layerIndex(style, 'radmaps-night-relief-water'))
+    expect(water?.paint?.['fill-antialias']).toBe(true)
+
+    expect(waterwaySoft?.layout).toMatchObject({ 'line-join': 'round', 'line-cap': 'round' })
+    expect(waterwaySoft?.paint?.['line-blur']).toBeGreaterThan(0)
+    expect(waterway?.layout).toMatchObject({ 'line-join': 'round', 'line-cap': 'round' })
+    expect(waterway?.paint?.['line-blur']).toBeGreaterThan(0)
+  })
+
   it('keeps routes below Toner labels so labels remain readable', () => {
     const style = buildMapStyle({
       ...DEFAULT_STYLE_CONFIG,
@@ -581,6 +610,26 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-field-topo-roads-major')?.paint?.['line-width']).toEqual(['interpolate', ['linear'], ['zoom'], 6, 0.55, 12, 3.25, 16, 3.25])
     expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-color']).toBe('#211A16')
     expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-opacity']).toBe(0.33)
+  })
+
+  it('renders Dark Sky with explicit dark/gold Atlas colors and no hillshade', () => {
+    const theme = getThemeDefinition('dark-sky')
+    expect(theme).toBeTruthy()
+
+    const config = applyThemeToStyleConfig({
+      ...DEFAULT_STYLE_CONFIG,
+      show_hillshade: true,
+    }, theme!)
+    const style = buildMapStyle(config, 'mapbox-test-token')
+
+    expect(sourceById(style, 'mapbox-dem')).toBeUndefined()
+    expect(layerById(style, 'hillshade')).toBeUndefined()
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#070A14')
+    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#070A14')
+    expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-color']).toBe('#0B1020')
+    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#040712')
+    expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-color']).toBe('#18294C')
+    expect(layerById(style, 'radmaps-night-relief-place-labels')).toBeUndefined()
   })
 
   it('lets Quick theme palette colors drive Atlas map layers when no layer override is set', () => {

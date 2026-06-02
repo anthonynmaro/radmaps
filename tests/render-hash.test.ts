@@ -76,6 +76,28 @@ describe('two-layer isolation', () => {
     expect(a).not.toBe(b)
   })
 
+  it('changing primary route visibility changes map_content_hash', () => {
+    const segmented: StyleConfig = {
+      ...baseConfig,
+      trail_segments: [{
+        id: 'segmented',
+        name: 'Segmented',
+        color: '#F4B942',
+        visible: true,
+        section_start: 0,
+        section_end: 100,
+      }],
+    }
+    const withPrimary: StyleConfig = {
+      ...segmented,
+      show_primary_route: true,
+    }
+
+    const a = computeMapContentHash(segmented, geojson, framing)
+    const b = computeMapContentHash(withPrimary, geojson, framing)
+    expect(a).not.toBe(b)
+  })
+
   it('changing uploaded segment geometry changes map_content_hash', () => {
     const a = computeMapContentHash(baseConfig, geojson, framing)
     const next: StyleConfig = {

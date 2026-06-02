@@ -3,6 +3,7 @@ import type { H3Event } from 'h3'
 import { serverSupabaseServiceRole } from '#supabase/server'
 import type { RouteStats } from '~/types'
 import { stableStringify } from '~/utils/render/hash'
+import { RENDER_READY_EXPRESSION } from '~/utils/render/readiness'
 import { createRenderTicket } from '~/utils/render/renderTicket'
 import { getPremadeThumbnailPath } from '~/utils/render/storagePaths'
 import {
@@ -96,7 +97,7 @@ export async function renderPremadeThumbnail(args: RenderPremadeThumbnailArgs): 
     deviceScaleFactor,
     format: 'jpeg',
     quality: PREMADE_THUMBNAIL_QUALITY,
-    waitForFunction: 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
+    waitForFunction: RENDER_READY_EXPRESSION,
     timeoutMs: Math.min(Number(config.browserlessTimeoutMs) || 60_000, 60_000),
   })
 

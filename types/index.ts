@@ -222,6 +222,10 @@ export interface PosterTextOverride {
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
 
 export const DEFAULT_CONTOUR_MAJOR_WIDTH = 0.5
+export const DEFAULT_ROUTE_WIDTH = 2.1
+export const DEFAULT_ROUTE_CASING_WIDTH = 2.8
+export const DEFAULT_TRAIL_SEGMENT_WIDTH = 2.1
+export const DEFAULT_SEGMENT_CASING_WIDTH = 2.1
 
 // ─── Poster Chrome Layout ───────────────────────────────────────────────────
 
@@ -480,6 +484,8 @@ export interface StyleConfig {
   image_overlays?: MapAsset[]
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
+  // Undefined defaults to false when visible named trail segments exist, true otherwise.
+  show_primary_route?: boolean
   trail_legend?: TrailLegend
   trail_label_style?: 'legend' | 'leader-lines'  // default: 'legend'
   segment_casing_width?: number   // casing/border extra px (added to seg width), default: 3
@@ -530,7 +536,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   preset: 'minimalist',
   background_color: '#F4EFE6',
   route_color: '#C1121F',
-  route_width: 3,
+  route_width: DEFAULT_ROUTE_WIDTH,
   route_opacity: 0.9,
   route_smooth: 0,
   route_crop_start: 0,
@@ -585,7 +591,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   tile_hue_rotate: 0,
   show_vignette: false,
   vignette_intensity: 0.45,
-  segment_casing_width: 3,
+  segment_casing_width: DEFAULT_SEGMENT_CASING_WIDTH,
   segment_casing_color: '#FFFFFF',
   segment_dot_size: 1.5,
   leader_label_auto_fit: true,

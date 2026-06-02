@@ -111,13 +111,13 @@ authorized by that ticket.
 Browserless must wait for app readiness:
 
 ```js
-window.__RENDER_READY === true && !window.__RADMAPS_RENDER_STATUS?.errors?.length
+window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeContentPresent === true
 ```
 
 The readiness signal must only flip after:
 
 - MapLibre style is loaded,
-- route source/layers are populated,
+- visible route content is present, either the primary route, named trail segment layers, or both,
 - style reloads are settled,
 - tiles are loaded or intentionally absent,
 - fonts are ready,

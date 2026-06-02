@@ -1,4 +1,4 @@
-import { DEFAULT_STYLE_CONFIG, type FontFamily, type PosterTextOverride, type PosterTextOverrides, type StyleConfig, type ThemeDefinition } from '~/types'
+import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH, type FontFamily, type PosterTextOverride, type PosterTextOverrides, type StyleConfig, type ThemeDefinition } from '~/types'
 
 const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
   'Big Shoulders Display': 'DM Sans',
@@ -88,6 +88,17 @@ export function applyThemeToStyleConfig(current: StyleConfig, theme: ThemeDefini
   }
   if (theme.border_style !== undefined) patch.border_style = theme.border_style
   if (theme.tile_grain !== undefined) patch.tile_grain = theme.tile_grain
+  if (theme.id === 'dark-sky' && current.trail_segments?.length) {
+    patch.trail_segments = current.trail_segments.map(segment => {
+      const { label_lnglat: _labelLngLat, ...rest } = segment
+      return {
+        ...rest,
+        color: theme.route_color,
+        color_mode: 'solid',
+        width: DEFAULT_TRAIL_SEGMENT_WIDTH,
+      }
+    })
+  }
 
   return { ...current, ...patch }
 }

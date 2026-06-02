@@ -47,6 +47,7 @@ watchEffect(() => {
     __RADMAPS_RENDER_STATUS?: {
       ready: boolean
       routeLayerPresent: boolean
+      routeContentPresent: boolean
       error: string
     }
     __RENDER_ERROR?: string
@@ -54,6 +55,7 @@ watchEffect(() => {
   renderWindow.__RADMAPS_RENDER_STATUS = {
     ready: false,
     routeLayerPresent: false,
+    routeContentPresent: false,
     error: message,
   }
   renderWindow.__RENDER_ERROR = message
