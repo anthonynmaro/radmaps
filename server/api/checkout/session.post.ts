@@ -7,10 +7,12 @@ import { getStripeClient, stripeMetadata } from '~/server/utils/stripe'
 import {
   CheckoutShippingAddress,
   canonicalPrintSize,
+  checkoutIdentityMetadata,
   checkoutAttemptMismatchReasons,
   currentOptionalUser,
   normalizeShippingAddress,
   productOrThrow,
+  shouldExpireCreatedCheckoutSessionOnSetupFailure,
   shippingAddressHash,
   stripeCustomerAddress,
 } from '~/server/utils/checkoutHardened'
@@ -69,6 +71,10 @@ export default defineEventHandler(async (event) => {
   let quote: any = null
   let checkoutAttemptId = body.checkout_attempt_id || null
   let productPricing: ResolvedProductPricing | null = null
+  let initialAttemptStatus: string | null = null
+  let initialQuoteStatus: string | null = null
+  let createdSessionId: string | null = null
+  let quoteLockedInThisRequest = false
 
   if (body.cart_source === 'custom') {
     if (!user?.id) throw createError({ statusCode: 401, message: 'Unauthorized' })
@@ -107,6 +113,7 @@ export default defineEventHandler(async (event) => {
       .maybeSingle()
     if (error) throw createError({ statusCode: 500, message: error.message })
     if (!data) throw createError({ statusCode: 404, message: 'Shipping quote not found' })
+    initialQuoteStatus = String(data.status || '')
     if (data.status === 'expired' || data.status === 'failed' || new Date(data.expires_at).getTime() <= Date.now()) {
       throw createError({ statusCode: 409, message: 'Shipping quote expired. Please refresh shipping.' })
     }
@@ -143,6 +150,7 @@ export default defineEventHandler(async (event) => {
       .eq('id', checkoutAttemptId)
       .maybeSingle()
     if (attemptError) throw createError({ statusCode: 500, message: attemptError.message })
+    initialAttemptStatus = String(attempt?.status || '')
     const mismatches = checkoutAttemptMismatchReasons(attempt, {
       cartSource: body.cart_source,
       userId: user?.id ?? null,
@@ -295,6 +303,7 @@ export default defineEventHandler(async (event) => {
         : undefined,
       metadata: stripeMetadata({
         cart_source: body.cart_source,
+        ...checkoutIdentityMetadata({ userId: user?.id ?? null, guestEmail }),
         checkout_attempt_id: checkoutAttemptId,
         quote_id: quote?.id,
         map_id: mapId,
@@ -314,20 +323,36 @@ export default defineEventHandler(async (event) => {
     }, {
       idempotencyKey: `checkout:${checkoutAttemptId}:${quote?.id || 'digital'}:${couponReservation?.redemption_id || 'none'}`,
     })
+    createdSessionId = session.id
 
     if (couponReservation) {
       await attachStripeSessionToCouponReservation(adminClient, couponReservation.redemption_id, session.id)
     }
 
-    await adminClient.from('checkout_attempts').update({
+    const { error: attemptUpdateError } = await adminClient.from('checkout_attempts').update({
       quote_id: quote?.id || null,
       stripe_session_id: session.id,
       stripe_customer_id: stripeCustomerId || null,
       ...pricingDbColumns(productPricing),
       status: 'session_created',
     }).eq('id', checkoutAttemptId)
+    if (attemptUpdateError) {
+      throw createError({ statusCode: 500, message: `Checkout lock update failed: ${attemptUpdateError.message}` })
+    }
     if (quote) {
-      await adminClient.from('shipping_quotes').update({ status: 'used' }).eq('id', quote.id)
+      const { data: lockedQuotes, error: quoteUpdateError } = await adminClient
+        .from('shipping_quotes')
+        .update({ status: 'used' })
+        .eq('id', quote.id)
+        .eq('status', initialQuoteStatus)
+        .select('id')
+      if (quoteUpdateError) {
+        throw createError({ statusCode: 500, message: `Shipping quote lock failed: ${quoteUpdateError.message}` })
+      }
+      if (!lockedQuotes?.length) {
+        throw createError({ statusCode: 409, message: 'Shipping quote was already claimed. Please refresh shipping.' })
+      }
+      quoteLockedInThisRequest = initialQuoteStatus !== 'used'
     }
 
     if (body.cart_source === 'custom' && !isDigital && mapId) {
@@ -338,21 +363,36 @@ export default defineEventHandler(async (event) => {
           productUid: product.product_uid,
           userId: user!.id,
         })
-      } catch (err) {
-        await stripe.checkout.sessions.expire(session.id).catch(() => {})
-        await releaseCouponReservation(adminClient, couponReservation?.redemption_id).catch(() => {})
-        await adminClient.from('checkout_attempts').update({
-          status: 'failed',
-          error_message: `snapshot freeze failed: ${(err as Error).message}`,
-        }).eq('id', checkoutAttemptId)
+      } catch {
         throw createError({ statusCode: 500, message: 'Unable to prepare print checkout. Please try again.' })
       }
     }
 
     return { url: session.url, session_id: session.id }
   } catch (err) {
+    const sessionIdToExpire = createdSessionId && shouldExpireCreatedCheckoutSessionOnSetupFailure({
+      initialAttemptStatus,
+      initialQuoteStatus,
+    }) ? createdSessionId : null
+    let sessionExpired = false
+    if (sessionIdToExpire) {
+      try {
+        await stripe.checkout.sessions.expire(sessionIdToExpire)
+        sessionExpired = true
+      } catch {}
+    }
+    if (quoteLockedInThisRequest && quote?.id && sessionExpired) {
+      try {
+        await adminClient
+          .from('shipping_quotes')
+          .update({ status: 'selected' })
+          .eq('id', quote.id)
+          .eq('checkout_attempt_id', checkoutAttemptId)
+          .eq('status', 'used')
+      } catch {}
+    }
     await releaseCouponReservation(adminClient, couponReservation?.redemption_id).catch(() => {})
-    if (checkoutAttemptId) {
+    if (checkoutAttemptId && shouldExpireCreatedCheckoutSessionOnSetupFailure({ initialAttemptStatus, initialQuoteStatus })) {
       await adminClient.from('checkout_attempts').update({
         status: 'failed',
         error_message: err instanceof Error ? err.message : String(err),

@@ -54,10 +54,10 @@
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
             <img
-              v-if="displayProofImage"
-              :src="previewUrl!"
+              v-if="displayProductMockup || displayProofImage"
+              :src="primaryProductPreviewUrl!"
               class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
-              alt="Print preview"
+              :alt="displayProductMockup ? 'Wall mockup preview' : 'Print preview'"
             >
             <div
               v-else-if="livePreviewMap"
@@ -109,10 +109,16 @@ v-else-if="renderInFlight && !printReady"
             </svg>
             <p class="text-xs text-sky-800">Preparing the selected print file. This preview stays live while the proof renders.</p>
           </div>
+          <div
+            v-else-if="mockupInFlight && displayProofImage"
+            class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-white/95 border border-stone-200 rounded-xl px-4 py-3 z-10 shadow-sm">
+            <UIcon name="i-heroicons-photo" class="h-4 w-4 shrink-0 text-[#2D6A4F]" />
+            <p class="text-xs text-stone-700">Building the wall mockup. Checkout stays ready while it finishes.</p>
+          </div>
         </main>
 
         <!-- Product Selector -->
-        <aside class="bg-white border-t lg:border-t-0 lg:border-l border-stone-200">
+        <aside class="flex min-h-0 flex-col bg-white border-t lg:h-[calc(100vh-57px)] lg:border-t-0 lg:border-l border-stone-200 lg:overflow-hidden">
           <div class="p-5 sm:p-6 border-b border-stone-200">
             <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
             <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
@@ -124,10 +130,22 @@ v-else-if="renderInFlight && !printReady"
           </div>
           <MapProductSelector
             v-model="selectedProduct"
+            class="min-h-0 flex-1"
+            :show-confirm="false"
             :map-center="mapCenter"
             :map-zoom="mapZoom"
-            @confirm="onProductConfirmed"
           />
+          <div class="shrink-0 border-t border-stone-200 bg-white px-5 py-4 shadow-[0_-10px_20px_rgba(28,25,23,0.04)]">
+            <button
+              type="button"
+              :disabled="!selectedProduct"
+              class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#2D6A4F] py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#235840] disabled:cursor-not-allowed disabled:opacity-50"
+              @click="confirmSelectedProduct"
+            >
+              <span>{{ productConfirmLabel }}</span>
+              <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
+            </button>
+          </div>
         </aside>
       </div>
     </div>
@@ -139,7 +157,12 @@ v-else-if="renderInFlight && !printReady"
         <!-- Order summary card -->
         <div class="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
           <div class="w-16 aspect-[2/3] bg-stone-100 shrink-0 flex items-center justify-center overflow-hidden">
-            <img v-if="displayProofImage" :src="previewUrl!" class="w-full h-full object-contain rounded-none" alt="Preview" >
+            <img
+              v-if="displayProductMockup || displayProofImage"
+              :src="primaryProductPreviewUrl!"
+              class="w-full h-full object-contain rounded-none"
+              :alt="displayProductMockup ? 'Wall mockup preview' : 'Preview'"
+            >
             <svg v-else class="w-8 h-8 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
               <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
@@ -380,6 +403,16 @@ v-else-if="renderInFlight && !printReady && !isDigital"
               {{ shippingQuote.shipment_method_name }} locked for this checkout. Tax is calculated by Stripe.
             </p>
           </div>
+          <div
+            v-if="checkoutError"
+            class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+          >
+            <UIcon name="i-heroicons-exclamation-circle" class="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+            <div>
+              <p class="text-sm font-semibold text-red-800">Checkout could not start</p>
+              <p class="mt-0.5 text-xs leading-5 text-red-700">{{ checkoutError }}</p>
+            </div>
+          </div>
           <button
             :disabled="!canProceed || isSubmitting"
             class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#2D6A4F] hover:bg-[#235840] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-3.5 transition-colors min-h-[52px]"
@@ -418,6 +451,7 @@ import { useRoute } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { formatPrice, getRenderDimensions } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import { FLAGS } from '~/utils/knownFlags'
 import { DEFAULT_STYLE_CONFIG, type TrailMap, type PrintProduct, type ProductFraming, type StyleConfig } from '~/types'
 
 definePageMeta({
@@ -477,6 +511,7 @@ const selectedUnitPriceCents = computed(() =>
 const subtotalCents = computed(() => selectedProduct.value ? selectedUnitPriceCents.value : 0)
 const shippingCents = computed(() => shippingQuote.value?.amount_cents ?? 0)
 const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPreview.value?.discount_cents ?? 0) + shippingCents.value))
+const checkoutError = ref('')
 
 type ShippingQuoteSelection = {
   checkout_attempt_id: string
@@ -497,6 +532,17 @@ const displayProofImage = computed(() =>
   && printReady.value
   && !!selectedProduct.value
   && renderTargetProductUid.value === selectedProduct.value.product_uid
+)
+const productMockupsEnabled = useFeatureFlag(FLAGS.PRODUCT_MOCKUPS)
+const displayProductMockup = computed(() =>
+  productMockupsEnabled.value
+  && !!mockupUrl.value
+  && !!selectedProduct.value
+  && mockupTargetProductUid.value === selectedProduct.value.product_uid
+  && mockupTargetProofUrl.value === previewUrl.value
+)
+const primaryProductPreviewUrl = computed(() =>
+  displayProductMockup.value ? mockupUrl.value : previewUrl.value
 )
 
 const selectedProductName = computed(() => selectedProduct.value?.name ?? 'the selected print')
@@ -531,6 +577,24 @@ const productStepDescription = computed(() => {
   if (selectedProduct.value) return `We will render the print-ready proof for ${selectedProductName.value} before shipping details.`
   return 'We will render the print-ready proof only for the product you continue with.'
 })
+const productConfirmLabel = computed(() =>
+  selectedProduct.value ? (isDigital.value ? 'Continue' : 'Render proof') : 'Choose an enabled size',
+)
+
+function confirmSelectedProduct() {
+  const product = selectedProduct.value
+  if (!product) return
+  onProductConfirmed({
+    product,
+    framing: {
+      product_uid: product.product_uid,
+      center: mapCenter.value,
+      zoom: mapZoom.value,
+      bearing: 0,
+      pitch: 0,
+    },
+  })
+}
 
 function onProductConfirmed(payload: { product: PrintProduct; framing: ProductFraming }) {
   selectedProduct.value = payload.product
@@ -568,8 +632,8 @@ const canProceed = computed(() => {
   if (!selectedProduct.value) return false
   if (!isDigital.value && (!printReady.value || renderTargetProductUid.value !== selectedProduct.value.product_uid)) return false
   if (isDigital.value) return !!shippingAddress.email
-  const { name, email, address1, city, state_code, zip, phone } = shippingAddress
-  const hasAddress = !!(name && email && address1 && city && state_code && zip && phone)
+  const { name, email, address1, city, state_code, zip } = shippingAddress
+  const hasAddress = !!(name && email && address1 && city && state_code && zip)
   if (!hasAddress) return false
   return !!(shippingQuote.value && !quoteLoading.value)
 })
@@ -606,13 +670,14 @@ watch([() => shippingAddress.email, selectedProduct, subtotalCents], () => {
 })
 
 function hasQuoteAddress() {
-  const { name, email, address1, city, state_code, zip, phone } = shippingAddress
-  return !!(selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip && phone)
+  const { name, email, address1, city, state_code, zip } = shippingAddress
+  return !!(selectedProduct.value && !isDigital.value && name && email && address1 && city && state_code && zip)
 }
 
 function clearShippingQuote() {
   shippingQuote.value = null
   quoteError.value = ''
+  checkoutError.value = ''
   lockedProductPriceCents.value = null
 }
 
@@ -684,6 +749,11 @@ const printReady = ref(false)
 const renderError = ref<string | null>(null)
 const renderInFlight = ref(false)
 const renderTargetProductUid = ref<string | null>(null)
+const mockupUrl = ref<string | null>(null)
+const mockupInFlight = ref(false)
+const mockupError = ref<string | null>(null)
+const mockupTargetProductUid = ref<string | null>(null)
+const mockupTargetProofUrl = ref<string | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -700,6 +770,59 @@ const v4ExpectedHash = ref<string | null>(null)
 // server side — when true, the print is already ready and we skip the
 // status poll entirely.
 const v4Cached = ref(false)
+
+async function requestProductMockup() {
+  const product = selectedProduct.value
+  const proofUrl = previewUrl.value
+  if (!productMockupsEnabled.value || !map.value?.id || !product || product.type === 'digital' || !proofUrl || !displayProofImage.value) {
+    return
+  }
+  if (
+    mockupUrl.value
+    && mockupTargetProductUid.value === product.product_uid
+    && mockupTargetProofUrl.value === proofUrl
+  ) {
+    return
+  }
+
+  mockupInFlight.value = true
+  mockupError.value = null
+  mockupTargetProductUid.value = product.product_uid
+  mockupTargetProofUrl.value = proofUrl
+
+  try {
+    const response = await $fetch<{
+      status: 'ready'
+      mockup_url: string
+      product_uid: string
+      mockup_template_id: string
+      mockup_hash: string
+    }>('/api/mockups/render', {
+      method: 'POST',
+      body: {
+        source: { type: 'map', id: map.value.id },
+        product_uid: product.product_uid,
+      },
+    })
+    if (mockupTargetProductUid.value === product.product_uid && mockupTargetProofUrl.value === proofUrl) {
+      mockupUrl.value = response.mockup_url
+    }
+  } catch (err: any) {
+    mockupError.value = err?.data?.message || err?.message || 'Could not create the wall mockup.'
+  } finally {
+    if (mockupTargetProductUid.value === product.product_uid && mockupTargetProofUrl.value === proofUrl) {
+      mockupInFlight.value = false
+    }
+  }
+}
+
+function resetProductMockup() {
+  mockupUrl.value = null
+  mockupInFlight.value = false
+  mockupError.value = null
+  mockupTargetProductUid.value = null
+  mockupTargetProofUrl.value = null
+}
 
 async function triggerRender(quality: 'preview' | 'print') {
   const body: Record<string, unknown> = { quality }
@@ -737,6 +860,7 @@ async function triggerRender(quality: 'preview' | 'print') {
       previewUrl.value = resp.render_url
       printReady.value = true
       renderInFlight.value = false
+      void requestProductMockup()
     } else {
       v4Cached.value = false
     }
@@ -780,6 +904,7 @@ async function pollStatus() {
       printReady.value = true
       renderInFlight.value = false
       stopPolling()
+      void requestProductMockup()
     }
     return
   }
@@ -788,6 +913,7 @@ async function pollStatus() {
     printReady.value = true
     renderInFlight.value = false
     stopPolling()
+    void requestProductMockup()
   }
 }
 
@@ -822,6 +948,7 @@ async function startRenders() {
   if (!product || product.type === 'digital') {
     renderInFlight.value = false
     renderTargetProductUid.value = product?.product_uid ?? null
+    resetProductMockup()
     return
   }
 
@@ -832,6 +959,7 @@ async function startRenders() {
   printReady.value = false
   renderInFlight.value = true
   renderTargetProductUid.value = product.product_uid
+  resetProductMockup()
   stopPolling()
 
   // Only fire the print render — preview thumbnail already exists from the style editor.
@@ -850,6 +978,7 @@ async function startRenders() {
   // proof URL is set. Skip polling entirely and proceed to payment.
   if (v4Cached.value && printReady.value) {
     renderInFlight.value = false
+    void requestProductMockup()
     return
   }
 
@@ -884,14 +1013,22 @@ watch(selectedProduct, (product, previousProduct) => {
     v4ExpectedHash.value = null
     v4Cached.value = false
     renderError.value = null
+    resetProductMockup()
     stopPolling()
   }
 }, { flush: 'post' })
+
+watch([displayProofImage, productMockupsEnabled], () => {
+  if (displayProofImage.value && productMockupsEnabled.value) {
+    void requestProductMockup()
+  }
+})
 
 // ─── Payment ────────────────────────────────────────────────────────────────
 
 const proceedToPayment = async () => {
   if (!map.value || !user.value?.id || !selectedProduct.value) return
+  checkoutError.value = ''
   isSubmitting.value = true
   step.value = 'payment'
   try {
@@ -913,12 +1050,18 @@ const proceedToPayment = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error('Failed to create checkout session')
+    if (!response.ok) {
+      let message = 'Failed to create checkout session'
+      try {
+        const errorBody = await response.json()
+        message = errorBody?.message || errorBody?.statusMessage || message
+      } catch {}
+      throw new Error(message)
+    }
     const data = await response.json()
     window.location.href = data.url
   } catch (err) {
-    console.error('Error:', err)
-    alert('Failed to proceed to payment. Please try again.')
+    checkoutError.value = err instanceof Error ? err.message : 'Failed to proceed to payment. Please try again.'
     step.value = 'shipping'
   } finally {
     isSubmitting.value = false

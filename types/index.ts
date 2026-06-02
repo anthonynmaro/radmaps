@@ -1218,7 +1218,7 @@ export interface PremadeMap extends LocationMetadata {
 export interface PrintProduct {
   product_uid: string
   name: string
-  type: 'poster' | 'framed' | 'canvas' | 'wall_hanging' | 'aluminum' | 'digital'
+  type: 'poster' | 'framed' | 'wall_hanging' | 'aluminum' | 'acrylic' | 'digital'
   size_label: string
   width_in: number
   height_in: number
@@ -1232,6 +1232,32 @@ export interface PrintProduct {
   material_description?: string
   material_warning?: string
   catalog_uid?: string
+}
+
+export type ProductMockupSourceType = 'map' | 'premade'
+
+export interface ProductMockup {
+  id: string
+  provider: 'gelato_template_asset'
+  source_type: ProductMockupSourceType
+  source_id: string
+  product_uid: string
+  source_render_hash: string
+  mockup_template_id: string
+  mockup_template_version: string
+  renderer_version: string
+  mockup_hash: string
+  artifact_path: string
+  mockup_url: string
+  mockup_url_expires_at?: string | null
+  provider_product_id?: string | null
+  provider_variant_id?: string | null
+  provider_status?: string | null
+  width_px: number
+  height_px: number
+  validation_result: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
 // ─── Product Selection State ─────────────────────────────────────────────────

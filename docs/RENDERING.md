@@ -101,6 +101,17 @@ final-order orchestrator: claim queued jobs, call the configured browser
 screenshot backend, validate/upload, write product render rows, and submit to
 Gelato. Do not remove it without replacing the queue/orchestration layer.
 
+Product mockups:
+
+Product mockups are merchandising previews, not print artifacts. They are
+sourced from saved Gelato template exports in `assets/product_mockup_templates`.
+RadMaps composites the current proof/premade artwork into the matching template
+asset, uploads the JPEG to `renders/mockups/...`, and stores the durable URL in
+`product_mockups`. They do not replace the Browserless/worker print path, and
+Gelato still receives the existing final print render. See
+[docs/PRODUCT_MOCKUPS.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/PRODUCT_MOCKUPS.md)
+for the template policy, cache key, API, and backfill workflow.
+
 ### Thumbnails And Sharing
 
 Homepage/dashboard thumbnails, checkout previews, Stripe checkout images, and
@@ -191,12 +202,12 @@ Supported `PrintSize` values:
 
 | Size | Aspect | Final DPI | Notes |
 |---|---:|---:|---|
-| `8x12` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
-| `12x18` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
-| `16x24` | 2:3 | 300 | poster, wall hanging, canvas, framed, digital |
-| `20x30` | 2:3 | 300 | canvas and digital only in the current catalog |
-| `24x36` | 2:3 | 300 | default editor/product size |
-| `32x48` | 2:3 | 200 | capped for memory and file-size safety |
+| `8x12` | 2:3 | 300 | poster, wall hanging, aluminum, framed, digital |
+| `12x18` | 2:3 | 300 | wall hanging, aluminum, acrylic, framed, digital |
+| `16x24` | 2:3 | 300 | poster, wall hanging, aluminum, acrylic, digital |
+| `20x30` | 2:3 | 300 | aluminum, acrylic, digital |
+| `24x36` | 2:3 | 300 | poster, wall hanging, aluminum, acrylic, framed, digital |
+| `32x48` | 2:3 | 200 | no current template-backed physical SKU |
 
 The legacy size aliases are preserved only so old rows and stale hashes fail gracefully:
 

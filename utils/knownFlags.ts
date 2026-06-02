@@ -7,6 +7,7 @@ export const FLAGS = {
   WATERCOLOR_GEOMETRY_RENDERER: 'watercolor_geometry_renderer',
   STRIPE_HARDENED_CHECKOUT: 'stripe_hardened_checkout',
   ORDER_SUPPORT_ACTIONS: 'order_support_actions',
+  PRODUCT_MOCKUPS: 'product_mockups',
 } as const
 
 export type KnownFlagKey = typeof FLAGS[keyof typeof FLAGS]

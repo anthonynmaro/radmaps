@@ -7,6 +7,7 @@
 //   renders/proof/{map_id}/{proof_render_hash}.jpg
 //   renders/thumb/premade/{premade_id}/{thumbnail_hash}.jpg
 //   renders/final/{stripe_session_id}/{product_uid}/{print_hash}.jpg
+//   renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg
 //
 // v4 locked decision #5: final-print path is keyed on
 // `stripe_session_id`, NOT `order_id`. Each Stripe Checkout session
@@ -35,4 +36,14 @@ export function getFinalPrintPath(
   printHash: string,
 ): string {
   return `renders/final/${stripeSessionId}/${productUid}/${printHash}.jpg`
+}
+
+/** `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg` — wall-product preview. */
+export function getProductMockupPath(
+  sourceType: 'map' | 'premade',
+  sourceId: string,
+  productUid: string,
+  mockupHash: string,
+): string {
+  return `renders/mockups/${sourceType}/${sourceId}/${productUid}/${mockupHash}.jpg`
 }

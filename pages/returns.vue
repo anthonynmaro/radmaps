@@ -111,7 +111,7 @@ definePageMeta({ layout: 'default' })
 
 useSeo({
   title: 'Return & Refund Policy',
-  description: 'RadMaps return and refund policy for custom trail map prints, framed prints, canvas, and digital downloads.',
+  description: 'RadMaps return and refund policy for custom trail map posters, framed prints, wall hangings, aluminum, acrylic, and digital downloads.',
   path: '/returns',
   jsonLd: [
     breadcrumbSchema([

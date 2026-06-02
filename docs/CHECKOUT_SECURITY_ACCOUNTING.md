@@ -1,6 +1,6 @@
 # Checkout Security Accounting
 
-Last updated: 2026-05-29
+Last updated: 2026-06-02
 
 This is the production checkout map for RadMaps. Any future purchase path must either appear here or be removed.
 
@@ -13,6 +13,15 @@ This is the production checkout map for RadMaps. Any future purchase path must e
 - Physical shipping is resolved server-side from Gelato quote data and passed through as a separate Stripe shipping line.
 - Stripe `unit_amount` is created only by `/api/checkout/session`.
 - Client-submitted `print_size`, unit price, subtotal, shipping price, total, Gelato cost, and markup are never trusted.
+- Stripe Checkout session metadata must include either `user_id` or normalized
+  `guest_email`, so the Stripe webhook can create an order with the same buyer
+  identity used by RLS and support lookups.
+- Physical quote claims are compare-and-set: `/api/checkout/session` only marks
+  a quote `used` if its status still matches the status that was validated
+  before Stripe session creation.
+- If local checkout setup fails after Stripe creates a new session, the session
+  is expired, coupon reservations are released, and any quote claimed by that
+  request is returned to `selected`.
 - A paid physical order without matching checkout attempt, pricing lock, and shipping quote is held for manual review and never submitted to Gelato automatically.
 
 ## Active Customer Surfaces
@@ -36,7 +45,7 @@ This is the production checkout map for RadMaps. Any future purchase path must e
 | `POST /api/coupons/validate` | Public preview | Preview only; final discount is recalculated/reserved in `/api/checkout/session` |
 | `POST /api/orders/lookup` | Public read | Requires email and at least 8 chars of order UUID; returns sanitized status only |
 | `POST /api/orders/webhook` | Stripe-only write | Verifies Stripe signature, deduplicates events, inserts orders, blocks fulfillment on quote/pricing mismatch |
-| `POST /api/gelato/webhook` | Gelato-only write | Requires configured Authorization secret before updating fulfillment status |
+| `POST /api/gelato/webhook` | Gelato-only write | Requires configured Authorization secret before updating fulfillment status; escapes webhook-provided tracking fields before email output |
 
 ## Admin And Scheduled APIs
 
@@ -86,6 +95,18 @@ These routes previously created Stripe sessions without a locked Gelato shipping
 
 `orders` stores the paid snapshot copied from Stripe, checkout attempt, quote, and pricing lock. Fulfillment reads `orders`, `order_snapshots`, `product_renders`, and `fulfillment_jobs`; it must not recompute retail pricing from the browser.
 
+## UI Consistency
+
+- Shipping phone is optional in both custom and premade checkout. The server
+  accepts missing phone values and Gelato receives an empty string when the
+  customer leaves it blank.
+- Custom checkout renders the selected proof before collecting shipping for a
+  physical print, then lazily asks `/api/mockups/render` for the product mockup.
+  Mockup failures are merchandising-only and must not block payment.
+- Checkout session errors should stay inline on the page, preserving server
+  messages such as quote conflicts. Avoid generic browser alerts that hide
+  actionable recovery text.
+
 ## Operational Readiness
 
 Before enabling production traffic:
@@ -94,4 +115,6 @@ Before enabling production traffic:
 - Confirm `/api/product-prices?country=US` returns all enabled products without `estimated: true` in production.
 - Confirm Stripe webhook secret, Gelato webhook secret, `CRON_SECRET`, `GELATO_API_KEY`, and Stripe live keys are set in Vercel.
 - Confirm every published premade physical product has a production-ready `render_url`; otherwise paid premade orders are held for manual review.
+- Run `npm run mockups:audit-gelato-templates` after changing template assets
+  or product offerings.
 - Run focused checkout tests and browser smoke for custom and premade checkout after any catalog or pricing change.

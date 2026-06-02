@@ -4,12 +4,12 @@
     <!-- Selected option summary -->
     <button
       type="button"
-      class="w-full flex items-center justify-between gap-4 px-5 py-4 bg-white border-b border-stone-200 hover:bg-stone-50 transition-colors"
+      class="w-full shrink-0 flex items-center justify-between gap-4 px-5 py-4 bg-white border-b border-stone-200 hover:bg-stone-50 transition-colors"
       @click="isExpanded = !isExpanded"
     >
       <div class="flex min-w-0 items-center gap-3">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600">
-          <UIcon :name="selectedFormatMeta.icon" class="h-4 w-4" />
+        <span class="product-mini shrink-0" :class="formatVisualClass(selectedType)" aria-hidden="true">
+          <UIcon v-if="selectedType === 'digital'" :name="selectedFormatMeta.icon" class="h-4 w-4" />
         </span>
         <div class="min-w-0 text-left">
           <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Selected product</p>
@@ -30,128 +30,133 @@
     </button>
 
     <!-- Expanded panel -->
-    <div v-show="isExpanded" class="space-y-6 bg-white px-5 py-5 lg:max-h-[calc(100vh-220px)] overflow-y-auto">
+    <div v-show="isExpanded" class="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
 
-      <!-- Format picker -->
-      <div>
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">Format</p>
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            v-for="format in formatOptions"
-            :key="format.type"
-            type="button"
-            :class="[
-              'flex min-h-[72px] items-start gap-3 rounded-lg border p-3 text-left transition-all',
-              selectedType === format.type
-                ? 'border-[#2D6A4F] bg-[#2D6A4F]/5 text-[#2D6A4F]'
-                : 'border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50',
-            ]"
-            @click="selectFormat(format.type)"
-          >
-            <UIcon :name="format.icon" class="mt-0.5 h-4 w-4 shrink-0" />
-            <span class="min-w-0">
-              <span class="block text-sm font-semibold leading-5">{{ format.label }}</span>
-              <span class="block text-xs leading-4 text-stone-500">{{ format.description }}</span>
-              <span class="mt-1 block text-xs font-medium text-stone-500">
-                from {{ formatPrice(formatStartingPrice(format.type)) }}
+        <!-- Format picker -->
+        <div>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">Format</p>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              v-for="format in formatOptions"
+              :key="format.type"
+              type="button"
+              :class="[
+                'flex min-h-[72px] items-start gap-3 rounded-lg border p-3 text-left transition-all',
+                selectedType === format.type
+                  ? 'border-[#2D6A4F] bg-[#2D6A4F]/5 text-[#2D6A4F]'
+                  : 'border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50',
+              ]"
+              @click="selectFormat(format.type)"
+            >
+              <span class="product-mini mt-0.5 shrink-0" :class="formatVisualClass(format.type)" aria-hidden="true">
+                <UIcon v-if="format.type === 'digital'" :name="format.icon" class="h-4 w-4" />
               </span>
-            </span>
-          </button>
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold leading-5">{{ format.label }}</span>
+                <span class="block text-xs leading-4 text-stone-500">{{ format.description }}</span>
+                <span class="mt-1 block text-xs font-medium text-stone-500">
+                  from {{ formatPrice(formatStartingPrice(format.type)) }}
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Material/paper picker -->
-      <div v-if="visibleMaterialOptions.length">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">{{ materialSectionLabel }}</p>
-        <div class="space-y-2">
-          <button
-            v-for="material in visibleMaterialOptions"
-            :key="material.key"
-            type="button"
-            :class="[
-              'w-full rounded-lg border p-3 text-left transition-all',
-              selectedMaterialKey === material.key
-                ? 'border-[#2D6A4F] bg-[#2D6A4F]/5'
-                : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50',
-            ]"
-            @click="selectMaterial(material.key)"
-          >
-            <span class="block text-sm font-semibold text-stone-900">{{ material.label }}</span>
-            <span v-if="material.description" class="mt-0.5 block text-xs leading-5 text-stone-500">
-              {{ material.description }}
-            </span>
-            <span v-if="material.warning" class="mt-1 block text-xs leading-5 text-amber-700">
-              {{ material.warning }}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Size grid -->
-      <div v-if="selectedType !== 'digital'">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">Size</p>
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="size in SIZES"
-            :key="size.label"
-            type="button"
-            :disabled="!sizeAvailability(size.label).available"
-            :title="sizeAvailability(size.label).reason"
-            :class="sizeButtonClass(size.label)"
-            @click="selectSize(size.label)"
-          >
-            <!-- Portrait rect visual -->
-            <span
+        <!-- Material/paper picker -->
+        <div v-if="visibleMaterialOptions.length">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">{{ materialSectionLabel }}</p>
+          <div class="space-y-2">
+            <button
+              v-for="material in visibleMaterialOptions"
+              :key="material.key"
+              type="button"
               :class="[
-                'mb-1.5 block w-5 rounded-sm border-2',
-                selectedSizeLabel === size.label ? 'border-[#2D6A4F]' : 'border-stone-300',
+                'w-full rounded-lg border p-3 text-left transition-all',
+                selectedMaterialKey === material.key
+                  ? 'border-[#2D6A4F] bg-[#2D6A4F]/5'
+                  : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50',
               ]"
-              style="height: 30px;"
-            />
-            <span
-              :class="[
-                'block text-xs font-semibold',
-                selectedSizeLabel === size.label ? 'text-[#2D6A4F]' : 'text-stone-700',
-              ]"
+              @click="selectMaterial(material.key)"
             >
-              {{ size.label }}
-            </span>
-            <span
-              v-if="!sizeAvailability(size.label).available"
-              class="mt-0.5 block min-h-[14px] text-[10px] leading-[14px] text-stone-400"
-            >
-              Unavailable
-            </span>
-          </button>
+              <span class="block text-sm font-semibold text-stone-900">{{ material.label }}</span>
+              <span v-if="material.description" class="mt-0.5 block text-xs leading-5 text-stone-500">
+                {{ material.description }}
+              </span>
+              <span v-if="material.warning" class="mt-1 block text-xs leading-5 text-amber-700">
+                {{ material.warning }}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Format-specific info cards -->
-      <div v-if="selectedType === 'digital'" class="rounded-lg border border-sky-200 bg-sky-50 p-4">
-        <p class="mb-1 text-sm font-semibold text-sky-900">Digital Download</p>
-        <p class="mb-3 text-xs leading-5 text-sky-700">
-          High-resolution file (7200×10800 px) ready for sharing or local printing at any size.
-        </p>
-        <p class="text-xl font-bold text-sky-900" style="font-family:'Space Grotesk',sans-serif">
-          {{ formatPrice(999) }}
-        </p>
-      </div>
+        <!-- Size grid -->
+        <div v-if="selectedType !== 'digital'">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">Size</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              v-for="size in SIZES"
+              :key="size.label"
+              type="button"
+              :disabled="!sizeAvailability(size.label).available"
+              :title="sizeAvailability(size.label).reason"
+              :class="sizeButtonClass(size.label)"
+              @click="selectSize(size.label)"
+            >
+              <!-- Portrait rect visual -->
+              <span
+                :class="[
+                  'mb-1.5 block w-5 rounded-sm border-2',
+                  selectedSizeLabel === size.label ? 'border-[#2D6A4F]' : 'border-stone-300',
+                ]"
+                style="height: 30px;"
+              />
+              <span
+                :class="[
+                  'block text-xs font-semibold',
+                  selectedSizeLabel === size.label ? 'text-[#2D6A4F]' : 'text-stone-700',
+                ]"
+              >
+                {{ size.label }}
+              </span>
+              <span
+                v-if="!sizeAvailability(size.label).available"
+                class="mt-0.5 block min-h-[14px] text-[10px] leading-[14px] text-stone-400"
+              >
+                Unavailable
+              </span>
+            </button>
+          </div>
+        </div>
 
-      <div v-if="!selectedProduct && selectedType !== 'digital'" class="rounded-lg border border-amber-200 bg-amber-50 p-3">
-        <p class="text-xs leading-5 text-amber-800">{{ invalidSelectionMessage }}</p>
+        <!-- Format-specific info cards -->
+        <div v-if="selectedType === 'digital'" class="rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <p class="mb-1 text-sm font-semibold text-sky-900">Digital Download</p>
+          <p class="mb-3 text-xs leading-5 text-sky-700">
+            High-resolution file (7200×10800 px) ready for sharing or local printing at any size.
+          </p>
+          <p class="text-xl font-bold text-sky-900" style="font-family:'Space Grotesk',sans-serif">
+            {{ formatPrice(999) }}
+          </p>
+        </div>
+
+        <div v-if="!selectedProduct && selectedType !== 'digital'" class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p class="text-xs leading-5 text-amber-800">{{ invalidSelectionMessage }}</p>
+        </div>
       </div>
 
       <!-- CTA -->
-      <button
-        v-if="showConfirmButton"
-        type="button"
-        :disabled="!selectedProduct"
-        class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#2D6A4F] py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#235840] disabled:cursor-not-allowed disabled:opacity-50"
-        @click="confirmSelection"
-      >
-        <span>{{ confirmButtonLabel }}</span>
-        <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
-      </button>
+      <div v-if="showConfirmButton" class="shrink-0 border-t border-stone-200 bg-white px-5 py-4 shadow-[0_-10px_20px_rgba(28,25,23,0.04)]">
+        <button
+          type="button"
+          :disabled="!selectedProduct"
+          class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#2D6A4F] py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#235840] disabled:cursor-not-allowed disabled:opacity-50"
+          @click="confirmSelection"
+        >
+          <span>{{ confirmButtonLabel }}</span>
+          <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
+        </button>
+      </div>
 
     </div>
   </div>
@@ -221,6 +226,8 @@ const selectedFormatMeta = computed(() => PRODUCT_FORMAT_META[selectedType.value
 const materialSectionLabel = computed(() => {
   if (selectedType.value === 'poster') return 'Paper'
   if (selectedType.value === 'aluminum') return 'Aluminum'
+  if (selectedType.value === 'framed') return 'Frame'
+  if (selectedType.value === 'wall_hanging') return 'Rails & paper'
   return 'Material'
 })
 
@@ -279,6 +286,10 @@ function sizeButtonClass(label: string) {
       : 'cursor-not-allowed bg-stone-50 opacity-60',
     selected && !availability.available ? 'border-amber-300 bg-amber-50' : '',
   ]
+}
+
+function formatVisualClass(type: ProductFormat): string {
+  return `product-mini--${type}`
 }
 
 function selectFormat(type: ProductFormat) {
@@ -346,5 +357,73 @@ watch(productPrices, () => {
 <style scoped>
 .product-selector {
   width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-mini {
+  position: relative;
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.45rem;
+  background: #f5f3ef;
+  color: #57534e;
+  box-shadow: inset 0 0 0 1px rgba(120, 113, 108, 0.14);
+}
+
+.product-mini::before,
+.product-mini::after {
+  position: absolute;
+  content: "";
+  box-sizing: border-box;
+}
+
+.product-mini::before {
+  left: 0.78rem;
+  top: 0.38rem;
+  width: 0.72rem;
+  height: 1.08rem;
+  background: #fffdf8;
+  border: 1px solid rgba(87, 83, 78, 0.28);
+  box-shadow: 0.22rem 0.28rem 0 rgba(87, 83, 78, 0.12);
+}
+
+.product-mini--framed::before {
+  background: #f9f7f2;
+  border: 0.18rem solid #1c1917;
+}
+
+.product-mini--wall_hanging::before {
+  top: 0.52rem;
+  box-shadow: 0.2rem 0.24rem 0 rgba(87, 83, 78, 0.12);
+}
+
+.product-mini--wall_hanging::after {
+  left: 0.58rem;
+  top: 0.34rem;
+  width: 1.12rem;
+  height: 0.16rem;
+  border-radius: 999px;
+  background: #1c1917;
+  box-shadow: 0 1.18rem 0 #1c1917;
+}
+
+.product-mini--aluminum::before {
+  background: linear-gradient(135deg, #f9faf9, #c9ccca 62%, #f4f1ea);
+  border-color: rgba(87, 83, 78, 0.22);
+}
+
+.product-mini--acrylic::before {
+  background: linear-gradient(135deg, #f7fbff 0%, #111827 40%, #f8fafc 42%, #111827 62%);
+  border-color: rgba(87, 83, 78, 0.18);
+}
+
+.product-mini--digital::before,
+.product-mini--digital::after {
+  display: none;
 }
 </style>

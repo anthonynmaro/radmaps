@@ -44,6 +44,26 @@ const GELATO_STATUS_MAP: Record<string, string> = {
   cancelled:           'cancelled',
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char] ?? char))
+}
+
+function safeHttpUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
@@ -122,7 +142,10 @@ export default defineEventHandler(async (event) => {
   // Send shipping notification email when order ships
   if (order.fulfillmentStatus === 'shipped' || order.fulfillmentStatus === 'partially_shipped') {
     const address = dbOrder.shipping_address as Record<string, string>
-    const trackingUrl = firstShipment?.trackingUrl
+    const trackingUrl = safeHttpUrl(firstShipment?.trackingUrl)
+    const safeTrackingCode = escapeHtml(firstShipment?.trackingCode)
+    const safeCarrierName = escapeHtml(firstShipment?.carrierName ?? 'carrier')
+    const safeOrderId = escapeHtml(dbOrder.id)
 
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
@@ -133,15 +156,15 @@ export default defineEventHandler(async (event) => {
           <h1 style="color: #2D6A4F;">Your map is on its way! 🗺️</h1>
           <p>Great news — your RadMaps print has shipped and is heading to you.</p>
           ${trackingUrl
-            ? `<p><a href="${trackingUrl}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Track Your Shipment</a></p>`
+            ? `<p><a href="${escapeHtml(trackingUrl)}" style="background:#2D6A4F;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Track Your Shipment</a></p>`
             : firstShipment?.trackingCode
-              ? `<p>Tracking code: <strong>${firstShipment.trackingCode}</strong> via ${firstShipment.carrierName ?? 'carrier'}</p>`
+              ? `<p>Tracking code: <strong>${safeTrackingCode}</strong> via ${safeCarrierName}</p>`
               : ''
           }
           <p style="color:#666;font-size:14px;">Typical delivery is 3–7 business days after dispatch.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
           <p style="font-size:12px;color:#999;">
-            Order ID: <code>${dbOrder.id}</code> &nbsp;|&nbsp;
+            Order ID: <code>${safeOrderId}</code> &nbsp;|&nbsp;
             <a href="https://radmaps.studio/support" style="color:#2D6A4F;">Track order</a> &nbsp;|&nbsp;
             <a href="mailto:support@radmaps.studio" style="color:#2D6A4F;">Get help</a>
           </p>
@@ -153,6 +176,7 @@ export default defineEventHandler(async (event) => {
   // Send delivery notification email
   if (order.fulfillmentStatus === 'delivered') {
     const address = dbOrder.shipping_address as Record<string, string>
+    const safeOrderId = escapeHtml(dbOrder.id)
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? 'orders@radmaps.studio',
       to: address.email,
@@ -169,7 +193,7 @@ export default defineEventHandler(async (event) => {
           </div>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
           <p style="font-size:12px;color:#999;">
-            Order ID: <code>${dbOrder.id}</code> &nbsp;|&nbsp;
+            Order ID: <code>${safeOrderId}</code> &nbsp;|&nbsp;
             <a href="https://radmaps.studio/support" style="color:#2D6A4F;">Support</a>
           </p>
         </div>

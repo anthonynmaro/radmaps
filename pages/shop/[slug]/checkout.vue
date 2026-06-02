@@ -47,14 +47,16 @@
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
             <div
-              class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden"
-              :style="{ backgroundColor: premade.style_config?.background_color || '#F7F4EF' }"
+              :class="displayPremadeMockup
+                ? 'w-full max-w-[600px] aspect-square overflow-hidden'
+                : 'w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden'"
+              :style="{ backgroundColor: displayPremadeMockup ? 'transparent' : (premade.style_config?.background_color || '#F7F4EF') }"
             >
               <img
-                v-if="premade.preview_image_url"
-                :src="premade.preview_image_url"
-                :alt="premade.title"
-                class="w-full h-full object-cover"
+                v-if="primaryPremadePreviewUrl"
+                :src="primaryPremadePreviewUrl"
+                :alt="displayPremadeMockup ? 'Wall mockup preview' : premade.title"
+                :class="displayPremadeMockup ? 'h-full w-full object-contain drop-shadow-2xl' : 'h-full w-full object-cover'"
               >
               <svg v-else viewBox="0 0 100 133" class="w-full h-full">
                 <path
@@ -69,26 +71,40 @@
               </svg>
             </div>
           </div>
+          <div
+            v-if="mockupInFlight && productMockupsEnabled"
+            class="absolute top-4 left-4 right-4 flex items-center gap-3 bg-white/95 border border-stone-200 rounded-xl px-4 py-3 z-10 shadow-sm">
+            <UIcon name="i-heroicons-photo" class="h-4 w-4 shrink-0 text-[#2D6A4F]" />
+            <p class="text-xs text-stone-700">Building the wall mockup. You can keep choosing products.</p>
+          </div>
         </main>
 
-        <aside class="bg-white border-t lg:border-t-0 lg:border-l border-stone-200">
+        <aside class="flex min-h-0 flex-col bg-white border-t lg:h-[calc(100vh-57px)] lg:border-t-0 lg:border-l border-stone-200 lg:overflow-hidden">
           <div class="p-5 sm:p-6 border-b border-stone-200">
             <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
             <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
               {{ premade.title }}
             </h2>
-            <p class="mt-2 text-sm leading-6 text-stone-600">
-              Pick the same product options used for custom maps. Shipping is quoted separately after your address.
-            </p>
           </div>
 
           <MapProductSelector
             v-model="selectedProduct"
-            :show-confirm="true"
+            class="min-h-0 flex-1"
+            :show-confirm="false"
             :include-digital="false"
             confirm-label="Continue to shipping"
-            @confirm="onProductConfirmed"
           />
+          <div class="shrink-0 border-t border-stone-200 bg-white px-5 py-4 shadow-[0_-10px_20px_rgba(28,25,23,0.04)]">
+            <button
+              type="button"
+              :disabled="!selectedProduct"
+              class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#2D6A4F] py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#235840] disabled:cursor-not-allowed disabled:opacity-50"
+              @click="onProductConfirmed"
+            >
+              <span>Continue to shipping</span>
+              <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
+            </button>
+          </div>
 
           <div class="p-5 sm:p-6 border-t border-stone-200">
             <div class="flex items-center justify-between gap-4">
@@ -272,7 +288,11 @@ v-if="errorMessage"
               style="aspect-ratio:2/3"
               :style="{ backgroundColor: premade.style_config.background_color }"
             >
-              <img v-if="premade.preview_image_url" :src="premade.preview_image_url" class="w-full h-full object-cover" >
+              <img
+                v-if="primaryPremadePreviewUrl"
+                :src="primaryPremadePreviewUrl"
+                :class="displayPremadeMockup ? 'h-full w-full object-contain' : 'h-full w-full object-cover'"
+              >
               <svg v-else viewBox="0 0 100 133" class="w-full h-full">
                 <path
                   v-if="routePath"
@@ -386,6 +406,7 @@ import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import { getProduct, formatPrice, PRODUCTS, getDefaultPhysicalProduct } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import { FLAGS } from '~/utils/knownFlags'
 import type { PremadeMap } from '~/types'
 
 definePageMeta({ layout: false })
@@ -413,6 +434,19 @@ const selectedProductUid = computed(() => selectedProduct.value?.product_uid ?? 
 const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as string) || '1', 10) || 1)))
 
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
+const productMockupsEnabled = useFeatureFlag(FLAGS.PRODUCT_MOCKUPS)
+const mockupUrl = ref<string | null>(null)
+const mockupInFlight = ref(false)
+const mockupTargetProductUid = ref<string | null>(null)
+const displayPremadeMockup = computed(() =>
+  productMockupsEnabled.value
+  && !!mockupUrl.value
+  && !!selectedProduct.value
+  && mockupTargetProductUid.value === selectedProduct.value.product_uid
+)
+const primaryPremadePreviewUrl = computed(() =>
+  displayPremadeMockup.value ? mockupUrl.value : premade.value?.preview_image_url
+)
 const productPrices = ref<Record<string, number>>({})
 const lockedProductPriceCents = ref<number | null>(null)
 try {
@@ -444,6 +478,7 @@ const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPrevi
 
 function onProductConfirmed() {
   clearShippingQuote()
+  void requestPremadeMockup()
   step.value = 'shipping'
 }
 type ShippingQuoteSelection = {
@@ -596,6 +631,47 @@ watch([
   clearShippingQuote()
   quoteTimer = setTimeout(requestShippingQuote, 650)
 })
+
+async function requestPremadeMockup() {
+  const sourceId = premade.value?.id || premade.value?.slug
+  const productUid = selectedProduct.value?.product_uid
+  if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value) return
+  if (mockupUrl.value && mockupTargetProductUid.value === productUid) return
+
+  mockupInFlight.value = true
+  mockupTargetProductUid.value = productUid
+  try {
+    const response = await $fetch<{
+      status: 'ready'
+      mockup_url: string
+      product_uid: string
+      mockup_template_id: string
+      mockup_hash: string
+    }>('/api/mockups/render', {
+      method: 'POST',
+      body: {
+        source: { type: 'premade', id: sourceId },
+        product_uid: productUid,
+      },
+    })
+    if (mockupTargetProductUid.value === productUid) {
+      mockupUrl.value = response.mockup_url
+    }
+  } catch {
+    mockupUrl.value = null
+  } finally {
+    if (mockupTargetProductUid.value === productUid) {
+      mockupInFlight.value = false
+    }
+  }
+}
+
+watch([selectedProductUid, productMockupsEnabled], () => {
+  mockupUrl.value = null
+  mockupInFlight.value = false
+  mockupTargetProductUid.value = null
+  if (productMockupsEnabled.value) void requestPremadeMockup()
+}, { immediate: true })
 
 async function checkout() {
   if (!premade.value) return

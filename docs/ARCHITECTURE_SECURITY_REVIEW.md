@@ -1,6 +1,6 @@
 # Architecture And Security Review
 
-**Date:** 2026-05-05
+**Date:** 2026-06-02
 **Scope:** Browserless renderer, print queue, checkout/order flow, admin premade catalog, renderer-adjacent security.
 
 ## Summary
@@ -36,6 +36,17 @@ proof render path, and publish only complete rows for checkout/customization.
   empty.
 - Admin/support search no longer interpolates user input into raw PostgREST
   filter strings.
+- Public order lookup no longer interpolates customer email into a raw PostgREST
+  `.or()` filter; it uses exact `guest_email` and `shipping_address->>email`
+  filters and deduplicates by order ID.
+- Stripe Checkout session creation now records buyer identity in metadata,
+  conditionally claims shipping quotes, and expires newly-created sessions when
+  local setup fails after Stripe creation.
+- Custom checkout now treats phone as optional consistently with the server
+  schema and shows checkout-session failures inline instead of hiding server
+  recovery messages behind a generic alert.
+- Gelato webhook emails escape webhook-provided tracking/carrier fields and only
+  render HTTP(S) tracking links.
 
 ## Current Architecture
 
@@ -95,12 +106,14 @@ flowchart TD
 - **Admin audit trail:** `created_by`/`updated_by` capture who changed staff and
   premade rows, but there is no append-only audit event table yet. Add one
   before scaling admin access beyond a small trusted team.
-- **Stripe webhook idempotency:** `processed_stripe_events` prevents duplicate
-  processing, but marking an event processed before all downstream work succeeds
-  can hide retryable failures. A follow-up should move event finalization after
-  durable order/queue state is written, or record per-stage status.
-- **Proof render abuse:** `/api/maps/[id]/render` needs rate limiting and
-  per-user throttling to protect Browserless concurrency and cost.
+- **Gelato submission reconciliation:** Stripe webhook deduplication is durable
+  and retryable failures release the event marker, but Gelato's public create
+  order docs do not document an idempotency header. If Gelato order creation
+  succeeds and the worker fails before saving `gelato_order_id`, an operator
+  may need to reconcile by `orderReferenceId` before retrying fulfillment.
+- **Render capacity:** `/api/maps/[id]/render` now has per-user rate limits, but
+  proof renders still run outside the final print queue. Keep monitoring
+  Browserless concurrency and cost as traffic grows.
 - **User image trust boundary:** Browserless can fetch any URL the render page
   references. Uploaded logos and future image overlays should be copied to
   trusted storage or restricted to an allowlist before render.

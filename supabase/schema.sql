@@ -1148,6 +1148,84 @@ GRANT EXECUTE ON FUNCTION public.nearby_published_premade_maps(DOUBLE PRECISION,
 
 ALTER TABLE public.premade_maps ENABLE ROW LEVEL SECURITY;
 
+-- ─── product_mockups ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.product_mockups (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider                 TEXT NOT NULL DEFAULT 'gelato_template_asset' CHECK (provider IN ('gelato_template_asset')),
+  source_type              TEXT NOT NULL CHECK (source_type IN ('map', 'premade')),
+  source_id                TEXT NOT NULL,
+  product_uid              TEXT NOT NULL,
+  source_render_hash       TEXT NOT NULL,
+  mockup_template_id       TEXT NOT NULL,
+  mockup_template_version  TEXT NOT NULL,
+  renderer_version         TEXT NOT NULL,
+  mockup_hash              TEXT NOT NULL,
+  artifact_path            TEXT NOT NULL,
+  mockup_url               TEXT NOT NULL,
+  mockup_url_expires_at    TIMESTAMPTZ,
+  provider_product_id      TEXT,
+  provider_variant_id      TEXT,
+  provider_status          TEXT,
+  width_px                 INT NOT NULL DEFAULT 0,
+  height_px                INT NOT NULL DEFAULT 0,
+  validation_result        JSONB NOT NULL DEFAULT '{}',
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT product_mockups_source_type_source_id_product_hash_uniq
+    UNIQUE (source_type, source_id, product_uid, mockup_hash)
+);
+
+COMMENT ON TABLE public.product_mockups IS
+  'RadMaps-rendered product mockups using saved Gelato template assets per source render, product UID, template version, and renderer version.';
+
+CREATE INDEX IF NOT EXISTS product_mockups_source_lookup_idx
+  ON public.product_mockups (source_type, source_id, product_uid, created_at DESC);
+CREATE INDEX IF NOT EXISTS product_mockups_hash_idx
+  ON public.product_mockups (mockup_hash);
+
+DROP TRIGGER IF EXISTS set_product_mockups_updated_at ON public.product_mockups;
+CREATE TRIGGER set_product_mockups_updated_at
+  BEFORE UPDATE ON public.product_mockups
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+ALTER TABLE public.product_mockups ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.product_mockups FROM anon, authenticated;
+GRANT SELECT ON TABLE public.product_mockups TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.product_mockups TO service_role;
+
+DROP POLICY IF EXISTS "Service role manages product mockups" ON public.product_mockups;
+CREATE POLICY "Service role manages product mockups" ON public.product_mockups
+  FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Users read own map product mockups" ON public.product_mockups;
+CREATE POLICY "Users read own map product mockups" ON public.product_mockups
+  FOR SELECT
+  USING (
+    source_type = 'map'
+    AND EXISTS (
+      SELECT 1
+      FROM public.maps m
+      WHERE m.id::text = product_mockups.source_id
+        AND m.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone reads published premade product mockups" ON public.product_mockups;
+CREATE POLICY "Anyone reads published premade product mockups" ON public.product_mockups
+  FOR SELECT
+  USING (
+    source_type = 'premade'
+    AND EXISTS (
+      SELECT 1
+      FROM public.premade_maps p
+      WHERE (p.id::text = product_mockups.source_id OR p.slug = product_mockups.source_id)
+        AND p.status = 'published'
+    )
+  );
+
 -- ─── Storage Buckets ──────────────────────────────────────────────────────────
 -- Create these via Supabase dashboard or CLI:
 -- supabase storage buckets create maps --public=false

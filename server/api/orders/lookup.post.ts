@@ -50,24 +50,37 @@ export default defineEventHandler(async (event) => {
   // Use service key to bypass RLS (guest orders have no user_id)
   const supabase = createClient(config.public.supabaseUrl as string, config.supabaseServiceKey as string) as any
 
-  // Search for orders matching the email in shipping_address and the order ID.
-  // We support partial order ID matching after at least 8 UUID characters.
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select('id, status, fulfillment_status, refund_status, dispute_status, product_uid, print_size, tracking_code, carrier, digital_url, created_at, shipping_address, premade_title')
-    .or(`guest_email.eq.${email},shipping_address->>email.eq.${email}`)
-    .order('created_at', { ascending: false })
-    .limit(20)
+  const selectColumns = 'id, status, fulfillment_status, refund_status, dispute_status, product_uid, print_size, tracking_code, carrier, digital_url, created_at, shipping_address, premade_title'
+  const [guestResult, shippingResult] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(selectColumns)
+      .eq('guest_email', email)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('orders')
+      .select(selectColumns)
+      .eq('shipping_address->>email', email)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ])
 
+  const error = guestResult.error || shippingResult.error
   if (error) {
     console.error('Order lookup error:', error)
     throw createError({ statusCode: 500, message: 'Failed to look up orders' })
   }
+  const ordersById = new Map<string, Record<string, unknown>>()
+  for (const order of [...(guestResult.data ?? []), ...(shippingResult.data ?? [])]) {
+    ordersById.set(order.id, order)
+  }
 
   // Filter by order ID (exact or partial match)
-  const matched = (orders ?? []).filter((o: { id: string }) =>
-    o.id === orderId || o.id.startsWith(orderId)
-  )
+  const matched = [...ordersById.values()].filter(order => {
+    const id = String(order.id || '').toLowerCase()
+    return id === orderId || id.startsWith(orderId)
+  })
 
   if (matched.length === 0) {
     throw createError({ statusCode: 404, message: 'No order found with that email and order ID' })

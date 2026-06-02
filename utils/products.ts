@@ -40,14 +40,15 @@ export interface ProductSizeAvailability {
 
 export const DEFAULT_PHYSICAL_PRODUCT_SELECTION: ProductSelection = {
   type: 'poster',
-  sizeLabel: '12×18"',
+  sizeLabel: '16×24"',
   materialKey: 'poster_archival_250',
 }
 
-// All six sizes share a 2:3 aspect ratio so the map never reframes when
-// switching sizes. Individual product availability is derived from PRODUCTS.
+// RadMaps sells a single portrait aspect family. The 12×16 template asset is
+// intentionally not exposed because it would require a separate editor/render
+// aspect path.
 export const SIZES: SizeOption[] = [
-  { label: '8×12"',  width_in: 8,  height_in: 12, aspect_ratio: 2 / 3 },
+  { label: '8×12"', width_in: 8, height_in: 12, aspect_ratio: 2 / 3 },
   { label: '12×18"', width_in: 12, height_in: 18, aspect_ratio: 2 / 3 },
   { label: '16×24"', width_in: 16, height_in: 24, aspect_ratio: 2 / 3 },
   { label: '20×30"', width_in: 20, height_in: 30, aspect_ratio: 2 / 3 },
@@ -58,27 +59,22 @@ export const SIZES: SizeOption[] = [
 export const PRODUCT_FORMAT_ORDER: ProductFormat[] = [
   'poster',
   'framed',
-  'canvas',
   'wall_hanging',
   'aluminum',
+  'acrylic',
   'digital',
 ]
 
 export const PRODUCT_FORMAT_META: Record<ProductFormat, { label: string; description: string; icon: string }> = {
   poster: {
     label: 'Poster',
-    description: 'Classic paper print',
+    description: 'Archival matte paper',
     icon: 'i-heroicons-document-text',
   },
   framed: {
     label: 'Framed',
-    description: 'Black aluminum frame',
+    description: 'Premium wood frame',
     icon: 'i-heroicons-photo',
-  },
-  canvas: {
-    label: 'Canvas',
-    description: 'Slim stretched canvas',
-    icon: 'i-heroicons-squares-2x2',
   },
   wall_hanging: {
     label: 'Wall Hanging',
@@ -90,6 +86,11 @@ export const PRODUCT_FORMAT_META: Record<ProductFormat, { label: string; descrip
     description: '3 mm metal wall art',
     icon: 'i-heroicons-sparkles',
   },
+  acrylic: {
+    label: 'Acrylic',
+    description: '4 mm glossy wall art',
+    icon: 'i-heroicons-swatch',
+  },
   digital: {
     label: 'Digital',
     description: 'High-res download',
@@ -97,70 +98,102 @@ export const PRODUCT_FORMAT_META: Record<ProductFormat, { label: string; descrip
   },
 }
 
-const MATERIAL_CHOICE_FORMATS = new Set<ProductFormat>(['poster', 'aluminum'])
+const MATERIAL_CHOICE_FORMATS = new Set<ProductFormat>([
+  'poster',
+  'framed',
+  'wall_hanging',
+  'aluminum',
+])
 
 const MATERIAL_SORT_ORDER: Record<string, number> = {
   poster_archival_250: 10,
-  poster_silk_200: 20,
-  aluminum_white_matte: 10,
-  aluminum_brushed: 20,
+  framed_black_wood: 10,
+  framed_white_wood: 20,
+  framed_natural_wood: 30,
+  wall_hanging_archival_black_wood: 10,
+  wall_hanging_archival_white_wood: 20,
+  wall_hanging_archival_natural_wood: 30,
+  wall_hanging_archival_dark_wood: 40,
+  wall_hanging_silk_black_wood: 50,
+  wall_hanging_silk_white_wood: 60,
+  wall_hanging_silk_natural_wood: 70,
+  wall_hanging_silk_dark_wood: 80,
+  aluminum_matte: 10,
 }
 
-const POSTER_SILK = {
-  format_label: 'Poster',
-  material_key: 'poster_silk_200',
-  material_label: 'Silk 200 gsm',
-  material_description: 'Smooth coated poster paper with a soft satin finish.',
-  catalog_uid: 'posters',
+const SIZE_DEFINITIONS: Record<string, Pick<PrintProduct, 'size_label' | 'width_in' | 'height_in' | 'aspect_ratio' | 'recommended_px_w' | 'recommended_px_h'>> = {
+  '8×12"': {
+    size_label: '8×12"',
+    width_in: 8,
+    height_in: 12,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 2400,
+    recommended_px_h: 3600,
+  },
+  '12×18"': {
+    size_label: '12×18"',
+    width_in: 12,
+    height_in: 18,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 3600,
+    recommended_px_h: 5400,
+  },
+  '16×24"': {
+    size_label: '16×24"',
+    width_in: 16,
+    height_in: 24,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 4800,
+    recommended_px_h: 7200,
+  },
+  '20×30"': {
+    size_label: '20×30"',
+    width_in: 20,
+    height_in: 30,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 6000,
+    recommended_px_h: 9000,
+  },
+  '24×36"': {
+    size_label: '24×36"',
+    width_in: 24,
+    height_in: 36,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 7200,
+    recommended_px_h: 10800,
+  },
+  '32×48"': {
+    size_label: '32×48"',
+    width_in: 32,
+    height_in: 48,
+    aspect_ratio: 2 / 3,
+    recommended_px_w: 6400,
+    recommended_px_h: 9600,
+  },
 }
 
 const POSTER_ARCHIVAL = {
   format_label: 'Poster',
   material_key: 'poster_archival_250',
   material_label: 'Archival Matte 250 gsm',
-  material_description: 'Uncoated off-white archival paper with a quieter matte feel.',
+  material_description: 'Uncoated off-white archival paper with a quiet matte finish.',
   catalog_uid: 'posters',
 }
 
-const WALL_HANGING = {
-  format_label: 'Wall Hanging',
-  material_key: 'wall_hanging_black_wood',
-  material_label: 'Black Wood Rails',
-  material_description: 'Poster print held between black wooden hanging rails.',
-  catalog_uid: 'posters',
-}
-
-const CANVAS = {
-  format_label: 'Canvas',
-  material_key: 'canvas_slim',
-  material_label: 'Slim Stretched Canvas',
-  material_description: 'Canvas wrapped over a slim FSC wood frame.',
-  catalog_uid: 'canvas',
-}
-
-const FRAMED = {
-  format_label: 'Framed',
-  material_key: 'framed_black_aluminum',
-  material_label: 'Black Aluminum Frame',
-  material_description: 'Black aluminum frame with plexiglass glazing.',
-  catalog_uid: 'framed-posters',
-}
-
-const ALUMINUM_WHITE_MATTE = {
+const ALUMINUM_MATTE = {
   format_label: 'Aluminum',
-  material_key: 'aluminum_white_matte',
-  material_label: 'White Matte Aluminum',
-  material_description: '3 mm aluminum dibond with a white matte base. Hanging hardware included.',
+  material_key: 'aluminum_matte',
+  material_label: 'Matte Aluminum',
+  material_description: '3 mm aluminum wall art with a clean satin-matte face.',
   catalog_uid: 'metallic',
 }
 
-const ALUMINUM_BRUSHED = {
-  format_label: 'Aluminum',
-  material_key: 'aluminum_brushed',
-  material_label: 'Brushed Aluminum',
-  material_description: '3 mm metallic silver base with horizontal grain. Hanging hardware included.',
-  material_warning: 'White or transparent artwork areas show the metallic base.',
-  catalog_uid: 'metallic',
+const ACRYLIC = {
+  format_label: 'Acrylic',
+  material_key: 'acrylic_gloss_4mm',
+  material_label: 'Gloss Acrylic',
+  material_description: '4 mm glossy acrylic with polished edge depth and metal stand-offs.',
+  catalog_uid: 'acrylic',
 }
 
 const DIGITAL = {
@@ -170,362 +203,191 @@ const DIGITAL = {
   material_description: 'High-resolution file ready for sharing or local printing.',
 }
 
-/**
- * Full product catalog.
- *
- * Confirmed UIDs (verified against Gelato template PDFs or Product API):
- *   flat_400x600-mm-16x24-inch_*   flat_600x900-mm-24x36-inch_*
- *   wall_hanging_poster_410-mm_*   wall_hanging_poster_635-mm_*
- *   flat_a4-8x12-inch_* (A4 = 210×297 mm ≈ 8×12")
- *   metallic_*_3-mm_4-0_ver       metallic_*_3-mm-silver-brushed_hor-grain_4-0_ver
- *
- * Pattern-inferred UIDs should be verified with GET /api/gelato/catalog before
- * production fulfillment.
- */
+type ProductSeed = {
+  product_uid: string
+  type: Exclude<ProductFormat, 'digital'>
+  size_label: keyof typeof SIZE_DEFINITIONS
+  price_cents: number
+  name: string
+  material: Record<string, string | undefined>
+}
+
+function product(seed: ProductSeed): PrintProduct {
+  return {
+    product_uid: seed.product_uid,
+    name: seed.name,
+    type: seed.type,
+    price_cents: seed.price_cents,
+    ...SIZE_DEFINITIONS[seed.size_label],
+    ...seed.material,
+  }
+}
+
+function poster(uid: string, sizeLabel: ProductSeed['size_label'], priceCents: number): PrintProduct {
+  return product({
+    product_uid: uid,
+    type: 'poster',
+    size_label: sizeLabel,
+    price_cents: priceCents,
+    name: `${sizeLabel} Poster, Archival Matte 250 gsm`,
+    material: POSTER_ARCHIVAL,
+  })
+}
+
+function framed(uid: string, sizeLabel: ProductSeed['size_label'], frameKey: string, frameLabel: string, priceCents: number): PrintProduct {
+  return product({
+    product_uid: uid,
+    type: 'framed',
+    size_label: sizeLabel,
+    price_cents: priceCents,
+    name: `${sizeLabel} Framed Poster, ${frameLabel}`,
+    material: {
+      format_label: 'Framed',
+      material_key: frameKey,
+      material_label: frameLabel,
+      material_description: `Premium wooden frame with plexiglass glazing in ${frameLabel.toLowerCase()}.`,
+      catalog_uid: 'framed-posters',
+    },
+  })
+}
+
+function wallHanging(
+  uid: string,
+  sizeLabel: ProductSeed['size_label'],
+  railKey: string,
+  railLabel: string,
+  paperKey: 'archival' | 'silk',
+  priceCents: number,
+): PrintProduct {
+  const paperLabel = paperKey === 'archival' ? 'Archival Matte 250 gsm' : 'Silk 170 gsm'
+  const paperDescription = paperKey === 'archival'
+    ? 'uncoated off-white archival paper'
+    : 'coated silk paper'
+  return product({
+    product_uid: uid,
+    type: 'wall_hanging',
+    size_label: sizeLabel,
+    price_cents: priceCents,
+    name: `${sizeLabel} Wall Hanging, ${railLabel}, ${paperLabel}`,
+    material: {
+      format_label: 'Wall Hanging',
+      material_key: `wall_hanging_${paperKey}_${railKey}`,
+      material_label: `${paperLabel}, ${railLabel}`,
+      material_description: `${paperDescription} held between ${railLabel.toLowerCase()} magnetic rails.`,
+      catalog_uid: 'posters',
+    },
+  })
+}
+
+function aluminum(uid: string, sizeLabel: ProductSeed['size_label'], priceCents: number): PrintProduct {
+  return product({
+    product_uid: uid,
+    type: 'aluminum',
+    size_label: sizeLabel,
+    price_cents: priceCents,
+    name: `${sizeLabel} Aluminum Print`,
+    material: ALUMINUM_MATTE,
+  })
+}
+
+function acrylic(uid: string, sizeLabel: ProductSeed['size_label'], priceCents: number): PrintProduct {
+  return product({
+    product_uid: uid,
+    type: 'acrylic',
+    size_label: sizeLabel,
+    price_cents: priceCents,
+    name: `${sizeLabel} Acrylic Print`,
+    material: ACRYLIC,
+  })
+}
+
+const framedSizes = [
+  ['210x297mm-8x12-inch', 'a4-8x12-inch', '8×12"', 3800],
+  ['300x450-mm-12x18-inch', '300x450-mm-12x18-inch', '12×18"', 5600],
+  ['600x900-mm-24x36-inch', '600x900-mm-24x36-inch', '24×36"', 12900],
+] as const
+
+const frameFinishes = [
+  ['black_wood', 'framed_black_wood', 'Black Wood Frame'],
+  ['white_wood', 'framed_white_wood', 'White Wood Frame'],
+  ['natural-wood_wood', 'framed_natural_wood', 'Natural Wood Frame'],
+] as const
+
+const wallHangingSizes = [
+  ['229-mm', 'a4-8x12-inch', '8×12"', 2500],
+  ['310-mm', '300x450-mm-12x18-inch', '12×18"', 3100],
+  ['410-mm', '400x600-mm-16x24-inch', '16×24"', 3800],
+  ['635-mm', '600x900-mm-24x36-inch', '24×36"', 5200],
+] as const
+
+const railFinishes = [
+  ['black_wood', 'black_wood', 'Black Wood Rails'],
+  ['white_wood', 'white_wood', 'White Wood Rails'],
+  ['natural-wood_wood', 'natural_wood', 'Natural Wood Rails'],
+  ['dark-wood_wood', 'dark_wood', 'Dark Wood Rails'],
+] as const
+
 export const PRODUCTS: PrintProduct[] = [
+  // Flat posters backed by the current saved Gelato mockup-template set.
+  poster('flat_a4-8x12-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver', '8×12"', 1400),
+  poster('flat_400x600-mm-16x24-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver', '16×24"', 2100),
+  poster('flat_600x900-mm-24x36-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver', '24×36"', 3100),
 
-  // ─── Flat Posters ────────────────────────────────────────────────────────────
-  {
-    product_uid: 'flat_a4-8x12-inch_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '8×12" Poster, Silk 200 gsm',
-    type: 'poster',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 1000,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...POSTER_SILK,
-  },
-  {
-    product_uid: 'flat_a4-8x12-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
-    name: '8×12" Poster, Archival Matte 250 gsm',
-    type: 'poster',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 1400,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...POSTER_ARCHIVAL,
-  },
-  {
-    product_uid: 'flat_300x450-mm-12x18-inch_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '12×18" Poster, Silk 200 gsm',
-    type: 'poster',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 1200,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...POSTER_SILK,
-  },
-  {
-    product_uid: 'flat_300x450-mm-12x18-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
-    name: '12×18" Poster, Archival Matte 250 gsm',
-    type: 'poster',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 1700,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...POSTER_ARCHIVAL,
-  },
-  {
-    product_uid: 'flat_400x600-mm-16x24-inch_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '16×24" Poster, Silk 200 gsm',
-    type: 'poster',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 1500,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...POSTER_SILK,
-  },
-  {
-    product_uid: 'flat_400x600-mm-16x24-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
-    name: '16×24" Poster, Archival Matte 250 gsm',
-    type: 'poster',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 2100,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...POSTER_ARCHIVAL,
-  },
-  {
-    product_uid: 'flat_600x900-mm-24x36-inch_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '24×36" Poster, Silk 200 gsm',
-    type: 'poster',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 2300,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...POSTER_SILK,
-  },
-  {
-    product_uid: 'flat_600x900-mm-24x36-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
-    name: '24×36" Poster, Archival Matte 250 gsm',
-    type: 'poster',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 3100,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...POSTER_ARCHIVAL,
-  },
-  {
-    product_uid: 'flat_800x1200-mm-32x48-inch_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver',
-    name: '32×48" Poster, Archival Matte 250 gsm',
-    type: 'poster',
-    size_label: '32×48"',
-    width_in: 32, height_in: 48, aspect_ratio: 2 / 3,
-    price_cents: 5000,
-    // 200 DPI — 300 DPI would OOM the render worker at this scale.
-    recommended_px_w: 6400, recommended_px_h: 9600,
-    ...POSTER_ARCHIVAL,
-  },
+  ...framedSizes.flatMap(([outerSize, innerSize, sizeLabel, basePrice]) =>
+    frameFinishes.map(([uidFinish, materialKey, materialLabel]) =>
+      framed(
+        `framed_poster_mounted_premium_${outerSize}_${uidFinish}_w20xt20-mm_plexiglass_${innerSize}_200-gsm-80lb-coated-silk_4-0_ver`,
+        sizeLabel,
+        materialKey,
+        materialLabel,
+        basePrice,
+      ),
+    ),
+  ),
 
-  // ─── Wall Hangings (black wood rod) ──────────────────────────────────────────
-  // 16×24 and 24×36 UIDs confirmed via template PDFs.
-  // 8×12 (229 mm rod) and 12×18 (310 mm rod) are pattern-inferred.
-  {
-    product_uid: 'wall_hanging_poster_229-mm_black_wood_w14xt20-mm_a4-8x12-inch_200-gsm-80lb-uncoated_4-0_ver',
-    name: '8×12" Wall Hanging',
-    type: 'wall_hanging',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 2300,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...WALL_HANGING,
-  },
-  {
-    product_uid: 'wall_hanging_poster_310-mm_black_wood_w14xt20-mm_300x450-mm-12x18-inch_200-gsm-80lb-uncoated_4-0_ver',
-    name: '12×18" Wall Hanging',
-    type: 'wall_hanging',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 2800,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...WALL_HANGING,
-  },
-  {
-    product_uid: 'wall_hanging_poster_410-mm_black_wood_w14xt20-mm_400x600-mm-16x24-inch_200-gsm-80lb-uncoated_4-0_ver',
-    name: '16×24" Wall Hanging',
-    type: 'wall_hanging',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 3300,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...WALL_HANGING,
-  },
-  {
-    product_uid: 'wall_hanging_poster_635-mm_black_wood_w14xt20-mm_600x900-mm-24x36-inch_200-gsm-80lb-uncoated_4-0_ver',
-    name: '24×36" Wall Hanging',
-    type: 'wall_hanging',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 4600,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...WALL_HANGING,
-  },
+  ...wallHangingSizes.flatMap(([rodSize, printSize, sizeLabel, basePrice]) =>
+    railFinishes.flatMap(([uidFinish, materialRailKey, railLabel]) => [
+      wallHanging(
+        `wall_hanging_poster_${rodSize}_${uidFinish}_w14xt20-mm_${printSize}_250-gsm-100lb-uncoated-offwhite-archival_4-0_ver`,
+        sizeLabel,
+        materialRailKey,
+        railLabel,
+        'archival',
+        basePrice,
+      ),
+      wallHanging(
+        `wall_hanging_poster_${rodSize}_${uidFinish}_w14xt20-mm_${printSize}_170-gsm-65lb-coated-silk_4-0_ver`,
+        sizeLabel,
+        materialRailKey,
+        railLabel,
+        'silk',
+        basePrice - 200,
+      ),
+    ]),
+  ),
 
-  // ─── Stretched Canvas ─────────────────────────────────────────────────────────
-  {
-    product_uid: 'canvas_8x12-inch-200x300-mm_canvas_wood-fsc-slim_4-0_ver',
-    name: '8×12" Canvas',
-    type: 'canvas',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 2400,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...CANVAS,
-  },
-  {
-    product_uid: 'canvas_12x18-inch-300x450-mm_canvas_wood-fsc-slim_4-0_ver',
-    name: '12×18" Canvas',
-    type: 'canvas',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 3800,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...CANVAS,
-  },
-  {
-    product_uid: 'canvas_16x24-inch-400x600-mm_canvas_wood-fsc-slim_4-0_ver',
-    name: '16×24" Canvas',
-    type: 'canvas',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 4300,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...CANVAS,
-  },
-  {
-    product_uid: 'canvas_20x30-inch-500x750-mm_canvas_wood-fsc-slim_4-0_ver',
-    name: '20×30" Canvas',
-    type: 'canvas',
-    size_label: '20×30"',
-    width_in: 20, height_in: 30, aspect_ratio: 2 / 3,
-    price_cents: 7800,
-    recommended_px_w: 6000, recommended_px_h: 9000,
-    ...CANVAS,
-  },
-  {
-    product_uid: 'canvas_24x36-inch-600x900-mm_canvas_wood-fsc-slim_4-0_ver',
-    name: '24×36" Canvas',
-    type: 'canvas',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 9400,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...CANVAS,
-  },
+  aluminum('metallic_200x300-mm-8x12-inch_3-mm_4-0_ver', '8×12"', 2500),
+  aluminum('metallic_300x450-mm-12x18-inch_3-mm_4-0_ver', '12×18"', 3700),
+  aluminum('metallic_400x600-mm-16x24-inch_3-mm_4-0_ver', '16×24"', 4200),
+  aluminum('metallic_500x750-mm-20x30-inch_3-mm_4-0_ver', '20×30"', 5800),
+  aluminum('metallic_600x900-mm-24x36-inch_3-mm_4-0_ver', '24×36"', 7500),
 
-  // ─── Framed Prints ────────────────────────────────────────────────────────────
-  {
-    product_uid: 'framed_poster_8x12-inch-210x297-mm_black_aluminum_w10xt22-mm_plexiglass_8x12-inch-a4_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '8×12" Framed Print',
-    type: 'framed',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 3200,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...FRAMED,
-  },
-  {
-    product_uid: 'framed_poster_12x18-inch-300x450-mm_black_aluminum_w10xt22-mm_plexiglass_12x18-inch-300x450-mm_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '12×18" Framed Print',
-    type: 'framed',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 5000,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...FRAMED,
-  },
-  {
-    product_uid: 'framed_poster_400x600-mm-16x24-inch_black_aluminum_w12xt22-mm_plexiglass_400x600-mm-16x24-inch_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '16×24" Framed Print',
-    type: 'framed',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 6800,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...FRAMED,
-  },
-  {
-    product_uid: 'framed_poster_24x36-inch-600x900-mm_black_aluminum_w10xt22-mm_plexiglass_24x36-inch-600x900-mm_200-gsm-80lb-coated-silk_4-0_ver',
-    name: '24×36" Framed Print',
-    type: 'framed',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 12100,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...FRAMED,
-  },
+  acrylic('acrylic_300x450-mm-12x18-inch_4-mm_4-0_ver', '12×18"', 4200),
+  acrylic('acrylic_400x600-mm-16x24-inch_4-mm_4-0_ver', '16×24"', 5200),
+  acrylic('acrylic_500x750-mm-20x30-inch_4-mm_4-0_ver', '20×30"', 7200),
+  acrylic('acrylic_600x900-mm-24x36-inch_4-mm_4-0_ver', '24×36"', 9400),
 
-  // ─── Aluminum Prints (Gelato metallic catalog) ───────────────────────────────
-  {
-    product_uid: 'metallic_8x12-inch-200x300-mm_3-mm_4-0_ver',
-    name: '8×12" White Matte Aluminum Print',
-    type: 'aluminum',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 2500,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...ALUMINUM_WHITE_MATTE,
-  },
-  {
-    product_uid: 'metallic_8x12-inch-200x300-mm_3-mm-silver-brushed_hor-grain_4-0_ver',
-    name: '8×12" Brushed Aluminum Print',
-    type: 'aluminum',
-    size_label: '8×12"',
-    width_in: 8, height_in: 12, aspect_ratio: 2 / 3,
-    price_cents: 4000,
-    recommended_px_w: 2400, recommended_px_h: 3600,
-    ...ALUMINUM_BRUSHED,
-  },
-  {
-    product_uid: 'metallic_12x18-inch-300x450-mm_3-mm_4-0_ver',
-    name: '12×18" White Matte Aluminum Print',
-    type: 'aluminum',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 3700,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...ALUMINUM_WHITE_MATTE,
-  },
-  {
-    product_uid: 'metallic_12x18-inch-300x450-mm_3-mm-silver-brushed_hor-grain_4-0_ver',
-    name: '12×18" Brushed Aluminum Print',
-    type: 'aluminum',
-    size_label: '12×18"',
-    width_in: 12, height_in: 18, aspect_ratio: 2 / 3,
-    price_cents: 6000,
-    recommended_px_w: 3600, recommended_px_h: 5400,
-    ...ALUMINUM_BRUSHED,
-  },
-  {
-    product_uid: 'metallic_16x24-inch-400x600-mm_3-mm_4-0_ver',
-    name: '16×24" White Matte Aluminum Print',
-    type: 'aluminum',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 4200,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...ALUMINUM_WHITE_MATTE,
-  },
-  {
-    product_uid: 'metallic_16x24-inch-400x600-mm_3-mm-silver-brushed_hor-grain_4-0_ver',
-    name: '16×24" Brushed Aluminum Print',
-    type: 'aluminum',
-    size_label: '16×24"',
-    width_in: 16, height_in: 24, aspect_ratio: 2 / 3,
-    price_cents: 6700,
-    recommended_px_w: 4800, recommended_px_h: 7200,
-    ...ALUMINUM_BRUSHED,
-  },
-  {
-    product_uid: 'metallic_20x30-inch-500x750-mm_3-mm_4-0_ver',
-    name: '20×30" White Matte Aluminum Print',
-    type: 'aluminum',
-    size_label: '20×30"',
-    width_in: 20, height_in: 30, aspect_ratio: 2 / 3,
-    price_cents: 5800,
-    recommended_px_w: 6000, recommended_px_h: 9000,
-    ...ALUMINUM_WHITE_MATTE,
-  },
-  {
-    product_uid: 'metallic_20x30-inch-500x750-mm_3-mm-silver-brushed_hor-grain_4-0_ver',
-    name: '20×30" Brushed Aluminum Print',
-    type: 'aluminum',
-    size_label: '20×30"',
-    width_in: 20, height_in: 30, aspect_ratio: 2 / 3,
-    price_cents: 9300,
-    recommended_px_w: 6000, recommended_px_h: 9000,
-    ...ALUMINUM_BRUSHED,
-  },
-  {
-    product_uid: 'metallic_24x36-inch-600x900-mm_3-mm_4-0_ver',
-    name: '24×36" White Matte Aluminum Print',
-    type: 'aluminum',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 7500,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...ALUMINUM_WHITE_MATTE,
-  },
-  {
-    product_uid: 'metallic_24x36-inch-600x900-mm_3-mm-silver-brushed_hor-grain_4-0_ver',
-    name: '24×36" Brushed Aluminum Print',
-    type: 'aluminum',
-    size_label: '24×36"',
-    width_in: 24, height_in: 36, aspect_ratio: 2 / 3,
-    price_cents: 12000,
-    recommended_px_w: 7200, recommended_px_h: 10800,
-    ...ALUMINUM_BRUSHED,
-  },
-
-  // ─── Digital Download ─────────────────────────────────────────────────────────
   {
     product_uid: 'digital',
     name: 'Digital Download',
     type: 'digital',
     size_label: 'Digital',
-    width_in: 0, height_in: 0, aspect_ratio: 2 / 3,
+    width_in: 0,
+    height_in: 0,
+    aspect_ratio: 2 / 3,
     price_cents: 999,
-    recommended_px_w: 7200, recommended_px_h: 10800,
+    recommended_px_w: 7200,
+    recommended_px_h: 10800,
     ...DIGITAL,
   },
 ]

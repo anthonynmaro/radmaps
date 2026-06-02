@@ -1,0 +1,189 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import sharp from 'sharp'
+import type { PrintProduct } from '~/types'
+import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
+
+export interface RenderProductTemplateMockupInput {
+  product: PrintProduct
+  artworkUrl?: string
+  artworkBuffer?: Buffer
+}
+
+export interface RenderProductTemplateMockupResult {
+  buffer: Buffer
+  contentType: 'image/jpeg'
+  widthPx: number
+  heightPx: number
+  template: ProductMockupTemplate
+  validation: Record<string, unknown>
+}
+
+interface PixelBox {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+export async function renderProductTemplateMockup(input: RenderProductTemplateMockupInput): Promise<RenderProductTemplateMockupResult> {
+  const template = getProductMockupTemplate(input.product)
+  if (!template) {
+    throw createError({ statusCode: 422, message: `No product mockup template is registered for ${input.product.product_uid}` })
+  }
+
+  const templatePath = join(process.cwd(), template.relativePath)
+  const [templateBuffer, artworkBuffer] = await Promise.all([
+    readFile(templatePath).catch((error) => {
+      throw createError({ statusCode: 500, message: `Mockup template asset is missing: ${template.relativePath} (${error.message})` })
+    }),
+    input.artworkBuffer ? Promise.resolve(input.artworkBuffer) : fetchArtworkBuffer(input.artworkUrl),
+  ])
+
+  const metadata = await sharp(templateBuffer).metadata()
+  const width = metadata.width || 0
+  const height = metadata.height || 0
+  if (width <= 0 || height <= 0) {
+    throw createError({ statusCode: 500, message: `Mockup template asset has invalid dimensions: ${template.relativePath}` })
+  }
+
+  const artworkBox = toPixelBox(template.artworkBox, width, height)
+  const artworkLayer = await sharp(artworkBuffer)
+    .rotate()
+    .resize(artworkBox.width, artworkBox.height, { fit: 'fill' })
+    .jpeg({ quality: 95, mozjpeg: true })
+    .toBuffer()
+
+  const composites: sharp.OverlayOptions[] = [
+    {
+      input: artworkLayer,
+      left: artworkBox.left,
+      top: artworkBox.top,
+    },
+  ]
+
+  if (template.finish === 'acrylic') {
+    composites.push({ input: await acrylicChromeOverlay(width, height, artworkBox), left: 0, top: 0 })
+  }
+
+  if (template.finish === 'metallic') {
+    composites.push({ input: await metallicSheenOverlay(width, height, artworkBox), left: 0, top: 0 })
+  }
+
+  const fullBuffer = await sharp(templateBuffer)
+    .composite(composites)
+    .jpeg({ quality: 92, mozjpeg: true })
+    .toBuffer()
+
+  const outputBuffer = await sharp(fullBuffer)
+    .resize(1800, 1800, { fit: 'inside' })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer()
+
+  const outputMetadata = await sharp(outputBuffer).metadata()
+
+  return {
+    buffer: outputBuffer,
+    contentType: 'image/jpeg',
+    widthPx: outputMetadata.width || 1800,
+    heightPx: outputMetadata.height || 1800,
+    template,
+    validation: {
+      template_id: template.id,
+      template_path: template.relativePath,
+      template_finish: template.finish,
+      artwork_box: artworkBox,
+      template_width_px: width,
+      template_height_px: height,
+    },
+  }
+}
+
+async function fetchArtworkBuffer(url: string | undefined): Promise<Buffer> {
+  if (!url) {
+    throw createError({ statusCode: 422, message: 'Artwork URL is required' })
+  }
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw createError({ statusCode: 422, message: 'Artwork URL is invalid' })
+  }
+
+  const allowLocalhost = process.env.NODE_ENV !== 'production'
+  const localhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1'
+  if (parsed.protocol !== 'https:' && !(allowLocalhost && parsed.protocol === 'http:' && localhost)) {
+    throw createError({ statusCode: 422, message: 'Mockup artwork must be an HTTPS URL' })
+  }
+
+  const response = await fetch(parsed)
+  if (!response.ok) {
+    throw createError({ statusCode: 502, message: `Could not download proof artwork for mockup: ${response.status}` })
+  }
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
+
+function toPixelBox(box: ProductMockupBox, width: number, height: number): PixelBox {
+  return {
+    left: Math.round(box.x * width),
+    top: Math.round(box.y * height),
+    width: Math.round(box.w * width),
+    height: Math.round(box.h * height),
+  }
+}
+
+async function acrylicChromeOverlay(width: number, height: number, box: PixelBox): Promise<Buffer> {
+  const screwRadius = Math.round(Math.min(box.width, box.height) * 0.018)
+  const screwInset = Math.round(screwRadius * 1.65)
+  const screwCenters = [
+    [box.left + screwInset, box.top + screwInset],
+    [box.left + box.width - screwInset, box.top + screwInset],
+    [box.left + screwInset, box.top + box.height - screwInset],
+    [box.left + box.width - screwInset, box.top + box.height - screwInset],
+  ]
+
+  const screws = screwCenters.map(([cx, cy]) => `
+    <radialGradient id="s${cx}-${cy}" cx="35%" cy="30%" r="65%">
+      <stop offset="0" stop-color="rgba(255,255,255,0.95)" />
+      <stop offset="0.42" stop-color="rgba(210,210,205,0.72)" />
+      <stop offset="1" stop-color="rgba(58,58,56,0.52)" />
+    </radialGradient>
+    <circle cx="${cx}" cy="${cy}" r="${screwRadius}" fill="url(#s${cx}-${cy})" />
+    <circle cx="${cx}" cy="${cy}" r="${Math.max(1, Math.round(screwRadius * 0.35))}" fill="rgba(255,255,255,0.44)" />
+  `).join('')
+
+  const svg = `
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="glareA" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="rgba(255,255,255,0)" />
+          <stop offset="0.5" stop-color="rgba(255,255,255,0.28)" />
+          <stop offset="1" stop-color="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+      <path d="M ${box.left + box.width * 0.05} ${box.top} L ${box.left + box.width * 0.33} ${box.top} L ${box.left + box.width * 0.03} ${box.top + box.height * 0.36} L ${box.left} ${box.top + box.height * 0.36} Z" fill="url(#glareA)" />
+      <path d="M ${box.left + box.width * 0.30} ${box.top} L ${box.left + box.width * 0.47} ${box.top} L ${box.left + box.width * 0.12} ${box.top + box.height * 0.39} L ${box.left + box.width * 0.02} ${box.top + box.height * 0.39} Z" fill="rgba(255,255,255,0.12)" />
+      ${screws}
+    </svg>
+  `
+
+  return Buffer.from(svg)
+}
+
+async function metallicSheenOverlay(width: number, height: number, box: PixelBox): Promise<Buffer> {
+  const svg = `
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="metalSheen" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="rgba(255,255,255,0.03)" />
+          <stop offset="0.28" stop-color="rgba(255,255,255,0.09)" />
+          <stop offset="0.62" stop-color="rgba(0,0,0,0.05)" />
+          <stop offset="1" stop-color="rgba(255,255,255,0.04)" />
+        </linearGradient>
+      </defs>
+      <rect x="${box.left}" y="${box.top}" width="${box.width}" height="${box.height}" fill="url(#metalSheen)" />
+    </svg>
+  `
+  return Buffer.from(svg)
+}

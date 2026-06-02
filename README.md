@@ -144,12 +144,12 @@ Current sellable formats are a single 2:3 family:
 
 | Size | Materials | Final DPI |
 |------|-----------|----------:|
-| 8×12" | poster, wall hanging, canvas, framed, digital | 300 |
-| 12×18" | poster, wall hanging, canvas, framed, digital | 300 |
-| 16×24" | poster, wall hanging, canvas, framed, digital | 300 |
-| 20×30" | canvas, digital | 300 |
-| 24×36" | poster, wall hanging, canvas, framed, digital | 300 |
-| 32×48" | poster, framed, digital | 200 |
+| 8×12" | poster, framed, wall hanging, aluminum, digital | 300 |
+| 12×18" | framed, wall hanging, aluminum, acrylic, digital | 300 |
+| 16×24" | poster, wall hanging, aluminum, acrylic, digital | 300 |
+| 20×30" | aluminum, acrylic, digital | 300 |
+| 24×36" | poster, framed, wall hanging, aluminum, acrylic, digital | 300 |
+| 32×48" | digital only | 200 |
 
 Bleed, safe margin, provider caps, and concrete product UID normalization live in `utils/print/providerProfile.ts`.
 

@@ -18,8 +18,9 @@ export default defineEventHandler(async (event) => {
 
   const posters = PRODUCTS.filter((p) => p.type === 'poster')
   const framed = PRODUCTS.filter((p) => p.type === 'framed')
-  const canvas = PRODUCTS.filter((p) => p.type === 'canvas')
+  const wallHangings = PRODUCTS.filter((p) => p.type === 'wall_hanging')
   const aluminum = PRODUCTS.filter((p) => p.type === 'aluminum')
+  const acrylic = PRODUCTS.filter((p) => p.type === 'acrylic')
   const digital = PRODUCTS.find((p) => p.type === 'digital')
 
   const productRow = (p: typeof PRODUCTS[number]) =>
@@ -85,17 +86,20 @@ File size limit: 50 MB.
 
 All premade orders are also available in these sizes. Custom designs render at any of the listed sizes.
 
-### Posters (170 gsm archival matte)
+### Posters (250 gsm archival matte)
 ${posters.map(productRow).join('\n')}
 
-### Framed prints (200 gsm satin, in a black wooden frame)
+### Framed prints (premium wood frame with plexiglass)
 ${framed.map(productRow).join('\n')}
 
-### Stretched canvas
-${canvas.map(productRow).join('\n')}
+### Wall hangings
+${wallHangings.map(productRow).join('\n')}
 
 ### Aluminum prints
 ${aluminum.map(productRow).join('\n')}
+
+### Acrylic prints
+${acrylic.map(productRow).join('\n')}
 
 ### Digital download
 ${digital ? `- ${digital.size_label} (${digital.recommended_px_w}×${digital.recommended_px_h} px): ${formatPrice(digital.price_cents)}` : ''}
@@ -124,7 +128,7 @@ ${premadeBlocks}
 ## How ordering works
 
 1. **Pick a poster** — from the catalog or your own custom design.
-2. **Choose a size** — 8×10″ to 24×36″.
+2. **Choose a size and material** — template-backed formats stay in the 2:3 RadMaps print family.
 3. **Checkout** — Stripe handles payment. Guests pay without creating an account; signed-in users have orders saved to their profile.
 4. **Production** — Gelato prints the file at the closest production facility (1–2 business days).
 5. **Shipping** — 5–10 business days depending on country. Tracking emailed when dispatched.

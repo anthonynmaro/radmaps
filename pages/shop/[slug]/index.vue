@@ -331,7 +331,7 @@ if (premadeMap) {
       { '@type': 'PropertyValue', name: 'Region', value: premadeMap.region },
       { '@type': 'PropertyValue', name: 'Country', value: premadeMap.country },
       { '@type': 'PropertyValue', name: 'Activity', value: premadeMap.stats.activity_type ?? 'hiking' },
-      { '@type': 'PropertyValue', name: 'Products', value: 'Posters, framed prints, canvas, wall hangings, and aluminum prints' },
+      { '@type': 'PropertyValue', name: 'Products', value: 'Posters, framed prints, wall hangings, aluminum prints, and acrylic prints' },
       { '@type': 'PropertyValue', name: 'Print resolution', value: '300 DPI' },
     ],
   }

@@ -3,10 +3,12 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   canonicalPrintSize,
+  checkoutIdentityMetadata,
   checkoutAttemptMismatchReasons,
   fetchGelatoShippingQuotes,
   normalizeShippingAddress,
   parseGelatoShippingQuotePayload,
+  shouldExpireCreatedCheckoutSessionOnSetupFailure,
   shippingAddressHash,
   stripeCustomerAddress,
 } from '~/server/utils/checkoutHardened'
@@ -147,7 +149,7 @@ describe('hardened checkout helpers', () => {
       guest_email: 'rider@example.com',
       map_id: null,
       premade_slug: 'chicago-bike-network',
-      product_uid: 'canvas_12x18-inch-300x450-mm_canvas_wood-fsc-slim_4-0_ver',
+      product_uid: 'acrylic_300x450-mm-12x18-inch_4-mm_4-0_ver',
       quantity: 2,
       address_hash: 'hash-b',
       quote_id: 'quote-a',
@@ -257,6 +259,39 @@ describe('hardened checkout helpers', () => {
       recommended_px_h: 10800,
     }, true)).toBe('digital')
   })
+
+  it('locks checkout buyer identity into Stripe metadata', () => {
+    expect(checkoutIdentityMetadata({
+      userId: '11111111-1111-1111-1111-111111111111',
+      guestEmail: 'guest@example.com',
+    })).toEqual({
+      user_id: '11111111-1111-1111-1111-111111111111',
+    })
+
+    expect(checkoutIdentityMetadata({
+      userId: null,
+      guestEmail: ' Guest@Example.COM ',
+    })).toEqual({
+      guest_email: 'guest@example.com',
+    })
+  })
+
+  it('expires only newly-created Stripe sessions after local checkout setup failure', () => {
+    expect(shouldExpireCreatedCheckoutSessionOnSetupFailure({
+      initialAttemptStatus: 'quoted',
+      initialQuoteStatus: 'selected',
+    })).toBe(true)
+
+    expect(shouldExpireCreatedCheckoutSessionOnSetupFailure({
+      initialAttemptStatus: 'session_created',
+      initialQuoteStatus: 'used',
+    })).toBe(false)
+
+    expect(shouldExpireCreatedCheckoutSessionOnSetupFailure({
+      initialAttemptStatus: 'quoted',
+      initialQuoteStatus: 'used',
+    })).toBe(false)
+  })
 })
 
 describe('checkout architecture guardrails', () => {
@@ -277,6 +312,21 @@ describe('checkout architecture guardrails', () => {
       expect(source, file).not.toContain('/api/orders/checkout')
       expect(source, file).not.toContain('/api/shop/checkout')
     }
+  })
+
+  it('does not interpolate customer email into raw PostgREST order lookup filters', () => {
+    const source = readFileSync(join(process.cwd(), 'server/api/orders/lookup.post.ts'), 'utf8')
+
+    expect(source).not.toContain('.or(`guest_email.eq.${email}')
+    expect(source).toContain(".eq('guest_email', email)")
+    expect(source).toContain(".eq('shipping_address->>email', email)")
+  })
+
+  it('claims shipping quotes with a status compare-and-set before redirecting to Stripe', () => {
+    const source = readFileSync(join(process.cwd(), 'server/api/checkout/session.post.ts'), 'utf8')
+
+    expect(source).toContain(".eq('status', initialQuoteStatus)")
+    expect(source).toContain("throw createError({ statusCode: 409, message: 'Shipping quote was already claimed. Please refresh shipping.' })")
   })
 })
 

@@ -4,7 +4,7 @@
  * check availability, and get pricing for a given destination country.
  *
  * Query params:
- *   ?catalog=posters|framed-posters|canvas|metallic  (default: all)
+ *   ?catalog=posters|framed-posters|metallic|acrylic  (default: all)
  *   ?country=US                             (for pricing, default: US)
  *
  * This endpoint caches Gelato responses for 1 hour to avoid rate limits.
@@ -85,7 +85,7 @@ export default defineEventHandler(async (event) => {
 
   const catalogTypes = query.catalog
     ? [query.catalog as string]
-    : ['posters', 'framed-posters', 'canvas', 'metallic']
+    : ['posters', 'framed-posters', 'metallic', 'acrylic']
   const country = (query.country as string) || 'US'
 
   const apiKey = config.gelatoApiKey as string

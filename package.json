@@ -27,6 +27,8 @@
     "atlas:worker:dev": "npx wrangler dev --config workers/atlas-tiles/wrangler.jsonc",
     "atlas:worker:deploy": "npx wrangler deploy --config workers/atlas-tiles/wrangler.jsonc",
     "premade:backfill-thumbnails": "node scripts/backfill-premade-thumbnails.mjs",
+    "mockups:backfill-products": "node scripts/backfill-product-mockups.mjs",
+    "mockups:audit-gelato-templates": "node scripts/audit-gelato-mockup-templates.mjs",
     "print-worker:dev": "node scripts/print-worker-dev.mjs",
     "aws:render-worker:sync-secrets": "scripts/aws-render-worker-sync-secrets.sh",
     "aws:render-worker:deploy-infra": "scripts/aws-render-worker-deploy-infra.sh",

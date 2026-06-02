@@ -53,7 +53,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 │   ├── maps/[id]/versions.*.ts        — map version history
 │   ├── maps/public/[id].get.ts        — public map share (⚠ IDOR — see REMEDIATION.md)
 │   ├── checkout/                      — quote-locked checkout and Stripe session APIs
-│   ├── orders/webhook.post.ts         — Stripe webhook → Gelato order placement
+│   ├── orders/webhook.post.ts         — Stripe webhook → order rows + fulfillment queues
 │   ├── gelato/webhook.post.ts         — Gelato fulfillment status updates
 │   ├── agent/style.post.ts            — Codex AI styling agent (SSE)
 │   ├── shop/customize.post.ts         — premade map customization
@@ -299,7 +299,7 @@ Flag behavior details:
 - **`text_overlays: TextOverlay[]`** in StyleConfig — draggable/resizable text elements using `interactjs`
 - **UTabs** top-level panel split: Map Style / Text / Export
 - **`@nuxtjs/google-fonts`** for self-hosted fonts (removes Google CDN dep from render worker)
-- **Rate limiting + queue tuning** for Browserless proof/final render concurrency
+- **Queue tuning** for Browserless proof/final render concurrency
 - **Scout / `useStyleAgent`** enhancements beyond the current feature-flagged admin entry point
 
 ## Open Security & Reliability Issues
@@ -308,12 +308,9 @@ Flag behavior details:
 **CRITICAL (fix before next user-facing release):**
 - `maps/public/[id].get.ts` — **IDOR**: public endpoint uses service key, bypasses RLS, returns any user's private map data. Fix: add `is_public` column + query only public maps.
 - Logo/image rendering — **SSRF / remote asset risk**: logos and future user-provided images must be whitelisted or copied to trusted storage before print rendering.
-- `orders/webhook.post.ts` — **Duplicate orders**: no Stripe event deduplication; webhook retries place duplicate Gelato orders. Fix: `processed_stripe_events` table.
 
 **HIGH:**
-- `gelato/webhook.post.ts` — conditional secret check silently allows unsigned webhooks when `GELATO_WEBHOOK_SECRET` is not set.
-- `maps/[id]/render.post.ts` — proof renders need rate limiting and abuse protection (spam → Browserless exhaustion).
-- `orders/webhook.post.ts` — Gelato placement failure still marks order `in_production`.
+- Gelato order reconciliation — Stripe event dedupe is implemented, but Gelato's public create-order docs do not document an idempotency header. If Gelato order creation succeeds and the worker dies before saving `gelato_order_id`, reconcile by stable `orderReferenceId` before retrying fulfillment.
 - `maps/[id]/logo.post.ts` — client-controlled MIME type can be spoofed; `mapId` in storage path not validated as UUID (path traversal).
 - `maps/index.post.ts` — no GeoJSON size limit (huge uploads crash render worker OOM).
 

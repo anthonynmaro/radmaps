@@ -34,25 +34,28 @@ describe('product catalog selector helpers', () => {
     }
   })
 
-  it('exposes aluminum as a first-class format with both Gelato metallic materials', () => {
+  it('exposes the template-backed physical formats', () => {
     const formats = getProductFormatOptions().map(format => format.type)
-    expect(formats).toContain('aluminum')
+    expect(formats).toEqual([
+      'poster',
+      'framed',
+      'wall_hanging',
+      'aluminum',
+      'acrylic',
+      'digital',
+    ])
     expect(formatHasMaterialChoice('aluminum')).toBe(true)
+    expect(formatHasMaterialChoice('framed')).toBe(true)
+    expect(formatHasMaterialChoice('wall_hanging')).toBe(true)
+    expect(formatHasMaterialChoice('acrylic')).toBe(false)
 
     const materials = getVisibleProductMaterialOptions('aluminum')
-    expect(materials.map(material => material.key)).toEqual([
-      'aluminum_white_matte',
-      'aluminum_brushed',
-    ])
-    expect(materials.map(material => material.label)).toEqual([
-      'White Matte Aluminum',
-      'Brushed Aluminum',
-    ])
-    expect(materials[1]?.warning).toMatch(/metallic base/i)
+    expect(materials.map(material => material.key)).toEqual(['aluminum_matte'])
+    expect(materials.map(material => material.label)).toEqual(['Matte Aluminum'])
   })
 
   it('maps every enabled aluminum size/material option to exactly one SKU', () => {
-    expect(PRODUCTS.filter(product => product.type === 'aluminum')).toHaveLength(10)
+    expect(PRODUCTS.filter(product => product.type === 'aluminum')).toHaveLength(5)
     const enabledSizes = ['8×12"', '12×18"', '16×24"', '20×30"', '24×36"']
     const materials = getProductMaterialOptions('aluminum')
 
@@ -78,18 +81,29 @@ describe('product catalog selector helpers', () => {
     expect(getProductSizeAvailability({
       type: 'aluminum',
       sizeLabel: '32×48"',
-      materialKey: 'aluminum_white_matte',
+      materialKey: 'aluminum_matte',
     })).toMatchObject({
       available: false,
       reason: 'Aluminum is not offered in 32×48"',
     })
   })
 
-  it('keeps unsupported framed sizes disabled instead of exposing unpriced Gelato UIDs', () => {
-    expect(getProductForSelection({ type: 'framed', sizeLabel: '16×24"' })?.product_uid).toBe(
-      'framed_poster_400x600-mm-16x24-inch_black_aluminum_w12xt22-mm_plexiglass_400x600-mm-16x24-inch_200-gsm-80lb-coated-silk_4-0_ver',
+  it('keeps unsupported framed sizes disabled instead of exposing missing template variants', () => {
+    expect(getProductSizeAvailability({
+      type: 'framed',
+      sizeLabel: '16×24"',
+      materialKey: 'framed_black_wood',
+    })).toMatchObject({
+      available: false,
+      reason: 'Framed is not offered in 16×24"',
+    })
+    expect(getProductForSelection({
+      type: 'framed',
+      sizeLabel: '24×36"',
+      materialKey: 'framed_black_wood',
+    })?.product_uid).toBe(
+      'framed_poster_mounted_premium_600x900-mm-24x36-inch_black_wood_w20xt20-mm_plexiglass_600x900-mm-24x36-inch_200-gsm-80lb-coated-silk_4-0_ver',
     )
-    expect(getProductForSelection({ type: 'framed', sizeLabel: '16×24"' })?.price_cents).toBe(6800)
     expect(getProductSizeAvailability({
       type: 'framed',
       sizeLabel: '32×48"',
@@ -101,8 +115,8 @@ describe('product catalog selector helpers', () => {
 
   it('derives available formats from products rather than a static size matrix', () => {
     expect(getMaterialsForSize('20×30"')).toEqual([
-      'canvas',
       'aluminum',
+      'acrylic',
       'digital',
     ])
   })
@@ -110,26 +124,28 @@ describe('product catalog selector helpers', () => {
   it('keeps poster paper as a material choice and digital fixed at 9.99', () => {
     expect(getVisibleProductMaterialOptions('poster').map(material => material.key)).toEqual([
       'poster_archival_250',
-      'poster_silk_200',
     ])
     expect(getDefaultMaterialKeyForFormat('poster', '16×24"')).toBe('poster_archival_250')
     expect(getProductForSelection({ type: 'digital' })?.price_cents).toBe(999)
   })
 
-  it('maps Gelato poster paper choices across the supported poster size matrix', () => {
-    for (const sizeLabel of ['8×12"', '12×18"', '16×24"', '24×36"']) {
+  it('maps Gelato poster paper choices only across the template-backed poster matrix', () => {
+    for (const sizeLabel of ['8×12"', '16×24"', '24×36"']) {
       expect(getProductSizeAvailability({
         type: 'poster',
         sizeLabel,
         materialKey: 'poster_archival_250',
       }).available, `${sizeLabel} archival`).toBe(true)
-      expect(getProductSizeAvailability({
-        type: 'poster',
-        sizeLabel,
-        materialKey: 'poster_silk_200',
-      }).available, `${sizeLabel} silk`).toBe(true)
     }
 
+    expect(getProductSizeAvailability({
+      type: 'poster',
+      sizeLabel: '12×18"',
+      materialKey: 'poster_archival_250',
+    })).toMatchObject({
+      available: false,
+      reason: 'Poster is not offered in 12×18"',
+    })
     expect(getProductSizeAvailability({
       type: 'poster',
       sizeLabel: '20×30"',
@@ -141,10 +157,30 @@ describe('product catalog selector helpers', () => {
     expect(getProductSizeAvailability({
       type: 'poster',
       sizeLabel: '32×48"',
-      materialKey: 'poster_silk_200',
+      materialKey: 'poster_archival_250',
     })).toMatchObject({
       available: false,
-      reason: 'Silk 200 gsm is not offered in 32×48"',
+      reason: 'Poster is not offered in 32×48"',
     })
+  })
+
+  it('exposes wall-hanging paper and rail variants from the saved templates', () => {
+    const materials = getVisibleProductMaterialOptions('wall_hanging')
+    expect(materials).toHaveLength(8)
+    expect(materials.map(material => material.key)).toEqual([
+      'wall_hanging_archival_black_wood',
+      'wall_hanging_archival_white_wood',
+      'wall_hanging_archival_natural_wood',
+      'wall_hanging_archival_dark_wood',
+      'wall_hanging_silk_black_wood',
+      'wall_hanging_silk_white_wood',
+      'wall_hanging_silk_natural_wood',
+      'wall_hanging_silk_dark_wood',
+    ])
+    expect(getProductSizeAvailability({
+      type: 'wall_hanging',
+      sizeLabel: '24×36"',
+      materialKey: 'wall_hanging_archival_natural_wood',
+    }).available).toBe(true)
   })
 })

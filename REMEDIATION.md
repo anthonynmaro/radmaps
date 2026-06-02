@@ -83,49 +83,29 @@ are high-impact for upload endpoints.
 
 ---
 
-### SEC-4 · Gelato Idempotency: Duplicate Orders on Webhook Retry
-**File:** `server/api/orders/webhook.post.ts`  
-**Risk:** Stripe retries webhooks on transient failures → duplicate Gelato orders placed → customer charged twice.
+### SEC-4 · Stripe Webhook Retry Deduplication — Resolved; Gelato Reconciliation Remains
+**File:** `server/api/orders/webhook.post.ts`,
+`render-worker-v4/src/queue/gelato.ts`
+**Status:** Stripe event deduplication is implemented with
+`processed_stripe_events`, and retryable handler failures release the marker so
+Stripe can retry. Physical fulfillment is no longer placed directly from the
+Stripe webhook; paid custom orders queue `print_render_jobs`, and paid premade
+orders queue `fulfillment_jobs`.
 
-**Fix:**
-```typescript
-// Store stripe event ID and skip already-processed events
-const eventId = stripeEvent.id
-const { data: existing } = await supabase
-  .from('processed_stripe_events')
-  .select('id')
-  .eq('event_id', eventId)
-  .maybeSingle()
-
-if (existing) {
-  return { received: true }  // Idempotent — already handled
-}
-
-// After processing, record the event
-await supabase.from('processed_stripe_events').insert({ event_id: eventId })
-```
-Add table: `CREATE TABLE processed_stripe_events (event_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT NOW())`
-
-Also pass an idempotency key to Gelato:
-```typescript
-headers: { 'Idempotency-Key': `${session.id}-gelato` }
-```
+**Remaining work:** Gelato's public v4 create-order docs require
+`orderReferenceId` but do not document an idempotency header. The worker submits
+a stable `orderReferenceId`, but if Gelato creation succeeds and the worker dies
+before persisting `gelato_order_id`, manual reconciliation by `orderReferenceId`
+may be required before retrying fulfillment. Add automated Gelato search/recover
+support before high-volume launch.
 
 ---
 
-### SEC-5 · Gelato Webhook: Conditional Secret Check
+### SEC-5 · Gelato Webhook: Conditional Secret Check — Resolved
 **File:** `server/api/gelato/webhook.post.ts`  
-**Risk:** If `GELATO_WEBHOOK_SECRET` is missing from env, the entire signature check is silently skipped.
-
-**Fix:**
-```typescript
-// Fail hard if secret is not configured
-const secret = config.gelatoWebhookSecret
-if (!secret) {
-  console.error('[gelato/webhook] GELATO_WEBHOOK_SECRET not set — refusing all requests')
-  throw createError({ statusCode: 500, message: 'Webhook not configured' })
-}
-```
+**Status:** Implemented. The route now fails closed when
+`GELATO_WEBHOOK_SECRET` is missing and rejects requests without a matching
+Authorization secret.
 
 ---
 
@@ -146,30 +126,14 @@ await supabase.from('maps').update({ status: 'rendering' }).eq('id', mapId)
 
 ---
 
-### BE-2 · Gelato Order Marked in_production Despite Placement Failure
-**File:** `server/api/orders/webhook.post.ts:119-138`  
-**Risk:** Gelato throws → order status still set to `in_production` → customer expects shipment, nothing ships.
-
-**Fix:**
-```typescript
-let status: OrderStatus = 'pending_payment'
-let gelatoOrderId: string | null = null
-
-if (!isDigital) {
-  try {
-    gelatoOrderId = await placeGelatoOrder(...)
-    status = 'in_production'
-  } catch (err) {
-    console.error('[gelato] Order placement failed:', err)
-    status = 'fulfillment_failed'
-    // TODO: alert admin via email/Slack
-  }
-} else {
-  status = 'delivered'
-}
-
-await supabase.from('orders').update({ gelato_order_id: gelatoOrderId, status }).eq('id', order.id)
-```
+### BE-2 · Gelato Order Marked in_production Despite Placement Failure — Resolved
+**File:** `server/api/orders/webhook.post.ts`,
+`render-worker-v4/src/queue/processJob.ts`,
+`render-worker-v4/src/queue/processFulfillmentJob.ts`
+**Status:** Fulfillment is queue-driven. The Stripe webhook marks paid orders as
+paid/rendering/print-ready and enqueues work. The worker only sets
+`status='in_production'` after Gelato returns an order ID; repeated failures move
+the order/job to `manual_review`.
 
 ---
 
@@ -191,20 +155,10 @@ async function safeUpdateMapStatus(supabase, mapId, updates, retries = 3) {
 
 ---
 
-### BE-4 · Rate Limiting on Render Endpoint
+### BE-4 · Rate Limiting on Render Endpoint — Resolved
 **File:** `server/api/maps/[id]/render.post.ts`  
-**Risk:** User can spam render jobs, exhausting Railway worker capacity and inflating cloud bills.
-
-**Fix:** Add Nitro rate limit middleware or per-user guard:
-```typescript
-// server/api/maps/[id]/render.post.ts — add at top of handler
-const cacheKey = `render:${user.id}`
-const recentCount = await renderRateLimit.get(cacheKey) ?? 0
-if (recentCount >= 5) {
-  throw createError({ statusCode: 429, message: 'Render limit reached (5/hour). Try again later.' })
-}
-await renderRateLimit.set(cacheKey, recentCount + 1, { ex: 3600 })
-```
+**Status:** Implemented. The route applies separate per-user rate limits for
+editor thumbnails, share renders, and general proof renders.
 
 ---
 
@@ -590,12 +544,12 @@ Add secondary sort by `id` to prevent non-deterministic results when two version
 | SEC-1 | **CRITICAL** | Security/IDOR | `maps/public/[id].get.ts` | Any UUID reads any private map |
 | SEC-2 | **CRITICAL** | Security/SSRF | Browserless render assets | User-provided logos/images need trusted storage or strict allowlist |
 | SEC-3 | **DONE** | Security/DoS | `utils/gpx.ts` | XML bomb guards added |
-| SEC-4 | **CRITICAL** | Backend | `orders/webhook.post.ts` | Duplicate Gelato orders on Stripe retry |
-| SEC-5 | **HIGH** | Security | `gelato/webhook.post.ts` | Conditional secret check — may accept unsigned webhooks |
+| SEC-4 | **PARTIAL** | Backend | `orders/webhook.post.ts`, `render-worker-v4/src/queue/gelato.ts` | Stripe event dedupe fixed; Gelato orderReferenceId reconciliation still needed |
+| SEC-5 | **DONE** | Security | `gelato/webhook.post.ts` | Gelato webhook secret now fails closed |
 | BE-1 | **HIGH** | Backend | `maps/[id]/render.post.ts` | Map never transitions to 'rendering' status |
-| BE-2 | **HIGH** | Backend | `orders/webhook.post.ts` | Order marked in_production despite Gelato failure |
+| BE-2 | **DONE** | Backend | `orders/webhook.post.ts`, `render-worker-v4/src/queue/*` | Queue worker sets in_production only after Gelato success |
 | BE-3 | **HIGH** | Backend | `maps/[id]/render.post.ts` | No recovery if Supabase write fails after render error |
-| BE-4 | **HIGH** | Backend/Security | `maps/[id]/render.post.ts` | No rate limiting — render spam exhausts Railway |
+| BE-4 | **DONE** | Backend/Security | `maps/[id]/render.post.ts` | Render endpoint has per-user rate limits |
 | BE-5 | **HIGH** | Security | `maps/[id]/logo.post.ts` | Client-spoofed MIME type + mapId path traversal |
 | BE-6 | **HIGH** | Backend | `maps/index.post.ts` | No GeoJSON size/bbox validation |
 | FE-1 | **HIGH** | Frontend | `MapPreview.vue` | Pointer event listener leak on overlay resize |
@@ -625,14 +579,15 @@ Add secondary sort by `id` to prevent non-deterministic results when two version
 - [ ] SEC-1: Add `is_public` flag, fix public map IDOR
 - [ ] SEC-2: Validate `logo_url` domain in render worker
 - [x] SEC-3: Add GPX size/entity guards + maintained XML parser
-- [ ] SEC-4: Stripe event deduplication table
-- [ ] SEC-5: Hard-fail if Gelato webhook secret not set
+- [x] SEC-4: Stripe event deduplication table
+- [ ] SEC-4 follow-up: Gelato orderReferenceId search/recover before retrying uncertain submissions
+- [x] SEC-5: Hard-fail if Gelato webhook secret not set
 
 **Week 2 — Backend Reliability**
 - [ ] BE-1: Add `rendering` status to MapStatus type
-- [ ] BE-2: Fix Gelato failure → order status logic
+- [x] BE-2: Fix Gelato failure → order status logic
 - [ ] BE-3: Retry on Supabase write after render error
-- [ ] BE-4: Rate limit render endpoint (5/user/hour)
+- [x] BE-4: Rate limit render endpoint
 - [ ] BE-5: Re-validate MIME type + UUID-check mapId
 
 **Week 3 — Frontend & State**

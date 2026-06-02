@@ -1,6 +1,6 @@
 # Product And Pricing Strategy
 
-Last updated: 2026-05-29
+Last updated: 2026-06-02
 
 ## Product Principles
 
@@ -28,15 +28,18 @@ Formats are ordered as:
 
 1. Poster
 2. Framed
-3. Canvas
-4. Wall Hanging
-5. Aluminum
+3. Wall Hanging
+4. Aluminum
+5. Acrylic
 6. Digital
 
 Material choices are exposed only where they are meaningful:
 
-- Poster: `Archival Matte 250 gsm`, `Silk 200 gsm`
-- Aluminum: `White Matte Aluminum`, `Brushed Aluminum`
+- Poster: `Archival Matte 250 gsm`
+- Framed: black, white, or natural wood
+- Wall Hanging: archival or silk paper with black, white, natural, or dark wood rails
+- Aluminum: `Matte Aluminum`
+- Acrylic: `Gloss Acrylic`
 
 Unsupported combinations stay visible as disabled size choices with a short reason. Do not silently hide the global 2:3 size family.
 
@@ -44,22 +47,20 @@ Unsupported combinations stay visible as disabled size choices with a short reas
 
 | Format | Materials | Enabled sizes |
 | --- | --- | --- |
-| Poster | Archival Matte 250 gsm | 8x12, 12x18, 16x24, 24x36, 32x48 |
-| Poster | Silk 200 gsm | 8x12, 12x18, 16x24, 24x36 |
-| Framed | Black aluminum frame | 8x12, 12x18, 16x24, 24x36 |
-| Canvas | Slim stretched canvas | 8x12, 12x18, 16x24, 20x30, 24x36 |
-| Wall Hanging | Black wood rails | 8x12, 12x18, 16x24, 24x36 |
-| Aluminum | White Matte Aluminum | 8x12, 12x18, 16x24, 20x30, 24x36 |
-| Aluminum | Brushed Aluminum | 8x12, 12x18, 16x24, 20x30, 24x36 |
+| Poster | Archival Matte 250 gsm | 8x12, 16x24, 24x36 |
+| Framed | Black, white, natural wood frames | 8x12, 12x18, 24x36 |
+| Wall Hanging | Archival or silk paper with black, white, natural, or dark wood rails | 8x12, 12x18, 16x24, 24x36 |
+| Aluminum | Matte Aluminum | 8x12, 12x18, 16x24, 20x30, 24x36 |
+| Acrylic | Gloss Acrylic | 12x18, 16x24, 20x30, 24x36 |
 | Digital | Digital Download | fixed download product |
 
-`32x48` is intentionally disabled for Aluminum and Framed. `20x30` is intentionally disabled for Poster, Framed, and Wall Hanging.
+`32x48` currently has no template-backed physical SKU. `12x16` and `40x60` template exports exist but are not enabled in the catalog.
 
 ## Default Product
 
 The default physical product is:
 
-`12x18 Poster, Archival Matte 250 gsm`
+`16x24 Poster, Archival Matte 250 gsm`
 
 This default is used for estimates and initial selector state only. Checkout must still persist the exact selected product UID.
 
@@ -122,6 +123,11 @@ Custom checkout and premade checkout may use different routes for ownership and 
 
 Legacy direct Stripe checkout endpoints are not part of production checkout. Physical checkout must go through `/api/checkout/quote` first and `/api/checkout/session` second so product price, destination country, shipping, quantity, and cart identity are locked server-side before Stripe is created.
 
+`/api/checkout/session` also conditionally claims the selected quote by status
+before redirecting to Stripe. If a newly-created Stripe session cannot be fully
+attached to the local checkout attempt, snapshot, quote, and coupon state, it is
+expired and local reservations are released.
+
 ## Verification Requirements
 
 Before enabling or committing catalog changes:
@@ -131,3 +137,5 @@ Before enabling or committing catalog changes:
 - Disabled combinations must have regression tests.
 - Digital must remain `$9.99`.
 - Browser smoke must verify custom and premade checkout product selection.
+- Run `npm run mockups:audit-gelato-templates` when changing template-backed
+  offerings.

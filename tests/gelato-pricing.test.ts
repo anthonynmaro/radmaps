@@ -239,7 +239,7 @@ describe('Gelato pricing helpers', () => {
   })
 
   it('syncs aluminum products through the non-digital Gelato pricing path', async () => {
-    const product = PRODUCTS.find((item) => item.type === 'aluminum' && item.material_key === 'aluminum_white_matte')!
+    const product = PRODUCTS.find((item) => item.type === 'aluminum' && item.material_key === 'aluminum_matte')!
     const upserts: Array<Record<string, unknown>> = []
     vi.stubGlobal('$fetch', vi.fn(async () => ([
       {

@@ -137,7 +137,7 @@
             </svg>
           </div>
           <p class="text-sm font-semibold text-stone-900 mb-1">Products &amp; sizing</p>
-          <p class="text-xs text-stone-500 leading-relaxed">Matte posters, framed prints, stretched canvas, and digital downloads. Sizes from 5×7″ to 24×36″, all at 300 DPI.</p>
+          <p class="text-xs text-stone-500 leading-relaxed">Archival posters, wood framed prints, wall hangings, aluminum, acrylic, and digital downloads in the RadMaps 2:3 portrait format.</p>
         </div>
       </div>
 
@@ -246,7 +246,7 @@ const faqSchema = {
       name: 'What materials are RadMaps prints made from?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'All prints are produced at 300 DPI on 170 gsm archival matte paper. Available sizes range from 8×10″ to 24×36″.',
+        text: 'RadMaps offers archival matte posters, wood framed prints, wall hangings, aluminum prints, acrylic prints, and digital downloads in a 2:3 portrait format.',
       },
     },
     {
@@ -254,7 +254,7 @@ const faqSchema = {
       name: 'What product types does RadMaps offer?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'RadMaps offers matte posters (5×7″ to 24×36″), framed prints with black frame (8×10″ to 18×24″), stretched canvas (8×10″ to 24×36″), and high-resolution digital downloads.',
+        text: 'RadMaps offers archival posters, premium wood framed prints, wall hangings with wood rails, aluminum prints, acrylic prints, and high-resolution digital downloads.',
       },
     },
     {

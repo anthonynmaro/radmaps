@@ -23,5 +23,8 @@ export function useFeatureFlags(): {
 
 export function useFeatureFlag(key: KnownFlagKey | string): ComputedRef<boolean> {
   const { flags } = useFeatureFlags()
-  return computed(() => flags.value[key] === true)
+  return computed(() => {
+    if (import.meta.dev && key === 'product_mockups') return true
+    return flags.value[key] === true
+  })
 }

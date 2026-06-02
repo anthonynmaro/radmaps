@@ -64,6 +64,15 @@ export function stripeCustomerAddress(address: CheckoutShippingAddress): Stripe.
   }
 }
 
+export function checkoutIdentityMetadata(input: {
+  userId?: string | null
+  guestEmail?: string | null
+}): Record<string, string> {
+  if (input.userId) return { user_id: input.userId }
+  const guestEmail = normalizeCouponEmail(input.guestEmail || '')
+  return guestEmail ? { guest_email: guestEmail } : {}
+}
+
 export function gelatoShippingAddress(address: CheckoutShippingAddress) {
   const parts = address.name.split(/\s+/).filter(Boolean)
   const firstName = parts[0] || address.name
@@ -288,6 +297,13 @@ export function checkoutAttemptMismatchReasons(
 
 export function canonicalPrintSize(product: PrintProduct, digitalOnly = false): string {
   return digitalOnly || product.type === 'digital' ? 'digital' : product.size_label
+}
+
+export function shouldExpireCreatedCheckoutSessionOnSetupFailure(input: {
+  initialAttemptStatus?: string | null
+  initialQuoteStatus?: string | null
+}): boolean {
+  return input.initialAttemptStatus !== 'session_created' && input.initialQuoteStatus !== 'used'
 }
 
 export async function currentOptionalUser(event: Parameters<typeof serverSupabaseUser>[0]) {
