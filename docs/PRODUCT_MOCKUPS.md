@@ -5,10 +5,18 @@ images come from the saved Gelato template exports in
 `assets/product_mockup_templates`; Gelato still receives the normal final print
 render from the Browserless/Railway fulfillment path.
 
+The renderer uses the provided wall-setting JPEGs as the base scene and replaces
+the sample artwork inside the product face with the current RadMaps proof or
+premade render. It does not generate synthetic wall scenes.
+
 ## Template Policy
 
 - The saved template images in `assets/product_mockup_templates` are the source
   of truth for mockup scenes.
+- Use `Close-Up-Bed-Room-White-0.jpeg` for flat poster, wall hanging, aluminum,
+  and acrylic hero mockups. Use `Close-Up-Lobby-Dark-Emerald-0.jpeg` for framed
+  poster hero mockups because the current framed exports do not include the
+  bedroom scene.
 - Keep the product catalog aligned to those saved Gelato template variants.
 - Do not offer a physical SKU unless it resolves to a template asset and the
   normal print renderer can produce the required aspect.
@@ -31,6 +39,8 @@ render from the Browserless/Railway fulfillment path.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
+- Current template placement version: `gelato-saved-template-room-scenes-v2`.
+- Current compositor version: `template-asset-compositor-v3`.
 
 Custom checkout lazily renders only the selected physical product after the
 selected print proof is ready. Premade checkout renders the selected product
