@@ -33,6 +33,12 @@ function wallHanging12x18() {
   return product
 }
 
+function aluminum12x18() {
+  const product = PRODUCTS.find(item => item.product_uid.startsWith('metallic_300x450-mm-12x18-inch'))
+  if (!product) throw new Error('Missing 12x18 aluminum fixture product')
+  return product
+}
+
 async function meanLuminance(buffer: Buffer, box: { left: number; top: number; width: number; height: number }): Promise<number> {
   const { data, info } = await sharp(buffer)
     .extract(box)
@@ -87,6 +93,44 @@ describe('product mockup renderer', () => {
     expect(rendered.template.id).toBe(template.id)
     expect(rendered.template.sceneFile).toBe(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
     expect(rendered.validation.template_path).toContain(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
+  }, 10000)
+
+  it('overprints aluminum face edges so source template artwork does not leak through', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#e7f4ee',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const rendered = await renderProductTemplateMockup({ product: aluminum12x18(), artworkBuffer })
+    const artworkBox = rendered.validation.artwork_box as { left: number; top: number; width: number; height: number }
+    const compositeBox = rendered.validation.composite_artwork_box as { left: number; top: number; width: number; height: number }
+    const templateWidth = rendered.validation.template_width_px as number
+    const scale = rendered.widthPx / templateWidth
+
+    expect(compositeBox.left).toBeLessThan(artworkBox.left)
+    expect(compositeBox.top).toBeLessThan(artworkBox.top)
+    expect(compositeBox.left + compositeBox.width).toBeGreaterThan(artworkBox.left + artworkBox.width)
+
+    const topEdgeSample = {
+      left: Math.round((artworkBox.left + 16) * scale),
+      top: Math.round((artworkBox.top - 8) * scale),
+      width: Math.round((artworkBox.width - 32) * scale),
+      height: Math.max(2, Math.round(4 * scale)),
+    }
+    const rightEdgeSample = {
+      left: Math.round((artworkBox.left + artworkBox.width + 5) * scale),
+      top: Math.round((artworkBox.top + 24) * scale),
+      width: Math.max(2, Math.round(4 * scale)),
+      height: Math.round((artworkBox.height - 48) * scale),
+    }
+
+    await expect(meanLuminance(rendered.buffer, topEdgeSample)).resolves.toBeGreaterThan(170)
+    await expect(meanLuminance(rendered.buffer, rightEdgeSample)).resolves.toBeGreaterThan(170)
   }, 10000)
 
   it('restores wall-hanging rails above the replacement artwork', async () => {

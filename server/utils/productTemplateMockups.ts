@@ -27,6 +27,13 @@ interface PixelBox {
   height: number
 }
 
+interface PixelBleed {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
 interface NamedChromeOverlay {
   id: string
   input: Buffer
@@ -57,17 +64,18 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
   }
 
   const artworkBox = toPixelBox(template.artworkBox, width, height)
+  const compositeArtworkBox = overprintedArtworkBox(artworkBox, width, height, artworkOverprintBleed(template))
   const artworkLayer = await sharp(artworkBuffer)
     .rotate()
-    .resize(artworkBox.width, artworkBox.height, { fit: 'fill' })
+    .resize(compositeArtworkBox.width, compositeArtworkBox.height, { fit: 'fill' })
     .jpeg({ quality: 95, mozjpeg: true })
     .toBuffer()
 
   const composites: sharp.OverlayOptions[] = [
     {
       input: artworkLayer,
-      left: artworkBox.left,
-      top: artworkBox.top,
+      left: compositeArtworkBox.left,
+      top: compositeArtworkBox.top,
     },
   ]
   const chromeBoxes: Record<string, PixelBox> = {}
@@ -85,11 +93,11 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
   }
 
   if (template.finish === 'acrylic') {
-    composites.push({ input: await acrylicChromeOverlay(width, height, artworkBox), left: 0, top: 0 })
+    composites.push({ input: await acrylicChromeOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
   }
 
   if (template.finish === 'metallic') {
-    composites.push({ input: await metallicSheenOverlay(width, height, artworkBox), left: 0, top: 0 })
+    composites.push({ input: await metallicSheenOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
   }
 
   const fullBuffer = await sharp(templateBuffer)
@@ -115,6 +123,7 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
       template_path: template.relativePath,
       template_finish: template.finish,
       artwork_box: artworkBox,
+      composite_artwork_box: compositeArtworkBox,
       chrome_boxes: chromeBoxes,
       template_width_px: width,
       template_height_px: height,
@@ -154,6 +163,25 @@ function toPixelBox(box: ProductMockupBox, width: number, height: number): Pixel
     width: Math.round(box.w * width),
     height: Math.round(box.h * height),
   }
+}
+
+function artworkOverprintBleed(template: ProductMockupTemplate): PixelBleed {
+  if (template.finish === 'metallic') {
+    return { left: 4, top: 12, right: 14, bottom: 4 }
+  }
+  if (template.finish === 'acrylic') {
+    return { left: 3, top: 8, right: 10, bottom: 3 }
+  }
+  return { left: 0, top: 0, right: 0, bottom: 0 }
+}
+
+function overprintedArtworkBox(box: PixelBox, width: number, height: number, bleed: PixelBleed): PixelBox {
+  return clampPixelBox({
+    left: box.left - bleed.left,
+    top: box.top - bleed.top,
+    width: box.width + bleed.left + bleed.right,
+    height: box.height + bleed.top + bleed.bottom,
+  }, width, height)
 }
 
 async function wallHangingRailOverlays(templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {
