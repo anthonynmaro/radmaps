@@ -4719,6 +4719,8 @@ onMounted(async () => {
   // conditional logic when the user enables duotone/posterize later.
   ensureTileEffectProtocol()
   if (styleUsesContours(props.styleConfig)) await ensureContourProtocol()
+  const mountedStyleConfig = JSON.parse(JSON.stringify(props.styleConfig)) as StyleConfig
+  const mountedStyleSignature = styleConfigSignature(mountedStyleConfig)
   const style = buildScaledMapStyle(props.styleConfig)
 
   // Restore saved zoom/center whenever they exist (user panned/zoomed before).
@@ -4806,6 +4808,10 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable) initOverlayDrag()
     recomputeOverlays()
+    if (queuedStyleConfig || styleConfigSignature(props.styleConfig) !== mountedStyleSignature) {
+      queuedStyleConfig = null
+      void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
+    }
     markPrintRenderReady()
     if (props.deleteBrushActive) nextTick(activateDeleteBrush)
     // Reconcile freeze state on initial load — the map_frozen watcher returns

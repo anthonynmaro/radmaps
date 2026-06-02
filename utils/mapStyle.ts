@@ -1349,18 +1349,22 @@ function buildRadMapsAtlasStyle(
 
   const explicitContourColor = config.contour_color !== DEFAULT_STYLE_CONFIG.contour_color ? config.contour_color : undefined
   const explicitContourMajorColor = config.contour_major_color !== DEFAULT_STYLE_CONFIG.contour_major_color ? config.contour_major_color : undefined
-  const contourColor = atlasSettings.contour?.minor_color || (isContourWash ? explicitContourColor : config.contour_color) || (isDarkAtlas ? '#63a97c' : isContourWash ? '#75a8d2' : isWatercolor ? '#78996e' : '#8b875e')
-  const contourMajorColor = atlasSettings.contour?.major_color || atlasSettings.contour?.index_color || (isContourWash ? explicitContourMajorColor : config.contour_major_color) || (isDarkAtlas ? '#8ed39f' : isContourWash ? '#4c7fa9' : isWatercolor ? '#6f885f' : '#68653f')
-  const contourOpacity = atlasNumberSetting(atlasSettings.contour?.minor_opacity ?? config.contour_opacity, isContourWash ? 0.46 : isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isDarkAtlas ? 0.46 : 0.34)
+  const explicitContourOpacity = config.contour_opacity !== DEFAULT_STYLE_CONFIG.contour_opacity ? config.contour_opacity : undefined
+  const explicitContourMinorWidth = config.contour_minor_width !== DEFAULT_STYLE_CONFIG.contour_minor_width ? config.contour_minor_width : undefined
+  const explicitContourMajorWidth = config.contour_major_width !== DEFAULT_STYLE_CONFIG.contour_major_width ? config.contour_major_width : undefined
+  const explicitElevationLabels = config.show_elevation_labels !== DEFAULT_STYLE_CONFIG.show_elevation_labels ? config.show_elevation_labels : undefined
+  const contourColor = explicitContourColor ?? atlasSettings.contour?.minor_color ?? (isContourWash ? undefined : config.contour_color) ?? (isDarkAtlas ? '#63a97c' : isContourWash ? '#75a8d2' : isWatercolor ? '#78996e' : '#8b875e')
+  const contourMajorColor = explicitContourMajorColor ?? atlasSettings.contour?.major_color ?? atlasSettings.contour?.index_color ?? (isContourWash ? undefined : config.contour_major_color) ?? (isDarkAtlas ? '#8ed39f' : isContourWash ? '#4c7fa9' : isWatercolor ? '#6f885f' : '#68653f')
+  const contourOpacity = atlasNumberSetting(explicitContourOpacity ?? atlasSettings.contour?.minor_opacity ?? config.contour_opacity, isContourWash ? 0.46 : isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isDarkAtlas ? 0.46 : 0.34)
   const contourConfig: StyleConfig = {
     ...config,
     show_contours: wantsContours,
     contour_color: contourColor,
     contour_major_color: contourMajorColor,
     contour_opacity: contourOpacity,
-    contour_minor_width: atlasSettings.contour?.minor_width ?? config.contour_minor_width,
-    contour_major_width: atlasSettings.contour?.major_width ?? atlasSettings.contour?.index_width ?? config.contour_major_width,
-    show_elevation_labels: atlasSettings.contour?.labels ?? config.show_elevation_labels,
+    contour_minor_width: explicitContourMinorWidth ?? atlasSettings.contour?.minor_width ?? config.contour_minor_width,
+    contour_major_width: explicitContourMajorWidth ?? atlasSettings.contour?.major_width ?? atlasSettings.contour?.index_width ?? config.contour_major_width,
+    show_elevation_labels: explicitElevationLabels ?? atlasSettings.contour?.labels ?? config.show_elevation_labels,
     background_color: labelHalo,
   }
   const atlasContourLayers = wantsContours

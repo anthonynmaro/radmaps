@@ -720,21 +720,21 @@
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs" style="color: #44403C;">Minor / Major color</span>
               <div class="flex gap-2">
-                <ColorSwatch :value="local.contour_color" @change="set('contour_color', $event)" title="Minor" />
-                <ColorSwatch :value="local.contour_major_color" @change="set('contour_major_color', $event)" title="Major" />
+                <ColorSwatch :value="local.contour_color" @change="setContourControl('contour_color', $event)" title="Minor" />
+                <ColorSwatch :value="local.contour_major_color" @change="setContourControl('contour_major_color', $event)" title="Major" />
               </div>
             </div>
             <SliderRow label="Opacity" :value="local.contour_opacity" :min="0" :max="1" :step="0.05"
-              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('contour_opacity', $event)" />
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="setContourControl('contour_opacity', $event)" />
             <SliderRow label="Detail" :value="local.contour_detail ?? 2" :min="0" :max="5" :step="1"
               :display="(v: number) => (['~200m','~100m','~50m','~20m','~10m','~2m'] as const)[Math.round(v)]"
               @change="set('contour_detail', $event)" />
             <SliderRow label="Minor weight" :value="local.contour_minor_width ?? 1" :min="0.25" :max="2.5" :step="0.25"
-              :display="(v: number) => v + '×'" @change="set('contour_minor_width', $event)" />
+              :display="(v: number) => v + '×'" @change="setContourControl('contour_minor_width', $event)" />
             <SliderRow label="Major weight" :value="local.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH" :min="0.25" :max="2.5" :step="0.25"
-              :display="(v: number) => v + '×'" @change="set('contour_major_width', $event)" />
+              :display="(v: number) => v + '×'" @change="setContourControl('contour_major_width', $event)" />
             <ToggleRow label="Elevation labels" :value="local.show_elevation_labels"
-              @change="set('show_elevation_labels', $event)" />
+              @change="setContourLabels($event)" />
           </template>
           <template v-if="sections.elevationProfileToggle">
             <ToggleRow label="Elevation profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
@@ -1450,6 +1450,7 @@ type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
+type ContourControlField = 'contour_color' | 'contour_major_color' | 'contour_opacity' | 'contour_minor_width' | 'contour_major_width'
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1848,6 +1849,36 @@ function applySavedTheme(saved: SavedTheme) {
 
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
+  emit('update:modelValue', { ...local })
+}
+
+function updateAtlasContourSettings(patch: Partial<NonNullable<AtlasLayerSettings['contour']>>) {
+  if (!isAtlasPresetActive.value) return
+  const currentContour = atlasLayerSettings('contour')
+  local.atlas_layer_settings = {
+    ...(local.atlas_layer_settings ?? {}),
+    contour: {
+      ...currentContour,
+      ...patch,
+    },
+  }
+}
+
+function setContourControl<K extends ContourControlField>(key: K, value: StyleConfig[K]) {
+  (local as StyleConfig)[key] = value
+
+  if (key === 'contour_color') updateAtlasContourSettings({ minor_color: value as string })
+  if (key === 'contour_major_color') updateAtlasContourSettings({ major_color: value as string, index_color: value as string })
+  if (key === 'contour_opacity') updateAtlasContourSettings({ minor_opacity: value as number, major_opacity: value as number })
+  if (key === 'contour_minor_width') updateAtlasContourSettings({ minor_width: value as number })
+  if (key === 'contour_major_width') updateAtlasContourSettings({ major_width: value as number, index_width: value as number })
+
+  emit('update:modelValue', { ...local })
+}
+
+function setContourLabels(enabled: boolean) {
+  local.show_elevation_labels = enabled
+  updateAtlasContourSettings({ labels: enabled })
   emit('update:modelValue', { ...local })
 }
 

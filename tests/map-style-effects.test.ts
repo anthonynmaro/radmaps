@@ -612,6 +612,70 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-field-topo-place-labels')?.paint?.['text-opacity']).toBe(0.33)
   })
 
+  it('lets explicit contour controls override Atlas contour defaults', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-night-relief',
+      show_contours: true,
+      contour_color: '#AABBCC',
+      contour_major_color: '#DDEEFF',
+      contour_opacity: 0.82,
+      contour_minor_width: 2,
+      contour_major_width: 1.75,
+      atlas_layer_settings: {
+        contour: {
+          minor_color: '#111111',
+          major_color: '#222222',
+          minor_opacity: 0.18,
+          minor_width: 0.25,
+          major_width: 0.25,
+        },
+      },
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#AABBCC')
+    expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 0.82, 14, 0.82 * 0.9,
+    ])
+    expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 1.6, 14, 2,
+    ])
+    expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#DDEEFF')
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.82)
+    expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 2.625, 14, 4.375,
+    ])
+  })
+
+  it('keeps Atlas contour settings as defaults until a top-level control is explicit', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+      show_contours: true,
+      atlas_layer_settings: {
+        contour: {
+          minor_color: '#445566',
+          major_color: '#778899',
+          minor_opacity: 0.28,
+          minor_width: 0.4,
+          major_width: 0.7,
+        },
+      },
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
+
+    expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#445566')
+    expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#778899')
+    expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 0.28, 14, 0.28 * 0.9,
+    ])
+    expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 0.32000000000000006, 14, 0.4,
+    ])
+    expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
+      'interpolate', ['linear'], ['zoom'], 5, 1.0499999999999998, 14, 1.75,
+    ])
+  })
+
   it('renders Dark Sky with explicit dark/gold Atlas colors and no hillshade', () => {
     const theme = getThemeDefinition('dark-sky')
     expect(theme).toBeTruthy()

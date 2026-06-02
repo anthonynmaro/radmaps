@@ -519,6 +519,44 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
   })
 
+  test('updates Dark Sky contour weights live even with Atlas contour defaults', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=darksky-stars&theme=dark-sky&editable=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__?: { getStyle: () => { atlas_layer_settings?: { contour?: unknown } } }
+        __RADMAPS_MAP_CAMERA__?: { getPaintProperty?: (layerId: string, property: string) => unknown }
+      }
+      return Boolean(
+        win.__RADMAPS_STYLE_FIXTURE__?.getStyle().atlas_layer_settings?.contour
+        && win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-minor', 'line-width'),
+      )
+    })).toBe(true)
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__: { setStyle: (patch: { contour_minor_width: number; contour_major_width: number }) => void }
+      }
+      win.__RADMAPS_STYLE_FIXTURE__.setStyle({
+        contour_minor_width: 2,
+        contour_major_width: 1.75,
+      })
+    })
+
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getPaintProperty?: (layerId: string, property: string) => unknown }
+      }
+      return {
+        minor: win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-minor', 'line-width'),
+        major: win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-major', 'line-width'),
+      }
+    }), { timeout: 10_000 }).toEqual({
+      minor: ['interpolate', ['linear'], ['zoom'], 5, 1.6, 14, 2],
+      major: ['interpolate', ['linear'], ['zoom'], 5, 2.625, 14, 4.375],
+    })
+  })
+
   test('renders first-party Toner light and dark presets with generated dot texture', async ({ page }) => {
     for (const { preset, variant } of [
       { preset: 'radmaps-toner-light', variant: 'light' },
