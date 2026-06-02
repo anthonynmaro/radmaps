@@ -26,6 +26,14 @@ interface PixelBox {
   height: number
 }
 
+interface NamedChromeOverlay {
+  id: string
+  input: Buffer
+  left: number
+  top: number
+  box: PixelBox
+}
+
 export async function renderProductTemplateMockup(input: RenderProductTemplateMockupInput): Promise<RenderProductTemplateMockupResult> {
   const template = getProductMockupTemplate(input.product)
   if (!template) {
@@ -61,6 +69,19 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
       top: artworkBox.top,
     },
   ]
+  const chromeBoxes: Record<string, PixelBox> = {}
+
+  if (template.finish === 'wall_hanging') {
+    const railOverlays = await wallHangingRailOverlays(templateBuffer, width, height, artworkBox)
+    for (const overlay of railOverlays) {
+      chromeBoxes[overlay.id] = overlay.box
+      composites.push({
+        input: overlay.input,
+        left: overlay.left,
+        top: overlay.top,
+      })
+    }
+  }
 
   if (template.finish === 'acrylic') {
     composites.push({ input: await acrylicChromeOverlay(width, height, artworkBox), left: 0, top: 0 })
@@ -93,6 +114,7 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
       template_path: template.relativePath,
       template_finish: template.finish,
       artwork_box: artworkBox,
+      chrome_boxes: chromeBoxes,
       template_width_px: width,
       template_height_px: height,
     },
@@ -131,6 +153,55 @@ function toPixelBox(box: ProductMockupBox, width: number, height: number): Pixel
     width: Math.round(box.w * width),
     height: Math.round(box.h * height),
   }
+}
+
+async function wallHangingRailOverlays(templateBuffer: Buffer, width: number, height: number, box: PixelBox): Promise<NamedChromeOverlay[]> {
+  const railHeight = Math.max(16, Math.round(box.width * 0.11))
+  const sideBleed = Math.max(6, Math.round(box.width * 0.045))
+  const left = clampInt(box.left - sideBleed, 0, width - 1)
+  const stripWidth = Math.min(width - left, box.width + sideBleed * 2)
+  const topRail = clampPixelBox({
+    left,
+    top: box.top - railHeight,
+    width: stripWidth,
+    height: railHeight,
+  }, width, height)
+  const bottomRail = clampPixelBox({
+    left,
+    top: box.top + box.height - Math.round(railHeight * 0.7),
+    width: stripWidth,
+    height: Math.round(railHeight * 1.18),
+  }, width, height)
+
+  return Promise.all([
+    chromeOverlayFromTemplate('top_rail', templateBuffer, topRail),
+    chromeOverlayFromTemplate('bottom_rail', templateBuffer, bottomRail),
+  ])
+}
+
+async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
+  return {
+    id,
+    input: await sharp(templateBuffer).extract(box).toBuffer(),
+    left: box.left,
+    top: box.top,
+    box,
+  }
+}
+
+function clampPixelBox(box: PixelBox, width: number, height: number): PixelBox {
+  const left = clampInt(box.left, 0, width - 1)
+  const top = clampInt(box.top, 0, height - 1)
+  return {
+    left,
+    top,
+    width: clampInt(box.width, 1, width - left),
+    height: clampInt(box.height, 1, height - top),
+  }
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)))
 }
 
 async function acrylicChromeOverlay(width: number, height: number, box: PixelBox): Promise<Buffer> {

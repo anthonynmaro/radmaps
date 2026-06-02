@@ -25,6 +25,26 @@ function productFor(type: PhysicalProductFormat) {
   return product
 }
 
+function wallHanging12x18() {
+  const product = PRODUCTS.find(item =>
+    item.product_uid.includes('wall_hanging_poster_310-mm_black_wood')
+    && item.product_uid.includes('250-gsm-100lb-uncoated-offwhite-archival'))
+  if (!product) throw new Error('Missing 12x18 black rail wall-hanging fixture product')
+  return product
+}
+
+async function meanLuminance(buffer: Buffer, box: { left: number; top: number; width: number; height: number }): Promise<number> {
+  const { data, info } = await sharp(buffer)
+    .extract(box)
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  let sum = 0
+  for (let index = 0; index < data.length; index += info.channels) {
+    sum += (data[index] + data[index + 1] + data[index + 2]) / 3
+  }
+  return sum / (data.length / info.channels)
+}
+
 describe('product mockup renderer', () => {
   it('composites artwork into the provided room/lobby template scenes', async () => {
     const artworkBuffer = await fixtureArtwork()
@@ -54,4 +74,41 @@ describe('product mockup renderer', () => {
       })
     }
   }, 20000)
+
+  it('restores wall-hanging rails above the replacement artwork', async () => {
+    const artworkBuffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 3,
+        background: '#ff00ff',
+      },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer()
+    const rendered = await renderProductTemplateMockup({ product: wallHanging12x18(), artworkBuffer })
+    const artworkBox = rendered.validation.artwork_box as { top: number; height: number }
+    const templateWidth = rendered.validation.template_width_px as number
+    const scale = rendered.widthPx / templateWidth
+    const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
+
+    expect(chromeBoxes.top_rail).toMatchObject({
+      top: expect.any(Number),
+      height: expect.any(Number),
+    })
+    expect(chromeBoxes.bottom_rail).toMatchObject({
+      top: expect.any(Number),
+      height: expect.any(Number),
+    })
+    expect(chromeBoxes.top_rail.top).toBeLessThan(artworkBox.top)
+    expect(chromeBoxes.bottom_rail.top).toBeLessThanOrEqual(artworkBox.top + artworkBox.height)
+
+    const bottomRailSample = {
+      left: Math.round((chromeBoxes.bottom_rail.left + chromeBoxes.bottom_rail.width * 0.25) * scale),
+      top: Math.round((chromeBoxes.bottom_rail.top + chromeBoxes.bottom_rail.height * 0.05) * scale),
+      width: Math.round(chromeBoxes.bottom_rail.width * 0.5 * scale),
+      height: Math.max(2, Math.round(chromeBoxes.bottom_rail.height * 0.12 * scale)),
+    }
+    await expect(meanLuminance(rendered.buffer, bottomRailSample)).resolves.toBeLessThan(90)
+  }, 10000)
 })

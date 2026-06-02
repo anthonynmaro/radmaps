@@ -7,7 +7,9 @@ render from the Browserless/Railway fulfillment path.
 
 The renderer uses the provided wall-setting JPEGs as the base scene and replaces
 the sample artwork inside the product face with the current RadMaps proof or
-premade render. It does not generate synthetic wall scenes.
+premade render. For wall hangings, it then reapplies the original rail strips
+from the saved template above the inserted map so the magnetic rails, wood
+texture, and shadows remain visible. It does not generate synthetic wall scenes.
 
 ## Template Policy
 
@@ -40,7 +42,7 @@ premade render. It does not generate synthetic wall scenes.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
 - Current template placement version: `gelato-saved-template-room-scenes-v2`.
-- Current compositor version: `template-asset-compositor-v3`.
+- Current compositor version: `template-asset-compositor-v6`.
 
 Custom checkout lazily renders only the selected physical product after the
 selected print proof is ready. Premade checkout renders the selected product

@@ -81,7 +81,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-room-scenes-v3' })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v4' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v3' })).not.toBe(hash)
   })
 
   it('keeps the mockup storage path helper stable', () => {
