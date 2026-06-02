@@ -6,6 +6,7 @@ import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemp
 
 export interface RenderProductTemplateMockupInput {
   product: PrintProduct
+  template?: ProductMockupTemplate
   artworkUrl?: string
   artworkBuffer?: Buffer
 }
@@ -35,7 +36,7 @@ interface NamedChromeOverlay {
 }
 
 export async function renderProductTemplateMockup(input: RenderProductTemplateMockupInput): Promise<RenderProductTemplateMockupResult> {
-  const template = getProductMockupTemplate(input.product)
+  const template = input.template ?? getProductMockupTemplate(input.product)
   if (!template) {
     throw createError({ statusCode: 422, message: `No product mockup template is registered for ${input.product.product_uid}` })
   }

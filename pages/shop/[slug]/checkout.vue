@@ -45,7 +45,7 @@
     <div v-else-if="step === 'product'" class="flex-1 overflow-y-auto">
       <div class="min-h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
-          <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+          <div class="flex-1 flex flex-col items-center justify-center gap-3 p-4 sm:p-6 overflow-hidden">
             <div
               :class="displayPremadeMockup
                 ? 'w-full max-w-[600px] aspect-square overflow-hidden'
@@ -69,6 +69,46 @@
                   stroke-linejoin="round"
                 />
               </svg>
+            </div>
+            <div
+              v-if="previewGalleryItems.length > 1"
+              class="w-full max-w-[640px] shrink-0 overflow-x-auto"
+            >
+              <div class="flex gap-2 px-1 py-1">
+                <button
+                  v-for="item in previewGalleryItems"
+                  :key="item.id"
+                  type="button"
+                  class="group w-[74px] shrink-0 text-left"
+                  :aria-pressed="selectedPreviewId === item.id"
+                  @click="selectedPreviewId = item.id"
+                >
+                  <span
+                    class="relative flex aspect-square items-center justify-center overflow-hidden rounded-md border bg-white transition-colors"
+                    :class="selectedPreviewId === item.id ? 'border-[#2D6A4F] ring-2 ring-[#2D6A4F]/20' : 'border-stone-200 group-hover:border-stone-300'"
+                  >
+                    <img
+                      v-if="item.url"
+                      :src="item.url"
+                      :alt="item.label"
+                      class="h-full w-full object-cover"
+                    >
+                    <span v-else class="flex h-full w-full items-center justify-center bg-stone-100 text-stone-400">
+                      <UIcon
+                        :name="item.loading ? 'i-heroicons-arrow-path' : 'i-heroicons-photo'"
+                        class="h-4 w-4"
+                        :class="item.loading ? 'animate-spin' : ''"
+                      />
+                    </span>
+                  </span>
+                  <span
+                    class="mt-1 block truncate text-center text-[10px] font-semibold"
+                    :class="selectedPreviewId === item.id ? 'text-[#2D6A4F]' : 'text-stone-500'"
+                  >
+                    {{ item.label }}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
           <div
@@ -435,17 +475,63 @@ const quantity = ref(Math.max(1, Math.min(10, parseInt((route.query.qty as strin
 
 const isDigital = computed(() => selectedProduct.value?.type === 'digital')
 const productMockupsEnabled = useFeatureFlag(FLAGS.PRODUCT_MOCKUPS)
-const mockupUrl = ref<string | null>(null)
 const mockupInFlight = ref(false)
 const mockupTargetProductUid = ref<string | null>(null)
+const mockupTargetSourceId = ref<string | null>(null)
+const selectedPreviewId = ref('map')
+const mockupTemplates = ref<MockupTemplateOption[]>([])
+const mockupUrlsByTemplate = ref<Record<string, string>>({})
+const mockupLoadingByTemplate = ref<Record<string, boolean>>({})
+type MockupTemplateOption = {
+  id: string
+  label: string
+  scene_file: string
+  is_default: boolean
+}
+type PreviewGalleryItem = {
+  id: string
+  kind: 'mockup' | 'map'
+  label: string
+  url: string | null
+  loading?: boolean
+}
+const fullPremadeMapUrl = computed(() => premade.value?.preview_image_url || premade.value?.render_url || null)
+const galleryPremadeMapUrl = computed(() => fullPremadeMapUrl.value || premadeRouteSvgUrl.value)
+const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
+  const items: PreviewGalleryItem[] = mockupTemplates.value.map(template => ({
+    id: `mockup:${template.id}`,
+    kind: 'mockup' as const,
+    label: template.label,
+    url: mockupUrlsByTemplate.value[template.id] ?? null,
+    loading: !!mockupLoadingByTemplate.value[template.id],
+  }))
+  if (galleryPremadeMapUrl.value) {
+    items.push({
+      id: 'map',
+      kind: 'map',
+      label: 'Map',
+      url: galleryPremadeMapUrl.value,
+    })
+  }
+  return items
+})
+const selectedPreviewItem = computed(() => (
+  previewGalleryItems.value.find(item => item.id === selectedPreviewId.value)
+  ?? previewGalleryItems.value.find(item => item.kind === 'mockup' && item.url)
+  ?? previewGalleryItems.value.find(item => item.url)
+  ?? previewGalleryItems.value[0]
+  ?? null
+))
 const displayPremadeMockup = computed(() =>
   productMockupsEnabled.value
-  && !!mockupUrl.value
+  && selectedPreviewItem.value?.kind === 'mockup'
+  && !!selectedPreviewItem.value.url
   && !!selectedProduct.value
   && mockupTargetProductUid.value === selectedProduct.value.product_uid
+  && mockupTargetSourceId.value === (premade.value?.id || premade.value?.slug)
 )
 const primaryPremadePreviewUrl = computed(() =>
-  displayPremadeMockup.value ? mockupUrl.value : premade.value?.preview_image_url
+  selectedPreviewItem.value?.url ?? galleryPremadeMapUrl.value
 )
 const productPrices = ref<Record<string, number>>({})
 const lockedProductPriceCents = ref<number | null>(null)
@@ -478,7 +564,7 @@ const totalCents = computed(() => Math.max(0, subtotalCents.value - (couponPrevi
 
 function onProductConfirmed() {
   clearShippingQuote()
-  void requestPremadeMockup()
+  void requestPremadeMockups()
   step.value = 'shipping'
 }
 type ShippingQuoteSelection = {
@@ -632,45 +718,92 @@ watch([
   quoteTimer = setTimeout(requestShippingQuote, 650)
 })
 
-async function requestPremadeMockup() {
+function resetPremadeMockups() {
+  mockupTemplates.value = []
+  mockupUrlsByTemplate.value = {}
+  mockupLoadingByTemplate.value = {}
+  mockupInFlight.value = false
+  mockupTargetProductUid.value = null
+  mockupTargetSourceId.value = null
+  selectedPreviewId.value = fullPremadeMapUrl.value ? 'map' : ''
+}
+
+function updatePremadeMockupLoading() {
+  mockupInFlight.value = Object.values(mockupLoadingByTemplate.value).some(Boolean)
+}
+
+async function requestPremadeMockups() {
   const sourceId = premade.value?.id || premade.value?.slug
   const productUid = selectedProduct.value?.product_uid
   if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value) return
-  if (mockupUrl.value && mockupTargetProductUid.value === productUid) return
 
+  const targetKey = `${sourceId}:${productUid}`
+  mockupTemplates.value = []
+  mockupUrlsByTemplate.value = {}
+  mockupLoadingByTemplate.value = {}
   mockupInFlight.value = true
   mockupTargetProductUid.value = productUid
+  mockupTargetSourceId.value = sourceId
+
   try {
-    const response = await $fetch<{
-      status: 'ready'
-      mockup_url: string
-      product_uid: string
-      mockup_template_id: string
-      mockup_hash: string
-    }>('/api/mockups/render', {
-      method: 'POST',
-      body: {
-        source: { type: 'premade', id: sourceId },
-        product_uid: productUid,
-      },
+    const templateResponse = await $fetch<{ templates: MockupTemplateOption[] }>('/api/mockups/templates', {
+      query: { product_uid: productUid },
     })
-    if (mockupTargetProductUid.value === productUid) {
-      mockupUrl.value = response.mockup_url
-    }
+    if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` !== targetKey) return
+    const templates = templateResponse.templates
+    mockupTemplates.value = templates
+    selectedPreviewId.value = templates[0]?.id ? `mockup:${templates[0].id}` : (fullPremadeMapUrl.value ? 'map' : '')
+    mockupLoadingByTemplate.value = Object.fromEntries(templates.map(template => [template.id, true]))
+    updatePremadeMockupLoading()
+
+    await Promise.all(templates.map(async (template) => {
+      try {
+        const response = await $fetch<{
+          status: 'ready'
+          mockup_url: string
+          product_uid: string
+          mockup_template_id: string
+          mockup_hash: string
+        }>('/api/mockups/render', {
+          method: 'POST',
+          body: {
+            source: { type: 'premade', id: sourceId },
+            product_uid: productUid,
+            mockup_template_id: template.id,
+          },
+        })
+        if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
+          mockupUrlsByTemplate.value = {
+            ...mockupUrlsByTemplate.value,
+            [template.id]: response.mockup_url,
+          }
+        }
+      } catch {
+        // Individual scene failures should not hide other available mockups or block checkout.
+      } finally {
+        if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
+          mockupLoadingByTemplate.value = {
+            ...mockupLoadingByTemplate.value,
+            [template.id]: false,
+          }
+          updatePremadeMockupLoading()
+        }
+      }
+    }))
   } catch {
-    mockupUrl.value = null
+    if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
+      resetPremadeMockups()
+    }
   } finally {
-    if (mockupTargetProductUid.value === productUid) {
+    if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
       mockupInFlight.value = false
     }
   }
 }
 
 watch([selectedProductUid, productMockupsEnabled], () => {
-  mockupUrl.value = null
-  mockupInFlight.value = false
-  mockupTargetProductUid.value = null
-  if (productMockupsEnabled.value) void requestPremadeMockup()
+  resetPremadeMockups()
+  if (productMockupsEnabled.value) void requestPremadeMockups()
 }, { immediate: true })
 
 async function checkout() {
@@ -753,6 +886,30 @@ const routePath = computed(() => {
   const pts = projectCoords()
   if (!pts) return ''
   return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
+})
+function escapeSvgText(value: string) {
+  return value.replace(/[&<>"]/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+  }[char] || char))
+}
+const premadeRouteSvgUrl = computed(() => {
+  if (!premade.value || !routePath.value) return null
+  const style = premade.value.style_config || {}
+  const title = escapeSvgText(premade.value.title || 'RadMaps')
+  const bg = style.background_color || '#F7F4EF'
+  const routeColor = style.route_color || '#C1121F'
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 133">',
+    `<rect width="100" height="133" fill="${bg}"/>`,
+    `<text x="10" y="14" font-family="Arial, sans-serif" font-size="5" font-weight="700" fill="#1c1917">${title}</text>`,
+    `<path d="${routePath.value}" fill="none" stroke="${routeColor}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    '<text x="10" y="124" font-family="Arial, sans-serif" font-size="3" fill="#78716c">RADMAPS</text>',
+    '</svg>',
+  ].join('')
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 })
 
 // ─── Field wrapper ──────────────────────────────────────────────────────

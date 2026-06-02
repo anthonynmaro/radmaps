@@ -30,6 +30,7 @@ const requestSchema = z.object({
     }),
   ]),
   product_uid: z.string().min(1),
+  mockup_template_id: z.string().min(1).max(360).optional(),
   force: z.boolean().optional(),
 })
 
@@ -63,7 +64,7 @@ export default defineEventHandler(async (event) => {
     ? await loadMapSource(supabase, body.source.id, user?.id)
     : await loadPremadeSource(adminClient, body.source.id)
 
-  const template = getProductMockupTemplate(product)
+  const template = getProductMockupTemplate(product, body.mockup_template_id)
   if (!template) {
     throw createError({ statusCode: 422, message: `No product mockup template is registered for ${product.product_uid}` })
   }
@@ -107,6 +108,7 @@ export default defineEventHandler(async (event) => {
 
   const renderedMockup = await renderProductTemplateMockup({
     product,
+    template,
     artworkUrl: source.artworkUrl,
     artworkBuffer: source.artworkBuffer,
   })

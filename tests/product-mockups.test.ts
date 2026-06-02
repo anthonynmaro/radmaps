@@ -6,6 +6,7 @@ import {
   computeProductMockupHash,
   getMockupSupportedProducts,
   getProductMockupTemplate,
+  getProductMockupTemplates,
   PRODUCT_MOCKUP_SCENE_FILES,
   PRODUCT_MOCKUP_PROVIDER,
   PRODUCT_MOCKUP_RENDERER_VERSION,
@@ -51,6 +52,37 @@ describe('product mockups', () => {
     for (const product of PRODUCTS.filter(product => product.type !== 'digital' && product.type !== 'framed')) {
       expect(getProductMockupTemplate(product)?.sceneFile).toBe(PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)
     }
+  })
+
+  it('exposes every saved scene variant for a selected product', () => {
+    const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
+    const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_300x450-mm-12x18-inch_black'))!
+    const aluminum = PRODUCTS.find(product => product.product_uid.startsWith('metallic_400x600-mm-16x24-inch'))!
+
+    expect(getProductMockupTemplates(poster).map(template => template.sceneFile)).toEqual([
+      PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
+      PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
+      PRODUCT_MOCKUP_SCENE_FILES.plainGray,
+    ])
+    expect(getProductMockupTemplates(framed).map(template => template.sceneFile)).toEqual([
+      PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
+      PRODUCT_MOCKUP_SCENE_FILES.plainGray,
+    ])
+    expect(getProductMockupTemplates(aluminum).map(template => template.sceneFile)).toEqual([
+      PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
+      PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
+      PRODUCT_MOCKUP_SCENE_FILES.plainGray,
+      PRODUCT_MOCKUP_SCENE_FILES.simple,
+    ])
+  })
+
+  it('resolves a requested scene template for gallery rendering', () => {
+    const product = PRODUCTS.find(item => item.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
+    const closeUp = getProductMockupTemplate(product, PRODUCT_MOCKUP_SCENE_FILES.plainGray)
+
+    expect(closeUp?.sceneFile).toBe(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
+    expect(closeUp?.sceneLabel).toBe('Close-up')
+    expect(getProductMockupTemplate(product, closeUp!.id)?.id).toBe(closeUp!.id)
   })
 
   it('scales insertion boxes by product size inside the provided scenes', () => {

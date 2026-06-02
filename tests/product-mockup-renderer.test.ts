@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { renderProductTemplateMockup } from '~/server/utils/productTemplateMockups'
 import { PRODUCTS } from '~/utils/products'
-import { PRODUCT_MOCKUP_SCENE_FILES } from '~/utils/productMockups'
+import { getProductMockupTemplate, PRODUCT_MOCKUP_SCENE_FILES } from '~/utils/productMockups'
 
 type PhysicalProductFormat = 'poster' | 'framed' | 'wall_hanging' | 'aluminum' | 'acrylic'
 
@@ -74,6 +74,20 @@ describe('product mockup renderer', () => {
       })
     }
   }, 20000)
+
+  it('renders a requested gallery template scene', async () => {
+    const product = productFor('poster')
+    const template = getProductMockupTemplate(product, PRODUCT_MOCKUP_SCENE_FILES.plainGray)!
+    const rendered = await renderProductTemplateMockup({
+      product,
+      template,
+      artworkBuffer: await fixtureArtwork(),
+    })
+
+    expect(rendered.template.id).toBe(template.id)
+    expect(rendered.template.sceneFile).toBe(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
+    expect(rendered.validation.template_path).toContain(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
+  }, 10000)
 
   it('restores wall-hanging rails above the replacement artwork', async () => {
     const artworkBuffer = await sharp({

@@ -15,10 +15,11 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 
 - The saved template images in `assets/product_mockup_templates` are the source
   of truth for mockup scenes.
-- Use `Close-Up-Bed-Room-White-0.jpeg` for flat poster, wall hanging, aluminum,
-  and acrylic hero mockups. Use `Close-Up-Lobby-Dark-Emerald-0.jpeg` for framed
-  poster hero mockups because the current framed exports do not include the
-  bedroom scene.
+- Use every saved scene that exists for the selected SKU in checkout galleries.
+  The default hero scene stays first: `Close-Up-Bed-Room-White-0.jpeg` for flat
+  poster, wall hanging, aluminum, and acrylic products, and
+  `Close-Up-Lobby-Dark-Emerald-0.jpeg` for framed poster products because the
+  current framed exports do not include the bedroom scene.
 - Keep the product catalog aligned to those saved Gelato template variants.
 - Do not offer a physical SKU unless it resolves to a template asset and the
   normal print renderer can produce the required aspect.
@@ -32,8 +33,10 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Feature flag: `FLAGS.PRODUCT_MOCKUPS`; local development enables it so the
   checkout can be visually tested without seeding a flag row.
 - Cache table: `product_mockups`.
-- API: `POST /api/mockups/render` with
-  `{ source: { type: "map" | "premade", id }, product_uid }`.
+- Template API: `GET /api/mockups/templates?product_uid=...` returns the
+  available saved scene templates for a physical SKU.
+- Render API: `POST /api/mockups/render` with
+  `{ source: { type: "map" | "premade", id }, product_uid, mockup_template_id? }`.
 - Mockup `source.id` is a map UUID for custom maps. For premade maps it can be
   a database UUID or a slug, so local/static premade fallback can render mockups
   before the premade row exists in Supabase.
@@ -44,9 +47,11 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Current template placement version: `gelato-saved-template-room-scenes-v2`.
 - Current compositor version: `template-asset-compositor-v6`.
 
-Custom checkout lazily renders only the selected physical product after the
-selected print proof is ready. Premade checkout renders the selected product
-mockup when a premade render is available. Mockup failures never block payment.
+Custom checkout lazily renders the selected physical product's saved scene
+variants after the selected print proof is ready. Premade checkout renders the
+selected product's saved scene variants when a premade render is available. Both
+flows show those mockups in a compact gallery with the unmocked proof/premade
+map as an additional selectable image. Mockup failures never block payment.
 
 ## Catalog Notes
 

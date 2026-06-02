@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import type { PrintProduct } from '~/types'
 import { PRODUCTS } from '~/utils/products'
 import { stableStringify } from '~/utils/render/hash'
@@ -18,9 +20,11 @@ export interface ProductMockupTemplate {
   setId: string
   productUid: string
   sceneFile: string
+  sceneLabel: string
   relativePath: string
   finish: ProductMockupFinish
   artworkBox: ProductMockupBox
+  isDefault: boolean
 }
 
 export interface ProductMockupHashInput {
@@ -42,7 +46,18 @@ export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
 export const PRODUCT_MOCKUP_SCENE_FILES = {
   bedroomWhite: 'Close-Up-Bed-Room-White-0.jpeg',
   lobbyDarkEmerald: 'Close-Up-Lobby-Dark-Emerald-0.jpeg',
+  plainGray: 'Close-Up-Plain-Gray-0.jpeg',
+  simple: 'Simple.jpeg',
 } as const
+
+export type ProductMockupSceneFile = typeof PRODUCT_MOCKUP_SCENE_FILES[keyof typeof PRODUCT_MOCKUP_SCENE_FILES]
+
+const PRODUCT_MOCKUP_SCENE_LABELS: Record<ProductMockupSceneFile, string> = {
+  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: 'Room',
+  [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: 'Emerald wall',
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: 'Close-up',
+  [PRODUCT_MOCKUP_SCENE_FILES.simple]: 'Product',
+}
 
 const TEMPLATE_SET_IDS = {
   flatArchival: '70ce9534-2f69-459c-8b40-6f51cb3d6a92',
@@ -54,43 +69,85 @@ const TEMPLATE_SET_IDS = {
 } as const
 
 interface ScenePlacementProfile {
-  sceneFile: string
-  centerXPx: number
-  centerYPx: number
-  pxPerPrintIn: number
+  centerXPx?: number
+  centerYPx?: number
+  pxPerPrintIn?: number
+  artworkBox?: ProductMockupBox
 }
 
-const SCENE_PLACEMENTS: Record<ProductMockupFinish, ScenePlacementProfile> = {
+const BEDROOM_PLACEMENTS: Record<Exclude<ProductMockupFinish, 'framed'>, ScenePlacementProfile> = {
   paper: {
-    sceneFile: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
     centerXPx: 1506,
     centerYPx: 1305,
     pxPerPrintIn: 47.8,
   },
-  framed: {
-    sceneFile: PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
-    centerXPx: 1456,
-    centerYPx: 1498,
-    pxPerPrintIn: 50.0,
-  },
   wall_hanging: {
-    sceneFile: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
     centerXPx: 1510,
     centerYPx: 1356,
     pxPerPrintIn: 47.5,
   },
   metallic: {
-    sceneFile: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
     centerXPx: 1506,
     centerYPx: 1305,
     pxPerPrintIn: 47.8,
   },
   acrylic: {
-    sceneFile: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
     centerXPx: 1506,
     centerYPx: 1305,
     pxPerPrintIn: 47.8,
   },
+}
+
+const LOBBY_PLACEMENT: ScenePlacementProfile = {
+  centerXPx: 1456,
+  centerYPx: 1498,
+  pxPerPrintIn: 50.0,
+}
+
+const CLOSE_UP_PLACEMENT: ScenePlacementProfile = {
+  centerXPx: 1500,
+  centerYPx: 1518,
+  pxPerPrintIn: 111.5,
+}
+
+const SIMPLE_PLACEMENT: ScenePlacementProfile = {
+  artworkBox: { x: 0, y: 0, w: 1, h: 1 },
+}
+
+const SCENE_PLACEMENTS: Record<ProductMockupFinish, Partial<Record<ProductMockupSceneFile, ScenePlacementProfile>>> = {
+  paper: {
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.paper,
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+  },
+  framed: {
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+  },
+  wall_hanging: {
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.wall_hanging,
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+  },
+  metallic: {
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.metallic,
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.simple]: SIMPLE_PLACEMENT,
+  },
+  acrylic: {
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: BEDROOM_PLACEMENTS.acrylic,
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: LOBBY_PLACEMENT,
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: CLOSE_UP_PLACEMENT,
+  },
+}
+
+const DEFAULT_SCENE_BY_FINISH: Record<ProductMockupFinish, ProductMockupSceneFile> = {
+  paper: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
+  framed: PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
+  wall_hanging: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
+  metallic: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
+  acrylic: PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
 }
 
 function templateSetForProduct(product: PrintProduct): { setId: string; finish: ProductMockupFinish } | null {
@@ -109,32 +166,75 @@ function templateSetForProduct(product: PrintProduct): { setId: string; finish: 
   return null
 }
 
-export function getProductMockupTemplate(product: PrintProduct | null | undefined): ProductMockupTemplate | null {
-  if (!product || product.type === 'digital') return null
+export function getProductMockupTemplates(product: PrintProduct | null | undefined): ProductMockupTemplate[] {
+  if (!product || product.type === 'digital') return []
   const templateSet = templateSetForProduct(product)
-  if (!templateSet) return null
-  const placement = SCENE_PLACEMENTS[templateSet.finish]
-  const artworkBox = scaledArtworkBox(product, placement)
+  if (!templateSet) return []
+  const placements = SCENE_PLACEMENTS[templateSet.finish]
+  const defaultScene = DEFAULT_SCENE_BY_FINISH[templateSet.finish]
 
+  return Object.entries(placements)
+    .map(([sceneFile, placement]) => {
+      const template = buildProductMockupTemplate(
+        product,
+        templateSet.setId,
+        templateSet.finish,
+        sceneFile as ProductMockupSceneFile,
+        placement,
+        sceneFile === defaultScene,
+      )
+      return templateAssetExists(template.relativePath) ? template : null
+    })
+    .filter((template): template is ProductMockupTemplate => !!template)
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+}
+
+export function getProductMockupTemplate(
+  product: PrintProduct | null | undefined,
+  templateIdOrSceneFile?: string | null,
+): ProductMockupTemplate | null {
+  const templates = getProductMockupTemplates(product)
+  if (!templates.length) return null
+  if (!templateIdOrSceneFile) return templates[0]
+  return templates.find(template =>
+    template.id === templateIdOrSceneFile
+    || template.sceneFile === templateIdOrSceneFile,
+  ) ?? null
+}
+
+function buildProductMockupTemplate(
+  product: PrintProduct,
+  setId: string,
+  finish: ProductMockupFinish,
+  sceneFile: ProductMockupSceneFile,
+  placement: ScenePlacementProfile,
+  isDefault: boolean,
+): ProductMockupTemplate {
+  const artworkBox = scaledArtworkBox(product, placement)
   const relativePath = [
     PRODUCT_MOCKUP_TEMPLATE_ROOT,
-    templateSet.setId,
+    setId,
     product.product_uid,
-    placement.sceneFile,
+    sceneFile,
   ].join('/')
-
   return {
-    id: `${templateSet.setId}/${product.product_uid}/${placement.sceneFile.replace(/\.[^.]+$/, '')}`,
-    setId: templateSet.setId,
+    id: `${setId}/${product.product_uid}/${sceneFile.replace(/\.[^.]+$/, '')}`,
+    setId,
     productUid: product.product_uid,
-    sceneFile: placement.sceneFile,
+    sceneFile,
+    sceneLabel: PRODUCT_MOCKUP_SCENE_LABELS[sceneFile],
     relativePath,
-    finish: templateSet.finish,
+    finish,
     artworkBox,
+    isDefault,
   }
 }
 
 function scaledArtworkBox(product: PrintProduct, placement: ScenePlacementProfile): ProductMockupBox {
+  if (placement.artworkBox) return placement.artworkBox
+  if (!placement.centerXPx || !placement.centerYPx || !placement.pxPerPrintIn) {
+    throw new Error('Mockup scene placement is missing geometry')
+  }
   const widthPx = product.width_in * placement.pxPerPrintIn
   const heightPx = widthPx * (product.height_in / product.width_in)
   return {
@@ -143,6 +243,10 @@ function scaledArtworkBox(product: PrintProduct, placement: ScenePlacementProfil
     w: widthPx / 3000,
     h: heightPx / 3000,
   }
+}
+
+function templateAssetExists(relativePath: string): boolean {
+  return existsSync(join(process.cwd(), relativePath))
 }
 
 export function isMockupSupportedProduct(product: PrintProduct | null | undefined): product is PrintProduct {
