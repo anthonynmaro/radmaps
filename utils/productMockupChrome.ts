@@ -57,8 +57,8 @@ function wallHangingChromeBoxes(template: ProductMockupTemplate): ProductMockupC
 
   if (template.sceneFile === PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald) {
     return [
-      { id: 'top_rail', box: slot(850, 588, 1210, 70) },
-      { id: 'bottom_rail', box: slot(850, 2335, 1210, 70) },
+      { id: 'top_rail', box: slot(853, 614, 1199, 42) },
+      { id: 'bottom_rail', box: slot(853, 2372, 1199, 42) },
     ]
   }
 

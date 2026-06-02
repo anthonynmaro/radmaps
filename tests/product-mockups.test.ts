@@ -132,6 +132,23 @@ describe('product mockups', () => {
     expect(bleed.bottom).toBe(0)
   })
 
+  it('keeps the emerald wall-hanging artwork between the rail chrome', () => {
+    const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_natural'))!
+    const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald)!
+    const chromeBoxes = getProductMockupChromeBoxes(template)
+    const topRail = chromeBoxes.find(chrome => chrome.id === 'top_rail')!
+    const bottomRail = chromeBoxes.find(chrome => chrome.id === 'bottom_rail')!
+    const artworkTop = Math.round(template.artworkBox.y * 3000)
+    const artworkBottom = Math.round((template.artworkBox.y + template.artworkBox.h) * 3000)
+    const topRailBottom = Math.round((topRail.box.y + topRail.box.h) * 3000)
+    const bottomRailTop = Math.round(bottomRail.box.y * 3000)
+
+    expect(artworkTop).toBe(656)
+    expect(artworkBottom).toBe(2372)
+    expect(artworkTop).toBeGreaterThanOrEqual(topRailBottom)
+    expect(artworkBottom).toBeLessThanOrEqual(bottomRailTop)
+  })
+
   it('exposes framed chrome boxes for browser template previews', () => {
     const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
     const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald)!

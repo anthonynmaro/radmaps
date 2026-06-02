@@ -80,6 +80,9 @@ inspection in this gallery preview.
 Wall-hanging templates use zero artwork bleed so the top/bottom rail and hanger
 details remain owned by the template chrome layer rather than being covered by
 the inserted map.
+The Emerald wall wall-hanging scene has its own rail/body trace because its
+bottom rail sits lower than the Room scene; the artwork ends before that rail so
+the footer band cannot spill into the rail edge.
 
 ## Catalog Notes
 
