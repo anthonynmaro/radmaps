@@ -182,7 +182,9 @@ v-else-if="renderInFlight && !printReady"
         <!-- Product Selector -->
         <aside class="flex min-h-0 flex-col bg-white border-t lg:h-[calc(100vh-57px)] lg:border-t-0 lg:border-l border-stone-200 lg:overflow-hidden">
           <div class="p-5 sm:p-6 border-b border-stone-200">
-            <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">Choose your print</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-[#2D6A4F]">
+              {{ productStepEyebrow }}
+            </p>
             <h2 class="mt-1 text-2xl font-bold text-stone-950" style="font-family:'Space Grotesk',sans-serif">
               {{ productStepTitle }}
             </h2>
@@ -653,8 +655,7 @@ const productStepTitle = computed(() => {
   if (printReady.value && selectedProduct.value && renderTargetProductUid.value === selectedProduct.value.product_uid) {
     return 'Print-ready proof is ready'
   }
-  if (selectedProduct.value) return 'Ready to render proof'
-  return 'Select a product first'
+  return 'Select a product'
 })
 
 const productStepDescription = computed(() => {
@@ -663,8 +664,15 @@ const productStepDescription = computed(() => {
   if (printReady.value && selectedProduct.value && renderTargetProductUid.value === selectedProduct.value.product_uid) {
     return `The print-ready proof for ${selectedProductName.value} is ready for checkout.`
   }
-  if (selectedProduct.value) return `We will render the print-ready proof for ${selectedProductName.value} before shipping details.`
-  return 'We will render the print-ready proof only for the product you continue with.'
+  return 'Pick a format, finish, and size below. We will render the print-ready proof after you continue.'
+})
+
+const productStepEyebrow = computed(() => {
+  if (renderError.value) return 'Proof render'
+  if (renderInFlight.value || (printReady.value && selectedProduct.value && renderTargetProductUid.value === selectedProduct.value.product_uid)) {
+    return 'Print proof'
+  }
+  return 'Choose your print'
 })
 const productConfirmLabel = computed(() =>
   selectedProduct.value ? (isDigital.value ? 'Continue' : 'Render proof') : 'Choose an enabled size',
