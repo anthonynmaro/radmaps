@@ -34,15 +34,6 @@ export function getProductMockupArtworkBleedPx(
   }
 
   if (finish === 'wall_hanging') {
-    if (sceneFile === 'Close-Up-Plain-Gray-0.jpeg') {
-      return { left: 160, top: 0, right: 160, bottom: 0 }
-    }
-    if (sceneFile === 'Close-Up-Lobby-Dark-Emerald-0.jpeg') {
-      return { left: 60, top: 0, right: 60, bottom: 0 }
-    }
-    if (sceneFile === 'Close-Up-Bed-Room-White-0.jpeg') {
-      return { left: 34, top: 0, right: 48, bottom: 0 }
-    }
     return ZERO_BLEED
   }
 

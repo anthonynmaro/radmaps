@@ -11,13 +11,6 @@
       :style="artworkStyle(overprintedArtworkBox(safeArtworkBox, finish, sceneFile), artworkUrl)"
       aria-hidden="true"
     />
-    <span
-      v-for="cleanup in cleanupBoxes(finish, sceneFile)"
-      :key="cleanup.id"
-      class="product-mockup-preview__cleanup"
-      :style="cleanupStyle(cleanup)"
-      aria-hidden="true"
-    />
     <img
       v-for="chrome in safeChromeBoxes"
       :key="chrome.id"
@@ -51,7 +44,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getProductMockupCleanupBoxes, type ProductMockupCleanupBox } from '~/utils/productMockupCleanup'
 import { getOverprintedProductMockupArtworkBox } from '~/utils/productMockupGeometry'
 import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 
@@ -139,17 +131,6 @@ function chromeStyle(box: Box) {
   }
 }
 
-function cleanupBoxes(finish?: string, sceneFile?: string) {
-  return getProductMockupCleanupBoxes(finish, sceneFile)
-}
-
-function cleanupStyle(cleanup: ProductMockupCleanupBox) {
-  return {
-    ...boxStyle(cleanup.box),
-    backgroundColor: cleanup.fill,
-  }
-}
-
 function templateCropStyle(box: Box, url: string) {
   return {
     ...boxStyle(box),
@@ -192,26 +173,20 @@ function templateCropStyle(box: Box, url: string) {
   background-repeat: no-repeat;
 }
 
-.product-mockup-preview__cleanup {
-  position: absolute;
-  z-index: 3;
-  pointer-events: none;
-}
-
 .product-mockup-preview__chrome {
-  z-index: 4;
+  z-index: 3;
   pointer-events: none;
 }
 
 .product-mockup-preview__finish {
   position: absolute;
-  z-index: 5;
+  z-index: 4;
   pointer-events: none;
 }
 
 .product-mockup-preview__rivet {
   position: absolute;
-  z-index: 6;
+  z-index: 5;
   border-radius: 999px;
   pointer-events: none;
   overflow: hidden;

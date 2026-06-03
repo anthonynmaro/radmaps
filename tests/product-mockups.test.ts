@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '~/utils/products'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
-import { getProductMockupCleanupBoxes } from '~/utils/productMockupCleanup'
 import { getProductMockupArtworkBleedPx, getOverprintedProductMockupArtworkBox } from '~/utils/productMockupGeometry'
 import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 import {
@@ -122,49 +121,23 @@ describe('product mockups', () => {
     }
   })
 
-  it('overprints the room wall-hanging side edges without moving the rail chrome', () => {
+  it('keeps the room wall-hanging artwork inside the traced rail body', () => {
     const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_black'))!
     const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
     const chromeBoxes = getProductMockupChromeBoxes(template)
     const topRail = chromeBoxes.find(chrome => chrome.id === 'top_rail')!
     const artworkLeft = Math.round(template.artworkBox.x * 3000)
     const artworkRight = Math.round((template.artworkBox.x + template.artworkBox.w) * 3000)
-    const railLeft = Math.round(topRail.box.x * 3000)
     const railRight = Math.round((topRail.box.x + topRail.box.w) * 3000)
     const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
 
     expect(artworkLeft).toBe(942)
     expect(artworkRight).toBe(2075)
-    expect(artworkLeft - bleed.left).toBeLessThanOrEqual(railLeft)
-    expect(artworkRight + bleed.right).toBeGreaterThanOrEqual(railRight)
     expect(artworkRight).toBeLessThan(railRight)
-    expect(bleed.left).toBe(34)
+    expect(bleed.left).toBe(0)
     expect(bleed.top).toBe(0)
-    expect(bleed.right).toBe(48)
+    expect(bleed.right).toBe(0)
     expect(bleed.bottom).toBe(0)
-  })
-
-  it('overprints close-up wall-hanging side remnants from the saved template', () => {
-    const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_black'))!
-    const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.plainGray)!
-    const chromeBoxes = getProductMockupChromeBoxes(template)
-    const cleanupBoxes = getProductMockupCleanupBoxes(template.finish, template.sceneFile)
-    const topRail = chromeBoxes.find(chrome => chrome.id === 'top_rail')!
-    const artworkLeft = Math.round(template.artworkBox.x * 3000)
-    const artworkRight = Math.round((template.artworkBox.x + template.artworkBox.w) * 3000)
-    const railLeft = Math.round(topRail.box.x * 3000)
-    const railRight = Math.round((topRail.box.x + topRail.box.w) * 3000)
-    const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
-
-    expect(artworkLeft).toBe(654)
-    expect(artworkRight).toBe(2342)
-    expect(artworkLeft - bleed.left).toBeLessThanOrEqual(railLeft)
-    expect(artworkRight + bleed.right).toBeGreaterThanOrEqual(railRight)
-    expect(bleed).toEqual({ left: 160, top: 0, right: 160, bottom: 0 })
-    expect(cleanupBoxes.map(box => box.id)).toEqual(['left_side_scene_cleanup', 'right_side_scene_cleanup'])
-    expect(Math.round(cleanupBoxes[0].box.y * 3000)).toBeGreaterThanOrEqual(
-      Math.round((topRail.box.y + topRail.box.h) * 3000),
-    )
   })
 
   it('uses an aluminum-specific room face trace that covers the saved poster art', () => {
