@@ -17,13 +17,11 @@ export function getProductMockupAcrylicRivetBoxes(
   if (finish !== 'acrylic') return []
 
   const box = getOverprintedProductMockupArtworkBox(artworkBox, finish, sceneFile)
-  const diameter = Math.min(box.w, box.h) * 0.06
-  const horizontalInset = 0
-  const verticalInset = -diameter * 0.04
-  const left = box.x + horizontalInset
-  const right = box.x + box.w - horizontalInset - diameter * 0.72
-  const top = box.y + verticalInset
-  const bottom = box.y + box.h - diameter * 0.52
+  const diameter = Math.min(box.w, box.h) * 0.045
+  const left = box.x - diameter * 0.25
+  const right = box.x + box.w - diameter * 0.75
+  const top = box.y - diameter * 0.25
+  const bottom = box.y + box.h - diameter * 1.4
 
   return [
     { id: 'top_left', box: { x: left, y: top, w: diameter, h: diameter } },

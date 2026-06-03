@@ -102,7 +102,7 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
 
   if (template.finish === 'acrylic') {
     composites.push({ input: await acrylicGlareOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
-    const rivetOverlays = templateAcrylicRivetOverlays(template, width, height)
+    const rivetOverlays = await templateAcrylicRivetOverlays(template, templateBuffer, width, height)
     for (const overlay of rivetOverlays) {
       chromeBoxes[overlay.id] = overlay.box
       composites.push({
@@ -200,17 +200,12 @@ async function templateChromeOverlays(template: ProductMockupTemplate, templateB
   )
 }
 
-function templateAcrylicRivetOverlays(template: ProductMockupTemplate, width: number, height: number): NamedChromeOverlay[] {
-  return getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile).map((rivet) => {
-    const box = toPixelBox(rivet.box, width, height)
-    return {
-      id: rivet.id,
-      input: acrylicStandOffOverlay(box),
-      left: box.left,
-      top: box.top,
-      box,
-    }
-  })
+async function templateAcrylicRivetOverlays(template: ProductMockupTemplate, templateBuffer: Buffer, width: number, height: number): Promise<NamedChromeOverlay[]> {
+  return Promise.all(
+    getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile).map(rivet =>
+      circularChromeOverlayFromTemplate(rivet.id, templateBuffer, toPixelBox(rivet.box, width, height)),
+    ),
+  )
 }
 
 async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
@@ -223,36 +218,26 @@ async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box
   }
 }
 
-function acrylicStandOffOverlay(box: PixelBox): Buffer {
-  const size = Math.max(1, Math.min(box.width, box.height))
-  const center = size / 2
-  const outerRadius = size * 0.48
-  const innerRadius = size * 0.16
-
-  return Buffer.from(`
+async function circularChromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
+  const radius = Math.min(box.width, box.height) / 2
+  const mask = Buffer.from(`
     <svg width="${box.width}" height="${box.height}" viewBox="0 0 ${box.width} ${box.height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="standoffOuter" cx="34%" cy="28%" r="70%">
-          <stop offset="0" stop-color="rgba(255,255,255,0.98)" />
-          <stop offset="0.18" stop-color="rgba(238,241,239,0.92)" />
-          <stop offset="0.43" stop-color="rgba(151,158,158,0.94)" />
-          <stop offset="0.75" stop-color="rgba(56,61,64,0.78)" />
-          <stop offset="1" stop-color="rgba(20,22,24,0.62)" />
-        </radialGradient>
-        <radialGradient id="standoffInner" cx="38%" cy="30%" r="64%">
-          <stop offset="0" stop-color="rgba(255,255,255,0.72)" />
-          <stop offset="0.55" stop-color="rgba(112,118,120,0.64)" />
-          <stop offset="1" stop-color="rgba(26,29,31,0.58)" />
-        </radialGradient>
-        <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.1" flood-color="rgba(0,0,0,0.34)" />
-        </filter>
-      </defs>
-      <circle cx="${center}" cy="${center}" r="${outerRadius}" fill="url(#standoffOuter)" filter="url(#softShadow)" />
-      <circle cx="${center}" cy="${center}" r="${outerRadius - 1}" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.5" />
-      <circle cx="${center}" cy="${center}" r="${innerRadius}" fill="url(#standoffInner)" stroke="rgba(0,0,0,0.18)" stroke-width="1.4" />
+      <circle cx="${box.width / 2}" cy="${box.height / 2}" r="${radius}" fill="white" />
     </svg>
   `)
+
+  return {
+    id,
+    input: await sharp(templateBuffer)
+      .extract(box)
+      .ensureAlpha()
+      .composite([{ input: mask, blend: 'dest-in' }])
+      .png()
+      .toBuffer(),
+    left: box.left,
+    top: box.top,
+    box,
+  }
 }
 
 function clampPixelBox(box: PixelBox, width: number, height: number): PixelBox {

@@ -195,7 +195,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('positions generated acrylic stand-offs around the overprinted artwork corners', () => {
+  it('positions acrylic template rivet crops around the overprinted artwork corners', () => {
     const acrylic = PRODUCTS.find(product => product.product_uid.startsWith('acrylic_400x600-mm-16x24-inch'))!
     const template = getProductMockupTemplate(acrylic, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
     const rivets = getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile)
@@ -211,15 +211,15 @@ describe('product mockups', () => {
       expect(rivet.box.y + rivet.box.h).toBeLessThanOrEqual(1)
     }
 
-    expect(rivets[0].box.x).toBeCloseTo(overprintedBox.x)
+    expect(rivets[0].box.x).toBeLessThan(overprintedBox.x)
     expect(rivets[0].box.y).toBeLessThan(overprintedBox.y)
-    expect(rivets[1].box.x + rivets[1].box.w).toBeGreaterThan(overprintedBox.x + overprintedBox.w)
-    expect(rivets[3].box.y + rivets[3].box.h).toBeGreaterThan(overprintedBox.y + overprintedBox.h)
+    expect(rivets[1].box.x + rivets[1].box.w).toBeGreaterThan(overprintedBox.x + overprintedBox.w - rivets[1].box.w)
+    expect(rivets[3].box.y + rivets[3].box.h).toBeLessThan(overprintedBox.y + overprintedBox.h)
 
-    expect(Math.round(rivets[0].box.x * 3000)).toBe(935)
-    expect(Math.round(rivets[0].box.y * 3000)).toBe(429)
-    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2128)
-    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2217)
+    expect(Math.round(rivets[0].box.x * 3000)).toBe(922)
+    expect(Math.round(rivets[0].box.y * 3000)).toBe(419)
+    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2121)
+    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2162)
 
     const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
     const posterTemplate = getProductMockupTemplate(poster, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
