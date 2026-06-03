@@ -36,7 +36,7 @@
       v-for="rivet in acrylicRivetBoxes(safeArtworkBox, finish, sceneFile)"
       :key="rivet.id"
       class="product-mockup-preview__rivet"
-      :style="templateCropStyle(rivet.box, templateImageUrl)"
+      :style="rivetStyle(rivet.box)"
       aria-hidden="true"
     />
   </span>
@@ -131,13 +131,8 @@ function chromeStyle(box: Box) {
   }
 }
 
-function templateCropStyle(box: Box, url: string) {
-  return {
-    ...boxStyle(box),
-    backgroundImage: `url("${url}")`,
-    backgroundSize: `${100 / box.w}% ${100 / box.h}%`,
-    backgroundPosition: `${box.x / (1 - box.w) * 100}% ${box.y / (1 - box.h) * 100}%`,
-  }
+function rivetStyle(box: Box) {
+  return boxStyle(box)
 }
 
 </script>
@@ -190,7 +185,24 @@ function templateCropStyle(box: Box, url: string) {
   border-radius: 999px;
   pointer-events: none;
   overflow: hidden;
-  background-repeat: no-repeat;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.98) 0 8%, rgba(238, 241, 239, 0.92) 18%, rgba(151, 158, 158, 0.94) 43%, rgba(56, 61, 64, 0.78) 75%, rgba(20, 22, 24, 0.62) 100%);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.38) inset,
+    0 -1px 1px rgba(0, 0, 0, 0.22) inset;
+}
+
+.product-mockup-preview__rivet::after {
+  content: "";
+  position: absolute;
+  inset: 31%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.72), rgba(112, 118, 120, 0.64) 55%, rgba(26, 29, 31, 0.58) 100%);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18) inset,
+    0 1px 1px rgba(255, 255, 255, 0.18);
 }
 
 .product-mockup-preview__finish--metallic {

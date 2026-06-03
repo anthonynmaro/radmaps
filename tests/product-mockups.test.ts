@@ -195,7 +195,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('positions acrylic rivet crops around the overprinted artwork corners', () => {
+  it('positions generated acrylic stand-offs around the overprinted artwork corners', () => {
     const acrylic = PRODUCTS.find(product => product.product_uid.startsWith('acrylic_400x600-mm-16x24-inch'))!
     const template = getProductMockupTemplate(acrylic, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
     const rivets = getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile)
@@ -259,7 +259,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v8' })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v20' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v-next' })).not.toBe(hash)
   })
 
   it('keeps the mockup storage path helper stable', () => {

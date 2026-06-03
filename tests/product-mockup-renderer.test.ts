@@ -140,7 +140,7 @@ describe('product mockup renderer', () => {
     expect(rendered.validation.template_path).toContain(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
   }, 10000)
 
-  it('restores acrylic rivet crops from the saved template above the replacement artwork', async () => {
+  it('adds generated acrylic stand-offs above the replacement artwork', async () => {
     const rendered = await renderProductTemplateMockup({
       product: productFor('acrylic'),
       artworkBuffer: await fixtureArtwork(),

@@ -53,7 +53,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
 - Current template placement version: `gelato-saved-template-traced-slots-v7`.
-- Current compositor version: `template-asset-compositor-v19`.
+- Current compositor version: `template-asset-compositor-v20`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
 selected SKU resolves to a canonical large saved Gelato asset for its product
@@ -70,9 +70,8 @@ rules so the replacement map sits slightly underneath paper, frame, rail, and
 surface edges. The room wall-hanging slot is traced from the visible product
 body rather than the rail crop, which keeps the inserted poster from spilling
 past the right edge of the hanging.
-Gloss acrylic templates also replay the original brushed-metal rivet crops from
-the saved template above the inserted map, while keeping the acrylic glare as a
-separate finish overlay.
+Gloss acrylic templates add generated brushed-metal stand-offs above the
+inserted map, while keeping the acrylic glare as a separate finish overlay.
 The aluminum Room scene also has a dedicated face trace because its saved
 template carries a darker product-edge treatment than the flat poster scene;
 the inserted artwork and metallic sheen both use the overprinted face box so the
