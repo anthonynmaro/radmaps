@@ -50,7 +50,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
-- Current template placement version: `gelato-saved-template-traced-slots-v5`.
+- Current template placement version: `gelato-saved-template-traced-slots-v6`.
 - Current compositor version: `template-asset-compositor-v18`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
@@ -85,8 +85,8 @@ bottom rail sits lower than the Room scene; the artwork ends before that rail so
 the footer band cannot spill into the rail edge.
 The framed Close-up scene also uses scene-specific face bounds, a small left/top
 artwork overprint to hide browser subpixel seams, and a right edge traced to the
-dark frame start, so the replacement map covers the original template's paper
-edge without tinting the side frame.
+inside edge of the dark frame, so the replacement map sits flush without tinting
+the side frame.
 
 ## Catalog Notes
 

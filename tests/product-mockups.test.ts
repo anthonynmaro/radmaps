@@ -173,7 +173,7 @@ describe('product mockups', () => {
     const artworkBottom = Math.round((template.artworkBox.y + template.artworkBox.h) * 3000)
 
     expect(artworkLeft).toBe(657)
-    expect(artworkRight).toBe(2360)
+    expect(artworkRight).toBe(2338)
     expect(artworkTop).toBe(233)
     expect(artworkBottom).toBe(2748)
     expect(bleed).toEqual({ left: 6, top: 6, right: 0, bottom: 0 })
@@ -195,7 +195,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, sourceRenderHash: 'proof-b' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v6' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v7' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v19' })).not.toBe(hash)
   })
 
