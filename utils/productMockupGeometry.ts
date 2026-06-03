@@ -21,7 +21,7 @@ export function getProductMockupArtworkBleedPx(
 
   if (finish === 'framed') {
     if (sceneFile === 'Close-Up-Plain-Gray-0.jpeg') {
-      return ZERO_BLEED
+      return { left: 6, top: 6, right: 0, bottom: 0 }
     }
     return { left: 24, top: 24, right: 24, bottom: 24 }
   }

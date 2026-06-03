@@ -163,7 +163,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('keeps framed close-up artwork covering the original poster edge before the side frame', () => {
+  it('overprints framed close-up artwork just enough to hide top-left seams', () => {
     const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
     const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.plainGray)!
     const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
@@ -176,7 +176,7 @@ describe('product mockups', () => {
     expect(artworkRight).toBe(2360)
     expect(artworkTop).toBe(233)
     expect(artworkBottom).toBe(2748)
-    expect(bleed).toEqual({ left: 0, top: 0, right: 0, bottom: 0 })
+    expect(bleed).toEqual({ left: 6, top: 6, right: 0, bottom: 0 })
   })
 
   it('changes hash when the source render, product, template, or renderer changes', () => {
@@ -196,7 +196,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v6' })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v18' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v19' })).not.toBe(hash)
   })
 
   it('keeps the mockup storage path helper stable', () => {
