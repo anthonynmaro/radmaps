@@ -15,11 +15,13 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 
 - The saved template images in `assets/product_mockup_templates` are the source
   of truth for mockup scenes.
-- Use every saved scene that exists for the selected SKU in checkout galleries.
+- Use the saved wall-setting scenes that exist for the selected SKU in checkout galleries.
   The default hero scene stays first: `Close-Up-Bed-Room-White-0.jpeg` for flat
   poster, wall hanging, aluminum, and acrylic products, and
   `Close-Up-Lobby-Dark-Emerald-0.jpeg` for framed poster products because the
   current framed exports do not include the bedroom scene.
+- Do not expose `Simple.jpeg` in checkout galleries. It is a product-only packshot,
+  not an in-room wall mockup, and should stay out of all product galleries.
 - Keep the product catalog aligned to those saved Gelato template variants.
 - Do not offer a physical SKU unless it resolves to a template asset and the
   normal print renderer can produce the required aspect.

@@ -55,7 +55,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('exposes every saved scene variant for a selected product', () => {
+  it('exposes checkout wall-scene variants for a selected product', () => {
     const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
     const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_300x450-mm-12x18-inch_black'))!
     const aluminum = PRODUCTS.find(product => product.product_uid.startsWith('metallic_400x600-mm-16x24-inch'))!
@@ -73,8 +73,15 @@ describe('product mockups', () => {
       PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite,
       PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald,
       PRODUCT_MOCKUP_SCENE_FILES.plainGray,
-      PRODUCT_MOCKUP_SCENE_FILES.simple,
     ])
+  })
+
+  it('does not expose the product-only saved scene in checkout galleries', () => {
+    for (const product of PRODUCTS.filter(product => product.type !== 'digital')) {
+      const templates = getProductMockupTemplates(product)
+      expect(templates.map(template => template.sceneFile), product.product_uid).not.toContain(PRODUCT_MOCKUP_SCENE_FILES.simple)
+      expect(templates.map(template => template.sceneLabel), product.product_uid).not.toContain('Product')
+    }
   })
 
   it('resolves a requested scene template for gallery rendering', () => {
