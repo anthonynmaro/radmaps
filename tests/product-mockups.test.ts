@@ -132,6 +132,26 @@ describe('product mockups', () => {
     expect(bleed.bottom).toBe(0)
   })
 
+  it('uses an aluminum-specific room face trace that covers the saved poster art', () => {
+    const aluminum = PRODUCTS.find(product => product.product_uid.startsWith('metallic_400x600-mm-16x24-inch'))!
+    const template = getProductMockupTemplate(aluminum, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
+    const artworkLeft = Math.round(template.artworkBox.x * 3000)
+    const artworkRight = Math.round((template.artworkBox.x + template.artworkBox.w) * 3000)
+    const artworkTop = Math.round(template.artworkBox.y * 3000)
+    const artworkBottom = Math.round((template.artworkBox.y + template.artworkBox.h) * 3000)
+
+    expect(template.finish).toBe('metallic')
+    expect(artworkLeft).toBe(935)
+    expect(artworkRight).toBe(2083)
+    expect(artworkTop).toBe(441)
+    expect(artworkBottom).toBe(2163)
+    expect(artworkLeft - bleed.left).toBeLessThanOrEqual(935)
+    expect(artworkTop - bleed.top).toBeLessThanOrEqual(441)
+    expect(artworkRight + bleed.right).toBeGreaterThanOrEqual(2083)
+    expect(artworkBottom + bleed.bottom).toBeGreaterThanOrEqual(2163)
+  })
+
   it('keeps the emerald wall-hanging artwork between the rail chrome', () => {
     const wallHanging = PRODUCTS.find(product => product.product_uid.startsWith('wall_hanging_poster_410-mm_natural'))!
     const template = getProductMockupTemplate(wallHanging, PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald)!
@@ -199,7 +219,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, sourceRenderHash: 'proof-b' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v7' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v8' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v20' })).not.toBe(hash)
   })
 

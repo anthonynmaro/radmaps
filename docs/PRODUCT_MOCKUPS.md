@@ -50,7 +50,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
-- Current template placement version: `gelato-saved-template-traced-slots-v6`.
+- Current template placement version: `gelato-saved-template-traced-slots-v7`.
 - Current compositor version: `template-asset-compositor-v19`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
@@ -68,6 +68,10 @@ rules so the replacement map sits slightly underneath paper, frame, rail, and
 surface edges. The room wall-hanging slot is traced from the visible product
 body rather than the rail crop, which keeps the inserted poster from spilling
 past the right edge of the hanging.
+The aluminum Room scene also has a dedicated face trace because its saved
+template carries a darker product-edge treatment than the flat poster scene;
+the inserted artwork and metallic sheen both use the overprinted face box so the
+sample poster cannot peek through at the top edge.
 
 Checkout keeps the currently displayed mockup mounted while templates for a new
 format, finish, or size are loading. This avoids flashing back to the raw map

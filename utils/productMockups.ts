@@ -41,7 +41,7 @@ export interface ProductMockupHashInput {
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
 export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v19'
-export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v6'
+export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v7'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
 
@@ -90,6 +90,13 @@ const RIGID_SURFACE_SLOTS: Record<ProductMockupSceneFile, ProductMockupBox> = {
   [PRODUCT_MOCKUP_SCENE_FILES.simple]: slot(0, 0, 3000, 3000),
 }
 
+const METALLIC_SURFACE_SLOTS: Record<ProductMockupSceneFile, ProductMockupBox> = {
+  [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: slot(935, 441, 1148, 1722),
+  [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
+  [PRODUCT_MOCKUP_SCENE_FILES.simple]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.simple],
+}
+
 const FRAMED_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
   [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(850, 590, 1210, 1815),
   [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(657, 233, 1681, 2515),
@@ -114,10 +121,10 @@ const SCENE_PLACEMENTS: Record<ProductMockupFinish, Partial<Record<ProductMockup
     [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: WALL_HANGING_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
   },
   metallic: {
-    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
-    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
-    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
-    [PRODUCT_MOCKUP_SCENE_FILES.simple]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.simple],
+    [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: METALLIC_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],
+    [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: METALLIC_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald],
+    [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: METALLIC_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.plainGray],
+    [PRODUCT_MOCKUP_SCENE_FILES.simple]: METALLIC_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.simple],
   },
   acrylic: {
     [PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite]: RIGID_SURFACE_SLOTS[PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite],

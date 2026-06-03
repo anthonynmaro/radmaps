@@ -23,13 +23,13 @@
     <span
       v-if="finish === 'metallic'"
       class="product-mockup-preview__finish product-mockup-preview__finish--metallic"
-      :style="boxStyle(artworkBox)"
+      :style="finishStyle(artworkBox, finish, sceneFile)"
       aria-hidden="true"
     />
     <span
       v-else-if="finish === 'acrylic'"
       class="product-mockup-preview__finish product-mockup-preview__finish--acrylic"
-      :style="boxStyle(artworkBox)"
+      :style="finishStyle(artworkBox, finish, sceneFile)"
       aria-hidden="true"
     />
   </span>
@@ -95,6 +95,10 @@ function artworkStyle(box: Box, url: string) {
     backgroundImage: `url("${url}")`,
     backgroundSize: '100% 100%',
   }
+}
+
+function finishStyle(box: Box, finish?: string, sceneFile?: string) {
+  return boxStyle(overprintedArtworkBox(box, finish, sceneFile))
 }
 
 function chromeStyle(box: Box) {
