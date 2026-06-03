@@ -70,6 +70,9 @@ rules so the replacement map sits slightly underneath paper, frame, rail, and
 surface edges. The room wall-hanging slot is traced from the visible product
 body rather than the rail crop, which keeps the inserted poster from spilling
 past the right edge of the hanging.
+Gloss acrylic templates also replay the original brushed-metal rivet crops from
+the saved template above the inserted map, while keeping the acrylic glare as a
+separate finish overlay.
 The aluminum Room scene also has a dedicated face trace because its saved
 template carries a darker product-edge treatment than the flat poster scene;
 the inserted artwork and metallic sheen both use the overprinted face box so the

@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import type { PrintProduct } from '~/types'
 import { getProductMockupArtworkBleedPx } from '~/utils/productMockupGeometry'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
+import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
 
 export interface RenderProductTemplateMockupInput {
@@ -100,7 +101,16 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
   }
 
   if (template.finish === 'acrylic') {
-    composites.push({ input: await acrylicChromeOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
+    composites.push({ input: await acrylicGlareOverlay(width, height, compositeArtworkBox), left: 0, top: 0 })
+    const rivetOverlays = await templateAcrylicRivetOverlays(template, templateBuffer, width, height)
+    for (const overlay of rivetOverlays) {
+      chromeBoxes[overlay.id] = overlay.box
+      composites.push({
+        input: overlay.input,
+        left: overlay.left,
+        top: overlay.top,
+      })
+    }
   }
 
   if (template.finish === 'metallic') {
@@ -190,10 +200,40 @@ async function templateChromeOverlays(template: ProductMockupTemplate, templateB
   )
 }
 
+async function templateAcrylicRivetOverlays(template: ProductMockupTemplate, templateBuffer: Buffer, width: number, height: number): Promise<NamedChromeOverlay[]> {
+  return Promise.all(
+    getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile).map(rivet =>
+      circularChromeOverlayFromTemplate(rivet.id, templateBuffer, toPixelBox(rivet.box, width, height)),
+    ),
+  )
+}
+
 async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
   return {
     id,
     input: await sharp(templateBuffer).extract(box).toBuffer(),
+    left: box.left,
+    top: box.top,
+    box,
+  }
+}
+
+async function circularChromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
+  const radius = Math.min(box.width, box.height) / 2
+  const mask = Buffer.from(`
+    <svg width="${box.width}" height="${box.height}" viewBox="0 0 ${box.width} ${box.height}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${box.width / 2}" cy="${box.height / 2}" r="${radius}" fill="white" />
+    </svg>
+  `)
+
+  return {
+    id,
+    input: await sharp(templateBuffer)
+      .extract(box)
+      .ensureAlpha()
+      .composite([{ input: mask, blend: 'dest-in' }])
+      .png()
+      .toBuffer(),
     left: box.left,
     top: box.top,
     box,
@@ -215,26 +255,7 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
-async function acrylicChromeOverlay(width: number, height: number, box: PixelBox): Promise<Buffer> {
-  const screwRadius = Math.round(Math.min(box.width, box.height) * 0.018)
-  const screwInset = Math.round(screwRadius * 1.65)
-  const screwCenters = [
-    [box.left + screwInset, box.top + screwInset],
-    [box.left + box.width - screwInset, box.top + screwInset],
-    [box.left + screwInset, box.top + box.height - screwInset],
-    [box.left + box.width - screwInset, box.top + box.height - screwInset],
-  ]
-
-  const screws = screwCenters.map(([cx, cy]) => `
-    <radialGradient id="s${cx}-${cy}" cx="35%" cy="30%" r="65%">
-      <stop offset="0" stop-color="rgba(255,255,255,0.95)" />
-      <stop offset="0.42" stop-color="rgba(210,210,205,0.72)" />
-      <stop offset="1" stop-color="rgba(58,58,56,0.52)" />
-    </radialGradient>
-    <circle cx="${cx}" cy="${cy}" r="${screwRadius}" fill="url(#s${cx}-${cy})" />
-    <circle cx="${cx}" cy="${cy}" r="${Math.max(1, Math.round(screwRadius * 0.35))}" fill="rgba(255,255,255,0.44)" />
-  `).join('')
-
+async function acrylicGlareOverlay(width: number, height: number, box: PixelBox): Promise<Buffer> {
   const svg = `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -246,7 +267,6 @@ async function acrylicChromeOverlay(width: number, height: number, box: PixelBox
       </defs>
       <path d="M ${box.left + box.width * 0.05} ${box.top} L ${box.left + box.width * 0.33} ${box.top} L ${box.left + box.width * 0.03} ${box.top + box.height * 0.36} L ${box.left} ${box.top + box.height * 0.36} Z" fill="url(#glareA)" />
       <path d="M ${box.left + box.width * 0.30} ${box.top} L ${box.left + box.width * 0.47} ${box.top} L ${box.left + box.width * 0.12} ${box.top + box.height * 0.39} L ${box.left + box.width * 0.02} ${box.top + box.height * 0.39} Z" fill="rgba(255,255,255,0.12)" />
-      ${screws}
     </svg>
   `
 

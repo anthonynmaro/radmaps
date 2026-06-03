@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '~/utils/products'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
-import { getProductMockupArtworkBleedPx } from '~/utils/productMockupGeometry'
+import { getProductMockupArtworkBleedPx, getOverprintedProductMockupArtworkBox } from '~/utils/productMockupGeometry'
+import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 import {
   computeProductMockupHash,
   getMockupSupportedProducts,
@@ -192,6 +193,37 @@ describe('product mockups', () => {
       expect(chrome.box.x + chrome.box.w).toBeLessThanOrEqual(1)
       expect(chrome.box.y + chrome.box.h).toBeLessThanOrEqual(1)
     }
+  })
+
+  it('positions acrylic rivet crops around the overprinted artwork corners', () => {
+    const acrylic = PRODUCTS.find(product => product.product_uid.startsWith('acrylic_400x600-mm-16x24-inch'))!
+    const template = getProductMockupTemplate(acrylic, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    const rivets = getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile)
+    const overprintedBox = getOverprintedProductMockupArtworkBox(template.artworkBox, template.finish, template.sceneFile)
+
+    expect(rivets.map(rivet => rivet.id)).toEqual(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
+    for (const rivet of rivets) {
+      expect(rivet.box.w).toBeGreaterThan(0)
+      expect(rivet.box.h).toBe(rivet.box.w)
+      expect(rivet.box.x).toBeGreaterThanOrEqual(0)
+      expect(rivet.box.y).toBeGreaterThanOrEqual(0)
+      expect(rivet.box.x + rivet.box.w).toBeLessThanOrEqual(1)
+      expect(rivet.box.y + rivet.box.h).toBeLessThanOrEqual(1)
+    }
+
+    expect(rivets[0].box.x).toBeCloseTo(overprintedBox.x)
+    expect(rivets[0].box.y).toBeLessThan(overprintedBox.y)
+    expect(rivets[1].box.x + rivets[1].box.w).toBeGreaterThan(overprintedBox.x + overprintedBox.w)
+    expect(rivets[3].box.y + rivets[3].box.h).toBeGreaterThan(overprintedBox.y + overprintedBox.h)
+
+    expect(Math.round(rivets[0].box.x * 3000)).toBe(935)
+    expect(Math.round(rivets[0].box.y * 3000)).toBe(429)
+    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2128)
+    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2217)
+
+    const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
+    const posterTemplate = getProductMockupTemplate(poster, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
+    expect(getProductMockupAcrylicRivetBoxes(posterTemplate.artworkBox, posterTemplate.finish, posterTemplate.sceneFile)).toEqual([])
   })
 
   it('overprints framed close-up artwork just enough to hide top-left seams', () => {

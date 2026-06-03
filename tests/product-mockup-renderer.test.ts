@@ -140,6 +140,19 @@ describe('product mockup renderer', () => {
     expect(rendered.validation.template_path).toContain(PRODUCT_MOCKUP_SCENE_FILES.plainGray)
   }, 10000)
 
+  it('restores acrylic rivet crops from the saved template above the replacement artwork', async () => {
+    const rendered = await renderProductTemplateMockup({
+      product: productFor('acrylic'),
+      artworkBuffer: await fixtureArtwork(),
+    })
+    const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
+
+    expect(Object.keys(chromeBoxes).sort()).toEqual(['bottom_left', 'bottom_right', 'top_left', 'top_right'])
+    expect(chromeBoxes.top_left).toMatchObject({ left: 935, top: 429, width: 70, height: 70 })
+    expect(chromeBoxes.top_right.left + chromeBoxes.top_right.width).toBe(2127)
+    expect(chromeBoxes.bottom_right.top + chromeBoxes.bottom_right.height).toBe(2216)
+  }, 10000)
+
   it('overprints aluminum face edges so source template artwork does not leak through', async () => {
     const artworkBuffer = await sharp({
       create: {

@@ -32,11 +32,19 @@
       :style="finishStyle(artworkBox, finish, sceneFile)"
       aria-hidden="true"
     />
+    <span
+      v-for="rivet in acrylicRivetBoxes(artworkBox, finish, sceneFile)"
+      :key="rivet.id"
+      class="product-mockup-preview__rivet"
+      :style="templateCropStyle(rivet.box, templateImageUrl)"
+      aria-hidden="true"
+    />
   </span>
 </template>
 
 <script setup lang="ts">
-import { getProductMockupArtworkBleedUnit } from '~/utils/productMockupGeometry'
+import { getOverprintedProductMockupArtworkBox } from '~/utils/productMockupGeometry'
+import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 
 type Box = {
   x: number
@@ -70,14 +78,7 @@ function pct(value: number): string {
 }
 
 function overprintedArtworkBox(box: Box, finish?: string, sceneFile?: string): Box {
-  const bleed = getProductMockupArtworkBleedUnit(finish, sceneFile)
-
-  return clampBox({
-    x: box.x - bleed.left,
-    y: box.y - bleed.top,
-    w: box.w + bleed.left + bleed.right,
-    h: box.h + bleed.top + bleed.bottom,
-  })
+  return getOverprintedProductMockupArtworkBox(box, finish, sceneFile)
 }
 
 function boxStyle(box: Box) {
@@ -101,27 +102,25 @@ function finishStyle(box: Box, finish?: string, sceneFile?: string) {
   return boxStyle(overprintedArtworkBox(box, finish, sceneFile))
 }
 
+function acrylicRivetBoxes(box: Box, finish?: string, sceneFile?: string) {
+  return getProductMockupAcrylicRivetBoxes(box, finish, sceneFile)
+}
+
 function chromeStyle(box: Box) {
   return {
     clipPath: `inset(${pct(box.y)} ${pct(1 - box.x - box.w)} ${pct(1 - box.y - box.h)} ${pct(box.x)})`,
   }
 }
 
-function clampBox(box: Box): Box {
-  const x = clamp(box.x, 0, 1)
-  const y = clamp(box.y, 0, 1)
-
+function templateCropStyle(box: Box, url: string) {
   return {
-    x,
-    y,
-    w: clamp(box.w, 0.001, 1 - x),
-    h: clamp(box.h, 0.001, 1 - y),
+    ...boxStyle(box),
+    backgroundImage: `url("${url}")`,
+    backgroundSize: `${100 / box.w}% ${100 / box.h}%`,
+    backgroundPosition: `${box.x / (1 - box.w) * 100}% ${box.y / (1 - box.h) * 100}%`,
   }
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
 </script>
 
 <style scoped>
@@ -164,6 +163,15 @@ function clamp(value: number, min: number, max: number): number {
   position: absolute;
   z-index: 4;
   pointer-events: none;
+}
+
+.product-mockup-preview__rivet {
+  position: absolute;
+  z-index: 5;
+  border-radius: 999px;
+  pointer-events: none;
+  overflow: hidden;
+  background-repeat: no-repeat;
 }
 
 .product-mockup-preview__finish--metallic {

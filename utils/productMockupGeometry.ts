@@ -7,6 +7,13 @@ export interface ProductMockupEdgeBleed {
   bottom: number
 }
 
+export interface ProductMockupUnitBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export const PRODUCT_MOCKUP_TEMPLATE_BASE_PX = 3000
 
 const ZERO_BLEED: ProductMockupEdgeBleed = { left: 0, top: 0, right: 0, bottom: 0 }
@@ -52,4 +59,35 @@ export function getProductMockupArtworkBleedUnit(
     right: bleed.right / PRODUCT_MOCKUP_TEMPLATE_BASE_PX,
     bottom: bleed.bottom / PRODUCT_MOCKUP_TEMPLATE_BASE_PX,
   }
+}
+
+export function getOverprintedProductMockupArtworkBox(
+  box: ProductMockupUnitBox,
+  finish: ProductMockupFinishKey | string | undefined,
+  sceneFile?: string,
+): ProductMockupUnitBox {
+  const bleed = getProductMockupArtworkBleedUnit(finish, sceneFile)
+
+  return clampProductMockupBox({
+    x: box.x - bleed.left,
+    y: box.y - bleed.top,
+    w: box.w + bleed.left + bleed.right,
+    h: box.h + bleed.top + bleed.bottom,
+  })
+}
+
+export function clampProductMockupBox(box: ProductMockupUnitBox): ProductMockupUnitBox {
+  const x = clamp(box.x, 0, 1)
+  const y = clamp(box.y, 0, 1)
+
+  return {
+    x,
+    y,
+    w: clamp(box.w, 0.001, 1 - x),
+    h: clamp(box.h, 0.001, 1 - y),
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }
