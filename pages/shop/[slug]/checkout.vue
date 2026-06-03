@@ -51,9 +51,9 @@
               :style="{ aspectRatio: '1 / 1', backgroundColor: displayPremadeMockup ? 'transparent' : (premade.style_config?.background_color || '#F7F4EF') }"
             >
               <ProductMockupPreview
-                v-if="selectedPremadeMockupItem?.artworkBox && galleryPremadeMapUrl"
+                v-if="selectedPremadeMockupItem?.artworkBox && mockupPremadeArtworkUrl"
                 :template-image-url="selectedPremadeMockupItem.templateImageUrl!"
-                :artwork-url="galleryPremadeMapUrl"
+                :artwork-url="mockupPremadeArtworkUrl"
                 :artwork-box="selectedPremadeMockupItem.artworkBox!"
                 :chrome-boxes="selectedPremadeMockupItem.chromeBoxes"
                 :finish="selectedPremadeMockupItem.finish"
@@ -90,9 +90,9 @@
                     :class="selectedPreviewId === item.id ? 'border-[#2D6A4F] ring-2 ring-[#2D6A4F]/20' : 'border-stone-200 group-hover:border-stone-300'"
                   >
                     <ProductMockupPreview
-                      v-if="item.kind === 'mockup' && item.templateImageUrl && item.artworkBox && galleryPremadeMapUrl"
+                      v-if="item.kind === 'mockup' && item.templateImageUrl && item.artworkBox && mockupPremadeArtworkUrl"
                       :template-image-url="item.templateImageUrl"
-                      :artwork-url="galleryPremadeMapUrl"
+                      :artwork-url="mockupPremadeArtworkUrl"
                       :artwork-box="item.artworkBox"
                       :chrome-boxes="item.chromeBoxes"
                       :finish="item.finish"
@@ -472,6 +472,7 @@ const fullPremadeMapUrl = computed(() => premade.value?.preview_image_url || pre
 const fallbackPremadeMapUrl = computed(() =>
   premade.value ? buildPremadePosterFallbackDataUrl(premade.value) : null
 )
+const mockupPremadeArtworkUrl = computed(() => fullPremadeMapUrl.value)
 const galleryPremadeMapUrl = computed(() =>
   fullPremadeMapUrl.value || fallbackPremadeMapUrl.value
 )
@@ -515,7 +516,7 @@ const displayPremadeMockup = computed(() =>
   && selectedPreviewItem.value?.kind === 'mockup'
   && (!!selectedPreviewItem.value.url || !!selectedPreviewItem.value.templateImageUrl)
   && !!selectedProduct.value
-  && !!galleryPremadeMapUrl.value
+  && !!mockupPremadeArtworkUrl.value
 )
 const selectedPremadeMockupItem = computed(() =>
   displayPremadeMockup.value && selectedPreviewItem.value?.kind === 'mockup'
@@ -729,7 +730,7 @@ function resetPremadeMockups(options: { preservePreview?: boolean } = {}) {
   if (!options.preservePreview) {
     mockupTemplates.value = []
     mockupTemplatesProductUid.value = null
-    selectedPreviewId.value = fullPremadeMapUrl.value ? 'map' : ''
+    selectedPreviewId.value = galleryPremadeMapUrl.value ? 'map' : ''
   }
   mockupInFlight.value = false
   mockupTargetProductUid.value = null
@@ -741,7 +742,10 @@ async function requestPremadeMockups() {
 
   const sourceId = premade.value?.id || premade.value?.slug
   const productUid = selectedProduct.value?.product_uid
-  if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value) return
+  if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value || !mockupPremadeArtworkUrl.value) {
+    resetPremadeMockups()
+    return
+  }
 
   const targetKey = `${sourceId}:${productUid}`
   const preferredSceneFile = selectedPreviewItem.value?.kind === 'mockup'
@@ -760,7 +764,7 @@ async function requestPremadeMockups() {
     mockupTemplates.value = templates
     mockupTemplatesProductUid.value = productUid
     const selectedTemplate = templates.find(template => template.scene_file === preferredSceneFile) ?? templates[0]
-    selectedPreviewId.value = selectedTemplate?.id ? `mockup:${selectedTemplate.id}` : (fullPremadeMapUrl.value ? 'map' : '')
+    selectedPreviewId.value = selectedTemplate?.id ? `mockup:${selectedTemplate.id}` : (galleryPremadeMapUrl.value ? 'map' : '')
   } catch {
     if (`${mockupTargetSourceId.value}:${mockupTargetProductUid.value}` === targetKey) {
       resetPremadeMockups()
