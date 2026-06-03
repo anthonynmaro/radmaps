@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import type { PrintProduct } from '~/types'
 import { getProductMockupArtworkBleedPx } from '~/utils/productMockupGeometry'
 import { getProductMockupChromeBoxes } from '~/utils/productMockupChrome'
+import { getProductMockupCleanupBoxes } from '~/utils/productMockupCleanup'
 import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 import { getProductMockupTemplate, type ProductMockupBox, type ProductMockupTemplate } from '~/utils/productMockups'
 
@@ -87,6 +88,15 @@ export async function renderProductTemplateMockup(input: RenderProductTemplateMo
     },
   ]
   const chromeBoxes: Record<string, PixelBox> = {}
+
+  for (const cleanup of getProductMockupCleanupBoxes(template.finish, template.sceneFile)) {
+    const cleanupBox = toPixelBox(cleanup.box, width, height)
+    composites.push({
+      input: solidOverlay(cleanupBox, cleanup.fill),
+      left: cleanupBox.left,
+      top: cleanupBox.top,
+    })
+  }
 
   if (template.finish === 'wall_hanging' || template.finish === 'framed') {
     const chromeOverlays = await templateChromeOverlays(template, templateBuffer, width, height)
@@ -238,6 +248,14 @@ async function circularChromeOverlayFromTemplate(id: string, templateBuffer: Buf
     top: box.top,
     box,
   }
+}
+
+function solidOverlay(box: PixelBox, fill: string): Buffer {
+  return Buffer.from(`
+    <svg width="${box.width}" height="${box.height}" viewBox="0 0 ${box.width} ${box.height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${box.width}" height="${box.height}" fill="${fill}" />
+    </svg>
+  `)
 }
 
 function clampPixelBox(box: PixelBox, width: number, height: number): PixelBox {
