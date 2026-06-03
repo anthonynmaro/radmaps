@@ -51,14 +51,15 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
 - Current template placement version: `gelato-saved-template-traced-slots-v6`.
-- Current compositor version: `template-asset-compositor-v18`.
+- Current compositor version: `template-asset-compositor-v19`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
 selected SKU resolves to a canonical large saved Gelato asset for its product
 family/material, then the browser places the already-rendered map as a
 `background-size: cover` fill inside the traced product surface. Frame and
 wall-hanging chrome is replayed from cropped regions of the saved template above
-the inserted map. Size selection still controls proof/final print geometry and
+the inserted map, with framed top/bottom chrome kept at matching thickness.
+Size selection still controls proof/final print geometry and
 Gelato ordering, but merchandising mockups use one stable visual scale per
 product family/material. Mockup failures never block payment.
 

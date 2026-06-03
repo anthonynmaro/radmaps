@@ -155,6 +155,10 @@ describe('product mockups', () => {
     const chromeBoxes = getProductMockupChromeBoxes(template)
 
     expect(chromeBoxes.map(chrome => chrome.id).sort()).toEqual(['frame_bottom', 'frame_left', 'frame_right', 'frame_top'])
+    const topFrame = chromeBoxes.find(chrome => chrome.id === 'frame_top')!
+    const bottomFrame = chromeBoxes.find(chrome => chrome.id === 'frame_bottom')!
+    expect(Math.round(topFrame.box.h * 3000)).toBe(42)
+    expect(Math.round(bottomFrame.box.h * 3000)).toBe(42)
     for (const chrome of chromeBoxes) {
       expect(chrome.box.x).toBeGreaterThanOrEqual(0)
       expect(chrome.box.y).toBeGreaterThanOrEqual(0)
@@ -196,7 +200,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v7' })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v19' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v20' })).not.toBe(hash)
   })
 
   it('keeps the mockup storage path helper stable', () => {
