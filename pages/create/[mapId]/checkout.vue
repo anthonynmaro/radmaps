@@ -58,7 +58,7 @@
               style="aspect-ratio: 1 / 1;"
             >
               <ProductMockupPreview
-                v-if="selectedProductMockupItem && mockupArtworkUrl"
+                v-if="selectedProductMockupItem?.artworkBox && mockupArtworkUrl"
                 :template-image-url="selectedProductMockupItem.templateImageUrl!"
                 :artwork-url="mockupArtworkUrl"
                 :artwork-box="selectedProductMockupItem.artworkBox!"
@@ -606,7 +606,7 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
     sceneFile: template.scene_file,
     templateImageUrl: template.template_image_url,
     artworkBox: template.artwork_box,
-    chromeBoxes: template.chrome_boxes,
+    chromeBoxes: Array.isArray(template.chrome_boxes) ? template.chrome_boxes : [],
   }))
   if (mockupArtworkUrl.value) {
     items.push({
@@ -912,6 +912,8 @@ const v4Cached = ref(false)
 const autoStartedInitialRender = ref(false)
 
 async function requestProductMockup() {
+  if (import.meta.server) return
+
   const product = selectedProduct.value
   const artworkUrl = mockupArtworkUrl.value
   if (!productMockupsEnabled.value || !map.value?.id || !product || product.type === 'digital' || !artworkUrl) {
@@ -1167,6 +1169,8 @@ watch(selectedProduct, (product, previousProduct) => {
 }, { flush: 'post' })
 
 watch([mockupArtworkUrl, selectedProduct, productMockupsEnabled], () => {
+  if (import.meta.server) return
+
   if (!mockupArtworkUrl.value || !selectedProduct.value || !productMockupsEnabled.value) {
     resetProductMockup()
     return
@@ -1175,6 +1179,8 @@ watch([mockupArtworkUrl, selectedProduct, productMockupsEnabled], () => {
 }, { flush: 'post' })
 
 watch([selectedProduct, () => map.value?.id, productMockupsEnabled], () => {
+  if (import.meta.server) return
+
   const product = selectedProduct.value
   if (
     autoStartedInitialRender.value

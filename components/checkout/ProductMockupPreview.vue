@@ -8,11 +8,11 @@
     >
     <span
       class="product-mockup-preview__artwork"
-      :style="artworkStyle(overprintedArtworkBox(artworkBox, finish, sceneFile), artworkUrl)"
+      :style="artworkStyle(overprintedArtworkBox(safeArtworkBox, finish, sceneFile), artworkUrl)"
       aria-hidden="true"
     />
     <img
-      v-for="chrome in chromeBoxes"
+      v-for="chrome in safeChromeBoxes"
       :key="chrome.id"
       :src="templateImageUrl"
       alt=""
@@ -23,17 +23,17 @@
     <span
       v-if="finish === 'metallic'"
       class="product-mockup-preview__finish product-mockup-preview__finish--metallic"
-      :style="finishStyle(artworkBox, finish, sceneFile)"
+      :style="finishStyle(safeArtworkBox, finish, sceneFile)"
       aria-hidden="true"
     />
     <span
       v-else-if="finish === 'acrylic'"
       class="product-mockup-preview__finish product-mockup-preview__finish--acrylic"
-      :style="finishStyle(artworkBox, finish, sceneFile)"
+      :style="finishStyle(safeArtworkBox, finish, sceneFile)"
       aria-hidden="true"
     />
     <span
-      v-for="rivet in acrylicRivetBoxes(artworkBox, finish, sceneFile)"
+      v-for="rivet in acrylicRivetBoxes(safeArtworkBox, finish, sceneFile)"
       :key="rivet.id"
       class="product-mockup-preview__rivet"
       :style="templateCropStyle(rivet.box, templateImageUrl)"
@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { getOverprintedProductMockupArtworkBox } from '~/utils/productMockupGeometry'
 import { getProductMockupAcrylicRivetBoxes } from '~/utils/productMockupHardware'
 
@@ -58,7 +59,7 @@ type ChromeBox = {
   box: Box
 }
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   templateImageUrl: string
   artworkUrl: string
   artworkBox: Box
@@ -73,8 +74,26 @@ withDefaults(defineProps<{
   sceneFile: '',
 })
 
+const FALLBACK_ARTWORK_BOX: Box = { x: 0, y: 0, w: 1, h: 1 }
+
+const safeArtworkBox = computed(() =>
+  isBox(props.artworkBox) ? props.artworkBox : FALLBACK_ARTWORK_BOX
+)
+
+const safeChromeBoxes = computed(() =>
+  Array.isArray(props.chromeBoxes)
+    ? props.chromeBoxes.filter(chrome => chrome?.id && isBox(chrome.box))
+    : []
+)
+
 function pct(value: number): string {
   return `${value * 100}%`
+}
+
+function isBox(value: unknown): value is Box {
+  if (!value || typeof value !== 'object') return false
+  const box = value as Partial<Box>
+  return [box.x, box.y, box.w, box.h].every(number => typeof number === 'number' && Number.isFinite(number))
 }
 
 function overprintedArtworkBox(box: Box, finish?: string, sceneFile?: string): Box {

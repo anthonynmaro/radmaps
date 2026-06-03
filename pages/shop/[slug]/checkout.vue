@@ -51,7 +51,7 @@
               :style="{ aspectRatio: '1 / 1', backgroundColor: displayPremadeMockup ? 'transparent' : (premade.style_config?.background_color || '#F7F4EF') }"
             >
               <ProductMockupPreview
-                v-if="selectedPremadeMockupItem && galleryPremadeMapUrl"
+                v-if="selectedPremadeMockupItem?.artworkBox && galleryPremadeMapUrl"
                 :template-image-url="selectedPremadeMockupItem.templateImageUrl!"
                 :artwork-url="galleryPremadeMapUrl"
                 :artwork-box="selectedPremadeMockupItem.artworkBox!"
@@ -83,12 +83,12 @@
               </svg>
             </div>
             <div
-              v-if="previewGalleryItems.length > 1"
+              v-if="hasPreviewGallery"
               class="w-full max-w-[640px] shrink-0 overflow-x-auto"
             >
               <div class="flex gap-2 px-1 py-1">
                 <button
-                  v-for="item in previewGalleryItems"
+                  v-for="item in safePreviewGalleryItems"
                   :key="item.id"
                   type="button"
                   class="group w-[74px] shrink-0 text-left"
@@ -404,7 +404,7 @@ v-if="errorMessage"
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSupabaseUser } from '#imports'
 import ProductMockupPreview from '~/components/checkout/ProductMockupPreview.vue'
@@ -488,9 +488,12 @@ type PreviewGalleryItem = {
   chromeBoxes?: ProductMockupChromeBox[]
 }
 const fullPremadeMapUrl = computed(() => premade.value?.preview_image_url || premade.value?.render_url || null)
-const galleryPremadeMapUrl = computed(() => fullPremadeMapUrl.value || premadeRouteSvgUrl.value)
+const galleryPremadeMapUrl = computed(() =>
+  fullPremadeMapUrl.value || buildPremadeRouteSvgUrl()
+)
 const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
-  const items: PreviewGalleryItem[] = mockupTemplates.value.map(template => ({
+  const templates = Array.isArray(mockupTemplates.value) ? mockupTemplates.value : []
+  const items: PreviewGalleryItem[] = templates.map(template => ({
     id: `mockup:${template.id}`,
     kind: 'mockup' as const,
     label: template.label,
@@ -500,7 +503,7 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
     sceneFile: template.scene_file,
     templateImageUrl: template.template_image_url,
     artworkBox: template.artwork_box,
-    chromeBoxes: template.chrome_boxes,
+    chromeBoxes: Array.isArray(template.chrome_boxes) ? template.chrome_boxes : [],
   }))
   if (galleryPremadeMapUrl.value) {
     items.push({
@@ -512,11 +515,15 @@ const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
   }
   return items
 })
+const safePreviewGalleryItems = computed(() =>
+  Array.isArray(previewGalleryItems.value) ? previewGalleryItems.value : []
+)
+const hasPreviewGallery = computed(() => safePreviewGalleryItems.value.length > 1)
 const selectedPreviewItem = computed(() => (
-  previewGalleryItems.value.find(item => item.id === selectedPreviewId.value)
-  ?? previewGalleryItems.value.find(item => item.kind === 'mockup')
-  ?? previewGalleryItems.value.find(item => item.url)
-  ?? previewGalleryItems.value[0]
+  safePreviewGalleryItems.value.find(item => item.id === selectedPreviewId.value)
+  ?? safePreviewGalleryItems.value.find(item => item.kind === 'mockup')
+  ?? safePreviewGalleryItems.value.find(item => item.url)
+  ?? safePreviewGalleryItems.value[0]
   ?? null
 ))
 const displayPremadeMockup = computed(() =>
@@ -746,6 +753,8 @@ function resetPremadeMockups(options: { preservePreview?: boolean } = {}) {
 }
 
 async function requestPremadeMockups() {
+  if (import.meta.server) return
+
   const sourceId = premade.value?.id || premade.value?.slug
   const productUid = selectedProduct.value?.product_uid
   if (!productMockupsEnabled.value || !sourceId || !productUid || isDigital.value) return
@@ -779,14 +788,20 @@ async function requestPremadeMockups() {
   }
 }
 
-watch([selectedProductUid, productMockupsEnabled], () => {
+function syncPremadeMockupsForSelection() {
+  if (import.meta.server) return
+
   if (!productMockupsEnabled.value || !selectedProductUid.value || isDigital.value) {
     resetPremadeMockups()
     return
   }
   resetPremadeMockups({ preservePreview: mockupTemplates.value.length > 0 })
   void requestPremadeMockups()
-}, { immediate: true })
+}
+
+onMounted(syncPremadeMockupsForSelection)
+
+watch([selectedProductUid, productMockupsEnabled], syncPremadeMockupsForSelection)
 
 async function checkout() {
   if (!premade.value) return
@@ -841,10 +856,12 @@ function projectCoords() {
   const feat = premade.value.geojson?.features?.[0]
   const g = feat?.geometry as any
   const coords: number[][] | undefined =
-    g?.type === 'LineString' ? g.coordinates :
-    g?.type === 'MultiLineString' ? (g.coordinates as number[][][]).flat() : undefined
+    g?.type === 'LineString' && Array.isArray(g.coordinates) ? g.coordinates :
+    g?.type === 'MultiLineString' && Array.isArray(g.coordinates) ? (g.coordinates as number[][][]).flat() : undefined
   if (!coords || coords.length < 2) return null
-  const [minLng, minLat, maxLng, maxLat] = premade.value.bbox
+  const bbox = Array.isArray(premade.value.bbox) ? premade.value.bbox : null
+  if (!bbox || bbox.length < 4) return null
+  const [minLng, minLat, maxLng, maxLat] = bbox
   const lngRange = (maxLng - minLng) || 0.0001
   const latRange = (maxLat - minLat) || 0.0001
   const padX = 6, padY = 14
@@ -874,22 +891,27 @@ function escapeSvgText(value: string) {
     '"': '&quot;',
   }[char] || char))
 }
-const premadeRouteSvgUrl = computed(() => {
-  if (!premade.value || !routePath.value) return null
-  const style = premade.value.style_config || {}
-  const title = escapeSvgText(premade.value.title || 'RadMaps')
-  const bg = style.background_color || '#F7F4EF'
-  const routeColor = style.route_color || '#C1121F'
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 133">',
-    `<rect width="100" height="133" fill="${bg}"/>`,
-    `<text x="10" y="14" font-family="Arial, sans-serif" font-size="5" font-weight="700" fill="#1c1917">${title}</text>`,
-    `<path d="${routePath.value}" fill="none" stroke="${routeColor}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
-    '<text x="10" y="124" font-family="Arial, sans-serif" font-size="3" fill="#78716c">RADMAPS</text>',
-    '</svg>',
-  ].join('')
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
-})
+function buildPremadeRouteSvgUrl() {
+  try {
+    const path = routePath.value
+    if (!premade.value || !path) return null
+    const style = premade.value.style_config || {}
+    const title = escapeSvgText(premade.value.title || 'RadMaps')
+    const bg = style.background_color || '#F7F4EF'
+    const routeColor = style.route_color || '#C1121F'
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 133">',
+      `<rect width="100" height="133" fill="${bg}"/>`,
+      `<text x="10" y="14" font-family="Arial, sans-serif" font-size="5" font-weight="700" fill="#1c1917">${title}</text>`,
+      `<path d="${path}" fill="none" stroke="${routeColor}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+      '<text x="10" y="124" font-family="Arial, sans-serif" font-size="3" fill="#78716c">RADMAPS</text>',
+      '</svg>',
+    ].join('')
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+  } catch {
+    return null
+  }
+}
 
 </script>
 
