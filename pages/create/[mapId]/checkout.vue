@@ -53,51 +53,56 @@
         <!-- Map Preview Area -->
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex flex-col items-center justify-center gap-3 p-4 sm:p-6 overflow-hidden">
-            <ProductMockupPreview
-              v-if="selectedProductMockupItem && mockupArtworkUrl"
-              :template-image-url="selectedProductMockupItem.templateImageUrl!"
-              :artwork-url="mockupArtworkUrl"
-              :artwork-box="selectedProductMockupItem.artworkBox!"
-              :chrome-boxes="selectedProductMockupItem.chromeBoxes"
-              :finish="selectedProductMockupItem.finish"
-              :scene-file="selectedProductMockupItem.sceneFile"
-              :label="selectedProductMockupItem.label"
-              :class="[
-                'aspect-square w-full max-w-[720px] shadow-2xl shadow-stone-900/15 transition-opacity duration-200 ease-out',
-                mockupPreviewUpdating ? 'opacity-85' : 'opacity-100',
-              ]"
-            />
-            <img
-              v-else-if="primaryProductPreviewUrl"
-              :src="primaryProductPreviewUrl!"
-              class="max-w-full max-h-full object-contain shadow-2xl shadow-stone-900/15"
-              :alt="displayProductMockup ? 'Wall mockup preview' : 'Print preview'"
-            >
             <div
-              v-else-if="livePreviewMap"
-              class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden"
+              class="checkout-preview-stage relative aspect-square w-full max-w-[720px] shrink-0 overflow-hidden"
+              style="aspect-ratio: 1 / 1;"
             >
-              <ClientOnly>
-                <MapPreview
-                  :map="livePreviewMap"
-                  :style-config="liveStyleConfig"
-                  class="w-full h-full"
-                />
-                <template #fallback>
-                  <div class="w-full h-full flex items-center justify-center">
-                    <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
-                      <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
-                      <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
-                    </svg>
-                  </div>
-                </template>
-              </ClientOnly>
-            </div>
-            <div v-else class="w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 flex items-center justify-center">
-              <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
-                <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
-                <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
-              </svg>
+              <ProductMockupPreview
+                v-if="selectedProductMockupItem && mockupArtworkUrl"
+                :template-image-url="selectedProductMockupItem.templateImageUrl!"
+                :artwork-url="mockupArtworkUrl"
+                :artwork-box="selectedProductMockupItem.artworkBox!"
+                :chrome-boxes="selectedProductMockupItem.chromeBoxes"
+                :finish="selectedProductMockupItem.finish"
+                :scene-file="selectedProductMockupItem.sceneFile"
+                :label="selectedProductMockupItem.label"
+                :class="[
+                  'absolute inset-0 h-full w-full shadow-2xl shadow-stone-900/15 transition-opacity duration-200 ease-out',
+                  mockupPreviewUpdating ? 'opacity-85' : 'opacity-100',
+                ]"
+              />
+              <img
+                v-else-if="primaryProductPreviewUrl"
+                :src="primaryProductPreviewUrl!"
+                class="absolute inset-0 h-full w-full object-contain drop-shadow-2xl"
+                :alt="displayProductMockup ? 'Wall mockup preview' : 'Print preview'"
+              >
+              <div
+                v-else-if="livePreviewMap"
+                class="absolute inset-y-0 left-1/2 h-full aspect-[2/3] -translate-x-1/2 bg-white shadow-2xl shadow-stone-900/10 overflow-hidden"
+              >
+                <ClientOnly>
+                  <MapPreview
+                    :map="livePreviewMap"
+                    :style-config="liveStyleConfig"
+                    class="w-full h-full"
+                  />
+                  <template #fallback>
+                    <div class="w-full h-full flex items-center justify-center">
+                      <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+                        <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+                        <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+                      </svg>
+                    </div>
+                  </template>
+                </ClientOnly>
+              </div>
+              <div v-else class="absolute inset-y-0 left-1/2 h-full aspect-[2/3] -translate-x-1/2 bg-white shadow-2xl shadow-stone-900/10 flex items-center justify-center">
+                <svg class="w-16 h-16 text-stone-300" viewBox="0 0 48 48" fill="none" stroke="currentColor">
+                  <path d="M4 40 L16 12 L24 26 L32 14 L44 40Z" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M8 34 Q16 30 24 32 Q32 34 40 30" stroke-width="1" opacity="0.6"/>
+                </svg>
+              </div>
             </div>
             <div
               v-if="previewGalleryItems.length > 1"

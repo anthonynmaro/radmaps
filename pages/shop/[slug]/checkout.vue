@@ -47,10 +47,8 @@
         <main class="min-h-[58vh] lg:min-h-0 flex flex-col overflow-hidden relative">
           <div class="flex-1 flex flex-col items-center justify-center gap-3 p-4 sm:p-6 overflow-hidden">
             <div
-              :class="displayPremadeMockup
-                ? 'w-full max-w-[600px] aspect-square overflow-hidden'
-                : 'w-full max-w-[460px] aspect-[2/3] bg-white shadow-2xl shadow-stone-900/10 overflow-hidden'"
-              :style="{ backgroundColor: displayPremadeMockup ? 'transparent' : (premade.style_config?.background_color || '#F7F4EF') }"
+              class="checkout-preview-stage relative aspect-square w-full max-w-[600px] shrink-0 overflow-hidden"
+              :style="{ aspectRatio: '1 / 1', backgroundColor: displayPremadeMockup ? 'transparent' : (premade.style_config?.background_color || '#F7F4EF') }"
             >
               <ProductMockupPreview
                 v-if="selectedPremadeMockupItem && galleryPremadeMapUrl"
@@ -62,7 +60,7 @@
                 :scene-file="selectedPremadeMockupItem.sceneFile"
                 :label="selectedPremadeMockupItem.label"
                 :class="[
-                  'h-full w-full drop-shadow-2xl transition-opacity duration-200 ease-out',
+                  'absolute inset-0 h-full w-full drop-shadow-2xl transition-opacity duration-200 ease-out',
                   mockupPreviewUpdating ? 'opacity-85' : 'opacity-100',
                 ]"
               />
@@ -70,9 +68,9 @@
                 v-else-if="primaryPremadePreviewUrl"
                 :src="primaryPremadePreviewUrl"
                 :alt="displayPremadeMockup ? 'Wall mockup preview' : premade.title"
-                :class="displayPremadeMockup ? 'h-full w-full object-contain drop-shadow-2xl' : 'h-full w-full object-cover'"
+                class="absolute inset-0 h-full w-full object-contain drop-shadow-2xl"
               >
-              <svg v-else viewBox="0 0 100 133" class="w-full h-full">
+              <svg v-else viewBox="0 0 100 133" class="absolute inset-y-0 left-1/2 h-full aspect-[2/3] -translate-x-1/2 bg-white shadow-2xl shadow-stone-900/10">
                 <path
                   v-if="routePath"
                   :d="routePath"
