@@ -70,17 +70,7 @@
                 :alt="displayPremadeMockup ? 'Wall mockup preview' : premade.title"
                 class="absolute inset-0 h-full w-full object-contain drop-shadow-2xl"
               >
-              <svg v-else viewBox="0 0 100 133" class="absolute inset-y-0 left-1/2 h-full aspect-[2/3] -translate-x-1/2 bg-white shadow-2xl shadow-stone-900/10">
-                <path
-                  v-if="routePath"
-                  :d="routePath"
-                  fill="none"
-                  :stroke="premade.style_config.route_color"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <div v-else class="absolute inset-y-0 left-1/2 h-full aspect-[2/3] -translate-x-1/2 bg-white shadow-2xl shadow-stone-900/10" />
             </div>
             <div
               v-if="hasPreviewGallery"
@@ -289,17 +279,7 @@ v-if="errorMessage"
                 :src="primaryPremadePreviewUrl"
                 :class="displayPremadeMockup ? 'h-full w-full object-contain' : 'h-full w-full object-cover'"
               >
-              <svg v-else viewBox="0 0 100 133" class="w-full h-full">
-                <path
-                  v-if="routePath"
-                  :d="routePath"
-                  fill="none"
-                  :stroke="premade.style_config.route_color"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <div v-else class="h-full w-full bg-white" />
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-semibold text-stone-900 text-sm leading-tight tracking-tight truncate" style="font-family:'Space Grotesk',sans-serif">
@@ -411,6 +391,7 @@ import ProductMockupPreview from '~/components/checkout/ProductMockupPreview.vue
 import CheckoutShippingAddressForm from '~/components/checkout/ShippingAddressForm.vue'
 import { getProduct, formatPrice, PRODUCTS, getDefaultPhysicalProduct } from '~/utils/products'
 import { normalizeCouponSlug } from '~/utils/coupons'
+import { buildPremadePosterFallbackDataUrl } from '~/utils/premadePosterFallback'
 import {
   checkoutAddressFingerprint,
   missingCheckoutAddressFields,
@@ -488,8 +469,11 @@ type PreviewGalleryItem = {
   chromeBoxes?: ProductMockupChromeBox[]
 }
 const fullPremadeMapUrl = computed(() => premade.value?.preview_image_url || premade.value?.render_url || null)
+const fallbackPremadeMapUrl = computed(() =>
+  premade.value ? buildPremadePosterFallbackDataUrl(premade.value) : null
+)
 const galleryPremadeMapUrl = computed(() =>
-  fullPremadeMapUrl.value || buildPremadeRouteSvgUrl()
+  fullPremadeMapUrl.value || fallbackPremadeMapUrl.value
 )
 const previewGalleryItems = computed<PreviewGalleryItem[]>(() => {
   const templates = Array.isArray(mockupTemplates.value) ? mockupTemplates.value : []
@@ -849,69 +833,6 @@ useSeo({
   path: route.fullPath,
   noindex: true,
 })
-
-// ─── Route SVG for summary thumbnail ────────────────────────────────────
-function projectCoords() {
-  if (!premade.value) return null
-  const feat = premade.value.geojson?.features?.[0]
-  const g = feat?.geometry as any
-  const coords: number[][] | undefined =
-    g?.type === 'LineString' && Array.isArray(g.coordinates) ? g.coordinates :
-    g?.type === 'MultiLineString' && Array.isArray(g.coordinates) ? (g.coordinates as number[][][]).flat() : undefined
-  if (!coords || coords.length < 2) return null
-  const bbox = Array.isArray(premade.value.bbox) ? premade.value.bbox : null
-  if (!bbox || bbox.length < 4) return null
-  const [minLng, minLat, maxLng, maxLat] = bbox
-  const lngRange = (maxLng - minLng) || 0.0001
-  const latRange = (maxLat - minLat) || 0.0001
-  const padX = 6, padY = 14
-  const availW = 100 - padX * 2
-  const availH = 133 - padY * 2
-  const scale = Math.min(availW / lngRange, availH / latRange)
-  const offsetX = padX + (availW - lngRange * scale) / 2
-  const offsetY = padY + (availH - latRange * scale) / 2
-  const stride = Math.max(1, Math.floor(coords.length / 80))
-  const result: { x: number; y: number }[] = []
-  for (let i = 0; i < coords.length; i += stride) {
-    const [lng, lat] = coords[i]
-    result.push({ x: offsetX + (lng - minLng) * scale, y: offsetY + (maxLat - lat) * scale })
-  }
-  return result
-}
-const routePath = computed(() => {
-  const pts = projectCoords()
-  if (!pts) return ''
-  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
-})
-function escapeSvgText(value: string) {
-  return value.replace(/[&<>"]/g, char => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-  }[char] || char))
-}
-function buildPremadeRouteSvgUrl() {
-  try {
-    const path = routePath.value
-    if (!premade.value || !path) return null
-    const style = premade.value.style_config || {}
-    const title = escapeSvgText(premade.value.title || 'RadMaps')
-    const bg = style.background_color || '#F7F4EF'
-    const routeColor = style.route_color || '#C1121F'
-    const svg = [
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 133">',
-      `<rect width="100" height="133" fill="${bg}"/>`,
-      `<text x="10" y="14" font-family="Arial, sans-serif" font-size="5" font-weight="700" fill="#1c1917">${title}</text>`,
-      `<path d="${path}" fill="none" stroke="${routeColor}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
-      '<text x="10" y="124" font-family="Arial, sans-serif" font-size="3" fill="#78716c">RADMAPS</text>',
-      '</svg>',
-    ].join('')
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
-  } catch {
-    return null
-  }
-}
 
 </script>
 
