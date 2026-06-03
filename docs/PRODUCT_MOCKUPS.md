@@ -50,7 +50,7 @@ texture, and shadows remain visible. It does not generate synthetic wall scenes.
   `renders/mockups/{source_type}/{source_id}/{product_uid}/{mockup_hash}.jpg`.
 - Cache key: source type/id, product UID, source render hash, template asset ID,
   template version, and renderer version.
-- Current template placement version: `gelato-saved-template-traced-slots-v4`.
+- Current template placement version: `gelato-saved-template-traced-slots-v5`.
 - Current compositor version: `template-asset-compositor-v17`.
 
 Checkout uses traced template slots instead of product-size scaling. Each
@@ -84,7 +84,8 @@ The Emerald wall wall-hanging scene has its own rail/body trace because its
 bottom rail sits lower than the Room scene; the artwork ends before that rail so
 the footer band cannot spill into the rail edge.
 The framed Close-up scene also uses scene-specific face bounds with zero
-artwork bleed so the replacement map does not tint or cover the side frame.
+artwork bleed and a right edge traced to the dark frame start, so the replacement
+map covers the original template's paper edge without tinting the side frame.
 
 ## Catalog Notes
 

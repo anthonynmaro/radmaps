@@ -41,7 +41,7 @@ export interface ProductMockupHashInput {
 
 export const PRODUCT_MOCKUP_PROVIDER = 'gelato_template_asset'
 export const PRODUCT_MOCKUP_RENDERER_VERSION = 'template-asset-compositor-v17'
-export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v4'
+export const PRODUCT_MOCKUP_TEMPLATE_VERSION = 'gelato-saved-template-traced-slots-v5'
 
 export const PRODUCT_MOCKUP_TEMPLATE_ROOT = 'assets/product_mockup_templates'
 
@@ -92,7 +92,7 @@ const RIGID_SURFACE_SLOTS: Record<ProductMockupSceneFile, ProductMockupBox> = {
 
 const FRAMED_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {
   [PRODUCT_MOCKUP_SCENE_FILES.lobbyDarkEmerald]: slot(850, 590, 1210, 1815),
-  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(657, 233, 1676, 2515),
+  [PRODUCT_MOCKUP_SCENE_FILES.plainGray]: slot(657, 233, 1703, 2515),
 }
 
 const WALL_HANGING_SURFACE_SLOTS: Partial<Record<ProductMockupSceneFile, ProductMockupBox>> = {

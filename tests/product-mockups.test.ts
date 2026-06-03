@@ -163,7 +163,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('keeps framed close-up artwork out of the side frame', () => {
+  it('keeps framed close-up artwork covering the original poster edge before the side frame', () => {
     const framed = PRODUCTS.find(product => product.product_uid.startsWith('framed_poster_mounted_premium_600x900-mm-24x36-inch_black'))!
     const template = getProductMockupTemplate(framed, PRODUCT_MOCKUP_SCENE_FILES.plainGray)!
     const bleed = getProductMockupArtworkBleedPx(template.finish, template.sceneFile)
@@ -173,7 +173,7 @@ describe('product mockups', () => {
     const artworkBottom = Math.round((template.artworkBox.y + template.artworkBox.h) * 3000)
 
     expect(artworkLeft).toBe(657)
-    expect(artworkRight).toBe(2333)
+    expect(artworkRight).toBe(2360)
     expect(artworkTop).toBe(233)
     expect(artworkBottom).toBe(2748)
     expect(bleed).toEqual({ left: 0, top: 0, right: 0, bottom: 0 })
@@ -195,7 +195,7 @@ describe('product mockups', () => {
     expect(computeProductMockupHash({ ...base, sourceRenderHash: 'proof-b' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, productUid: getMockupSupportedProducts()[1].product_uid })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, templateId: `${template.id}-next` })).not.toBe(hash)
-    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v5' })).not.toBe(hash)
+    expect(computeProductMockupHash({ ...base, templateVersion: 'gelato-saved-template-traced-slots-v6' })).not.toBe(hash)
     expect(computeProductMockupHash({ ...base, rendererVersion: 'template-asset-compositor-v18' })).not.toBe(hash)
   })
 
