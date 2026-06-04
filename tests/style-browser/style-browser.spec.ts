@@ -1004,6 +1004,15 @@ test.describe('style browser visual harness', () => {
       const style = window.getComputedStyle(element)
       return `${style.paddingTop} ${style.paddingBottom}`
     })).toBe('0px 0px')
+    const chromeHeaderPadding = await page.getByTestId('poster-header').evaluate((element) => {
+      const style = window.getComputedStyle(element)
+      return {
+        left: Number.parseFloat(style.paddingLeft),
+        right: Number.parseFloat(style.paddingRight),
+      }
+    })
+    expect(chromeHeaderPadding.left).toBeGreaterThan(posterBox!.width * 0.04)
+    expect(chromeHeaderPadding.right).toBeGreaterThan(posterBox!.width * 0.04)
 
     const firstTextBlock = page.locator('.fixed-template-map-preview .chrome-grid-block[contenteditable="true"]').first()
     await expect(firstTextBlock).toBeVisible()

@@ -2175,6 +2175,11 @@ function chromeBandPaddingCss(band: ChromeBandId, fallback: string) {
   return `${padding[0]}cqh ${padding[1]}cqw ${padding[2]}cqh ${padding[3]}cqw`
 }
 
+function chromeBandEditingPaddingCss() {
+  const inset = compositionRuleInset.value
+  return `0 ${inset.right} 0 ${inset.left}`
+}
+
 function chromeBandGridStyle(band: ChromeBandId) {
   const cfg = posterLayout.value.bands[band]
   return {
@@ -4013,7 +4018,7 @@ const headerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
   padding: chromeDirectEditing.value
-    ? chromeBandPaddingCss('header', '0')
+    ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
         ? (layout.value.titlePosition === 'bottom'
             ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
@@ -4162,7 +4167,7 @@ const footerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
   padding: chromeDirectEditing.value
-    ? chromeBandPaddingCss('footer', '0')
+    ? chromeBandPaddingCss('footer', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
         ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
             ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
