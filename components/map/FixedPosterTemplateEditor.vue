@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed-template-editor" :class="{ 'fixed-template-editor--no-inspector': !showInspector }" data-testid="fixed-template-editor">
+  <div class="fixed-template-editor" :class="{ 'fixed-template-editor--no-inspector': !showInspector, 'fixed-template-editor--preview': previewMode }" data-testid="fixed-template-editor">
     <aside class="fixed-template-left">
       <div class="fixed-template-tabs" role="tablist" aria-label="Editor modes">
         <button data-testid="template-tab-insert" :class="{ active: leftMode === 'insert' }" @click="leftMode = 'insert'">Insert</button>
@@ -17,6 +17,31 @@
         </div>
 
         <template v-if="selectedBlock">
+          <div class="fixed-template-select-control fixed-template-select-control--compact">
+            <label for="fixed-template-font-compact">Font</label>
+            <select
+              id="fixed-template-font-compact"
+              data-testid="template-font-select"
+              :value="selectedBlockFont"
+              @change="setSelectedBlockFont(($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="font in fontOptions" :key="font" :value="font">{{ font }}</option>
+            </select>
+          </div>
+          <div class="fixed-template-range-control fixed-template-range-control--compact">
+            <label for="fixed-template-size-compact">Size</label>
+            <input
+              id="fixed-template-size-compact"
+              data-testid="template-text-size"
+              type="range"
+              min="45"
+              max="220"
+              step="5"
+              :value="selectedBlockScalePercent"
+              @input="setSelectedBlockScalePercent(Number(($event.target as HTMLInputElement).value))"
+            >
+            <output>{{ selectedBlockScalePercent }}%</output>
+          </div>
           <div class="fixed-template-style-row fixed-template-style-row--compact">
             <button :class="{ active: selectedBlock.bold }" @click="patchSelectedBlock({ bold: !selectedBlock.bold })">B</button>
             <button :class="{ active: selectedBlock.italic }" @click="patchSelectedBlock({ italic: !selectedBlock.italic })"><em>I</em></button>
@@ -36,7 +61,7 @@
 
         <template v-else-if="selectedRow">
           <div class="fixed-template-control fixed-template-control--row-height">
-            <label>{{ selectedRow.kind === 'spacer' ? 'Spacer height' : 'Row height' }}</label>
+            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Row size' }}</label>
             <input
               data-testid="template-row-height"
               type="range"
@@ -46,7 +71,7 @@
               :value="selectedRow.heightFr"
               @input="setSelectedRowHeight(Number(($event.target as HTMLInputElement).value))"
             >
-            <output>{{ selectedRow.heightFr.toFixed(2) }}fr</output>
+            <output>{{ rowSpacingLabel(selectedRow.heightFr) }}</output>
           </div>
           <div class="fixed-template-danger-row fixed-template-danger-row--compact">
             <button
@@ -142,7 +167,13 @@
           <strong>Fixed Poster Template</strong>
           <span>Header and footer are editable. Map band is locked.</span>
         </div>
-        <button class="fixed-template-preview">Preview</button>
+        <button
+          class="fixed-template-preview"
+          :class="{ active: previewMode }"
+          data-testid="template-preview-toggle"
+          :aria-pressed="previewMode"
+          @click="previewMode = !previewMode"
+        >{{ previewMode ? 'Edit' : 'Preview' }}</button>
       </header>
 
       <section class="fixed-template-stage">
@@ -156,14 +187,14 @@
             :map="map"
             :style-config="previewStyleConfig"
             :editable="true"
-            :chrome-editing="true"
+            :chrome-editing="!previewMode"
             :chrome-external-shell="true"
             @poster-layout-updated="onPreviewPosterLayoutUpdated"
             @poster-text-override="onPreviewPosterTextOverride"
             @poster-text-reset="onPreviewPosterTextReset"
             @chrome-selection-changed="onPreviewChromeSelectionChanged"
           />
-          <div class="fixed-template-map-lock" data-testid="fixed-template-map-band">
+          <div v-if="!previewMode" class="fixed-template-map-lock" data-testid="fixed-template-map-band">
             <span>Map locked</span>
           </div>
         </div>
@@ -179,6 +210,31 @@
 
         <template v-if="selectedBlock">
           <div class="fixed-template-divider" />
+          <div class="fixed-template-select-control">
+            <label for="fixed-template-font">Font</label>
+            <select
+              id="fixed-template-font"
+              data-testid="template-font-select"
+              :value="selectedBlockFont"
+              @change="setSelectedBlockFont(($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="font in fontOptions" :key="font" :value="font">{{ font }}</option>
+            </select>
+          </div>
+          <div class="fixed-template-range-control">
+            <label for="fixed-template-size">Size</label>
+            <input
+              id="fixed-template-size"
+              data-testid="template-text-size"
+              type="range"
+              min="45"
+              max="220"
+              step="5"
+              :value="selectedBlockScalePercent"
+              @input="setSelectedBlockScalePercent(Number(($event.target as HTMLInputElement).value))"
+            >
+            <output>{{ selectedBlockScalePercent }}%</output>
+          </div>
           <div class="fixed-template-style-row">
             <button :class="{ active: selectedBlock.bold }" @click="patchSelectedBlock({ bold: !selectedBlock.bold })">B</button>
             <button :class="{ active: selectedBlock.italic }" @click="patchSelectedBlock({ italic: !selectedBlock.italic })"><em>I</em></button>
@@ -199,7 +255,7 @@
         <template v-else-if="selectedRow">
           <div class="fixed-template-divider" />
           <div class="fixed-template-control fixed-template-control--row-height">
-            <label>{{ selectedRow.kind === 'spacer' ? 'Spacer height' : 'Row height' }}</label>
+            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Row size' }}</label>
             <input
               data-testid="template-row-height"
               type="range"
@@ -209,7 +265,7 @@
               :value="selectedRow.heightFr"
               @input="setSelectedRowHeight(Number(($event.target as HTMLInputElement).value))"
             >
-            <output>{{ selectedRow.heightFr.toFixed(2) }}fr</output>
+            <output>{{ rowSpacingLabel(selectedRow.heightFr) }}</output>
           </div>
           <button
             v-if="selectedRow.kind !== 'spacer'"
@@ -231,6 +287,7 @@
 import { computed, ref, watch } from 'vue'
 import type {
   ChromeBandId,
+  FontFamily,
   PartialPosterLayout,
   PosterTextOverride,
   PosterTextSlot,
@@ -238,6 +295,7 @@ import type {
   TrailMap,
 } from '~/types'
 import MapPreview from '~/components/map/MapPreview.vue'
+import { FONT_REGISTRY } from '~/utils/render/fontRegistry'
 import {
   appendDraftBlock,
   appendDraftRow,
@@ -294,6 +352,7 @@ const emit = defineEmits<{
 
 const draft = ref<PosterLayoutDraft>(posterLayoutToDraft(props.modelValue, props.map.stats))
 const leftMode = ref<'insert' | 'layers'>('insert')
+const previewMode = ref(false)
 const selectedBandId = ref<PosterLayoutDraftBandId>('header')
 const selectedRowId = ref<string | null>(draft.value.bands.header.rows.find(row => row.kind === 'content')?.id ?? null)
 const selectedCellId = ref<string | null>(null)
@@ -346,6 +405,13 @@ const selectedBlock = computed(() => {
   const targetId = selectedBlockTargetId.value
   return targetId ? findDraftBlock(draft.value, targetId)?.block ?? null : null
 })
+const fontOptions = Object.keys(FONT_REGISTRY) as FontFamily[]
+const selectedBlockFont = computed(() => {
+  const block = selectedBlock.value
+  if (!block) return props.modelValue.body_font_family
+  return block.font_family ?? (block.chromeKind === 'title' ? props.modelValue.font_family : props.modelValue.body_font_family)
+})
+const selectedBlockScalePercent = computed(() => Math.round((selectedBlock.value?.scale ?? 1) * 100))
 const inspectorTitle = computed(() => {
   if (selectedBlock.value) return selectedBlock.value.label
   if (selectedRow.value?.kind === 'spacer') return 'Spacer row'
@@ -622,6 +688,19 @@ function nudgeSelectedScale(delta: number) {
   patchSelectedBlock({ scale: Math.min(2.2, Math.max(0.45, (selectedBlock.value.scale ?? 1) + delta)) })
 }
 
+function setSelectedBlockScalePercent(value: number) {
+  patchSelectedBlock({ scale: Math.min(2.2, Math.max(0.45, value / 100)) })
+}
+
+function setSelectedBlockFont(value: string) {
+  if (!fontOptions.includes(value as FontFamily)) return
+  patchSelectedBlock({ font_family: value as FontFamily })
+}
+
+function rowSpacingLabel(value: number) {
+  return `${Math.round(value * 100)}%`
+}
+
 function blocksForRow(row: PosterLayoutDraftRow) {
   return row.cells.flatMap(cell => cell.blocks)
 }
@@ -708,7 +787,8 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-tabs button.active,
 .fixed-template-style-row button.active,
-.fixed-template-align-row button.active {
+.fixed-template-align-row button.active,
+.fixed-template-preview.active {
   border-color: rgba(32, 101, 72, 0.5);
   background: #e3efe8;
   color: #163f2e;
@@ -769,6 +849,12 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   gap: 6px;
 }
 
+.fixed-template-danger-row--compact > button:only-child {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-width: 94px;
+}
+
 .fixed-template-left-selection .fixed-template-control {
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 6px;
@@ -777,6 +863,71 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-left-selection .fixed-template-control label {
   font-size: 10px;
+}
+
+.fixed-template-left-selection .fixed-template-control output {
+  font-size: 11px;
+}
+
+.fixed-template-select-control,
+.fixed-template-range-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  padding: 0 20px 10px;
+}
+
+.fixed-template-select-control label,
+.fixed-template-range-control label {
+  color: #6f675f;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fixed-template-select-control select {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid rgba(42, 37, 31, 0.14);
+  border-radius: 7px;
+  background: #fffdf8;
+  color: #29241f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.fixed-template-range-control input {
+  width: 100%;
+  accent-color: #28785a;
+}
+
+.fixed-template-range-control output {
+  min-width: 38px;
+  color: #403a34;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.fixed-template-select-control--compact,
+.fixed-template-range-control--compact {
+  padding: 0;
+}
+
+.fixed-template-select-control--compact label,
+.fixed-template-range-control--compact label {
+  font-size: 10px;
+}
+
+.fixed-template-select-control--compact select {
+  height: 30px;
+  font-size: 11px;
 }
 
 .fixed-template-panel {
@@ -1291,6 +1442,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-left-selection .fixed-template-danger-row {
   gap: 5px;
   margin: 0;
+  padding: 0;
 }
 
 .fixed-template-left-selection .fixed-template-style-row button,

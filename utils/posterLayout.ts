@@ -137,6 +137,19 @@ const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
   noteScale: 0.68,
 }
 
+const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([
+  'editorial-tall',
+  'journal-spread',
+  'park-quad',
+  'botanical-plate',
+  'darksky-stars',
+  'brutalist-slab',
+])
+
+function compositionUsesFooterNote(composition?: CompositionId) {
+  return !composition || FOOTER_NOTE_COMPOSITIONS.has(composition)
+}
+
 function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRecipe {
   switch (composition) {
     case 'editorial-tall':
@@ -214,7 +227,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   if (showLocation) {
     footerCells.push(cell('ft-coords', block('ft-coords-block', 'coords', 'coordinates', { scale: recipe.coordsScale })))
   }
-  if (composition !== 'modernist-block') {
+  if (compositionUsesFooterNote(composition)) {
     footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: recipe.noteScale })))
   }
   if (styleConfig.show_branding !== false) {

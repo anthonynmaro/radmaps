@@ -5,6 +5,7 @@ import type {
   ChromeBlockAlign,
   ChromeGridCell,
   ChromeGridRow,
+  FontFamily,
   PartialPosterLayout,
   PosterTextSlot,
   RouteStats,
@@ -29,6 +30,9 @@ export interface PosterLayoutDraftBlock {
   bold?: boolean
   italic?: boolean
   color?: string
+  bg_color?: string
+  font_family?: FontFamily
+  font_size_pt?: number
   opacity?: number
   scale?: number
 }
@@ -134,6 +138,9 @@ export function createDraftBlock(kind: PosterLayoutDraftBlockKind, patch: Partia
     bold: patch.bold,
     italic: patch.italic,
     color: patch.color,
+    bg_color: patch.bg_color,
+    font_family: patch.font_family,
+    font_size_pt: patch.font_size_pt,
     opacity: patch.opacity,
     scale: patch.scale,
   }
@@ -393,6 +400,9 @@ function chromeBlockToDraftBlock(block: ChromeBlock, styleConfig: StyleConfig, s
     bold: block.bold,
     italic: block.italic,
     color: block.color,
+    bg_color: block.bg_color,
+    font_family: block.font_family,
+    font_size_pt: block.font_size_pt,
     opacity: block.opacity,
     scale: block.scale,
   }
@@ -412,6 +422,9 @@ function draftBlockToChromeBlock(block?: PosterLayoutDraftBlock): ChromeBlock | 
     bold: block.bold,
     italic: block.italic,
     color: block.color,
+    bg_color: block.bg_color,
+    font_family: block.font_family,
+    font_size_pt: block.font_size_pt,
     opacity: block.opacity,
     scale: block.scale,
   }

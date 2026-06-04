@@ -49,6 +49,20 @@ describe('poster layout merge', () => {
     expect(layout.bands.footer.rows.at(-1)?.cells[0]?.block?.kind).toBe('spacer')
   })
 
+  it('keeps the extra footer note only for compositions that need it', () => {
+    const editorial = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'editorial-tall',
+    }, stats)
+    const performance = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+    }, stats)
+
+    expect(blocksFor(editorial, 'footer').some(block => block?.slot === 'composition_footer')).toBe(true)
+    expect(blocksFor(performance, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
+  })
+
   it('applies sparse row and cell edits by id without replacing the whole default layout', () => {
     const defaults = defaultPosterLayout(baseConfig, stats)
     const merged = mergePosterLayout(defaults, {

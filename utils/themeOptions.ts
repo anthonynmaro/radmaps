@@ -33,6 +33,14 @@ const THEME_THUMB: Record<string, ThemeThumbProfile> = {
   'mid-century':   { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '6px',   letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: '1.05' },
   'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
   'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
+  'classic-trail': { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.015em', textTransform: 'none',      lineHeight: '0.98' },
+  'ranch-ochre':   { titlePosition: 'top',    titleAlign: 'center', fontWeight: '600', fontSize: '8px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.95' },
+  blackline:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '900', fontSize: '9px',   letterSpacing: '0',       textTransform: 'uppercase', lineHeight: '0.86' },
+  'copper-night':  { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.06em',  textTransform: 'uppercase', lineHeight: '0.98' },
+  moonstone:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.08em',  textTransform: 'uppercase', lineHeight: '1.02' },
+  'night-ride':    { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '800', fontSize: '7px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.96' },
+  'daybreak-trace': { titlePosition: 'top',   titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.01em',  textTransform: 'none',      lineHeight: '0.98' },
+  'electric-atlas': { titlePosition: 'bottom', titleAlign: 'left',  fontWeight: '800', fontSize: '6px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.98' },
 }
 
 const DEFAULT_THEME_THUMB: ThemeThumbProfile = {
@@ -62,6 +70,14 @@ export const THEME_FONT_PREVIEW: Record<string, string> = {
   'mid-century': "'Oswald', sans-serif",
   'topo-art':  "'Work Sans', sans-serif",
   'dark-sky':  "'Fjalla One', sans-serif",
+  'classic-trail': "'DM Serif Display', serif",
+  'ranch-ochre': "'Oswald', sans-serif",
+  blackline: "'Big Shoulders Display', sans-serif",
+  'copper-night': "'Fjalla One', sans-serif",
+  moonstone: "'Space Grotesk', sans-serif",
+  'night-ride': "'Space Grotesk', sans-serif",
+  'daybreak-trace': "'DM Serif Display', serif",
+  'electric-atlas': "'Space Grotesk', sans-serif",
 }
 
 export const THEME_FONT_NAME: Record<string, string> = {
@@ -81,6 +97,14 @@ export const THEME_FONT_NAME: Record<string, string> = {
   'mid-century': 'Oswald',
   'topo-art':  'Work Sans',
   'dark-sky':  'Fjalla One',
+  'classic-trail': 'DM Serif Display',
+  'ranch-ochre': 'Oswald',
+  blackline: 'Big Shoulders Display',
+  'copper-night': 'Fjalla One',
+  moonstone: 'Space Grotesk',
+  'night-ride': 'Space Grotesk',
+  'daybreak-trace': 'DM Serif Display',
+  'electric-atlas': 'Space Grotesk',
 }
 
 export const QUICK_THEME_OPTIONS: ThemeDefinition[] = [

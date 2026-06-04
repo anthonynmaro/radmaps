@@ -546,7 +546,12 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty, 'is-spacer': isChromeSpacerCell(cell) }"
+              :class="{
+                'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': activeChromeColumnResize?.band === 'header' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-empty': !cell.block || cell.block.empty,
+                'is-spacer': isChromeSpacerCell(cell),
+              }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
               @click.stop="selectChromeCell('header', row.id, cell.id)"
@@ -1087,7 +1092,12 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty, 'is-spacer': isChromeSpacerCell(cell) }"
+              :class="{
+                'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': activeChromeColumnResize?.band === 'footer' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-empty': !cell.block || cell.block.empty,
+                'is-spacer': isChromeSpacerCell(cell),
+              }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
               @click.stop="selectChromeCell('footer', row.id, cell.id)"
@@ -1896,12 +1906,14 @@ const activeChromeColumnResize = ref<{
 const activeChromeRowResize = ref<{
   band: ChromeBandId
   rowId: string
-  nextRowId: string
+  nextRowId?: string
   startY: number
-  bandHeight: number
   startFr: number
-  nextFr: number
-  totalFr: number
+  nextFr?: number
+  startBandHeight: number
+  frUnitPx: number
+  posterHeight: number
+  startRows: ChromeGridRow[]
 } | null>(null)
 
 const chromeDirectEditing = computed(() =>
@@ -2011,7 +2023,7 @@ function canResizeChromeCell(row: ChromeGridRow, cell: ChromeGridCell) {
 
 function canResizeChromeRow(band: ChromeBandId, row: ChromeGridRow) {
   const rows = chromeRowsFor(band)
-  return rows.length > 1 && rows.findIndex(item => item.id === row.id) < rows.length - 1
+  return (band === 'header' || band === 'footer') && rows.some(item => item.id === row.id)
 }
 
 function chromeBlocksFor(band: ChromeBandId) {
@@ -2547,23 +2559,45 @@ function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string
   const rows = chromeRowsFor(band)
   const index = rows.findIndex(row => row.id === rowId)
   const row = index >= 0 ? rows[index] : undefined
-  const nextRow = index >= 0 ? rows[index + 1] : undefined
   const bandEl = posterCanvasEl.value?.querySelector<HTMLElement>(`.chrome-grid-band--${band}`)
     ?? (e.currentTarget instanceof HTMLElement
       ? e.currentTarget.closest<HTMLElement>('.chrome-grid-band')
       : null)
   const bandHeight = bandEl?.getBoundingClientRect().height ?? 0
-  if (!row || !nextRow || bandHeight <= 0) return
+  const posterHeight = posterCanvasEl.value?.getBoundingClientRect().height ?? 0
+  if (!row || bandHeight <= 0 || posterHeight <= 0) return
+  const rowGap = bandEl ? Number.parseFloat(window.getComputedStyle(bandEl).rowGap || '0') || 0 : 0
+  const startGapHeight = rowGap * Math.max(0, rows.length - 1)
+  const startTrackHeight = Math.max(1, bandHeight - startGapHeight)
+  const totalFr = rows.reduce((sum, row) => sum + (row.fr ?? 1), 0)
+  const frUnitPx = Math.max(1, startTrackHeight / Math.max(1, totalFr))
+  const rowHeights = new Map<string, number>()
+  for (const rowEl of bandEl?.querySelectorAll<HTMLElement>('.chrome-grid-row') ?? []) {
+    const id = rowEl.dataset.chromeRowId
+    if (id) rowHeights.set(id, rowEl.getBoundingClientRect().height)
+  }
+  const normalizedRows = sparseBandRows(band).map(rowValue => {
+    const measuredHeight = rowHeights.get(rowValue.id)
+    if (!measuredHeight) return rowValue
+    return {
+      ...rowValue,
+      fr: Math.round(Math.max(0.25, measuredHeight / frUnitPx) * 20) / 20,
+    }
+  })
+  const normalizedRow = normalizedRows.find(item => item.id === rowId)
+  const nextRow = normalizedRows[index + 1]
 
   activeChromeRowResize.value = {
     band,
     rowId,
-    nextRowId: nextRow.id,
+    nextRowId: nextRow?.id,
     startY: e.clientY,
-    bandHeight,
-    startFr: row.fr ?? 1,
-    nextFr: nextRow.fr ?? 1,
-    totalFr: rows.reduce((sum, row) => sum + (row.fr ?? 1), 0),
+    startFr: normalizedRow?.fr ?? row.fr ?? 1,
+    nextFr: nextRow?.fr,
+    startBandHeight: (bandHeight / posterHeight) * 100,
+    frUnitPx,
+    posterHeight,
+    startRows: normalizedRows,
   }
   selectChromeRow(band, rowId)
   window.addEventListener('pointermove', onChromeRowResizeMove)
@@ -2575,18 +2609,27 @@ function onChromeRowResizeMove(e: PointerEvent) {
   const resize = activeChromeRowResize.value
   if (!resize) return
 
-  const pairTotal = resize.startFr + resize.nextFr
-  const minFr = Math.min(0.35, pairTotal / 2)
-  const deltaFr = ((e.clientY - resize.startY) / resize.bandHeight) * resize.totalFr
-  const currentFr = Math.round(Math.min(pairTotal - minFr, Math.max(minFr, resize.startFr + deltaFr)) * 20) / 20
-  const nextFr = Math.round(Math.max(minFr, pairTotal - currentFr) * 20) / 20
+  const minFr = 0.25
+  const rawDeltaFr = (e.clientY - resize.startY) / resize.frUnitPx
+  const minDeltaFr = minFr - resize.startFr
+  const maxDeltaFr = resize.nextFr != null ? resize.nextFr - minFr : Number.POSITIVE_INFINITY
+  const deltaFr = Math.round(Math.min(maxDeltaFr, Math.max(minDeltaFr, rawDeltaFr)) * 20) / 20
+  const currentFr = Math.round((resize.startFr + deltaFr) * 20) / 20
+  const nextFr = resize.nextFr != null ? Math.round((resize.nextFr - deltaFr) * 20) / 20 : undefined
 
-  const rows = sparseBandRows(resize.band).map(row => {
+  const rows = resize.startRows.map(row => {
     if (row.id === resize.rowId) return { ...row, fr: currentFr }
-    if (row.id === resize.nextRowId) return { ...row, fr: nextFr }
+    if (row.id === resize.nextRowId && nextFr != null) return { ...row, fr: nextFr }
     return row
   })
-  updateChromeRows(resize.band, rows)
+  if (resize.nextRowId) {
+    updateChromeBand(resize.band, { rows })
+    return
+  }
+
+  const deltaPx = (currentFr - resize.startFr) * resize.frUnitPx
+  const height = Math.round(Math.min(40, Math.max(6, resize.startBandHeight + (deltaPx / resize.posterHeight) * 100)) * 10) / 10
+  updateChromeBand(resize.band, { rows, height })
 }
 
 function finishChromeRowResize() {
@@ -8733,11 +8776,9 @@ onUnmounted(() => {
 
 .chrome-grid-cell:hover > .chrome-cell-add-col,
 .chrome-grid-cell.is-selected > .chrome-cell-add-col,
-.chrome-grid-row:hover .chrome-cell-resize-col,
-.chrome-grid-row.is-selected .chrome-cell-resize-col,
 .chrome-grid-cell:hover > .chrome-cell-resize-col,
 .chrome-grid-cell.is-selected > .chrome-cell-resize-col,
-.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col {
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col {
   opacity: 1;
   pointer-events: auto;
 }
@@ -8747,17 +8788,15 @@ onUnmounted(() => {
   transform: translate(50%, -62%) scale(1);
 }
 
-.chrome-grid-row:hover .chrome-cell-resize-col,
-.chrome-grid-row.is-selected .chrome-cell-resize-col,
 .chrome-grid-cell:hover > .chrome-cell-resize-col,
 .chrome-grid-cell.is-selected > .chrome-cell-resize-col,
-.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col {
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col {
   transform: scaleX(1);
 }
 
-.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col::before,
 .chrome-grid-cell:hover > .chrome-cell-resize-col::before,
-.chrome-grid-cell.is-selected > .chrome-cell-resize-col::before {
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col::before,
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col::before {
   background: #2A5BCC;
 }
 
@@ -8835,8 +8874,7 @@ onUnmounted(() => {
 
 .chrome-grid-row:hover > .chrome-row-resize-row,
 .chrome-grid-row.is-selected > .chrome-row-resize-row,
-.chrome-grid-row.is-resizing-row > .chrome-row-resize-row,
-.chrome-grid-band.is-resizing-rows .chrome-row-resize-row {
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);

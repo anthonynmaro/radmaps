@@ -988,7 +988,7 @@ test.describe('style browser visual harness', () => {
   test('fixed poster template editor keeps the map locked and edits chrome bands', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop fixed-template editor coverage')
 
-    await page.goto('/style-browser-fixture?puckSpike=1&width=1180&height=820')
+    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
     await expect(page.getByTestId('fixed-template-editor')).toBeVisible()
     const fixedTemplateLeft = page.locator('.fixed-template-left')
     await expect(fixedTemplateLeft).not.toContainText('Poster')
@@ -1007,6 +1007,14 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
     await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
+    await page.getByTestId('template-preview-toggle').click()
+    await expect(page.getByTestId('template-preview-toggle')).toContainText('Edit')
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band')).toHaveCount(0)
+    await expect(page.getByTestId('fixed-template-map-band')).toHaveCount(0)
+    await page.getByTestId('template-preview-toggle').click()
+    await expect(page.getByTestId('template-preview-toggle')).toContainText('Preview')
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band')).toHaveCount(2)
+    await expect(page.getByTestId('fixed-template-map-band')).toContainText('Map locked')
 
     await page.evaluate(() => {
       const win = window as unknown as {
@@ -1075,6 +1083,10 @@ test.describe('style browser visual harness', () => {
     await firstTextBlock.click()
     await expect(page.getByTestId('template-delete-selected')).toBeVisible()
     await expect(page.getByTestId('template-duplicate-selected')).toBeVisible()
+    await expect(page.getByTestId('template-font-select')).toBeVisible()
+    await expect(page.getByTestId('template-text-size')).toBeVisible()
+    await page.getByTestId('template-font-select').selectOption('Space Grotesk')
+    await expect.poll(() => firstTextBlock.evaluate(element => window.getComputedStyle(element).fontFamily)).toContain('Space Grotesk')
     const boxBeforeEdit = await firstTextBlock.boundingBox()
     await firstTextBlock.fill('Kickapoo Endurance Race')
     await expect(firstTextBlock).toContainText('Kickapoo Endurance Race')
@@ -1105,12 +1117,21 @@ test.describe('style browser visual harness', () => {
     await expect(footerLayerGroup).toContainText('Distance')
 
     const bottomHeaderSpacer = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="header-spacer-bottom"]')
+    const headerTitleRow = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="header-title"]')
     await expect(bottomHeaderSpacer).toHaveCount(1)
     const spacerHeightBefore = await bottomHeaderSpacer.evaluate(element => element.getBoundingClientRect().height)
+    const titleHeightBeforeRowDrag = await headerTitleRow.evaluate(element => element.getBoundingClientRect().height)
     await bottomHeaderSpacer.click()
     await expect(bottomHeaderSpacer.locator('.chrome-grid-cell.is-selected')).toHaveCount(1)
     await expect(bottomHeaderSpacer.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
     await expect(bottomHeaderSpacer.locator('[data-testid="chrome-cell-add-column"]')).toBeVisible()
+    await expect(page.getByTestId('template-left-selection')).toContainText('Padding')
+    await expect(page.getByTestId('template-left-selection')).not.toContainText('fr')
+    const selectedPanelBox = await page.getByTestId('template-left-selection').boundingBox()
+    const deleteRowBox = await page.getByTestId('template-delete-row').boundingBox()
+    expect(selectedPanelBox).toBeTruthy()
+    expect(deleteRowBox).toBeTruthy()
+    expect(Math.abs(deleteRowBox!.x - (selectedPanelBox!.x + 8))).toBeLessThan(2)
     expect(await page.evaluate(() => {
       const row = document.querySelector<HTMLElement>('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="header-spacer-bottom"]')
       if (!row) return false
@@ -1127,8 +1148,20 @@ test.describe('style browser visual harness', () => {
         return hit === control || Boolean(hit && control.contains(hit))
       })
     })).toBe(true)
-    await expect(page.locator('.fixed-template-inspector-head p')).toContainText('Spacer row')
+    await expect(page.getByTestId('template-left-selection')).toContainText('Spacer row')
     await expect(page.getByTestId('template-row-height')).toBeVisible()
+    await bottomHeaderSpacer.hover()
+    const rowResizeGrip = bottomHeaderSpacer.locator('[data-testid="chrome-row-resize-row"]')
+    await expect(rowResizeGrip).toBeVisible()
+    const rowGripBox = await rowResizeGrip.boundingBox()
+    expect(rowGripBox).toBeTruthy()
+    await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2 + 26, { steps: 5 })
+    await page.mouse.up()
+    await expect.poll(() => bottomHeaderSpacer.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(spacerHeightBefore)
+    const titleHeightAfterRowDrag = await headerTitleRow.evaluate(element => element.getBoundingClientRect().height)
+    expect(Math.abs(titleHeightAfterRowDrag - titleHeightBeforeRowDrag)).toBeLessThan(6)
     await page.getByTestId('template-row-height').evaluate((input) => {
       const range = input as HTMLInputElement
       range.value = '1.7'

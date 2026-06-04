@@ -52,9 +52,13 @@ describe('poster composition registry', () => {
   })
 
   it('uses refined typography profiles instead of legacy theme aliases', () => {
+    expect(getPosterTypography({ color_theme: 'editorial-minimal' }).titleTracking).toBe('0')
     expect(getPosterTypography({ color_theme: 'brutalist' }).titleTracking).toBe('0.02em')
     expect(getPosterTypography({ color_theme: 'bold-modern' }).titleLineHeight).toBe('0.85')
     expect(getPosterTypography({ color_theme: 'field-journal' }).titleFont).toContain('Cormorant Garamond')
     expect(getPosterTypography({ color_theme: 'blueprint' }).titleTracking).toBe('0.02em')
+    expect(getPosterTypography({ color_theme: 'blackline' }).titleLineHeight).toBe('0.86')
+    expect(getPosterTypography({ color_theme: 'night-ride' }).statsWeight).toBe('800')
+    expect(getPosterTypography({ color_theme: 'daybreak-trace' }).titleFont).toContain('DM Serif Display')
   })
 })
