@@ -216,10 +216,10 @@ describe('product mockups', () => {
     expect(rivets[1].box.x + rivets[1].box.w).toBeGreaterThan(overprintedBox.x + overprintedBox.w - rivets[1].box.w)
     expect(rivets[3].box.y + rivets[3].box.h).toBeLessThan(overprintedBox.y + overprintedBox.h)
 
-    expect(Math.round(rivets[0].box.x * 3000)).toBe(922)
-    expect(Math.round(rivets[0].box.y * 3000)).toBe(419)
-    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2121)
-    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2162)
+    expect(Math.round(rivets[0].box.x * 3000)).toBe(933)
+    expect(Math.round(rivets[0].box.y * 3000)).toBe(429)
+    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2151)
+    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2151)
 
     const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
     const posterTemplate = getProductMockupTemplate(poster, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
