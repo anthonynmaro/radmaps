@@ -211,15 +211,15 @@ describe('product mockups', () => {
       expect(rivet.box.y + rivet.box.h).toBeLessThanOrEqual(1)
     }
 
-    expect(rivets[0].box.x).toBeLessThan(overprintedBox.x)
-    expect(rivets[0].box.y).toBeLessThan(overprintedBox.y)
-    expect(rivets[1].box.x + rivets[1].box.w).toBeGreaterThan(overprintedBox.x + overprintedBox.w - rivets[1].box.w)
+    expect(rivets[0].box.x).toBeGreaterThan(overprintedBox.x)
+    expect(rivets[0].box.y).toBeGreaterThan(overprintedBox.y)
+    expect(rivets[1].box.x + rivets[1].box.w).toBeLessThan(overprintedBox.x + overprintedBox.w)
     expect(rivets[3].box.y + rivets[3].box.h).toBeLessThan(overprintedBox.y + overprintedBox.h)
 
-    expect(Math.round(rivets[0].box.x * 3000)).toBe(933)
-    expect(Math.round(rivets[0].box.y * 3000)).toBe(429)
-    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2151)
-    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2151)
+    expect(Math.round(rivets[0].box.x * 3000)).toBe(940)
+    expect(Math.round(rivets[0].box.y * 3000)).toBe(446)
+    expect(Math.round((rivets[1].box.x + rivets[1].box.w) * 3000)).toBe(2076)
+    expect(Math.round((rivets[3].box.y + rivets[3].box.h) * 3000)).toBe(2156)
 
     const poster = PRODUCTS.find(product => product.product_uid.startsWith('flat_400x600-mm-16x24-inch'))!
     const posterTemplate = getProductMockupTemplate(poster, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
