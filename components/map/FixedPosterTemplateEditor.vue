@@ -1,11 +1,6 @@
 <template>
   <div class="fixed-template-editor" :class="{ 'fixed-template-editor--no-inspector': !showInspector }" data-testid="fixed-template-editor">
     <aside class="fixed-template-left">
-      <div class="fixed-template-brand">
-        <strong>Poster</strong>
-        <span>Template editor</span>
-      </div>
-
       <div class="fixed-template-tabs" role="tablist" aria-label="Editor modes">
         <button data-testid="template-tab-insert" :class="{ active: leftMode === 'insert' }" @click="leftMode = 'insert'">Insert</button>
         <button data-testid="template-tab-layers" :class="{ active: leftMode === 'layers' }" @click="leftMode = 'layers'">Layers</button>
@@ -634,7 +629,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 <style>
 .fixed-template-editor {
   display: grid;
-  grid-template-columns: 248px minmax(420px, 1fr) 280px;
+  grid-template-columns: 216px minmax(460px, 1fr) 280px;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -645,7 +640,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-editor--no-inspector {
-  grid-template-columns: 248px minmax(420px, 1fr);
+  grid-template-columns: 216px minmax(460px, 1fr);
 }
 
 .fixed-template-left,
@@ -664,12 +659,10 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   border-left: 1px solid rgba(36, 32, 27, 0.12);
 }
 
-.fixed-template-brand,
 .fixed-template-inspector-head {
   padding: 16px 16px 12px;
 }
 
-.fixed-template-brand strong,
 .fixed-template-inspector-head p {
   display: block;
   margin: 0;
@@ -678,7 +671,6 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   letter-spacing: 0;
 }
 
-.fixed-template-brand span,
 .fixed-template-inspector-head span,
 .fixed-template-topbar span {
   color: #82796f;
@@ -689,9 +681,9 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  margin: 0 12px 14px;
-  padding: 4px;
+  gap: 3px;
+  margin: 10px 10px 12px;
+  padding: 3px;
   border-radius: 8px;
   background: #eeeae2;
 }
@@ -723,9 +715,9 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-left-selection {
   display: grid;
-  gap: 8px;
-  margin: 0 12px 14px;
-  padding: 10px;
+  gap: 7px;
+  margin: 0 10px 12px;
+  padding: 8px;
   border: 1px solid rgba(32, 101, 72, 0.22);
   border-radius: 8px;
   background: #f2f7f2;
@@ -777,39 +769,41 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-left-selection .fixed-template-control {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 6px;
   padding: 0;
 }
 
 .fixed-template-left-selection .fixed-template-control label {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .fixed-template-panel {
-  padding: 0 12px 16px;
+  padding: 0 10px 14px;
 }
 
 .fixed-template-label {
-  margin: 16px 0 8px;
+  margin: 12px 0 6px;
   color: #746d64;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 850;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .fixed-template-insert-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  gap: 6px;
 }
 
 .fixed-template-insert-grid button {
   display: grid;
-  gap: 6px;
-  min-height: 62px;
-  padding: 10px;
+  gap: 5px;
+  min-height: 52px;
+  padding: 7px 8px;
   border: 1px solid rgba(42, 37, 31, 0.13);
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fffdf8;
   text-align: left;
 }
@@ -817,40 +811,46 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-insert-grid span {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   background: #efede7;
   color: #394150;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .fixed-template-insert-grid strong {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.15;
 }
 
 .fixed-template-actions,
 .fixed-template-danger-row {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+}
+
+.fixed-template-actions button {
+  min-height: 30px;
 }
 
 .fixed-template-layer-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .fixed-template-layer-group {
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 
 .fixed-template-layer-list button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 30px;
+  padding: 6px 8px;
   border: 1px solid rgba(42, 37, 31, 0.1);
   border-radius: 7px;
   background: #fffdf8;
@@ -863,12 +863,12 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-layer-row {
-  margin-left: 12px;
+  margin-left: 8px;
 }
 
 .fixed-template-layer-block {
-  margin-left: 26px;
-  min-height: 31px !important;
+  margin-left: 18px;
+  min-height: 28px !important;
   background: #f7f5ef !important;
 }
 

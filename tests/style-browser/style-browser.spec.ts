@@ -990,6 +990,11 @@ test.describe('style browser visual harness', () => {
 
     await page.goto('/style-browser-fixture?puckSpike=1&width=1180&height=820')
     await expect(page.getByTestId('fixed-template-editor')).toBeVisible()
+    const fixedTemplateLeft = page.locator('.fixed-template-left')
+    await expect(fixedTemplateLeft).not.toContainText('Poster')
+    const fixedTemplateLeftBox = await fixedTemplateLeft.boundingBox()
+    expect(fixedTemplateLeftBox).toBeTruthy()
+    expect(fixedTemplateLeftBox!.width).toBeLessThanOrEqual(220)
     await expect(page.locator('[data-testid="puck-poster-spike"]')).toHaveCount(0)
     await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__))).toBe(true)
     await expect(page.getByTestId('fixed-template-map-band')).toContainText('Map locked')
