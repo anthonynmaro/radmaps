@@ -346,6 +346,7 @@
 import { computed, ref, watch } from 'vue'
 import type {
   ChromeBandId,
+  ChromeGridCell,
   ChromeGridRow,
   FontFamily,
   PartialPosterLayout,
@@ -533,13 +534,25 @@ function mergeLayoutIntoCurrent(layout: PartialPosterLayout, extraBands: Partial
   return { bands }
 }
 
+function cloneChromeDraftCell(cell: ChromeGridCell): ChromeGridCell {
+  return {
+    ...cell,
+    block: cell.block ? { ...cell.block } : undefined,
+  }
+}
+
 function cloneChromeDraftRow(row: ChromeGridRow): ChromeGridRow {
   return {
     ...row,
-    cells: row.cells.map(cell => ({
-      ...cell,
-      block: cell.block ? { ...cell.block } : undefined,
-    })),
+    cells: row.cells.map(cloneChromeDraftCell),
+  }
+}
+
+function tombstoneChromeDraftCell(cell: ChromeGridCell): ChromeGridCell {
+  return {
+    ...cloneChromeDraftCell(cell),
+    deleted: true,
+    block: undefined,
   }
 }
 
@@ -547,11 +560,7 @@ function tombstoneChromeDraftRow(row: ChromeGridRow): ChromeGridRow {
   return {
     ...cloneChromeDraftRow(row),
     deleted: true,
-    cells: row.cells.map(cell => ({
-      ...cell,
-      deleted: true,
-      block: undefined,
-    })),
+    cells: row.cells.map(tombstoneChromeDraftCell),
   }
 }
 
@@ -563,17 +572,43 @@ function mergeRowsWithTombstones(
 ): ChromeGridRow[] {
   const rows = (extraRows ?? layoutRows ?? []).map(cloneChromeDraftRow)
   const rowIds = new Set(rows.map(row => row.id))
+  const rowsById = new Map(rows.map(row => [row.id, row]))
 
   for (const row of currentSparseRows ?? []) {
-    if (rowIds.has(row.id) || !row.deleted) continue
-    rows.push(cloneChromeDraftRow(row))
-    rowIds.add(row.id)
+    const targetRow = rowsById.get(row.id)
+    if (!targetRow) {
+      if (!row.deleted) continue
+      const clone = cloneChromeDraftRow(row)
+      rows.push(clone)
+      rowsById.set(clone.id, clone)
+      rowIds.add(clone.id)
+      continue
+    }
+
+    const targetCellIds = new Set(targetRow.cells.map(cell => cell.id))
+    for (const cell of row.cells) {
+      if (!cell.deleted || targetCellIds.has(cell.id)) continue
+      targetRow.cells.push(cloneChromeDraftCell(cell))
+      targetCellIds.add(cell.id)
+    }
   }
 
   for (const row of currentVisibleRows ?? []) {
-    if (rowIds.has(row.id)) continue
-    rows.push(tombstoneChromeDraftRow(row))
-    rowIds.add(row.id)
+    const targetRow = rowsById.get(row.id)
+    if (!targetRow) {
+      const tombstone = tombstoneChromeDraftRow(row)
+      rows.push(tombstone)
+      rowsById.set(tombstone.id, tombstone)
+      rowIds.add(tombstone.id)
+      continue
+    }
+
+    const targetCellIds = new Set(targetRow.cells.map(cell => cell.id))
+    for (const cell of row.cells) {
+      if (targetCellIds.has(cell.id)) continue
+      targetRow.cells.push(tombstoneChromeDraftCell(cell))
+      targetCellIds.add(cell.id)
+    }
   }
 
   return rows
@@ -699,18 +734,28 @@ function onPreviewChromeTrashInteraction(event: MouseEvent | PointerEvent) {
   event.preventDefault()
   event.stopPropagation()
 
-  if (rows.length > 1) {
+  const removedColumnOnly = row.cells.length > 1
+  if (removedColumnOnly) {
+    row.cells.splice(cellIndex, 1)
+  } else if (rows.length > 1) {
     rows.splice(rowIndex, 1)
   } else {
     row.cells.splice(cellIndex, 1)
-    if (!row.cells.length) rows.splice(rowIndex, 1)
+    if (!row.cells.length) row.cells.push(createDraftCell())
   }
 
   setDraft(next)
   selectedBandId.value = band
-  selectedRowId.value = rows[Math.min(rowIndex, rows.length - 1)]?.id ?? null
-  selectedCellId.value = null
-  selectedBlockId.value = null
+  if (removedColumnOnly) {
+    const selectedCell = row.cells[Math.min(cellIndex, row.cells.length - 1)] ?? null
+    selectedRowId.value = row.id
+    selectedCellId.value = selectedCell?.id ?? null
+    selectedBlockId.value = selectedCell?.blocks.find(block => block.kind !== 'spacer')?.id ?? null
+  } else {
+    selectedRowId.value = rows[Math.min(rowIndex, rows.length - 1)]?.id ?? null
+    selectedCellId.value = null
+    selectedBlockId.value = null
+  }
 }
 
 function onPreviewChromeSelectionChanged(payload: { type: 'band'; band: ChromeBandId } | { type: 'row'; band: ChromeBandId; rowId: string } | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string; blockId: string | null } | null) {

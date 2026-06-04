@@ -1203,6 +1203,25 @@ test.describe('style browser visual harness', () => {
     })
     await expect.poll(() => bottomHeaderSpacer.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(spacerHeightBefore)
 
+    const footerPrimaryRow = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="footer-primary"]')
+    await expect(footerPrimaryRow).toHaveCount(1)
+    const footerCellsBeforeDelete = await footerPrimaryRow.locator('.chrome-grid-cell').count()
+    expect(footerCellsBeforeDelete).toBeGreaterThan(1)
+    const firstFooterCellWidthBeforeDelete = await footerPrimaryRow.locator('.chrome-grid-cell').first().evaluate(element => element.getBoundingClientRect().width)
+    const deletedFooterCell = footerPrimaryRow.locator('.chrome-grid-cell').nth(footerCellsBeforeDelete - 1)
+    await deletedFooterCell.click()
+    await expect(deletedFooterCell.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
+    await deletedFooterCell.locator('[data-testid="chrome-cell-trash"]').click()
+    await expect(footerPrimaryRow).toHaveCount(1)
+    await expect(footerPrimaryRow.locator('.chrome-grid-cell')).toHaveCount(footerCellsBeforeDelete - 1)
+    await expect.poll(async () => footerPrimaryRow.locator('.chrome-grid-cell').first().evaluate(element => element.getBoundingClientRect().width)).toBeGreaterThan(firstFooterCellWidthBeforeDelete)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
+      const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.footer?.rows ?? []
+      const footerPrimary = rows.find((row: any) => row.id === 'footer-primary')
+      return footerPrimary?.cells?.some((cell: any) => cell.deleted === true) ?? false
+    })).toBe(true)
+
     const bottomFooterSpacer = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="footer-spacer-bottom"]')
     await expect(bottomFooterSpacer).toHaveCount(1)
     await bottomFooterSpacer.locator('.chrome-grid-cell').first().click()
@@ -1216,15 +1235,27 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
 
     await expect(headerTitleRow).toHaveCount(1)
+    const headerTitleCellsBeforeDelete = await headerTitleRow.locator('.chrome-grid-cell').count()
     await headerTitleRow.locator('.chrome-grid-cell').first().click()
     await expect(headerTitleRow.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
     await headerTitleRow.locator('[data-testid="chrome-cell-trash"]').click()
-    await expect(headerTitleRow).toHaveCount(0)
-    await expect.poll(async () => page.evaluate(() => {
-      const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
-      const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.header?.rows ?? []
-      return rows.some((row: any) => row.id === 'header-title' && row.deleted === true)
-    })).toBe(true)
+    if (headerTitleCellsBeforeDelete > 1) {
+      await expect(headerTitleRow).toHaveCount(1)
+      await expect(headerTitleRow.locator('.chrome-grid-cell')).toHaveCount(headerTitleCellsBeforeDelete - 1)
+      await expect.poll(async () => page.evaluate(() => {
+        const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
+        const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.header?.rows ?? []
+        const headerTitle = rows.find((row: any) => row.id === 'header-title')
+        return headerTitle?.cells?.some((cell: any) => cell.deleted === true) ?? false
+      })).toBe(true)
+    } else {
+      await expect(headerTitleRow).toHaveCount(0)
+      await expect.poll(async () => page.evaluate(() => {
+        const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
+        const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.header?.rows ?? []
+        return rows.some((row: any) => row.id === 'header-title' && row.deleted === true)
+      })).toBe(true)
+    }
   })
 
   test('keeps mid-century fixed-template chrome side margins compact', async ({ page }, testInfo) => {
@@ -1274,13 +1305,16 @@ test.describe('style browser visual harness', () => {
     await page.goto('/style-browser-fixture?surface=1&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
     await expect(page.getByTestId('map-editor-surface')).toBeVisible()
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'false')
-    await expect(page.getByTestId('fixed-template-editor')).toBeVisible()
+    const fixedTemplateEditor = page.getByTestId('fixed-template-editor')
+    await expect(fixedTemplateEditor).toBeVisible()
+    await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__))).toBe(true)
     await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
     await expect(page.getByTestId('template-map-height')).toHaveCount(0)
-    await page.getByTestId('template-tab-layers').click()
-    await expect(page.locator('[data-testid="template-layer-group"][data-band-id="header"]')).toContainText('Title')
-    await expect(page.locator('[data-testid="template-layer-group"][data-band-id="footer"]')).toContainText('Distance')
+    await fixedTemplateEditor.getByTestId('template-tab-layers').click()
+    await expect(fixedTemplateEditor.getByTestId('template-layer-list')).toBeVisible()
+    await expect(fixedTemplateEditor.locator('[data-testid="template-layer-group"][data-band-id="header"]')).toContainText('Title')
+    await expect(fixedTemplateEditor.locator('[data-testid="template-layer-group"][data-band-id="footer"]')).toContainText('Distance')
     await page.locator('.fixed-template-map-preview .chrome-grid-block[contenteditable="true"]').first().click()
     await expect(page.getByTestId('template-left-selection')).toBeVisible()
     await expect(page.getByTestId('template-delete-selected')).toBeVisible()
