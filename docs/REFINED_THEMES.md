@@ -51,12 +51,21 @@ Each refined theme declares palette, typography, composition, audience, and
 `map_defaults`. The map defaults are intent fields; the layer graph still decides
 what each preset can consume.
 
+The June 4, 2026 refinement pass tightened the set around print-safe contrast,
+quieter contours, authored thumbnail typography, and reduced composition insets.
+See [docs/POSTER_THEME_REFINEMENT_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/POSTER_THEME_REFINEMENT_REVIEW.md)
+for the detailed design review, code review notes, and next steps.
+
 Blueprint and Blueprint Strava default their grids to the map area, not the full
 poster. Most refined contour defaults are intentionally quieter than the legacy
 editor contour defaults so roads, water, labels, and route linework can remain
 legible when several map-context layers are enabled. Mid-Century declares dark
 map-label ink separately from its cream footer text so place labels remain
 readable on the warm map field.
+
+Every refined theme should keep label-band text at 4.5:1 contrast or better
+against its label background. The unit suite enforces this so future palette
+passes cannot accidentally produce beautiful but unprintable chrome.
 
 Theme fonts are loaded from the typed self-hosted registry in
 [utils/render/fontRegistry.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/fontRegistry.ts).

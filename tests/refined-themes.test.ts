@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
+import { contrastRatio } from '../utils/colorContrast'
 import {
   ALL_COLOR_THEME_IDS,
   COMPOSITION_IDS,
@@ -25,6 +26,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     for (const theme of REFINED_THEMES) {
       expect(COMPOSITION_IDS).toContain(theme.composition)
       expect(theme.audience.length).toBeGreaterThan(0)
+      expect(contrastRatio(theme.label_text_color, theme.label_bg_color), theme.id).toBeGreaterThanOrEqual(4.5)
       expect(theme.map_defaults.preset, theme.id).toBeTruthy()
       expect(theme.map_defaults.preset, theme.id).toMatch(/^radmaps-/)
       expect(theme.map_defaults.atlas_style_id, theme.id).toBe(theme.map_defaults.preset)
@@ -46,12 +48,12 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(getRefinedThemeById('blueprint')?.map_defaults).toMatchObject({
       show_grid: true,
       grid_scope: 'map',
-      grid_opacity: 0.16,
+      grid_opacity: 0.14,
     })
     expect(getRefinedThemeById('blueprint-strava')?.map_defaults).toMatchObject({
       show_grid: true,
       grid_scope: 'map',
-      grid_opacity: 0.16,
+      grid_opacity: 0.14,
     })
   })
 
@@ -93,9 +95,9 @@ describe('refined theme Phase 0 scaffolding', () => {
   it('keeps mid-century map labels readable on its warm map surface', () => {
     const midcentury = getRefinedThemeById('midcentury-travel')
 
-    expect(midcentury?.map_defaults.place_labels_color).toBe('#3A4A2A')
-    expect(midcentury?.map_defaults.poi_labels_color).toBe('#3A4A2A')
-    expect(midcentury?.map_defaults.atlas_layer_settings?.place?.label_color).toBe('#3A4A2A')
+    expect(midcentury?.map_defaults.place_labels_color).toBe('#31442D')
+    expect(midcentury?.map_defaults.poi_labels_color).toBe('#31442D')
+    expect(midcentury?.map_defaults.atlas_layer_settings?.place?.label_color).toBe('#31442D')
   })
 
   it('keeps preview-forward contour themes backed by contour map detail', () => {
@@ -118,7 +120,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(getRefinedThemeById('copper-night')?.composition).toBe('darksky-stars')
     expect(getRefinedThemeById('moonstone')?.map_defaults.show_grid).toBe(true)
     expect(getRefinedThemeById('night-ride')?.map_defaults.trail_label_style).toBe('leader-lines')
-    expect(getRefinedThemeById('daybreak-trace')?.font_family).toBe('DM Serif Display')
+    expect(getRefinedThemeById('daybreak-trace')?.font_family).toBe('Newsreader')
     expect(getRefinedThemeById('electric-atlas')?.map_defaults.grid_spacing).toBe(6)
   })
 })

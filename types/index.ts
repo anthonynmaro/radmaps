@@ -30,6 +30,12 @@ export type StylePreset =
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
+  // Print workhorses — calm, legible, broad weight ranges
+  | 'Source Sans 3'
+  | 'Source Serif 4'
+  | 'IBM Plex Sans'
+  | 'Atkinson Hyperlegible Next'
+  | 'Newsreader'
   // Editorial — condensed, impactful, poster-native
   | 'Big Shoulders Display'
   | 'Fjalla One'
@@ -592,8 +598,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   hillshade_highlight: 0.3,
   water_color: '#B8D8E8',
   land_color: '#EDE8DF',
-  font_family: 'Big Shoulders Display',
-  body_font_family: 'DM Sans',
+  font_family: 'Source Sans 3',
+  body_font_family: 'Source Sans 3',
   title_size: 48,
   subtitle_size: 24,
   labels: {

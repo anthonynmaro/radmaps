@@ -44,12 +44,12 @@ describe('theme application', () => {
     expect(next.atlas_style_id).toBe('radmaps-simple-contour')
     expect(next.contour_detail).toBe(5)
     expect(next.contour_major_width).toBe(0.5)
-    expect(next.background_color).toBe('#E8DAB8')
-    expect(next.label_bg_color).toBe('#1F3325')
-    expect(next.label_text_color).toBe('#F0E5C5')
-    expect(next.route_color).toBe('#D4603A')
-    expect(next.font_family).toBe('Oswald')
-    expect(next.body_font_family).toBe('Work Sans')
+    expect(next.background_color).toBe('#E6D2A2')
+    expect(next.label_bg_color).toBe('#19382A')
+    expect(next.label_text_color).toBe('#FAEBC2')
+    expect(next.route_color).toBe('#CF5535')
+    expect(next.font_family).toBe('IBM Plex Sans')
+    expect(next.body_font_family).toBe('Source Sans 3')
     expect(next.composition).toBe('travel-banner')
     expect(next.title_scale).toBe(1)
     expect(next.occasion_scale).toBe(1)
@@ -133,7 +133,7 @@ describe('theme application', () => {
     expect(next.pin_font_family).toBeUndefined()
     expect(next.leader_label_font_family).toBeUndefined()
     expect(next.grid_color).toBeUndefined()
-    expect(next.grid_opacity).toBe(0.16)
+    expect(next.grid_opacity).toBe(0.14)
     expect(next.grid_weight).toBe(1)
     expect(next.grid_spacing).toBe(8)
     expect(next.grid_scope).toBe('map')
@@ -174,10 +174,10 @@ describe('theme application', () => {
     expect(next.trail_label_style).toBe('leader-lines')
     expect(next.leader_label_auto_fit).toBe(true)
     expect(next.leader_label_scale).toBe(0.9)
-    expect(next.segment_casing_color).toBe('#050814')
-    expect(next.atlas_layer_settings?.landcover?.color).toBe('#070A14')
+    expect(next.segment_casing_color).toBe('#050815')
+    expect(next.atlas_layer_settings?.landcover?.color).toBe('#070B15')
     expect(next.atlas_layer_settings?.park?.fill_color).toBe('#0B1020')
-    expect(next.trail_segments?.map(segment => segment.color)).toEqual(['#F4B942', '#F4B942'])
+    expect(next.trail_segments?.map(segment => segment.color)).toEqual(['#F2BB4A', '#F2BB4A'])
     expect(next.trail_segments?.map(segment => segment.color_mode)).toEqual(['solid', 'solid'])
     expect(next.trail_segments?.map(segment => segment.width)).toEqual([DEFAULT_TRAIL_SEGMENT_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH])
     expect(next.trail_segments?.some(segment => segment.label_lnglat)).toBe(false)
@@ -203,15 +203,15 @@ describe('theme application', () => {
   })
 
   it('chooses contrast-safe default pin colors for pale and dark map backgrounds', () => {
-    const pale = '#E8DAB8'
-    const dark = '#0F2D52'
+    const pale = '#E6D2A2'
+    const dark = '#0B2948'
 
-    const midcenturyPin = pickContrastSafeColor(pale, ['#D4603A', '#1F3325', '#F0E5C5'])
-    const blueprintPin = pickContrastSafeColor(dark, ['#FFD046', '#0F2D52', '#D0E4FF'])
+    const midcenturyPin = pickContrastSafeColor(pale, ['#CF5535', '#19382A', '#FAEBC2'])
+    const blueprintPin = pickContrastSafeColor(dark, ['#FFD45A', '#0B2948', '#DCEEFF'])
 
-    expect(midcenturyPin).toBe('#1F3325')
+    expect(midcenturyPin).toBe('#19382A')
     expect(contrastRatio(midcenturyPin, pale)).toBeGreaterThanOrEqual(4.5)
-    expect(blueprintPin).toBe('#FFD046')
+    expect(blueprintPin).toBe('#FFD45A')
     expect(contrastRatio(blueprintPin, dark)).toBeGreaterThanOrEqual(4.5)
   })
 })

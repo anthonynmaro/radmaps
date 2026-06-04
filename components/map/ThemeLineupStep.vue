@@ -94,6 +94,7 @@ const emit = defineEmits<{
 const orderedThemes = computed(() => orderedQuickThemeOptionsForRoute(props.map.stats, props.map.geojson))
 const selectedThemeId = ref<ColorTheme>((orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0]).id)
 const liveCardThemeIds = ref<ColorTheme[]>([])
+const maxLivePreviewCards = 4
 
 const selectedTheme = computed(() =>
   orderedThemes.value.find(theme => theme.id === selectedThemeId.value) ?? orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0],
@@ -105,7 +106,9 @@ watch(orderedThemes, (themes) => {
   if (!themes.some(theme => theme.id === selectedThemeId.value)) {
     selectedThemeId.value = (themes[0] ?? QUICK_THEME_OPTIONS[0]).id
   }
-  liveCardThemeIds.value = themes.map(theme => theme.id)
+  liveCardThemeIds.value = liveCardThemeIds.value
+    .filter(themeId => themes.some(theme => theme.id === themeId))
+    .slice(0, maxLivePreviewCards)
 }, { immediate: true })
 
 function previewConfigFor(theme: ThemeDefinition): StyleConfig {
@@ -122,6 +125,7 @@ function selectTheme(themeId: ColorTheme) {
 
 function enableLiveCard(themeId: ColorTheme) {
   if (liveCardThemeIds.value.includes(themeId)) return
+  if (themeId !== selectedThemeId.value && liveCardThemeIds.value.length >= maxLivePreviewCards) return
   liveCardThemeIds.value = [...liveCardThemeIds.value, themeId]
 }
 

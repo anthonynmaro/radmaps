@@ -16,6 +16,9 @@ describe('font registry', () => {
     const css = generateFontFaceCss({ fontsUrlBase: '/fonts' })
 
     expect(css).toContain("@font-face")
+    expect(css).toContain("font-family: 'Source Sans 3'")
+    expect(css).toContain("url('/fonts/Source_Sans_3.ttf')")
+    expect(css).toContain("font-family: 'Newsreader'")
     expect(css).toContain("font-family: 'Bebas Neue'")
     expect(css).toContain("url('/fonts/Bebas_Neue-400.ttf')")
     expect(css).toContain("url('/fonts/Big_Shoulders_Display-800.ttf')")

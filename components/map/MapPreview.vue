@@ -5,7 +5,7 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState && (!chromeDirectEditing || activeTextTarget?.type === 'overlay')"
+      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay')"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
@@ -446,7 +446,7 @@
 
       <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
       <div
-        v-if="editable && mapReady && !chromeDirectEditing"
+        v-if="editable && mapReady && !chromeGridRendering"
         class="poster-controls"
         :class="{ 'map-hovered': mapHovered }"
       >
@@ -495,7 +495,10 @@
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-header shrink-0"
-        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
+        :class="{
+          'is-chrome-grid-mode': chromeGridRendering,
+          'is-chrome-elevated-band': chromeBandElevated('header'),
+        }"
         :style="headerBandStyle"
         data-testid="poster-header"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
@@ -520,9 +523,10 @@
           >+</button>
         </div>
         <div
-          v-if="chromeDirectEditing"
+          v-if="chromeGridRendering"
           class="chrome-grid-band chrome-grid-band--header"
           :class="{
+            'is-editable': chromeDirectEditing,
             'is-resizing-columns': activeChromeColumnResize?.band === 'header',
             'is-resizing-rows': activeChromeRowResize?.band === 'header',
           }"
@@ -535,8 +539,9 @@
             :key="row.id"
             class="chrome-grid-row"
             :class="{
-              'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
-              'is-resizing-row': activeChromeRowResize?.band === 'header' && activeChromeRowResize.rowId === row.id,
+              'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
+              'has-selected-cell': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': chromeDirectEditing && activeChromeRowResize?.band === 'header' && activeChromeRowResize.rowId === row.id,
             }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
@@ -547,23 +552,24 @@
               :key="cell.id"
               class="chrome-grid-cell"
               :class="{
-                'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
-                'is-resizing-col': activeChromeColumnResize?.band === 'header' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': chromeDirectEditing && activeChromeColumnResize?.band === 'header' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
                 'is-empty': !cell.block || cell.block.empty,
                 'is-spacer': isChromeSpacerCell(cell),
               }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
-              @click.stop="selectChromeCell('header', row.id, cell.id)"
+              @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
             >
               <button
-                v-if="selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id"
+                v-if="chromeDirectEditing && (chromeCellSelected('header', row.id, cell.id) || isChromeSpacerCell(cell))"
                 class="chrome-cell-trash"
-                data-testid="chrome-cell-trash"
+                :class="{ 'is-passive': !chromeCellSelected('header', row.id, cell.id) }"
+                :data-testid="chromeCellSelected('header', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
                 :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
                 aria-label="Delete selected cell"
                 @pointerdown.prevent.stop="trashChromeCell('header', row.id, cell.id)"
-                @click.stop
+                @click.prevent.stop="trashChromeCell('header', row.id, cell.id)"
               >
                 <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
               </button>
@@ -573,33 +579,38 @@
                 :data-chrome-block-id="cell.block?.id"
                 role="separator"
                 :aria-label="cell.block?.label ?? 'Spacer'"
+                @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
               >
                 <span>{{ cell.block?.label ?? 'Spacer' }}</span>
               </div>
               <div
                 v-else-if="cell.block && !cell.block.empty"
-                class="chrome-grid-block editable-text"
-                :class="`chrome-grid-block--${cell.block.kind}`"
+                class="chrome-grid-block"
+                :class="[
+                  `chrome-grid-block--${cell.block.kind}`,
+                  { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
+                ]"
                 :style="chromeGridBlockStyle(cell)"
-                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :contenteditable="editable && chromeDirectEditing && chromeBlockEditable(cell.block) ? 'true' : 'false'"
                 :suppressContentEditableWarning="true"
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
-                @pointerdown.stop="selectChromeCell('header', row.id, cell.id)"
+                @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
-                @click.stop="selectChromeCell('header', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'header', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else
+                v-else-if="chromeDirectEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('header', row.id, cell.id)"
               >+</button>
               <button
-                v-if="canInsertColumnAfter(row, cell)"
+                v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
                 data-testid="chrome-cell-add-column"
                 title="Add column after this cell"
@@ -607,7 +618,7 @@
                 @click.stop
               >Col +</button>
               <button
-                v-if="canResizeChromeCell(row, cell)"
+                v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
                 data-testid="chrome-cell-resize-column"
                 title="Drag to resize column"
@@ -615,17 +626,29 @@
                 @click.stop
               />
             </div>
-            <button class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>Row +</button>
+            <button v-if="chromeDirectEditing" class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>Row +</button>
             <button
-              v-if="canResizeChromeRow('header', row)"
-              class="chrome-row-resize-row"
+              v-if="chromeDirectEditing && canResizeChromeRowEdge('header', row, 'top')"
+              class="chrome-row-resize-row chrome-row-resize-row--top"
               data-testid="chrome-row-resize-row"
-              title="Drag to resize row"
-              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id)"
+              data-edge="top"
+              title="Drag to adjust top spacing"
+              aria-label="Adjust row top spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id, 'top')"
+              @click.stop
+            />
+            <button
+              v-if="chromeDirectEditing && canResizeChromeRowEdge('header', row, 'bottom')"
+              class="chrome-row-resize-row chrome-row-resize-row--bottom"
+              data-testid="chrome-row-resize-row"
+              data-edge="bottom"
+              title="Drag to adjust bottom spacing"
+              aria-label="Adjust row bottom spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id, 'bottom')"
               @click.stop
             />
           </div>
-          <button class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
+          <button v-if="chromeDirectEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
         </div>
         <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
@@ -1041,7 +1064,10 @@
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-footer shrink-0"
-        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
+        :class="{
+          'is-chrome-grid-mode': chromeGridRendering,
+          'is-chrome-elevated-band': chromeBandElevated('footer'),
+        }"
         :style="footerBandStyle"
         data-testid="poster-footer"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
@@ -1066,9 +1092,10 @@
           >+</button>
         </div>
         <div
-          v-if="chromeDirectEditing"
+          v-if="chromeGridRendering"
           class="chrome-grid-band chrome-grid-band--footer"
           :class="{
+            'is-editable': chromeDirectEditing,
             'is-resizing-columns': activeChromeColumnResize?.band === 'footer',
             'is-resizing-rows': activeChromeRowResize?.band === 'footer',
           }"
@@ -1081,8 +1108,9 @@
             :key="row.id"
             class="chrome-grid-row"
             :class="{
-              'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
-              'is-resizing-row': activeChromeRowResize?.band === 'footer' && activeChromeRowResize.rowId === row.id,
+              'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
+              'has-selected-cell': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': chromeDirectEditing && activeChromeRowResize?.band === 'footer' && activeChromeRowResize.rowId === row.id,
             }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
@@ -1093,23 +1121,24 @@
               :key="cell.id"
               class="chrome-grid-cell"
               :class="{
-                'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
-                'is-resizing-col': activeChromeColumnResize?.band === 'footer' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': chromeDirectEditing && activeChromeColumnResize?.band === 'footer' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
                 'is-empty': !cell.block || cell.block.empty,
                 'is-spacer': isChromeSpacerCell(cell),
               }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
-              @click.stop="selectChromeCell('footer', row.id, cell.id)"
+              @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
             >
               <button
-                v-if="selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id"
+                v-if="chromeDirectEditing && (chromeCellSelected('footer', row.id, cell.id) || isChromeSpacerCell(cell))"
                 class="chrome-cell-trash"
-                data-testid="chrome-cell-trash"
+                :class="{ 'is-passive': !chromeCellSelected('footer', row.id, cell.id) }"
+                :data-testid="chromeCellSelected('footer', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
                 :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
                 aria-label="Delete selected cell"
                 @pointerdown.prevent.stop="trashChromeCell('footer', row.id, cell.id)"
-                @click.stop
+                @click.prevent.stop="trashChromeCell('footer', row.id, cell.id)"
               >
                 <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
               </button>
@@ -1119,33 +1148,38 @@
                 :data-chrome-block-id="cell.block?.id"
                 role="separator"
                 :aria-label="cell.block?.label ?? 'Spacer'"
+                @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
               >
                 <span>{{ cell.block?.label ?? 'Spacer' }}</span>
               </div>
               <div
                 v-else-if="cell.block && !cell.block.empty"
-                class="chrome-grid-block editable-text"
-                :class="`chrome-grid-block--${cell.block.kind}`"
+                class="chrome-grid-block"
+                :class="[
+                  `chrome-grid-block--${cell.block.kind}`,
+                  { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
+                ]"
                 :style="chromeGridBlockStyle(cell)"
-                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :contenteditable="editable && chromeDirectEditing && chromeBlockEditable(cell.block) ? 'true' : 'false'"
                 :suppressContentEditableWarning="true"
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
-                @pointerdown.stop="selectChromeCell('footer', row.id, cell.id)"
+                @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
-                @click.stop="selectChromeCell('footer', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'footer', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else
+                v-else-if="chromeDirectEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('footer', row.id, cell.id)"
               >+</button>
               <button
-                v-if="canInsertColumnAfter(row, cell)"
+                v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
                 data-testid="chrome-cell-add-column"
                 title="Add column after this cell"
@@ -1153,7 +1187,7 @@
                 @click.stop
               >Col +</button>
               <button
-                v-if="canResizeChromeCell(row, cell)"
+                v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
                 data-testid="chrome-cell-resize-column"
                 title="Drag to resize column"
@@ -1161,17 +1195,29 @@
                 @click.stop
               />
             </div>
-            <button class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>Row +</button>
+            <button v-if="chromeDirectEditing" class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>Row +</button>
             <button
-              v-if="canResizeChromeRow('footer', row)"
-              class="chrome-row-resize-row"
+              v-if="chromeDirectEditing && canResizeChromeRowEdge('footer', row, 'top')"
+              class="chrome-row-resize-row chrome-row-resize-row--top"
               data-testid="chrome-row-resize-row"
-              title="Drag to resize row"
-              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id)"
+              data-edge="top"
+              title="Drag to adjust top spacing"
+              aria-label="Adjust row top spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id, 'top')"
+              @click.stop
+            />
+            <button
+              v-if="chromeDirectEditing && canResizeChromeRowEdge('footer', row, 'bottom')"
+              class="chrome-row-resize-row chrome-row-resize-row--bottom"
+              data-testid="chrome-row-resize-row"
+              data-edge="bottom"
+              title="Drag to adjust bottom spacing"
+              aria-label="Adjust row bottom spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id, 'bottom')"
               @click.stop
             />
           </div>
-          <button class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
+          <button v-if="chromeDirectEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
         </div>
         <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
@@ -1558,6 +1604,7 @@ const props = defineProps<{
   renderMode?: 'editor' | 'print'
   printContext?: PrintContext
   chromeEditing?: boolean
+  chromePreview?: boolean
   chromeExternalShell?: boolean
   posterElementsEditing?: boolean
   posterEditorMode?: PosterEditorMode
@@ -1865,6 +1912,7 @@ type ChromeSelection =
   | { type: 'band'; band: ChromeBandId }
   | { type: 'row'; band: ChromeBandId; rowId: string }
   | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string }
+type ChromeRowResizeEdge = 'top' | 'bottom'
 const selectedChromeTarget = ref<ChromeSelection | null>(null)
 function emitChromeSelectionChanged(target: ChromeSelection | null) {
   if (!chromeDirectEditing.value || !target) {
@@ -1906,18 +1954,22 @@ const activeChromeColumnResize = ref<{
 const activeChromeRowResize = ref<{
   band: ChromeBandId
   rowId: string
-  nextRowId?: string
+  adjacentRowId?: string
+  edge: ChromeRowResizeEdge
   startY: number
   startFr: number
-  nextFr?: number
+  adjacentStartFr?: number
   startBandHeight: number
   frUnitPx: number
   posterHeight: number
   startRows: ChromeGridRow[]
 } | null>(null)
 
-const chromeDirectEditing = computed(() =>
+const chromeGridRendering = computed(() =>
   Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
+)
+const chromeDirectEditing = computed(() =>
+  chromeGridRendering.value && props.chromePreview !== true,
 )
 const chromeInternalShellVisible = computed(() =>
   chromeDirectEditing.value && props.chromeExternalShell !== true,
@@ -2012,6 +2064,13 @@ function chromeCellsFor(row: ChromeGridRow) {
   return row.cells.filter(cell => !cell.deleted)
 }
 
+function chromeCellSelected(band: ChromeBandId, rowId: string, cellId: string) {
+  return selectedChromeTarget.value?.type === 'cell'
+    && selectedChromeTarget.value.band === band
+    && selectedChromeTarget.value.rowId === rowId
+    && selectedChromeTarget.value.cellId === cellId
+}
+
 function canInsertColumnAfter(_row: ChromeGridRow, cell: ChromeGridCell) {
   return !cell.deleted
 }
@@ -2021,9 +2080,11 @@ function canResizeChromeCell(row: ChromeGridRow, cell: ChromeGridCell) {
   return cells.length > 1 && cells.findIndex(item => item.id === cell.id) < cells.length - 1
 }
 
-function canResizeChromeRow(band: ChromeBandId, row: ChromeGridRow) {
+function canResizeChromeRowEdge(band: ChromeBandId, row: ChromeGridRow, edge: ChromeRowResizeEdge) {
   const rows = chromeRowsFor(band)
-  return (band === 'header' || band === 'footer') && rows.some(item => item.id === row.id)
+  const index = rows.findIndex(item => item.id === row.id)
+  if ((band !== 'header' && band !== 'footer') || index < 0) return false
+  return edge === 'top' ? index > 0 : true
 }
 
 function chromeBlocksFor(band: ChromeBandId) {
@@ -2068,6 +2129,14 @@ function customChromeBlocks(_band: ChromeBandId): ChromeBlock[] {
 
 function chromeBandActive(band: ChromeBandId) {
   return hoveredChromeBand.value === band || activeChromeBand.value === band
+}
+
+function chromeBandElevated(band: ChromeBandId) {
+  return chromeDirectEditing.value && (
+    selectedChromeTarget.value?.band === band ||
+    activeChromeColumnResize.value?.band === band ||
+    activeChromeRowResize.value?.band === band
+  )
 }
 
 function chromeSectionActive(band: ChromeBandId) {
@@ -2391,6 +2460,12 @@ function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
   emitChromeSelectionChanged(selectedChromeTarget.value)
 }
 
+function selectChromeCellFromInteraction(band: ChromeBandId, rowId: string, cellId: string) {
+  selectChromeCell(band, rowId, cellId)
+  if (typeof window === 'undefined') return
+  window.requestAnimationFrame(() => selectChromeCell(band, rowId, cellId))
+}
+
 function setChromeCellSelection(band: ChromeBandId, rowId: string, cellId: string, blockId: string | null = null) {
   selectedChromeTarget.value = { type: 'cell', band, rowId, cellId }
   hoveredChromeBand.value = band
@@ -2554,7 +2629,7 @@ function teardownChromeColumnResize() {
   window.removeEventListener('pointercancel', finishChromeColumnResize)
 }
 
-function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string) {
+function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string, edge: ChromeRowResizeEdge = 'bottom') {
   if (!chromeDirectEditing.value || typeof window === 'undefined') return
   const rows = chromeRowsFor(band)
   const index = rows.findIndex(row => row.id === rowId)
@@ -2585,15 +2660,18 @@ function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string
     }
   })
   const normalizedRow = normalizedRows.find(item => item.id === rowId)
-  const nextRow = normalizedRows[index + 1]
+  const adjacentRow = edge === 'top'
+    ? normalizedRows[index - 1]
+    : normalizedRows[index + 1]
 
   activeChromeRowResize.value = {
     band,
     rowId,
-    nextRowId: nextRow?.id,
+    adjacentRowId: adjacentRow?.id,
+    edge,
     startY: e.clientY,
     startFr: normalizedRow?.fr ?? row.fr ?? 1,
-    nextFr: nextRow?.fr,
+    adjacentStartFr: adjacentRow?.fr,
     startBandHeight: (bandHeight / posterHeight) * 100,
     frUnitPx,
     posterHeight,
@@ -2611,18 +2689,19 @@ function onChromeRowResizeMove(e: PointerEvent) {
 
   const minFr = 0.25
   const rawDeltaFr = (e.clientY - resize.startY) / resize.frUnitPx
+  const rowDeltaFr = resize.edge === 'top' ? -rawDeltaFr : rawDeltaFr
   const minDeltaFr = minFr - resize.startFr
-  const maxDeltaFr = resize.nextFr != null ? resize.nextFr - minFr : Number.POSITIVE_INFINITY
-  const deltaFr = Math.round(Math.min(maxDeltaFr, Math.max(minDeltaFr, rawDeltaFr)) * 20) / 20
+  const maxDeltaFr = resize.adjacentStartFr != null ? resize.adjacentStartFr - minFr : Number.POSITIVE_INFINITY
+  const deltaFr = Math.round(Math.min(maxDeltaFr, Math.max(minDeltaFr, rowDeltaFr)) * 20) / 20
   const currentFr = Math.round((resize.startFr + deltaFr) * 20) / 20
-  const nextFr = resize.nextFr != null ? Math.round((resize.nextFr - deltaFr) * 20) / 20 : undefined
+  const adjacentFr = resize.adjacentStartFr != null ? Math.round((resize.adjacentStartFr - deltaFr) * 20) / 20 : undefined
 
   const rows = resize.startRows.map(row => {
     if (row.id === resize.rowId) return { ...row, fr: currentFr }
-    if (row.id === resize.nextRowId && nextFr != null) return { ...row, fr: nextFr }
+    if (row.id === resize.adjacentRowId && adjacentFr != null) return { ...row, fr: adjacentFr }
     return row
   })
-  if (resize.nextRowId) {
+  if (resize.adjacentRowId) {
     updateChromeBand(resize.band, { rows })
     return
   }
@@ -3014,7 +3093,7 @@ function onCustomChromeClick(_e: MouseEvent, _id: string) {}
 function onCustomChromeBlur(_e: FocusEvent, _id: string) {}
 
 function onChromeGridBlockFocus(e: FocusEvent, band: ChromeBandId, rowId: string, cellId: string) {
-  selectChromeCell(band, rowId, cellId)
+  selectChromeCellFromInteraction(band, rowId, cellId)
   activeTextAnchor.value = e.currentTarget instanceof HTMLElement ? e.currentTarget.getBoundingClientRect() : null
 }
 
@@ -3786,7 +3865,17 @@ const locationLine = computed(() => {
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
-const showOccasionSlot = computed(() => composition.value.id !== 'modernist-block')
+const OCCASION_SLOT_COMPOSITIONS = new Set([
+  'legacy-classic',
+  'editorial-tall',
+  'park-quad',
+  'travel-banner',
+  'riso-stack',
+  'journal-spread',
+  'darksky-stars',
+  'botanical-plate',
+])
+const showOccasionSlot = computed(() => OCCASION_SLOT_COMPOSITIONS.has(composition.value.id))
 
 const coords = computed(() => {
   const b = props.map.bbox
@@ -3857,15 +3946,13 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'blueprint-grid':
       return {
-        kicker: 'DWG · RM-001',
-        meta: 'SHEET 01 / 01 · DATUM WGS84',
-        footerNote: 'Grid overlay · route geometry locked to print frame',
+        kicker: 'WGS84',
+        meta: 'SHEET 01',
       }
     case 'blueprint-strava':
       return {
-        kicker: 'STRAVA FILE · ACTIVITY',
-        meta: `${date} · SHEET 01 / 01`,
-        footerNote: 'Distance · gain · coordinates · route trace',
+        kicker: 'ACTIVITY',
+        meta: date,
       }
     case 'journal-spread':
       return {
@@ -3882,9 +3969,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'splits-grid':
       return {
-        kicker: 'MORNING RUN / DATA SHEET',
-        meta: `${distance} · ${date}`,
-        footerNote: 'Segment stats normalized for print',
+        kicker: 'DATA SHEET',
+        meta: date,
       }
     case 'bib-numerals':
       return {
@@ -4027,10 +4113,10 @@ function effectiveSlotAlign(slot: PosterTextSlot, fallback = defaultSlotAlign(sl
   return slotOverride(slot).align ?? fallback
 }
 
-function effectiveSlotFontSizeCqh(slot: PosterTextSlot, baseCqh: number): number {
+function effectiveSlotFontSizeCqh(slot: PosterTextSlot, baseCqh: number, autoScale = 1): number {
   const override = slotOverride(slot)
   if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
-  return baseCqh * effectiveSlotScale(slot, legacySlotScale(slot))
+  return baseCqh * effectiveSlotScale(slot, legacySlotScale(slot)) * autoScale
 }
 
 function effectiveSlotOpacity(slot: PosterTextSlot, fallback: number): number {
@@ -4060,7 +4146,7 @@ function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
 const headerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
-  padding: chromeDirectEditing.value
+  padding: chromeGridRendering.value
     ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
         ? (layout.value.titlePosition === 'bottom'
@@ -4071,14 +4157,26 @@ const headerBandStyle = computed(() => ({
   flexDirection: 'column' as const,
   alignItems: composition.value.titleAlign === 'left' ? 'flex-start' : 'center',
   justifyContent: 'center',
-  gap: '1.1cqh',
+  gap: composition.value.id === 'legacy-classic' ? '1.1cqh' : '0.8cqh',
   position: 'relative' as const,
   order: String(composition.value.headerOrder),
-  zIndex: 3,
+  zIndex: chromeBandElevated('header') ? 60 : 3,
   height: props.styleConfig.poster_layout?.bands?.header?.height != null
     ? `${posterLayout.value.bands.header.height}%`
     : undefined,
 }))
+
+function lengthFitScale(text: string, softLimit: number, hardLimit: number, minScale: number): number {
+  const length = text.trim().length
+  if (length <= softLimit) return 1
+  if (length >= hardLimit) return minScale
+  const t = (length - softLimit) / (hardLimit - softLimit)
+  return 1 - ((1 - minScale) * t)
+}
+
+const trailNameAutoScale = computed(() => lengthFitScale(trailName.value, 28, 58, 0.76))
+const locationLineAutoScale = computed(() => lengthFitScale(locationLine.value, 30, 64, 0.82))
+const occasionAutoScale = computed(() => lengthFitScale(occasionText.value, 20, 42, 0.78))
 
 const trailNameStyle = computed(() => ({
   fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
@@ -4086,15 +4184,19 @@ const trailNameStyle = computed(() => ({
   fontStyle: effectiveSlotItalic('trail_name'),
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize, trailNameAutoScale.value)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
   opacity: String(effectiveSlotOpacity('trail_name', 1)),
   textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
   width: '100%',
+  maxWidth: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
+  overflowWrap: 'anywhere' as const,
+  textWrap: 'balance' as const,
+  hyphens: 'auto' as const,
   textShadow: getTextHalo(headerBg.value),
 }))
 
@@ -4103,15 +4205,19 @@ const locationLineStyle = computed(() => ({
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize, locationLineAutoScale.value)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
   opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
   textAlign: effectiveSlotAlign('location_text', composition.value.titleAlign === 'left' ? 'left' : 'center'),
   width: '100%',
+  maxWidth: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
   textShadow: getTextHalo(headerBg.value),
 }))
 
@@ -4128,6 +4234,9 @@ const compositionKickerStyle = computed(() => ({
   opacity: String(effectiveSlotOpacity('composition_kicker', composition.value.id === 'brutalist-slab' ? 0.92 : 0.64)),
   textAlign: effectiveSlotAlign('composition_kicker'),
   width: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
 }))
 
 const compositionMetaStyle = computed(() => ({
@@ -4141,6 +4250,9 @@ const compositionMetaStyle = computed(() => ({
   opacity: String(effectiveSlotOpacity('composition_meta', 0.52)),
   textAlign: effectiveSlotAlign('composition_meta'),
   width: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
 }))
 
 const compositionFooterNoteStyle = computed(() => ({
@@ -4180,22 +4292,22 @@ const compositionRuleInset = computed(() => {
   switch (composition.value.id) {
     case 'editorial-tall':
     case 'riso-stack':
-      return { left: `calc(8cqw + ${bleed})`, right: `calc(8cqw + ${bleed})` }
+      return { left: `calc(6.8cqw + ${bleed})`, right: `calc(6.8cqw + ${bleed})` }
     case 'park-quad':
     case 'botanical-plate':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(4.25cqw + ${bleed})`, right: `calc(4.25cqw + ${bleed})` }
     case 'blueprint-strava':
     case 'splits-grid':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(4.35cqw + ${bleed})`, right: `calc(4.35cqw + ${bleed})` }
     case 'modernist-block':
-      return { left: `calc(9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
+      return { left: `calc(7.7cqw + ${bleed})`, right: `calc(4.75cqw + ${bleed})` }
     case 'brutalist-slab':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(4.25cqw + ${bleed})`, right: `calc(4.25cqw + ${bleed})` }
     case 'travel-banner':
     case 'darksky-stars':
-      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+      return { left: `calc(3.6cqw + ${bleed})`, right: `calc(3.6cqw + ${bleed})` }
     default:
-      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+      return { left: `calc(6cqw + ${bleed})`, right: `calc(6cqw + ${bleed})` }
   }
 })
 
@@ -4209,7 +4321,7 @@ const footerRuleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
-  padding: chromeDirectEditing.value
+  padding: chromeGridRendering.value
     ? chromeBandPaddingCss('footer', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
         ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
@@ -4222,7 +4334,7 @@ const footerBandStyle = computed(() => ({
   position: 'relative' as const,
   borderTop: '0',
   order: String(composition.value.footerOrder),
-  zIndex: 3,
+  zIndex: chromeBandElevated('footer') ? 60 : 3,
   height: props.styleConfig.poster_layout?.bands?.footer?.height != null
     ? `${posterLayout.value.bands.footer.height}%`
     : undefined,
@@ -4273,6 +4385,7 @@ const posterStatsStyle = computed(() => ({
   gap: composition.value.statsEmphasis === 'numeric' ? '1.6cqw' : '2.4cqw',
   transform: composition.value.statsEmphasis === 'large' ? 'scale(1.12)' : 'none',
   transformOrigin: 'left center',
+  maxWidth: showOccasionSlot.value && occasionText.value ? '52cqw' : '68cqw',
 }))
 
 function statNumberStyleFor(slot: PosterTextSlot) {
@@ -4281,7 +4394,7 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
   fontSize: `${effectiveSlotFontSizeCqh(slot, 2.6)}cqh`,
-  letterSpacing: '-0.01em',
+  letterSpacing: '0',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
   opacity: String(effectiveSlotOpacity(slot, 1)),
@@ -4399,15 +4512,19 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
+  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95, occasionAutoScale.value)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
   opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
   textAlign: effectiveSlotAlign('occasion_text', 'center'),
-  position: 'absolute' as const,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  position: 'relative' as const,
+  flex: '1 1 auto',
+  minWidth: '0',
+  maxWidth: '36cqw',
+  margin: '0 2cqw',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
   whiteSpace: 'nowrap' as const,
   outline: 'none',
   textShadow: getTextHalo(bg.value),
@@ -8218,12 +8335,17 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 2.4cqw;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: 0.8cqh;
 }
 
 .stat-block {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .stat-block--coords {
@@ -8508,6 +8630,10 @@ onUnmounted(() => {
   z-index: 8;
 }
 
+.chrome-grid-band:not(.is-editable) {
+  pointer-events: none;
+}
+
 .chrome-grid-band.is-resizing-columns,
 .chrome-grid-band.is-resizing-rows {
   cursor: grabbing;
@@ -8585,6 +8711,18 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
+.chrome-grid-band:not(.is-editable) .chrome-grid-row::after,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-empty,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-empty:hover,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-selected.is-empty {
+  background: transparent;
+}
+
 .chrome-grid-block {
   min-width: 0;
   max-width: 100%;
@@ -8630,6 +8768,15 @@ onUnmounted(() => {
   line-height: 1;
   text-transform: uppercase;
   opacity: 0;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-spacer {
+  background: transparent;
+  opacity: 1;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-spacer span {
+  display: none;
 }
 
 .chrome-grid-cell.is-spacer:hover .chrome-grid-spacer,
@@ -8716,6 +8863,19 @@ onUnmounted(() => {
   transform: translateY(-1px);
 }
 
+.chrome-cell-trash.is-passive {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px) scale(0.94);
+}
+
+.chrome-grid-cell:hover > .chrome-cell-trash.is-passive,
+.chrome-grid-cell.is-selected > .chrome-cell-trash.is-passive {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
 .chrome-cell-trash-icon {
   width: 19px;
   height: 19px;
@@ -8735,15 +8895,15 @@ onUnmounted(() => {
 
 .chrome-cell-resize-col {
   position: absolute;
-  right: -9px;
-  top: 3px;
-  bottom: 3px;
+  right: -13px;
+  top: 50%;
   z-index: 28;
-  width: 18px;
-  min-width: 18px;
-  min-height: 0;
-  height: auto;
+  width: 26px;
+  min-width: 26px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
+  transform: translate(50%, -50%) scale(0.92);
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -8755,7 +8915,7 @@ onUnmounted(() => {
 .chrome-cell-resize-col::before {
   content: "";
   position: absolute;
-  inset: 2px 7px;
+  inset: 6px 11px;
   border-radius: 999px;
   background: rgba(42, 91, 204, 0.62);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
@@ -8791,7 +8951,7 @@ onUnmounted(() => {
 .chrome-grid-cell:hover > .chrome-cell-resize-col,
 .chrome-grid-cell.is-selected > .chrome-cell-resize-col,
 .chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col {
-  transform: scaleX(1);
+  transform: translate(50%, -50%) scale(1);
 }
 
 .chrome-grid-cell:hover > .chrome-cell-resize-col::before,
@@ -8831,20 +8991,27 @@ onUnmounted(() => {
 
 .chrome-row-resize-row {
   position: absolute;
-  right: 74px;
-  bottom: -13px;
+  left: 50%;
   z-index: 27;
-  width: 30px;
-  min-width: 30px;
-  height: 26px;
-  min-height: 26px;
+  width: 28px;
+  min-width: 28px;
+  height: 10px;
+  min-height: 10px;
   padding: 0;
-  transform: translateY(1px);
+  transform: translate(-50%, 0) scale(0.94);
   border: 0;
   background: transparent;
   box-shadow: none;
   cursor: ns-resize;
   touch-action: none;
+}
+
+.chrome-row-resize-row--top {
+  top: 0;
+}
+
+.chrome-row-resize-row--bottom {
+  bottom: 0;
 }
 
 .chrome-row-resize-row::before {
@@ -8853,7 +9020,7 @@ onUnmounted(() => {
   left: 8px;
   right: 8px;
   top: 50%;
-  height: 8px;
+  height: 6px;
   transform: translateY(-50%);
   border-radius: 999px;
   background: rgba(42, 91, 204, 0.68);
@@ -8865,8 +9032,8 @@ onUnmounted(() => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 14px;
-  height: 3px;
+  width: 10px;
+  height: 2px;
   transform: translate(-50%, -50%);
   border-radius: 999px;
   background: #FFFFFF;
@@ -8874,10 +9041,16 @@ onUnmounted(() => {
 
 .chrome-grid-row:hover > .chrome-row-resize-row,
 .chrome-grid-row.is-selected > .chrome-row-resize-row,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row,
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
   opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.chrome-grid-row.is-selected:hover > .chrome-row-resize-row,
+.chrome-grid-row.has-selected-cell:hover > .chrome-row-resize-row,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
   pointer-events: auto;
-  transform: translateY(0);
 }
 
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row::before {
@@ -8939,6 +9112,7 @@ onUnmounted(() => {
   color: #1C1917;
   font-family: "Space Grotesk", system-ui, sans-serif;
   overflow: visible;
+  pointer-events: none;
 }
 
 .chrome-toolbar-kind {

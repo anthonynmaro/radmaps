@@ -75,6 +75,13 @@ load its intended starter template. Existing saved maps are still compatible
 because old `poster_layout` data continues to render until the user applies a
 new theme/template.
 
+The June 4, 2026 theme pass reduced default composition gutters and spacer row
+fractions so the fixed 2:3 poster area feels deliberately designed rather than
+boxed inside excessive chrome. The whitespace is still represented as explicit
+spacer rows, which means themes can include it and users can remove or resize it.
+For the full theme review, see
+[docs/POSTER_THEME_REFINEMENT_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/POSTER_THEME_REFINEMENT_REVIEW.md).
+
 The refined registry now contains 22 recipes. The newest theme directions add
 more classical and expressive poster language:
 

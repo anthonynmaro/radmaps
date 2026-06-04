@@ -118,14 +118,14 @@ type ChromeLayoutRecipe = {
 const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
   headerHeight: 22,
   footerHeight: 14,
-  headerTopFr: 0.85,
+  headerTopFr: 0.62,
   headerMetaFr: 0.45,
   headerTitleFr: 2.35,
   headerSubFr: 0.85,
-  headerBottomFr: 0.95,
-  footerTopFr: 0.65,
+  headerBottomFr: 0.72,
+  footerTopFr: 0.5,
   footerPrimaryFr: 1,
-  footerBottomFr: 0.65,
+  footerBottomFr: 0.5,
   kickerScale: 0.8,
   metaScale: 0.72,
   titleScale: 1,
@@ -137,44 +137,61 @@ const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
   noteScale: 0.68,
 }
 
-const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([
-  'editorial-tall',
-  'journal-spread',
-  'park-quad',
-  'botanical-plate',
-  'darksky-stars',
-  'brutalist-slab',
+const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
+  'blueprint-grid',
+  'blueprint-strava',
+  'splits-grid',
 ])
 
+const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([])
+
+const OCCASION_COMPOSITIONS = new Set<CompositionId>([
+  'editorial-tall',
+  'park-quad',
+  'travel-banner',
+  'riso-stack',
+  'journal-spread',
+  'darksky-stars',
+  'botanical-plate',
+])
+
+function compositionUsesHeaderDecor(composition?: CompositionId) {
+  return Boolean(composition && HEADER_DECOR_COMPOSITIONS.has(composition))
+}
+
 function compositionUsesFooterNote(composition?: CompositionId) {
-  return !composition || FOOTER_NOTE_COMPOSITIONS.has(composition)
+  return Boolean(composition && FOOTER_NOTE_COMPOSITIONS.has(composition))
+}
+
+function compositionUsesOccasion(composition?: CompositionId) {
+  return !composition || OCCASION_COMPOSITIONS.has(composition)
 }
 
 function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRecipe {
   switch (composition) {
     case 'editorial-tall':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 25, footerHeight: 13, headerTopFr: 0.95, headerTitleFr: 2.75, headerBottomFr: 1.15, statScale: 1.18, noteScale: 0.62 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 13, headerTopFr: 0.26, headerTitleFr: 2.85, headerBottomFr: 0.72, statScale: 1.14, noteScale: 0.62 }
     case 'park-quad':
     case 'botanical-plate':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 15, headerTopFr: 0.7, headerTitleFr: 2.2, headerBottomFr: 0.8, footerTopFr: 0.72, footerBottomFr: 0.72 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 14, headerTopFr: 0.48, headerTitleFr: 2.28, headerBottomFr: 0.58, footerTopFr: 0.52, footerBottomFr: 0.52 }
     case 'travel-banner':
     case 'darksky-stars':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 18, footerHeight: 13, headerTopFr: 0.55, headerMetaFr: 0.38, headerTitleFr: 1.8, headerSubFr: 0.62, headerBottomFr: 0.55, statScale: 1.18, noteScale: 0.56 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 17, footerHeight: 12.5, headerTopFr: 0.34, headerMetaFr: 0.34, headerTitleFr: 1.95, headerSubFr: 0.55, headerBottomFr: 0.36, footerTopFr: 0.42, footerBottomFr: 0.42, statScale: 1.14, noteScale: 0.56 }
     case 'riso-stack':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 24, footerHeight: 13, headerTopFr: 0.65, headerTitleFr: 2.45, headerBottomFr: 0.55, statScale: 1.28, noteScale: 0.58 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13, headerTopFr: 0.48, headerTitleFr: 2.5, headerBottomFr: 0.42, statScale: 1.24, noteScale: 0.58 }
     case 'blueprint-grid':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 18, footerHeight: 13, headerTopFr: 0.45, headerTitleFr: 1.7, headerBottomFr: 0.5, kickerScale: 0.72, metaScale: 0.64, statScale: 1.1, noteScale: 0.54 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 17.5, footerHeight: 12.5, headerTopFr: 0.34, headerTitleFr: 1.78, headerBottomFr: 0.36, kickerScale: 0.7, metaScale: 0.62, statScale: 1.08, noteScale: 0.54 }
     case 'blueprint-strava':
     case 'splits-grid':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 20, footerHeight: 17, headerTopFr: 0.42, headerTitleFr: 1.9, headerBottomFr: 0.48, footerTopFr: 0.45, footerPrimaryFr: 1.25, footerBottomFr: 0.45, kickerScale: 0.72, metaScale: 0.64, statScale: 1.46, dateScale: 1.08, noteScale: 0.54 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 19, footerHeight: 16, headerTopFr: 0.32, headerTitleFr: 1.98, headerBottomFr: 0.34, footerTopFr: 0.36, footerPrimaryFr: 1.26, footerBottomFr: 0.36, kickerScale: 0.7, metaScale: 0.62, statScale: 1.42, dateScale: 1.06, noteScale: 0.54 }
     case 'journal-spread':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 24, footerHeight: 14, headerTopFr: 0.9, headerTitleFr: 2.3, headerBottomFr: 1, subtitleScale: 0.72, statScale: 1.16, noteScale: 0.62 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13.5, headerTopFr: 0.62, headerTitleFr: 2.35, headerBottomFr: 0.74, subtitleScale: 0.72, statScale: 1.12, noteScale: 0.62 }
     case 'modernist-block':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 25, footerHeight: 14, headerTopFr: 0.5, headerMetaFr: 0.32, headerTitleFr: 2.9, headerSubFr: 0.55, headerBottomFr: 0.38, titleScale: 1.12, subtitleScale: 0.68, statScale: 1.55, dateScale: 1.18, coordsScale: 0.72, noteScale: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 24, footerHeight: 13.5, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
     case 'bib-numerals':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 16, headerTopFr: 0.55, headerTitleFr: 2.15, headerBottomFr: 0.6, footerTopFr: 0.5, footerPrimaryFr: 1.2, footerBottomFr: 0.5, titleScale: 0.95, statScale: 1.62, dateScale: 1.1 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 15.5, headerTopFr: 0.38, headerTitleFr: 2.2, headerBottomFr: 0.42, footerTopFr: 0.42, footerPrimaryFr: 1.18, footerBottomFr: 0.42, titleScale: 0.95, statScale: 1.56, dateScale: 1.08 }
     case 'brutalist-slab':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 15, headerTopFr: 0.35, headerTitleFr: 2.55, headerBottomFr: 0.35, titleScale: 1.08, subtitleScale: 0.66, statScale: 1.62, coordsScale: 0.72, noteScale: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 14, headerTopFr: 0.24, headerTitleFr: 2.58, headerBottomFr: 0.25, titleScale: 1.06, subtitleScale: 0.64, statScale: 1.56, coordsScale: 0.7, noteScale: 0.52 }
     default:
       return BASE_CHROME_RECIPE
   }
@@ -188,17 +205,19 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
     labels.show_elevation_gain &&
     (Boolean(stats?.elevation_gain_m) || hasVisibleText(styleConfig.poster_text_overrides?.elevation_gain?.text))
   const composition = styleConfig.composition
-  const hasOccasion = composition !== 'modernist-block' && hasVisibleText(styleConfig.occasion_text)
-  const modernistRails = composition === 'modernist-block' || composition === 'journal-spread'
+  const hasOccasion = compositionUsesOccasion(composition) && hasVisibleText(styleConfig.occasion_text)
+  const modernistRails = composition === 'modernist-block'
   const recipe = chromeRecipeForComposition(composition)
 
   const headerRows: ChromeGridRow[] = [
     spacerRow('header-spacer-top', 'Top spacer', recipe.headerTopFr),
-    row('header-meta', [
+  ]
+  if (compositionUsesHeaderDecor(composition)) {
+    headerRows.push(row('header-meta', [
       cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: recipe.kickerScale })),
       cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: recipe.metaScale })),
-    ], { fr: recipe.headerMetaFr }),
-  ]
+    ], { fr: recipe.headerMetaFr }))
+  }
   if (labels.show_title !== false) {
     headerRows.push(row('header-title', [
       cell('hdr-title', block('hdr-title-block', 'title', 'trail_name', { scale: recipe.titleScale })),

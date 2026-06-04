@@ -16,6 +16,8 @@ const compositions = [
   ['brutalist-slab', 'brutalist'],
 ] as const
 
+const headerDecorCompositions = new Set(['blueprint-grid', 'blueprint-strava', 'splits-grid'])
+
 test.describe('style browser visual harness', () => {
   for (const [composition, theme] of compositions) {
     test(`renders ${composition}`, async ({ page }) => {
@@ -33,7 +35,11 @@ test.describe('style browser visual harness', () => {
       await expect(page.getByTestId('poster-header')).toBeVisible()
       await expect(page.getByTestId('poster-map')).toBeVisible()
       await expect(page.getByTestId('poster-footer')).toBeVisible()
-      await expect(page.getByTestId('composition-kicker')).toBeVisible()
+      if (headerDecorCompositions.has(composition)) {
+        await expect(page.getByTestId('composition-kicker')).toBeVisible()
+      } else {
+        await expect(page.getByTestId('composition-kicker')).toHaveCount(0)
+      }
 
       await expect.poll(() => consoleErrors.filter(error => !error.includes('Failed to load resource')).join('\n')).toBe('')
     })
@@ -64,7 +70,7 @@ test.describe('style browser visual harness', () => {
     await page.goto('/style-browser-fixture?composition=darksky-stars&theme=dark-sky')
     await expect(page.getByTestId('composition-star-field')).toBeVisible()
 
-    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal')
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern')
     await expect(page.getByTestId('composition-side-rail')).toBeVisible()
   })
 
@@ -129,17 +135,18 @@ test.describe('style browser visual harness', () => {
     expect(style.color_theme).toBe('editorial-minimal')
   })
 
-  test('renders composition-specific printed cues', async ({ page }) => {
+  test('keeps composition-specific printed cues restrained', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=park-quad&theme=usgs-vintage')
-    await expect(page.getByTestId('composition-kicker')).toContainText('Department')
-    await expect(page.getByTestId('composition-footer-note')).toBeVisible()
+    await expect(page.getByTestId('composition-kicker')).toHaveCount(0)
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
 
-    await page.goto('/style-browser-fixture?composition=riso-stack&theme=risograph')
-    await expect(page.getByTestId('composition-kicker')).toContainText('Edition')
+    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint')
+    await expect(page.getByTestId('composition-kicker')).toContainText('WGS84')
+    await expect(page.getByTestId('composition-meta-line')).toContainText('SHEET 01')
     await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
 
     await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
-    await expect(page.getByTestId('composition-footer-note')).toContainText('UNCOATED')
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
     await expect(page.getByTestId('composition-map-badges')).toHaveCount(0)
   })
 
@@ -205,7 +212,7 @@ test.describe('style browser visual harness', () => {
     await page.mouse.move(headerBox!.x + headerBox!.width / 2, headerBox!.y + 2, { steps: 20 })
     await page.mouse.up()
 
-    await expect.poll(assetY).toBeLessThan(35)
+    await expect.poll(assetY).toBeLessThan(38)
 
     await page.goto(fixtureUrl)
     asset = page.locator('[data-asset-id="fixture-logo-asset"]')
@@ -271,23 +278,19 @@ test.describe('style browser visual harness', () => {
     await expect.poll(async () => (await assetPosition()).x).toBe(afterDeselect.x)
   })
 
-  test('makes every composition text cue editable and removable', async ({ page }) => {
-    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal&editable=1')
+  test('makes restrained composition header cues editable', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&editable=1')
 
     await expect(page.getByTestId('composition-kicker')).toHaveAttribute('contenteditable', 'true')
     await expect(page.getByTestId('composition-meta-line')).toHaveAttribute('contenteditable', 'true')
-    await expect(page.getByTestId('composition-footer-note')).toHaveAttribute('contenteditable', 'true')
-    await expect(page.getByTestId('composition-side-rail-label')).toHaveAttribute('contenteditable', 'true')
+    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
+    await expect(page.getByTestId('composition-side-rail-label')).toHaveCount(0)
     await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
     await page.waitForTimeout(500)
 
     await page.getByTestId('composition-kicker').fill('Edited field label')
     await page.keyboard.press('Tab')
     await expect(page.getByTestId('composition-kicker')).toContainText('EDITED FIELD LABEL')
-
-    await page.getByTestId('composition-footer-note').fill('')
-    await page.keyboard.press('Tab')
-    await expect(page.getByTestId('composition-footer-note')).toHaveCount(0)
   })
 
   test('applies inline point size and alignment edits to themed composition text', async ({ page }) => {
@@ -997,7 +1000,7 @@ test.describe('style browser visual harness', () => {
     expect(fixedTemplateLeftBox!.width).toBeLessThanOrEqual(220)
     await expect(page.locator('[data-testid="puck-poster-spike"]')).toHaveCount(0)
     await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__))).toBe(true)
-    await expect(page.getByTestId('fixed-template-map-band')).toContainText('Map locked')
+    await expect(page.getByTestId('fixed-template-map-band')).toHaveCount(0)
     await expect.poll(() => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_FIXED_TEMPLATE_EDITOR__?: { getPreviewStyle?: () => { map_frozen?: boolean } }
@@ -1007,14 +1010,31 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
     await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
+    const titleBlock = page.locator('.fixed-template-map-preview .chrome-grid-block--title')
+    await expect(titleBlock).toHaveCount(1)
+    const titleBoxBeforePreview = await titleBlock.boundingBox()
+    expect(titleBoxBeforePreview).toBeTruthy()
     await page.getByTestId('template-preview-toggle').click()
     await expect(page.getByTestId('template-preview-toggle')).toContainText('Edit')
-    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band')).toHaveCount(0)
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band')).toHaveCount(2)
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band.is-editable')).toHaveCount(0)
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-block[contenteditable="true"]')).toHaveCount(0)
+    await expect(page.getByTestId('chrome-cell-trash')).toHaveCount(0)
+    await expect(page.getByTestId('chrome-cell-add-column')).toHaveCount(0)
+    await expect(page.getByTestId('chrome-row-resize-row')).toHaveCount(0)
     await expect(page.getByTestId('fixed-template-map-band')).toHaveCount(0)
+    const titleBoxInPreview = await titleBlock.boundingBox()
+    expect(titleBoxInPreview).toBeTruthy()
+    expect(Math.abs(titleBoxInPreview!.x - titleBoxBeforePreview!.x)).toBeLessThan(1)
+    expect(Math.abs(titleBoxInPreview!.y - titleBoxBeforePreview!.y)).toBeLessThan(1)
+    expect(Math.abs(titleBoxInPreview!.width - titleBoxBeforePreview!.width)).toBeLessThan(1)
+    expect(Math.abs(titleBoxInPreview!.height - titleBoxBeforePreview!.height)).toBeLessThan(1)
     await page.getByTestId('template-preview-toggle').click()
     await expect(page.getByTestId('template-preview-toggle')).toContainText('Preview')
     await expect(page.locator('.fixed-template-map-preview .chrome-grid-band')).toHaveCount(2)
-    await expect(page.getByTestId('fixed-template-map-band')).toContainText('Map locked')
+    await expect(page.locator('.fixed-template-map-preview .chrome-grid-band.is-editable')).toHaveCount(2)
+    expect(await page.locator('.fixed-template-map-preview .chrome-grid-block[contenteditable="true"]').count()).toBeGreaterThan(0)
+    await expect(page.getByTestId('fixed-template-map-band')).toHaveCount(0)
 
     await page.evaluate(() => {
       const win = window as unknown as {
@@ -1084,7 +1104,9 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('template-delete-selected')).toBeVisible()
     await expect(page.getByTestId('template-duplicate-selected')).toBeVisible()
     await expect(page.getByTestId('template-font-select')).toBeVisible()
-    await expect(page.getByTestId('template-text-size')).toBeVisible()
+    await expect(page.getByTestId('template-text-size')).toHaveCount(0)
+    await expect(page.getByTestId('template-text-size-decrease')).toBeVisible()
+    await expect(page.getByTestId('template-text-size-increase')).toBeVisible()
     await page.getByTestId('template-font-select').selectOption('Space Grotesk')
     await expect.poll(() => firstTextBlock.evaluate(element => window.getComputedStyle(element).fontFamily)).toContain('Space Grotesk')
     const boxBeforeEdit = await firstTextBlock.boundingBox()
@@ -1111,9 +1133,9 @@ test.describe('style browser visual harness', () => {
     await page.getByTestId('template-tab-layers').click()
     const headerLayerGroup = page.locator('[data-testid="template-layer-group"][data-band-id="header"]')
     const footerLayerGroup = page.locator('[data-testid="template-layer-group"][data-band-id="footer"]')
-    await expect(headerLayerGroup).toContainText('Eyebrow')
     await expect(headerLayerGroup).toContainText('Title')
-    await expect(footerLayerGroup).not.toContainText('Eyebrow')
+    await expect(headerLayerGroup).toContainText('Location')
+    await expect(footerLayerGroup).not.toContainText('Title')
     await expect(footerLayerGroup).toContainText('Distance')
 
     const bottomHeaderSpacer = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="header-spacer-bottom"]')
@@ -1139,6 +1161,9 @@ test.describe('style browser visual harness', () => {
       const controls = [
         row.querySelector<HTMLElement>('[data-testid="chrome-cell-trash"]'),
         row.querySelector<HTMLElement>('[data-testid="chrome-cell-add-column"]'),
+        row.querySelector<HTMLElement>('[data-testid="chrome-row-add-row"]'),
+        row.querySelector<HTMLElement>('[data-testid="chrome-row-resize-row"][data-edge="top"]'),
+        row.querySelector<HTMLElement>('[data-testid="chrome-row-resize-row"][data-edge="bottom"]'),
       ]
 
       return controls.every((control) => {
@@ -1151,10 +1176,19 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('template-left-selection')).toContainText('Gap')
     await expect(page.getByTestId('template-row-height')).toBeVisible()
     await bottomHeaderSpacer.hover()
-    const rowResizeGrip = bottomHeaderSpacer.locator('[data-testid="chrome-row-resize-row"]')
+    const topRowResizeGrip = bottomHeaderSpacer.locator('[data-testid="chrome-row-resize-row"][data-edge="top"]')
+    const rowResizeGrip = bottomHeaderSpacer.locator('[data-testid="chrome-row-resize-row"][data-edge="bottom"]')
+    await expect(topRowResizeGrip).toBeVisible()
     await expect(rowResizeGrip).toBeVisible()
+    const rowBox = await bottomHeaderSpacer.boundingBox()
+    const topRowGripBox = await topRowResizeGrip.boundingBox()
     const rowGripBox = await rowResizeGrip.boundingBox()
+    expect(rowBox).toBeTruthy()
+    expect(topRowGripBox).toBeTruthy()
     expect(rowGripBox).toBeTruthy()
+    const rowCenterX = rowBox!.x + rowBox!.width / 2
+    expect(Math.abs((topRowGripBox!.x + topRowGripBox!.width / 2) - rowCenterX)).toBeLessThan(2)
+    expect(Math.abs((rowGripBox!.x + rowGripBox!.width / 2) - rowCenterX)).toBeLessThan(2)
     await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2)
     await page.mouse.down()
     await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2 + 26, { steps: 5 })
@@ -1168,6 +1202,40 @@ test.describe('style browser visual harness', () => {
       range.dispatchEvent(new Event('input', { bubbles: true }))
     })
     await expect.poll(() => bottomHeaderSpacer.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(spacerHeightBefore)
+
+    const bottomFooterSpacer = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="footer-spacer-bottom"]')
+    await expect(bottomFooterSpacer).toHaveCount(1)
+    await bottomFooterSpacer.locator('.chrome-grid-cell').first().click()
+    await expect(bottomFooterSpacer.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
+    await bottomFooterSpacer.locator('[data-testid="chrome-cell-trash"]').click()
+    await expect(bottomFooterSpacer).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
+      const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.footer?.rows ?? []
+      return rows.some((row: any) => row.id === 'footer-spacer-bottom' && row.deleted === true)
+    })).toBe(true)
+  })
+
+  test('keeps mid-century fixed-template chrome side margins compact', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop fixed-template margin coverage')
+
+    await page.goto('/style-browser-fixture?surface=1&composition=travel-banner&theme=midcentury-travel&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
+    await expect(page.getByTestId('fixed-template-editor')).toBeVisible()
+    const posterBox = await page.getByTestId('fixed-template-poster').boundingBox()
+    expect(posterBox).toBeTruthy()
+
+    const chromePadding = await page.getByTestId('poster-footer').evaluate((element) => {
+      const style = window.getComputedStyle(element)
+      return {
+        left: Number.parseFloat(style.paddingLeft),
+        right: Number.parseFloat(style.paddingRight),
+      }
+    })
+
+    expect(chromePadding.left).toBeGreaterThanOrEqual(posterBox!.width * 0.035)
+    expect(chromePadding.right).toBeGreaterThanOrEqual(posterBox!.width * 0.035)
+    expect(chromePadding.left).toBeLessThanOrEqual(posterBox!.width * 0.038)
+    expect(chromePadding.right).toBeLessThanOrEqual(posterBox!.width * 0.038)
   })
 
   test('Puck poster spike renders a structured builder reference on desktop', async ({ page }, testInfo) => {
@@ -1395,13 +1463,16 @@ test.describe('style browser visual harness', () => {
     await hoverRow.hover()
     await expect(hoverRow.locator('[data-testid="chrome-cell-resize-column"]').first()).toBeVisible()
     await expect(hoverRow.locator('[data-testid="chrome-row-add-row"]').first()).toBeVisible()
-    await expect(hoverRow.locator('[data-testid="chrome-row-resize-row"]').first()).toBeVisible()
+    await expect(hoverRow.locator('[data-testid="chrome-row-resize-row"][data-edge="bottom"]').first()).toBeVisible()
     const widthBeforeResize = await resizableCells.first().evaluate(el => (el as HTMLElement).getBoundingClientRect().width)
     await resizableCells.first().click()
     const resizeGrip = resizableCells.first().locator('[data-testid="chrome-cell-resize-column"]')
     await expect(resizeGrip).toBeVisible()
+    const cellBox = await resizableCells.first().boundingBox()
     const gripBox = await resizeGrip.boundingBox()
+    expect(cellBox).toBeTruthy()
     expect(gripBox).toBeTruthy()
+    expect(Math.abs((gripBox!.y + gripBox!.height / 2) - (cellBox!.y + cellBox!.height / 2))).toBeLessThan(2)
     await page.mouse.move(gripBox!.x + gripBox!.width / 2, gripBox!.y + gripBox!.height / 2)
     await page.mouse.down()
     await page.mouse.move(gripBox!.x + gripBox!.width / 2 + 42, gripBox!.y + gripBox!.height / 2, { steps: 5 })
@@ -1411,8 +1482,9 @@ test.describe('style browser visual harness', () => {
     const resizableRows = page.locator('.chrome-grid-row:has([data-testid="chrome-row-resize-row"])')
     await expect.poll(() => resizableRows.count()).toBeGreaterThan(0)
     const heightBeforeResize = await resizableRows.first().evaluate(el => (el as HTMLElement).getBoundingClientRect().height)
+    await resizableRows.first().locator('.chrome-grid-cell').first().click()
     await resizableRows.first().hover()
-    const rowResizeGrip = resizableRows.first().locator('[data-testid="chrome-row-resize-row"]')
+    const rowResizeGrip = resizableRows.first().locator('[data-testid="chrome-row-resize-row"][data-edge="bottom"]')
     await expect(rowResizeGrip).toBeVisible()
     const rowGripBox = await rowResizeGrip.boundingBox()
     expect(rowGripBox).toBeTruthy()
@@ -1526,9 +1598,9 @@ test.describe('style browser visual harness', () => {
       }
     })
 
-    expect(contrast.headerBg).toBe('rgb(28, 25, 23)')
-    expect(contrast.railBg).toBe('rgb(28, 25, 23)')
-    expect(contrast.titleColor).toBe('rgb(241, 234, 224)')
+    expect(contrast.headerBg).toBe('rgb(25, 22, 20)')
+    expect(contrast.railBg).toBe('rgb(25, 22, 20)')
+    expect(contrast.titleColor).toBe('rgb(244, 235, 221)')
   })
 
   test('does not render Modernist filler occasion or footer-note text', async ({ page }) => {
@@ -1619,7 +1691,7 @@ test.describe('style browser visual harness', () => {
       }
     })
 
-    expect(contrast.headerBg).toBe('rgb(31, 51, 37)')
-    expect(contrast.titleColor).toBe('rgb(240, 229, 197)')
+    expect(contrast.headerBg).toBe('rgb(25, 56, 42)')
+    expect(contrast.titleColor).toBe('rgb(250, 235, 194)')
   })
 })

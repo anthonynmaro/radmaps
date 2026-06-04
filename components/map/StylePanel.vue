@@ -2296,10 +2296,11 @@ function handlePendingAssetReplace(e: Event) {
 const SEGMENT_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
 
 const PIN_FONTS: Array<{ id: FontFamily; label: string }> = [
+  { id: 'Source Sans 3',          label: 'Source Sans' },
+  { id: 'IBM Plex Sans',          label: 'IBM Plex' },
+  { id: 'Atkinson Hyperlegible Next', label: 'Atkinson' },
   { id: 'DM Sans',               label: 'DM Sans' },
   { id: 'Space Grotesk',         label: 'Space Grotesk' },
-  { id: 'Oswald',                label: 'Oswald' },
-  { id: 'Big Shoulders Display', label: 'Big Shoulders' },
 ]
 
 const SEGMENT_DISTANCE_STEP_MI = 0.05
@@ -2381,7 +2382,7 @@ function applyToAll(patch: Partial<TrailSegment>) {
 function applyTrailLabelTypographyAuto() {
   local.leader_label_auto_fit = true
   local.leader_label_scale = 1
-  local.leader_label_font_family = 'Big Shoulders Display'
+  local.leader_label_font_family = 'Atkinson Hyperlegible Next'
   emit('update:modelValue', { ...local })
 }
 
@@ -2470,8 +2471,9 @@ function selectFont(fontName: FontFamily) {
 }
 
 const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
-  { label: 'EDITORIAL', fonts: ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue'] },
+  { label: 'PRINT', fonts: ['Source Sans 3', 'IBM Plex Sans', 'Atkinson Hyperlegible Next', 'Source Serif 4', 'Newsreader'] },
   { label: 'MODERN', fonts: ['DM Sans', 'Space Grotesk', 'Outfit', 'Work Sans'] },
+  { label: 'DISPLAY', fonts: ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue'] },
   { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
 

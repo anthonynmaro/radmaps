@@ -42,23 +42,23 @@
       <div v-if="activeDrawer === 'insert'" class="layout-spike-insert" data-testid="layout-spike-insert-drawer">
         <p class="layout-spike-section-label">Essentials</p>
         <div class="layout-spike-block-grid">
-          <button class="layout-spike-block-card" data-testid="layout-spike-add-text" @click="requestAddBlock('text')">
+          <button class="layout-spike-block-card" data-testid="layout-spike-add-text" @pointerdown.prevent.stop="requestAddBlock('text')" @click.stop>
             <span>T</span>
             <strong>Text</strong>
           </button>
-          <button class="layout-spike-block-card" data-testid="layout-spike-add-image" @click="requestAddBlock('image')">
+          <button class="layout-spike-block-card" data-testid="layout-spike-add-image" @pointerdown.prevent.stop="requestAddBlock('image')" @click.stop>
             <span>[ ]</span>
             <strong>Image</strong>
           </button>
-          <button class="layout-spike-block-card" data-testid="layout-spike-add-icon" @click="requestAddBlock('icon')">
+          <button class="layout-spike-block-card" data-testid="layout-spike-add-icon" @pointerdown.prevent.stop="requestAddBlock('icon')" @click.stop>
             <span>^</span>
             <strong>Icon</strong>
           </button>
-          <button class="layout-spike-block-card" data-testid="layout-spike-add-spacer" @click="requestAddBlock('spacer')">
+          <button class="layout-spike-block-card" data-testid="layout-spike-add-spacer" @pointerdown.prevent.stop="requestAddBlock('spacer')" @click.stop>
             <span>S</span>
             <strong>Spacer</strong>
           </button>
-          <button class="layout-spike-block-card is-wide" data-testid="layout-spike-add-row" @click="requestAddRow">
+          <button class="layout-spike-block-card is-wide" data-testid="layout-spike-add-row" @pointerdown.prevent.stop="requestAddRow" @click.stop>
             <span>+</span>
             <strong>Row</strong>
           </button>
@@ -104,7 +104,7 @@
 
       <div v-else-if="activeDrawer === 'assets'" class="layout-spike-empty">
         <p class="layout-spike-section-label">Assets</p>
-        <button class="layout-spike-file-card" data-testid="layout-spike-upload-placeholder" @click="requestAddBlock('image')">
+        <button class="layout-spike-file-card" data-testid="layout-spike-upload-placeholder" @pointerdown.prevent.stop="requestAddBlock('image')" @click.stop>
           <span>[ ]</span>
           <strong>Add local image slot</strong>
         </button>
@@ -257,6 +257,7 @@
                 </div>
 
                 <button
+                  v-if="selectedRowId === row.id || rowContainsSelectedBlock(row)"
                   class="layout-spike-row-resize"
                   data-testid="layout-spike-row-resize"
                   title="Resize row"
@@ -704,8 +705,7 @@ function addIcon(icon: 'mountain' | 'pin' | 'route') {
   } else {
     targetBand.rows.push(createDraftRow('content', [block]))
   }
-  selectedBlockId.value = block.id
-  selectedRow.value = null
+  selectBlockInDraft(next, block.id)
   pendingInsert.value = null
   commitDraft(next)
 }
@@ -717,8 +717,7 @@ function addBlockToCell(
   kind: PosterLayoutDraftBlockKind,
 ) {
   const result = appendDraftBlock(draft.value, bandId, kind, rowId, cellId)
-  selectedBlockId.value = result.blockId
-  selectedRow.value = null
+  selectBlockInDraft(result.draft, result.blockId)
   pendingInsert.value = null
   commitDraft(result.draft)
   focusBlock(result.blockId)
@@ -734,8 +733,9 @@ function addRow() {
     : location?.rowIndex ?? -1
   if (targetIndex >= 0) next.bands[bandId].rows.splice(targetIndex + 1, 0, row)
   else next.bands[bandId].rows.push(row)
-  selectedBlockId.value = row.cells[0]?.blocks[0]?.id ?? null
-  selectedRow.value = null
+  const blockId = row.cells[0]?.blocks[0]?.id ?? null
+  if (blockId) selectBlockInDraft(next, blockId)
+  else selectedRow.value = { bandId, rowId: row.id }
   pendingInsert.value = null
   commitDraft(next)
   if (selectedBlockId.value) focusBlock(selectedBlockId.value)
@@ -748,8 +748,9 @@ function placePendingInsert(bandId: PosterLayoutDraftBandId) {
   if (pending.action === 'row') {
     const row = createDraftRow('content', [createDraftBlock('text')])
     insertRowAtDefault(next, bandId, row)
-    selectedBlockId.value = row.cells[0]?.blocks[0]?.id ?? null
-    selectedRow.value = null
+    const blockId = row.cells[0]?.blocks[0]?.id ?? null
+    if (blockId) selectBlockInDraft(next, blockId)
+    else selectedRow.value = { bandId, rowId: row.id }
     pendingInsert.value = null
     commitDraft(next)
     if (selectedBlockId.value) focusBlock(selectedBlockId.value)
@@ -758,30 +759,39 @@ function placePendingInsert(bandId: PosterLayoutDraftBandId) {
 
   const block = createDraftBlock(pending.kind)
   if (pending.kind === 'spacer') {
-    insertRowAtDefault(next, bandId, createDraftRow('spacer', [block], { heightFr: 0.75 }))
+    const row = createDraftRow('spacer', [block], { heightFr: 0.75 })
+    insertRowAtDefault(next, bandId, row)
   } else {
     insertBlockAtDefault(next, bandId, block)
   }
-  selectedBlockId.value = block.id
-  selectedRow.value = null
+  selectBlockInDraft(next, block.id)
   pendingInsert.value = null
   commitDraft(next)
   focusBlock(block.id)
 }
 
+function selectBlockInDraft(next: PosterLayoutDraft, blockId: string) {
+  selectedBlockId.value = blockId
+  const found = findDraftBlock(next, blockId)
+  selectedRow.value = found
+    ? { bandId: found.location.bandId, rowId: next.bands[found.location.bandId].rows[found.location.rowIndex].id }
+    : null
+}
+
 function selectBlock(blockId: string) {
   pendingInsert.value = null
-  selectedBlockId.value = blockId
-  const found = findDraftBlock(draft.value, blockId)
-  selectedRow.value = found
-    ? { bandId: found.location.bandId, rowId: draft.value.bands[found.location.bandId].rows[found.location.rowIndex].id }
-    : null
+  selectBlockInDraft(draft.value, blockId)
 }
 
 function selectRow(bandId: PosterLayoutDraftBandId, rowId: string) {
   pendingInsert.value = null
   selectedRow.value = { bandId, rowId }
   selectedBlockId.value = null
+}
+
+function rowContainsSelectedBlock(row: PosterLayoutDraftRow) {
+  if (!selectedBlockId.value) return false
+  return row.cells.some(cell => cell.blocks.some(block => block.id === selectedBlockId.value))
 }
 
 function onTextInput(blockId: string, event: Event) {

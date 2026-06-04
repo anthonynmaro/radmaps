@@ -49,7 +49,7 @@ export const HASH_VERSION = {
     /** Self-hosted font bundle revision. SHA-256 short-hash of fonts/*.ttf
      *  bytes. Auto-computed by scripts/validate-fonts.ts; if you change
      *  any TTF, re-run the script and copy the new hash here. */
-    fontBundle: 'fonts-ea0503b68d9d',
+    fontBundle: 'fonts-d1a99ffb4cfa',
   },
   print: {
     /** Provider profile schema (bleed/safe/maxDpi semantics). */

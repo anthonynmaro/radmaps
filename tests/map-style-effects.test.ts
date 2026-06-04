@@ -688,10 +688,10 @@ describe('RadMaps Atlas style integration', () => {
 
     expect(sourceById(style, 'mapbox-dem')).toBeUndefined()
     expect(layerById(style, 'hillshade')).toBeUndefined()
-    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#070A14')
-    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#070A14')
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#070B15')
+    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#070B15')
     expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-color']).toBe('#0B1020')
-    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#040712')
+    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#040713')
     expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-color']).toBe('#18294C')
     expect(layerById(style, 'radmaps-night-relief-place-labels')).toBeUndefined()
   })

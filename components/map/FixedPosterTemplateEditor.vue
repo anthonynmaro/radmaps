@@ -3,12 +3,10 @@
     <aside class="fixed-template-left">
       <div class="fixed-template-tabs" role="tablist" aria-label="Editor modes">
         <button data-testid="template-tab-insert" :class="{ active: leftMode === 'insert' }" title="Insert blocks" @click="leftMode = 'insert'">
-          <span class="fixed-template-tab-icon">+</span>
-          <span>Insert</span>
+          Insert
         </button>
         <button data-testid="template-tab-layers" :class="{ active: leftMode === 'layers' }" title="Layers" @click="leftMode = 'layers'">
-          <span class="fixed-template-tab-icon">L</span>
-          <span>Layers</span>
+          Layers
         </button>
       </div>
 
@@ -34,34 +32,45 @@
               <option v-for="font in fontOptions" :key="font" :value="font">{{ font }}</option>
             </select>
           </div>
-          <div class="fixed-template-range-control fixed-template-range-control--compact">
-            <label for="fixed-template-size-compact">Size</label>
-            <input
-              id="fixed-template-size-compact"
-              data-testid="template-text-size"
-              type="range"
-              min="45"
-              max="220"
-              step="5"
-              :value="selectedBlockScalePercent"
-              @input="setSelectedBlockScalePercent(Number(($event.target as HTMLInputElement).value))"
-            >
-            <output>{{ selectedBlockScalePercent }}%</output>
-          </div>
           <div class="fixed-template-style-row fixed-template-style-row--compact">
             <button :class="{ active: selectedBlock.bold }" @click="patchSelectedBlock({ bold: !selectedBlock.bold })">B</button>
             <button :class="{ active: selectedBlock.italic }" @click="patchSelectedBlock({ italic: !selectedBlock.italic })"><em>I</em></button>
-            <button @click="nudgeSelectedScale(-0.06)">A-</button>
-            <button @click="nudgeSelectedScale(0.06)">A+</button>
+            <button data-testid="template-text-size-decrease" title="Decrease text size" aria-label="Decrease text size" @click="nudgeSelectedScale(-0.06)">A-</button>
+            <button data-testid="template-text-size-increase" title="Increase text size" aria-label="Increase text size" @click="nudgeSelectedScale(0.06)">A+</button>
           </div>
           <div class="fixed-template-align-row fixed-template-align-row--compact">
-            <button :class="{ active: selectedBlock.align === 'left' || !selectedBlock.align }" @click="patchSelectedBlock({ align: 'left' })">Left</button>
-            <button :class="{ active: selectedBlock.align === 'center' }" @click="patchSelectedBlock({ align: 'center' })">Center</button>
-            <button :class="{ active: selectedBlock.align === 'right' }" @click="patchSelectedBlock({ align: 'right' })">Right</button>
+            <button
+              :class="{ active: selectedBlock.align === 'left' || !selectedBlock.align }"
+              title="Align left"
+              aria-label="Align left"
+              @click="patchSelectedBlock({ align: 'left' })"
+            >
+              <UIcon name="i-heroicons-bars-3-bottom-left" class="fixed-template-control-icon" />
+            </button>
+            <button
+              :class="{ active: selectedBlock.align === 'center' }"
+              title="Align center"
+              aria-label="Align center"
+              @click="patchSelectedBlock({ align: 'center' })"
+            >
+              <UIcon name="i-heroicons-bars-3" class="fixed-template-control-icon" />
+            </button>
+            <button
+              :class="{ active: selectedBlock.align === 'right' }"
+              title="Align right"
+              aria-label="Align right"
+              @click="patchSelectedBlock({ align: 'right' })"
+            >
+              <UIcon name="i-heroicons-bars-3-bottom-right" class="fixed-template-control-icon" />
+            </button>
           </div>
           <div class="fixed-template-danger-row fixed-template-danger-row--compact">
-            <button data-testid="template-duplicate-selected" @click="duplicateSelected">Duplicate</button>
-            <button class="danger" data-testid="template-delete-selected" @click="deleteSelected">Delete</button>
+            <button data-testid="template-duplicate-selected" title="Duplicate" aria-label="Duplicate" @click="duplicateSelected">
+              <UIcon name="i-heroicons-document-duplicate" class="fixed-template-control-icon" />
+            </button>
+            <button class="danger" data-testid="template-delete-selected" title="Delete" aria-label="Delete" @click="deleteSelected">
+              <UIcon name="i-heroicons-trash" class="fixed-template-trash-icon" />
+            </button>
           </div>
         </template>
 
@@ -89,8 +98,10 @@
               <span class="fixed-template-action-icon">+</span>
               <span>Col</span>
             </button>
-            <button class="danger" data-testid="template-delete-row" title="Delete row" @click="deleteSelectedRow">
-              <span class="fixed-template-action-icon">X</span>
+            <button class="danger" data-testid="template-delete-row" title="Delete row" aria-label="Delete row" @click="deleteSelectedRow">
+              <span class="fixed-template-action-icon" aria-hidden="true">
+                <UIcon name="i-heroicons-trash" class="fixed-template-trash-icon" />
+              </span>
             </button>
           </div>
         </template>
@@ -125,11 +136,11 @@
         <div class="fixed-template-actions">
           <button data-testid="template-add-header-row" title="Add header row" @click="addRow('header')">
             <span class="fixed-template-action-icon">+</span>
-            <span>H row</span>
+            <span>Header row</span>
           </button>
           <button data-testid="template-add-footer-row" title="Add footer row" @click="addRow('footer')">
             <span class="fixed-template-action-icon">+</span>
-            <span>F row</span>
+            <span>Footer row</span>
           </button>
           <button :disabled="!selectedRow" data-testid="template-add-column" title="Add column" @click="addColumnForSelection">
             <span class="fixed-template-action-icon">+</span>
@@ -203,6 +214,7 @@
         <div
           class="fixed-template-poster fixed-template-poster--render-truth"
           data-testid="fixed-template-poster"
+          @click.capture="onPreviewChromeClick"
         >
           <MapPreview
             ref="previewRef"
@@ -210,16 +222,14 @@
             :map="map"
             :style-config="previewStyleConfig"
             :editable="true"
-            :chrome-editing="!previewMode"
+            :chrome-editing="true"
+            :chrome-preview="previewMode"
             :chrome-external-shell="true"
             @poster-layout-updated="onPreviewPosterLayoutUpdated"
             @poster-text-override="onPreviewPosterTextOverride"
             @poster-text-reset="onPreviewPosterTextReset"
             @chrome-selection-changed="onPreviewChromeSelectionChanged"
           />
-          <div v-if="!previewMode" class="fixed-template-map-lock" data-testid="fixed-template-map-band">
-            <span>Map locked</span>
-          </div>
         </div>
       </section>
     </main>
@@ -265,13 +275,38 @@
             <button @click="nudgeSelectedScale(0.06)">A+</button>
           </div>
           <div class="fixed-template-align-row">
-            <button :class="{ active: selectedBlock.align === 'left' || !selectedBlock.align }" @click="patchSelectedBlock({ align: 'left' })">Left</button>
-            <button :class="{ active: selectedBlock.align === 'center' }" @click="patchSelectedBlock({ align: 'center' })">Center</button>
-            <button :class="{ active: selectedBlock.align === 'right' }" @click="patchSelectedBlock({ align: 'right' })">Right</button>
+            <button
+              :class="{ active: selectedBlock.align === 'left' || !selectedBlock.align }"
+              title="Align left"
+              aria-label="Align left"
+              @click="patchSelectedBlock({ align: 'left' })"
+            >
+              <UIcon name="i-heroicons-bars-3-bottom-left" class="fixed-template-control-icon" />
+            </button>
+            <button
+              :class="{ active: selectedBlock.align === 'center' }"
+              title="Align center"
+              aria-label="Align center"
+              @click="patchSelectedBlock({ align: 'center' })"
+            >
+              <UIcon name="i-heroicons-bars-3" class="fixed-template-control-icon" />
+            </button>
+            <button
+              :class="{ active: selectedBlock.align === 'right' }"
+              title="Align right"
+              aria-label="Align right"
+              @click="patchSelectedBlock({ align: 'right' })"
+            >
+              <UIcon name="i-heroicons-bars-3-bottom-right" class="fixed-template-control-icon" />
+            </button>
           </div>
           <div class="fixed-template-danger-row">
-            <button data-testid="template-duplicate-selected" @click="duplicateSelected">Duplicate</button>
-            <button class="danger" data-testid="template-delete-selected" @click="deleteSelected">Delete</button>
+            <button data-testid="template-duplicate-selected" title="Duplicate" aria-label="Duplicate" @click="duplicateSelected">
+              <UIcon name="i-heroicons-document-duplicate" class="fixed-template-control-icon" />
+            </button>
+            <button class="danger" data-testid="template-delete-selected" title="Delete" aria-label="Delete" @click="deleteSelected">
+              <UIcon name="i-heroicons-trash" class="fixed-template-trash-icon" />
+            </button>
           </div>
         </template>
 
@@ -310,6 +345,7 @@
 import { computed, ref, watch } from 'vue'
 import type {
   ChromeBandId,
+  ChromeGridRow,
   FontFamily,
   PartialPosterLayout,
   PosterTextOverride,
@@ -465,22 +501,81 @@ function emitLayout(extraBands: PartialPosterLayout['bands'] = {}) {
 
 function mergeLayoutIntoCurrent(layout: PartialPosterLayout, extraBands: PartialPosterLayout['bands'] = {}): PartialPosterLayout {
   const currentBands = props.modelValue.poster_layout?.bands ?? {}
+  const currentVisibleLayout = draftToPosterLayout(posterLayoutToDraft(props.modelValue, props.map.stats))
   const bands: PartialPosterLayout['bands'] = {
     ...currentBands,
     header: {
       ...(currentBands.header ?? {}),
       ...(layout.bands?.header ?? {}),
       ...(extraBands.header ?? {}),
+      rows: mergeRowsWithTombstones(
+        layout.bands?.header?.rows,
+        currentVisibleLayout.bands?.header?.rows,
+        currentBands.header?.rows,
+        extraBands.header?.rows,
+      ),
     },
     footer: {
       ...(currentBands.footer ?? {}),
       ...(layout.bands?.footer ?? {}),
       ...(extraBands.footer ?? {}),
+      rows: mergeRowsWithTombstones(
+        layout.bands?.footer?.rows,
+        currentVisibleLayout.bands?.footer?.rows,
+        currentBands.footer?.rows,
+        extraBands.footer?.rows,
+      ),
     },
     ...(extraBands.railLeft ? { railLeft: extraBands.railLeft } : {}),
     ...(extraBands.railRight ? { railRight: extraBands.railRight } : {}),
   }
   return { bands }
+}
+
+function cloneChromeDraftRow(row: ChromeGridRow): ChromeGridRow {
+  return {
+    ...row,
+    cells: row.cells.map(cell => ({
+      ...cell,
+      block: cell.block ? { ...cell.block } : undefined,
+    })),
+  }
+}
+
+function tombstoneChromeDraftRow(row: ChromeGridRow): ChromeGridRow {
+  return {
+    ...cloneChromeDraftRow(row),
+    deleted: true,
+    cells: row.cells.map(cell => ({
+      ...cell,
+      deleted: true,
+      block: undefined,
+    })),
+  }
+}
+
+function mergeRowsWithTombstones(
+  layoutRows: ChromeGridRow[] | undefined,
+  currentVisibleRows: ChromeGridRow[] | undefined,
+  currentSparseRows: ChromeGridRow[] | undefined,
+  extraRows?: ChromeGridRow[],
+): ChromeGridRow[] {
+  const rows = (extraRows ?? layoutRows ?? []).map(cloneChromeDraftRow)
+  const rowIds = new Set(rows.map(row => row.id))
+
+  for (const row of currentSparseRows ?? []) {
+    if (rowIds.has(row.id) || !row.deleted) continue
+    rows.push(cloneChromeDraftRow(row))
+    rowIds.add(row.id)
+  }
+
+  for (const row of currentVisibleRows ?? []) {
+    if (rowIds.has(row.id)) continue
+    rows.push(tombstoneChromeDraftRow(row))
+    rowIds.add(row.id)
+  }
+
+  return rows
 }
 
 function setDraft(next: PosterLayoutDraft) {
@@ -570,6 +665,49 @@ function onPreviewPosterTextReset(slot: PosterTextSlot) {
     ...props.modelValue,
     poster_text_overrides: Object.keys(nextOverrides).length ? nextOverrides : undefined,
   })
+}
+
+function onPreviewChromeClick(event: MouseEvent) {
+  const target = event.target instanceof HTMLElement ? event.target : null
+  const trashButton = target?.closest<HTMLElement>('[data-testid="chrome-cell-trash"]')
+  if (!trashButton) return
+
+  const rowEl = trashButton.closest<HTMLElement>('.chrome-grid-row')
+  const cellEl = trashButton.closest<HTMLElement>('.chrome-grid-cell')
+  const bandEl = trashButton.closest<HTMLElement>('[data-testid="chrome-band-header"], [data-testid="chrome-band-footer"]')
+  const band = bandEl?.dataset.testid === 'chrome-band-header'
+    ? 'header'
+    : bandEl?.dataset.testid === 'chrome-band-footer'
+      ? 'footer'
+      : null
+  const rowId = rowEl?.dataset.chromeRowId
+  const cellId = cellEl?.dataset.chromeCellId
+  if (!band || !rowId || !cellId) return
+
+  const next = clonePosterLayoutDraft(draft.value)
+  const rows = next.bands[band].rows
+  const rowIndex = rows.findIndex(row => row.id === rowId)
+  const row = rows[rowIndex]
+  const cellIndex = row?.cells.findIndex(cell => cell.id === cellId) ?? -1
+  const cell = cellIndex >= 0 ? row?.cells[cellIndex] : null
+  const isSpacerCell = row?.kind === 'spacer' || Boolean(cell?.blocks.some(block => block.kind === 'spacer'))
+  if (!row || !cell || !isSpacerCell) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (rows.length <= 1) {
+    row.cells.splice(cellIndex, 1)
+    if (!row.cells.length) rows.splice(rowIndex, 1)
+  } else {
+    rows.splice(rowIndex, 1)
+  }
+
+  setDraft(next)
+  selectedBandId.value = band
+  selectedRowId.value = rows[Math.min(rowIndex, rows.length - 1)]?.id ?? null
+  selectedCellId.value = null
+  selectedBlockId.value = null
 }
 
 function onPreviewChromeSelectionChanged(payload: { type: 'band'; band: ChromeBandId } | { type: 'row'; band: ChromeBandId; rowId: string } | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string; blockId: string | null } | null) {
@@ -814,6 +952,10 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.fixed-template-actions button,
+.fixed-template-danger-row button {
   gap: 5px;
 }
 
@@ -823,7 +965,6 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   font-size: 13px;
 }
 
-.fixed-template-tab-icon,
 .fixed-template-action-icon {
   display: inline-grid;
   flex: none;
@@ -968,13 +1109,11 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   text-align: right;
 }
 
-.fixed-template-select-control--compact,
-.fixed-template-range-control--compact {
+.fixed-template-select-control--compact {
   padding: 0;
 }
 
-.fixed-template-select-control--compact label,
-.fixed-template-range-control--compact label {
+.fixed-template-select-control--compact label {
   font-size: 10px;
 }
 
@@ -1148,7 +1287,9 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(520px, 94%);
+  width: min(520px, 100%, calc((100vh - 120px) * 2 / 3));
+  height: auto;
+  max-height: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border: 1px solid rgba(31, 26, 22, 0.16);
@@ -1417,31 +1558,6 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   stroke-width: 7;
 }
 
-.fixed-template-map-lock {
-  position: absolute;
-  z-index: 4;
-  top: 50%;
-  right: 7%;
-  display: grid;
-  gap: 2px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(255, 253, 248, 0.82);
-  color: rgba(39, 47, 58, 0.68);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  text-align: center;
-  pointer-events: none;
-  transform: translateY(-50%);
-  backdrop-filter: blur(8px);
-}
-
-.fixed-template-map-lock span {
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .fixed-template-inspector {
   padding-bottom: 20px;
 }
@@ -1511,6 +1627,16 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   color: #b3262d;
 }
 
+.fixed-template-control-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.fixed-template-trash-icon {
+  width: 15px;
+  height: 15px;
+}
+
 .fixed-template-left-selection .fixed-template-style-row,
 .fixed-template-left-selection .fixed-template-align-row,
 .fixed-template-left-selection .fixed-template-danger-row {
@@ -1562,6 +1688,8 @@ button:disabled {
 
   .fixed-template-poster {
     width: min(390px, 94vw);
+    height: auto;
+    max-height: none;
   }
 }
 </style>

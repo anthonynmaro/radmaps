@@ -49,7 +49,20 @@ describe('poster layout merge', () => {
     expect(layout.bands.footer.rows.at(-1)?.cells[0]?.block?.kind).toBe('spacer')
   })
 
-  it('keeps the extra footer note only for compositions that need it', () => {
+  it('keeps editorial starter top whitespace compact', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'editorial-tall',
+    }, stats)
+    const topSpacer = layout.bands.header.rows.find(row => row.id === 'header-spacer-top')
+    const titleRow = layout.bands.header.rows.find(row => row.id === 'header-title')
+
+    expect(layout.bands.header.height).toBeLessThanOrEqual(23)
+    expect(topSpacer?.fr).toBeLessThanOrEqual(0.4)
+    expect(titleRow?.fr).toBeGreaterThan(2)
+  })
+
+  it('omits decorative footer notes from default compositions', () => {
     const editorial = defaultPosterLayout({
       ...baseConfig,
       composition: 'editorial-tall',
@@ -59,8 +72,23 @@ describe('poster layout merge', () => {
       composition: 'splits-grid',
     }, stats)
 
-    expect(blocksFor(editorial, 'footer').some(block => block?.slot === 'composition_footer')).toBe(true)
+    expect(blocksFor(editorial, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
     expect(blocksFor(performance, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
+  })
+
+  it('keeps default occasion text only on roomier compositions', () => {
+    const roomierCompositions = ['editorial-tall', 'journal-spread'] as const
+    const denseCompositions = ['blueprint-grid', 'blueprint-strava', 'splits-grid', 'bib-numerals', 'brutalist-slab'] as const
+
+    for (const composition of roomierCompositions) {
+      const layout = defaultPosterLayout({ ...baseConfig, composition }, stats)
+      expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(true)
+    }
+
+    for (const composition of denseCompositions) {
+      const layout = defaultPosterLayout({ ...baseConfig, composition }, stats)
+      expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(false)
+    }
   })
 
   it('applies sparse row and cell edits by id without replacing the whole default layout', () => {
@@ -77,7 +105,7 @@ describe('poster layout merge', () => {
     })
     const title = blocksFor(merged, 'header').find(block => block?.id === 'hdr-title-block')
     expect(title?.scale).toBe(1.25)
-    expect(blocksFor(merged, 'header').some(block => block?.id === 'hdr-kicker-block')).toBe(true)
+    expect(blocksFor(merged, 'header').some(block => block?.slot === 'location_text')).toBe(true)
   })
 
   it('honors tombstones for deleted cells', () => {

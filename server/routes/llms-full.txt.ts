@@ -109,7 +109,7 @@ ${digital ? `- ${digital.size_label} (${digital.recommended_px_w}×${digital.rec
 When designing a custom poster, you can adjust:
 
 - **Color theme** — Chalk (warm cream, classic), Topaz (mint and forest green), Dusk (sunset oranges), Obsidian (dark mode minimalist), Forest (deep green dark), Midnight (navy and gold).
-- **Typography** — 12 Google Fonts across editorial display (Big Shoulders, Fjalla One, Oswald, Bebas Neue), modern sans (DM Sans, Space Grotesk, Outfit, Work Sans), and refined serif (Playfair Display, Cormorant Garamond, Libre Baskerville, DM Serif Display).
+- **Typography** — 17 self-hosted print fonts across legible print workhorses (Source Sans 3, Source Serif 4, IBM Plex Sans, Atkinson Hyperlegible Next, Newsreader), editorial display (Big Shoulders, Fjalla One, Oswald, Bebas Neue), modern sans (DM Sans, Space Grotesk, Outfit, Work Sans), and refined serif (Playfair Display, Cormorant Garamond, Libre Baskerville, DM Serif Display).
 - **Map style preset** — Minimalist (clean, label-light) or Topographic (with contour lines and hillshade).
 - **Route appearance** — color, line width, opacity.
 - **Background and label colors** — independently controllable.
