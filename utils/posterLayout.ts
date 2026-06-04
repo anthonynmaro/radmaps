@@ -167,6 +167,63 @@ function compositionUsesOccasion(composition?: CompositionId) {
   return !composition || OCCASION_COMPOSITIONS.has(composition)
 }
 
+type FooterSlot = 'distance' | 'elevation_gain' | 'date' | 'coordinates' | 'brand'
+
+function footerCellPatch(slot: FooterSlot, composition?: CompositionId): Partial<ChromeGridCell> {
+  const technical = composition === 'blueprint-grid' || composition === 'blueprint-strava' || composition === 'splits-grid'
+  const travel = composition === 'travel-banner' || composition === 'darksky-stars'
+  const modern = composition === 'modernist-block' || composition === 'brutalist-slab'
+  const race = composition === 'bib-numerals'
+
+  if (slot === 'brand') {
+    return { fr: technical ? 0.58 : modern ? 0.52 : 0.64, align: 'right', valign: 'center' }
+  }
+  if (slot === 'coordinates') {
+    return {
+      fr: technical ? 1.34 : travel ? 1.64 : race ? 1.2 : 1.42,
+      align: technical ? 'left' : 'center',
+      valign: 'center',
+    }
+  }
+  if (slot === 'date') {
+    return {
+      fr: technical ? 1.06 : travel ? 1.14 : modern ? 1.1 : 1.0,
+      align: technical || modern ? 'left' : 'center',
+      valign: 'center',
+    }
+  }
+  return {
+    fr: technical ? 1.0 : travel ? 1.22 : race ? 1.1 : 1.08,
+    align: 'left',
+    valign: 'center',
+  }
+}
+
+function footerBlockPatch(
+  slot: Exclude<FooterSlot, 'brand'>,
+  composition: CompositionId | undefined,
+  recipe: ChromeLayoutRecipe,
+): Partial<ChromeBlock> {
+  const technical = composition === 'blueprint-grid' || composition === 'blueprint-strava' || composition === 'splits-grid'
+  const travel = composition === 'travel-banner' || composition === 'darksky-stars'
+  const modern = composition === 'modernist-block' || composition === 'brutalist-slab'
+  const race = composition === 'bib-numerals'
+
+  if (slot === 'distance' || slot === 'elevation_gain') {
+    return {
+      scale: recipe.statScale * (race ? 1.18 : modern ? 1.08 : travel ? 1.06 : technical ? 0.96 : 1),
+    }
+  }
+  if (slot === 'date') {
+    return {
+      scale: recipe.dateScale * (race ? 1.04 : travel ? 0.96 : technical ? 0.9 : 0.92),
+    }
+  }
+  return {
+    scale: recipe.coordsScale * (travel ? 0.78 : technical ? 0.82 : modern ? 0.74 : 0.86),
+  }
+}
+
 function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRecipe {
   switch (composition) {
     case 'editorial-tall':
@@ -235,22 +292,38 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
 
   const footerCells: ChromeGridCell[] = []
   if (labels.show_distance) {
-    footerCells.push(cell('ft-distance', block('ft-distance-block', 'stat', 'distance', { scale: recipe.statScale })))
+    footerCells.push(cell(
+      'ft-distance',
+      block('ft-distance-block', 'stat', 'distance', footerBlockPatch('distance', composition, recipe)),
+      footerCellPatch('distance', composition),
+    ))
   }
   if (showElevationGain) {
-    footerCells.push(cell('ft-gain', block('ft-gain-block', 'stat', 'elevation_gain', { scale: recipe.statScale })))
+    footerCells.push(cell(
+      'ft-gain',
+      block('ft-gain-block', 'stat', 'elevation_gain', footerBlockPatch('elevation_gain', composition, recipe)),
+      footerCellPatch('elevation_gain', composition),
+    ))
   }
   if (showDate) {
-    footerCells.push(cell('ft-date', block('ft-date-block', 'stat', 'date', { scale: recipe.dateScale })))
+    footerCells.push(cell(
+      'ft-date',
+      block('ft-date-block', 'stat', 'date', footerBlockPatch('date', composition, recipe)),
+      footerCellPatch('date', composition),
+    ))
   }
   if (showLocation) {
-    footerCells.push(cell('ft-coords', block('ft-coords-block', 'coords', 'coordinates', { scale: recipe.coordsScale })))
+    footerCells.push(cell(
+      'ft-coords',
+      block('ft-coords-block', 'coords', 'coordinates', footerBlockPatch('coordinates', composition, recipe)),
+      footerCellPatch('coordinates', composition),
+    ))
   }
   if (compositionUsesFooterNote(composition)) {
     footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: recipe.noteScale })))
   }
   if (styleConfig.show_branding !== false) {
-    footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.72 })))
+    footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.58 }), footerCellPatch('brand', composition)))
   }
 
   return {

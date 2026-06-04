@@ -90,6 +90,27 @@ describe('poster layout draft adapter', () => {
     expect(serialized).not.toContain('"style"')
   })
 
+  it('keeps theme-owned slot blocks renderer-driven when writing poster_layout', () => {
+    const draft = posterLayoutToDraft(baseConfig, stats)
+    const distanceDraftBlock = draft.bands.footer.rows
+      .flatMap(row => row.cells)
+      .flatMap(cell => cell.blocks)
+      .find(block => block.slot === 'distance')
+
+    expect(distanceDraftBlock?.source).toBe('theme')
+    expect(distanceDraftBlock?.text).toContain('miles')
+
+    const layout = draftToPosterLayout(draft)
+    const distanceChromeBlock = layout.bands?.footer?.rows
+      ?.flatMap(row => row.cells)
+      .map(cell => cell.block)
+      .find(block => block?.slot === 'distance')
+
+    expect(distanceChromeBlock?.kind).toBe('stat')
+    expect(distanceChromeBlock?.slot).toBe('distance')
+    expect(distanceChromeBlock?.text).toBeUndefined()
+  })
+
   it('updates inline text in the draft without changing row or cell geometry', () => {
     const draft = posterLayoutToDraft(baseConfig, stats)
     const titleBlock = draft.bands.header.rows

@@ -589,6 +589,7 @@
                 class="chrome-grid-block"
                 :class="[
                   `chrome-grid-block--${cell.block.kind}`,
+                  cell.block.slot ? `chrome-grid-block--slot-${chromeSlotClass(cell.block.slot)}` : '',
                   { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
                 ]"
                 :style="chromeGridBlockStyle(cell)"
@@ -597,6 +598,8 @@
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                :data-chrome-slot="cell.block.slot"
+                :data-chrome-kind="cell.block.kind"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
                 @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -1158,6 +1161,7 @@
                 class="chrome-grid-block"
                 :class="[
                   `chrome-grid-block--${cell.block.kind}`,
+                  cell.block.slot ? `chrome-grid-block--slot-${chromeSlotClass(cell.block.slot)}` : '',
                   { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
                 ]"
                 :style="chromeGridBlockStyle(cell)"
@@ -1166,6 +1170,8 @@
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                :data-chrome-slot="cell.block.slot"
+                :data-chrome-kind="cell.block.kind"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
                 @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -2299,6 +2305,10 @@ function chromeCellStyle(cell: ChromeGridCell) {
   return style
 }
 
+function chromeSlotClass(slot: PosterTextSlot) {
+  return slot.replace(/_/g, '-')
+}
+
 function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const block = cell.block
   if (!block) return {}
@@ -2308,13 +2318,13 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const italic = override.italic ?? block.italic
   return {
     width: '100%',
-    fontFamily: override.font_family ? toFontStack(override.font_family) : block.font_family ? toFontStack(block.font_family) : typography.value.subFont,
+    fontFamily: chromeBlockFontFamily(block, override),
     fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
-    lineHeight: block.kind === 'title' ? typography.value.titleLineHeight : '1.12',
+    lineHeight: chromeBlockLineHeight(block),
     letterSpacing: chromeBlockLetterSpacing(block),
-    textTransform: block.kind === 'title' || block.kind === 'subtitle' || block.kind === 'eyebrow' || block.kind === 'note' ? 'uppercase' : 'none',
+    textTransform: chromeBlockTextTransform(block),
     color: override.color ?? block.color ?? fg.value,
-    opacity: String(override.opacity ?? block.opacity ?? 1),
+    opacity: String(override.opacity ?? block.opacity ?? chromeBlockOpacity(block)),
     fontWeight: bold ? '800' : chromeBlockWeight(block),
     fontStyle: italic ? 'italic' : 'normal',
     textAlign: align,
@@ -2323,27 +2333,65 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   }
 }
 
+function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride) {
+  if (override.font_family) return toFontStack(override.font_family)
+  if (block.font_family) return toFontStack(block.font_family)
+  if (block.kind === 'title') return typography.value.titleFont
+  if (block.kind === 'stat') return typography.value.statsFont
+  if (block.kind === 'coords' || block.kind === 'brand') return typography.value.subFont
+  return typography.value.subFont
+}
+
 function chromeBlockFontSize(block: ChromeBlock) {
   if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
   const scale = block.scale ?? 1
   if (block.kind === 'title') return typography.value.titleSize * scale
-  if (block.kind === 'stat') return 1.8 * scale
-  if (block.kind === 'coords') return 1.05 * scale
-  if (block.kind === 'brand') return 0.62 * scale
+  if (block.kind === 'stat') return 0.72 * scale
+  if (block.kind === 'coords') return 0.72 * scale
+  if (block.kind === 'brand') return 0.48 * scale
   return 0.9 * scale
+}
+
+function chromeBlockLineHeight(block: ChromeBlock) {
+  if (block.kind === 'title') return typography.value.titleLineHeight
+  if (block.kind === 'stat') return '0.92'
+  if (block.kind === 'coords') return '1.25'
+  if (block.kind === 'brand') return '1'
+  return '1.12'
 }
 
 function chromeBlockLetterSpacing(block: ChromeBlock) {
   if (block.kind === 'title') return typography.value.titleTracking
-  if (block.kind === 'stat') return '0.01em'
-  if (block.kind === 'coords') return '0.04em'
+  if (block.kind === 'stat') return '0.14em'
+  if (block.kind === 'coords') return '0.08em'
+  if (block.kind === 'brand') return '0.22em'
   return '0.16em'
+}
+
+function chromeBlockTextTransform(block: ChromeBlock) {
+  if (
+    block.kind === 'title' ||
+    block.kind === 'subtitle' ||
+    block.kind === 'eyebrow' ||
+    block.kind === 'note' ||
+    block.kind === 'stat' ||
+    block.kind === 'brand'
+  ) return 'uppercase'
+  return 'none'
 }
 
 function chromeBlockWeight(block: ChromeBlock) {
   if (block.kind === 'title') return typography.value.titleWeight
-  if (block.kind === 'stat' || block.kind === 'brand') return '800'
+  if (block.kind === 'stat') return typography.value.statsWeight
+  if (block.kind === 'coords') return '600'
+  if (block.kind === 'brand') return '800'
   return '600'
+}
+
+function chromeBlockOpacity(block: ChromeBlock) {
+  if (block.kind === 'coords') return 0.76
+  if (block.kind === 'brand') return 0.66
+  return 1
 }
 
 function chromeBlockEditable(block: ChromeBlock) {
@@ -2357,8 +2405,21 @@ function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Recor
 function chromeBlockText(block: ChromeBlock) {
   if (block.empty || isChromeSpacerBlock(block)) return ''
   if (block.text != null) return block.text
-  if (block.slot) return textWithOverride(block.slot, defaultSlotText(block.slot))
+  if (block.slot) return chromeSlotText(block)
   return 'Your text'
+}
+
+function chromeSlotText(block: ChromeBlock) {
+  if (!block.slot) return ''
+  const override = slotOverride(block.slot)
+  if (override.text != null) return override.text
+  if (block.kind !== 'stat' && block.kind !== 'coords') return defaultSlotText(block.slot)
+
+  if (block.slot === 'distance') return formattedDistance.value ? `${formattedDistance.value}\nMILES` : ''
+  if (block.slot === 'elevation_gain') return formattedGain.value ? `${formattedGain.value}\nFT GAIN` : ''
+  if (block.slot === 'date') return formattedDateCompact.value ? `${formattedDateCompact.value}\nDATE` : defaultSlotText(block.slot)
+  if (block.slot === 'coordinates') return chromeCoordinatesText.value
+  return defaultSlotText(block.slot)
 }
 
 function emitPosterLayout(value: PartialPosterLayout | undefined) {
@@ -3904,10 +3965,39 @@ const formattedDate = computed(() => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 })
 
+const formattedDateCompact = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  if (
+    composition.value.id === 'travel-banner' ||
+    composition.value.id === 'modernist-block' ||
+    composition.value.id === 'blueprint-grid' ||
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid' ||
+    composition.value.id === 'brutalist-slab'
+  ) {
+    return value.slice(0, 10)
+  }
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+})
+
 const distanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''))
 const elevationGainText = computed(() => textWithOverride('elevation_gain', formattedGain.value ? `${formattedGain.value}\nft gain` : ''))
 const dateText = computed(() => textWithOverride('date', formattedDate.value))
 const coordinatesText = computed(() => textWithOverride('coordinates', coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''))
+const chromeCoordinatesText = computed(() => {
+  const location = props.map.stats?.location?.trim() || props.styleConfig.location_text?.trim() || ''
+  if (
+    composition.value.id === 'blueprint-grid' ||
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid'
+  ) {
+    return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : location
+  }
+  return location || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
+})
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 
@@ -8732,6 +8822,87 @@ onUnmounted(() => {
 
 .chrome-grid-block--title {
   max-width: 100%;
+}
+
+.chrome-grid-block--stat,
+.chrome-grid-block--coords,
+.chrome-grid-block--brand {
+  font-variant-numeric: tabular-nums lining-nums;
+  text-wrap: balance;
+}
+
+.chrome-grid-block--stat::first-line {
+  font-size: 2.34em;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 0.85;
+}
+
+.chrome-grid-block--slot-date::first-line {
+  font-size: 1.48em;
+  font-weight: 780;
+}
+
+.chrome-grid-block--coords {
+  opacity: 0.76;
+}
+
+.chrome-grid-block--brand {
+  opacity: 0.66;
+  white-space: nowrap;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--stat::first-line,
+.poster-composition--journal-spread .chrome-grid-block--stat::first-line,
+.poster-composition--botanical-plate .chrome-grid-block--stat::first-line {
+  font-size: 1.9em;
+  font-weight: 620;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--stat,
+.poster-composition--journal-spread .chrome-grid-block--stat,
+.poster-composition--botanical-plate .chrome-grid-block--stat {
+  letter-spacing: 0.12em;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--stat::first-line,
+.poster-composition--darksky-stars .chrome-grid-block--stat::first-line {
+  font-size: 2.72em;
+  font-weight: 880;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--slot-date,
+.poster-composition--darksky-stars .chrome-grid-block--slot-date {
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--stat::first-line,
+.poster-composition--blueprint-strava .chrome-grid-block--stat::first-line,
+.poster-composition--splits-grid .chrome-grid-block--stat::first-line {
+  font-size: 2.12em;
+  font-weight: 820;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--stat,
+.poster-composition--blueprint-strava .chrome-grid-block--stat,
+.poster-composition--splits-grid .chrome-grid-block--stat,
+.poster-composition--blueprint-grid .chrome-grid-block--coords,
+.poster-composition--blueprint-strava .chrome-grid-block--coords,
+.poster-composition--splits-grid .chrome-grid-block--coords {
+  letter-spacing: 0.16em;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--stat::first-line,
+.poster-composition--brutalist-slab .chrome-grid-block--stat::first-line,
+.poster-composition--modernist-block .chrome-grid-block--stat::first-line {
+  font-size: 2.9em;
+  font-weight: 900;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--slot-date::first-line,
+.poster-composition--brutalist-slab .chrome-grid-block--slot-date::first-line,
+.poster-composition--modernist-block .chrome-grid-block--slot-date::first-line {
+  font-size: 1.66em;
 }
 
 .chrome-grid-spacer {

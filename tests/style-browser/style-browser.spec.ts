@@ -1207,6 +1207,46 @@ test.describe('style browser visual harness', () => {
 
     const footerPrimaryRow = page.locator('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="footer-primary"]')
     await expect(footerPrimaryRow).toHaveCount(1)
+    const footerDesign = await footerPrimaryRow.evaluate((row) => {
+      const block = (slot: string) => row.querySelector<HTMLElement>(`[data-chrome-slot="${slot}"]`)
+      const cellWidth = (element: HTMLElement | null) => element?.closest<HTMLElement>('.chrome-grid-cell')?.getBoundingClientRect().width ?? 0
+      const distance = block('distance')
+      const gain = block('elevation_gain')
+      const date = block('date')
+      const coords = block('coordinates')
+      const brand = row.querySelector<HTMLElement>('[data-chrome-kind="brand"]')
+      const statStyle = distance ? window.getComputedStyle(distance) : null
+      const coordsStyle = coords ? window.getComputedStyle(coords) : null
+      const brandStyle = brand ? window.getComputedStyle(brand) : null
+
+      return {
+        distanceText: distance?.innerText ?? '',
+        distanceRawText: distance?.textContent ?? '',
+        gainText: gain?.innerText ?? '',
+        gainRawText: gain?.textContent ?? '',
+        dateText: date?.innerText ?? '',
+        dateRawText: date?.textContent ?? '',
+        coordsText: coords?.innerText ?? '',
+        brandText: brand?.innerText ?? '',
+        widths: [distance, gain, date, coords, brand].map(cellWidth),
+        coordsOpacity: coordsStyle ? Number.parseFloat(coordsStyle.opacity) : 1,
+        brandOpacity: brandStyle ? Number.parseFloat(brandStyle.opacity) : 1,
+        statSize: statStyle ? Number.parseFloat(statStyle.fontSize) : 0,
+        statFirstLineSize: distance ? Number.parseFloat(window.getComputedStyle(distance, '::first-line').fontSize) : 0,
+      }
+    })
+    expect(footerDesign.distanceRawText).toContain('\n')
+    expect(footerDesign.distanceText).toContain('MILES')
+    expect(footerDesign.gainRawText).toContain('\n')
+    expect(footerDesign.gainText).toContain('FT GAIN')
+    expect(footerDesign.dateRawText).toContain('\n')
+    expect(footerDesign.dateText).toContain('DATE')
+    expect(footerDesign.coordsText.length).toBeGreaterThan(0)
+    expect(footerDesign.brandText).toBe('RADMAPS')
+    expect(new Set(footerDesign.widths.map(width => Math.round(width))).size).toBeGreaterThan(1)
+    expect(footerDesign.statFirstLineSize).toBeGreaterThan(footerDesign.statSize * 1.4)
+    expect(footerDesign.coordsOpacity).toBeLessThan(1)
+    expect(footerDesign.brandOpacity).toBeLessThan(1)
     const footerCellsBeforeDelete = await footerPrimaryRow.locator('.chrome-grid-cell').count()
     expect(footerCellsBeforeDelete).toBeGreaterThan(1)
     const firstFooterCellWidthBeforeDelete = await footerPrimaryRow.locator('.chrome-grid-cell').first().evaluate(element => element.getBoundingClientRect().width)

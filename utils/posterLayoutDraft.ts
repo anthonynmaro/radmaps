@@ -411,12 +411,13 @@ function chromeBlockToDraftBlock(block: ChromeBlock, styleConfig: StyleConfig, s
 function draftBlockToChromeBlock(block?: PosterLayoutDraftBlock): ChromeBlock | undefined {
   if (!block) return undefined
   const chromeKind = block.chromeKind ?? draftKindToChromeKind(block.kind)
+  const preserveSlotRenderer = Boolean(block.slot && block.source === 'theme')
   return {
     id: block.id,
     kind: chromeKind,
     source: block.source,
     slot: block.kind === 'text' ? block.slot : undefined,
-    text: block.kind === 'spacer' ? undefined : block.text,
+    text: block.kind === 'spacer' || preserveSlotRenderer ? undefined : block.text,
     label: block.label,
     align: block.align,
     bold: block.bold,

@@ -76,6 +76,43 @@ describe('poster layout merge', () => {
     expect(blocksFor(performance, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
   })
 
+  it('designs fixed-template footer stats as a weighted information strip', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'midcentury-travel',
+      composition: 'travel-banner',
+      show_branding: true,
+      labels: {
+        ...baseConfig.labels,
+        show_date: true,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_location: true,
+      },
+    }, stats)
+    const footerPrimary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+    expect(footerPrimary).toBeTruthy()
+
+    const cells = footerPrimary!.cells
+    const distance = cells.find(cell => cell.id === 'ft-distance')
+    const gain = cells.find(cell => cell.id === 'ft-gain')
+    const date = cells.find(cell => cell.id === 'ft-date')
+    const coords = cells.find(cell => cell.id === 'ft-coords')
+    const brand = cells.find(cell => cell.id === 'ft-brand')
+
+    expect(cells.map(cell => cell.id)).toEqual(['ft-distance', 'ft-gain', 'ft-date', 'ft-coords', 'ft-brand'])
+    expect(new Set(cells.map(cell => cell.fr)).size).toBeGreaterThan(1)
+    expect(distance?.block?.kind).toBe('stat')
+    expect(gain?.block?.kind).toBe('stat')
+    expect(date?.block?.kind).toBe('stat')
+    expect(coords?.block?.kind).toBe('coords')
+    expect(brand?.block?.kind).toBe('brand')
+    expect(coords?.fr).toBeGreaterThan(distance?.fr ?? 0)
+    expect(brand?.fr).toBeLessThan(date?.fr ?? 0)
+    expect(distance?.block?.scale).toBeGreaterThan(date?.block?.scale ?? 0)
+    expect(coords?.block?.scale).toBeLessThan(distance?.block?.scale ?? 0)
+  })
+
   it('keeps default occasion text only on roomier compositions', () => {
     const roomierCompositions = ['editorial-tall', 'journal-spread'] as const
     const denseCompositions = ['blueprint-grid', 'blueprint-strava', 'splits-grid', 'bib-numerals', 'brutalist-slab'] as const

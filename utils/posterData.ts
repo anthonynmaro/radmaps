@@ -308,6 +308,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleLineHeight: '1.02',
     subFont: "'Source Serif 4', serif",
     subTracking: '0.10em',
+    statsWeight: '420',
   },
   'usgs-vintage': {
     ...THEME_TYPOGRAPHY.vintage,
@@ -315,6 +316,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleSize: 4.25,
     subFont: "'Source Sans 3', sans-serif",
     subTracking: '0.15em',
+    statsWeight: '650',
   },
   'midcentury-travel': {
     ...THEME_TYPOGRAPHY['mid-century'],
@@ -324,6 +326,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleLineHeight: '1',
     subFont: "'Source Sans 3', sans-serif",
     subTracking: '0.14em',
+    statsWeight: '760',
   },
   risograph: {
     ...THEME_TYPOGRAPHY.risograph,
@@ -356,6 +359,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     subFont: "'Source Serif 4', serif",
     subTracking: '0.06em',
     statsFont: "'Source Serif 4', serif",
+    statsWeight: '520',
   },
   'bold-modern': {
     ...THEME_TYPOGRAPHY.bauhaus,
@@ -364,12 +368,27 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleSize: 5.35,
     titleLineHeight: '0.94',
     subFont: "'Source Sans 3', sans-serif",
+    statsWeight: '820',
+  },
+  'contour-wash': {
+    ...THEME_TYPOGRAPHY.brutalist,
+    titleFont: "'IBM Plex Sans', sans-serif",
+    titleWeight: '760',
+    titleTracking: '0',
+    titleSize: 4.58,
+    titleLineHeight: '0.96',
+    subFont: "'Source Sans 3', sans-serif",
+    subWeight: '600',
+    subTracking: '0.12em',
+    statsFont: "'Source Sans 3', sans-serif",
+    statsWeight: '700',
   },
   'splits-stats': {
     ...THEME_TYPOGRAPHY.blueprint,
     titleTracking: '0.04em',
     titleSize: 3.55,
     subTracking: '0.16em',
+    statsWeight: '850',
   },
   'marathon-bib': {
     ...THEME_TYPOGRAPHY.brutalist,
@@ -377,6 +396,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleSize: 5.05,
     titleLineHeight: '0.98',
     subFont: "'Atkinson Hyperlegible Next', sans-serif",
+    statsWeight: '900',
   },
   'dark-sky': {
     ...THEME_TYPOGRAPHY['dark-sky'],
@@ -396,6 +416,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     subFont: "'Source Serif 4', serif",
     subTracking: '0.06em',
     statsFont: "'Source Serif 4', serif",
+    statsWeight: '520',
   },
   brutalist: {
     ...THEME_TYPOGRAPHY.brutalist,
@@ -416,7 +437,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     subFont: "'Source Sans 3', sans-serif",
     subTracking: '0.12em',
     statsFont: "'Source Sans 3', sans-serif",
-    statsWeight: '400',
+    statsWeight: '620',
   },
   'ranch-ochre': {
     ...THEME_TYPOGRAPHY['mid-century'],
