@@ -201,11 +201,17 @@ async function templateChromeOverlays(template: ProductMockupTemplate, templateB
 }
 
 async function templateAcrylicRivetOverlays(template: ProductMockupTemplate, templateBuffer: Buffer, width: number, height: number): Promise<NamedChromeOverlay[]> {
-  return Promise.all(
-    getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile).map(rivet =>
-      circularChromeOverlayFromTemplate(rivet.id, templateBuffer, toPixelBox(rivet.box, width, height)),
-    ),
-  )
+  void templateBuffer
+  return Promise.all(getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile).map(async (rivet) => {
+    const box = toPixelBox(rivet.box, width, height)
+    return {
+      id: rivet.id,
+      input: await acrylicStandOffOverlay(box),
+      left: box.left,
+      top: box.top,
+      box,
+    }
+  }))
 }
 
 async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
@@ -218,26 +224,46 @@ async function chromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box
   }
 }
 
-async function circularChromeOverlayFromTemplate(id: string, templateBuffer: Buffer, box: PixelBox): Promise<NamedChromeOverlay> {
-  const radius = Math.min(box.width, box.height) / 2
-  const mask = Buffer.from(`
+async function acrylicStandOffOverlay(box: PixelBox): Promise<Buffer> {
+  const size = Math.max(1, Math.min(box.width, box.height))
+  const center = size / 2
+  const outerRadius = size * 0.49
+
+  const svg = Buffer.from(`
     <svg width="${box.width}" height="${box.height}" viewBox="0 0 ${box.width} ${box.height}" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="${box.width / 2}" cy="${box.height / 2}" r="${radius}" fill="white" />
+      <defs>
+        <radialGradient id="metalFace" cx="50%" cy="50%" r="52%">
+          <stop offset="0" stop-color="#d7d9d6" />
+          <stop offset="0.44" stop-color="#d4d7d5" />
+          <stop offset="0.62" stop-color="#a5aaa8" />
+          <stop offset="0.82" stop-color="#565b5e" />
+          <stop offset="1" stop-color="#2c3033" />
+        </radialGradient>
+        <radialGradient id="metalHighlight" cx="34%" cy="28%" r="42%">
+          <stop offset="0" stop-color="rgba(255,255,255,0.96)" />
+          <stop offset="0.28" stop-color="rgba(255,255,255,0.46)" />
+          <stop offset="1" stop-color="rgba(255,255,255,0)" />
+        </radialGradient>
+        <filter id="softHardwareShadow" x="-35%" y="-35%" width="170%" height="170%">
+          <feDropShadow dx="0" dy="${Math.max(0.8, size * 0.035)}" stdDeviation="${Math.max(0.8, size * 0.04)}" flood-color="rgba(0,0,0,0.34)" />
+        </filter>
+        <clipPath id="discClip">
+          <circle cx="${center}" cy="${center}" r="${outerRadius}" />
+        </clipPath>
+      </defs>
+      <circle cx="${center}" cy="${center}" r="${outerRadius}" fill="url(#metalFace)" filter="url(#softHardwareShadow)" />
+      <g clip-path="url(#discClip)" opacity="0.28">
+        <path d="M ${size * -0.16} ${size * 0.70} L ${size * 0.70} ${size * -0.16}" stroke="white" stroke-width="${Math.max(1, size * 0.05)}" />
+        <path d="M ${size * 0.00} ${size * 0.88} L ${size * 0.88} ${size * 0.00}" stroke="#62686a" stroke-width="${Math.max(1, size * 0.045)}" />
+        <path d="M ${size * 0.22} ${size} L ${size} ${size * 0.22}" stroke="white" stroke-width="${Math.max(1, size * 0.035)}" />
+      </g>
+      <circle cx="${center}" cy="${center}" r="${outerRadius}" fill="url(#metalHighlight)" />
+      <circle cx="${center}" cy="${center}" r="${outerRadius - 0.8}" fill="none" stroke="rgba(255,255,255,0.52)" stroke-width="${Math.max(1, size * 0.035)}" />
+      <circle cx="${center}" cy="${center}" r="${outerRadius - 1.4}" fill="none" stroke="rgba(0,0,0,0.20)" stroke-width="${Math.max(0.6, size * 0.018)}" />
     </svg>
   `)
 
-  return {
-    id,
-    input: await sharp(templateBuffer)
-      .extract(box)
-      .ensureAlpha()
-      .composite([{ input: mask, blend: 'dest-in' }])
-      .png()
-      .toBuffer(),
-    left: box.left,
-    top: box.top,
-    box,
-  }
+  return sharp(svg).png().toBuffer()
 }
 
 function clampPixelBox(box: PixelBox, width: number, height: number): PixelBox {

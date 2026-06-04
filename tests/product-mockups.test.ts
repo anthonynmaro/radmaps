@@ -195,7 +195,7 @@ describe('product mockups', () => {
     }
   })
 
-  it('positions acrylic template rivet crops around the overprinted artwork corners', () => {
+  it('positions generated acrylic hardware around the overprinted artwork corners', () => {
     const acrylic = PRODUCTS.find(product => product.product_uid.startsWith('acrylic_400x600-mm-16x24-inch'))!
     const template = getProductMockupTemplate(acrylic, PRODUCT_MOCKUP_SCENE_FILES.bedroomWhite)!
     const rivets = getProductMockupAcrylicRivetBoxes(template.artworkBox, template.finish, template.sceneFile)
