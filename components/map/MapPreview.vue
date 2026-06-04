@@ -7205,7 +7205,7 @@ function onDeleteBrushKeydown(e: KeyboardEvent) {
 
 function setBrushInteractions(enabled: boolean) {
   if (!mapInstance) return
-  if (enabled && !props.styleConfig.map_frozen) {
+  if (enabled && canEnableMapGestures()) {
     mapInstance.dragPan.enable()
     mapInstance.scrollZoom.enable()
     mapInstance.doubleClickZoom.enable()
@@ -7433,7 +7433,7 @@ watch(
       mapInstance.off('click', onSegmentDrawClick)
       mapInstance.off('dblclick', onSegmentDrawDoubleClick)
       if (segmentDrawDisabledDoubleClickZoom) {
-        mapInstance.doubleClickZoom.enable()
+        if (canEnableMapGestures()) mapInstance.doubleClickZoom.enable()
         segmentDrawDisabledDoubleClickZoom = false
       }
       document.removeEventListener('keydown', onSegmentDrawKeydown)
@@ -7466,7 +7466,7 @@ function currentEditSegment() {
 
 function setSegmentEditInteractions(enabled: boolean) {
   if (!mapInstance) return
-  if (enabled) {
+  if (enabled && canEnableMapGestures()) {
     mapInstance.dragPan.enable()
     mapInstance.touchZoomRotate.enable()
     return
@@ -7933,6 +7933,10 @@ watch(
 // may have initialized with bounds before the DB record loaded, so we need
 // to explicitly reposition it here.
 
+function canEnableMapGestures() {
+  return !props.styleConfig.map_frozen
+}
+
 function disableAllMapGestures() {
   if (!mapInstance) return
   mapInstance.dragPan.disable()
@@ -7947,6 +7951,10 @@ function disableAllMapGestures() {
 
 function enableAllMapGestures() {
   if (!mapInstance) return
+  if (!canEnableMapGestures()) {
+    disableAllMapGestures()
+    return
+  }
   mapInstance.dragPan.enable()
   mapInstance.scrollZoom.enable()
   mapInstance.doubleClickZoom.enable()

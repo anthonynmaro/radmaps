@@ -362,6 +362,7 @@ const inspectorSubtitle = computed(() => {
 const previewLayout = computed(() => draftToPosterLayout(draft.value))
 const previewStyleConfig = computed<StyleConfig>(() => ({
   ...props.modelValue,
+  map_frozen: true,
   poster_layout: mergeLayoutIntoCurrent(previewLayout.value),
 }))
 
@@ -1198,7 +1199,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-map-lock {
   position: absolute;
-  z-index: 1;
+  z-index: 4;
   top: 50%;
   right: 7%;
   display: grid;

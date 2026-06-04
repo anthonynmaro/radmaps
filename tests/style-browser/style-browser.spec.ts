@@ -998,8 +998,48 @@ test.describe('style browser visual harness', () => {
     await expect(page.locator('[data-testid="puck-poster-spike"]')).toHaveCount(0)
     await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__))).toBe(true)
     await expect(page.getByTestId('fixed-template-map-band')).toContainText('Map locked')
+    await expect.poll(() => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_FIXED_TEMPLATE_EDITOR__?: { getPreviewStyle?: () => { map_frozen?: boolean } }
+        __RADMAPS_MAP_CAMERA__?: { get?: () => { center: [number, number]; zoom: number } | null }
+      }
+      return Boolean(win.__RADMAPS_FIXED_TEMPLATE_EDITOR__?.getPreviewStyle?.().map_frozen && win.__RADMAPS_MAP_CAMERA__?.get?.())
+    })).toBe(true)
     await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
+
+    await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: {
+          jumpTo: (camera: { center: [number, number]; zoom: number }) => void
+        }
+      }
+      win.__RADMAPS_MAP_CAMERA__.jumpTo({ center: [-87.66, 41.875], zoom: 12.25 })
+    })
+    await page.waitForTimeout(100)
+    const lockedCameraBefore = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+    const lockedMapBox = await page.getByTestId('poster-map').boundingBox()
+    expect(lockedMapBox).toBeTruthy()
+    await page.mouse.move(lockedMapBox!.x + lockedMapBox!.width / 2, lockedMapBox!.y + lockedMapBox!.height / 2)
+    await page.mouse.wheel(0, -700)
+    await page.mouse.down()
+    await page.mouse.move(lockedMapBox!.x + lockedMapBox!.width / 2 + 70, lockedMapBox!.y + lockedMapBox!.height / 2 + 40)
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    const lockedCameraAfter = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__: { get: () => { center: [number, number]; zoom: number } }
+      }
+      return win.__RADMAPS_MAP_CAMERA__.get()
+    })
+    expect(lockedCameraAfter.zoom).toBeCloseTo(lockedCameraBefore.zoom, 5)
+    expect(lockedCameraAfter.center[0]).toBeCloseTo(lockedCameraBefore.center[0], 5)
+    expect(lockedCameraAfter.center[1]).toBeCloseTo(lockedCameraBefore.center[1], 5)
 
     const posterBox = await page.getByTestId('fixed-template-poster').boundingBox()
     expect(posterBox).toBeTruthy()
