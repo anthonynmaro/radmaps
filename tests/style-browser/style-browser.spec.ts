@@ -1148,7 +1148,7 @@ test.describe('style browser visual harness', () => {
         return hit === control || Boolean(hit && control.contains(hit))
       })
     })).toBe(true)
-    await expect(page.getByTestId('template-left-selection')).toContainText('Spacer row')
+    await expect(page.getByTestId('template-left-selection')).toContainText('Gap')
     await expect(page.getByTestId('template-row-height')).toBeVisible()
     await bottomHeaderSpacer.hover()
     const rowResizeGrip = bottomHeaderSpacer.locator('[data-testid="chrome-row-resize-row"]')

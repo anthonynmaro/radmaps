@@ -2,8 +2,14 @@
   <div class="fixed-template-editor" :class="{ 'fixed-template-editor--no-inspector': !showInspector, 'fixed-template-editor--preview': previewMode }" data-testid="fixed-template-editor">
     <aside class="fixed-template-left">
       <div class="fixed-template-tabs" role="tablist" aria-label="Editor modes">
-        <button data-testid="template-tab-insert" :class="{ active: leftMode === 'insert' }" @click="leftMode = 'insert'">Insert</button>
-        <button data-testid="template-tab-layers" :class="{ active: leftMode === 'layers' }" @click="leftMode = 'layers'">Layers</button>
+        <button data-testid="template-tab-insert" :class="{ active: leftMode === 'insert' }" title="Insert blocks" @click="leftMode = 'insert'">
+          <span class="fixed-template-tab-icon">+</span>
+          <span>Insert</span>
+        </button>
+        <button data-testid="template-tab-layers" :class="{ active: leftMode === 'layers' }" title="Layers" @click="leftMode = 'layers'">
+          <span class="fixed-template-tab-icon">L</span>
+          <span>Layers</span>
+        </button>
       </div>
 
       <section
@@ -61,7 +67,7 @@
 
         <template v-else-if="selectedRow">
           <div class="fixed-template-control fixed-template-control--row-height">
-            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Row size' }}</label>
+            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Size' }}</label>
             <input
               data-testid="template-row-height"
               type="range"
@@ -77,41 +83,58 @@
             <button
               v-if="selectedRow.kind !== 'spacer'"
               data-testid="template-add-column-selected-row"
+              title="Add column"
               @click="addColumnForSelection"
             >
-              Add column
+              <span class="fixed-template-action-icon">+</span>
+              <span>Col</span>
             </button>
-            <button class="danger" data-testid="template-delete-row" @click="deleteSelectedRow">Delete row</button>
+            <button class="danger" data-testid="template-delete-row" title="Delete row" @click="deleteSelectedRow">
+              <span class="fixed-template-action-icon">X</span>
+            </button>
           </div>
         </template>
       </section>
 
       <section v-if="leftMode === 'insert'" class="fixed-template-panel">
-        <p class="fixed-template-label">Content</p>
+        <p class="fixed-template-label">Add</p>
         <div class="fixed-template-insert-grid">
-          <button data-testid="template-add-text-header" @click="addText('header')">
+          <button data-testid="template-add-text-header" title="Add header text" @click="addText('header')">
             <span>T</span>
-            <strong>Header text</strong>
+            <strong>Header</strong>
+            <small>Text</small>
           </button>
-          <button data-testid="template-add-text-footer" @click="addText('footer')">
+          <button data-testid="template-add-text-footer" title="Add footer text" @click="addText('footer')">
             <span>T</span>
-            <strong>Footer text</strong>
+            <strong>Footer</strong>
+            <small>Text</small>
           </button>
-          <button data-testid="template-add-spacer-header" @click="addSpacer('header')">
+          <button data-testid="template-add-spacer-header" title="Add header spacer" @click="addSpacer('header')">
             <span>-</span>
-            <strong>Header spacer</strong>
+            <strong>Header</strong>
+            <small>Gap</small>
           </button>
-          <button data-testid="template-add-spacer-footer" @click="addSpacer('footer')">
+          <button data-testid="template-add-spacer-footer" title="Add footer spacer" @click="addSpacer('footer')">
             <span>-</span>
-            <strong>Footer spacer</strong>
+            <strong>Footer</strong>
+            <small>Gap</small>
           </button>
         </div>
 
-        <p class="fixed-template-label">Structure</p>
+        <p class="fixed-template-label">Grid</p>
         <div class="fixed-template-actions">
-          <button data-testid="template-add-header-row" @click="addRow('header')">Add header row</button>
-          <button data-testid="template-add-footer-row" @click="addRow('footer')">Add footer row</button>
-          <button :disabled="!selectedRow" data-testid="template-add-column" @click="addColumnForSelection">Add column</button>
+          <button data-testid="template-add-header-row" title="Add header row" @click="addRow('header')">
+            <span class="fixed-template-action-icon">+</span>
+            <span>H row</span>
+          </button>
+          <button data-testid="template-add-footer-row" title="Add footer row" @click="addRow('footer')">
+            <span class="fixed-template-action-icon">+</span>
+            <span>F row</span>
+          </button>
+          <button :disabled="!selectedRow" data-testid="template-add-column" title="Add column" @click="addColumnForSelection">
+            <span class="fixed-template-action-icon">+</span>
+            <span>Col</span>
+          </button>
         </div>
       </section>
 
@@ -255,7 +278,7 @@
         <template v-else-if="selectedRow">
           <div class="fixed-template-divider" />
           <div class="fixed-template-control fixed-template-control--row-height">
-            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Row size' }}</label>
+            <label>{{ selectedRow.kind === 'spacer' ? 'Padding' : 'Size' }}</label>
             <input
               data-testid="template-row-height"
               type="range"
@@ -414,14 +437,14 @@ const selectedBlockFont = computed(() => {
 const selectedBlockScalePercent = computed(() => Math.round((selectedBlock.value?.scale ?? 1) * 100))
 const inspectorTitle = computed(() => {
   if (selectedBlock.value) return selectedBlock.value.label
-  if (selectedRow.value?.kind === 'spacer') return 'Spacer row'
-  if (selectedRow.value) return 'Selected row'
+  if (selectedRow.value?.kind === 'spacer') return 'Gap'
+  if (selectedRow.value) return 'Row'
   return `${selectedBandId.value === 'header' ? 'Header' : 'Footer'} section`
 })
 const inspectorSubtitle = computed(() => {
   if (selectedBlock.value) return `${selectedBlock.value.kind} block`
-  if (selectedRow.value?.kind === 'spacer') return 'Theme whitespace'
-  if (selectedRow.value) return `${selectedRow.value.cells.length} ${selectedRow.value.cells.length === 1 ? 'column' : 'columns'}`
+  if (selectedRow.value?.kind === 'spacer') return 'Space'
+  if (selectedRow.value) return `${selectedRow.value.cells.length} ${selectedRow.value.cells.length === 1 ? 'col' : 'cols'}`
   return 'Fixed poster template'
 })
 
@@ -709,7 +732,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 <style>
 .fixed-template-editor {
   display: grid;
-  grid-template-columns: 216px minmax(460px, 1fr) 280px;
+  grid-template-columns: 168px minmax(460px, 1fr) 280px;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -720,7 +743,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-editor--no-inspector {
-  grid-template-columns: 216px minmax(460px, 1fr);
+  grid-template-columns: 168px minmax(460px, 1fr);
 }
 
 .fixed-template-left,
@@ -762,7 +785,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3px;
-  margin: 10px 10px 12px;
+  margin: 8px 8px 10px;
   padding: 3px;
   border-radius: 8px;
   background: #eeeae2;
@@ -776,13 +799,43 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-wide-action,
 .fixed-template-done,
 .fixed-template-preview {
-  min-height: 34px;
+  min-height: 30px;
   border: 1px solid rgba(42, 37, 31, 0.12);
   border-radius: 7px;
   background: #fffdf8;
   color: #29241f;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 750;
+}
+
+.fixed-template-tabs button,
+.fixed-template-actions button,
+.fixed-template-danger-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.fixed-template-done,
+.fixed-template-preview {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.fixed-template-tab-icon,
+.fixed-template-action-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: rgba(42, 37, 31, 0.08);
+  color: #24313a;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .fixed-template-tabs button.active,
@@ -796,9 +849,9 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-left-selection {
   display: grid;
-  gap: 7px;
-  margin: 0 10px 12px;
-  padding: 8px;
+  gap: 6px;
+  margin: 0 8px 10px;
+  padding: 7px;
   border: 1px solid rgba(32, 101, 72, 0.22);
   border-radius: 8px;
   background: #f2f7f2;
@@ -816,7 +869,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   min-width: 0;
   overflow: hidden;
   color: #1d211f;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -825,7 +878,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-left-selection-head span {
   flex: none;
   color: #6f766f;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -846,27 +899,27 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-danger-row--compact {
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
 }
 
 .fixed-template-danger-row--compact > button:only-child {
   grid-column: 1 / -1;
   justify-self: start;
-  min-width: 94px;
+  min-width: 76px;
 }
 
 .fixed-template-left-selection .fixed-template-control {
-  grid-template-columns: minmax(0, 1fr) 44px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 5px;
   padding: 0;
 }
 
 .fixed-template-left-selection .fixed-template-control label {
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .fixed-template-left-selection .fixed-template-control output {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .fixed-template-select-control,
@@ -891,14 +944,14 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   grid-column: 1 / -1;
   width: 100%;
   min-width: 0;
-  height: 34px;
-  padding: 0 9px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid rgba(42, 37, 31, 0.14);
   border-radius: 7px;
   background: #fffdf8;
   color: #29241f;
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 750;
 }
 
@@ -908,9 +961,9 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-range-control output {
-  min-width: 38px;
+  min-width: 34px;
   color: #403a34;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 850;
   text-align: right;
 }
@@ -926,34 +979,36 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-select-control--compact select {
-  height: 30px;
-  font-size: 11px;
+  height: 28px;
+  font-size: 10px;
 }
 
 .fixed-template-panel {
-  padding: 0 10px 14px;
+  padding: 0 8px 12px;
 }
 
 .fixed-template-label {
-  margin: 12px 0 6px;
+  margin: 10px 0 5px;
   color: #746d64;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 850;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .fixed-template-insert-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 
 .fixed-template-insert-grid button {
   display: grid;
-  gap: 5px;
-  min-height: 52px;
-  padding: 7px 8px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 32px;
+  padding: 5px 7px;
   border: 1px solid rgba(42, 37, 31, 0.13);
   border-radius: 7px;
   background: #fffdf8;
@@ -973,23 +1028,37 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-insert-grid strong {
+  min-width: 0;
+  overflow: hidden;
   font-size: 11px;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fixed-template-insert-grid small {
+  color: #857d73;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .fixed-template-actions,
 .fixed-template-danger-row {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
 .fixed-template-actions button {
-  min-height: 30px;
+  justify-content: flex-start;
+  min-height: 28px;
+  padding: 0 7px;
 }
 
 .fixed-template-layer-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .fixed-template-layer-group {
@@ -1001,8 +1070,8 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 30px;
-  padding: 6px 8px;
+  min-height: 27px;
+  padding: 5px 7px;
   border: 1px solid rgba(42, 37, 31, 0.1);
   border-radius: 7px;
   background: #fffdf8;
@@ -1015,18 +1084,18 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-layer-row {
-  margin-left: 8px;
+  margin-left: 5px;
 }
 
 .fixed-template-layer-block {
-  margin-left: 18px;
-  min-height: 28px !important;
+  margin-left: 12px;
+  min-height: 26px !important;
   background: #f7f5ef !important;
 }
 
 .fixed-template-layer-list small {
   color: #8c8378;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 750;
   text-transform: uppercase;
 }
@@ -1434,6 +1503,11 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-danger-row .danger {
   border-color: rgba(205, 43, 49, 0.24);
+  color: #b3262d;
+}
+
+.fixed-template-danger-row .danger .fixed-template-action-icon {
+  background: rgba(205, 43, 49, 0.1);
   color: #b3262d;
 }
 
