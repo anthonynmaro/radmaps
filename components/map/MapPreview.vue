@@ -8835,8 +8835,8 @@ onUnmounted(() => {
 
 .chrome-cell-trash {
   position: absolute;
-  top: -14px;
-  left: -14px;
+  top: 50%;
+  left: -42px;
   z-index: 34;
   display: inline-grid;
   place-items: center;
@@ -8850,26 +8850,27 @@ onUnmounted(() => {
   background: #FFFFFF;
   color: #DC2626;
   box-shadow: 0 8px 18px rgba(28, 25, 23, 0.16);
+  transform: translateY(-50%);
 }
 
 .chrome-cell-trash:hover {
   border-color: rgba(220, 38, 38, 0.34);
   background: #FFF7F7;
   color: #B91C1C;
-  transform: translateY(-1px);
+  transform: translateY(calc(-50% - 1px));
 }
 
 .chrome-cell-trash.is-passive {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(2px) scale(0.94);
+  transform: translateY(-50%) translateX(5px) scale(0.94);
 }
 
 .chrome-grid-cell:hover > .chrome-cell-trash.is-passive,
 .chrome-grid-cell.is-selected > .chrome-cell-trash.is-passive {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
+  transform: translateY(-50%) translateX(0) scale(1);
 }
 
 .chrome-cell-trash-icon {
@@ -8879,13 +8880,13 @@ onUnmounted(() => {
 
 .chrome-cell-add-col {
   position: absolute;
-  right: -16px;
-  top: 0;
+  right: -68px;
+  top: 50%;
   z-index: 24;
-  width: 54px;
+  width: 52px;
   height: 24px;
   padding: 0 8px;
-  transform: translate(50%, -62%) scale(0.92);
+  transform: translateY(-50%) scale(0.92);
   font-size: 10px;
 }
 
@@ -8941,7 +8942,7 @@ onUnmounted(() => {
 
 .chrome-grid-cell:hover > .chrome-cell-add-col,
 .chrome-grid-cell.is-selected > .chrome-cell-add-col {
-  transform: translate(50%, -62%) scale(1);
+  transform: translateY(-50%) scale(1);
 }
 
 .chrome-grid-cell:hover > .chrome-cell-resize-col,
@@ -8958,15 +8959,15 @@ onUnmounted(() => {
 
 .chrome-row-add-row {
   position: absolute;
-  right: 14px;
-  bottom: -11px;
+  left: 50%;
+  bottom: -28px;
   z-index: 22;
   width: 52px;
   min-width: 52px;
   height: 18px;
   min-height: 18px;
   padding: 0 8px;
-  transform: translateY(1px);
+  transform: translate(-50%, 3px);
   border: 1px solid rgba(42, 91, 204, 0.5);
   border-radius: 999px;
   background: #FFFFFF;
@@ -8982,7 +8983,7 @@ onUnmounted(() => {
 .chrome-grid-row.is-resizing-row > .chrome-row-add-row {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 
 .chrome-row-resize-row {
@@ -8994,7 +8995,6 @@ onUnmounted(() => {
   height: 10px;
   min-height: 10px;
   padding: 0;
-  transform: translate(-50%, 0) scale(0.94);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -9004,10 +9004,12 @@ onUnmounted(() => {
 
 .chrome-row-resize-row--top {
   top: 0;
+  transform: translate(-50%, -50%) scale(0.94);
 }
 
 .chrome-row-resize-row--bottom {
   bottom: 0;
+  transform: translate(-50%, 50%) scale(0.94);
 }
 
 .chrome-row-resize-row::before {
@@ -9040,7 +9042,20 @@ onUnmounted(() => {
 .chrome-grid-row.has-selected-cell > .chrome-row-resize-row,
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
   opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row--top,
+.chrome-grid-row.is-selected > .chrome-row-resize-row--top,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row--top,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row--top {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row--bottom,
+.chrome-grid-row.is-selected > .chrome-row-resize-row--bottom,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row--bottom,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row--bottom {
+  transform: translate(-50%, 50%) scale(1);
 }
 
 .chrome-grid-row.is-selected:hover > .chrome-row-resize-row,

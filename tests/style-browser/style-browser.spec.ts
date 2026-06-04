@@ -1189,6 +1189,8 @@ test.describe('style browser visual harness', () => {
     const rowCenterX = rowBox!.x + rowBox!.width / 2
     expect(Math.abs((topRowGripBox!.x + topRowGripBox!.width / 2) - rowCenterX)).toBeLessThan(2)
     expect(Math.abs((rowGripBox!.x + rowGripBox!.width / 2) - rowCenterX)).toBeLessThan(2)
+    expect(Math.abs((topRowGripBox!.y + topRowGripBox!.height / 2) - rowBox!.y)).toBeLessThan(2)
+    expect(Math.abs((rowGripBox!.y + rowGripBox!.height / 2) - (rowBox!.y + rowBox!.height))).toBeLessThan(2)
     await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2)
     await page.mouse.down()
     await page.mouse.move(rowGripBox!.x + rowGripBox!.width / 2, rowGripBox!.y + rowGripBox!.height / 2 + 26, { steps: 5 })
@@ -1236,9 +1238,31 @@ test.describe('style browser visual harness', () => {
 
     await expect(headerTitleRow).toHaveCount(1)
     const headerTitleCellsBeforeDelete = await headerTitleRow.locator('.chrome-grid-cell').count()
-    await headerTitleRow.locator('.chrome-grid-cell').first().click()
-    await expect(headerTitleRow.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
-    await headerTitleRow.locator('[data-testid="chrome-cell-trash"]').click()
+    const headerTitleCell = headerTitleRow.locator('.chrome-grid-cell').first()
+    await headerTitleCell.click()
+    await expect(headerTitleCell.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
+    const headerTitleBlockBox = await headerTitleCell.locator('.chrome-grid-block').boundingBox()
+    const headerTitleTrashBox = await headerTitleCell.locator('[data-testid="chrome-cell-trash"]').boundingBox()
+    const headerTitleAddColBox = await headerTitleCell.locator('[data-testid="chrome-cell-add-column"]').boundingBox()
+    const headerTitleRowTopBox = await headerTitleRow.locator('[data-testid="chrome-row-resize-row"][data-edge="top"]').boundingBox()
+    const headerTitleRowBottomBox = await headerTitleRow.locator('[data-testid="chrome-row-resize-row"][data-edge="bottom"]').boundingBox()
+    const headerTitleRowAddBox = await headerTitleRow.locator('[data-testid="chrome-row-add-row"]').boundingBox()
+    expect(headerTitleBlockBox).toBeTruthy()
+    expect(headerTitleTrashBox).toBeTruthy()
+    expect(headerTitleAddColBox).toBeTruthy()
+    expect(headerTitleRowTopBox).toBeTruthy()
+    expect(headerTitleRowBottomBox).toBeTruthy()
+    expect(headerTitleRowAddBox).toBeTruthy()
+    const boxesOverlap = (
+      a: NonNullable<typeof headerTitleTrashBox>,
+      b: NonNullable<typeof headerTitleTrashBox>,
+    ) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+    expect(headerTitleTrashBox!.x + headerTitleTrashBox!.width).toBeLessThanOrEqual(headerTitleBlockBox!.x - 1)
+    expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowTopBox!)).toBe(false)
+    expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowBottomBox!)).toBe(false)
+    expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowAddBox!)).toBe(false)
+    expect(boxesOverlap(headerTitleRowBottomBox!, headerTitleRowAddBox!)).toBe(false)
+    await headerTitleCell.locator('[data-testid="chrome-cell-trash"]').click()
     if (headerTitleCellsBeforeDelete > 1) {
       await expect(headerTitleRow).toHaveCount(1)
       await expect(headerTitleRow.locator('.chrome-grid-cell')).toHaveCount(headerTitleCellsBeforeDelete - 1)
