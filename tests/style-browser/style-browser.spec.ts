@@ -1054,6 +1054,25 @@ test.describe('style browser visual harness', () => {
     await expect(bottomHeaderSpacer).toHaveCount(1)
     const spacerHeightBefore = await bottomHeaderSpacer.evaluate(element => element.getBoundingClientRect().height)
     await bottomHeaderSpacer.click()
+    await expect(bottomHeaderSpacer.locator('.chrome-grid-cell.is-selected')).toHaveCount(1)
+    await expect(bottomHeaderSpacer.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
+    await expect(bottomHeaderSpacer.locator('[data-testid="chrome-cell-add-column"]')).toBeVisible()
+    expect(await page.evaluate(() => {
+      const row = document.querySelector<HTMLElement>('.fixed-template-map-preview .chrome-grid-row[data-chrome-row-id="header-spacer-bottom"]')
+      if (!row) return false
+
+      const controls = [
+        row.querySelector<HTMLElement>('[data-testid="chrome-cell-trash"]'),
+        row.querySelector<HTMLElement>('[data-testid="chrome-cell-add-column"]'),
+      ]
+
+      return controls.every((control) => {
+        if (!control) return false
+        const box = control.getBoundingClientRect()
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+        return hit === control || Boolean(hit && control.contains(hit))
+      })
+    })).toBe(true)
     await expect(page.locator('.fixed-template-inspector-head p')).toContainText('Spacer row')
     await expect(page.getByTestId('template-row-height')).toBeVisible()
     await page.getByTestId('template-row-height').evaluate((input) => {

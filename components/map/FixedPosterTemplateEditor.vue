@@ -949,28 +949,48 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-map-preview {
+  position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
+  overflow: visible !important;
 }
 
 .fixed-template-map-preview .poster-canvas {
   width: 100%;
   height: 100%;
+  overflow: visible;
   box-shadow: 0 24px 80px rgba(37, 32, 26, 0.18) !important;
 }
 
 .fixed-template-map-preview .poster-header.is-chrome-grid-mode,
 .fixed-template-map-preview .poster-footer.is-chrome-grid-mode {
+  position: relative;
+  z-index: 40;
+  overflow: visible;
   outline: 1px solid rgba(36, 104, 194, 0.13);
   outline-offset: -1px;
 }
 
+.fixed-template-map-preview [data-testid="poster-map"] {
+  position: relative;
+  z-index: 1;
+}
+
 .fixed-template-map-preview .chrome-grid-band {
+  overflow: visible;
   gap: 0 !important;
 }
 
 .fixed-template-map-preview .chrome-grid-row {
+  overflow: visible;
   gap: 0.7cqw !important;
+}
+
+.fixed-template-map-preview .chrome-grid-row:hover,
+.fixed-template-map-preview .chrome-grid-row.is-selected,
+.fixed-template-map-preview .chrome-grid-row.is-resizing-row {
+  z-index: 70;
 }
 
 .fixed-template-map-preview .chrome-grid-row::after {
@@ -986,14 +1006,24 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 }
 
 .fixed-template-map-preview .chrome-grid-cell {
+  overflow: visible;
   outline-color: transparent !important;
   outline-offset: 2px !important;
 }
 
 .fixed-template-map-preview .chrome-grid-cell:hover,
 .fixed-template-map-preview .chrome-grid-cell.is-selected {
+  z-index: 80;
   outline-color: rgba(28, 126, 214, 0.58) !important;
   background: rgba(34, 139, 230, 0.035);
+}
+
+.fixed-template-map-preview .chrome-cell-trash,
+.fixed-template-map-preview .chrome-cell-add-col,
+.fixed-template-map-preview .chrome-cell-resize-col,
+.fixed-template-map-preview .chrome-row-add-row,
+.fixed-template-map-preview .chrome-row-resize-row {
+  z-index: 90;
 }
 
 .fixed-template-map-preview .chrome-grid-block {
@@ -1168,6 +1198,7 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 
 .fixed-template-map-lock {
   position: absolute;
+  z-index: 1;
   top: 50%;
   right: 7%;
   display: grid;
