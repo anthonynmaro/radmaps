@@ -94,6 +94,70 @@ more classical and expressive poster language:
 - `daybreak-trace`
 - `electric-atlas`
 
+## Current Status - June 4, 2026
+
+The fixed-template editor is the current control path for the poster content
+editor. It is not production-ready yet, but it is now the most credible path
+because it keeps `MapPreview.vue` as the render truth, keeps map/style controls
+in the existing right panel, and writes only structured `poster_layout` plus
+`poster_text_overrides` data.
+
+Recent stabilization work:
+
+- Row and cell delete now write tombstones into `poster_layout` so deleted
+  default rows/cells do not immediately reappear from theme defaults.
+- Deleting a column keeps the row and lets remaining columns expand instead of
+  deleting the entire row.
+- Grid controls were de-layered so trash/add-column/row handles are not stacked
+  on top of each other in normal fixed-template use.
+- Row resize handles now exist independently for top and bottom edges; column
+  resize handles are centered vertically on the column boundary.
+- The left template panel is compact, single-column, and uses icon-forward
+  controls for common actions.
+- The map-locked badge was removed from the visual center of the map in the
+  fixed-template path; map lock behavior is tested through camera stability.
+- Preview/edit mode keeps the same poster geometry; preview only hides editing
+  controls and contenteditable state.
+- Footer stat typography was reworked so distance, gain, date, location, and
+  brand are no longer equal-looking generic text blocks. Default recipes now use
+  unequal footer column fractions, larger numeric first lines, quieter
+  metadata/brand opacity, and composition-specific scale differences.
+- The draft adapter now preserves theme-owned slot blocks as renderer-driven
+  slots when writing back to `poster_layout`. This prevents generated text like
+  `19.1 miles` from freezing into raw block text and bypassing the designed
+  footer renderer.
+
+Current manual review URL:
+
+```text
+http://localhost:3002/style-browser-fixture?surface=1&composition=travel-banner&theme=midcentury-travel&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820
+```
+
+Current quality bar:
+
+- The fixed 2:3 poster shape is preserved.
+- Header/footer blank areas are explicit spacer rows.
+- Inline text editing is direct on the poster.
+- Left-side selected controls can edit font, emphasis, alignment, duplicate,
+  delete, row size, and column operations.
+- The existing right style panel remains responsible for theme, route, map,
+  terrain, grid, typography, and text settings.
+- Browser tests cover map lock, edit/preview parity, footer slot hierarchy,
+  deletion behavior, compact margins, and embedded style-surface mounting.
+
+Known gaps:
+
+- The footer stat strip is improved, but the theme set still needs a true visual
+  review pass across all 22 themes in both edit and preview mode. The current
+  tests protect hierarchy and behavior, not taste.
+- Image/logo and icon blocks are not yet integrated into the fixed-template
+  editor path.
+- Drag-to-reorder rows/blocks and drag-beside-to-create-columns are still not
+  production-grade in the fixed-template editor.
+- Mobile fixed-template editing still needs the planned bottom-sheet workflow.
+- Physical print proofing has not yet validated these refined footer and
+  template treatments at 24x36 inches.
+
 ## Library Spike Outcome
 
 The committed spike code keeps library exploration separate from production
@@ -162,15 +226,40 @@ Resolved during implementation:
 
 ## Next Steps
 
-- Decide whether to retire the older `layoutSpike=1` reference once the fixed
-  template editor fully replaces it.
-- Add image/logo and icon block insertion to the fixed template editor using the
-  existing upload flow and local icon registry.
-- Add desktop drag-to-reorder and drag-beside-to-column behavior to the fixed
-  template editor, borrowing only the proven parts of the native spike.
-- Build the mobile bottom-sheet variant for the fixed template editor:
-  Insert, Layers, Selected, Style.
-- Add visual regression snapshots for the 22 refined themes once the theme set
-  is approved.
-- Revisit landscape aspect support as a separate product project; do not mix it
-  into this fixed 2:3 editor rollout.
+1. Do a design review pass on the fixed-template footer system.
+   Compare every refined theme in edit and preview mode, specifically checking
+   footer stat hierarchy, column rhythm, brand treatment, and whether the route
+   map still feels like the primary artwork.
+
+2. Add screenshot-based visual regression for approved theme templates.
+   Start with a smaller accepted set before snapshotting all 22 themes. Capture
+   editor geometry and final-print geometry so edit mode cannot drift away from
+   render output.
+
+3. Finish fixed-template structure interactions.
+   Prioritize row delete, column delete, add column, independent top/bottom row
+   resizing, and selected-control placement before adding more block types.
+
+4. Add image/logo and icon blocks.
+   Use the existing trusted upload flow for images/logos and the local SVG icon
+   registry for icons. Do not introduce remote image URLs or raw HTML export.
+
+5. Build mobile editing as a separate focused pass.
+   Use bottom sheets for Insert, Layers, Selected, and Style. Keep precise
+   drag-to-column and row resizing desktop-only until they can be made genuinely
+   good on touch.
+
+6. Run print-render smoke tests.
+   Generate proof/final smoke renders for a small approved theme set and inspect
+   route placement, zoom level, footer/header chrome, and 24x36 print pixel
+   output before promoting the editor path.
+
+7. Decide what to retire.
+   Once the fixed-template editor is validated, retire or quarantine
+   `layoutSpike=1`, `puckSpike=1`, and any old chrome-grid UI that no longer
+   informs the production path.
+
+8. Treat landscape aspect support as a separate product project.
+   Do not mix 3:2 landscape into this rollout. It requires explicit aspect
+   state, render hashes, camera framing, product catalog, checkout, and physical
+   sample validation.
