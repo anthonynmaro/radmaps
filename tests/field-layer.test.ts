@@ -118,6 +118,11 @@ describe('FIELD_LAYER — locked decisions', () => {
     expect(FIELD_LAYER.poster_layout).toBe('chrome')
   })
 
+  it('poster element editor fields are "chrome"', () => {
+    expect(FIELD_LAYER.grid_spacing).toBe('chrome')
+    expect(FIELD_LAYER.icon_overlays).toBe('chrome')
+  })
+
   it('preset and base_tile_style are "map"', () => {
     expect(FIELD_LAYER.preset).toBe('map')
     expect(FIELD_LAYER.base_tile_style).toBe('map')

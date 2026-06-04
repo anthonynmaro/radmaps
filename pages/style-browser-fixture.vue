@@ -8,6 +8,26 @@
         @design-myself="themePickerClosed = true"
       />
     </div>
+    <div v-else-if="templateEditorFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
+      <FixedPosterTemplateEditor
+        v-model="styleConfig"
+        :map="sampleMap"
+      />
+    </div>
+    <div v-else-if="puckReferenceFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
+      <ClientOnly>
+        <PuckPosterSpike
+          v-model="styleConfig"
+          :map="sampleMap"
+        />
+      </ClientOnly>
+    </div>
+    <div v-else-if="layoutSpikeFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
+      <PosterLayoutSpike
+        v-model="styleConfig"
+        :map="sampleMap"
+      />
+    </div>
     <div v-else-if="surfaceFixture" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
       <MapEditorSurface
         v-model="styleConfig"
@@ -21,10 +41,16 @@
         :style-config="styleConfig"
         :editable="editable"
         :chrome-editing="chromeEditing"
+        :poster-elements-editing="posterElementsEditor"
+        :poster-editor-mode="posterEditorMode"
+        :poster-guides-visible="posterGuidesVisible"
+        :selected-poster-element-id="selectedPosterElementId"
         :render-mode="renderMode"
         :print-context="printContext"
         @overlay-updated="onOverlayUpdated"
         @asset-moved="onAssetMoved"
+        @poster-element-selected="selectedPosterElementId = $event"
+        @poster-element-patched="onPosterElementPatched"
         @poster-text-override="onPosterTextOverride"
         @poster-text-reset="onPosterTextReset"
         @poster-layout-updated="onPosterLayoutUpdated"
@@ -36,11 +62,15 @@
 <script setup lang="ts">
 import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
+import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
+import PosterLayoutSpike from '~/components/map/PosterLayoutSpike.vue'
+import PuckPosterSpike from '~/components/map/PuckPosterSpike.client.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
+import { patchPosterEditorElement, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 
 definePageMeta({ layout: false })
 
@@ -49,11 +79,18 @@ if (!import.meta.dev) {
 }
 
 const route = useRoute()
+const layoutSpikeFixture = route.query.layoutSpike === 'true' || route.query.layoutSpike === '1'
+const templateEditorFixture = route.query.templateEditor === 'true'
+  || route.query.templateEditor === '1'
+  || route.query.puckSpike === 'true'
+  || route.query.puckSpike === '1'
+const puckReferenceFixture = route.query.puckReference === 'true' || route.query.puckReference === '1'
+const builderReferenceFixture = layoutSpikeFixture || puckReferenceFixture
 const composition = typeof route.query.composition === 'string'
-  ? route.query.composition
+  ? (builderReferenceFixture ? 'editorial-tall' : route.query.composition)
   : 'editorial-tall'
 const themeId = typeof route.query.theme === 'string'
-  ? route.query.theme
+  ? (builderReferenceFixture ? 'editorial-minimal' : route.query.theme)
   : 'editorial-minimal'
 const preset = typeof route.query.preset === 'string'
   ? route.query.preset as StyleConfig['preset']
@@ -70,11 +107,18 @@ const renderMode = route.query.print === 'final' ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
+const posterElementsEditor = route.query.posterEditor === 'true' || route.query.posterEditor === '1'
+const posterEditorMode = typeof route.query.posterMode === 'string'
+  ? route.query.posterMode as 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
+  : 'layout'
+const posterGuidesVisible = posterEditorMode === 'guides' || queryFlag(route.query.guides, false)
 const surfaceFixture = route.query.surface === 'true' || route.query.surface === '1'
 const themePickerFixture = route.query.themePicker === 'true' || route.query.themePicker === '1'
 const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
 const withAsset = route.query.asset === 'true' || route.query.asset === '1'
+const withIcon = route.query.icon === 'true' || route.query.icon === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
+const withElevationData = route.query.elevation === 'true' || route.query.elevation === '1'
 const showFixtureRoads = queryFlag(route.query.roads, false)
 const showFixtureLabels = queryFlag(route.query.labels, false)
 const showFixturePois = queryFlag(route.query.pois, false)
@@ -171,6 +215,23 @@ const initialStyleConfig: StyleConfig = {
         show_logo: true,
       }
     : {}),
+  ...(withIcon
+    ? {
+        icon_overlays: [{
+          id: 'fixture-icon',
+          icon: 'mountain',
+          x: 62,
+          y: 24,
+          width: 9,
+          height: 9,
+          color: theme?.route_color ?? '#2D6A4F',
+          opacity: 0.92,
+          rotation: -8,
+          z_index: 45,
+          constrain_to_safe_area: true,
+        }],
+      }
+    : {}),
 }
 
 const fixturePresetIsRadMapsToner = initialStyleConfig.preset === 'radmaps-toner'
@@ -238,6 +299,9 @@ const styleConfig = ref<StyleConfig>({
   ...initialStyleConfig,
   ...fixtureQueryOverrides,
 })
+const selectedPosterElementId = ref<string | null>(
+  typeof route.query.selectedPosterElement === 'string' ? route.query.selectedPosterElement : null,
+)
 const themePickerClosed = ref(false)
 
 onMounted(() => {
@@ -277,6 +341,10 @@ function onAssetMoved(payload: { id: string; x: number; y: number }) {
     ...styleConfig.value,
     image_overlays: assets.map(asset => asset.id === payload.id ? { ...asset, x: payload.x, y: payload.y } : asset),
   }
+}
+
+function onPosterElementPatched(payload: { id: string; patch: PosterEditorElementPatch }) {
+  styleConfig.value = patchPosterEditorElement(styleConfig.value, payload.id, payload.patch)
 }
 
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
@@ -350,6 +418,14 @@ const editorSurfaceFrameStyle = computed(() => ({
   width: `${Number.isFinite(width) ? Math.max(width, 960) : 1180}px`,
   height: `${Number.isFinite(height) ? Math.max(height, 720) : 820}px`,
   maxWidth: '100%',
+  overflow: 'hidden',
+}))
+
+const layoutSpikeFrameStyle = computed(() => ({
+  width: `${Number.isFinite(width) ? width : 1180}px`,
+  height: `${Number.isFinite(height) ? height : 820}px`,
+  maxWidth: '100%',
+  overflow: 'hidden',
 }))
 
 const sampleRegions: Record<string, {
@@ -460,6 +536,13 @@ if (region !== 'chicago') {
   }
 }
 const sampleRoute = sampleRegion.route
+const sampleRouteWithElevation = withElevationData
+  ? densifyRoute(sampleRoute).map(([lng, lat], index) => [
+      lng,
+      lat,
+      180 + Math.round(Math.sin(index * 0.9) * 42 + index * 18),
+    ])
+  : sampleRoute
 
 const sampleMap: TrailMap = {
   id: 'style-browser-fixture',
@@ -472,7 +555,7 @@ const sampleMap: TrailMap = {
       properties: {},
       geometry: {
         type: 'LineString',
-        coordinates: sampleRoute,
+        coordinates: sampleRouteWithElevation,
       },
     }],
   },
@@ -490,5 +573,21 @@ const sampleMap: TrailMap = {
   status: 'draft',
   created_at: '2026-05-11T00:00:00.000Z',
   updated_at: '2026-05-11T00:00:00.000Z',
+}
+
+function densifyRoute(route: number[][]): number[][] {
+  const out: number[][] = []
+  for (let index = 0; index < route.length; index += 1) {
+    const current = route[index]
+    const next = route[index + 1]
+    out.push(current)
+    if (next) {
+      out.push([
+        (current[0] + next[0]) / 2,
+        (current[1] + next[1]) / 2,
+      ])
+    }
+  }
+  return out
 }
 </script>

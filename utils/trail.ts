@@ -896,6 +896,7 @@ export function getAllRouteCoords(geojson: GeoJSON.FeatureCollection): number[][
 export function buildElevationProfile(
   geojson: GeoJSON.FeatureCollection,
   samples = 250,
+  relief = 0.65,
 ): { svgPath: string; strokePath: string; minElev: number; maxElev: number } | null {
   const coords = getAllRouteCoords(geojson)
   const elevations = coords.map(c => c[2] ?? 0).filter(e => e !== 0)
@@ -912,11 +913,13 @@ export function buildElevationProfile(
   const maxElev = Math.max(...sampled)
   const range = maxElev - minElev || 1
   const TOP_MARGIN = 8  // % of viewbox height reserved at top
+  const reliefScale = Math.min(1, Math.max(0.35, Number.isFinite(relief) ? relief : 0.65))
 
   const n = sampled.length
   const pts = sampled.map((e, i) => {
     const x = parseFloat(((i / (n - 1)) * 1000).toFixed(1))
-    const y = parseFloat((TOP_MARGIN + ((maxElev - e) / range) * (100 - TOP_MARGIN)).toFixed(2))
+    const fullHeightY = TOP_MARGIN + ((maxElev - e) / range) * (100 - TOP_MARGIN)
+    const y = parseFloat((100 - ((100 - fullHeightY) * reliefScale)).toFixed(2))
     return `${x},${y}`
   })
 

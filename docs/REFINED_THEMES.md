@@ -11,8 +11,8 @@ Source-of-truth type additions live in [types/index.ts](/Users/anthonymaro/Docum
 - `CompositionId` covers the 13 planned poster compositions.
 - `ColorTheme` includes the existing ids plus the refined design ids.
 - `StyleConfig` has optional `composition`, `audience`, `dark`, and grid
-  controls: `show_grid`, `grid_scope`, `grid_color`, `grid_opacity`, and
-  `grid_weight`.
+  controls: `show_grid`, `grid_scope`, `grid_color`, `grid_opacity`,
+  `grid_weight`, and `grid_spacing`.
 - `ThemeDefinition` can now declare `composition`, `audience`, `family`,
   `legacy`, `migration_target`, and graph-friendly `map_defaults`.
 
@@ -22,7 +22,7 @@ layout.
 
 ## Refined Registry
 
-[utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts) contains the 14 design-update themes:
+[utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts) contains the 22 refined themes:
 
 - `editorial-minimal`
 - `usgs-vintage`
@@ -38,6 +38,14 @@ layout.
 - `dark-sky`
 - `botanical`
 - `brutalist`
+- `classic-trail`
+- `ranch-ochre`
+- `blackline`
+- `copper-night`
+- `moonstone`
+- `night-ride`
+- `daybreak-trace`
+- `electric-atlas`
 
 Each refined theme declares palette, typography, composition, audience, and
 `map_defaults`. The map defaults are intent fields; the layer graph still decides
@@ -116,6 +124,14 @@ Existing theme ids remain valid. Legacy ids are marked on `COLOR_THEMES` with a
 Premade map migration can later use `LEGACY_THEME_MIGRATION_TARGETS` from the
 refined registry. User maps should remain unchanged until the refined renderer is
 fully compatible.
+
+Applying a refined theme clears stale `poster_layout` so the selected theme can
+load its own composition-aware starter template. Existing saved maps are not
+rewritten automatically; their stored layouts continue to render until the user
+chooses a new theme/template.
+
+For the poster content editor architecture and rollout notes, see
+[docs/POSTER_CONTENT_EDITOR.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/POSTER_CONTENT_EDITOR.md).
 
 ## Scripts
 

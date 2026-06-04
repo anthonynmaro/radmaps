@@ -12,7 +12,7 @@ import {
 
 describe('refined theme Phase 0 scaffolding', () => {
   it('adds the design-update theme definitions without changing current defaults', () => {
-    expect(REFINED_THEMES).toHaveLength(14)
+    expect(REFINED_THEMES).toHaveLength(22)
     expect(DEFAULT_STYLE_CONFIG.color_theme).toBe('chalk')
     expect(DEFAULT_STYLE_CONFIG.show_roads).toBe(true)
     expect(DEFAULT_STYLE_CONFIG.show_hillshade).toBe(false)
@@ -74,6 +74,8 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(ALL_COLOR_THEME_IDS).toContain('chalk')
     expect(ALL_COLOR_THEME_IDS).toContain('blueprint-strava')
     expect(ALL_COLOR_THEME_IDS).toContain('contour-wash')
+    expect(ALL_COLOR_THEME_IDS).toContain('classic-trail')
+    expect(ALL_COLOR_THEME_IDS).toContain('electric-atlas')
   })
 
   it('keeps legacy themes renderable while declaring migration targets', () => {
@@ -107,5 +109,16 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(contourWash?.composition).toBe('modernist-block')
     expect(contourWash?.map_defaults.preset).toBe('radmaps-contour-wash')
     expect(contourWash?.map_defaults.show_contours).toBe(true)
+  })
+
+  it('registers the expanded classical and expressive theme recipes', () => {
+    expect(getRefinedThemeById('classic-trail')?.composition).toBe('park-quad')
+    expect(getRefinedThemeById('ranch-ochre')?.composition).toBe('travel-banner')
+    expect(getRefinedThemeById('blackline')?.composition).toBe('modernist-block')
+    expect(getRefinedThemeById('copper-night')?.composition).toBe('darksky-stars')
+    expect(getRefinedThemeById('moonstone')?.map_defaults.show_grid).toBe(true)
+    expect(getRefinedThemeById('night-ride')?.map_defaults.trail_label_style).toBe('leader-lines')
+    expect(getRefinedThemeById('daybreak-trace')?.font_family).toBe('DM Serif Display')
+    expect(getRefinedThemeById('electric-atlas')?.map_defaults.grid_spacing).toBe(6)
   })
 })

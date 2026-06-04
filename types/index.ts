@@ -242,6 +242,7 @@ export type ChromeBlockKind =
   | 'vlabel'
   | 'logo'
   | 'image'
+  | 'spacer'
   | 'text'
 export type ChromeBlockAlign = 'left' | 'center' | 'right'
 export type ChromeBlockValign = 'top' | 'center' | 'bottom'
@@ -321,6 +322,11 @@ export interface TextOverlay {
   bold: boolean
   italic?: boolean
   bg_color?: string               // optional frosted pill background
+  rotation?: number
+  z_index?: number
+  locked?: boolean
+  hidden?: boolean
+  constrain_to_safe_area?: boolean
 }
 
 // ─── Uploaded Image Assets ──────────────────────────────────────────────────
@@ -345,6 +351,35 @@ export interface MapAsset {
   opacity: number                 // 0–1
   z_index: number
   quality_status: MapAssetQualityStatus
+  locked?: boolean
+  hidden?: boolean
+  allow_bleed?: boolean
+}
+
+// ─── Icon Overlays ───────────────────────────────────────────────────────────
+
+export type PosterIconId =
+  | 'trailhead'
+  | 'mountain'
+  | 'compass'
+  | 'star'
+  | 'camp'
+  | 'water'
+
+export interface IconOverlay {
+  id: string
+  icon: PosterIconId
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  opacity: number
+  rotation: number
+  z_index: number
+  locked?: boolean
+  hidden?: boolean
+  constrain_to_safe_area?: boolean
 }
 
 // ─── Trail Segments ───────────────────────────────────────────────────────────
@@ -436,6 +471,7 @@ export interface StyleConfig {
   grid_color?: string
   grid_opacity?: number
   grid_weight?: number
+  grid_spacing?: number
   // Poster text
   trail_name: string        // overrides map.title in the poster label band
   occasion_text: string     // e.g. "Anthony's 40th", "Summit Ridge 2024"
@@ -482,6 +518,8 @@ export interface StyleConfig {
   text_overlays?: TextOverlay[]
   // Uploaded image/logo overlays (floating poster-level images)
   image_overlays?: MapAsset[]
+  // Local SVG icon overlays (floating poster-level vectors)
+  icon_overlays?: IconOverlay[]
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
   // Undefined defaults to false when visible named trail segments exist, true otherwise.
@@ -582,6 +620,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   grid_scope: 'poster',
   grid_opacity: 0.2,
   grid_weight: 1,
+  grid_spacing: 8,
   tile_effect: 'none',
   tile_duotone_strength: 0.9,
   tile_posterize_levels: 4,
@@ -609,6 +648,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   logo_size: 8,
   text_overlays: [],
   image_overlays: [],
+  icon_overlays: [],
   trail_segments: [],
   trail_legend: { show: true, position: 'bottom-left' },
 }

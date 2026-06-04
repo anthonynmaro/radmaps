@@ -109,6 +109,7 @@ export const FIELD_LAYER = {
   grid_color: 'chrome',
   grid_opacity: 'chrome',
   grid_weight: 'chrome',
+  grid_spacing: 'chrome',
   // print_size drives canvas dimensions — chrome layer concern (the map
   // raster itself is rendered at an oversized fixed viewport).
   print_size: 'chrome',
@@ -131,6 +132,7 @@ export const FIELD_LAYER = {
   logo_position: 'chrome',
   logo_size: 'chrome',
   image_overlays: 'chrome',
+  icon_overlays: 'chrome',
 
   // ── Roads / place / POI labels (rendered into the map raster) ─────────────
   show_roads: 'map',

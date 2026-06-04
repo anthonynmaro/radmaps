@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full flex flex-col bg-white overflow-hidden" style="border-radius: 18px 18px 0 0">
+  <div class="h-full flex flex-col bg-white overflow-hidden" style="border-radius: 18px 18px 0 0" data-testid="style-panel">
 
     <!-- Drag handle -->
     <button
@@ -250,6 +250,168 @@
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
         </V4Card>
 
+      </template>
+
+      <!-- ─── DESIGN TAB ────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'design'">
+        <V4Card title="Poster tools" hint="Canvas-first text, images, icons, and guides" :default-open="true">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="mode in ([
+                { id: 'layout', label: 'Layout' },
+                { id: 'select', label: 'Select' },
+                { id: 'text', label: 'Text' },
+                { id: 'image', label: 'Image' },
+                { id: 'icon', label: 'Icon' },
+                { id: 'guides', label: 'Guides' },
+              ] as const)"
+              :key="mode.id"
+              :data-testid="`poster-tool-${mode.id}`"
+              class="rounded-lg border px-1.5 py-2 text-[10px] font-semibold transition-colors"
+              :style="posterEditorMode === mode.id ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; background: white; color: #57534E;'"
+              @click="
+                mode.id === 'text'
+                  ? emit('poster-text-add')
+                  : mode.id === 'image'
+                    ? designImageInputRef?.click()
+                    : setPosterEditorMode(mode.id)
+              "
+            >{{ mode.label }}</button>
+          </div>
+          <input ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
+          <input ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
+          <button
+            class="mt-2 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
+            @click="designLogoInputRef?.click()"
+          >Upload logo</button>
+        </V4Card>
+
+        <V4Card title="Guides" hint="Editing guides are never printed" :default-open="posterEditorMode === 'guides'">
+          <ToggleRow label="Editing guides" :value="posterGuidesVisible ?? false" @change="emit('poster-guides-visible-change', $event)" />
+          <div class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
+            <ToggleRow label="Printed grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
+            <template v-if="local.show_grid">
+              <div class="grid grid-cols-2 gap-1.5 my-3">
+                <SegmentButton label="Poster" :active="(local.grid_scope ?? 'poster') === 'poster'" @click="set('grid_scope', 'poster')" />
+                <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
+              </div>
+              <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
+              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
+                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
+              <SliderRow label="Opacity" :value="local.grid_opacity ?? 0.2" :min="0.05" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('grid_opacity', $event)" />
+              <SliderRow label="Weight" :value="local.grid_weight ?? 1" :min="0.5" :max="3" :step="0.25"
+                :display="(v: number) => v.toFixed(v % 1 === 0 ? 0 : 2) + 'px'" @change="set('grid_weight', $event)" />
+            </template>
+          </div>
+        </V4Card>
+
+        <V4Card title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="icon in POSTER_ICONS"
+              :key="icon.id"
+              class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-[10px] font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
+              @click="emit('poster-icon-add', icon.id)"
+            >{{ icon.label }}</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Layers" hint="Theme chrome is locked by default" :default-open="true">
+          <div class="space-y-1.5">
+            <button
+              v-for="element in posterEditorElements"
+              :key="element.id"
+              class="w-full rounded-lg border px-2.5 py-2 text-left transition-colors"
+              :style="selectedPosterElementId === element.id ? 'border-color: #2D6A4F; background: #DCEBE2;' : 'border-color: #F5F5F4; background: white;'"
+              @click="selectPosterElement(element.id)"
+            >
+              <span class="flex items-center justify-between gap-2">
+                <span class="min-w-0 truncate text-xs font-semibold" style="color: #1C1917;">{{ element.label }}</span>
+                <span class="shrink-0 text-[9px] font-semibold uppercase" style="letter-spacing: 0.08em; color: #A8A29E;">{{ element.kind }}</span>
+              </span>
+              <span class="mt-0.5 flex items-center gap-1 text-[10px]" style="color: #A8A29E;">
+                <span>{{ element.source }}</span>
+                <span v-if="element.locked">locked</span>
+                <span v-if="element.hidden">hidden</span>
+              </span>
+            </button>
+          </div>
+        </V4Card>
+
+        <V4Card v-if="activePosterElement" title="Selection" :default-open="true">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate text-xs font-semibold" style="color: #1C1917;">{{ activePosterElement.label }}</p>
+                <p class="text-[10px]" style="color: #A8A29E;">{{ activePosterElement.kind }}</p>
+              </div>
+              <div v-if="activePosterElement.canDelete" class="flex shrink-0 gap-1">
+                <button class="rounded border border-[#E7E5E4] bg-white px-2 py-1 text-[10px] font-semibold text-[#57534E]" @click="emit('poster-element-duplicate', activePosterElement.id)">Duplicate</button>
+                <button class="rounded border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700" @click="emit('poster-element-remove', activePosterElement.id)">Delete</button>
+              </div>
+            </div>
+
+            <div v-if="activePosterElement.canDelete" class="grid grid-cols-2 gap-1.5">
+              <SegmentButton :label="activePosterElement.locked ? 'Unlock' : 'Lock'" :active="activePosterElement.locked" @click="patchPosterElement(activePosterElement.id, { locked: !activePosterElement.locked })" />
+              <SegmentButton :label="activePosterElement.hidden ? 'Show' : 'Hide'" :active="activePosterElement.hidden" @click="patchPosterElement(activePosterElement.id, { hidden: !activePosterElement.hidden })" />
+            </div>
+
+            <TextRow
+              v-if="activePosterElement.kind === 'free-text'"
+              label="Text"
+              :value="(local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.content ?? ''"
+              placeholder="Your text"
+              @change="patchPosterElement(activePosterElement.id, { content: $event })"
+            />
+
+            <ColorRow
+              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'icon'"
+              label="Color"
+              :value="activePosterElement.color ?? local.label_text_color"
+              @change="patchPosterElement(activePosterElement!.id, { color: $event })"
+            />
+
+            <template v-if="activePosterElement.kind === 'icon'">
+              <div class="grid grid-cols-3 gap-1">
+                <button
+                  v-for="icon in POSTER_ICONS"
+                  :key="`select-${icon.id}`"
+                  class="rounded border px-2 py-1.5 text-[10px] font-semibold"
+                  :style="(local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.icon === icon.id ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; background: white; color: #57534E;'"
+                  @click="patchPosterElement(activePosterElement.id, { icon: icon.id })"
+                >{{ icon.label }}</button>
+              </div>
+            </template>
+
+            <SliderRow
+              v-if="activePosterElement.kind === 'image' || activePosterElement.kind === 'logo' || activePosterElement.kind === 'icon'"
+              label="Size"
+              :value="activePosterElement.width ?? 10"
+              :min="2"
+              :max="activePosterElement.kind === 'icon' ? 80 : 100"
+              :step="1"
+              :display="(v: number) => Math.round(v) + '%'"
+              @change="resizeSelectedElement($event)"
+            />
+            <SliderRow label="Rotation" :value="activePosterElement.rotation ?? 0" :min="-180" :max="180" :step="1"
+              :display="(v: number) => Math.round(v) + '°'" @change="patchPosterElement(activePosterElement!.id, { rotation: $event })" />
+            <SliderRow label="Opacity" :value="(activePosterElement.id.startsWith('text:') ? (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.opacity : activePosterElement.id.startsWith('icon:') ? (local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.opacity : (local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.opacity) ?? 1" :min="0.1" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="patchPosterElement(activePosterElement!.id, { opacity: $event })" />
+
+            <ToggleRow
+              v-if="activePosterElement.kind === 'image' || activePosterElement.kind === 'logo'"
+              label="Allow bleed"
+              :value="(local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.allow_bleed ?? false"
+              @change="patchPosterElement(activePosterElement!.id, { allow_bleed: $event })"
+            />
+
+            <div class="grid grid-cols-2 gap-1.5">
+              <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(-1)">Send back</button>
+              <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(1)">Bring front</button>
+            </div>
+          </div>
+        </V4Card>
       </template>
 
       <!-- ─── MAP TAB ───────────────────────────────────────────────────────── -->
@@ -740,14 +902,23 @@
             <ToggleRow label="Elevation profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
           </template>
           <template v-if="sections.elevationProfileExpanded">
+            <div class="mb-3">
+              <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Placement</p>
+              <div class="grid grid-cols-2 gap-1.5">
+                <SegmentButton label="Overlay" :active="elevationProfilePosition === 'map-overlay'" @click="set('elevation_profile_position', 'map-overlay')" />
+                <SegmentButton label="Below map" :active="elevationProfilePosition === 'separate-band'" @click="set('elevation_profile_position', 'separate-band')" />
+              </div>
+            </div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs" style="color: #44403C;">Profile color</span>
               <ColorSwatch :value="local.elevation_profile_color ?? local.route_color" @change="set('elevation_profile_color', $event)" />
             </div>
             <SliderRow label="Opacity" :value="local.elevation_profile_opacity ?? 0.65" :min="0.1" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('elevation_profile_opacity', $event)" />
-            <SliderRow label="Height" :value="local.elevation_profile_height ?? 22" :min="8" :max="40" :step="2"
-              :display="(v: number) => Math.round(v) + '%'" @change="set('elevation_profile_height', $event)" />
+            <SliderRow label="Height" :value="local.elevation_profile_height ?? elevationProfileHeightDefault" :min="elevationProfileHeightMin" :max="elevationProfileHeightMax" :step="1"
+              :display="(v: number) => elevationProfilePosition === 'separate-band' ? Math.round(v) + 'cqh' : Math.round(v) + '%'" @change="set('elevation_profile_height', $event)" />
+            <SliderRow label="Relief" :value="local.elevation_profile_relief ?? 0.65" :min="0.35" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('elevation_profile_relief', $event)" />
           </template>
         </V4Card>
 
@@ -1420,7 +1591,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
+import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind, PosterIconId } from '~/types'
 import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
@@ -1429,6 +1600,8 @@ import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import { POSTER_ICONS } from '~/utils/posterIcons'
+import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import {
   CLASSIC_THEME_OPTIONS,
   QUICK_THEME_OPTIONS as THEME_OPTIONS,
@@ -1451,6 +1624,7 @@ type ActiveTextTarget =
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
 type ContourControlField = 'contour_color' | 'contour_major_color' | 'contour_opacity' | 'contour_minor_width' | 'contour_major_width'
+type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1477,6 +1651,14 @@ const props = defineProps<{
   segmentEditDisabled?: boolean
   /** Text element selected from the poster preview */
   activeTextTarget?: ActiveTextTarget | null
+  /** Enables the V2 poster elements editor tab and controls */
+  posterElementsAvailable?: boolean
+  /** Current V2 poster editor tool mode */
+  posterEditorMode?: PosterEditorMode
+  /** Currently selected normalized poster element id */
+  selectedPosterElementId?: string | null
+  /** Whether non-printing V2 guides are visible on the poster */
+  posterGuidesVisible?: boolean
   /** Enable the staff-only Scout tab when the feature flag resolves true */
   scoutAvailable?: boolean
   /** Route stats passed to Scout for style context */
@@ -1605,6 +1787,10 @@ const atlasContourMajorColor = computed(() => atlasLayerSettings('contour').majo
 const atlasContourOpacity = computed(() => atlasLayerSettings('contour').minor_opacity ?? local.contour_opacity ?? 0.75)
 const atlasContourLabels = computed(() => atlasLayerSettings('contour').labels ?? local.show_elevation_labels)
 const isDarkAtlasPreset = computed(() => local.preset === 'radmaps-night-relief' || local.preset === 'radmaps-alidade-dark')
+const elevationProfilePosition = computed(() => local.elevation_profile_position ?? 'map-overlay')
+const elevationProfileHeightDefault = computed(() => elevationProfilePosition.value === 'separate-band' ? 12 : 22)
+const elevationProfileHeightMin = computed(() => elevationProfilePosition.value === 'separate-band' ? 6 : 8)
+const elevationProfileHeightMax = computed(() => elevationProfilePosition.value === 'separate-band' ? 24 : 40)
 const atlasWaterFillColor = computed(() => atlasLayerSettings('water').fill_color ?? (isDarkAtlasPreset.value ? '#040712' : local.water_color ?? '#79B7C8'))
 const atlasWaterOpacity = computed(() => atlasLayerSettings('water').fill_opacity ?? 0.76)
 const atlasWaterwayColor = computed(() => atlasLayerSettings('waterway').color ?? atlasLayerSettings('water').waterway_color ?? atlasWaterFillColor.value)
@@ -1668,6 +1854,14 @@ const emit = defineEmits<{
   'track-upload': [file: File]
   /** User wants to reopen the first-run theme browser */
   'browse-themes': []
+  'poster-editor-mode-change': [mode: PosterEditorMode]
+  'poster-guides-visible-change': [value: boolean]
+  'poster-element-selected': [id: string | null]
+  'poster-element-patch': [payload: { id: string; patch: PosterEditorElementPatch }]
+  'poster-element-remove': [id: string]
+  'poster-element-duplicate': [id: string]
+  'poster-text-add': []
+  'poster-icon-add': [icon: PosterIconId]
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1721,10 +1915,10 @@ watch(() => props.modelValue, (v) => {
 }, { deep: true })
 
 // ── Tab state ──────────────────────────────────────────────────────────────────
-type TabId = 'quick' | 'map' | 'style' | 'text' | 'scout'
+type TabId = 'quick' | 'design' | 'map' | 'style' | 'text' | 'scout'
 const activeTab = ref<TabId>('quick')
 
-const BASE_TABS: Array<{ id: TabId; label: string }> = [
+const CORE_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'quick', label: 'Quick' },
   { id: 'map',   label: 'Map' },
   { id: 'style', label: 'Style' },
@@ -1735,13 +1929,25 @@ const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
 const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
 const showThemeBrowser = computed(() => import.meta.dev || themePickerEnabled.value)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
+const baseTabs = computed(() => props.posterElementsAvailable
+  ? [
+      { id: 'quick' as const, label: 'Quick' },
+      { id: 'design' as const, label: 'Design' },
+      ...CORE_TABS.slice(1),
+    ]
+  : CORE_TABS,
+)
 const visibleTabs = computed(() => showScoutTab.value
-  ? [...BASE_TABS, { id: 'scout' as const, label: 'Scout' }]
-  : BASE_TABS,
+  ? [...baseTabs.value, { id: 'scout' as const, label: 'Scout' }]
+  : baseTabs.value,
 )
 
 watch(showScoutTab, (visible) => {
   if (!visible && activeTab.value === 'scout') activeTab.value = 'quick'
+})
+
+watch(() => props.posterElementsAvailable, (available) => {
+  if (!available && activeTab.value === 'design') activeTab.value = 'quick'
 })
 
 const scoutRouteStats = computed<RouteStats>(() => props.routeStats ?? {
@@ -1807,6 +2013,13 @@ const activeAssetId = computed(() =>
 
 const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asset.kind === 'logo') ?? null)
 const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
+const posterEditorMode = computed(() => props.posterEditorMode ?? 'layout')
+const posterEditorElements = computed(() =>
+  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true }).slice().reverse(),
+)
+const activePosterElement = computed(() =>
+  posterEditorElements.value.find(element => element.id === props.selectedPosterElementId) ?? null,
+)
 
 const textOverlayCardKey = computed(() =>
   props.activeTextTarget?.type === 'text-overlay'
@@ -1850,6 +2063,38 @@ function applySavedTheme(saved: SavedTheme) {
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
   emit('update:modelValue', { ...local })
+}
+
+function setPosterEditorMode(mode: PosterEditorMode) {
+  emit('poster-editor-mode-change', mode)
+}
+
+function patchPosterElement(id: string, patch: PosterEditorElementPatch) {
+  emit('poster-element-patch', { id, patch })
+}
+
+function selectPosterElement(id: string | null) {
+  emit('poster-element-selected', id)
+}
+
+function setSelectedElementZ(delta: number) {
+  const element = activePosterElement.value
+  if (!element) return
+  patchPosterElement(element.id, { zIndex: Math.max(1, element.zIndex + delta) })
+}
+
+function resizeSelectedElement(width: number) {
+  const element = activePosterElement.value
+  if (!element) return
+  const aspect = element.height && element.width ? element.height / element.width : 1
+  patchPosterElement(element.id, { width, height: Number(Math.max(2, width * aspect).toFixed(2)) })
+}
+
+function handleDesignUpload(e: Event, kind: MapAssetKind) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) emitImageUpload(file, kind)
+  input.value = ''
 }
 
 function updateAtlasContourSettings(patch: Partial<NonNullable<AtlasLayerSettings['contour']>>) {
@@ -2010,6 +2255,8 @@ function removeLogoAsset() {
 }
 
 const imageInputRef = ref<HTMLInputElement | null>(null)
+const designImageInputRef = ref<HTMLInputElement | null>(null)
+const designLogoInputRef = ref<HTMLInputElement | null>(null)
 const replaceLogoInputRef = ref<HTMLInputElement | null>(null)
 const replaceImageInputRef = ref<HTMLInputElement | null>(null)
 const pendingReplaceAsset = ref<{ id: string; kind: MapAssetKind } | null>(null)
@@ -2197,9 +2444,14 @@ function applyTheme(theme: ThemeDefinition) {
 }
 
 function applyClassicTheme(theme: ThemeDefinition) {
-  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
-  local.composition = undefined
-  local.audience = undefined
+  const target = theme.migration_target ? getThemeDefinition(theme.migration_target) : undefined
+  if (target) {
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target))
+  } else {
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+    local.composition = undefined
+    local.audience = undefined
+  }
   emit('update:modelValue', { ...local })
 }
 
@@ -2208,7 +2460,7 @@ function isRefinedThemeActive(theme: ThemeDefinition) {
 }
 
 function isClassicThemeActive(theme: ThemeDefinition) {
-  return local.color_theme === theme.id && !local.composition
+  return (local.color_theme === theme.id && !local.composition) || (!!theme.migration_target && local.color_theme === theme.migration_target)
 }
 
 function selectFont(fontName: FontFamily) {

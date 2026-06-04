@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bboxForCoords, bendLineCoords, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import { bboxForCoords, bendLineCoords, buildElevationProfile, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
 import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
@@ -66,6 +66,24 @@ describe('defaultTrailSegmentColor', () => {
       { color_theme: 'chalk', route_color: '#C1121F' },
       [{ color: '#2D6A4F' }],
     )).toBe('#3A7CA5')
+  })
+})
+
+describe('buildElevationProfile', () => {
+  it('compresses profile relief while preserving elevation labels', () => {
+    const geojson = lineRoute(Array.from({ length: 12 }, (_, index) => [
+      -89 + index * 0.001,
+      40,
+      200 + index * 10,
+    ]))
+
+    const fullRelief = buildElevationProfile(geojson, 20, 1)
+    const compressed = buildElevationProfile(geojson, 20, 0.5)
+
+    expect(fullRelief).toMatchObject({ minElev: 200, maxElev: 310 })
+    expect(compressed).toMatchObject({ minElev: 200, maxElev: 310 })
+    expect(fullRelief?.strokePath).toContain('1000,8')
+    expect(compressed?.strokePath).toContain('1000,54')
   })
 })
 

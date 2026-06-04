@@ -39,6 +39,16 @@ describe('poster layout merge', () => {
     expect(blocksFor(layout, 'railLeft').some(block => block?.slot === 'composition_side_rail')).toBe(true)
   })
 
+  it('represents intentional vertical whitespace as spacer rows', () => {
+    const layout = defaultPosterLayout(baseConfig, stats)
+    expect(layout.bands.header.rows[0]?.id).toBe('header-spacer-top')
+    expect(layout.bands.header.rows.at(-1)?.id).toBe('header-spacer-bottom')
+    expect(layout.bands.header.rows[0]?.cells[0]?.block?.kind).toBe('spacer')
+    expect(layout.bands.footer.rows[0]?.id).toBe('footer-spacer-top')
+    expect(layout.bands.footer.rows.at(-1)?.id).toBe('footer-spacer-bottom')
+    expect(layout.bands.footer.rows.at(-1)?.cells[0]?.block?.kind).toBe('spacer')
+  })
+
   it('applies sparse row and cell edits by id without replacing the whole default layout', () => {
     const defaults = defaultPosterLayout(baseConfig, stats)
     const merged = mergePosterLayout(defaults, {

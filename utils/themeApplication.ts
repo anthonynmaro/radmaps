@@ -32,12 +32,14 @@ const THEME_RESET_FIELDS = {
   grid_color: undefined,
   grid_opacity: 0.2,
   grid_weight: 1,
+  grid_spacing: DEFAULT_STYLE_CONFIG.grid_spacing,
   grid_scope: 'poster',
   title_scale: 1,
   occasion_scale: 1,
   subtitle_scale: 1,
   show_start_pin: false,
   show_finish_pin: false,
+  poster_layout: undefined,
 } satisfies Partial<StyleConfig>
 
 function stripThemeOwnedTextOverride(override: PosterTextOverride): PosterTextOverride | undefined {

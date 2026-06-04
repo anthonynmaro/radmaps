@@ -29,6 +29,11 @@ describe('theme application', () => {
       font_family: 'Bebas Neue',
       body_font_family: 'DM Sans',
       composition: 'editorial-tall',
+      poster_layout: {
+        bands: {
+          header: { height: 31 },
+        },
+      },
       title_scale: 1.75,
       occasion_scale: 0.75,
       subtitle_scale: 1.35,
@@ -51,6 +56,7 @@ describe('theme application', () => {
     expect(next.subtitle_scale).toBe(1)
     expect(next.show_start_pin).toBe(false)
     expect(next.show_finish_pin).toBe(false)
+    expect(next.poster_layout).toBeUndefined()
   })
 
   it('strips stale per-slot visual overrides while preserving edited text', () => {
@@ -98,6 +104,7 @@ describe('theme application', () => {
       grid_color: '#ABCDEF',
       grid_opacity: 0.2,
       grid_weight: 3,
+      grid_spacing: 14,
       grid_scope: 'map',
       atlas_layers: {
         water: false,
@@ -128,6 +135,7 @@ describe('theme application', () => {
     expect(next.grid_color).toBeUndefined()
     expect(next.grid_opacity).toBe(0.16)
     expect(next.grid_weight).toBe(1)
+    expect(next.grid_spacing).toBe(8)
     expect(next.grid_scope).toBe('map')
   })
 

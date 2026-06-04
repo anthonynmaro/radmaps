@@ -113,6 +113,186 @@
     </div>
 
     <div
+      v-if="chromeLayoutBuilderVisible"
+      class="chrome-editor-app-bar"
+      data-testid="chrome-editor-app-bar"
+      @pointerdown.stop
+      @click.stop
+    >
+      <button class="chrome-editor-app-action" @click="finishActiveTextEdit">Done</button>
+      <span class="chrome-editor-app-title">Editing Poster Layout</span>
+      <button
+        class="chrome-editor-add-button"
+        :class="{ 'is-active': chromeAddPanelOpen }"
+        data-testid="chrome-editor-add-block"
+        @click="toggleChromeAddPanel"
+      >
+        Add Block
+      </button>
+    </div>
+
+    <div
+      v-if="chromeLayoutBuilderVisible && chromeAddPanelOpen"
+      class="chrome-add-block-panel"
+      data-testid="chrome-add-block-panel"
+      @pointerdown.stop
+      @click.stop
+    >
+      <span class="chrome-add-block-section">Essentials</span>
+      <div class="chrome-add-block-grid">
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-text" @click="addChromeTextFromPalette">
+          <UIcon name="i-heroicons-pencil-square" class="chrome-add-block-icon" />
+          <span>Text</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-column" @click="addColumnFromPalette">
+          <UIcon name="i-heroicons-view-columns" class="chrome-add-block-icon" />
+          <span>Column</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-row" @click="addRowFromPalette">
+          <UIcon name="i-heroicons-queue-list" class="chrome-add-block-icon" />
+          <span>Row</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-spacer" @click="addSpacerFromPalette">
+          <UIcon name="i-heroicons-arrows-pointing-out" class="chrome-add-block-icon" />
+          <span>Spacer</span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="chromeContextToolbarVisible"
+      ref="chromeLayoutBuilderEl"
+      class="chrome-layout-builder"
+      :class="[
+        chromeLayoutBuilderPopoverVertical === 'top' ? 'is-popover-above' : '',
+        chromeLayoutBuilderPopoverAlign === 'left' ? 'is-popover-left' : '',
+      ]"
+      :style="chromeLayoutBuilderFloatingStyle"
+      data-testid="chrome-layout-builder"
+      @pointerdown.stop
+      @click.stop
+    >
+      <button
+        type="button"
+        class="chrome-context-handle"
+        data-testid="chrome-context-toolbar-handle"
+        title="Drag toolbar"
+        aria-label="Drag toolbar"
+        @pointerdown.prevent.stop="startChromeContextToolbarDrag"
+      >
+        <span />
+        <span />
+        <span />
+        <span />
+      </button>
+
+      <div
+        v-if="!activeChromeBlock"
+        class="chrome-layout-builder-main chrome-layout-builder-main--content"
+      >
+        <button
+          class="chrome-layout-builder-primary"
+          data-testid="chrome-builder-add-text-primary"
+          @click="addChromeTextForSelection"
+        >
+          Add text
+        </button>
+      </div>
+
+      <span v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-divider" />
+
+      <div v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-builder-group chrome-layout-builder-group--icons">
+        <button :class="{ active: activeChromeBold }" title="Bold" data-testid="chrome-builder-bold" @click="toggleChromeBold">B</button>
+        <button :class="{ active: activeChromeItalic }" title="Italic" data-testid="chrome-builder-italic" @click="toggleChromeItalic">I</button>
+        <button title="Smaller" @click="nudgeChromeScale(-0.05)">A-</button>
+        <button title="Larger" @click="nudgeChromeScale(0.05)">A+</button>
+        <label class="chrome-layout-color" title="Text color">
+          <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
+        </label>
+      </div>
+
+      <details class="chrome-layout-more" data-testid="chrome-builder-style-menu">
+        <summary data-testid="chrome-builder-style-toggle">
+          <UIcon name="i-heroicons-adjustments-horizontal" class="chrome-layout-icon" />
+        </summary>
+        <div class="chrome-layout-popover">
+          <div v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-builder-group chrome-layout-builder-group--icons">
+            <button :class="{ active: activeChromeAlign === 'left' }" title="Align left" aria-label="Align left" @click="setChromeAlign('left')">
+              <UIcon name="i-heroicons-bars-3-bottom-left" class="chrome-layout-icon" />
+            </button>
+            <button :class="{ active: activeChromeAlign === 'center' }" title="Align center" aria-label="Align center" @click="setChromeAlign('center')">
+              <UIcon name="i-heroicons-bars-3" class="chrome-layout-icon" />
+            </button>
+            <button :class="{ active: activeChromeAlign === 'right' }" title="Align right" aria-label="Align right" @click="setChromeAlign('right')">
+              <UIcon name="i-heroicons-bars-3-bottom-right" class="chrome-layout-icon" />
+            </button>
+            <span class="chrome-layout-mini-divider" />
+            <button :class="{ active: activeChromeValign === 'top' }" title="Align top" @click="setChromeValign('top')">Top</button>
+            <button :class="{ active: activeChromeValign === 'center' }" title="Align middle" @click="setChromeValign('center')">Mid</button>
+            <button :class="{ active: activeChromeValign === 'bottom' }" title="Align bottom" @click="setChromeValign('bottom')">Bottom</button>
+          </div>
+
+          <div class="chrome-layout-builder-group">
+            <button :disabled="!activeChromeBlock" data-testid="chrome-builder-duplicate" @click="duplicateChromeBlock">Duplicate</button>
+            <button :disabled="!activeChromeBlock" data-testid="chrome-builder-clear" @click="deleteChromeBlock">Clear</button>
+            <button :disabled="selectedChromeTarget?.type !== 'cell'" data-testid="chrome-builder-remove" @click="removeSelectedCell">Remove</button>
+            <button data-testid="chrome-builder-reset" @click="resetChromeSection(activeChromeBand)">Reset</button>
+          </div>
+
+          <div class="chrome-layout-builder-spacing">
+            <span>Cell padding</span>
+            <div
+              v-for="side in chromePaddingSides"
+              :key="`cell-${side.key}`"
+              class="chrome-layout-stepper"
+            >
+              <label>{{ side.label }}</label>
+              <button
+                :disabled="selectedChromeTarget?.type !== 'cell'"
+                :data-testid="`chrome-builder-cell-padding-${side.key}-decrease`"
+                @click="nudgeActiveChromeCellPadding(-1, side.index)"
+              >
+                -
+              </button>
+              <output>{{ activeChromePaddingValues[side.index] }}</output>
+              <button
+                :disabled="selectedChromeTarget?.type !== 'cell'"
+                :data-testid="`chrome-builder-cell-padding-${side.key}-increase`"
+                @click="nudgeActiveChromeCellPadding(1, side.index)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="chrome-layout-builder-spacing">
+            <span>Section padding</span>
+            <div
+              v-for="side in chromePaddingSides"
+              :key="`band-${side.key}`"
+              class="chrome-layout-stepper"
+            >
+              <label>{{ side.label }}</label>
+              <button
+                :data-testid="`chrome-builder-section-padding-${side.key}-decrease`"
+                @click="nudgeChromeBandPaddingSide(activeChromeBand, -1, side.index)"
+              >
+                -
+              </button>
+              <output>{{ activeChromeBandPaddingValues[side.index] }}</output>
+              <button
+                :data-testid="`chrome-builder-section-padding-${side.key}-increase`"
+                @click="nudgeChromeBandPaddingSide(activeChromeBand, 1, side.index)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div
       v-if="chromeMobileDrawerOpen && activeChromeBlock"
       class="chrome-mobile-drawer"
       data-testid="chrome-mobile-drawer"
@@ -153,6 +333,38 @@
       </div>
     </div>
 
+    <ClientOnly>
+      <Moveable
+        v-if="posterElementsEditing && posterMoveableTarget && selectedPosterElementCanTransform"
+        class-name="poster-element-moveable"
+        :target="posterMoveableTarget"
+        :draggable="true"
+        :drag-area="true"
+        :resizable="selectedPosterElementResizable"
+        :rotatable="true"
+        :snappable="true"
+        :snap-container="posterCanvasEl"
+        :vertical-guidelines="posterVerticalGuidelines"
+        :horizontal-guidelines="posterHorizontalGuidelines"
+        :snap-threshold="6"
+        :snap-grid-width="posterSnapGridPx.width"
+        :snap-grid-height="posterSnapGridPx.height"
+        :bounds="posterMoveableBounds"
+        :keep-ratio="selectedPosterElementKeepRatio"
+        :origin="false"
+        :throttle-drag="0"
+        :throttle-resize="0"
+        :throttle-rotate="1"
+        @drag="onPosterMoveableDrag"
+        @drag-end="onPosterMoveableDragEnd"
+        @resize-start="onPosterMoveableResizeStart"
+        @resize="onPosterMoveableResize"
+        @resize-end="onPosterMoveableResizeEnd"
+        @rotate="onPosterMoveableRotate"
+        @rotate-end="onPosterMoveableRotateEnd"
+      />
+    </ClientOnly>
+
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
       ref="posterCanvasEl"
@@ -184,6 +396,19 @@
         :style="gridOverlayStyle"
         data-testid="composition-grid-overlay"
       />
+      <div
+        v-if="showEditorGuides"
+        class="poster-editor-guides"
+        data-testid="poster-editor-guides"
+      >
+        <span class="poster-editor-guide poster-editor-guide--safe" />
+        <span class="poster-editor-guide poster-editor-guide--center-v" />
+        <span class="poster-editor-guide poster-editor-guide--center-h" />
+        <span class="poster-editor-guide poster-editor-guide--third-v poster-editor-guide--third-v-1" />
+        <span class="poster-editor-guide poster-editor-guide--third-v poster-editor-guide--third-v-2" />
+        <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-1" />
+        <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-2" />
+      </div>
       <div
         v-if="composition.showStarField"
         class="composition-star-field"
@@ -221,7 +446,7 @@
 
       <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
       <div
-        v-if="editable && mapReady"
+        v-if="editable && mapReady && !chromeDirectEditing"
         class="poster-controls"
         :class="{ 'map-hovered': mapHovered }"
       >
@@ -297,6 +522,10 @@
         <div
           v-if="chromeDirectEditing"
           class="chrome-grid-band chrome-grid-band--header"
+          :class="{
+            'is-resizing-columns': activeChromeColumnResize?.band === 'header',
+            'is-resizing-rows': activeChromeRowResize?.band === 'header',
+          }"
           data-testid="chrome-band-header"
           :style="chromeBandGridStyle('header')"
           @click.self="selectChromeBand('header')"
@@ -305,7 +534,10 @@
             v-for="row in chromeRowsFor('header')"
             :key="row.id"
             class="chrome-grid-row"
-            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id }"
+            :class="{
+              'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': activeChromeRowResize?.band === 'header' && activeChromeRowResize.rowId === row.id,
+            }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
             @click.stop="selectChromeRow('header', row.id)"
@@ -314,13 +546,33 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty, 'is-spacer': isChromeSpacerCell(cell) }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
               @click.stop="selectChromeCell('header', row.id, cell.id)"
             >
+              <button
+                v-if="selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id"
+                class="chrome-cell-trash"
+                data-testid="chrome-cell-trash"
+                :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
+                aria-label="Delete selected cell"
+                @pointerdown.prevent.stop="trashChromeCell('header', row.id, cell.id)"
+                @click.stop
+              >
+                <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
+              </button>
               <div
-                v-if="cell.block && !cell.block.empty"
+                v-if="isChromeSpacerCell(cell)"
+                class="chrome-grid-spacer"
+                :data-chrome-block-id="cell.block?.id"
+                role="separator"
+                :aria-label="cell.block?.label ?? 'Spacer'"
+              >
+                <span>{{ cell.block?.label ?? 'Spacer' }}</span>
+              </div>
+              <div
+                v-else-if="cell.block && !cell.block.empty"
                 class="chrome-grid-block editable-text"
                 :class="`chrome-grid-block--${cell.block.kind}`"
                 :style="chromeGridBlockStyle(cell)"
@@ -329,7 +581,9 @@
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                @pointerdown.stop="selectChromeCell('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
+                @click.stop="selectChromeCell('header', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'header', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
@@ -340,16 +594,33 @@
                 @click.stop="addChromeTextToCell('header', row.id, cell.id)"
               >+</button>
               <button
-                v-if="cell.block && !cell.block.empty"
+                v-if="canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
-                title="Add column"
+                data-testid="chrome-cell-add-column"
+                title="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('header', row.id, cell.id)"
                 @click.stop
-              >+</button>
+              >Col +</button>
+              <button
+                v-if="canResizeChromeCell(row, cell)"
+                class="chrome-cell-resize-col"
+                data-testid="chrome-cell-resize-column"
+                title="Drag to resize column"
+                @pointerdown.prevent.stop="startChromeColumnResize($event, 'header', row.id, cell.id)"
+                @click.stop
+              />
             </div>
-            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>+ Row</button>
+            <button class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>Row +</button>
+            <button
+              v-if="canResizeChromeRow('header', row)"
+              class="chrome-row-resize-row"
+              data-testid="chrome-row-resize-row"
+              title="Drag to resize row"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id)"
+              @click.stop
+            />
           </div>
-          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>+ Row</button>
+          <button class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
         </div>
         <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
@@ -634,9 +905,10 @@
 
         <!-- ── Elevation profile ─────────────────────────────────────────── -->
         <ElevationProfile
-          v-if="styleConfig.show_elevation_profile && mapReady"
+          v-if="showOverlayElevationProfile"
           :map="map"
           :style-config="styleConfig"
+          placement="map-overlay"
         />
 
         <!-- ── Leader lines + pin label SVG overlay ──────────────────────── -->
@@ -747,6 +1019,20 @@
         </svg>
       </div>
 
+      <!-- ── Elevation profile band ─────────────────────────────────────── -->
+      <div
+        v-if="showSeparateElevationProfile"
+        class="relative shrink-0 overflow-hidden"
+        :style="elevationProfileBandStyle"
+        data-testid="elevation-profile-band"
+      >
+        <ElevationProfile
+          :map="map"
+          :style-config="styleConfig"
+          placement="separate-band"
+        />
+      </div>
+
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-footer shrink-0"
@@ -777,6 +1063,10 @@
         <div
           v-if="chromeDirectEditing"
           class="chrome-grid-band chrome-grid-band--footer"
+          :class="{
+            'is-resizing-columns': activeChromeColumnResize?.band === 'footer',
+            'is-resizing-rows': activeChromeRowResize?.band === 'footer',
+          }"
           data-testid="chrome-band-footer"
           :style="chromeBandGridStyle('footer')"
           @click.self="selectChromeBand('footer')"
@@ -785,7 +1075,10 @@
             v-for="row in chromeRowsFor('footer')"
             :key="row.id"
             class="chrome-grid-row"
-            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id }"
+            :class="{
+              'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': activeChromeRowResize?.band === 'footer' && activeChromeRowResize.rowId === row.id,
+            }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
             @click.stop="selectChromeRow('footer', row.id)"
@@ -794,13 +1087,33 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty, 'is-spacer': isChromeSpacerCell(cell) }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
               @click.stop="selectChromeCell('footer', row.id, cell.id)"
             >
+              <button
+                v-if="selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id"
+                class="chrome-cell-trash"
+                data-testid="chrome-cell-trash"
+                :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
+                aria-label="Delete selected cell"
+                @pointerdown.prevent.stop="trashChromeCell('footer', row.id, cell.id)"
+                @click.stop
+              >
+                <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
+              </button>
               <div
-                v-if="cell.block && !cell.block.empty"
+                v-if="isChromeSpacerCell(cell)"
+                class="chrome-grid-spacer"
+                :data-chrome-block-id="cell.block?.id"
+                role="separator"
+                :aria-label="cell.block?.label ?? 'Spacer'"
+              >
+                <span>{{ cell.block?.label ?? 'Spacer' }}</span>
+              </div>
+              <div
+                v-else-if="cell.block && !cell.block.empty"
                 class="chrome-grid-block editable-text"
                 :class="`chrome-grid-block--${cell.block.kind}`"
                 :style="chromeGridBlockStyle(cell)"
@@ -809,7 +1122,9 @@
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                @pointerdown.stop="selectChromeCell('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
+                @click.stop="selectChromeCell('footer', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'footer', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
@@ -820,16 +1135,33 @@
                 @click.stop="addChromeTextToCell('footer', row.id, cell.id)"
               >+</button>
               <button
-                v-if="cell.block && !cell.block.empty"
+                v-if="canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
-                title="Add column"
+                data-testid="chrome-cell-add-column"
+                title="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('footer', row.id, cell.id)"
                 @click.stop
-              >+</button>
+              >Col +</button>
+              <button
+                v-if="canResizeChromeCell(row, cell)"
+                class="chrome-cell-resize-col"
+                data-testid="chrome-cell-resize-column"
+                title="Drag to resize column"
+                @pointerdown.prevent.stop="startChromeColumnResize($event, 'footer', row.id, cell.id)"
+                @click.stop
+              />
             </div>
-            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>+ Row</button>
+            <button class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>Row +</button>
+            <button
+              v-if="canResizeChromeRow('footer', row)"
+              class="chrome-row-resize-row"
+              data-testid="chrome-row-resize-row"
+              title="Drag to resize row"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id)"
+              @click.stop
+            />
           </div>
-          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>+ Row</button>
+          <button class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
         </div>
         <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
@@ -1012,7 +1344,7 @@
 
       <!-- ── Image overlays (poster-level — can span header, map, footer) ─── -->
       <div
-        v-if="(styleConfig.image_overlays ?? []).length > 0"
+        v-if="visibleImageAssets.length > 0"
         class="asset-layer"
         style="pointer-events: none;"
         @click.self="selectedAssetId = null"
@@ -1021,18 +1353,20 @@
           v-for="asset in visibleImageAssets"
           :key="asset.id"
           :data-asset-id="asset.id"
+          :data-poster-element-id="`asset:${asset.id}`"
           class="image-asset"
           :class="{
             'is-editable': editable,
-            'is-selected': editable && selectedAssetId === asset.id,
+            'is-selected': editable && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
             'is-dragging': editable && draggingAssetId === asset.id,
+            'is-poster-v2': posterElementsEditing,
           }"
           :style="imageAssetStyle(asset)"
           :tabindex="editable ? 0 : undefined"
           @click.stop="editable ? onAssetClick(asset.id, $event) : undefined"
         >
           <img :src="asset.render_url" alt="" draggable="false" />
-          <template v-if="editable">
+          <template v-if="editable && !posterElementsEditing">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -1065,19 +1399,52 @@
         </div>
       </div>
 
+      <!-- ── Icon overlays (poster-level local SVG marks) ───────────────────── -->
+      <div
+        v-if="visibleIconOverlays.length > 0"
+        class="icon-layer"
+        style="pointer-events: none;"
+      >
+        <div
+          v-for="icon in visibleIconOverlays"
+          :key="icon.id"
+          :data-icon-id="icon.id"
+          :data-poster-element-id="`icon:${icon.id}`"
+          class="icon-overlay"
+          :class="{
+            'is-editable': editable,
+            'is-selected': editable && selectedPosterElementId === `icon:${icon.id}`,
+            'is-poster-v2': posterElementsEditing,
+          }"
+          :style="iconOverlayStyle(icon)"
+          :tabindex="editable ? 0 : undefined"
+          @click.stop="editable ? onIconClick(icon.id) : undefined"
+        >
+          <svg :viewBox="getPosterIcon(icon.icon).viewBox" aria-hidden="true" focusable="false">
+            <path
+              v-for="path in getPosterIcon(icon.icon).paths"
+              :key="path"
+              :d="path"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
+      </div>
+
       <!-- ── Text overlays (poster-level — can span header, map, footer) ──── -->
       <div
-        v-if="(styleConfig.text_overlays ?? []).length > 0"
+        v-if="visibleTextOverlays.length > 0"
         class="overlay-layer"
         style="pointer-events: none;"
         @click.self="selectedOverlayId = null"
       >
         <div
-          v-for="overlay in styleConfig.text_overlays"
+          v-for="overlay in visibleTextOverlays"
           :key="overlay.id"
           :data-overlay-id="overlay.id"
+          :data-poster-element-id="`text:${overlay.id}`"
           class="text-overlay"
-          :class="{ 'is-editable': editable, 'is-selected': editable && selectedOverlayId === overlay.id }"
+          :class="{ 'is-editable': editable, 'is-selected': editable && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
           :style="overlayStyle(overlay)"
           @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
         >
@@ -1095,7 +1462,7 @@
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >{{ overlay.content }}</span>
-          <template v-if="editable">
+          <template v-if="editable && !posterElementsEditing">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -1145,18 +1512,21 @@ import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, con
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
-import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
+import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
+import { getPosterIcon } from '~/utils/posterIcons'
+import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
+import Moveable from 'vue3-moveable'
 
 interface PrintContext {
   framing: PrintFraming
@@ -1169,6 +1539,7 @@ type SegmentDrawMode =
   | { type: 'new' }
   | { type: 'extend'; segId: string; end: 'start' | 'end' }
 type SegmentEditMode = { segId: string }
+type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 
 const props = defineProps<{
   map: TrailMap
@@ -1177,6 +1548,11 @@ const props = defineProps<{
   renderMode?: 'editor' | 'print'
   printContext?: PrintContext
   chromeEditing?: boolean
+  chromeExternalShell?: boolean
+  posterElementsEditing?: boolean
+  posterEditorMode?: PosterEditorMode
+  posterGuidesVisible?: boolean
+  selectedPosterElementId?: string | null
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   /** When true, the map enters paint-select mode for route deletion */
@@ -1204,10 +1580,18 @@ const emit = defineEmits<{
   'asset-selected': [id: string]
   'asset-deleted': [id: string]
   'asset-resized': [payload: { id: string; width: number; height: number }]
+  'poster-element-selected': [id: string | null]
+  'poster-element-patched': [payload: { id: string; patch: PosterEditorElementPatch }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
   'poster-layout-updated': [value: PartialPosterLayout | undefined]
+  'chrome-selection-changed': [payload:
+    | { type: 'band'; band: ChromeBandId }
+    | { type: 'row'; band: ChromeBandId; rowId: string }
+    | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string; blockId: string | null }
+    | null
+  ]
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
   /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
@@ -1244,10 +1628,12 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 const posterCanvasEl = ref<HTMLDivElement | null>(null)
 const chromeToolbarEl = ref<HTMLElement | null>(null)
 const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
+const chromeLayoutBuilderEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
+const posterElementsEditing = computed(() => props.editable === true && props.posterElementsEditing === true && props.renderMode !== 'print')
 
 const BRUSH_PREVIEW_SOURCE_ID = 'route-delete-brush-preview'
 const BRUSH_PREVIEW_CASING_LAYER_ID = 'route-delete-brush-preview-casing'
@@ -1457,37 +1843,84 @@ type ActiveTextTarget =
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const activeTextAnchor = ref<DOMRect | null>(null)
 const activeChromeBlockId = ref<string | null>(null)
+const posterMoveableTarget = ref<HTMLElement | null>(null)
+const moveableResizePreview = ref<{ id: string; width: number; height: number } | null>(null)
+const moveableTextResizePreview = ref<{ id: string; font_size: number } | null>(null)
 const hoveredChromeBand = ref<ChromeBandId | null>(null)
 const chromeMobile = ref(false)
 const chromePaddingPanelOpen = ref(false)
+const chromeAddPanelOpen = ref(false)
 const lastChromeTextStyle = ref<Partial<ChromeBlock> | null>(null)
 type ChromeSelection =
   | { type: 'band'; band: ChromeBandId }
   | { type: 'row'; band: ChromeBandId; rowId: string }
   | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string }
 const selectedChromeTarget = ref<ChromeSelection | null>(null)
+function emitChromeSelectionChanged(target: ChromeSelection | null) {
+  if (!chromeDirectEditing.value || !target) {
+    emit('chrome-selection-changed', null)
+    return
+  }
+  if (target.type === 'cell') {
+    emit('chrome-selection-changed', {
+      ...target,
+      blockId: findChromeCell(target.band, target.rowId, target.cellId)?.block?.id ?? null,
+    })
+    return
+  }
+  emit('chrome-selection-changed', target)
+}
 const chromePaddingSides = [
   { key: 'top', name: 'top', label: 'Top', index: 0 },
   { key: 'right', name: 'right', label: 'Right', index: 1 },
   { key: 'bottom', name: 'bottom', label: 'Bottom', index: 2 },
   { key: 'left', name: 'left', label: 'Left', index: 3 },
 ] as const
-const CHROME_COL_STEPS = [4, 6, 8, 12, 16] as const
 const activeChromeBandResize = ref<{
   band: Extract<ChromeBandId, 'header' | 'footer'>
   startY: number
   startHeight: number
   posterHeight: number
 } | null>(null)
+const activeChromeColumnResize = ref<{
+  band: ChromeBandId
+  rowId: string
+  cellId: string
+  nextCellId: string
+  startX: number
+  rowWidth: number
+  startFr: number
+  nextFr: number
+  totalFr: number
+} | null>(null)
+const activeChromeRowResize = ref<{
+  band: ChromeBandId
+  rowId: string
+  nextRowId: string
+  startY: number
+  bandHeight: number
+  startFr: number
+  nextFr: number
+  totalFr: number
+} | null>(null)
 
 const chromeDirectEditing = computed(() =>
   Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
 )
+const chromeInternalShellVisible = computed(() =>
+  chromeDirectEditing.value && props.chromeExternalShell !== true,
+)
 const chromeToolbarVisible = computed(() =>
-  chromeDirectEditing.value && !chromeMobile.value && activeChromeBlock.value != null,
+  chromeInternalShellVisible.value && !posterElementsEditing.value && !chromeMobile.value && activeChromeBlock.value != null && !isChromeSpacerBlock(activeChromeBlock.value),
 )
 const chromeStructurePopoverVisible = computed(() =>
-  chromeDirectEditing.value && !chromeMobile.value && selectedChromeTarget.value?.type === 'cell',
+  chromeInternalShellVisible.value && !posterElementsEditing.value && !chromeMobile.value && selectedChromeTarget.value?.type === 'cell',
+)
+const chromeLayoutBuilderVisible = computed(() =>
+  chromeInternalShellVisible.value && !chromeMobile.value,
+)
+const chromeContextToolbarVisible = computed(() =>
+  chromeLayoutBuilderVisible.value && selectedChromeTarget.value != null,
 )
 const chromeToolbarFloatingStyle = ref<Record<string, string>>({
   position: 'fixed',
@@ -1496,6 +1929,15 @@ const chromeToolbarFloatingStyle = ref<Record<string, string>>({
   width: '508px',
   visibility: 'hidden',
 })
+const chromeLayoutBuilderFloatingStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  left: '0px',
+  top: '0px',
+  visibility: 'hidden',
+  transform: 'none',
+})
+const chromeLayoutBuilderPopoverVertical = ref<'top' | 'bottom'>('bottom')
+const chromeLayoutBuilderPopoverAlign = ref<'left' | 'right'>('right')
 const chromeStructurePopoverFloatingStyle = ref<Record<string, string>>({
   position: 'fixed',
   left: '0px',
@@ -1510,15 +1952,22 @@ const chromeToolbarPointerFloatingStyle = ref<Record<string, string>>({
   borderColor: '#fff transparent transparent transparent',
 })
 const chromeToolbarPlacement = ref('top')
+const chromeContextToolbarManualPosition = ref<{ left: number; top: number } | null>(null)
+const activeChromeContextToolbarDrag = ref<{
+  startX: number
+  startY: number
+  startLeft: number
+  startTop: number
+} | null>(null)
 const chromeAffordancesVisible = computed(() => false)
 const chromeMobileDrawerOpen = computed(() =>
-  chromeDirectEditing.value && chromeMobile.value && activeChromeBlock.value != null,
+  chromeInternalShellVisible.value && chromeMobile.value && activeChromeBlock.value != null,
 )
 
 const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
-const defaultLayout = computed(() => defaultPosterLayout(props.styleConfig, props.map.stats))
 let cleanupChromeToolbarFloating: (() => void) | null = null
 let cleanupChromeStructureFloating: (() => void) | null = null
+let cleanupChromeLayoutBuilderFloating: (() => void) | null = null
 
 function syncChromeViewportMode() {
   if (typeof window === 'undefined') return
@@ -1537,7 +1986,10 @@ onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
   cleanupChromeFloating()
+  teardownChromeContextToolbarDrag()
   teardownChromeBandResize()
+  teardownChromeColumnResize()
+  teardownChromeRowResize()
 })
 
 function chromeRowsFor(band: ChromeBandId) {
@@ -1546,6 +1998,20 @@ function chromeRowsFor(band: ChromeBandId) {
 
 function chromeCellsFor(row: ChromeGridRow) {
   return row.cells.filter(cell => !cell.deleted)
+}
+
+function canInsertColumnAfter(_row: ChromeGridRow, cell: ChromeGridCell) {
+  return !cell.deleted
+}
+
+function canResizeChromeCell(row: ChromeGridRow, cell: ChromeGridCell) {
+  const cells = chromeCellsFor(row)
+  return cells.length > 1 && cells.findIndex(item => item.id === cell.id) < cells.length - 1
+}
+
+function canResizeChromeRow(band: ChromeBandId, row: ChromeGridRow) {
+  const rows = chromeRowsFor(band)
+  return rows.length > 1 && rows.findIndex(item => item.id === row.id) < rows.length - 1
 }
 
 function chromeBlocksFor(band: ChromeBandId) {
@@ -1560,7 +2026,7 @@ function chromeBlockForSlot(slot: PosterTextSlot): ChromeBlock | null {
   return null
 }
 
-function chromeBandForBlock(id: string | null): ChromeBandId | null {
+function _chromeBandForBlock(id: string | null): ChromeBandId | null {
   if (!id) return null
   for (const band of CHROME_BANDS) {
     if (chromeBlocksFor(band).some(block => block.id === id)) return band
@@ -1599,6 +2065,8 @@ function chromeSectionActive(band: ChromeBandId) {
 function chromeBandLabel(band: ChromeBandId) {
   if (band === 'railLeft') return 'Left rail'
   if (band === 'railRight') return 'Right rail'
+  if (band === 'header') return 'Header'
+  if (band === 'footer') return 'Footer'
   return band
 }
 
@@ -1606,7 +2074,25 @@ function chromeBlockLabel(block: ChromeBlock) {
   return CHROME_BLOCK_KIND_LABELS[block.kind] ?? 'Text'
 }
 
-function chromeGridStyle(band: ChromeBandId) {
+function isChromeSpacerBlock(block: ChromeBlock | null | undefined) {
+  return block?.kind === 'spacer'
+}
+
+function isChromeSpacerCell(cell: ChromeGridCell | null | undefined) {
+  return isChromeSpacerBlock(cell?.block) && !cell?.block?.empty && !cell?.block?.deleted && !cell?.block?.removed
+}
+
+function isChromeSpacerRow(row: ChromeGridRow | null | undefined) {
+  const cells = row ? chromeCellsFor(row) : []
+  return cells.length > 0 && cells.every(isChromeSpacerCell)
+}
+
+function firstChromeContentRow(band: ChromeBandId) {
+  const rows = chromeRowsFor(band)
+  return rows.find(row => !isChromeSpacerRow(row)) ?? rows[0] ?? null
+}
+
+function _chromeGridStyle(band: ChromeBandId) {
   const rows = Math.max(1, posterLayout.value.bands[band].rows.length)
   return {
     backgroundImage: [
@@ -1617,7 +2103,7 @@ function chromeGridStyle(band: ChromeBandId) {
   }
 }
 
-function chromeBandBackground(band: ChromeBandId) {
+function _chromeBandBackground(band: ChromeBandId) {
   return posterLayout.value.bands[band].background ?? (band === 'header' ? headerBg.value : bg.value)
 }
 
@@ -1632,11 +2118,11 @@ function updateChromeBand(band: ChromeBandId, patch: Partial<ChromeBand>) {
   })
 }
 
-function setChromeBandBackground(band: ChromeBandId, background: string) {
+function _setChromeBandBackground(band: ChromeBandId, background: string) {
   updateChromeBand(band, { background })
 }
 
-function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
   const rowId = selectedChromeTarget.value?.type === 'row' || selectedChromeTarget.value?.type === 'cell'
     ? selectedChromeTarget.value.rowId
     : chromeRowsFor(band)[0]?.id
@@ -1649,7 +2135,7 @@ function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
   }
 }
 
-function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
   if (direction > 0) addRowAfter(band)
   else {
     const rows = chromeRowsFor(band)
@@ -1657,9 +2143,17 @@ function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
   }
 }
 
-function nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
   const current = posterLayout.value.bands[band].padding ?? [0, 0, 0, 0]
   const next = current.map(value => Math.min(12, Math.max(0, value + direction))) as [number, number, number, number]
+  updateChromeBand(band, { padding: next })
+}
+
+function nudgeChromeBandPaddingSide(band: ChromeBandId, direction: -1 | 1, sideIndex: 0 | 1 | 2 | 3) {
+  const current = posterLayout.value.bands[band].padding ?? [0, 0, 0, 0]
+  const next = current.map((value, index) =>
+    index === sideIndex ? Math.min(12, Math.max(0, value + direction)) : value,
+  ) as [number, number, number, number]
   updateChromeBand(band, { padding: next })
 }
 
@@ -1689,6 +2183,8 @@ function chromeBandGridStyle(band: ChromeBandId) {
     gap: '0.55cqh',
     width: '100%',
     height: '100%',
+    minHeight: '0',
+    boxSizing: 'border-box' as const,
     backgroundColor: cfg.background ?? 'transparent',
   }
 }
@@ -1698,6 +2194,8 @@ function chromeRowStyle(row: ChromeGridRow) {
     display: 'grid',
     gridTemplateColumns: chromeCellsFor(row).map(cell => `${cell.fr ?? 1}fr`).join(' ') || '1fr',
     gap: '0.7cqw',
+    minHeight: '0',
+    minWidth: '0',
   }
 }
 
@@ -1708,6 +2206,8 @@ function chromeCellStyle(cell: ChromeGridCell) {
     justifyItems: align === 'right' ? 'end' : align === 'center' ? 'center' : 'start',
     alignItems: cell.valign === 'bottom' ? 'end' : cell.valign === 'top' ? 'start' : 'center',
     textAlign: align,
+    boxSizing: 'border-box',
+    overflow: 'visible',
   }
   if (cell.padding) style.padding = `${cell.padding[0]}cqh ${cell.padding[1]}cqw ${cell.padding[2]}cqh ${cell.padding[3]}cqw`
   return style
@@ -1761,7 +2261,7 @@ function chromeBlockWeight(block: ChromeBlock) {
 }
 
 function chromeBlockEditable(block: ChromeBlock) {
-  return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image'
+  return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image' && !isChromeSpacerBlock(block)
 }
 
 function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Record<string, string> {
@@ -1769,7 +2269,7 @@ function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Recor
 }
 
 function chromeBlockText(block: ChromeBlock) {
-  if (block.empty) return ''
+  if (block.empty || isChromeSpacerBlock(block)) return ''
   if (block.text != null) return block.text
   if (block.slot) return textWithOverride(block.slot, defaultSlotText(block.slot))
   return 'Your text'
@@ -1852,6 +2352,7 @@ function selectChromeBand(band: ChromeBandId) {
   selectedChromeTarget.value = { type: 'band', band }
   hoveredChromeBand.value = band
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
 }
 
 function selectChromeRow(band: ChromeBandId, rowId: string) {
@@ -1859,6 +2360,7 @@ function selectChromeRow(band: ChromeBandId, rowId: string) {
   selectedChromeTarget.value = { type: 'row', band, rowId }
   hoveredChromeBand.value = band
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
 }
 
 function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
@@ -1867,8 +2369,33 @@ function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
   hoveredChromeBand.value = band
   const cell = findChromeCell(band, rowId, cellId)
   activeChromeBlockId.value = cell?.block?.id ?? null
-  if (cell?.block && !cell.block.empty) rememberChromeTextStyle(cell.block, cell)
+  if (cell?.block && !cell.block.empty && !isChromeSpacerBlock(cell.block)) rememberChromeTextStyle(cell.block, cell)
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
+}
+
+function setChromeCellSelection(band: ChromeBandId, rowId: string, cellId: string, blockId: string | null = null) {
+  selectedChromeTarget.value = { type: 'cell', band, rowId, cellId }
+  hoveredChromeBand.value = band
+  activeChromeBlockId.value = blockId
+  emitChromeSelectionChanged(selectedChromeTarget.value)
+  activeTextTarget.value = null
+  chromePaddingPanelOpen.value = false
+}
+
+async function focusChromeBlockInline(blockId: string) {
+  await nextTick()
+  if (!posterCanvasEl.value) return
+  const selector = `[data-chrome-block-id="${globalThis.CSS?.escape?.(blockId) ?? blockId.replace(/"/g, '\\"')}"]`
+  const blockEl = posterCanvasEl.value.querySelector<HTMLElement>(selector)
+  if (!blockEl) return
+  blockEl.focus()
+  const selection = window.getSelection()
+  if (!selection) return
+  const range = document.createRange()
+  range.selectNodeContents(blockEl)
+  selection.removeAllRanges()
+  selection.addRange(range)
 }
 
 function selectChromeBlock(id: string) {
@@ -1901,7 +2428,7 @@ function resetChromeSection(band: ChromeBandId) {
   resetChromeBand(band)
 }
 
-function startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
+function _startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
   if (!chromeDirectEditing.value || typeof window === 'undefined') return
   const posterBox = posterCanvasEl.value?.getBoundingClientRect()
   if (!posterBox?.height) return
@@ -1946,12 +2473,156 @@ function teardownChromeBandResize() {
   window.removeEventListener('pointercancel', finishChromeBandResize)
 }
 
+function startChromeColumnResize(e: PointerEvent, band: ChromeBandId, rowId: string, cellId: string) {
+  if (!chromeDirectEditing.value || typeof window === 'undefined') return
+  const row = findChromeRow(band, rowId)
+  const cells = row ? chromeCellsFor(row) : []
+  const index = cells.findIndex(cell => cell.id === cellId)
+  const nextCell = index >= 0 ? cells[index + 1] : undefined
+  const rowEl = e.currentTarget instanceof HTMLElement
+    ? e.currentTarget.closest<HTMLElement>('.chrome-grid-row')
+    : null
+  const rowWidth = rowEl?.getBoundingClientRect().width ?? 0
+  if (!row || !nextCell || rowWidth <= 0) return
+
+  activeChromeColumnResize.value = {
+    band,
+    rowId,
+    cellId,
+    nextCellId: nextCell.id,
+    startX: e.clientX,
+    rowWidth,
+    startFr: cells[index]?.fr ?? 1,
+    nextFr: nextCell.fr ?? 1,
+    totalFr: cells.reduce((sum, cell) => sum + (cell.fr ?? 1), 0),
+  }
+  setChromeCellSelection(band, rowId, cellId, cells[index]?.block?.id ?? null)
+  window.addEventListener('pointermove', onChromeColumnResizeMove)
+  window.addEventListener('pointerup', finishChromeColumnResize, { once: true })
+  window.addEventListener('pointercancel', finishChromeColumnResize, { once: true })
+}
+
+function onChromeColumnResizeMove(e: PointerEvent) {
+  const resize = activeChromeColumnResize.value
+  if (!resize) return
+
+  const pairTotal = resize.startFr + resize.nextFr
+  const minFr = Math.min(0.45, pairTotal / 2)
+  const deltaFr = ((e.clientX - resize.startX) / resize.rowWidth) * resize.totalFr
+  const currentFr = Math.round(Math.min(pairTotal - minFr, Math.max(minFr, resize.startFr + deltaFr)) * 20) / 20
+  const nextFr = Math.round(Math.max(minFr, pairTotal - currentFr) * 20) / 20
+
+  const rows = sparseBandRows(resize.band).map(row => row.id === resize.rowId
+    ? {
+        ...row,
+        cells: row.cells.map(cell => {
+          if (cell.id === resize.cellId) return { ...cell, fr: currentFr }
+          if (cell.id === resize.nextCellId) return { ...cell, fr: nextFr }
+          return cell
+        }),
+      }
+    : row)
+  updateChromeRows(resize.band, rows)
+}
+
+function finishChromeColumnResize() {
+  teardownChromeColumnResize()
+}
+
+function teardownChromeColumnResize() {
+  if (typeof window === 'undefined') return
+  activeChromeColumnResize.value = null
+  window.removeEventListener('pointermove', onChromeColumnResizeMove)
+  window.removeEventListener('pointerup', finishChromeColumnResize)
+  window.removeEventListener('pointercancel', finishChromeColumnResize)
+}
+
+function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string) {
+  if (!chromeDirectEditing.value || typeof window === 'undefined') return
+  const rows = chromeRowsFor(band)
+  const index = rows.findIndex(row => row.id === rowId)
+  const row = index >= 0 ? rows[index] : undefined
+  const nextRow = index >= 0 ? rows[index + 1] : undefined
+  const bandEl = posterCanvasEl.value?.querySelector<HTMLElement>(`.chrome-grid-band--${band}`)
+    ?? (e.currentTarget instanceof HTMLElement
+      ? e.currentTarget.closest<HTMLElement>('.chrome-grid-band')
+      : null)
+  const bandHeight = bandEl?.getBoundingClientRect().height ?? 0
+  if (!row || !nextRow || bandHeight <= 0) return
+
+  activeChromeRowResize.value = {
+    band,
+    rowId,
+    nextRowId: nextRow.id,
+    startY: e.clientY,
+    bandHeight,
+    startFr: row.fr ?? 1,
+    nextFr: nextRow.fr ?? 1,
+    totalFr: rows.reduce((sum, row) => sum + (row.fr ?? 1), 0),
+  }
+  selectChromeRow(band, rowId)
+  window.addEventListener('pointermove', onChromeRowResizeMove)
+  window.addEventListener('pointerup', finishChromeRowResize, { once: true })
+  window.addEventListener('pointercancel', finishChromeRowResize, { once: true })
+}
+
+function onChromeRowResizeMove(e: PointerEvent) {
+  const resize = activeChromeRowResize.value
+  if (!resize) return
+
+  const pairTotal = resize.startFr + resize.nextFr
+  const minFr = Math.min(0.35, pairTotal / 2)
+  const deltaFr = ((e.clientY - resize.startY) / resize.bandHeight) * resize.totalFr
+  const currentFr = Math.round(Math.min(pairTotal - minFr, Math.max(minFr, resize.startFr + deltaFr)) * 20) / 20
+  const nextFr = Math.round(Math.max(minFr, pairTotal - currentFr) * 20) / 20
+
+  const rows = sparseBandRows(resize.band).map(row => {
+    if (row.id === resize.rowId) return { ...row, fr: currentFr }
+    if (row.id === resize.nextRowId) return { ...row, fr: nextFr }
+    return row
+  })
+  updateChromeRows(resize.band, rows)
+}
+
+function finishChromeRowResize() {
+  teardownChromeRowResize()
+}
+
+function teardownChromeRowResize() {
+  if (typeof window === 'undefined') return
+  activeChromeRowResize.value = null
+  window.removeEventListener('pointermove', onChromeRowResizeMove)
+  window.removeEventListener('pointerup', finishChromeRowResize)
+  window.removeEventListener('pointercancel', finishChromeRowResize)
+}
+
 function newChromeId(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
 }
 
 function makeEmptyCell(): ChromeGridCell {
   return { id: newChromeId('chrome-cell'), fr: 1, align: 'left', valign: 'center' }
+}
+
+function makeSpacerBlock(label = 'Spacer'): ChromeBlock {
+  return {
+    id: newChromeId('chrome-spacer'),
+    kind: 'spacer',
+    source: 'user',
+    label,
+    align: 'center',
+    valign: 'center',
+  }
+}
+
+function makeSpacerCell(label = 'Spacer'): ChromeGridCell {
+  return {
+    id: newChromeId('chrome-cell'),
+    fr: 1,
+    align: 'center',
+    valign: 'center',
+    block: makeSpacerBlock(label),
+  }
 }
 
 function defaultChromeFontFamily(block: ChromeBlock) {
@@ -1998,8 +2669,8 @@ function makeTextBlock(text = 'Your text'): ChromeBlock {
 }
 
 function addChromeTextToCell(band: ChromeBandId, rowId: string, cellId: string) {
+  const block = makeTextBlock()
   updateChromeCell(band, rowId, cellId, cell => {
-    const block = makeTextBlock()
     return {
       ...cell,
       align: block.align ?? cell.align,
@@ -2007,36 +2678,120 @@ function addChromeTextToCell(band: ChromeBandId, rowId: string, cellId: string) 
       block,
     }
   })
-  selectChromeCell(band, rowId, cellId)
+  setChromeCellSelection(band, rowId, cellId, block.id)
+  void focusChromeBlockInline(block.id)
 }
 
-function addChromeTextBlock(band: ChromeBandId) {
-  const rowId = chromeRowsFor(band)[0]?.id
-  if (!rowId) {
-    addRowAfter(band)
+function chromeCellAcceptsText(cell: ChromeGridCell) {
+  return !cell.deleted && (!cell.block || cell.block.empty || cell.block.deleted || cell.block.removed)
+}
+
+function addChromeTextBlock(band: ChromeBandId, preferredRowId?: string, afterCellId?: string) {
+  const block = makeTextBlock()
+  let nextSelection: { rowId: string; cellId: string } | null = null
+  const rows = sparseBandRows(band)
+  const workingRows = rows.length
+    ? rows
+    : [{ id: newChromeId('chrome-row'), fr: 1, cells: [] as ChromeGridCell[] }]
+  const fallbackRow = workingRows.find(row => !isChromeSpacerRow(row)) ?? workingRows[0]
+  const rowId = preferredRowId && workingRows.some(row => row.id === preferredRowId)
+    ? preferredRowId
+    : fallbackRow?.id
+
+  if (!rowId) return
+
+  const nextRows = workingRows.map(row => {
+    if (row.id !== rowId) return row
+
+    const existingEmptyCell = afterCellId ? undefined : row.cells.find(chromeCellAcceptsText)
+    if (existingEmptyCell) {
+      nextSelection = { rowId: row.id, cellId: existingEmptyCell.id }
+      return {
+        ...row,
+        cells: row.cells.map(cell => cell.id === existingEmptyCell.id
+          ? {
+              ...cell,
+              align: block.align ?? cell.align,
+              valign: block.valign ?? cell.valign,
+              block,
+            }
+          : cell),
+      }
+    }
+
+    const nextCell: ChromeGridCell = {
+      ...makeEmptyCell(),
+      align: block.align,
+      valign: block.valign,
+      block,
+    }
+    const index = afterCellId ? row.cells.findIndex(cell => cell.id === afterCellId) : row.cells.length - 1
+    const insertIndex = index >= 0 ? index + 1 : row.cells.length
+    const cells = [...row.cells]
+    cells.splice(insertIndex, 0, nextCell)
+    nextSelection = { rowId: row.id, cellId: nextCell.id }
+    return { ...row, cells }
+  })
+
+  updateChromeRows(band, nextRows)
+  const selectedCell = nextSelection as { rowId: string; cellId: string } | null
+  if (selectedCell) {
+    setChromeCellSelection(band, selectedCell.rowId, selectedCell.cellId, block.id)
+    void focusChromeBlockInline(block.id)
+  }
+}
+
+function addChromeTextForSelection() {
+  const target = selectedChromeTarget.value
+  if (target?.type === 'cell') {
+    const cell = findChromeCell(target.band, target.rowId, target.cellId)
+    if (cell && chromeCellAcceptsText(cell)) addChromeTextToCell(target.band, target.rowId, target.cellId)
+    else addChromeTextBlock(target.band, target.rowId, target.cellId)
     return
   }
-  addColumnAfter(band, rowId)
+  addChromeTextBlock(target?.band ?? activeChromeBand.value, target?.type === 'row' ? target.rowId : undefined)
 }
 
 function addColumnAfter(band: ChromeBandId, rowId: string, afterCellId?: string) {
+  let nextCellId: string | null = null
   const rows = sparseBandRows(band).map(row => {
     if (row.id !== rowId) return row
     const nextCell = makeEmptyCell()
+    nextCellId = nextCell.id
     const index = afterCellId ? row.cells.findIndex(cell => cell.id === afterCellId) : row.cells.length - 1
+    const insertIndex = index >= 0 ? index + 1 : row.cells.length
     const cells = [...row.cells]
-    cells.splice(Math.max(0, index) + 1, 0, nextCell)
+    cells.splice(insertIndex, 0, nextCell)
     return { ...row, cells }
   })
+  if (!nextCellId) return null
   updateChromeRows(band, rows)
+  setChromeCellSelection(band, rowId, nextCellId)
+  return nextCellId
 }
 
 function addRowAfter(band: ChromeBandId, afterRowId?: string) {
-  const nextRow: ChromeGridRow = { id: newChromeId('chrome-row'), fr: 1, cells: [makeEmptyCell()] }
+  const nextCell = makeEmptyCell()
+  const nextRow: ChromeGridRow = { id: newChromeId('chrome-row'), fr: 1, cells: [nextCell] }
   const rows = [...sparseBandRows(band)]
   const index = afterRowId ? rows.findIndex(row => row.id === afterRowId) : rows.length - 1
-  rows.splice(Math.max(0, index) + 1, 0, nextRow)
+  const insertIndex = index >= 0 ? index + 1 : rows.length
+  rows.splice(insertIndex, 0, nextRow)
   updateChromeRows(band, rows)
+  setChromeCellSelection(band, nextRow.id, nextCell.id)
+  return nextRow.id
+}
+
+function addSpacerRowAfter(band: ChromeBandId, afterRowId?: string) {
+  const nextCell = makeSpacerCell()
+  const nextRow: ChromeGridRow = { id: newChromeId('chrome-spacer-row'), fr: 0.85, cells: [nextCell] }
+  const rows = [...sparseBandRows(band)]
+  const index = afterRowId ? rows.findIndex(row => row.id === afterRowId) : rows.length - 1
+  const insertIndex = index >= 0 ? index + 1 : rows.length
+  rows.splice(insertIndex, 0, nextRow)
+  updateChromeRows(band, rows)
+  setChromeCellSelection(band, nextRow.id, nextCell.id, nextCell.block?.id ?? null)
+  return nextRow.id
 }
 
 function deleteCellContent(band: ChromeBandId, rowId: string, cellId: string) {
@@ -2086,14 +2841,55 @@ function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
 
 function addColumnForSelection() {
   const target = selectedChromeTarget.value
-  if (target?.type !== 'cell') return
-  addColumnAfter(target.band, target.rowId, target.cellId)
+  const band = target?.band ?? activeChromeBand.value
+  if (target?.type === 'cell') {
+    addColumnAfter(target.band, target.rowId, target.cellId)
+    return
+  }
+  if (target?.type === 'row') {
+    addColumnAfter(target.band, target.rowId)
+    return
+  }
+  const firstRow = firstChromeContentRow(band)
+  if (firstRow) addColumnAfter(band, firstRow.id)
+  else addRowAfter(band)
 }
 
 function addRowForSelection() {
   const target = selectedChromeTarget.value
-  if (!target) return
-  addRowAfter(target.band, target.type === 'band' ? undefined : target.rowId)
+  const band = target?.band ?? activeChromeBand.value
+  addRowAfter(band, target?.type === 'cell' || target?.type === 'row' ? target.rowId : undefined)
+}
+
+function closeChromeAddPanel() {
+  chromeAddPanelOpen.value = false
+}
+
+function toggleChromeAddPanel() {
+  if (chromeAddPanelOpen.value) closeChromeAddPanel()
+  else chromeAddPanelOpen.value = true
+}
+
+function addChromeTextFromPalette() {
+  addChromeTextForSelection()
+  closeChromeAddPanel()
+}
+
+function addColumnFromPalette() {
+  addColumnForSelection()
+  closeChromeAddPanel()
+}
+
+function addRowFromPalette() {
+  addRowForSelection()
+  closeChromeAddPanel()
+}
+
+function addSpacerFromPalette() {
+  const target = selectedChromeTarget.value
+  const band = target?.band ?? activeChromeBand.value
+  addSpacerRowAfter(band, target?.type === 'cell' || target?.type === 'row' ? target.rowId : undefined)
+  closeChromeAddPanel()
 }
 
 function removeSelectedCell() {
@@ -2108,6 +2904,23 @@ function deleteChromeBlock() {
   deleteCellContent(target.band, target.rowId, target.cellId)
   activeChromeBlockId.value = null
   activeTextTarget.value = null
+}
+
+function trashChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
+  const cell = findChromeCell(band, rowId, cellId)
+  if (isChromeSpacerCell(cell)) {
+    removeCell(band, rowId, cellId)
+    return
+  }
+  if (cell?.block && !cell.block.empty) {
+    updateChromeCell(band, rowId, cellId, current => ({
+      ...current,
+      block: undefined,
+    }))
+    setChromeCellSelection(band, rowId, cellId)
+    return
+  }
+  removeCell(band, rowId, cellId)
 }
 
 function duplicateChromeBlock() {
@@ -2139,7 +2952,9 @@ function duplicateChromeBlock() {
 }
 
 function onChromeCanvasPointerDown() {
+  if (posterElementsEditing.value) emit('poster-element-selected', null)
   if (!chromeDirectEditing.value) return
+  closeChromeAddPanel()
   selectedChromeTarget.value = null
   activeChromeBlockId.value = null
   activeTextTarget.value = null
@@ -2289,6 +3104,8 @@ function finishActiveTextEdit() {
   activeTextTarget.value = null
   activeTextAnchor.value = null
   activeChromeBlockId.value = null
+  chromePaddingPanelOpen.value = false
+  closeChromeAddPanel()
 }
 
 function resetActiveText() {
@@ -2325,17 +3142,114 @@ let deselectTimer: ReturnType<typeof setTimeout> | null = null
 
 const visibleImageAssets = computed(() => {
   return (props.styleConfig.image_overlays ?? [])
+    .filter(asset => !asset.hidden)
     .filter(asset => asset.kind !== 'logo' || props.styleConfig.show_logo !== false)
     .map(asset => ({
       ...asset,
       quality_status: classifyAssetQuality(computeEffectiveDpi(asset, props.styleConfig.print_size)),
     }))
 })
+const visibleTextOverlays = computed(() => (props.styleConfig.text_overlays ?? []).filter(overlay => !overlay.hidden))
+const visibleIconOverlays = computed(() => (props.styleConfig.icon_overlays ?? []).filter(icon => !icon.hidden))
+const showEditorGuides = computed(() =>
+  (posterElementsEditing.value || chromeDirectEditing.value) &&
+    (props.posterEditorMode === 'guides' || props.posterGuidesVisible === true),
+)
+
+type PosterSelectableElement =
+  | { type: 'text'; id: string; item: TextOverlay }
+  | { type: 'asset'; id: string; item: MapAsset }
+  | { type: 'icon'; id: string; item: IconOverlay }
+
+function selectedPosterElement(): PosterSelectableElement | null {
+  const id = props.selectedPosterElementId
+  if (!id) return null
+  if (id.startsWith('text:')) {
+    const rawId = id.slice('text:'.length)
+    const item = props.styleConfig.text_overlays?.find(overlay => overlay.id === rawId)
+    return item ? { type: 'text', id, item } : null
+  }
+  if (id.startsWith('asset:')) {
+    const rawId = id.slice('asset:'.length)
+    const item = props.styleConfig.image_overlays?.find(asset => asset.id === rawId)
+    return item ? { type: 'asset', id, item } : null
+  }
+  if (id.startsWith('icon:')) {
+    const rawId = id.slice('icon:'.length)
+    const item = props.styleConfig.icon_overlays?.find(icon => icon.id === rawId)
+    return item ? { type: 'icon', id, item } : null
+  }
+  return null
+}
+
+const selectedPosterElementCanTransform = computed(() => {
+  const selected = selectedPosterElement()
+  if (!selected) return false
+  if (selected.type === 'text') return selected.item.locked !== true
+  if (selected.type === 'asset') return selected.item.locked !== true
+  return selected.item.locked !== true
+})
+const selectedPosterElementResizable = computed(() => selectedPosterElementCanTransform.value)
+const selectedPosterElementKeepRatio = computed(() => {
+  const selected = selectedPosterElement()
+  return selected?.type === 'asset' || selected?.type === 'icon'
+})
+const selectedPosterElementAllowsBleed = computed(() => {
+  const selected = selectedPosterElement()
+  return selected?.type === 'asset' && selected.item.allow_bleed === true
+})
+const posterMoveableBounds = computed(() => {
+  if (selectedPosterElementAllowsBleed.value) return undefined
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!rect) return undefined
+  const safe = Math.min(rect.width, rect.height) * 0.04
+  return {
+    left: safe,
+    top: safe,
+    right: rect.width - safe,
+    bottom: rect.height - safe,
+  }
+})
+const posterSnapGridPx = computed(() => {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  const spacing = Math.max(3, Math.min(16, props.styleConfig.grid_spacing ?? 8)) / 100
+  return {
+    width: Math.max(8, (rect?.width ?? 520) * spacing),
+    height: Math.max(8, (rect?.height ?? 780) * spacing),
+  }
+})
+const posterVerticalGuidelines = computed(() => posterGuidePixels('x'))
+const posterHorizontalGuidelines = computed(() => posterGuidePixels('y'))
 
 const showLegacyLogo = computed(() => {
   const hasLogoAsset = (props.styleConfig.image_overlays ?? []).some(asset => asset.kind === 'logo')
   return Boolean(props.styleConfig.show_logo && props.styleConfig.logo_url && !hasLogoAsset)
 })
+
+function posterGuidePixels(axis: 'x' | 'y') {
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  if (!canvas) return []
+  const size = axis === 'x' ? canvas.width : canvas.height
+  const safe = size * 0.04
+  const guides = [0, safe, size / 3, size / 2, (size * 2) / 3, size - safe, size]
+  if (mapContainer.value) {
+    const map = mapContainer.value.getBoundingClientRect()
+    guides.push(axis === 'x' ? map.left - canvas.left : map.top - canvas.top)
+    guides.push(axis === 'x' ? map.right - canvas.left : map.bottom - canvas.top)
+  }
+  return guides.map(value => Math.round(value)).filter(value => Number.isFinite(value))
+}
+
+function syncPosterMoveableTarget() {
+  if (!posterElementsEditing.value || !props.selectedPosterElementId || !posterCanvasEl.value) {
+    posterMoveableTarget.value = null
+    moveableResizePreview.value = null
+    moveableTextResizePreview.value = null
+    return
+  }
+  const selectorId = props.selectedPosterElementId.replace(/"/g, '\\"')
+  posterMoveableTarget.value = posterCanvasEl.value.querySelector<HTMLElement>(`[data-poster-element-id="${selectorId}"]`)
+}
 
 function scheduleDeselect() {
   if (deselectTimer) clearTimeout(deselectTimer)
@@ -2352,11 +3266,13 @@ function onOverlayClick(id: string) {
   const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${id}"] .overlay-content`)
   if (el) selectTextTarget({ type: 'overlay', id }, el)
   emit('overlay-selected', id)
+  emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayDelete(id: string) {
   selectedOverlayId.value = null
   emit('overlay-deleted', id)
+  emit('poster-element-selected', null)
 }
 
 function onAssetClick(id: string, event?: MouseEvent) {
@@ -2367,11 +3283,13 @@ function onAssetClick(id: string, event?: MouseEvent) {
   activeTextTarget.value = null
   activeTextAnchor.value = null
   emit('asset-selected', id)
+  emit('poster-element-selected', `asset:${id}`)
 }
 
 function clearAssetSelection() {
   selectedAssetId.value = null
   draggingAssetId.value = null
+  emit('poster-element-selected', null)
 }
 
 function findImageAsset(id: string): MapAsset | undefined {
@@ -2399,18 +3317,214 @@ function roundedPercent(value: number) {
   return Number(value.toFixed(2))
 }
 
+function clampPercent(value: number, min = 0, max = 100) {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
+
+function selectedPosterPercentBounds(id: string) {
+  const selected = selectedPosterElement()
+  const safe = selectedPosterElementAllowsBleed.value ? 0 : 4
+  if (!selected || selected.id !== id) {
+    return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
+  }
+  if (selected.type === 'asset') {
+    if (selected.item.allow_bleed === true) {
+      return {
+        minX: -selected.item.width,
+        maxX: 100,
+        minY: -selected.item.height,
+        maxY: 100,
+      }
+    }
+    return {
+      minX: safe,
+      maxX: Math.max(safe, 100 - safe - selected.item.width),
+      minY: safe,
+      maxY: Math.max(safe, 100 - safe - selected.item.height),
+    }
+  }
+  if (selected.type === 'icon') {
+    return {
+      minX: safe,
+      maxX: Math.max(safe, 100 - safe - selected.item.width),
+      minY: safe,
+      maxY: Math.max(safe, 100 - safe - selected.item.height),
+    }
+  }
+  return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
+}
+
+function patchPosterElement(id: string, patch: PosterEditorElementPatch) {
+  emit('poster-element-patched', { id, patch })
+}
+
+function positionTargetByDelta(target: HTMLElement, dx: number, dy: number) {
+  const id = target.dataset.posterElementId
+  const container = posterCanvasEl.value
+  if (!id || !container) return null
+  const rect = container.getBoundingClientRect()
+  if (!rect.width || !rect.height) return null
+  const bounds = selectedPosterPercentBounds(id)
+  const left = parseFloat(target.style.left) || 0
+  const top = parseFloat(target.style.top) || 0
+  const nextX = clampPercent(left + (dx / rect.width) * 100, bounds.minX, bounds.maxX)
+  const nextY = clampPercent(top + (dy / rect.height) * 100, bounds.minY, bounds.maxY)
+  target.style.left = `${nextX}%`
+  target.style.top = `${nextY}%`
+  return { x: roundedPercent(nextX), y: roundedPercent(nextY) }
+}
+
+function selectedTextAlignmentOffset() {
+  const selected = selectedPosterElement()
+  if (selected?.type !== 'text') return '0%'
+  return selected.item.alignment === 'center'
+    ? '-50%'
+    : selected.item.alignment === 'right'
+      ? '-100%'
+      : '0%'
+}
+
+function applyPosterElementRotation(target: HTMLElement, rotation: number) {
+  const id = target.dataset.posterElementId
+  if (!id) return
+  const normalized = Number.isFinite(rotation) ? rotation : 0
+  if (id.startsWith('text:')) {
+    target.style.transform = `translateX(${selectedTextAlignmentOffset()}) rotate(${normalized}deg)`
+  } else {
+    target.style.transform = `rotate(${normalized}deg)`
+  }
+}
+
+function moveableDelta(event: unknown): [number, number] {
+  const payload = event as { delta?: [number, number]; beforeDelta?: [number, number] }
+  const delta = payload.delta ?? payload.beforeDelta ?? [0, 0]
+  return [Number(delta[0]) || 0, Number(delta[1]) || 0]
+}
+
+function onPosterMoveableDrag(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  if (!payload.target) return
+  const [dx, dy] = moveableDelta(event)
+  positionTargetByDelta(payload.target, dx, dy)
+}
+
+function onPosterMoveableDragEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id || !payload.target) return
+  patchPosterElement(id, {
+    x: roundedPercent(parseFloat(payload.target.style.left) || 0),
+    y: roundedPercent(parseFloat(payload.target.style.top) || 0),
+  })
+}
+
+function onPosterMoveableResizeStart() {
+  moveableResizePreview.value = null
+  moveableTextResizePreview.value = null
+}
+
+function onPosterMoveableResize(event: unknown) {
+  const payload = event as {
+    target?: HTMLElement
+    width?: number
+    height?: number
+    drag?: { delta?: [number, number]; beforeDelta?: [number, number] }
+  }
+  const target = payload.target
+  const id = target?.dataset.posterElementId
+  const container = posterCanvasEl.value
+  if (!target || !id || !container) return
+  const rect = container.getBoundingClientRect()
+  if (!rect.width || !rect.height) return
+
+  const dx = payload.drag?.delta?.[0] ?? payload.drag?.beforeDelta?.[0] ?? 0
+  const dy = payload.drag?.delta?.[1] ?? payload.drag?.beforeDelta?.[1] ?? 0
+  positionTargetByDelta(target, dx, dy)
+
+  if (id.startsWith('text:')) {
+    const nextSize = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 0.5, 12)
+    moveableTextResizePreview.value = { id: id.slice('text:'.length), font_size: nextSize }
+    target.style.fontSize = `${nextSize}cqh`
+    return
+  }
+
+  const width = clampPercent(((payload.width ?? target.getBoundingClientRect().width) / rect.width) * 100, 2, 100)
+  const height = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 2, 100)
+  target.style.width = `${width}%`
+  target.style.height = `${height}%`
+  moveableResizePreview.value = { id, width, height }
+}
+
+function onPosterMoveableResizeEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id || !payload.target) {
+    moveableResizePreview.value = null
+    moveableTextResizePreview.value = null
+    return
+  }
+
+  const patch: PosterEditorElementPatch = {
+    x: roundedPercent(parseFloat(payload.target.style.left) || 0),
+    y: roundedPercent(parseFloat(payload.target.style.top) || 0),
+  }
+  if (id.startsWith('text:')) {
+    const preview = moveableTextResizePreview.value
+    if (preview) patch.font_size = Number(preview.font_size.toFixed(2))
+    patchPosterElement(id, patch)
+  } else {
+    const preview = moveableResizePreview.value
+    if (preview) {
+      patch.width = roundedPercent(preview.width)
+      patch.height = roundedPercent(preview.height)
+    }
+    patchPosterElement(id, patch)
+  }
+  moveableResizePreview.value = null
+  moveableTextResizePreview.value = null
+}
+
+function moveableRotation(event: unknown): number {
+  const payload = event as { beforeRotate?: number; rotation?: number; rotate?: number }
+  return Number(payload.beforeRotate ?? payload.rotation ?? payload.rotate ?? 0)
+}
+
+function onPosterMoveableRotate(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  if (!payload.target) return
+  applyPosterElementRotation(payload.target, moveableRotation(event))
+}
+
+function onPosterMoveableRotateEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id) return
+  patchPosterElement(id, { rotation: Number(moveableRotation(event).toFixed(1)) })
+}
+
 function isEditableTextElement(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"], .inline-text-toolbar'))
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
+  if (chromeAddPanelOpen.value) {
+    const target = event.target instanceof HTMLElement ? event.target : null
+    if (!target?.closest('.chrome-editor-app-bar, .chrome-add-block-panel, .chrome-layout-builder')) {
+      closeChromeAddPanel()
+    }
+  }
   if (!props.editable || !selectedAssetId.value) return
   if (event.target instanceof HTMLElement && event.target.closest('.image-asset')) return
   clearAssetSelection()
 }
 
 function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && chromeAddPanelOpen.value) {
+    closeChromeAddPanel()
+    return
+  }
   if (!props.editable || !selectedAssetId.value) return
   if (isEditableTextElement(event.target)) return
 
@@ -2439,6 +3553,16 @@ function onDocumentKeydown(event: KeyboardEvent) {
 function onAssetDelete(id: string) {
   selectedAssetId.value = null
   emit('asset-deleted', id)
+  emit('poster-element-selected', null)
+}
+
+function onIconClick(id: string) {
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedAssetId.value = null
+  selectedOverlayId.value = null
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+  emit('poster-element-selected', `icon:${id}`)
 }
 
 function onResizeStart(e: PointerEvent, id: string) {
@@ -2528,6 +3652,7 @@ const previewRootStyle = computed(() => ({
   background: isPrintRender.value ? props.styleConfig.background_color : '#e8e5e0',
   alignItems: chromeMobileDrawerOpen.value ? 'flex-start' : undefined,
   justifyContent: chromeMobileDrawerOpen.value ? 'center' : undefined,
+  containerType: isPrintRender.value ? undefined : 'size',
 }))
 
 const effectiveRoutePaint = computed(() => resolveTonerRouteStyle(props.styleConfig))
@@ -2538,6 +3663,14 @@ const posterCanvasClass = computed(() => ({
   'poster-composition': true,
   [posterCompositionClassName(composition.value.id)]: true,
 }))
+
+const editorPosterAspect = computed(() => {
+  const [width, height] = String(props.styleConfig.print_size ?? '').split('x').map(Number)
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return { width, height }
+  }
+  return { width: 2, height: 3 }
+})
 
 const posterCanvasStyle = computed(() => isPrintRender.value
   ? {
@@ -2558,10 +3691,14 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--route-color': effectiveRoutePaint.value.route_color,
     }
   : {
-      aspectRatio: '2 / 3',
+      aspectRatio: `${editorPosterAspect.value.width} / ${editorPosterAspect.value.height}`,
       backgroundColor: props.styleConfig.background_color,
-      height: chromeMobileDrawerOpen.value ? 'min(100%, calc(100dvh - min(300px, 48vh) - 80px))' : '100%',
+      width: `min(100cqw, calc(100cqh * ${editorPosterAspect.value.width / editorPosterAspect.value.height}))`,
+      height: chromeMobileDrawerOpen.value
+        ? `min(100cqh, calc(100cqw * ${editorPosterAspect.value.height / editorPosterAspect.value.width}), calc(100dvh - min(300px, 48vh) - 80px))`
+        : `min(100cqh, calc(100cqw * ${editorPosterAspect.value.height / editorPosterAspect.value.width}))`,
       maxWidth: '100%',
+      maxHeight: '100%',
       containerType: 'size',
       '--print-bleed': '0px',
       '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
@@ -2875,11 +4012,13 @@ function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
 const headerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
-  padding: chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
-    ? (layout.value.titlePosition === 'bottom'
-        ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
-        : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
-    : composition.value.headerPadding),
+  padding: chromeDirectEditing.value
+    ? chromeBandPaddingCss('header', '0')
+    : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
+        ? (layout.value.titlePosition === 'bottom'
+            ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
+            : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
+        : composition.value.headerPadding),
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: composition.value.titleAlign === 'left' ? 'flex-start' : 'center',
@@ -3022,11 +4161,13 @@ const footerRuleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
-  padding: chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
-    ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
-        ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
-        : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
-    : composition.value.footerPadding),
+  padding: chromeDirectEditing.value
+    ? chromeBandPaddingCss('footer', '0')
+    : chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
+        ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
+            ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
+            : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
+        : composition.value.footerPadding),
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -3052,11 +4193,27 @@ const mapAreaStyle = computed(() => ({
 const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
 const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
 const showMapGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'map')
+const elevationProfilePosition = computed(() => props.styleConfig.elevation_profile_position ?? 'map-overlay')
+const elevationProfileHeight = computed(() => props.styleConfig.elevation_profile_height ?? (elevationProfilePosition.value === 'separate-band' ? 12 : 22))
+const showElevationProfile = computed(() => props.styleConfig.show_elevation_profile === true && mapReady.value)
+const showOverlayElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'map-overlay')
+const showSeparateElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'separate-band')
+const elevationProfileBandStyle = computed(() => ({
+  order: String(composition.value.mapOrder),
+  margin: composition.value.mapMargin,
+  height: `${elevationProfileHeight.value}cqh`,
+  minHeight: '0',
+  zIndex: 2,
+  color: fg.value,
+  backgroundColor: props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+}))
 const gridOverlayStyle = computed(() => {
   const color = props.styleConfig.grid_color ?? props.styleConfig.label_text_color ?? '#1C1917'
   const weight = props.styleConfig.grid_weight ?? 1
+  const spacing = Math.max(3, Math.min(16, props.styleConfig.grid_spacing ?? 8))
   return {
     opacity: String(props.styleConfig.grid_opacity ?? 0.2),
+    backgroundSize: `${spacing}cqw ${spacing}cqh`,
     backgroundImage: [
       `linear-gradient(to right, ${color} 0 ${weight}px, transparent ${weight}px)`,
       `linear-gradient(to bottom, ${color} 0 ${weight}px, transparent ${weight}px)`,
@@ -3492,7 +4649,10 @@ const logoFooterStyle = computed(() => ({
 
 function overlayStyle(o: TextOverlay): Record<string, string> {
   const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
-  const fontSize = resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
+  const fontSize = moveableTextResizePreview.value?.id === o.id
+    ? moveableTextResizePreview.value.font_size
+    : resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
+  const rotation = o.rotation ?? 0
   return {
     position: 'absolute',
     left: `${o.x}%`,
@@ -3504,13 +4664,14 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     opacity: String(o.opacity),
     fontWeight: o.bold ? '700' : '400',
     fontStyle: o.italic ? 'italic' : 'normal',
-    transform: `translateX(${xOffset})`,
+    transform: `translateX(${xOffset}) rotate(${rotation}deg)`,
+    transformOrigin: o.alignment === 'center' ? 'center center' : o.alignment === 'right' ? 'right center' : 'left center',
     whiteSpace: 'pre',
     width: 'max-content',
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
-    zIndex: '8',
+    zIndex: String(o.z_index ?? 30),
     // Halo: skip when bg_color is set (the pill background already provides contrast)
     ...(!o.bg_color ? { textShadow: getTextHalo() } : {}),
     ...(o.bg_color ? {
@@ -3522,7 +4683,9 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
 }
 
 function imageAssetStyle(asset: MapAsset): Record<string, string> {
-  const preview = assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
+  const preview = moveableResizePreview.value?.id === `asset:${asset.id}`
+    ? moveableResizePreview.value
+    : assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
   return {
     position: 'absolute',
     left: `${asset.x}%`,
@@ -3536,6 +4699,25 @@ function imageAssetStyle(asset: MapAsset): Record<string, string> {
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
     zIndex: String(asset.z_index),
+  }
+}
+
+function iconOverlayStyle(icon: IconOverlay): Record<string, string> {
+  const preview = moveableResizePreview.value?.id === `icon:${icon.id}` ? moveableResizePreview.value : null
+  return {
+    position: 'absolute',
+    left: `${icon.x}%`,
+    top: `${icon.y}%`,
+    width: `${preview?.width ?? icon.width}%`,
+    height: `${preview?.height ?? icon.height}%`,
+    color: icon.color,
+    opacity: String(icon.opacity),
+    transform: `rotate(${icon.rotation}deg)`,
+    transformOrigin: 'center center',
+    pointerEvents: props.editable ? 'auto' : 'none',
+    cursor: props.editable ? 'move' : 'default',
+    userSelect: 'none',
+    zIndex: String(icon.z_index),
   }
 }
 
@@ -3679,7 +4861,7 @@ const activeChromeItalic = computed(() => {
 
 const activeChromeTextValue = computed(() => {
   const block = activeChromeBlock.value
-  if (!block) return null
+  if (!block || isChromeSpacerBlock(block)) return null
   return chromeBlockText(block)
 })
 
@@ -3702,6 +4884,10 @@ const activeChromePaddingValues = computed<[number, number, number, number]>(() 
     ? findChromeCell(target.band, target.rowId, target.cellId)?.padding ?? [0, 0, 0, 0]
     : [0, 0, 0, 0]
 })
+
+const activeChromeBandPaddingValues = computed<[number, number, number, number]>(() =>
+  posterLayout.value.bands[activeChromeBand.value].padding ?? [0, 0, 0, 0],
+)
 
 function activeChromeToolbarAnchorElement() {
   return activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
@@ -3802,11 +4988,269 @@ function setChromeValign(valign: NonNullable<ChromeBlock['valign']>) {
   patchActiveChromeLayoutBlock({ valign })
 }
 
+type ChromeFloatingRect = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}
+
+function chromeFloatingPadding() {
+  return {
+    top: 64,
+    right: window.innerWidth >= 1024 ? 376 : 16,
+    bottom: 16,
+    left: 16,
+  }
+}
+
+function chromeFloatingBounds() {
+  const padding = chromeFloatingPadding()
+  return {
+    left: padding.left,
+    top: padding.top,
+    right: window.innerWidth - padding.right,
+    bottom: window.innerHeight - padding.bottom,
+  }
+}
+
+function rectFromDomRect(rect: DOMRect): ChromeFloatingRect {
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+function rectFromPosition(left: number, top: number, width: number, height: number): ChromeFloatingRect {
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+  }
+}
+
+function rectOverlapArea(a: ChromeFloatingRect, b: ChromeFloatingRect) {
+  const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+  const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+  return width * height
+}
+
+function elementVisibleForChromeCollision(el: HTMLElement) {
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const style = window.getComputedStyle(el)
+  return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0.08
+}
+
+function selectedChromeCollisionRects() {
+  const rects: Array<{ rect: ChromeFloatingRect; weight: number }> = []
+  const seen = new Set<HTMLElement>()
+  const addElement = (el: HTMLElement | null | undefined, weight: number) => {
+    if (!el || seen.has(el) || !elementVisibleForChromeCollision(el)) return
+    seen.add(el)
+    rects.push({ rect: rectFromDomRect(el.getBoundingClientRect()), weight })
+  }
+  const cell = activeChromeCellAnchorElement()
+  const text = activeChromeTextAnchorElement()
+  addElement(cell, 8)
+  addElement(text, 12)
+  if (posterCanvasEl.value) {
+    posterCanvasEl.value.querySelectorAll<HTMLElement>('.chrome-grid-block').forEach(el => addElement(el, 4))
+  }
+  if (cell) {
+    addElement(cell.querySelector<HTMLElement>('.chrome-cell-trash'), 18)
+    cell.querySelectorAll<HTMLElement>('.chrome-cell-add-col, .chrome-cell-resize-col').forEach(el => addElement(el, 10))
+    cell.closest<HTMLElement>('.chrome-grid-row')
+      ?.querySelectorAll<HTMLElement>('.chrome-row-add-row, .chrome-row-resize-row')
+      .forEach(el => addElement(el, 8))
+  }
+  return rects
+}
+
+function clampChromeContextToolbarPosition(left: number, top: number) {
+  const toolbar = chromeLayoutBuilderEl.value
+  const rect = toolbar?.getBoundingClientRect()
+  const bounds = chromeFloatingBounds()
+  const width = rect?.width ?? 0
+  const height = rect?.height ?? 0
+  const maxLeft = Math.max(bounds.left, bounds.right - width)
+  const maxTop = Math.max(bounds.top, bounds.bottom - height)
+  return {
+    left: Math.round(Math.min(maxLeft, Math.max(bounds.left, left))),
+    top: Math.round(Math.min(maxTop, Math.max(bounds.top, top))),
+  }
+}
+
+function bestChromeContextToolbarPosition(reference: HTMLElement, toolbar: HTMLElement) {
+  const referenceRect = rectFromDomRect(reference.getBoundingClientRect())
+  const cellRect = activeChromeCellAnchorElement()?.getBoundingClientRect()
+  const anchorRect = cellRect ? rectFromDomRect(cellRect) : referenceRect
+  const posterRect = posterCanvasEl.value ? rectFromDomRect(posterCanvasEl.value.getBoundingClientRect()) : null
+  const toolbarRect = toolbar.getBoundingClientRect()
+  const width = toolbarRect.width
+  const height = toolbarRect.height
+  const gap = 14
+  const bounds = chromeFloatingBounds()
+  const centerLeft = anchorRect.left + anchorRect.width / 2 - width / 2
+  const centerTop = anchorRect.top + anchorRect.height / 2 - height / 2
+  const collisionRects = selectedChromeCollisionRects()
+  const contentBottom = Math.max(anchorRect.bottom, ...collisionRects.map(collision => collision.rect.bottom))
+  const contentTop = Math.min(anchorRect.top, ...collisionRects.map(collision => collision.rect.top))
+  const preferBelow = posterRect
+    ? anchorRect.top + anchorRect.height / 2 < posterRect.top + posterRect.height / 2
+    : anchorRect.top < window.innerHeight / 2
+  const candidates: Array<{ left: number; top: number; priority: number }> = [
+    {
+      left: posterRect ? posterRect.left + posterRect.width / 2 - width / 2 : centerLeft,
+      top: contentBottom + gap,
+      priority: 0,
+    },
+    {
+      left: posterRect ? posterRect.left + posterRect.width / 2 - width / 2 : centerLeft,
+      top: contentTop - height - gap,
+      priority: 1,
+    },
+    {
+      left: centerLeft,
+      top: preferBelow ? anchorRect.bottom + gap : anchorRect.top - height - gap,
+      priority: 2,
+    },
+    {
+      left: centerLeft,
+      top: preferBelow ? anchorRect.top - height - gap : anchorRect.bottom + gap,
+      priority: 3,
+    },
+    {
+      left: anchorRect.right + gap,
+      top: centerTop,
+      priority: 4,
+    },
+    {
+      left: anchorRect.left - width - gap,
+      top: centerTop,
+      priority: 5,
+    },
+  ]
+  if (posterRect) {
+    candidates.push(
+      {
+        left: posterRect.left + posterRect.width / 2 - width / 2,
+        top: posterRect.top + 12,
+        priority: 6,
+      },
+      {
+        left: posterRect.left + posterRect.width / 2 - width / 2,
+        top: posterRect.bottom - height - 12,
+        priority: 7,
+      },
+      {
+        left: posterRect.right + gap,
+        top: centerTop,
+        priority: 8,
+      },
+      {
+        left: posterRect.left - width - gap,
+        top: centerTop,
+        priority: 9,
+      },
+    )
+  }
+  candidates.push({
+    left: bounds.left + (bounds.right - bounds.left - width) / 2,
+    top: bounds.top + 10,
+    priority: 10,
+  })
+  let best = clampChromeContextToolbarPosition(candidates[0].left, candidates[0].top)
+  let bestScore = Number.POSITIVE_INFINITY
+  for (const candidate of candidates) {
+    const clamped = clampChromeContextToolbarPosition(candidate.left, candidate.top)
+    const candidateRect = rectFromPosition(clamped.left, clamped.top, width, height)
+    let score = candidate.priority * 100
+    for (const collision of collisionRects) {
+      score += rectOverlapArea(candidateRect, collision.rect) * collision.weight
+    }
+    if (posterRect) {
+      score += rectOverlapArea(candidateRect, posterRect) * 0.02
+    }
+    if (score < bestScore) {
+      bestScore = score
+      best = clamped
+    }
+  }
+  return best
+}
+
+function setChromeContextToolbarFloatingStyle(left: number, top: number) {
+  const position = clampChromeContextToolbarPosition(left, top)
+  const rect = chromeLayoutBuilderEl.value?.getBoundingClientRect()
+  const height = rect?.height ?? 0
+  chromeLayoutBuilderPopoverVertical.value = position.top + height > window.innerHeight * 0.58 ? 'top' : 'bottom'
+  chromeLayoutBuilderPopoverAlign.value = position.left < 80 ? 'left' : 'right'
+  chromeLayoutBuilderFloatingStyle.value = {
+    position: 'fixed',
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+    visibility: 'visible',
+    transform: 'none',
+  }
+}
+
+function startChromeContextToolbarDrag(e: PointerEvent) {
+  if (!chromeLayoutBuilderEl.value || typeof window === 'undefined') return
+  const rect = chromeLayoutBuilderEl.value.getBoundingClientRect()
+  activeChromeContextToolbarDrag.value = {
+    startX: e.clientX,
+    startY: e.clientY,
+    startLeft: rect.left,
+    startTop: rect.top,
+  }
+  chromeContextToolbarManualPosition.value = { left: rect.left, top: rect.top }
+  chromeLayoutBuilderEl.value.classList.add('is-dragging')
+  window.addEventListener('pointermove', onChromeContextToolbarDragMove)
+  window.addEventListener('pointerup', finishChromeContextToolbarDrag, { once: true })
+  window.addEventListener('pointercancel', finishChromeContextToolbarDrag, { once: true })
+}
+
+function onChromeContextToolbarDragMove(e: PointerEvent) {
+  const drag = activeChromeContextToolbarDrag.value
+  if (!drag) return
+  const next = clampChromeContextToolbarPosition(
+    drag.startLeft + e.clientX - drag.startX,
+    drag.startTop + e.clientY - drag.startY,
+  )
+  chromeContextToolbarManualPosition.value = next
+  setChromeContextToolbarFloatingStyle(next.left, next.top)
+}
+
+function finishChromeContextToolbarDrag() {
+  teardownChromeContextToolbarDrag()
+}
+
+function teardownChromeContextToolbarDrag() {
+  if (typeof window === 'undefined') return
+  activeChromeContextToolbarDrag.value = null
+  chromeLayoutBuilderEl.value?.classList.remove('is-dragging')
+  window.removeEventListener('pointermove', onChromeContextToolbarDragMove)
+  window.removeEventListener('pointerup', finishChromeContextToolbarDrag)
+  window.removeEventListener('pointercancel', finishChromeContextToolbarDrag)
+}
+
 function cleanupChromeFloating() {
   cleanupChromeToolbarFloating?.()
   cleanupChromeStructureFloating?.()
+  cleanupChromeLayoutBuilderFloating?.()
   cleanupChromeToolbarFloating = null
   cleanupChromeStructureFloating = null
+  cleanupChromeLayoutBuilderFloating = null
 }
 
 function toolbarPointerStyle(reference: HTMLElement, floatingX: number, floatingWidth: number, placement: string) {
@@ -3889,10 +5333,31 @@ async function updateChromeStructureFloating() {
   }
 }
 
+async function updateChromeLayoutBuilderFloating() {
+  if (!chromeContextToolbarVisible.value || !chromeLayoutBuilderEl.value) {
+    chromeLayoutBuilderFloatingStyle.value = { ...chromeLayoutBuilderFloatingStyle.value, visibility: 'hidden' }
+    return
+  }
+  const manualPosition = chromeContextToolbarManualPosition.value
+  if (manualPosition) {
+    setChromeContextToolbarFloatingStyle(manualPosition.left, manualPosition.top)
+    return
+  }
+  const reference = activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
+  if (!reference) return
+  const position = bestChromeContextToolbarPosition(reference, chromeLayoutBuilderEl.value)
+  setChromeContextToolbarFloatingStyle(position.left, position.top)
+}
+
 async function syncChromeFloating() {
   if (typeof window === 'undefined') return
   await nextTick()
   cleanupChromeFloating()
+  const layoutReference = activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
+  if (chromeContextToolbarVisible.value && layoutReference && chromeLayoutBuilderEl.value) {
+    cleanupChromeLayoutBuilderFloating = autoUpdate(layoutReference, chromeLayoutBuilderEl.value, updateChromeLayoutBuilderFloating)
+    await updateChromeLayoutBuilderFloating()
+  }
   const toolbarReference = activeChromeToolbarAnchorElement()
   if (chromeToolbarVisible.value && toolbarReference && chromeToolbarEl.value) {
     cleanupChromeToolbarFloating = autoUpdate(toolbarReference, chromeToolbarEl.value, updateChromeToolbarFloating)
@@ -3906,12 +5371,27 @@ async function syncChromeFloating() {
 }
 
 watch(
-  [chromeToolbarVisible, chromeStructurePopoverVisible, activeChromeBlockId, chromePaddingPanelOpen, selectedChromeTarget],
+  [chromeToolbarVisible, chromeStructurePopoverVisible, chromeContextToolbarVisible, activeChromeBlockId, chromePaddingPanelOpen, selectedChromeTarget],
   () => { void syncChromeFloating() },
   { flush: 'post' },
 )
 
+watch(
+  () => {
+    const target = selectedChromeTarget.value
+    if (!target) return ''
+    if (target.type === 'band') return `${target.band}:band`
+    if (target.type === 'row') return `${target.band}:${target.rowId}:row`
+    return `${target.band}:${target.rowId}:${target.cellId}`
+  },
+  () => {
+    chromeContextToolbarManualPosition.value = null
+  },
+)
+
 watch(posterLayout, () => { void syncChromeFloating() }, { flush: 'post' })
+
+watch(selectedChromeTarget, target => emitChromeSelectionChanged(target), { deep: true })
 
 // ── Trail legend ──────────────────────────────────────────────────────────────
 
@@ -4806,7 +6286,7 @@ onMounted(async () => {
     apply3DTerrain()
     mapReady.value = true
     liveZoom.value = mapInstance!.getZoom()
-    if (props.editable) initOverlayDrag()
+    if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
     if (queuedStyleConfig || styleConfigSignature(props.styleConfig) !== mountedStyleSignature) {
       queuedStyleConfig = null
@@ -5184,7 +6664,7 @@ function applyAtlasLayerSettingsPaint(config: StyleConfig) {
 // ── interactjs drag for text overlays ────────────────────────────────────────
 
 async function initOverlayDrag() {
-  if (!props.editable || !posterCanvasEl.value) return
+  if (!props.editable || !posterCanvasEl.value || posterElementsEditing.value) return
   // Clean up previous instances
   for (const inst of interactInstances) inst.unset()
   interactInstances = []
@@ -5316,7 +6796,7 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
         restoreCameraAfterStyleReload(cameraAfterReload)
         applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
-        if (props.editable) nextTick(() => initOverlayDrag())
+        if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
         if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
@@ -5520,7 +7000,7 @@ watch(
         restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties()
         mapReady.value = true
-        if (props.editable) nextTick(() => initOverlayDrag())
+        if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
       })
@@ -6609,9 +8089,31 @@ defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fit
 watch(
   () => [(props.styleConfig.text_overlays ?? []).length, (props.styleConfig.image_overlays ?? []).length],
   () => {
-    if (props.editable && mapReady.value) nextTick(() => initOverlayDrag())
+    if (props.editable && !posterElementsEditing.value && mapReady.value) nextTick(() => initOverlayDrag())
   },
 )
+
+watch(
+  () => [
+    props.selectedPosterElementId,
+    posterElementsEditing.value,
+    (props.styleConfig.text_overlays ?? []).length,
+    (props.styleConfig.image_overlays ?? []).length,
+    (props.styleConfig.icon_overlays ?? []).length,
+  ],
+  () => nextTick(syncPosterMoveableTarget),
+  { immediate: true, flush: 'post' },
+)
+
+watch(posterElementsEditing, (enabled) => {
+  if (enabled) {
+    for (const inst of interactInstances) inst.unset()
+    interactInstances = []
+    nextTick(syncPosterMoveableTarget)
+  } else if (props.editable && mapReady.value) {
+    nextTick(() => initOverlayDrag())
+  }
+})
 
 onUnmounted(() => {
   for (const inst of interactInstances) inst.unset()
@@ -6950,9 +8452,41 @@ onUnmounted(() => {
   z-index: 8;
 }
 
+.chrome-grid-band.is-resizing-columns,
+.chrome-grid-band.is-resizing-rows {
+  cursor: grabbing;
+}
+
 .chrome-grid-row {
   position: relative;
   min-height: 0;
+  min-width: 0;
+  border-radius: 5px;
+}
+
+.chrome-grid-row::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -2px;
+  height: 1px;
+  background: rgba(42, 91, 204, 0.74);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.chrome-grid-row:hover,
+.chrome-grid-row.is-selected,
+.chrome-grid-row.is-resizing-row {
+  z-index: 18;
+}
+
+.chrome-grid-row:hover::after,
+.chrome-grid-row.is-selected::after,
+.chrome-grid-row.is-resizing-row::after {
+  opacity: 1;
 }
 
 .chrome-grid-cell {
@@ -6960,6 +8494,8 @@ onUnmounted(() => {
   min-width: 0;
   min-height: 2.2cqh;
   display: grid;
+  box-sizing: border-box;
+  overflow: visible;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 0.22cqh 0.32cqw;
@@ -6979,20 +8515,85 @@ onUnmounted(() => {
   background: rgba(42, 91, 204, 0.035);
 }
 
+.chrome-grid-cell.is-empty:not(.is-selected):hover {
+  background: rgba(42, 91, 204, 0.026);
+}
+
+.chrome-grid-cell.is-spacer {
+  background: transparent;
+}
+
+.chrome-grid-cell.is-selected.is-empty {
+  border-color: rgba(42, 91, 204, 0.38);
+  background: transparent;
+  box-shadow: none;
+}
+
 .chrome-grid-block {
   min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  display: block;
   white-space: pre-line;
   overflow-wrap: anywhere;
+  overflow: hidden;
 }
 
 .chrome-grid-block--title {
   max-width: 100%;
 }
 
+.chrome-grid-spacer {
+  width: 100%;
+  height: 100%;
+  min-height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: rgba(42, 91, 204, 0.68);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(42, 91, 204, 0.08) 0 1px,
+      transparent 1px 8px
+    );
+  opacity: 0.24;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.chrome-grid-spacer span {
+  padding: 2px 7px;
+  border: 1px solid rgba(42, 91, 204, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.chrome-grid-cell.is-spacer:hover .chrome-grid-spacer,
+.chrome-grid-cell.is-spacer.is-selected .chrome-grid-spacer {
+  opacity: 1;
+  background-color: rgba(42, 91, 204, 0.035);
+}
+
+.chrome-grid-cell.is-spacer:hover .chrome-grid-spacer span,
+.chrome-grid-cell.is-spacer.is-selected .chrome-grid-spacer span {
+  opacity: 1;
+}
+
 .chrome-empty-cell-btn,
+.chrome-cell-trash,
 .chrome-row-add-row,
 .chrome-band-add-row,
-.chrome-cell-add-col {
+.chrome-cell-add-col,
+.chrome-cell-resize-col,
+.chrome-row-resize-row {
   min-width: 24px;
   min-height: 24px;
   border: 1px solid rgba(42, 91, 204, 0.42);
@@ -7009,15 +8610,19 @@ onUnmounted(() => {
 
 .chrome-row-add-row,
 .chrome-band-add-row,
-.chrome-cell-add-col {
+.chrome-cell-add-col,
+.chrome-cell-resize-col,
+.chrome-row-resize-row {
   opacity: 0;
   pointer-events: none;
 }
 
 .chrome-empty-cell-btn:hover,
+.chrome-cell-trash:hover,
 .chrome-row-add-row:hover,
 .chrome-band-add-row:hover,
-.chrome-cell-add-col:hover {
+.chrome-cell-add-col:hover,
+.chrome-row-resize-row:hover {
   border-color: #2A5BCC;
   background: #FFFFFF;
 }
@@ -7029,86 +8634,216 @@ onUnmounted(() => {
   height: 24px;
 }
 
-.chrome-cell-add-col {
+.chrome-cell-trash {
   position: absolute;
-  right: -11px;
-  top: 50%;
-  z-index: 24;
-  width: 24px;
-  height: 24px;
-  transform: translate(50%, -50%) scale(0.92);
+  top: -14px;
+  left: -14px;
+  z-index: 34;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(214, 211, 209, 0.92);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #DC2626;
+  box-shadow: 0 8px 18px rgba(28, 25, 23, 0.16);
 }
 
-.chrome-grid-cell:not(.is-empty):hover > .chrome-cell-add-col,
-.chrome-grid-cell:not(.is-empty).is-selected > .chrome-cell-add-col {
+.chrome-cell-trash:hover {
+  border-color: rgba(220, 38, 38, 0.34);
+  background: #FFF7F7;
+  color: #B91C1C;
+  transform: translateY(-1px);
+}
+
+.chrome-cell-trash-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.chrome-cell-add-col {
+  position: absolute;
+  right: -16px;
+  top: 0;
+  z-index: 24;
+  width: 54px;
+  height: 24px;
+  padding: 0 8px;
+  transform: translate(50%, -62%) scale(0.92);
+  font-size: 10px;
+}
+
+.chrome-cell-resize-col {
+  position: absolute;
+  right: -9px;
+  top: 3px;
+  bottom: 3px;
+  z-index: 28;
+  width: 18px;
+  min-width: 18px;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: ew-resize;
+  box-shadow: none;
+  touch-action: none;
+}
+
+.chrome-cell-resize-col::before {
+  content: "";
+  position: absolute;
+  inset: 2px 7px;
+  border-radius: 999px;
+  background: rgba(42, 91, 204, 0.62);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
+}
+
+.chrome-cell-resize-col::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: #FFFFFF;
+  opacity: 0.9;
+}
+
+.chrome-grid-cell:hover > .chrome-cell-add-col,
+.chrome-grid-cell.is-selected > .chrome-cell-add-col,
+.chrome-grid-row:hover .chrome-cell-resize-col,
+.chrome-grid-row.is-selected .chrome-cell-resize-col,
+.chrome-grid-cell:hover > .chrome-cell-resize-col,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col,
+.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(50%, -50%) scale(1);
+}
+
+.chrome-grid-cell:hover > .chrome-cell-add-col,
+.chrome-grid-cell.is-selected > .chrome-cell-add-col {
+  transform: translate(50%, -62%) scale(1);
+}
+
+.chrome-grid-row:hover .chrome-cell-resize-col,
+.chrome-grid-row.is-selected .chrome-cell-resize-col,
+.chrome-grid-cell:hover > .chrome-cell-resize-col,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col,
+.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col {
+  transform: scaleX(1);
+}
+
+.chrome-grid-band.is-resizing-columns .chrome-cell-resize-col::before,
+.chrome-grid-cell:hover > .chrome-cell-resize-col::before,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col::before {
+  background: #2A5BCC;
 }
 
 .chrome-row-add-row {
   position: absolute;
-  left: 8px;
-  right: 8px;
+  right: 14px;
   bottom: -11px;
   z-index: 22;
+  width: 52px;
+  min-width: 52px;
   height: 18px;
   min-height: 18px;
-  padding: 0;
+  padding: 0 8px;
   transform: translateY(1px);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: transparent;
+  border: 1px solid rgba(42, 91, 204, 0.5);
+  border-radius: 999px;
+  background: #FFFFFF;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+  color: #2A5BCC;
+  font-size: 10px;
+  font-weight: 800;
   overflow: visible;
 }
 
 .chrome-grid-row:hover > .chrome-row-add-row,
-.chrome-grid-row.is-selected > .chrome-row-add-row {
+.chrome-grid-row.is-selected > .chrome-row-add-row,
+.chrome-grid-row.is-resizing-row > .chrome-row-add-row {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
 }
 
-.chrome-row-add-row::before {
-  content: "";
+.chrome-row-resize-row {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  transform: translateY(-50%);
-  background: rgba(42, 91, 204, 0.74);
+  right: 74px;
+  bottom: -13px;
+  z-index: 27;
+  width: 30px;
+  min-width: 30px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  transform: translateY(1px);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: ns-resize;
+  touch-action: none;
 }
 
-.chrome-row-add-row::after {
-  content: "+ Row";
+.chrome-row-resize-row::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 8px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(42, 91, 204, 0.68);
+  box-shadow: 0 0 0 2px #FFFFFF, 0 3px 10px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-row-resize-row::after {
+  content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  display: inline-grid;
-  place-items: center;
-  min-width: 44px;
-  height: 20px;
+  width: 14px;
+  height: 3px;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(42, 91, 204, 0.5);
   border-radius: 999px;
   background: #FFFFFF;
-  color: #2A5BCC;
-  font-size: 10px;
-  font-weight: 800;
-  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row,
+.chrome-grid-row.is-selected > .chrome-row-resize-row,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row,
+.chrome-grid-band.is-resizing-rows .chrome-row-resize-row {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row::before {
+  background: #2A5BCC;
 }
 
 .chrome-band-add-row {
   display: none;
-}
-
-.chrome-grid-band:hover > .chrome-band-add-row {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) scale(1);
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  z-index: 22;
+  height: 24px;
+  padding: 0 10px;
+  transform: translateX(-50%) scale(0.94);
+  color: #2A5BCC;
+  font-size: 10px;
 }
 
 .chrome-inline-popover {
@@ -7682,9 +9417,394 @@ onUnmounted(() => {
   color: #B5251D;
 }
 
+.chrome-editor-app-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10045;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 22px;
+  background: rgba(51, 51, 49, 0.98);
+  color: #FFFFFF;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 8px 26px rgba(28, 25, 23, 0.2);
+}
+
+.chrome-editor-app-action,
+.chrome-editor-add-button {
+  min-height: 36px;
+  padding: 0 3px;
+  border: 0;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chrome-editor-app-action {
+  justify-self: start;
+}
+
+.chrome-editor-add-button {
+  justify-self: end;
+}
+
+.chrome-editor-add-button:hover,
+.chrome-editor-add-button.is-active,
+.chrome-editor-app-action:hover {
+  color: #DCEBE2;
+}
+
+.chrome-editor-app-title {
+  justify-self: center;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.chrome-add-block-panel {
+  position: fixed;
+  top: 66px;
+  right: 18px;
+  z-index: 10046;
+  display: grid;
+  gap: 10px;
+  width: min(284px, calc(100vw - 36px));
+  padding: 10px;
+  border: 1px solid rgba(214, 211, 209, 0.88);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1C1917;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 16px 38px rgba(28, 25, 23, 0.18);
+}
+
+.chrome-add-block-section {
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chrome-add-block-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.chrome-add-block-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #F5F5F4;
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+
+.chrome-add-block-card:hover {
+  border-color: rgba(42, 91, 204, 0.34);
+  background: #EEF4FF;
+  transform: translateY(-1px);
+}
+
+.chrome-add-block-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: #1C1917;
+}
+
+.chrome-layout-builder {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  z-index: 10044;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: min(920px, calc(100vw - 40px));
+  min-height: 48px;
+  padding: 8px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(214, 211, 209, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1C1917;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 16px 34px rgba(28, 25, 23, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: visible;
+}
+
+.chrome-layout-builder.is-dragging {
+  cursor: grabbing;
+}
+
+.chrome-context-handle {
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 4px;
+  place-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1C1917;
+  cursor: grab;
+  touch-action: none;
+}
+
+.chrome-context-handle:hover {
+  background: #F5F5F4;
+  color: #1D4FA3;
+}
+
+.chrome-context-handle:active {
+  cursor: grabbing;
+}
+
+.chrome-context-handle span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.chrome-layout-builder-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chrome-layout-builder-main--content {
+  flex: 1 1 auto;
+}
+
+.chrome-layout-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  background: #E7E5E4;
+}
+
+.chrome-layout-mini-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  margin: 0 2px;
+  background: #E7E5E4;
+}
+
+.chrome-layout-builder-group,
+.chrome-layout-builder-spacing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chrome-layout-builder-group--primary {
+  padding: 0 6px;
+  border-right: 1px solid #E7E5E4;
+  border-left: 1px solid #E7E5E4;
+}
+
+.chrome-layout-builder-group button,
+.chrome-layout-builder-primary,
+.chrome-layout-stepper button,
+.chrome-layout-more summary {
+  height: 34px;
+  min-width: 32px;
+  padding: 0 8px;
+  border: 1px solid #D6D3D1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #44403C;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chrome-layout-builder-group button:hover:not(:disabled),
+.chrome-layout-builder-primary:hover,
+.chrome-layout-stepper button:hover:not(:disabled),
+.chrome-layout-more summary:hover {
+  border-color: #2A5BCC;
+  color: #1D4FA3;
+}
+
+.chrome-layout-builder-group button.active,
+.chrome-layout-builder-group button.is-primary {
+  border-color: #2A5BCC;
+  background: #E7EEF8;
+  color: #1D4FA3;
+}
+
+.chrome-layout-builder-group button:disabled,
+.chrome-layout-stepper button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.chrome-layout-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.chrome-layout-more {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.chrome-layout-more summary {
+  display: inline-grid;
+  place-items: center;
+  list-style: none;
+}
+
+.chrome-layout-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.chrome-layout-more[open] summary {
+  border-color: #2A5BCC;
+  background: #1D4FA3;
+  color: #FFFFFF;
+}
+
+.chrome-layout-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid rgba(214, 211, 209, 0.96);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 34px rgba(28, 25, 23, 0.18);
+}
+
+.chrome-layout-builder.is-popover-above .chrome-layout-popover {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.chrome-layout-builder.is-popover-left .chrome-layout-popover {
+  right: auto;
+  left: 0;
+}
+
+.chrome-layout-popover .chrome-layout-builder-group,
+.chrome-layout-popover .chrome-layout-builder-spacing {
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+}
+
+.chrome-layout-color {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #D6D3D1;
+  border-radius: 6px;
+  background: #FFFFFF;
+}
+
+.chrome-layout-color input {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chrome-layout-builder-spacing {
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.chrome-layout-builder-spacing > span {
+  color: #78716C;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chrome-layout-stepper {
+  display: grid;
+  grid-template-columns: auto 24px 20px 24px;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 0 3px 0 7px;
+  border: 1px solid #E7E5E4;
+  border-radius: 6px;
+  background: #FAFAF9;
+}
+
+.chrome-layout-stepper label {
+  color: #78716C;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.chrome-layout-stepper output {
+  color: #1C1917;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.chrome-layout-stepper button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
+}
+
+@media (min-width: 1024px) {
+  .chrome-add-block-panel {
+    right: 356px;
+  }
+
+  .chrome-layout-builder {
+    left: calc((100vw - 344px) / 2);
+    max-width: min(760px, calc(100vw - 390px));
+  }
+}
+
 /* Text overlay layer */
 .overlay-layer,
-.asset-layer {
+.asset-layer,
+.icon-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -7693,6 +9813,20 @@ onUnmounted(() => {
 
 .image-asset {
   position: absolute;
+}
+
+.icon-overlay {
+  position: absolute;
+  display: grid;
+  place-items: center;
+}
+
+.icon-overlay svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .image-asset img {
@@ -7704,7 +9838,8 @@ onUnmounted(() => {
   user-select: none;
 }
 
-.image-asset.is-editable {
+.image-asset.is-editable,
+.icon-overlay.is-editable {
   pointer-events: auto !important;
   border-radius: 2px;
   outline: 1.5px dashed transparent;
@@ -7729,13 +9864,98 @@ onUnmounted(() => {
 }
 
 .text-overlay.is-editable:hover,
-.image-asset.is-editable:hover {
+.image-asset.is-editable:hover,
+.icon-overlay.is-editable:hover {
   outline-color: rgba(45, 106, 79, 0.35);
 }
 
 .text-overlay.is-editable.is-selected,
-.image-asset.is-editable.is-selected {
+.image-asset.is-editable.is-selected,
+.icon-overlay.is-editable.is-selected {
   outline-color: rgba(45, 106, 79, 0.65);
+}
+
+.text-overlay.is-poster-v2,
+.image-asset.is-poster-v2,
+.icon-overlay.is-poster-v2 {
+  outline-style: solid;
+}
+
+.poster-element-moveable {
+  --moveable-color: #2A5BCC;
+  z-index: 10020;
+}
+
+:deep(.poster-element-moveable .moveable-control) {
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  margin-left: -7px;
+  border: 2px solid #fff;
+  background: #2A5BCC;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.22);
+}
+
+:deep(.poster-element-moveable .moveable-line) {
+  background: #2A5BCC;
+}
+
+.poster-editor-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.poster-editor-guide {
+  position: absolute;
+  display: block;
+}
+
+.poster-editor-guide--safe {
+  inset: 4%;
+  border: 1px solid rgba(42, 91, 204, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+}
+
+.poster-editor-guide--center-v,
+.poster-editor-guide--third-v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed rgba(42, 91, 204, 0.36);
+}
+
+.poster-editor-guide--center-h,
+.poster-editor-guide--third-h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(42, 91, 204, 0.36);
+}
+
+.poster-editor-guide--center-v {
+  left: 50%;
+}
+
+.poster-editor-guide--center-h {
+  top: 50%;
+}
+
+.poster-editor-guide--third-v-1 {
+  left: 33.333%;
+}
+
+.poster-editor-guide--third-v-2 {
+  left: 66.666%;
+}
+
+.poster-editor-guide--third-h-1 {
+  top: 33.333%;
+}
+
+.poster-editor-guide--third-h-2 {
+  top: 66.666%;
 }
 
 /* Delete + resize buttons: hidden by default, revealed on hover/selected */
