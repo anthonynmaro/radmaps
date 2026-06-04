@@ -3040,11 +3040,7 @@ function trashChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
     return
   }
   if (cell?.block && !cell.block.empty) {
-    updateChromeCell(band, rowId, cellId, current => ({
-      ...current,
-      block: undefined,
-    }))
-    setChromeCellSelection(band, rowId, cellId)
+    removeCell(band, rowId, cellId)
     return
   }
   removeCell(band, rowId, cellId)

@@ -1214,6 +1214,17 @@ test.describe('style browser visual harness', () => {
       const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.footer?.rows ?? []
       return rows.some((row: any) => row.id === 'footer-spacer-bottom' && row.deleted === true)
     })).toBe(true)
+
+    await expect(headerTitleRow).toHaveCount(1)
+    await headerTitleRow.locator('.chrome-grid-cell').first().click()
+    await expect(headerTitleRow.locator('[data-testid="chrome-cell-trash"]')).toBeVisible()
+    await headerTitleRow.locator('[data-testid="chrome-cell-trash"]').click()
+    await expect(headerTitleRow).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const fixedTemplate = (window as any).__RADMAPS_FIXED_TEMPLATE_EDITOR__
+      const rows = fixedTemplate?.getStyle?.().poster_layout?.bands?.header?.rows ?? []
+      return rows.some((row: any) => row.id === 'header-title' && row.deleted === true)
+    })).toBe(true)
   })
 
   test('keeps mid-century fixed-template chrome side margins compact', async ({ page }, testInfo) => {

@@ -214,6 +214,7 @@
         <div
           class="fixed-template-poster fixed-template-poster--render-truth"
           data-testid="fixed-template-poster"
+          @pointerdown.capture="onPreviewChromeTrashInteraction"
           @click.capture="onPreviewChromeClick"
         >
           <MapPreview
@@ -668,6 +669,10 @@ function onPreviewPosterTextReset(slot: PosterTextSlot) {
 }
 
 function onPreviewChromeClick(event: MouseEvent) {
+  onPreviewChromeTrashInteraction(event)
+}
+
+function onPreviewChromeTrashInteraction(event: MouseEvent | PointerEvent) {
   const target = event.target instanceof HTMLElement ? event.target : null
   const trashButton = target?.closest<HTMLElement>('[data-testid="chrome-cell-trash"]')
   if (!trashButton) return
@@ -689,18 +694,16 @@ function onPreviewChromeClick(event: MouseEvent) {
   const rowIndex = rows.findIndex(row => row.id === rowId)
   const row = rows[rowIndex]
   const cellIndex = row?.cells.findIndex(cell => cell.id === cellId) ?? -1
-  const cell = cellIndex >= 0 ? row?.cells[cellIndex] : null
-  const isSpacerCell = row?.kind === 'spacer' || Boolean(cell?.blocks.some(block => block.kind === 'spacer'))
-  if (!row || !cell || !isSpacerCell) return
+  if (!row || cellIndex < 0) return
 
   event.preventDefault()
   event.stopPropagation()
 
-  if (rows.length <= 1) {
+  if (rows.length > 1) {
+    rows.splice(rowIndex, 1)
+  } else {
     row.cells.splice(cellIndex, 1)
     if (!row.cells.length) rows.splice(rowIndex, 1)
-  } else {
-    rows.splice(rowIndex, 1)
   }
 
   setDraft(next)
