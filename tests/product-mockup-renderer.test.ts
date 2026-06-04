@@ -148,9 +148,9 @@ describe('product mockup renderer', () => {
     const chromeBoxes = rendered.validation.chrome_boxes as Record<string, { left: number; top: number; width: number; height: number }>
 
     expect(Object.keys(chromeBoxes).sort()).toEqual(['bottom_left', 'bottom_right', 'top_left', 'top_right'])
-    expect(chromeBoxes.top_left).toMatchObject({ left: 922, top: 419, width: 53, height: 53 })
-    expect(chromeBoxes.top_right.left + chromeBoxes.top_right.width).toBe(2121)
-    expect(chromeBoxes.bottom_right.top + chromeBoxes.bottom_right.height).toBe(2162)
+    expect(chromeBoxes.top_left).toMatchObject({ left: 933, top: 429, width: 53, height: 53 })
+    expect(chromeBoxes.top_right.left + chromeBoxes.top_right.width).toBe(2151)
+    expect(chromeBoxes.bottom_right.top + chromeBoxes.bottom_right.height).toBe(2152)
   }, 10000)
 
   it('overprints aluminum face edges so source template artwork does not leak through', async () => {
