@@ -97,6 +97,9 @@ async function probeScreenshotEndpoint(endpointUrl) {
 
 const siteUrl = parseUrl(main.NUXT_PUBLIC_SITE_URL)
 const screenshotEndpoint = parseUrl(main.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io')
+const siteUrlIsLocal = siteUrl ? isLocalHost(siteUrl.hostname) : false
+const screenshotEndpointIsLocal = screenshotEndpoint ? isLocalHost(screenshotEndpoint.hostname) : false
+const screenshotEndpointIsAws = Boolean(screenshotEndpoint?.hostname.endsWith('.awsapprunner.com'))
 const workerRenderBackend = effectiveWorker.RENDER_BACKEND || main.RENDER_BACKEND || 'browserless'
 const usesBrowserless = workerRenderBackend === 'browserless'
 
@@ -110,7 +113,11 @@ check('Gelato order type is draft', main.GELATO_ORDER_TYPE === 'draft' || allowL
 
 check('render ticket secret present', present(main.RENDER_TICKET_SECRET) && main.RENDER_TICKET_SECRET.length >= 32, 'set a long RENDER_TICKET_SECRET')
 check('public site URL valid', !!siteUrl, 'set NUXT_PUBLIC_SITE_URL to a valid public tunnel or deployed URL the browser backend can reach')
-check('public site URL is not localhost', !!siteUrl && !isLocalHost(siteUrl.hostname), 'set NUXT_PUBLIC_SITE_URL to an https ngrok or deployed URL, not localhost')
+check(
+  'public site URL reachable by screenshot backend',
+  !!siteUrl && (!siteUrlIsLocal || screenshotEndpointIsLocal),
+  'set NUXT_PUBLIC_SITE_URL to localhost only when BROWSERLESS_ENDPOINT is the local proof server; remote AWS/Browserless backends need a deployed URL or live tunnel',
+)
 
 check('Supabase URL present', present(main.SUPABASE_URL), 'set SUPABASE_URL')
 check('Supabase service key present', present(main.SUPABASE_SERVICE_KEY), 'set SUPABASE_SERVICE_KEY')
@@ -127,13 +134,17 @@ for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'RENDER_TICKET_SECRET
 check('worker BROWSERLESS_TOKEN effective', !usesBrowserless || present(effectiveWorker.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN in .env or render-worker-v4/.env, or use RENDER_BACKEND=local-chromium')
 check('worker APP_URL matches public site URL', present(effectiveWorker.APP_URL) && effectiveWorker.APP_URL === main.NUXT_PUBLIC_SITE_URL, 'set APP_URL or NUXT_PUBLIC_SITE_URL to the public URL the browser backend should load')
 
-if (siteUrl && !isLocalHost(siteUrl.hostname)) {
+if (siteUrl && (!siteUrlIsLocal || screenshotEndpointIsLocal)) {
   const probe = await probeRenderPayload(siteUrl)
   check('public site URL serves RadMaps app', probe.ok, `${probe.detail}; start Nuxt and point NUXT_PUBLIC_SITE_URL at the active tunnel`)
 }
-if (screenshotEndpoint?.hostname.endsWith('.awsapprunner.com')) {
+if (screenshotEndpointIsAws || screenshotEndpointIsLocal) {
   const probe = await probeScreenshotEndpoint(screenshotEndpoint)
-  check('AWS proof renderer healthy', probe.ok, `${probe.detail}; check App Runner service health and logs`)
+  check(
+    screenshotEndpointIsAws ? 'AWS proof renderer healthy' : 'local proof renderer healthy',
+    probe.ok,
+    `${probe.detail}; check the proof renderer service health and logs`,
+  )
 }
 
 const failures = checks.filter((item) => !item.ok && item.severity === 'error')
