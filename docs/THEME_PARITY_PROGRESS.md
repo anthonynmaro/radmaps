@@ -199,6 +199,18 @@ reference screenshot or spec contract.
   abstraction, sequence badge, ringed station key, diagram palette, and contract
   typography pass; low map smoke reflects intentional abstraction without a
   screenshot target.
+- `plein-air`: ready for Claude/human review. The spec-only queue rerun
+  generated `docs/theme_audit_output/poster-themes/print/plein-air.png`;
+  capture reported `96.5%` pixel, `96.6%` map, `100.0%` chrome, and `100.0%`
+  semantic (`105/105`). The art-wash composition, watercolor wash/deckle motifs,
+  brushed route line, soft palette, italic title treatment, and contract
+  typography all pass; remaining review is visual only.
+
+## Overnight Queue Summary
+
+- `ready-for-review`: 27
+- `blocked`: 0
+- `unchanged`: 0
 
 ## Next Steps
 

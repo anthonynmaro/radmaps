@@ -32,10 +32,10 @@ Codex never marks a theme `approved`.
 | `sea-chart` | `ready-for-review` | 100.0% (`119/119`) | `docs/theme_audit_output/poster-themes/print/sea-chart.png` | Fresh rerun confirms the pale mint chart field, transparent titleblock, single rule, neatline, sounding density, compass/rhumb motifs, and magenta course route all pass; visual review remains human/Claude-only. |
 | `field-journal` | `ready-for-review` | 100.0% (`109/109`) | `docs/theme_audit_output/poster-themes/print/field-journal.png` | Spec-only rerun confirms the journal-spread composition, notebook notes/sketch motifs, field-paper palette, drybrush route treatment, and contract typography all pass; awaiting visual review only. |
 | `transit-diagram` | `ready-for-review` | 100.0% (`94/94`) | `docs/theme_audit_output/poster-themes/print/transit-diagram.png` | Spec-only rerun confirms the transit-diagram composition, route-derived 45/90 abstraction, sequence badge, ringed station key, diagram palette, and contract typography pass; low map smoke reflects abstraction vs screenshot geometry. |
-| `plein-air` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
+| `plein-air` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/plein-air.png` | Spec-only rerun confirms the art-wash composition, watercolor wash/deckle motifs, brushed route line, soft palette, italic title treatment, and contract typography all pass; awaiting visual review only. |
 
 ## Summary
 
-- `ready-for-review`: 26
+- `ready-for-review`: 27
 - `blocked`: 0
-- `unchanged`: 1
+- `unchanged`: 0
