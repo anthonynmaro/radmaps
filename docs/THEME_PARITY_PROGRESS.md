@@ -34,6 +34,11 @@ reference screenshot or spec contract.
   `docs/theme_audit_output/poster-themes/print/classic-trail.png`; capture
   reported `96.8%` pixel, `99.9%` map, `91.5%` chrome, and `100.0%` semantic
   (`105/105`). Review queue status is `ready-for-review`.
+- `midcentury-travel`: ready for Claude/human review. The live render was
+  written to `docs/theme_audit_output/poster-themes/print/midcentury-travel.png`;
+  capture reported `91.8%` pixel, `99.2%` map, `83.5%` chrome, and `100.0%`
+  semantic (`105/105`). Review queue status is `ready-for-review`; the lower
+  chrome smoke score is noted for visual review.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
