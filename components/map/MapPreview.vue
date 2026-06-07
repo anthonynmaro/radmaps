@@ -4623,14 +4623,15 @@ const chromeCoordinatesText = computed(() => {
   }
   return location || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
 })
-const technicalDataRegion = computed(() =>
-  locationLine.value
+const technicalDataRegion = computed(() => {
+  const source = props.map.stats?.location?.trim() || locationLine.value
+  return source
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?.toUpperCase() || 'ROUTE',
-)
+    ?.toUpperCase() || 'ROUTE'
+})
 const formattedTechnicalDate = computed(() => {
   const value = props.map.stats?.date
   if (!value) return formattedDateCompact.value || 'DATE'

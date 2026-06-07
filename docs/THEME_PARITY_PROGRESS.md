@@ -98,10 +98,10 @@ reference screenshot or spec contract.
 - `blueprint-strava`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
-  reported `92.8%` pixel, `98.4%` map, `83.5%` chrome, and `100.0%` semantic
-  (`109/109`). The print render now uses the map-first technical sheet, large
-  bottom BOSTON slab, FIG. 01 route-plan label, labeled data footer, and no
-  generic logo/stats band.
+  reported `92.6%` pixel, `98.4%` map, `83.1%` chrome, and `100.0%` semantic
+  (`109/109`). The print render keeps the map-first technical sheet, large
+  bottom BOSTON slab, and FIG. 01 route-plan label, now with the Boston Marathon
+  subtitle and `26.2 mi / 813 ft / 04.21.2025` footer values.
 - `electric-atlas`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
