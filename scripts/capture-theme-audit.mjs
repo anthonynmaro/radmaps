@@ -1233,7 +1233,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.mapLayers.push(
       semanticCheck('Trail Blueprint uses owned alidade dark map', style.preset === 'radmaps-alidade-dark', String(style.preset ?? '')),
-      semanticCheck('Trail Blueprint contours enabled', style.show_contours === true && Number(style.contour_detail ?? 0) >= 5, `${style.show_contours}/${style.contour_detail}`),
+      semanticCheck('Trail Blueprint restrained contours enabled', style.show_contours === true && Number(style.contour_detail ?? 0) >= 1 && Number(style.contour_detail ?? 0) <= 2, `${style.show_contours}/${style.contour_detail}`),
       semanticCheck('Trail Blueprint hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Trail Blueprint roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Trail Blueprint landcover is dark green ink', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#0B1A15' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.9, JSON.stringify(atlasLayerSettings.landcover ?? {})),

@@ -91,6 +91,11 @@ reference screenshot or spec contract.
   Review queue status is `ready-for-review`. The image smoke check was corrected
   to use color distance from the cool-paper token instead of a brittle channel
   ordering predicate.
+- `blueprint-strava`: ready for Claude/human review. The live render was written
+  to `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
+  reported `94.9%` pixel, `97.4%` map, `89.8%` chrome, and `100.0%` semantic
+  (`103/103`). Review queue status is `ready-for-review`. The contour-density
+  assertion was corrected to match the restrained Trail Blueprint token.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
