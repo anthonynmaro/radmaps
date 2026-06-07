@@ -1902,7 +1902,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           paper: '#070C1E',
           text: '#E7ECFB',
           route: '#E8C66A',
-          land: '#101A38',
+          land: '#0C142B',
           water: '#071024',
           waterway: '#18294C',
           minorContour: '#22325D',
@@ -1933,7 +1933,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Dark Sky family uses star-horizon composition', style.composition === 'darksky-stars', String(style.composition ?? '')),
-      semanticCheck('Dark Sky family compact metadata footer remains present', footerVisible === true, `${footerVisible}`),
+      entry.themeId === 'dark-sky'
+        ? semanticCheck('Dark Sky hides generic metadata footer', footerVisible === false, `${footerVisible}`)
+        : semanticCheck('Dark Sky colorway compact metadata footer remains present', footerVisible === true, `${footerVisible}`),
     )
     groups.palette.push(
       semanticCheck('Dark Sky family night background', String(style.background_color).toUpperCase() === expected.paper, `${style.background_color ?? ''} vs ${expected.paper}`),
@@ -1945,6 +1947,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.mapLayers.push(
       semanticCheck('Dark Sky family uses owned night relief map', style.preset === 'radmaps-night-relief', String(style.preset ?? '')),
       semanticCheck('Dark Sky family contours enabled', style.show_contours === true, String(style.show_contours)),
+      ...(entry.themeId === 'dark-sky'
+        ? [semanticCheck('Dark Sky contours are sparse for starfield treatment', Number(style.contour_detail ?? 0) <= 1, String(style.contour_detail ?? ''))]
+        : []),
       semanticCheck('Dark Sky family roads and map labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Dark Sky family hillshade disabled for flat nocturne relief', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Dark Sky family layer-color tile effect configured', style.tile_effect === 'layer-color', String(style.tile_effect ?? '')),

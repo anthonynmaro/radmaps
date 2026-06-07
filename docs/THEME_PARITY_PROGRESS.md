@@ -112,10 +112,13 @@ reference screenshot or spec contract.
   `88.0%` pixel, `0.0%` map, `88.0%` chrome, and `100.0%` semantic (`97/97`).
   Review queue status is `ready-for-review`; the zero map smoke is noted as a
   reference/live terrain mismatch after visual sanity check.
-- `dark-sky`: ready for Claude/human review. The live render was written to
-  `docs/theme_audit_output/poster-themes/print/dark-sky.png`; capture reported
-  `94.0%` pixel, `99.4%` map, `93.7%` chrome, and `100.0%` semantic (`100/100`).
-  Review queue status is `ready-for-review`.
+- `dark-sky`: Claude feedback remediation is ready for review. The live render
+  was regenerated at `docs/theme_audit_output/poster-themes/print/dark-sky.png`;
+  capture reported `89.7%` pixel, `93.6%` map, `100.0%` chrome, and `100.0%`
+  semantic (`103/103`). The render now uses a large top Cormorant sky title,
+  denser visible stars, a hidden generic footer, sparse nocturne contours, and
+  the gold constellation route treatment. Review queue status remains
+  `ready-for-review`.
 - `copper-night`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture
   reported `94.2%` pixel, `70.6%` map, `94.7%` chrome, and `100.0%` semantic

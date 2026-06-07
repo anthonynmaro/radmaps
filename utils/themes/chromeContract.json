@@ -152,7 +152,7 @@
   {
     "themeId": "dark-sky",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "compact" },
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-star-field", "composition-darksky-ridge"],
     "requiredSelectors": [".darksky-ridge-line"],
     "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-constellation", "route-line-darksky-star-crosses"]
