@@ -25,7 +25,7 @@ Codex never marks a theme `approved`.
 | `night-ride` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/night-ride.png` | Cyan night profile colorway, dark topo field, profile band, and performance route layers pass; map smoke is zero due to reference/live terrain mismatch. |
 | `dark-sky` | `ready-for-review` | 100.0% (`100/100`) | `docs/theme_audit_output/poster-themes/print/dark-sky.png` | Star field, ridge motif, dark relief tokens, and gold route treatment pass; watch atmosphere against target. |
 | `copper-night` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/copper-night.png` | Copper dark-sky colorway, ridge/star motif, and warm route tokens pass; watch lower map smoke against target. |
-| `marathon-bib` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `marathon-bib` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/marathon-bib.png` | Bib paper, ghost numeral motif, race collar, red route, and map tokens pass; watch low map smoke from fixture mismatch. |
 | `botanical` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `relief-shaded` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `cartouche-place` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 19
+- `ready-for-review`: 20
 - `blocked`: 0
-- `unchanged`: 8
+- `unchanged`: 7

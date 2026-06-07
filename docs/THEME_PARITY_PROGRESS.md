@@ -119,6 +119,11 @@ reference screenshot or spec contract.
   reported `94.2%` pixel, `70.6%` map, `94.7%` chrome, and `100.0%` semantic
   (`99/99`). Review queue status is `ready-for-review`; lower map smoke is noted
   for visual review.
+- `marathon-bib`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/marathon-bib.png`; capture
+  reported `90.5%` pixel, `24.5%` map, `93.2%` chrome, and `100.0%` semantic
+  (`103/103`). Review queue status is `ready-for-review`; low map smoke is noted
+  for visual review.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
