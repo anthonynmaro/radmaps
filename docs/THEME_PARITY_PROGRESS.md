@@ -76,10 +76,10 @@ reference screenshot or spec contract.
   single rule, and charcoal route.
 - `bold-modern`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/bold-modern.png`; capture
-  reported `23.9%` pixel, `47.6%` map, `24.1%` chrome, and `100.0%` semantic
-  (`103/103`). Claude feedback is addressed with sampled rose paper/red accent
-  tokens, a clean red GPX stroke, square endpoint markers, and no trap/register
-  hatch layers.
+  reported `23.9%` pixel, `48.6%` map, `24.0%` chrome, and `100.0%` semantic
+  (`105/105`). Claude feedback is addressed with bound Wonderland footer values,
+  a clean red GPX stroke without hatch/register layers, and quieter contour
+  tokens; field density remains called out for visual review.
 - `blackline`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blackline.png`; capture reported
   `69.2%` pixel, `96.2%` map, `20.3%` chrome, and `100.0%` semantic (`104/104`).

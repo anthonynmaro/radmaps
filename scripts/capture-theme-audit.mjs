@@ -781,6 +781,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
   const snapshot = await page.evaluate((contract) => {
     const styleConfig = window.__RADMAPS_STYLE_FIXTURE__?.getStyle?.() ?? {}
     const title = document.querySelector('.poster-trail-name')
+    const locationLine = document.querySelector('.poster-location-line')
+    const compositionMeta = document.querySelector('[data-testid="composition-meta-line"]')
     const canvas = document.querySelector('[data-testid="poster-canvas"]')
     const map = document.querySelector('[data-testid="poster-map"]')
     const header = document.querySelector('[data-testid="poster-header"]')
@@ -861,6 +863,12 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
         letterSpacing: titleStyle?.letterSpacing ?? '',
         lineHeight: titleStyle?.lineHeight ?? '',
         textAlign: titleStyle?.textAlign ?? '',
+      },
+      locationLine: {
+        text: locationLine?.textContent?.trim() ?? '',
+      },
+      compositionMeta: {
+        text: compositionMeta?.textContent?.trim() ?? '',
       },
       header: {
         display: headerStyle?.display ?? '',
@@ -1766,6 +1774,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Modernist uses modernist-block composition', style.composition === 'modernist-block', String(style.composition ?? '')),
       semanticCheck('Modernist generic footer hidden; metadata lives in titleblock', footerVisible === false, `${footerVisible}`),
+      semanticCheck('Modernist titleblock binds Wonderland subtitle', snapshot.locationLine?.text.includes('The Wonderland Trail') && snapshot.locationLine?.text.includes('Mount Rainier, Washington'), snapshot.locationLine?.text ?? ''),
+      semanticCheck('Modernist metadata binds target distance', snapshot.compositionMeta?.text.includes('93.0 mi'), snapshot.compositionMeta?.text ?? ''),
     )
     groups.palette.push(
       semanticCheck('Modernist warm poster background matches sampled target', String(style.background_color).toUpperCase() === '#E5C3BB', String(style.background_color ?? '')),

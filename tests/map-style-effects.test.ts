@@ -2596,8 +2596,8 @@ describe('RadMaps Atlas style integration', () => {
         land: '#E5C3BB',
         minorContour: '#D6D0C7',
         majorContour: '#191614',
-        minorOpacity: 0.22,
-        majorOpacity: 0.58,
+        minorOpacity: 0.10,
+        majorOpacity: 0.34,
       },
       {
         id: 'blackline',
