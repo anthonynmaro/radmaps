@@ -425,6 +425,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     ]))
     expect(getThemeChromeContract('transit-diagram')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-transit-diagram-art',
+      'transit-diagram-route-stations',
       'transit-diagram-legend',
       'transit-diagram-station-key',
     ]))

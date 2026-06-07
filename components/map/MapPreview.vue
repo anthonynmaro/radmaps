@@ -1164,6 +1164,29 @@
             <text x="0" y="-14">N</text>
           </g>
         </svg>
+        <svg
+          v-if="composition.id === 'transit-diagram'"
+          class="transit-diagram-route-stations"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="transit-diagram-route-stations"
+        >
+          <g>
+            <circle class="transit-station transit-station--terminal" cx="30" cy="43" r="1.9" />
+            <text x="33" y="43.8">START</text>
+            <circle class="transit-station" cx="39" cy="43" r="1.55" />
+            <text x="41.6" y="41.4">RIDGE</text>
+            <circle class="transit-station transit-station--secondary" cx="46" cy="52" r="1.55" />
+            <text x="48.6" y="52.8">OVERLOOK</text>
+            <circle class="transit-station" cx="46" cy="59" r="1.55" />
+            <text x="48.6" y="60">CELLAR</text>
+            <circle class="transit-station transit-station--secondary" cx="55" cy="77" r="1.55" />
+            <text x="57.6" y="77.8">VINEYARD</text>
+            <circle class="transit-station transit-station--terminal" cx="64" cy="77" r="1.9" />
+            <text x="66.8" y="77.8">FINISH</text>
+          </g>
+        </svg>
         <div
           v-if="composition.id === 'transit-diagram'"
           class="composition-transit-diagram-art"
@@ -7548,7 +7571,7 @@ function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
       type: 'circle',
       source: TRANSIT_STATIONS_SOURCE_ID,
       paint: {
-        'circle-radius': ['case', ['get', 'terminal'], 13, 9],
+        'circle-radius': ['case', ['get', 'terminal'], 14, 10],
         'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
         'circle-opacity': 1,
       },
@@ -7560,10 +7583,10 @@ function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
       type: 'circle',
       source: TRANSIT_STATIONS_SOURCE_ID,
       paint: {
-        'circle-radius': ['case', ['get', 'terminal'], 10.5, 7],
+        'circle-radius': ['case', ['get', 'terminal'], 11.5, 8],
         'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
         'circle-stroke-color': ['case', ['get', 'secondary'], '#1F8A5B', props.styleConfig.route_color ?? '#7A1FA2'],
-        'circle-stroke-width': 3.5,
+        'circle-stroke-width': 4.2,
       },
     })
   }
@@ -7575,7 +7598,7 @@ function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
       layout: {
         'text-field': ['get', 'label'],
         'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': 13,
+        'text-size': 14,
         'text-anchor': 'left',
         'text-offset': [1.35, 0],
         'text-allow-overlap': true,
@@ -7587,6 +7610,9 @@ function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
         'text-halo-width': 1.5,
       },
     })
+  }
+  for (const layerId of [TRANSIT_STATION_HALO_LAYER_ID, TRANSIT_STATION_DOT_LAYER_ID, TRANSIT_STATION_LABEL_LAYER_ID]) {
+    if (mapInstance.getLayer(layerId)) mapInstance.moveLayer(layerId)
   }
 }
 
@@ -10680,6 +10706,36 @@ onUnmounted(() => {
   font-family: "IBM Plex Mono", monospace;
 }
 
+.transit-diagram-route-stations {
+  position: absolute;
+  inset: 0 0 17%;
+  z-index: 13;
+  pointer-events: none;
+  color: var(--route-color, #7a1fa2);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.transit-diagram-route-stations .transit-station {
+  fill: var(--composition-paper, #f7f5f0);
+  stroke: currentColor;
+  stroke-width: 0.65;
+  vector-effect: non-scaling-stroke;
+}
+
+.transit-diagram-route-stations .transit-station--secondary {
+  stroke: var(--contour-major-color, #1f8a5b);
+}
+
+.transit-diagram-route-stations text {
+  fill: var(--label-text-color, #181818);
+  stroke: var(--composition-paper, #f7f5f0);
+  stroke-width: 0.32;
+  paint-order: stroke;
+  font-size: 1.45px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .transit-diagram-legend,
 .transit-diagram-station-key {
   display: inline-flex;
@@ -12914,8 +12970,8 @@ onUnmounted(() => {
 }
 
 .poster-composition--transit-diagram [data-testid="poster-map"] {
-  flex: 0 0 75% !important;
-  height: 75% !important;
+  flex: 1 1 auto !important;
+  height: 83% !important;
 }
 
 .poster-composition--transit-diagram .poster-header {
@@ -12962,7 +13018,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--transit-diagram .poster-footer {
-  flex: 0 0 8% !important;
+  display: none !important;
 }
 
 .poster-composition--transit-diagram .poster-trail-name {

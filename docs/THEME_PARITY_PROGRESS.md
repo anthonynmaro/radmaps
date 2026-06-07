@@ -192,13 +192,13 @@ reference screenshot or spec contract.
   semantic (`109/109`). The journal-spread composition, notebook notes/sketch
   motifs, field-paper palette, drybrush route treatment, and contract typography
   pass; remaining review is visual only.
-- `transit-diagram`: ready for Claude/human review. The spec-only queue rerun
-  generated `docs/theme_audit_output/poster-themes/print/transit-diagram.png`;
-  capture reported `86.1%` pixel, `33.3%` map, `86.1%` chrome, and `100.0%`
-  semantic (`94/94`). The transit-diagram composition, route-derived 45/90
-  abstraction, sequence badge, ringed station key, diagram palette, and contract
-  typography pass; low map smoke reflects intentional abstraction without a
-  screenshot target.
+- `transit-diagram`: Claude feedback remediation is ready for review. The
+  spec-only capture regenerated
+  `docs/theme_audit_output/poster-themes/print/transit-diagram.png`; capture
+  reported `91.7%` pixel, `35.0%` map, `91.9%` chrome, and `100.0%` semantic
+  (`97/97`). The literal basemap and generic stats footer are suppressed, the
+  route renders as a 45/90 schematic, and visible station rings/labels plus the
+  mono legend are present; low map smoke reflects intentional abstraction.
 - `plein-air`: ready for Claude/human review. The spec-only queue rerun
   generated `docs/theme_audit_output/poster-themes/print/plein-air.png`;
   capture reported `96.5%` pixel, `96.6%` map, `100.0%` chrome, and `100.0%`

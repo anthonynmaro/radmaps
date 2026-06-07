@@ -1623,12 +1623,13 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Transit diagram composition active', style.composition === 'transit-diagram', String(style.composition ?? '')),
+      semanticCheck('Transit generic stats footer hidden', footerVisible === false, `${footerVisible}`),
       semanticCheck('Transit map occupies diagram panel', mapHeightRatio > 0.62 && mapHeightRatio < 0.86, mapHeightRatio.toFixed(3)),
     )
     groups.mapLayers.push(
       semanticCheck('Transit uses owned simple contour map', style.preset === 'radmaps-simple-contour', String(style.preset ?? '')),
       semanticCheck('Transit contours disabled', style.show_contours === false && atlasLayers.contour === false, `${style.show_contours}/${atlasLayers.contour}`),
-      semanticCheck('Transit roads and place labels enabled', style.show_roads === true && style.show_place_labels === true, `${style.show_roads}/${style.show_place_labels}`),
+      semanticCheck('Transit literal roads and place labels suppressed', style.show_roads === false && style.show_place_labels === false && atlasLayers.transportation === false && atlasLayers.place === false, `${style.show_roads}/${style.show_place_labels}/${atlasLayers.transportation}/${atlasLayers.place}`),
       semanticCheck('Transit POIs hidden', style.show_poi_labels === false, String(style.show_poi_labels)),
       semanticCheck('Transit hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Transit station map layers present', ['transit-station-halo', 'transit-station-dot', 'transit-station-label'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
@@ -1642,6 +1643,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Transit map grid enabled', style.show_grid === true && style.grid_scope === 'map', `${style.show_grid}/${style.grid_scope}`),
       semanticCheck('Transit diagram legend present', (snapshot.contractPresence?.testIdCounts?.['composition-transit-diagram-art'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Transit route station overlay present', (snapshot.contractPresence?.testIdCounts?.['transit-diagram-route-stations'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Transit station key present', (snapshot.contractPresence?.testIdCounts?.['transit-diagram-station-key'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Transit line key present', (snapshot.contractPresence?.selectorCounts?.['.transit-diagram-line-key'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )

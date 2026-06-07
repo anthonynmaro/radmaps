@@ -64,7 +64,7 @@ describe('transit diagram route abstraction', () => {
     const coords = getAllRouteCoords(diagram)
 
     expect(diagram.features[0]?.properties?.radmaps_transit_diagram).toBe(true)
-    expect(coords).toHaveLength(6)
+    expect(coords.length).toBeGreaterThanOrEqual(6)
     for (const coord of coords) {
       expect(coord[0]).toBeGreaterThanOrEqual(bbox[0])
       expect(coord[0]).toBeLessThanOrEqual(bbox[2])
@@ -79,6 +79,13 @@ describe('transit diagram route abstraction', () => {
       const eighthTurns = Math.atan2(dy, dx) / (Math.PI / 4)
       expect(Math.abs(eighthTurns - Math.round(eighthTurns))).toBeLessThan(0.000001)
     }
+    const turnSet = new Set<string>()
+    for (let i = 1; i < normalized.length; i++) {
+      const dx = normalized[i].x - normalized[i - 1].x
+      const dy = normalized[i].y - normalized[i - 1].y
+      turnSet.add(String(Math.round(Math.atan2(dy, dx) / (Math.PI / 4))))
+    }
+    expect(turnSet.size).toBeGreaterThan(1)
   })
 
   it('builds ringed station metadata from the transformed route', () => {

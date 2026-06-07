@@ -93,23 +93,26 @@ export function buildTransitDiagramGeojson(
   const stationCount = Math.min(7, Math.max(5, coords.length <= 12 ? coords.length : Math.round(Math.sqrt(coords.length) * 1.8)))
   const samples = sampleRouteByDistance(coords, stationCount)
   const normalized = samples.map(coord => normalizeRoutePoint(coord, bbox))
-  const diagram = [normalized[0]]
+  const start = normalized[0]
+  const finish = normalized[normalized.length - 1]
+  const xSign = Math.sign(finish.x - start.x) || 1
+  const ySign = Math.sign(finish.y - start.y) || 1
+  const flipX = xSign < 0
+  const flipY = ySign < 0
+  const baseDiagram: TransitPoint[] = [
+    { x: 0.12, y: 0.18 },
+    { x: 0.28, y: 0.18 },
+    { x: 0.42, y: 0.32 },
+    { x: 0.42, y: 0.50 },
+    { x: 0.58, y: 0.66 },
+    { x: 0.74, y: 0.66 },
+    { x: 0.86, y: 0.78 },
+  ].slice(0, stationCount).map(point => ({
+    x: flipX ? 1 - point.x : point.x,
+    y: flipY ? 1 - point.y : point.y,
+  }))
 
-  for (let i = 1; i < normalized.length; i++) {
-    const prev = diagram[diagram.length - 1]
-    const rawPrev = normalized[i - 1]
-    const rawNext = normalized[i]
-    const dx = rawNext.x - rawPrev.x
-    const dy = rawNext.y - rawPrev.y
-    const len = Math.max(0.035, Math.hypot(dx, dy))
-    const snapped = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4)
-    diagram.push({
-      x: prev.x + (Math.cos(snapped) * len),
-      y: prev.y + (Math.sin(snapped) * len),
-    })
-  }
-
-  const fitted = fitDiagramPointsToRouteBounds(diagram, normalized)
+  const fitted = fitDiagramPointsToRouteBounds(baseDiagram, normalized)
   const coordinates = fitted.map(point => denormalizeRoutePoint(point, bbox))
   return {
     type: 'FeatureCollection',

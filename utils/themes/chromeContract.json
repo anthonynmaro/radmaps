@@ -27,7 +27,7 @@
   {
     "themeId": "midcentury-travel",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -35,7 +35,7 @@
   {
     "themeId": "ranch-ochre",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -43,7 +43,7 @@
   {
     "themeId": "daybreak-trace",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -211,8 +211,8 @@
   {
     "themeId": "transit-diagram",
     "typography": { "titleFont": "Outfit", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["composition-transit-diagram-art", "transit-diagram-legend", "transit-diagram-station-key"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-transit-diagram-art", "transit-diagram-route-stations", "transit-diagram-legend", "transit-diagram-station-key"],
     "requiredSelectors": [".transit-diagram-line-key", ".transit-diagram-station-key"],
     "requiredRouteLayers": ["transit-station-halo", "transit-station-dot", "transit-station-label"],
     "forbiddenTestIds": []

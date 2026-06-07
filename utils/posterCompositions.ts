@@ -116,7 +116,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...BASE_PROFILE,
     headerPadding: '2.35cqh calc(4.8cqw + var(--print-bleed, 0px)) calc(2.75cqh + var(--print-bleed, 0px))',
     headerBackground: 'paper',
-    footerVariant: 'hidden',
+    footerVariant: 'data',
     statsEmphasis: 'quiet',
   },
   'riso-stack': {
@@ -306,7 +306,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     headerBackground: 'paper',
     mapMargin: '0',
     mapBorder: '0 solid transparent',
-    footerVariant: 'data',
+    footerVariant: 'hidden',
     statsEmphasis: 'numeric',
     showGridOverlay: false,
   },
