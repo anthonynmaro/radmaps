@@ -149,8 +149,10 @@
   {
     "themeId": "marathon-bib",
     "typography": { "titleFont": "Bebas Neue", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "bib" },
-    "requiredTestIds": ["composition-bib-ghost", "composition-bib-paper", "composition-bib-pin-hole", "composition-bib-tear-strip", "composition-bib-finish-headline"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "bib" },
+    "requiredTestIds": ["composition-bib-ghost", "composition-bib-paper", "composition-bib-pin-hole", "composition-bib-tear-strip", "composition-bib-finish-headline", "composition-bib-topline", "composition-bib-data-footer"],
+    "requiredSelectors": [".composition-bib-data-footer__item", ".poster-composition--bib-numerals .poster-trail-name"],
+    "forbiddenSelectors": [".poster-composition--bib-numerals .poster-stats", ".poster-composition--bib-numerals .poster-mark"],
     "requiredRouteLayers": ["route-line-bib-knockout", "route-line-bib-mile-ticks", "route-line-bib-checkpoint-dots"]
   },
   {

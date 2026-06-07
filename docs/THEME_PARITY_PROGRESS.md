@@ -136,11 +136,14 @@ reference screenshot or spec contract.
   (`106/106`). The shared sky primitive is re-ported with a visible starfield
   and constellation overlay, warm top eyebrow, bronze route, stronger contours,
   and quiet Dolomiti footer while keeping the generic stats/logo band removed.
-- `marathon-bib`: ready for Claude/human review. The live render was written to
+- `marathon-bib`: Claude feedback remediation is ready for review. The live
+  render was regenerated at
   `docs/theme_audit_output/poster-themes/print/marathon-bib.png`; capture
-  reported `90.5%` pixel, `24.5%` map, `93.2%` chrome, and `100.0%` semantic
-  (`103/103`). Review queue status is `ready-for-review`; low map smoke is noted
-  for visual review.
+  reported `84.6%` pixel, `100.0%` map, `84.6%` chrome, and `100.0%` semantic
+  (`118/118`). The map-first bib sheet now shows the large navy BOSTON slab,
+  pale `2025` ghost numeral behind the title block, red `FINISHER` collar with
+  race time, marker-only endpoints, and the `26.2 mi / 813 ft GAIN / 42.3601°N`
+  footer while keeping generic stats/logo chrome removed.
 - `botanical`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/botanical.png`; capture reported
   `87.9%` pixel, `92.5%` map, `94.7%` chrome, and `100.0%` semantic (`101/101`).

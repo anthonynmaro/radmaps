@@ -481,7 +481,7 @@
         <path class="darksky-ridge-line darksky-ridge-line--front" d="M0 29 L10 25 L18 27 L29 18 L38 26 L49 21 L60 30 L69 20 L80 27 L90 24 L100 28 L100 36 L0 36 Z" />
       </svg>
       <div
-        v-if="styleConfig.color_theme === 'marathon-bib'"
+        v-if="composition.id === 'bib-numerals'"
         class="composition-bib-paper"
         data-testid="composition-bib-paper"
         aria-hidden="true"
@@ -492,26 +492,34 @@
         <span class="composition-bib-pin-hole composition-bib-pin-hole--bl" data-testid="composition-bib-pin-hole" />
       </div>
       <div
-        v-if="styleConfig.color_theme === 'marathon-bib'"
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-topline"
+        data-testid="composition-bib-topline"
+        aria-hidden="true"
+      >
+        {{ marathonBibTopline }}
+      </div>
+      <div
+        v-if="composition.id === 'bib-numerals'"
         class="composition-bib-ghost"
         data-testid="composition-bib-ghost"
         aria-hidden="true"
       >
-        26.2
+        {{ marathonBibYear }}
       </div>
       <div
-        v-if="styleConfig.color_theme === 'marathon-bib'"
+        v-if="composition.id === 'bib-numerals'"
         class="composition-bib-tear-strip"
         data-testid="composition-bib-tear-strip"
         aria-hidden="true"
       />
       <div
-        v-if="styleConfig.color_theme === 'marathon-bib'"
+        v-if="composition.id === 'bib-numerals'"
         class="composition-bib-finish-headline"
         data-testid="composition-bib-finish-headline"
         aria-hidden="true"
       >
-        <span>Finish</span>
+        <span>Finisher ·</span>
         <b>{{ marathonFinishHeadline }}</b>
       </div>
       <div
@@ -1704,6 +1712,18 @@
           <span>DIST {{ formattedDistanceKm }} km</span>
           <span>GAIN {{ formattedGainM }} m</span>
           <span>{{ formattedMonthYear }}</span>
+        </div>
+        <div
+          v-if="showBibDataFooter"
+          class="composition-bib-data-footer"
+          data-testid="composition-bib-data-footer"
+          aria-label="Race bib footer data"
+        >
+          <span
+            v-for="item in marathonBibFooterItems"
+            :key="item"
+            class="composition-bib-data-footer__item"
+          >{{ item }}</span>
         </div>
 
         <!-- Logo: footer-left position -->
@@ -4459,6 +4479,7 @@ const locationLine = computed(() => {
   if (!locationText.value) return ''
   if (props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid') return locationText.value
   if (composition.value.id === 'modernist-block') return locationText.value
+  if (composition.value.id === 'bib-numerals') return locationText.value
   return locationText.value.toUpperCase()
 })
 
@@ -4559,6 +4580,36 @@ const marathonFinishHeadline = computed(() => {
   if (formattedGain.value) return `${formattedGain.value} FT`
   return 'ROUTE DATA'
 })
+const marathonBibYear = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return '2025'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 4) || '2025'
+  return String(date.getUTCFullYear())
+})
+const marathonBibTopline = computed(() => {
+  const region = (props.map.stats?.location?.trim() || locationText.value)
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?.toUpperCase() || 'MASSACHUSETTS'
+  return `${region} · BIB ${marathonBibYear.value}`
+})
+const marathonBibLatitude = computed(() => {
+  const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  const first = routeCoords[0]
+  const lat = Array.isArray(first) ? first[1] : undefined
+  if (typeof lat !== 'number' || !Number.isFinite(lat)) return coords.value?.lat ?? ''
+  const suffix = lat >= 0 ? 'N' : 'S'
+  return `${Math.abs(lat).toFixed(4)}°${suffix}`
+})
+const showBibDataFooter = computed(() => composition.value.id === 'bib-numerals')
+const marathonBibFooterItems = computed(() => [
+  formattedDistance.value ? `${formattedDistance.value} mi` : '26.2 mi',
+  formattedGain.value ? `${formattedGain.value} ft GAIN` : '813 ft GAIN',
+  marathonBibLatitude.value || '42.3601°N',
+])
 
 const hasRenderableRoute = computed(() => {
   const hasVisibleSegments = (props.styleConfig.trail_segments ?? []).some(segment => segment.visible)
@@ -4650,6 +4701,7 @@ const showMoonstoneTechnicalFooter = computed(() =>
 )
 const hideGenericFooterStats = computed(() =>
   composition.value.id === 'darksky-stars' ||
+  showBibDataFooter.value ||
   showMoonstoneTechnicalFooter.value,
 )
 const technicalDataFooterItems = computed(() => [
@@ -4666,8 +4718,16 @@ const blueprintDraftingToplineLabel = computed(() =>
 const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
 const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid')
 const profileGainLabel = computed(() => formattedGain.value ? `${formattedGain.value} ft GAIN` : 'GAIN')
-const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
-const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
+const startPinLabel = computed(() =>
+  composition.value.id === 'bib-numerals'
+    ? ''
+    : textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'),
+)
+const finishPinLabel = computed(() =>
+  composition.value.id === 'bib-numerals'
+    ? ''
+    : textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'),
+)
 const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
 const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
 const isBlueprintDraftingTheme = computed(() =>
@@ -4740,11 +4800,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'splits-grid':
       return {}
     case 'bib-numerals':
-      return {
-        kicker: 'The forty-first',
-        meta: 'Race commemorative',
-        footerNote: `${distance} / ${gain}`,
-      }
+      return {}
     case 'darksky-stars':
       return {
         kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
@@ -7555,8 +7611,9 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const el = document.createElement('div')
   const usgs = isUsgsHeritageTheme.value
   const editorial = props.styleConfig.color_theme === 'editorial-minimal'
-  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : size
-  const radius = editorial || (usgs && kind === 'start') ? '0' : '50%'
+  const bib = composition.value.id === 'bib-numerals'
+  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib ? size * 1.08 : size
+  const radius = editorial || (usgs && kind === 'start') || (bib && kind === 'finish') ? '0' : '50%'
   el.dataset.testid = `pin-marker-${kind}`
   el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
@@ -9888,37 +9945,52 @@ onUnmounted(() => {
 }
 
 .poster-composition--bib-numerals {
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 10%, transparent) 0 5.8cqw, transparent 5.8cqw calc(100% - 5.8cqw), color-mix(in srgb, var(--route-color, #e0322c) 8%, transparent) calc(100% - 5.8cqw)),
-    var(--composition-paper, #fbfaf4) !important;
+  background: var(--composition-paper, #f0ede5) !important;
 }
 
 .composition-bib-paper {
   position: absolute;
   z-index: 1;
-  inset: calc(3.2cqh + var(--print-bleed, 0px)) calc(4.3cqw + var(--print-bleed, 0px));
+  inset: calc(1.15cqh + var(--print-bleed, 0px)) calc(3.8cqw + var(--print-bleed, 0px));
   pointer-events: none;
   border: 1px dashed color-mix(in srgb, var(--label-text-color, #14264a) 24%, transparent);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 8%, transparent) 0 1px, transparent 1px) 0 0 / 8cqw 100%,
-    color-mix(in srgb, var(--composition-paper, #f4f1ea) 82%, #fff 18%);
-  opacity: 0.72;
+    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 4%, transparent) 0 1px, transparent 1px) 0 0 / 8cqw 100%,
+    color-mix(in srgb, var(--composition-paper, #f0ede5) 90%, #fff 10%);
+  opacity: 0.46;
+}
+
+.composition-bib-topline {
+  position: absolute;
+  z-index: 12;
+  top: calc(7.55cqh + var(--print-bleed, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: var(--label-text-color, #14264a);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1.55cqh;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .composition-bib-ghost {
   position: absolute;
-  z-index: 4;
-  top: 26.5cqh;
+  z-index: 6;
+  top: 63.5cqh;
   left: 50%;
-  transform: translateX(-50%) rotate(-2deg);
+  transform: translateX(-50%);
   pointer-events: none;
-  color: var(--route-color, #e0322c);
+  color: color-mix(in srgb, var(--label-text-color, #14264a) 18%, #b9bec4);
   font-family: "Bebas Neue", "Arial Narrow", sans-serif;
-  font-size: 28cqh;
+  font-size: 33.5cqh;
   font-weight: 900;
-  line-height: 0.75;
+  line-height: 0.78;
   letter-spacing: 0.015em;
-  opacity: 0.105;
+  opacity: 0.34;
   mix-blend-mode: multiply;
 }
 
@@ -9956,57 +10028,59 @@ onUnmounted(() => {
 .composition-bib-tear-strip {
   position: absolute;
   z-index: 5;
-  left: calc(5.9cqw + var(--print-bleed, 0px));
-  right: calc(5.9cqw + var(--print-bleed, 0px));
-  bottom: calc(10.8cqh + var(--print-bleed, 0px));
-  height: 1px;
+  left: calc(8.8cqw + var(--print-bleed, 0px));
+  right: calc(8.8cqw + var(--print-bleed, 0px));
+  bottom: calc(9.2cqh + var(--print-bleed, 0px));
+  height: 0.33cqh;
   pointer-events: none;
-  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--label-text-color, #14264a) 36%, transparent) 0 0.9cqw, transparent 0.9cqw 1.45cqw);
-  opacity: 0.68;
+  background: var(--label-text-color, #14264a);
+  opacity: 0.94;
 }
 
 .composition-bib-finish-headline {
   position: absolute;
   z-index: 12;
   left: 50%;
-  bottom: calc(4.4cqh + var(--print-bleed, 0px));
+  top: calc(67.8cqh + var(--print-bleed, 0px));
   transform: translateX(-50%);
   display: flex;
-  gap: 1.15cqw;
+  gap: 1.35cqw;
   align-items: baseline;
   justify-content: center;
-  min-width: 48cqw;
-  padding: 0.5cqh 1.3cqw;
+  min-width: 0;
+  padding: 0;
   pointer-events: none;
-  color: var(--label-text-color, #0a0a0a);
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
-  font-size: 1.04cqh;
+  color: var(--route-color, #e0322c);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1.9cqh;
   font-weight: 900;
   letter-spacing: 0.24em;
   line-height: 1;
   text-transform: uppercase;
-  border-top: 1px dashed color-mix(in srgb, var(--label-text-color, #0a0a0a) 34%, transparent);
-  border-bottom: 1px dashed color-mix(in srgb, var(--label-text-color, #0a0a0a) 34%, transparent);
-  background: color-mix(in srgb, var(--composition-paper, #fbfaf4) 82%, transparent);
+  border: 0;
+  background: transparent;
 }
 
 .composition-bib-finish-headline b {
   color: var(--route-color, #e0322c);
-  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
-  font-size: 3.15cqh;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1em;
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.18em;
 }
 
 .poster-composition--bib-numerals .poster-header {
-  min-height: 13cqh !important;
-  padding: 2cqh 7.4cqw 1.4cqh !important;
-  border-bottom: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
+  flex: 0 0 29.2cqh !important;
+  min-height: 29.2cqh !important;
+  padding: 6.25cqh 7.4cqw 1.65cqh !important;
+  border: 0;
+  background: transparent !important;
+  z-index: 8 !important;
 }
 
 .poster-composition--bib-numerals .poster-header::before,
 .poster-composition--bib-numerals .poster-header::after {
-  content: "";
+  content: none;
   position: absolute;
   top: 1.6cqh;
   bottom: 1.4cqh;
@@ -10038,21 +10112,31 @@ onUnmounted(() => {
 }
 
 .poster-composition--bib-numerals .poster-trail-name {
-  font-size: min(var(--trail-title-size, 5.9cqh), 6.4cqh) !important;
-  line-height: 0.86 !important;
+  position: relative;
+  z-index: 9;
+  color: var(--label-text-color, #14264a) !important;
+  font-size: 11.6cqh !important;
+  line-height: 0.78 !important;
   letter-spacing: 0.015em !important;
   text-transform: uppercase !important;
-  max-width: 84cqw !important;
+  max-width: 72cqw !important;
   text-wrap: balance;
+  text-shadow: none !important;
 }
 
 .poster-composition--bib-numerals .poster-location-line {
-  margin-top: 0.35cqh !important;
+  position: relative;
+  z-index: 9;
+  margin-top: 1.75cqh !important;
   max-width: 72cqw !important;
   font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif !important;
-  font-size: min(var(--location-size, 1.9cqh), 1.9cqh) !important;
-  font-weight: 800 !important;
+  font-size: min(var(--location-size, 2.35cqh), 2.35cqh) !important;
+  font-weight: 500 !important;
   letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: #687386 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
 }
 
 .poster-composition--bib-numerals .composition-meta-line {
@@ -10069,18 +10153,57 @@ onUnmounted(() => {
 }
 
 .poster-composition--bib-numerals [data-testid="poster-map"] {
-  margin: 0.8cqh 5.9cqw 0 !important;
-  border-top: 1px dashed color-mix(in srgb, currentColor 28%, transparent);
-  border-bottom: 1px dashed color-mix(in srgb, currentColor 28%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent),
-    inset 0 0 0 0.8cqw color-mix(in srgb, var(--composition-paper, #fbfaf4) 84%, transparent);
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 3;
 }
 
 .poster-composition--bib-numerals .poster-footer {
-  min-height: 11cqh !important;
-  padding: 1.4cqh 7.4cqw 2cqh !important;
-  border-top: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
+  flex: 0 0 9.6cqh !important;
+  min-height: 9.6cqh !important;
+  padding: 1.15cqh 8.8cqw 2.15cqh !important;
+  border: 0;
+  background: transparent !important;
+  z-index: 9 !important;
+}
+
+.poster-composition--bib-numerals .poster-rule {
+  display: none;
+}
+
+.poster-composition--bib-numerals .poster-footer-rule {
+  display: none;
+}
+
+.composition-bib-data-footer {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  width: 100%;
+  height: 100%;
+  color: var(--label-text-color, #14264a);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 2.08cqh;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: none;
+}
+
+.composition-bib-data-footer__item {
+  display: block;
+  white-space: nowrap;
+}
+
+.composition-bib-data-footer__item:nth-child(2) {
+  text-align: center;
+}
+
+.composition-bib-data-footer__item:nth-child(3) {
+  text-align: right;
 }
 
 .poster-composition--bib-numerals .composition-footer-note {

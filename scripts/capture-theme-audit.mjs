@@ -415,6 +415,8 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
     ],
     mapLayers: [],
     routeStyling: [],
+    typography: [],
+    motifs: [],
   }
 
   if (entry.themeId === 'blueprint') {
@@ -522,11 +524,29 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'marathon-bib') {
+    const lowerPosterRect = {
+      left: 0,
+      top: Math.round(imageHeight * 0.58),
+      right: imageWidth,
+      bottom: imageHeight,
+    }
+    const navyInkPixels = await countPixelsForRegion(printFile, lowerPosterRect, (r, g, b) =>
+      r > 8 && r < 45 && g > 22 && g < 58 && b > 55 && b < 100,
+    )
+    const redCollarPixels = await countPixelsForRegion(printFile, lowerPosterRect, (r, g, b) =>
+      r > 190 && g > 25 && g < 90 && b > 20 && b < 75,
+    )
     const redRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 190 && g > 25 && g < 90 && b > 20 && b < 75,
     )
+    groups.typography.push(
+      semanticCheck('Marathon lower title slab visibly prints in navy', navyInkPixels > 900, `${navyInkPixels} pixels`),
+    )
     groups.routeStyling.push(
       semanticCheck('Marathon red route visible', redRoutePixels > 160, `${redRoutePixels} pixels`),
+    )
+    groups.motifs.push(
+      semanticCheck('Marathon red finisher collar visibly prints', redCollarPixels > 140, `${redCollarPixels} pixels`),
     )
   }
 
@@ -1823,9 +1843,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Marathon footer/race collar remains visible', footerVisible === true, `${footerVisible}`),
     )
     groups.palette.push(
-      semanticCheck('Marathon bib paper background', String(style.background_color).toUpperCase() === '#FBFAF4', String(style.background_color ?? '')),
-      semanticCheck('Marathon label band matches bib paper', String(style.label_bg_color).toUpperCase() === '#FBFAF4', String(style.label_bg_color ?? '')),
-      semanticCheck('Marathon bib ink is black', String(style.label_text_color).toUpperCase() === '#0A0A0A', String(style.label_text_color ?? '')),
+      semanticCheck('Marathon bib paper background', String(style.background_color).toUpperCase() === '#F0EDE5', String(style.background_color ?? '')),
+      semanticCheck('Marathon label band matches bib paper', String(style.label_bg_color).toUpperCase() === '#F0EDE5', String(style.label_bg_color ?? '')),
+      semanticCheck('Marathon bib ink is navy', String(style.label_text_color).toUpperCase() === '#14264A', String(style.label_text_color ?? '')),
       semanticCheck('Marathon route is race red', String(style.route_color).toUpperCase() === '#E0322C', String(style.route_color ?? '')),
     )
     groups.mapLayers.push(
@@ -1840,6 +1860,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.routeStyling.push(
       semanticCheck('Marathon print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
       semanticCheck('Marathon route has endpoint pins', style.show_start_pin === true && style.show_finish_pin === true, `${style.show_start_pin}/${style.show_finish_pin}`),
+      semanticCheck('Marathon endpoint pins are marker-only', (snapshot.contractPresence?.testIdCounts?.['pin-label-start'] ?? 0) === 0 && (snapshot.contractPresence?.testIdCounts?.['pin-label-finish'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Marathon route has bib weight', Number(style.route_width ?? 0) >= 4.4, String(style.route_width ?? '')),
       semanticCheck('Marathon route opacity is print-strong', Number(style.route_opacity ?? 0) >= 0.88, String(style.route_opacity ?? '')),
       semanticCheck('Marathon bib route layers present', ['route-line-bib-knockout', 'route-line-bib-mile-dashes', 'route-line-bib-mile-ticks', 'route-line-bib-checkpoint-dots'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
@@ -1851,6 +1872,10 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Marathon pin holes present', (snapshot.contractPresence?.testIdCounts?.['composition-bib-pin-hole'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Marathon tear strip present', (snapshot.contractPresence?.testIdCounts?.['composition-bib-tear-strip'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Marathon finish data headline present', (snapshot.contractPresence?.testIdCounts?.['composition-bib-finish-headline'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Marathon bib top line present', (snapshot.contractPresence?.testIdCounts?.['composition-bib-topline'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Marathon bib data footer present', (snapshot.contractPresence?.testIdCounts?.['composition-bib-data-footer'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Marathon generic stats footer removed', (snapshot.contractPresence?.selectorCounts?.['.poster-composition--bib-numerals .poster-stats'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Marathon footer logo removed', (snapshot.contractPresence?.selectorCounts?.['.poster-composition--bib-numerals .poster-mark'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )
   }
 
@@ -2279,6 +2304,9 @@ function fixtureOverrideQuery(entry) {
   }
   if (typeof overrides.gainM === 'number' && Number.isFinite(overrides.gainM)) {
     params.set('gainM', String(overrides.gainM))
+  }
+  if (typeof overrides.durationSeconds === 'number' && Number.isFinite(overrides.durationSeconds)) {
+    params.set('durationSeconds', String(overrides.durationSeconds))
   }
   if (overrides.date) params.set('date', overrides.date)
   const query = params.toString()

@@ -139,6 +139,9 @@ const fixtureDistanceKm = typeof route.query.distanceKm === 'string'
 const fixtureGainM = typeof route.query.gainM === 'string'
   ? Number.parseFloat(route.query.gainM)
   : undefined
+const fixtureDurationSeconds = typeof route.query.durationSeconds === 'string'
+  ? Number.parseFloat(route.query.durationSeconds)
+  : undefined
 const fixtureDate = typeof route.query.date === 'string' ? route.query.date : undefined
 
 const theme = getThemeDefinition(themeId)
@@ -595,7 +598,7 @@ const sampleRegions: Record<string, {
     location: 'Boston, Massachusetts',
     bbox: [-71.18, 42.27, -70.98, 42.40],
     route: [
-      [-71.147, 42.360],
+      [-71.147, 42.3601],
       [-71.124, 42.372],
       [-71.101, 42.352],
       [-71.079, 42.364],
@@ -751,7 +754,9 @@ const sampleMap: TrailMap = {
     elevation_loss_m: 1280,
     min_elevation_m: 180,
     max_elevation_m: 390,
-    duration_seconds: 14_832,
+    duration_seconds: typeof fixtureDurationSeconds === 'number' && Number.isFinite(fixtureDurationSeconds)
+      ? fixtureDurationSeconds
+      : 14_832,
     date: fixtureDate ?? '2026-05-11',
     location: sampleRegion.location,
   },

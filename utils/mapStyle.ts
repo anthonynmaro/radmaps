@@ -1395,7 +1395,7 @@ function routeLayers(config: StyleConfig) {
           source: 'route',
           layout: routeLayout,
           paint: {
-            'line-color': '#0A0A0A',
+            'line-color': config.label_text_color ?? '#14264A',
             'line-width': config.route_width + 3.8,
             'line-opacity': Math.min(config.route_opacity * 0.13, 0.13),
             'line-blur': 1.1,
