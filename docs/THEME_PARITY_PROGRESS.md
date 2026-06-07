@@ -180,12 +180,12 @@ reference screenshot or spec contract.
 - `risograph`, `brutalist`, and the travel-banner family pass the strengthened
   treatment checks, but still need final human visual approval before they are
   marked done.
-- `sea-chart`: ready for Claude/human review. A fresh queue rerun regenerated
-  `docs/theme_audit_output/poster-themes/print/sea-chart.png`; capture reported
-  `97.0%` pixel, `97.3%` map, `100.0%` chrome, and `100.0%` semantic
-  (`119/119`). The pale mint chart field, transparent titleblock, single rule,
-  neatline, sounding density, compass/rhumb motifs, and magenta course route all
-  pass. It still needs final human visual approval before it can be marked done.
+- `sea-chart`: Claude feedback remediation is ready for review. The live render
+  was regenerated at `docs/theme_audit_output/poster-themes/print/sea-chart.png`;
+  capture reported `95.4%` pixel, `96.2%` map, `100.0%` chrome, and `100.0%`
+  semantic (`122/122`). The sampled mint chart field, dense soundings, stronger
+  compass/rhumb treatment, double neatline, visible dotted maroon course, chart
+  number, and fathoms metadata now pass.
 - `field-journal`: ready for Claude/human review. The spec-only queue rerun
   generated `docs/theme_audit_output/poster-themes/print/field-journal.png`;
   capture reported `86.4%` pixel, `77.8%` map, `94.9%` chrome, and `100.0%`

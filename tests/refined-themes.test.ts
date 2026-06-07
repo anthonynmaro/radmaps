@@ -417,9 +417,11 @@ describe('refined theme Phase 0 scaffolding', () => {
       '.sea-chart-neatline',
       '.sea-chart-depth-bands',
       '.sea-chart-rose',
+      '.sea-chart-rose path',
       '.sea-chart-soundings',
       '.sea-chart-soundings text',
       '.sea-chart-rhumb-lines',
+      '.sea-chart-rhumb-lines path',
     ]))
     expect(getThemeChromeContract('transit-diagram')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-transit-diagram-art',

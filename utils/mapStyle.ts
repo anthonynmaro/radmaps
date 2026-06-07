@@ -967,7 +967,7 @@ function routeLayers(config: StyleConfig) {
   const isBrutalistRoute = config.color_theme === 'brutalist'
   const isElectricRoute = config.color_theme === 'electric-atlas'
   const isDarkSkyRoute = config.color_theme === 'dark-sky' || config.color_theme === 'copper-night'
-  const routeOpacity = isWatercolorRoute ? Math.min(config.route_opacity, 0.86) : config.route_opacity
+  const routeOpacity = isSeaChartRoute ? 0 : isWatercolorRoute ? Math.min(config.route_opacity, 0.86) : config.route_opacity
   const routeBlur = isWatercolorRoute ? 0.28 : 0
   const routeLayout = {
     'line-join': 'round',
@@ -1200,9 +1200,9 @@ function routeLayers(config: StyleConfig) {
           layout: routeLayout,
           paint: {
             'line-color': config.label_text_color ?? '#1D2A36',
-            'line-width': config.route_width + 2.6,
-            'line-opacity': Math.min(config.route_opacity * 0.18, 0.18),
-            'line-blur': 1.1,
+            'line-width': config.route_width + 3.2,
+            'line-opacity': Math.min(config.route_opacity * 0.22, 0.22),
+            'line-blur': 0.8,
           },
         }, ROUTE_SCALE_PROPERTIES),
         withScaleMetadata({
@@ -1212,9 +1212,9 @@ function routeLayers(config: StyleConfig) {
           layout: routeLayout,
           paint: {
             'line-color': config.route_color,
-            'line-width': Math.max(1, config.route_width - 0.4),
-            'line-opacity': Math.min(config.route_opacity * 0.42, 0.42),
-            'line-dasharray': [1, 9],
+            'line-width': config.route_width,
+            'line-opacity': Math.min(config.route_opacity * 0.92, 0.92),
+            'line-dasharray': [1.2, 2.8],
           },
         }, ROUTE_SCALE_PROPERTIES),
       ]
@@ -1227,18 +1227,18 @@ function routeLayers(config: StyleConfig) {
           source: 'route',
           layout: {
             'symbol-placement': 'line',
-            'symbol-spacing': 58,
+            'symbol-spacing': 44,
             'text-field': '•',
             'text-font': ['Noto Sans Regular'],
-            'text-size': 14,
+            'text-size': 16,
             'text-allow-overlap': true,
             'text-ignore-placement': true,
             'text-keep-upright': false,
           },
           paint: {
             'text-color': config.route_color,
-            'text-opacity': Math.min(config.route_opacity * 0.9, 0.9),
-            'text-halo-color': config.background_color ?? '#EDE6D2',
+            'text-opacity': Math.min(config.route_opacity * 0.98, 0.98),
+            'text-halo-color': config.background_color ?? '#E4EDE7',
             'text-halo-width': 1.2,
           },
         }, SYMBOL_SCALE_PROPERTIES),
@@ -1917,7 +1917,7 @@ function routeLayers(config: StyleConfig) {
     paint: {
         'line-color': isPleinAirRoute ? '#F4E9D6' : isWatercolorRoute ? '#f6eed8' : mapBackgroundColor(config),
         'line-width': config.route_width + (isWatercolorRoute ? 3.5 : DEFAULT_ROUTE_CASING_WIDTH),
-        'line-opacity': isWatercolorRoute ? Math.min(config.route_opacity, isPleinAirRoute ? 0.58 : 0.78) : config.route_opacity,
+        'line-opacity': isSeaChartRoute ? 0 : isWatercolorRoute ? Math.min(config.route_opacity, isPleinAirRoute ? 0.58 : 0.78) : config.route_opacity,
         ...(isWatercolorRoute ? { 'line-blur': isPleinAirRoute ? 1.05 : 0.65 } : {}),
     },
   }, ROUTE_SCALE_PROPERTIES)

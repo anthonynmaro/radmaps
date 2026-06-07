@@ -1106,7 +1106,8 @@
           aria-hidden="true"
           data-testid="composition-sea-chart-art"
         >
-          <rect class="sea-chart-neatline" x="4" y="5" width="92" height="140" />
+          <rect class="sea-chart-neatline sea-chart-neatline--outer" x="4" y="5" width="92" height="140" />
+          <rect class="sea-chart-neatline sea-chart-neatline--inner" x="6.2" y="7.2" width="87.6" height="135.6" />
           <g class="sea-chart-graticule">
             <path d="M0 34 H100 M0 70 H100 M0 106 H100" />
             <path d="M18 0 V150 M50 0 V150 M82 0 V150" />
@@ -1116,6 +1117,12 @@
             <path d="M-12 36 L34 82 L82 130" />
             <path d="M50 -10 L50 160" />
             <path d="M-10 75 H110" />
+            <path d="M81 28 L-10 10" />
+            <path d="M81 28 L108 62" />
+            <path d="M81 28 L8 150" />
+            <path d="M81 28 L100 120" />
+            <path d="M81 28 L18 86" />
+            <path d="M81 28 L42 -10" />
           </g>
           <g class="sea-chart-depth-bands">
             <path d="M-4 117 C17 106 31 123 49 113 C67 103 76 116 104 105" />
@@ -1126,16 +1133,31 @@
             <text x="32" y="43">12</text>
             <text x="71" y="31">5</text>
             <text x="86" y="58">9</text>
+            <text x="51" y="64">11</text>
+            <text x="11" y="69">6</text>
             <text x="18" y="91">4</text>
+            <text x="43" y="86">13</text>
             <text x="66" y="101">16</text>
             <text x="36" y="116">8</text>
             <text x="79" y="121">14</text>
+            <text x="18" y="132">10</text>
+            <text x="57" y="137">18</text>
+            <text x="91" y="142">7</text>
+            <text x="8" y="111">3</text>
+            <text x="58" y="16">9</text>
+            <text x="45" y="27">15</text>
+            <text x="88" y="92">12</text>
+            <text x="25" y="73">8</text>
             <circle cx="24" cy="55" r="0.7" />
             <circle cx="43" cy="31" r="0.7" />
             <circle cx="78" cy="82" r="0.7" />
             <circle cx="55" cy="119" r="0.7" />
+            <circle cx="32" cy="101" r="0.7" />
+            <circle cx="69" cy="48" r="0.7" />
+            <circle cx="91" cy="109" r="0.7" />
+            <circle cx="12" cy="42" r="0.7" />
           </g>
-          <g class="sea-chart-rose" data-testid="sea-chart-rose" transform="translate(83 24)">
+          <g class="sea-chart-rose" data-testid="sea-chart-rose" transform="translate(81 27) scale(1.25)">
             <circle r="8.5" />
             <path d="M0 -12 L2.2 -2.2 L12 0 L2.2 2.2 L0 12 L-2.2 2.2 L-12 0 L-2.2 -2.2 Z" />
             <path d="M0 -8 V8 M-8 0 H8" />
@@ -10559,7 +10581,7 @@ onUnmounted(() => {
   z-index: 6;
   pointer-events: none;
   color: var(--label-text-color, #1d2a36);
-  opacity: 0.62;
+  opacity: 0.92;
   mix-blend-mode: multiply;
 }
 
@@ -10572,20 +10594,25 @@ onUnmounted(() => {
 }
 
 .sea-chart-neatline {
-  opacity: 0.56;
-  stroke-width: 0.72;
+  opacity: 0.82;
+  stroke-width: 0.95;
+}
+
+.sea-chart-neatline--inner {
+  opacity: 0.52;
+  stroke-width: 0.5;
 }
 
 .composition-sea-chart-art text {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 2.5px;
+  font-size: 3.1px;
   letter-spacing: 0.08em;
   fill: currentColor;
   stroke: none;
 }
 
 .sea-chart-graticule {
-  opacity: 0.34;
+  opacity: 0.48;
 }
 
 .sea-chart-graticule path {
@@ -10593,12 +10620,12 @@ onUnmounted(() => {
 }
 
 .sea-chart-rhumb-lines {
-  opacity: 0.42;
+  opacity: 0.66;
 }
 
 .sea-chart-rhumb-lines path {
-  stroke-width: 0.58;
-  stroke-dasharray: 2 2.6;
+  stroke-width: 0.72;
+  stroke-dasharray: 2 2.4;
 }
 
 .sea-chart-depth-bands {
@@ -10611,8 +10638,8 @@ onUnmounted(() => {
 }
 
 .sea-chart-soundings {
-  color: color-mix(in srgb, var(--label-text-color, #1d2a36) 72%, var(--water-color, #d7e7e0));
-  opacity: 0.64;
+  color: color-mix(in srgb, var(--label-text-color, #1d2a36) 84%, var(--water-color, #d7e7e0));
+  opacity: 0.84;
 }
 
 .sea-chart-soundings circle {
@@ -10621,15 +10648,15 @@ onUnmounted(() => {
 }
 
 .sea-chart-rose {
-  opacity: 0.72;
+  opacity: 0.96;
 }
 
 .sea-chart-rose circle {
-  stroke-width: 0.62;
+  stroke-width: 0.9;
 }
 
 .sea-chart-rose path {
-  stroke-width: 0.58;
+  stroke-width: 0.82;
 }
 
 .sea-chart-rose text {
@@ -12709,8 +12736,8 @@ onUnmounted(() => {
 .poster-composition--sea-chart .poster-header {
   left: calc(5.2cqw + var(--print-bleed, 0px));
   right: auto;
-  bottom: calc(5.0cqh + var(--print-bleed, 0px));
-  width: min(70cqw, 46cqh);
+  bottom: calc(4.0cqh + var(--print-bleed, 0px));
+  width: min(82cqw, 54cqh);
   align-items: flex-start !important;
   padding: 0 !important;
   background: transparent !important;
@@ -12736,18 +12763,18 @@ onUnmounted(() => {
   color: var(--route-color, currentColor) !important;
   opacity: 1 !important;
   letter-spacing: 0.16em !important;
-  font-size: 0.72cqh !important;
+  font-size: 0.86cqh !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-weight: 700 !important;
-  padding-right: 30% !important;
+  padding-right: 24% !important;
   text-transform: uppercase !important;
 }
 
 .poster-composition--sea-chart .poster-trail-name {
   margin-top: 0.26cqh !important;
-  font-size: min(var(--trail-title-size, 4.15cqh), 4.15cqh) !important;
+  font-size: min(var(--trail-title-size, 5.05cqh), 5.05cqh) !important;
   line-height: 0.94 !important;
-  max-width: 45cqw !important;
+  max-width: 56cqw !important;
 }
 
 .poster-composition--sea-chart .poster-location-line {
@@ -12756,23 +12783,23 @@ onUnmounted(() => {
   border-top: 0 !important;
   letter-spacing: 0.06em !important;
   text-align: left !important;
-  opacity: 0.72 !important;
-  max-width: 44cqw !important;
+  opacity: 0.82 !important;
+  max-width: 56cqw !important;
 }
 
 .poster-composition--sea-chart .composition-meta-line {
   position: absolute;
   right: 0;
   top: auto;
-  bottom: 0.08cqh;
-  width: 23cqw !important;
+  bottom: 0;
+  width: 31cqw !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-size: 0.58cqh !important;
   line-height: 1.42 !important;
   text-align: right !important;
   white-space: normal !important;
   letter-spacing: 0.12em !important;
-  opacity: 0.82 !important;
+  opacity: 0.9 !important;
 }
 
 .poster-composition--art-wash .poster-header {
