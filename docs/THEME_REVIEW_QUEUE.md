@@ -32,7 +32,7 @@ Codex never marks a theme `approved`.
 | `sea-chart` | `ready-for-review` | 100.0% (`122/122`) | `docs/theme_audit_output/poster-themes/print/sea-chart.png` | Claude feedback addressed: sampled mint chart field, dense soundings, stronger compass/rhumb lines, double neatline, visible dotted maroon course, chart number, and fathoms metadata now pass. |
 | `field-journal` | `ready-for-review` | 100.0% (`110/110`) | `docs/theme_audit_output/poster-themes/print/field-journal.png` | Claude feedback addressed: generic stats footer is hidden, ruled notes and the tipped-in plate treatment are stronger, and the drybrush route/specimen caption now pass. |
 | `transit-diagram` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/transit-diagram.png` | Claude feedback addressed: literal basemap and generic stats footer are suppressed, the route renders as a 45/90 schematic, and visible station rings/labels plus mono legend are present. |
-| `plein-air` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/plein-air.png` | Spec-only rerun confirms the art-wash composition, watercolor wash/deckle motifs, brushed route line, soft palette, italic title treatment, and contract typography all pass; awaiting visual review only. |
+| `plein-air` | `ready-for-review` | 100.0% (`107/107`) | `docs/theme_audit_output/poster-themes/print/plein-air.png` | Claude feedback addressed: torn deckle edge now renders as four irregular strokes, watercolor palette marks remain visible, and the brushed terracotta route/art-wash treatment passes. |
 
 ## Summary
 

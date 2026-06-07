@@ -506,7 +506,10 @@ describe('refined theme Phase 0 scaffolding', () => {
       'composition-plein-air-deckle',
       'composition-plein-air-palette',
     ]))
-    expect(getThemeChromeContract('plein-air')?.requiredSelectors).toContain('.plein-air-palette-swatch')
+    expect(getThemeChromeContract('plein-air')?.requiredSelectors).toEqual(expect.arrayContaining([
+      '.plein-air-palette-swatch',
+      '.plein-air-deckle-edge',
+    ]))
     expect(getThemeChromeContract('blueprint')?.requiredTestIds).toEqual(expect.arrayContaining([
       'blueprint-drafting-topline',
       'blueprint-drafting-figure',

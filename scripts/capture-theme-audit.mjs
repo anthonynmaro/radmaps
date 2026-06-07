@@ -2283,6 +2283,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Plein Air poster grid disabled', style.show_grid === false, String(style.show_grid)),
       semanticCheck('Plein Air deckle edge present', (snapshot.contractPresence?.testIdCounts?.['composition-plein-air-deckle'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Plein Air torn deckle has four edge strokes', (snapshot.contractPresence?.selectorCounts?.['.plein-air-deckle-edge'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Plein Air palette marks present', (snapshot.contractPresence?.testIdCounts?.['composition-plein-air-palette'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Plein Air palette has three swatches', (snapshot.contractPresence?.selectorCounts?.['.plein-air-palette-swatch'] ?? 0) === 3, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )

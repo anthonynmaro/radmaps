@@ -542,7 +542,12 @@
         class="composition-plein-air-deckle"
         data-testid="composition-plein-air-deckle"
         aria-hidden="true"
-      />
+      >
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--top" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--right" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--bottom" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--left" />
+      </div>
       <aside
         v-if="styleConfig.color_theme === 'field-journal'"
         class="composition-journal-notes"
@@ -10858,12 +10863,11 @@ onUnmounted(() => {
 
 .composition-plein-air-deckle {
   position: absolute;
-  inset: calc(1.7cqh + var(--print-bleed, 0px)) calc(2.1cqw + var(--print-bleed, 0px));
+  inset: calc(1.15cqh + var(--print-bleed, 0px)) calc(1.35cqw + var(--print-bleed, 0px));
   z-index: 8;
   pointer-events: none;
-  color: color-mix(in srgb, var(--label-text-color, #33302a) 34%, transparent);
-  border: 1px solid currentColor;
-  opacity: 0.72;
+  color: color-mix(in srgb, var(--label-text-color, #33302a) 48%, transparent);
+  opacity: 0.9;
 }
 
 .composition-plein-air-deckle::before,
@@ -10871,22 +10875,83 @@ onUnmounted(() => {
   content: "";
   position: absolute;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.48;
 }
 
 .composition-plein-air-deckle::before {
-  inset: 0.65cqh 0.65cqw;
-  border: 1px solid color-mix(in srgb, currentColor 58%, transparent);
-  border-radius: 1.2cqw;
+  inset: 0.98cqh 1.05cqw;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-radius: 1.7cqw 1.2cqw 1.55cqw 1.3cqw;
 }
 
 .composition-plein-air-deckle::after {
-  inset: -0.36cqh -0.42cqw;
+  inset: 0.3cqh 0.34cqw;
   background:
-    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 7px) top left / 100% 1px no-repeat,
-    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 9px) bottom left / 100% 1px no-repeat,
-    repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 8px) top left / 1px 100% no-repeat,
-    repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 10px) top right / 1px 100% no-repeat;
+    linear-gradient(90deg, transparent 0 8%, currentColor 8% 8.2%, transparent 8.2% 91.8%, currentColor 91.8% 92%, transparent 92%) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent 0 7%, currentColor 7% 7.18%, transparent 7.18% 93%, currentColor 93% 93.18%, transparent 93.18%) bottom / 100% 1px no-repeat,
+    linear-gradient(0deg, transparent 0 9%, currentColor 9% 9.18%, transparent 9.18% 91%, currentColor 91% 91.18%, transparent 91.18%) left / 1px 100% no-repeat,
+    linear-gradient(0deg, transparent 0 7%, currentColor 7% 7.18%, transparent 7.18% 93%, currentColor 93% 93.18%, transparent 93.18%) right / 1px 100% no-repeat;
+}
+
+.plein-air-deckle-edge {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  color: currentColor;
+  opacity: 0.92;
+  filter: blur(0.12px);
+}
+
+.plein-air-deckle-edge--top,
+.plein-air-deckle-edge--bottom {
+  left: 0.3cqw;
+  right: 0.3cqw;
+  height: 1.08cqh;
+  background:
+    radial-gradient(ellipse at 3% 46%, currentColor 0 0.07cqh, transparent 0.09cqh),
+    radial-gradient(ellipse at 10% 62%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    radial-gradient(ellipse at 18% 42%, currentColor 0 0.06cqh, transparent 0.09cqh),
+    radial-gradient(ellipse at 31% 54%, currentColor 0 0.11cqh, transparent 0.13cqh),
+    radial-gradient(ellipse at 47% 44%, currentColor 0 0.07cqh, transparent 0.1cqh),
+    radial-gradient(ellipse at 63% 58%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    radial-gradient(ellipse at 79% 46%, currentColor 0 0.07cqh, transparent 0.1cqh),
+    radial-gradient(ellipse at 93% 60%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+}
+
+.plein-air-deckle-edge--top {
+  top: 0;
+}
+
+.plein-air-deckle-edge--bottom {
+  bottom: 0;
+  transform: scaleY(-1);
+}
+
+.plein-air-deckle-edge--left,
+.plein-air-deckle-edge--right {
+  top: 0.25cqh;
+  bottom: 0.25cqh;
+  width: 1.08cqw;
+  background:
+    radial-gradient(ellipse at 48% 4%, currentColor 0 0.07cqw, transparent 0.09cqw),
+    radial-gradient(ellipse at 36% 13%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 58% 24%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(ellipse at 42% 37%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 56% 51%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(ellipse at 38% 68%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 54% 82%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(ellipse at 40% 94%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat;
+}
+
+.plein-air-deckle-edge--left {
+  left: 0;
+}
+
+.plein-air-deckle-edge--right {
+  right: 0;
+  transform: scaleX(-1);
 }
 
 .composition-plein-air-palette {

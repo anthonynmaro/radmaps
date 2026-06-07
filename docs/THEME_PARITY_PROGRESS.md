@@ -199,10 +199,10 @@ reference screenshot or spec contract.
   mono legend are present; low map smoke reflects intentional abstraction.
 - `plein-air`: ready for Claude/human review. The spec-only queue rerun
   generated `docs/theme_audit_output/poster-themes/print/plein-air.png`;
-  capture reported `96.5%` pixel, `96.6%` map, `100.0%` chrome, and `100.0%`
-  semantic (`105/105`). The art-wash composition, watercolor wash/deckle motifs,
-  brushed route line, soft palette, italic title treatment, and contract
-  typography all pass; remaining review is visual only.
+  capture reported `94.8%` pixel, `96.1%` map, `100.0%` chrome, and `100.0%`
+  semantic (`107/107`). Claude feedback is addressed: the torn deckle edge now
+  renders as four irregular strokes, watercolor palette marks remain visible,
+  and the brushed terracotta route/art-wash treatment passes.
 
 ## Overnight Queue Summary
 

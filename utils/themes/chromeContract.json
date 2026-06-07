@@ -222,7 +222,7 @@
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
     "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-plein-air-deckle", "composition-plein-air-palette"],
-    "requiredSelectors": [".plein-air-palette-swatch"],
+    "requiredSelectors": [".plein-air-palette-swatch", ".plein-air-deckle-edge"],
     "requiredRouteLayers": ["route-line-plein-air-drybrush"],
     "forbiddenRouteLayers": ["route-line-pigment-bleed", "route-line-pigment-offset"]
   }
