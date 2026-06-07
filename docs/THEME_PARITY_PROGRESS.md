@@ -105,6 +105,11 @@ reference screenshot or spec contract.
   reported `87.6%` pixel, `100.0%` map, `87.6%` chrome, and `100.0%` semantic
   (`104/104`). Review queue status is `ready-for-review`; chrome smoke is noted
   for visual review.
+- `night-ride`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/night-ride.png`; capture reported
+  `88.0%` pixel, `0.0%` map, `88.0%` chrome, and `100.0%` semantic (`97/97`).
+  Review queue status is `ready-for-review`; the zero map smoke is noted as a
+  reference/live terrain mismatch after visual sanity check.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
