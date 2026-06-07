@@ -354,7 +354,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       ['editorial-minimal', 'hidden'],
       ['dark-sky', 'compact'],
       ['copper-night', 'compact'],
-      ['relief-shaded', 'hidden'],
+      ['relief-shaded', 'standard'],
     ])
     const renderedTitleCaseOverrides = new Map<ColorTheme, 'uppercase' | 'none'>([
       ['usgs-vintage', 'uppercase'],
@@ -739,9 +739,9 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(getRefinedThemeById('cartouche-place')?.composition).toBe('place-frame')
     expect(getRefinedThemeById('sea-chart')?.composition).toBe('sea-chart')
     expect(getRefinedThemeById('relief-shaded')?.map_defaults.show_hillshade).toBe(true)
-    expect(getRefinedThemeById('relief-shaded')?.route_color).toBe('#27231D')
-    expect(getRefinedThemeById('relief-shaded')?.map_defaults.hillshade_intensity).toBeGreaterThan(0.5)
-    expect(getRefinedThemeById('relief-shaded')?.map_defaults.route_width).toBeGreaterThanOrEqual(4.6)
+    expect(getRefinedThemeById('relief-shaded')?.route_color).toBe('#14110D')
+    expect(getRefinedThemeById('relief-shaded')?.map_defaults.hillshade_intensity).toBeLessThan(0.3)
+    expect(getRefinedThemeById('relief-shaded')?.map_defaults.route_width).toBeGreaterThanOrEqual(5)
     expect(getRefinedThemeById('transit-diagram')?.font_family).toBe('Outfit')
     expect(getRefinedThemeById('transit-diagram')?.map_defaults.preset).toBe('radmaps-simple-contour')
     expect(getRefinedThemeById('transit-diagram')?.map_defaults.route_opacity).toBeGreaterThanOrEqual(0.9)

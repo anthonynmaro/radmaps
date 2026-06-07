@@ -1902,24 +1902,24 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Relief warm terrain paper background', String(style.background_color).toUpperCase() === '#ECE4D3', String(style.background_color ?? '')),
       semanticCheck('Relief label background matches paper', String(style.label_bg_color).toUpperCase() === '#ECE4D3', String(style.label_bg_color ?? '')),
       semanticCheck('Relief text is warm dark ink', String(style.label_text_color).toUpperCase() === '#27231D', String(style.label_text_color ?? '')),
-      semanticCheck('Relief route is deep terrain ink', String(style.route_color).toUpperCase() === '#27231D', String(style.route_color ?? '')),
+      semanticCheck('Relief route is deep terrain ink', String(style.route_color).toUpperCase() === '#14110D', String(style.route_color ?? '')),
       semanticCheck('Relief terrain grain configured', Number(style.tile_grain ?? 0) >= 0.08 && Number(style.tile_grain ?? 0) <= 0.12, String(style.tile_grain ?? '')),
     )
     groups.mapLayers.push(
       semanticCheck('Relief uses owned natural map', style.preset === 'radmaps-natural', String(style.preset ?? '')),
-      semanticCheck('Relief hillshade enabled', style.show_hillshade === true && Number(style.hillshade_intensity ?? 0) >= 0.5, `${style.show_hillshade}/${style.hillshade_intensity}`),
+      semanticCheck('Relief hillshade enabled as pale wash', style.show_hillshade === true && Number(style.hillshade_intensity ?? 0) >= 0.18 && Number(style.hillshade_intensity ?? 0) <= 0.28, `${style.show_hillshade}/${style.hillshade_intensity}`),
       semanticCheck('Relief contours enabled', style.show_contours === true, String(style.show_contours)),
       semanticCheck('Relief roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Relief layer-color terrain effect configured', style.tile_effect === 'layer-color', String(style.tile_effect ?? '')),
-      semanticCheck('Relief hypsometric land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#DCC899' && String(atlasLayerSettings.landcover?.texture ?? '') === 'relief', JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Relief terrain water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#9FBDB3', JSON.stringify(atlasLayerSettings.water ?? {})),
-      semanticCheck('Relief fine contour token configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#967C52' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#5E4A31', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Relief hypsometric land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#E6D8B7' && String(atlasLayerSettings.landcover?.texture ?? '') === 'relief', JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Relief terrain water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#B8C8B6', JSON.stringify(atlasLayerSettings.water ?? {})),
+      semanticCheck('Relief fine contour token configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#B9AA86' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#8D7654', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Relief print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
-      semanticCheck('Relief route is exact terrain ink token', String(style.route_color).toUpperCase() === '#27231D', String(style.route_color ?? '')),
-      semanticCheck('Relief endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
-      semanticCheck('Relief route has confident weight', Number(style.route_width ?? 0) >= 4.4, String(style.route_width ?? '')),
+      semanticCheck('Relief route is exact terrain ink token', String(style.route_color).toUpperCase() === '#14110D', String(style.route_color ?? '')),
+      semanticCheck('Relief endpoint pins enabled', style.show_start_pin === true && style.show_finish_pin === true, `${style.show_start_pin}/${style.show_finish_pin}`),
+      semanticCheck('Relief route has confident weight', Number(style.route_width ?? 0) >= 5, String(style.route_width ?? '')),
       semanticCheck('Relief shadow/highlight route layers present', ['route-line-relief-shadow', 'route-line-relief-highlight'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
     )
     groups.motifs.push(

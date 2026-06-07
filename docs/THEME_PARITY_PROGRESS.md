@@ -156,11 +156,12 @@ reference screenshot or spec contract.
   stats/logo footer.
 - `relief-shaded`: ready for Claude/human review. The live render was regenerated
   at `docs/theme_audit_output/poster-themes/print/relief-shaded.png`; capture
-  reported `79.2%` pixel, `72.8%` map, `94.6%` chrome, and `100.0%` semantic
-  (`105/105`). The terrain sheet now uses a map-first frame, bottom Newsreader
-  titleblock, black/cream relief route ink, Rainier/Wonderland activity values,
-  and no generic stats/logo footer. Watch the dense real-terrain map smoke
-  against the more abstract target relief bands.
+  reported `94.4%` pixel, `99.9%` map, `93.6%` chrome, and `100.0%` semantic
+  (`105/105`). The 09:02 feedback pass is addressed with a pale/smoothed relief
+  field, stronger hypsometric bands, black route ink with round/square endpoint
+  markers, and a completed cream titleblock carrying the red `WASHINGTON` tag,
+  `The Wonderland Trail` subtitle, and `46.8523°N 121.7603°W / 93.0 mi · AUG
+  2025` metadata line.
 - `cartouche-place`: ready for Claude/human review. The live render was
   regenerated at
   `docs/theme_audit_output/poster-themes/print/cartouche-place.png`; capture

@@ -1353,7 +1353,7 @@
           style="z-index: 14; overflow: visible; pointer-events: none;"
         >
           <!-- Pin labels with leader lines (labels are draggable) -->
-          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail' && styleConfig.color_theme !== 'editorial-minimal'">
+          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail' && styleConfig.color_theme !== 'editorial-minimal' && styleConfig.color_theme !== 'relief-shaded'">
             <template v-for="pin in pinOverlayItems" :key="pin.id">
               <line
                 v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
@@ -4802,6 +4802,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'editorial-tall':
       if (props.styleConfig.color_theme === 'relief-shaded') {
         return {
+          kicker: 'WASHINGTON',
           meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
         }
       }
@@ -7665,10 +7666,11 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const el = document.createElement('div')
   const usgs = isUsgsHeritageTheme.value
   const editorial = props.styleConfig.color_theme === 'editorial-minimal'
+  const relief = props.styleConfig.color_theme === 'relief-shaded'
   const bib = composition.value.id === 'bib-numerals'
   const botanical = composition.value.id === 'botanical-plate'
-  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib || botanical ? size * 1.08 : size
-  const radius = editorial || (usgs && kind === 'start') || ((bib || botanical) && kind === 'finish') ? '0' : '50%'
+  const markerSize = relief ? size * 1.18 : editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib || botanical ? size * 1.08 : size
+  const radius = editorial || (usgs && kind === 'start') || ((bib || botanical || relief) && kind === 'finish') ? '0' : '50%'
   el.dataset.testid = `pin-marker-${kind}`
   el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
@@ -7676,6 +7678,7 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
     `background:${color}`, `opacity:${opacity}`,
     editorial
       ? 'box-shadow:0 0 0 2px #F8F3EA'
+      : relief ? 'box-shadow:0 0 0 3px #F5EFE2'
       : usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
@@ -12169,6 +12172,7 @@ onUnmounted(() => {
   flex: 0 0 72% !important;
   height: 72% !important;
   margin: calc(4.6cqh + var(--print-bleed, 0px)) calc(7.8cqw + var(--print-bleed, 0px)) 0 !important;
+  background: #EEE6D5 !important;
   border: 0 !important;
   border-bottom: 2px double color-mix(in srgb, var(--label-text-color, #27231d) 22%, transparent) !important;
   box-shadow: none !important;
@@ -12179,18 +12183,32 @@ onUnmounted(() => {
   flex: 1 1 28% !important;
   justify-content: flex-start !important;
   gap: 1.05cqh !important;
-  padding: 3.1cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(3.9cqh + var(--print-bleed, 0px)) !important;
+  padding: 2.9cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(3.6cqh + var(--print-bleed, 0px)) !important;
   background: var(--label-bg-color, #ece4d3) !important;
+  position: relative !important;
 }
 
-.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-kicker,
 .poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-rule {
   display: none !important;
 }
 
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-kicker {
+  position: absolute !important;
+  top: 2.9cqh !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  color: #C94D2C !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
+}
+
 .poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-trail-name {
   font-family: "Newsreader", "Libre Baskerville", serif !important;
-  font-size: min(var(--trail-title-size, 8.4cqh), 8.6cqh) !important;
+  font-size: min(var(--trail-title-size, 10.2cqh), 10.4cqh) !important;
   line-height: 0.92 !important;
   max-width: 76cqw !important;
   text-wrap: balance;
@@ -12204,6 +12222,24 @@ onUnmounted(() => {
   font-weight: 500 !important;
   letter-spacing: 0.28em !important;
   opacity: 1 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-occasion,
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .chrome-grid-block--occasion {
+  position: absolute !important;
+  left: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 42cqw !important;
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 62%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 1.85cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-meta-line {
@@ -12223,16 +12259,29 @@ onUnmounted(() => {
 }
 
 .poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-footer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 22 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-footer > :not(.poster-occasion) {
   display: none !important;
 }
 
 .composition-relief-bands {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 8;
   pointer-events: none;
   mix-blend-mode: multiply;
-  opacity: 0.42;
+  opacity: 0.62;
 }
 
 .relief-band {
