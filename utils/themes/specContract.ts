@@ -156,7 +156,7 @@ export const THEME_SPEC_CONTRACTS: readonly ThemeSpecContract[] = [
     titleFont: 'Big Shoulders Display',
     bodyFont: 'Work Sans',
     caseBehavior: 'upper',
-    palette: { paper: '#f3efe2', ink: '#16243f', sub: '#4a4636', line: '#16243f', accent: '#ff4f7b', accent2: '#2f5fd0', mapBg: '#f4f0e3' },
+    palette: { paper: '#eae6db', ink: '#16243f', sub: '#4a4636', line: '#16243f', accent: '#ff4f7b', accent2: '#2f5fd0', mapBg: '#eae6db' },
     mapStyleRequirements: ['two-ink print feel', 'blue contours', 'paper grain'],
     routeStyleRequirements: ['fluoro pink route', 'blue misregistration offset', 'no endpoint markers'],
     requiredLayoutFeatures: ['big stacked title', 'blue offset title shadow', 'print grain'],

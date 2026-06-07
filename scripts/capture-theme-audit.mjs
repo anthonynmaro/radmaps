@@ -473,7 +473,7 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'risograph') {
-    const paper = hexToRgb('#F3EFE2')
+    const paper = hexToRgb('#EAE6DB')
     const pinkRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 220 && g > 55 && g < 120 && b > 95 && b < 160,
     )
@@ -481,8 +481,8 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
       r > 25 && r < 95 && g > 65 && g < 130 && b > 150 && b < 235,
     )
     groups.palette.push(
-      semanticCheck('Risograph poster dominant color is warm paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #F3EFE2`),
-      semanticCheck('Risograph map dominant color is warm paper, not blank white', colorDistance(mapAverage, paper) < 54, `${formatRgb(mapAverage)} vs #F3EFE2`),
+      semanticCheck('Risograph poster dominant color is sampled warm paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #EAE6DB`),
+      semanticCheck('Risograph map dominant color is warm paper, not blank white', colorDistance(mapAverage, paper) < 54, `${formatRgb(mapAverage)} vs #EAE6DB`),
     )
     groups.mapLayers.push(
       semanticCheck('Risograph blue contour ink visible', blueContourPixels > 1200, `${blueContourPixels} pixels`),
@@ -1377,8 +1377,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Risograph map stack occupies print field', mapHeightRatio >= 0.68 && mapHeightRatio <= 0.76, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
-      semanticCheck('Risograph paper background', String(style.background_color).toUpperCase() === '#F4F0E3', String(style.background_color ?? '')),
-      semanticCheck('Risograph label background matches paper', String(style.label_bg_color).toUpperCase() === '#F4F0E3', String(style.label_bg_color ?? '')),
+      semanticCheck('Risograph paper background matches sampled target stock', String(style.background_color).toUpperCase() === '#EAE6DB', String(style.background_color ?? '')),
+      semanticCheck('Risograph label background matches paper', String(style.label_bg_color).toUpperCase() === '#EAE6DB', String(style.label_bg_color ?? '')),
       semanticCheck('Risograph ink is deep blue', String(style.label_text_color).toUpperCase() === '#16243F', String(style.label_text_color ?? '')),
       semanticCheck('Risograph route is fluoro pink', String(style.route_color).toUpperCase() === '#FF4F7B', String(style.route_color ?? '')),
       semanticCheck('Risograph contour ink is blue', String(style.contour_color).toUpperCase() === '#2F5FD0', String(style.contour_color ?? '')),
@@ -1399,12 +1399,12 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Risograph hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Risograph duotone print effect configured', style.tile_effect === 'duotone' && Number(style.tile_duotone_strength ?? 0) >= 0.75, `${style.tile_effect}/${style.tile_duotone_strength}`),
       semanticCheck('Risograph paper grain configured', Number(style.tile_grain ?? 0) >= 0.45, String(style.tile_grain ?? '')),
-      semanticCheck('Risograph paper land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#F4F0E3' && String(atlasLayerSettings.landcover?.texture ?? '') === 'paper', JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Risograph paper land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#EAE6DB' && String(atlasLayerSettings.landcover?.texture ?? '') === 'paper', JSON.stringify(atlasLayerSettings.landcover ?? {})),
       semanticCheck('Risograph blue contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#2F5FD0' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#2F5FD0', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Risograph print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
-      semanticCheck('Risograph route weight is bold two-ink print line', Number(style.route_width ?? 0) >= 4.4 && Number(style.route_width ?? 0) <= 5.2, String(style.route_width ?? '')),
+      semanticCheck('Risograph route weight is bold two-ink print line', Number(style.route_width ?? 0) >= 5.8 && Number(style.route_width ?? 0) <= 6.6, String(style.route_width ?? '')),
       semanticCheck('Risograph endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
       semanticCheck('Risograph misregistered route plates present', ['route-line-riso-blue', 'route-line-riso-pink-overprint'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
     )

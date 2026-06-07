@@ -982,9 +982,9 @@ function routeLayers(config: StyleConfig) {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.water_color ?? '#2f5fd0',
-          'line-width': Math.max(1.2, config.route_width - 0.1),
-          'line-opacity': Math.min(config.route_opacity * 0.9, 0.9),
-          'line-translate': [3, 3],
+          'line-width': Math.max(1.2, config.route_width - 0.4),
+          'line-opacity': Math.min(config.route_opacity * 0.9, 0.86),
+          'line-translate': [4.2, 3.4],
         },
       }, ROUTE_SCALE_PROPERTIES),
       withScaleMetadata({
@@ -994,10 +994,10 @@ function routeLayers(config: StyleConfig) {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.route_color,
-          'line-width': config.route_width + 1.2,
-          'line-opacity': Math.min(config.route_opacity * 0.22, 0.24),
-          'line-translate': [-1.2, -0.8],
-          'line-blur': 0.9,
+          'line-width': config.route_width + 1.6,
+          'line-opacity': Math.min(config.route_opacity * 0.32, 0.34),
+          'line-translate': [-1.4, -1],
+          'line-blur': 0.45,
         },
       }, ROUTE_SCALE_PROPERTIES),
       withScaleMetadata({

@@ -49,11 +49,12 @@ reference screenshot or spec contract.
   reported `90.6%` pixel, `99.1%` map, `78.2%` chrome, and `100.0%` semantic
   (`105/105`). Review queue status is `ready-for-review`; lower chrome smoke
   score is noted for visual review.
-- `risograph`: ready for Claude/human review. The live render was written to
-  `docs/theme_audit_output/poster-themes/print/risograph.png`; capture reported
-  `84.8%` pixel, `91.9%` map, `67.8%` chrome, and `100.0%` semantic (`103/103`).
-  Review queue status is `ready-for-review`; low visual smoke is noted for
-  Claude review even though the riso motif is present.
+- `risograph`: Claude feedback remediation is ready for review. The live render
+  was regenerated at `docs/theme_audit_output/poster-themes/print/risograph.png`;
+  capture reported `83.7%` pixel, `90.5%` map, `67.8%` chrome, and `100.0%`
+  semantic (`105/105`). Sampled warm paper, the bolder fluoro-pink route, and
+  visible blue misregistration offset now pass; low chrome smoke is still noted
+  for Claude review.
 - `brutalist`: ready for Claude/human review after retrying capture on fresh
   local port `3004` because the existing `3003` server stopped responding. The
   live render was written to `docs/theme_audit_output/poster-themes/print/brutalist.png`;
