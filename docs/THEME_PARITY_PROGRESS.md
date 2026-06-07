@@ -85,6 +85,12 @@ reference screenshot or spec contract.
   the existing manifest review state. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blueprint.png`; capture reported
   `89.9%` pixel, `93.8%` map, `86.7%` chrome, and `100.0%` semantic (`105/105`).
+- `moonstone`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/moonstone.png`; capture reported
+  `89.7%` pixel, `48.8%` map, `91.3%` chrome, and `100.0%` semantic (`102/102`).
+  Review queue status is `ready-for-review`. The image smoke check was corrected
+  to use color distance from the cool-paper token instead of a brittle channel
+  ordering predicate.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.

@@ -545,7 +545,7 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
       r > 115 && r < 175 && g > 55 && g < 105 && b > 40 && b < 90,
     )
     groups.palette.push(
-      semanticCheck('Moonstone poster average stays cool paper', fullAverage.r > 170 && fullAverage.g >= fullAverage.r && fullAverage.b >= fullAverage.r, `${formatRgb(fullAverage)} vs #EEF0ED`),
+      semanticCheck('Moonstone poster average stays cool paper', colorDistance(fullAverage, paper) < 32, `${formatRgb(fullAverage)} vs #EEF0ED`),
     )
     groups.routeStyling.push(
       semanticCheck('Moonstone visible rust route pixels', rustRoutePixels > 120, `${rustRoutePixels} pixels`),
