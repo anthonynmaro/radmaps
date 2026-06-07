@@ -124,11 +124,12 @@ reference screenshot or spec contract.
   subtitle and `6.5 mi / 1,100 ft / MAY 2025` footer/profile values.
 - `dark-sky`: Claude feedback remediation is ready for review. The live render
   was regenerated at `docs/theme_audit_output/poster-themes/print/dark-sky.png`;
-  capture reported `94.2%` pixel, `96.3%` map, `97.3%` chrome, and `100.0%`
-  semantic (`107/107`). The regression is addressed with a visible starfield and
-  constellation overlay, restored gold eyebrow, stronger nocturne contours,
-  lowered gold route treatment, and quiet custom footer while keeping the
-  generic stats/logo band removed.
+  capture reported `91.6%` pixel, `93.8%` map, `97.4%` chrome, and `100.0%`
+  semantic (`107/107`). The regression is addressed with a clean dark map field,
+  sparse blue contour treatment, visible starfield and constellation overlay,
+  restored gold eyebrow, longer low gold route treatment, and target Sierra /
+  `22.0 mi` / `14 SEP 2025` footer values while keeping the generic stats/logo
+  band removed.
 - `copper-night`: Claude feedback remediation is ready for review after porting
   the dark-sky composition treatment. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture

@@ -1942,7 +1942,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           grainMax: 0.24,
           routeWidthMin: 3.9,
           routeWidthMax: 4.2,
-          contourDetailMin: 4,
+          contourDetailMin: 1,
         }
       : {
           paper: '#100B08',
