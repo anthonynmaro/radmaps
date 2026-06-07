@@ -105,9 +105,10 @@ reference screenshot or spec contract.
 - `electric-atlas`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
-  reported `93.7%` pixel, `97.2%` map, `91.2%` chrome, and `100.0%` semantic
-  (`113/113`). It now inherits the map-first data chrome and uses a magenta slab
-  title, cyan footer values, and stronger violet topo/grid treatment.
+  reported `93.5%` pixel, `97.2%` map, `90.8%` chrome, and `100.0%` semantic
+  (`113/113`). It now inherits the map-first data chrome with the Boston Marathon
+  subtitle, cyan `26.2 mi / 813 ft / 04.21.2025` footer values, magenta slab
+  title, and stronger violet topo/grid treatment.
 - `splits-stats`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/splits-stats.png`; capture
   reported `80.5%` pixel, `100.0%` map, `80.5%` chrome, and `100.0%` semantic
