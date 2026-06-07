@@ -1376,6 +1376,7 @@ const REFINED_THEME_RECIPES = [
       show_contours: false,
       route_width: 2.8,
       route_opacity: 0.86,
+      show_primary_route: false,
       show_start_pin: false,
       show_finish_pin: false,
       show_grid: false,

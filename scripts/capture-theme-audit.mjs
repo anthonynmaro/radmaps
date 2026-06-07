@@ -1053,19 +1053,25 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('uses live route color', Boolean(style.route_color), String(style.route_color ?? '')),
       semanticCheck('route width configured', Number(style.route_width ?? 0) > 0, String(style.route_width ?? '')),
       semanticCheck('route opacity configured', Number(style.route_opacity ?? 0) > 0, String(style.route_opacity ?? '')),
-      semanticCheck('live route line layer present', snapshot.routeLayerIds.includes('route-line'), snapshot.routeLayerIds.join(', ')),
-      colorTokenCheck('live route line color matches token', routeLinePaint.color, style.route_color),
-      numericTokenCheck('live route line width matches token', routeLinePaint.width, style.route_width),
-      numericTokenCheck('live route line opacity matches renderer token', routeLinePaint.opacity, expectedRouteOpacity),
-      ...(routeRequiresGenericCasing
+      ...(geometry.renderStatus?.primaryRouteExpected === false
         ? [
-            semanticCheck('live route casing layer present', snapshot.routeLayerIds.includes('route-line-casing'), snapshot.routeLayerIds.join(', ')),
-            numericTokenCheck('live route casing width matches renderer token', routeCasingPaint.width, expectedCasingWidth),
-            numericTokenCheck('live route casing opacity matches renderer token', routeCasingPaint.opacity, expectedCasingOpacity),
-            semanticCheck('live route casing is wider than route', Number(routeCasingPaint.width ?? 0) > Number(routeLinePaint.width ?? 0), `${routeCasingPaint.width ?? ''} vs ${routeLinePaint.width ?? ''}`),
+            semanticCheck('primary route omitted when disabled', !snapshot.routeLayerIds.includes('route-line') && !snapshot.routeLayerIds.includes('route-line-casing'), snapshot.routeLayerIds.join(', ')),
           ]
         : [
-            semanticCheck('theme uses owned route treatment instead of generic casing', !snapshot.routeLayerIds.includes('route-line-casing'), snapshot.routeLayerIds.join(', ')),
+            semanticCheck('live route line layer present', snapshot.routeLayerIds.includes('route-line'), snapshot.routeLayerIds.join(', ')),
+            colorTokenCheck('live route line color matches token', routeLinePaint.color, style.route_color),
+            numericTokenCheck('live route line width matches token', routeLinePaint.width, style.route_width),
+            numericTokenCheck('live route line opacity matches renderer token', routeLinePaint.opacity, expectedRouteOpacity),
+            ...(routeRequiresGenericCasing
+              ? [
+                  semanticCheck('live route casing layer present', snapshot.routeLayerIds.includes('route-line-casing'), snapshot.routeLayerIds.join(', ')),
+                  numericTokenCheck('live route casing width matches renderer token', routeCasingPaint.width, expectedCasingWidth),
+                  numericTokenCheck('live route casing opacity matches renderer token', routeCasingPaint.opacity, expectedCasingOpacity),
+                  semanticCheck('live route casing is wider than route', Number(routeCasingPaint.width ?? 0) > Number(routeLinePaint.width ?? 0), `${routeCasingPaint.width ?? ''} vs ${routeLinePaint.width ?? ''}`),
+                ]
+              : [
+                  semanticCheck('theme uses owned route treatment instead of generic casing', !snapshot.routeLayerIds.includes('route-line-casing'), snapshot.routeLayerIds.join(', ')),
+                ]),
           ]),
       semanticCheck('print route source loaded', geometry.renderStatus?.primaryRouteExpected === false || (
         geometry.renderStatus?.routeSourcePresent === true &&
@@ -2301,6 +2307,7 @@ function fixtureOverrideQuery(entry) {
   if (overrides.title) params.set('title', overrides.title)
   if (overrides.location) params.set('location', overrides.location)
   if (overrides.occasion) params.set('occasion', overrides.occasion)
+  if (overrides.compositionMeta) params.set('compositionMeta', overrides.compositionMeta)
   if (typeof overrides.distanceKm === 'number' && Number.isFinite(overrides.distanceKm)) {
     params.set('distanceKm', String(overrides.distanceKm))
   }

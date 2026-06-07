@@ -24,6 +24,7 @@ export interface ThemeScreenshotManifestEntry {
     title?: string
     location?: string
     occasion?: string
+    compositionMeta?: string
     distanceKm?: number
     gainM?: number
     durationSeconds?: number

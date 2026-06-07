@@ -10,6 +10,8 @@ import {
   resolvePosterCompositionId,
 } from '~/utils/posterCompositions'
 import { getPosterTypography } from '~/utils/posterData'
+import { defaultPosterLayout } from '~/utils/posterLayout'
+import { DEFAULT_STYLE_CONFIG } from '../types'
 
 describe('poster composition registry', () => {
   it('has a profile and picker option for every design-update composition', () => {
@@ -56,6 +58,21 @@ describe('poster composition registry', () => {
     expect(profile.mapOrder).toBeLessThan(profile.headerOrder)
     expect(profile.footerVariant).toBe('data')
     expect(profile.showGridOverlay).toBe(true)
+  })
+
+  it('gives place-frame posters decorative header data slots', () => {
+    const layout = defaultPosterLayout({
+      ...DEFAULT_STYLE_CONFIG,
+      color_theme: 'cartouche-place',
+      composition: 'place-frame',
+      occasion_text: 'MÉXICO',
+    })
+    const slots = layout.bands.header.rows
+      .flatMap(row => row.cells)
+      .map(cell => cell.block?.slot)
+
+    expect(slots).toContain('composition_kicker')
+    expect(slots).toContain('composition_meta')
   })
 
   it('renders trail profile compositions with map-first profile chrome', () => {

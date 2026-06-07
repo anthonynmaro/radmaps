@@ -133,6 +133,7 @@ const fixtureTonerVariant = parseTonerVariant(route.query.tonerVariant)
 const fixtureTrailName = typeof route.query.title === 'string' ? route.query.title : undefined
 const fixtureLocationText = typeof route.query.location === 'string' ? route.query.location : undefined
 const fixtureOccasionText = typeof route.query.occasion === 'string' ? route.query.occasion : undefined
+const fixtureCompositionMetaText = typeof route.query.compositionMeta === 'string' ? route.query.compositionMeta : undefined
 const fixtureDistanceKm = typeof route.query.distanceKm === 'string'
   ? Number.parseFloat(route.query.distanceKm)
   : undefined
@@ -321,6 +322,17 @@ const styleConfig = ref<StyleConfig>({
   ...(fixtureTrailName ? { trail_name: fixtureTrailName } : {}),
   ...(fixtureLocationText ? { location_text: fixtureLocationText } : {}),
   ...(fixtureOccasionText ? { occasion_text: fixtureOccasionText } : {}),
+  ...(fixtureCompositionMetaText
+    ? {
+        poster_text_overrides: {
+          ...(initialStyleConfig.poster_text_overrides ?? {}),
+          composition_meta: {
+            ...(initialStyleConfig.poster_text_overrides?.composition_meta ?? {}),
+            text: fixtureCompositionMetaText,
+          },
+        },
+      }
+    : {}),
 })
 const selectedPosterElementId = ref<string | null>(
   typeof route.query.selectedPosterElement === 'string' ? route.query.selectedPosterElement : null,

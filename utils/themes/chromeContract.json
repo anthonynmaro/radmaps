@@ -186,7 +186,7 @@
   {
     "themeId": "cartouche-place",
     "typography": { "titleFont": "Playfair Display", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-plate-frame", "composition-cartouche-seal"],
     "requiredSelectors": [".cartouche-corner"],
     "forbiddenTestIds": ["composition-sea-chart-art"]

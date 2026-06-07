@@ -143,6 +143,7 @@ const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
   'brutalist-slab',
   'darksky-stars',
   'modernist-block',
+  'place-frame',
   'splits-grid',
 ])
 
@@ -251,6 +252,8 @@ function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRe
       return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13.5, headerTopFr: 0.62, headerTitleFr: 2.35, headerBottomFr: 0.74, subtitleScale: 0.72, statScale: 1.12, noteScale: 0.62 }
     case 'modernist-block':
       return { ...BASE_CHROME_RECIPE, headerHeight: 34.2, footerHeight: 0, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
+    case 'place-frame':
+      return { ...BASE_CHROME_RECIPE, headerHeight: 18, footerHeight: 0, headerTopFr: 0.18, headerMetaFr: 0.38, headerTitleFr: 1.96, headerSubFr: 0.42, headerBottomFr: 0.22, kickerScale: 0.78, metaScale: 0.74, titleScale: 1.08, subtitleScale: 0.66 }
     case 'bib-numerals':
       return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 15.5, headerTopFr: 0.38, headerTitleFr: 2.2, headerBottomFr: 0.42, footerTopFr: 0.42, footerPrimaryFr: 1.18, footerBottomFr: 0.42, titleScale: 0.95, statScale: 1.56, dateScale: 1.08 }
     case 'brutalist-slab':

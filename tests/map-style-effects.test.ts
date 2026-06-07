@@ -1606,6 +1606,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.land_color).toBe('#F1EBDD')
     expect(config.show_start_pin).toBe(false)
     expect(config.show_finish_pin).toBe(false)
+    expect(config.show_primary_route).toBe(false)
     expect(config.route_color).toBe('#9A3B27')
     expect(config.route_width).toBe(2.8)
     expect(config.route_opacity).toBe(0.86)
@@ -1625,9 +1626,8 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-alidade-poi-labels')?.paint?.['text-opacity']).toBe(0.28)
     expect(layerById(style, 'contours-minor')).toBeUndefined()
     expect(layerById(style, 'contours-major')).toBeUndefined()
-    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#9A3B27')
-    expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(2.8)
-    expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.86)
+    expect(layerById(style, 'route-line')).toBeUndefined()
+    expect(layerById(style, 'route-line-casing')).toBeUndefined()
   })
 
   it('applies Transit Diagram map tokens as the simplified diagram base contract', () => {

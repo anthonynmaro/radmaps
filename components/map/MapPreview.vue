@@ -4503,6 +4503,7 @@ const locationLine = computed(() => {
   if (composition.value.id === 'modernist-block') return locationText.value
   if (composition.value.id === 'bib-numerals') return locationText.value
   if (composition.value.id === 'botanical-plate') return locationText.value
+  if (composition.value.id === 'place-frame') return locationText.value
   return locationText.value.toUpperCase()
 })
 
@@ -4876,8 +4877,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'place-frame':
       return {
-        kicker: location || 'PLACE PORTRAIT',
-        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · ${gain}`.trim(),
+        kicker: occasionText.value || location || 'PLACE PORTRAIT',
+        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · ${formattedGainM.value ? `${formattedGainM.value} m` : gain}`.trim(),
       }
     case 'sea-chart':
       return {
@@ -12633,11 +12634,16 @@ onUnmounted(() => {
 
 .poster-composition--place-frame .composition-meta-line {
   margin-top: 0.8cqh;
-  padding-top: 1.1cqh;
+  padding-top: 0.9cqh;
   border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   font-family: "IBM Plex Mono", monospace !important;
+  font-size: 0.82cqh !important;
   letter-spacing: 0.12em !important;
-  opacity: 0.66 !important;
+  opacity: 0.76 !important;
+  color: currentColor !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
 
 .poster-composition--place-frame.poster-has-route .composition-meta-line {
