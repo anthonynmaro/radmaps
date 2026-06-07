@@ -7,7 +7,7 @@ Codex never marks a theme `approved`.
 | Theme | Status | Semantic | Live render | Self-assessment |
 |---|---|---:|---|---|
 | `usgs-vintage` | `ready-for-review` | 100.0% (`115/115`) | `docs/theme_audit_output/poster-themes/print/usgs-vintage.png` | Full quad treatment is token-aligned; watch chrome pixel score because geometry differs, but semantic gate is clean. |
-| `classic-trail` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `classic-trail` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/classic-trail.png` | Slate park-quad colorway is aligned to the strengthened USGS contract; watch lower chrome score as non-gating geometry/chrome smoke only. |
 | `midcentury-travel` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `ranch-ochre` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `daybreak-trace` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 1
+- `ready-for-review`: 2
 - `blocked`: 0
-- `unchanged`: 26
+- `unchanged`: 25
