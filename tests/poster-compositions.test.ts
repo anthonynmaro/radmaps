@@ -58,6 +58,15 @@ describe('poster composition registry', () => {
     expect(profile.showGridOverlay).toBe(true)
   })
 
+  it('renders trail profile compositions with map-first profile chrome', () => {
+    const profile = POSTER_COMPOSITIONS['splits-grid']
+
+    expect(profile.titlePosition).toBe('bottom')
+    expect(profile.mapOrder).toBeLessThan(profile.headerOrder)
+    expect(profile.footerVariant).toBe('data')
+    expect(profile.showGridOverlay).toBe(true)
+  })
+
   it('marks label-band title compositions so light text stays readable', () => {
     expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('paper')
     expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('paper')

@@ -2119,6 +2119,7 @@ describe('RadMaps Atlas style integration', () => {
         grain: 0.08,
         grid: true,
         gridOpacity: 0.10,
+        profileHeight: 17,
         land: '#141619',
         water: '#0E1720',
         minorContour: '#282D33',
@@ -2134,6 +2135,7 @@ describe('RadMaps Atlas style integration', () => {
         grain: 0.1,
         grid: false,
         gridOpacity: 0.2,
+        profileHeight: 10,
         land: '#101417',
         water: '#0B1A23',
         minorContour: '#222F34',
@@ -2164,7 +2166,7 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.grid_opacity).toBe(expected.gridOpacity)
       expect(config.show_elevation_profile).toBe(true)
       expect(config.elevation_profile_position).toBe('separate-band')
-      expect(config.elevation_profile_height).toBe(10)
+      expect(config.elevation_profile_height).toBe(expected.profileHeight)
       expect(config.route_color).toBe(expected.route)
       expect(config.route_width).toBe(expected.routeWidth)
       expect(config.route_opacity).toBe(0.94)

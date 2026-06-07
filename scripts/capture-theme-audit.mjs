@@ -2068,6 +2068,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Trail Profile uses splits-grid composition', style.composition === 'splits-grid', String(style.composition ?? '')),
       semanticCheck('Trail Profile profile/stat footer remains visible', footerVisible === true, `${footerVisible}`),
+      semanticCheck('Trail Profile rendered title is bottom slab', titlePositionFromSnapshot(snapshot) === 'bottom', JSON.stringify({ title: snapshot.title.rect, map: snapshot.map.rect })),
     )
     groups.palette.push(
       semanticCheck('Trail Profile dark background', String(style.background_color).toUpperCase() === '#0B0D10', String(style.background_color ?? '')),
@@ -2098,6 +2099,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Trail Profile map grid density configured', Number(style.grid_spacing ?? 0) === 8 && Number(style.grid_opacity ?? 0) >= 0.08 && Number(style.grid_opacity ?? 0) <= 0.12, `${style.grid_spacing}/${style.grid_opacity}`),
       semanticCheck('Trail Profile map grid present', snapshot.grid.mapExists === true, JSON.stringify(snapshot.grid)),
       semanticCheck('Trail Profile elevation profile band present', (snapshot.contractPresence?.testIdCounts?.['elevation-profile-band'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Trail Profile elevation profile labels present', (snapshot.contractPresence?.testIdCounts?.['composition-profile-labels'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.composition-profile-labels__axis span'] ?? 0) >= 3, JSON.stringify(snapshot.contractPresence ?? {})),
+      semanticCheck('Trail Profile labeled technical footer present', (snapshot.contractPresence?.testIdCounts?.['composition-technical-data-footer'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.composition-technical-data-item'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence ?? {})),
     )
   }
 
@@ -2111,6 +2114,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Night Ride inherits Trail Profile composition', style.composition === 'splits-grid', String(style.composition ?? '')),
       semanticCheck('Night Ride profile/stat footer remains visible', footerVisible === true, `${footerVisible}`),
+      semanticCheck('Night Ride rendered title is bottom slab', titlePositionFromSnapshot(snapshot) === 'bottom', JSON.stringify({ title: snapshot.title.rect, map: snapshot.map.rect })),
     )
     groups.palette.push(
       semanticCheck('Night Ride dark background', String(style.background_color).toUpperCase() === '#080B0E', String(style.background_color ?? '')),
@@ -2139,6 +2143,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Night Ride map grid disabled', style.show_grid === false, String(style.show_grid)),
       semanticCheck('Night Ride elevation profile band present', (snapshot.contractPresence?.testIdCounts?.['elevation-profile-band'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Night Ride elevation profile labels present', (snapshot.contractPresence?.testIdCounts?.['composition-profile-labels'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.composition-profile-labels__axis span'] ?? 0) >= 3, JSON.stringify(snapshot.contractPresence ?? {})),
+      semanticCheck('Night Ride labeled technical footer present', (snapshot.contractPresence?.testIdCounts?.['composition-technical-data-footer'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.composition-technical-data-item'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence ?? {})),
     )
   }
 

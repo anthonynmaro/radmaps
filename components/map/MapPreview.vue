@@ -1418,6 +1418,22 @@
           :style-config="styleConfig"
           placement="separate-band"
         />
+        <div
+          v-if="showSplitsProfileChrome"
+          class="composition-profile-labels"
+          data-testid="composition-profile-labels"
+          aria-hidden="true"
+        >
+          <div class="composition-profile-labels__header">
+            <span>Elevation Profile</span>
+            <strong>{{ profileGainLabel }}</strong>
+          </div>
+          <div class="composition-profile-labels__axis">
+            <span>Start</span>
+            <span>High Point</span>
+            <span>Finish</span>
+          </div>
+        </div>
       </div>
 
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
@@ -4576,7 +4592,10 @@ const formattedTechnicalDate = computed(() => {
   const day = String(date.getUTCDate()).padStart(2, '0')
   return `${month}.${day}.${date.getUTCFullYear()}`
 })
-const showTechnicalDataFooter = computed(() => composition.value.id === 'blueprint-strava')
+const showTechnicalDataFooter = computed(() =>
+  composition.value.id === 'blueprint-strava' ||
+  composition.value.id === 'splits-grid',
+)
 const technicalDataFooterItems = computed(() => [
   { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
   { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
@@ -4589,6 +4608,8 @@ const blueprintDraftingToplineLabel = computed(() =>
     : 'RADMAPS · SHEET A',
 )
 const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
+const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid')
+const profileGainLabel = computed(() => formattedGain.value ? `${formattedGain.value} ft GAIN` : 'GAIN')
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
@@ -4661,10 +4682,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         meta: `${distance}\n${coords.value?.lat ?? gain}`,
       }
     case 'splits-grid':
-      return {
-        kicker: 'DATA SHEET',
-        meta: date,
-      }
+      return {}
     case 'bib-numerals':
       return {
         kicker: 'The forty-first',
@@ -5104,7 +5122,7 @@ const showElevationProfile = computed(() => props.styleConfig.show_elevation_pro
 const showOverlayElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'map-overlay')
 const showSeparateElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'separate-band')
 const elevationProfileBandStyle = computed(() => ({
-  order: String(composition.value.mapOrder),
+  order: String(composition.value.id === 'splits-grid' ? composition.value.headerOrder + 1 : composition.value.mapOrder),
   margin: composition.value.mapMargin,
   height: `${elevationProfileHeight.value}cqh`,
   minHeight: '0',
@@ -9975,9 +9993,9 @@ onUnmounted(() => {
 
 .poster-composition--splits-grid[data-theme="splits-stats"] .poster-header,
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-header {
-  background:
-    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.2cqw 100%,
-    var(--label-bg-color, #0b0d10) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  gap: 0.68cqh !important;
 }
 
 .poster-composition--splits-grid[data-theme="splits-stats"] .poster-trail-name,
@@ -9985,14 +10003,79 @@ onUnmounted(() => {
 .poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--title,
 .poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--title {
   font-weight: 820 !important;
+  font-size: clamp(6.6cqh, var(--trail-title-size, 8.2cqh), 8.8cqh) !important;
   letter-spacing: 0.055em !important;
   line-height: 0.92 !important;
   text-transform: uppercase !important;
 }
 
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-location-line,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-location-line {
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.28cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.18em !important;
+  color: color-mix(in srgb, var(--label-text-color, currentColor) 66%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-rule,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-rule {
+  opacity: 0.22 !important;
+}
+
 .poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--stat::first-line,
 .poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--stat::first-line {
   color: var(--route-color, currentColor);
+}
+
+.composition-profile-labels {
+  position: absolute;
+  z-index: 3;
+  inset: 1.05cqh 6.8cqw 1cqh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  color: var(--label-text-color, currentColor);
+  font-family: "IBM Plex Mono", monospace;
+  text-transform: uppercase;
+}
+
+.composition-profile-labels__header,
+.composition-profile-labels__axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.composition-profile-labels__header span,
+.composition-profile-labels__axis span {
+  font-size: 1.08cqh;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: color-mix(in srgb, currentColor 58%, transparent);
+}
+
+.composition-profile-labels__header strong {
+  font-size: 1.15cqh;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--splits-grid .composition-technical-data-footer {
+  grid-template-columns: 0.95fr 0.95fr 1.45fr 1.12fr;
+  column-gap: 0.9cqw;
+}
+
+.poster-composition--splits-grid .composition-technical-data-item {
+  padding-left: 0.95cqw;
+}
+
+.poster-composition--splits-grid .composition-technical-data-item strong {
+  font-size: clamp(1.45cqh, 1.78cqh, 1.95cqh);
+  letter-spacing: 0;
 }
 
 .poster-composition--travel-banner [data-testid="poster-map"] {

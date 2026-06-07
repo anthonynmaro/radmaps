@@ -131,16 +131,20 @@
   {
     "themeId": "splits-stats",
     "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["composition-map-grid-overlay", "elevation-profile-band"],
-    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"]
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay", "elevation-profile-band", "composition-profile-labels", "composition-technical-data-footer"],
+    "requiredSelectors": [".composition-profile-labels__axis span", ".composition-technical-data-item"],
+    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"],
+    "forbiddenSelectors": [".poster-composition--splits-grid .poster-stats"]
   },
   {
     "themeId": "night-ride",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["elevation-profile-band"],
-    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"]
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["elevation-profile-band", "composition-profile-labels", "composition-technical-data-footer"],
+    "requiredSelectors": [".composition-profile-labels__axis span", ".composition-technical-data-item"],
+    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"],
+    "forbiddenSelectors": [".poster-composition--splits-grid .poster-stats"]
   },
   {
     "themeId": "marathon-bib",
