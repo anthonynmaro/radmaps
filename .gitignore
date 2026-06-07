@@ -30,6 +30,7 @@ npm-debug.log*
 # Testing
 coverage/
 test-results/
+docs/theme_audit_output/
 .vercel
 
 # Local dev/runtime state

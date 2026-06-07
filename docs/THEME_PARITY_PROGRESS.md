@@ -9,6 +9,9 @@ reference screenshot or spec contract.
 
 ## Current Validation State
 
+- Pre-flight rerun on June 7, 2026: `npx vue-tsc --noEmit --pretty false`
+  passed, and the focused contract suite passed with 4 files / 125 tests:
+  `npx vitest run tests/map-style-effects.test.ts tests/refined-themes.test.ts tests/poster-compositions.test.ts tests/theme-application.test.ts`.
 - Focused contract tests passed:
   `npx vitest run tests/map-style-effects.test.ts tests/refined-themes.test.ts tests/poster-compositions.test.ts tests/theme-application.test.ts`
 - Harness syntax passed:
@@ -23,6 +26,10 @@ reference screenshot or spec contract.
 
 ## Theme Status Notes
 
+- `usgs-vintage`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/usgs-vintage.png`; capture
+  reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic
+  (`115/115`). Review queue status is `ready-for-review`.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
