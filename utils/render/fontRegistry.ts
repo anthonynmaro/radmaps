@@ -78,6 +78,15 @@ export const FONT_REGISTRY = {
       { weight: 800, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
     ],
   },
+  'IBM Plex Mono': {
+    family: 'IBM Plex Mono',
+    fallback: 'monospace',
+    files: [
+      { weight: 400, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+    ],
+  },
   'Atkinson Hyperlegible Next': {
     family: 'Atkinson Hyperlegible Next',
     fallback: 'sans-serif',

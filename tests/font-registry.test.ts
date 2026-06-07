@@ -22,7 +22,9 @@ describe('font registry', () => {
     expect(css).toContain("font-family: 'Source Sans 3'")
     expect(css).toContain("url('/fonts/Source_Sans_3.ttf')")
     expect(css).toContain("font-family: 'Newsreader'")
+    expect(css).toContain("font-family: 'IBM Plex Mono'")
     expect(css).toContain("font-family: 'Bebas Neue'")
+    expect(css).toContain("url('/fonts/IBM_Plex_Mono.ttf')")
     expect(css).toContain("url('/fonts/Bebas_Neue-400.ttf')")
     expect(css).toContain("url('/fonts/Big_Shoulders_Display-800.ttf')")
     expect(css).toContain("url('/fonts/Playfair_Display-800.ttf')")
@@ -38,6 +40,25 @@ describe('font registry', () => {
     ]))
 
     for (const font of contractFonts) {
+      expect(FONT_REGISTRY[font as keyof typeof FONT_REGISTRY], font).toBeTruthy()
+      expect(css, font).toContain(`font-family: '${font}'`)
+    }
+  })
+
+  it('self-hosts every literal font family referenced by posterData and spec contracts', () => {
+    const css = generateFontFaceCss({ fontsUrlBase: '/fonts' })
+    const sources = [
+      readFileSync(resolve(process.cwd(), 'utils/posterData.ts'), 'utf8'),
+      readFileSync(resolve(process.cwd(), 'utils/themes/specContract.ts'), 'utf8'),
+    ].join('\n')
+    const referenced = new Set<string>()
+    for (const match of sources.matchAll(/'([^']+)'/g)) {
+      const value = match[1]
+      if (FONT_REGISTRY[value as keyof typeof FONT_REGISTRY]) referenced.add(value)
+    }
+
+    expect(referenced).toContain('IBM Plex Mono')
+    for (const font of referenced) {
       expect(FONT_REGISTRY[font as keyof typeof FONT_REGISTRY], font).toBeTruthy()
       expect(css, font).toContain(`font-family: '${font}'`)
     }

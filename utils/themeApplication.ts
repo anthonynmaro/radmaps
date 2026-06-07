@@ -4,6 +4,7 @@ const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
   'Source Sans 3': 'Source Sans 3',
   'Source Serif 4': 'Source Sans 3',
   'IBM Plex Sans': 'IBM Plex Sans',
+  'IBM Plex Mono': 'IBM Plex Mono',
   'Atkinson Hyperlegible Next': 'Atkinson Hyperlegible Next',
   'Newsreader': 'Source Serif 4',
   'Big Shoulders Display': 'DM Sans',

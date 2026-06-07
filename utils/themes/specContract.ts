@@ -3,7 +3,7 @@ import type { ColorTheme, CompositionId, FontFamily } from '~/types'
 export type ThemeSpecDecision = 'keep' | 'merge' | 'revise' | 'new'
 export type ThemeSpecPriority = 'anchor' | 'normal'
 export type ThemeCaseBehavior = 'title' | 'upper'
-export type ThemeSpecMonoFont = FontFamily | 'IBM Plex Mono'
+export type ThemeSpecMonoFont = FontFamily
 
 export interface ThemeSpecContract {
   id: ColorTheme

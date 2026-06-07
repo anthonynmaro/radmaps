@@ -34,6 +34,7 @@ export type FontFamily =
   | 'Source Sans 3'
   | 'Source Serif 4'
   | 'IBM Plex Sans'
+  | 'IBM Plex Mono'
   | 'Atkinson Hyperlegible Next'
   | 'Newsreader'
   // Editorial — condensed, impactful, poster-native
