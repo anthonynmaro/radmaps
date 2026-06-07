@@ -409,7 +409,7 @@
         aria-hidden="true"
       />
       <div
-        v-if="isBlueprintTheme"
+        v-if="isBlueprintDraftingTheme"
         class="blueprint-drafting-topline"
         data-testid="blueprint-drafting-topline"
         aria-hidden="true"
@@ -418,7 +418,7 @@
         <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '36.5785°N' }}</span>
       </div>
       <div
-        v-if="isBlueprintTheme"
+        v-if="isBlueprintDraftingTheme"
         class="blueprint-drafting-figure"
         data-testid="blueprint-drafting-figure"
         aria-hidden="true"
@@ -426,7 +426,7 @@
         FIG. 01 — ROUTE PLAN
       </div>
       <div
-        v-if="isBlueprintTheme"
+        v-if="isBlueprintDraftingTheme"
         class="blueprint-sheet-neatline"
         data-testid="blueprint-sheet-neatline"
         aria-hidden="true"
@@ -4549,6 +4549,10 @@ const startPinLabel = computed(() => textWithOverride('start_pin_label', props.s
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
 const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
+const isBlueprintDraftingTheme = computed(() =>
+  composition.value.id === 'blueprint-grid' &&
+  (props.styleConfig.color_theme === 'blueprint' || props.styleConfig.color_theme === 'moonstone'),
+)
 
 const compositionDecorDefaults = computed<CompositionDecor>(() => {
   const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
@@ -4592,7 +4596,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         meta: 'Two-color trail print',
       }
     case 'blueprint-grid':
-      if (isBlueprintTheme.value) return {}
+      if (isBlueprintDraftingTheme.value) return {}
       return {
         kicker: 'WGS84',
         meta: 'SHEET 01',
@@ -10869,7 +10873,9 @@ onUnmounted(() => {
 }
 
 .poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline,
-.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure {
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
   position: absolute;
   z-index: 18;
   pointer-events: none;
@@ -10882,7 +10888,8 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline {
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline {
   left: 8.8cqw;
   right: 8.8cqw;
   top: 5.2cqh;
@@ -10891,12 +10898,14 @@ onUnmounted(() => {
   justify-content: space-between;
 }
 
-.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure {
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
   left: 8.8cqw;
   top: 9.1cqh;
 }
 
-.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-sheet-neatline {
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-sheet-neatline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-sheet-neatline {
   position: absolute;
   inset: 3.7cqh 3.9cqw 3.8cqh;
   z-index: 17;
@@ -11042,6 +11051,26 @@ onUnmounted(() => {
     var(--label-bg-color, #EEF0ED) !important;
 }
 
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-footer {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.8cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 9%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.6cqh,
+    var(--label-bg-color, #EEF0ED) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
+  color: color-mix(in srgb, var(--label-text-color, #243238) 68%, transparent);
+  font-size: 1.03cqh;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-sheet-neatline {
+  border-color: color-mix(in srgb, var(--label-text-color, #243238) 36%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, #243238) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, #243238) 16%, transparent);
+}
+
 .poster-composition--blueprint-grid[data-theme="moonstone"] .poster-trail-name,
 .poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--title {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
@@ -11057,6 +11086,27 @@ onUnmounted(() => {
 
 .poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--brand {
   opacity: 0.42;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  justify-content: space-between !important;
+  gap: 2.2cqw !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats .stat-divider,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .stat-block,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-date,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-coords {
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.13em !important;
+  text-transform: uppercase !important;
 }
 
 .poster-composition--journal-spread [data-testid="poster-map"] {

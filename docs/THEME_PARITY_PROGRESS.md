@@ -87,12 +87,12 @@ reference screenshot or spec contract.
   the existing manifest review state. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blueprint.png`; capture reported
   `89.9%` pixel, `93.8%` map, `86.7%` chrome, and `100.0%` semantic (`105/105`).
-- `moonstone`: ready for Claude/human review. The live render was written to
-  `docs/theme_audit_output/poster-themes/print/moonstone.png`; capture reported
-  `89.7%` pixel, `48.8%` map, `91.3%` chrome, and `100.0%` semantic (`102/102`).
-  Review queue status is `ready-for-review`. The image smoke check was corrected
-  to use color distance from the cool-paper token instead of a brittle channel
-  ordering predicate.
+- `moonstone`: Claude feedback remediation is ready for review. The live render
+  was regenerated at `docs/theme_audit_output/poster-themes/print/moonstone.png`;
+  capture reported `85.9%` pixel, `40.7%` map, `88.6%` chrome, and `100.0%`
+  semantic (`104/104`). Blueprint drafting labels, map grid, neatline, technical
+  footer cleanup, and etched route treatment now pass; lower map smoke is noted
+  for fixture geometry review.
 - `blueprint-strava`: ready for Claude/human review. The live render was written
   to `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
   reported `94.9%` pixel, `97.4%` map, `89.8%` chrome, and `100.0%` semantic

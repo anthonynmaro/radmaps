@@ -1217,7 +1217,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Moonstone map grid enabled', style.show_grid === true && style.grid_scope === 'map', `${style.show_grid}/${style.grid_scope}`),
       semanticCheck('Moonstone map grid density configured', Number(style.grid_spacing ?? 0) === 8 && Number(style.grid_opacity ?? 0) >= 0.06 && Number(style.grid_opacity ?? 0) <= 0.09, `${style.grid_spacing}/${style.grid_opacity}`),
       semanticCheck('Moonstone map grid present', snapshot.grid.mapExists === true, JSON.stringify(snapshot.grid)),
-      semanticCheck('Moonstone does not inherit Blueprint drafting labels', snapshot.blueprintDrafting.topline === false && snapshot.blueprintDrafting.figure === false, JSON.stringify(snapshot.blueprintDrafting)),
+      semanticCheck('Moonstone drafting labels present', snapshot.blueprintDrafting.topline === true && snapshot.blueprintDrafting.figure === true && snapshot.blueprintDrafting.neatline === true, JSON.stringify(snapshot.blueprintDrafting)),
     )
   }
 

@@ -66,9 +66,9 @@
     "themeId": "moonstone",
     "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
     "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "compact" },
-    "requiredTestIds": ["composition-map-grid-overlay"],
+    "requiredTestIds": ["composition-map-grid-overlay", "blueprint-drafting-topline", "blueprint-drafting-figure", "blueprint-sheet-neatline"],
     "requiredRouteLayers": ["route-line-moonstone-engraved-channel", "route-line-moonstone-survey-ticks"],
-    "forbiddenTestIds": ["blueprint-drafting-topline", "blueprint-drafting-figure", "blueprint-sheet-neatline"]
+    "forbiddenTestIds": []
   },
   {
     "themeId": "blueprint-strava",
