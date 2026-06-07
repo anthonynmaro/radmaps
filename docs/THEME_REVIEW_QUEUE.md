@@ -16,7 +16,7 @@ Codex never marks a theme `approved`.
 | `editorial-minimal` | `ready-for-review` | 100.0% (`92/92`) | `docs/theme_audit_output/poster-themes/print/editorial-minimal.png` | Editorial-tall palette, typography, and gallery route tokens pass; watch lower map smoke from fixture terrain differences. |
 | `contour-wash` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/contour-wash.png` | Full-bleed wash field, centered caption, and echo route treatment pass; watch lower map smoke from dynamic contour geometry. |
 | `bold-modern` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/bold-modern.png` | Modernist block tokens, accent slab, and print-trap route layers pass; watch low map smoke from dynamic map geometry. |
-| `blackline` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `blackline` | `ready-for-review` | 100.0% (`101/101`) | `docs/theme_audit_output/poster-themes/print/blackline.png` | Mono modernist colorway and black route treatment pass; watch very low map smoke from dynamic fixture mismatch. |
 | `blueprint` | `unchanged` | n/a | n/a | Existing manifest review state left untouched per guardrail. |
 | `moonstone` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `blueprint-strava` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 10
+- `ready-for-review`: 11
 - `blocked`: 0
-- `unchanged`: 17
+- `unchanged`: 16
