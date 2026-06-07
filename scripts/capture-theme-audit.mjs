@@ -1854,6 +1854,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Blackline inherits Modernist block composition', style.composition === 'modernist-block', String(style.composition ?? '')),
       semanticCheck('Blackline generic footer hidden; metadata lives in titleblock', footerVisible === false, `${footerVisible}`),
+      semanticCheck('Blackline titleblock binds marathon subtitle', snapshot.locationLine?.text.includes('Boston Marathon') && snapshot.locationLine?.text.includes('Hopkinton'), snapshot.locationLine?.text ?? ''),
+      semanticCheck('Blackline metadata binds target distance and latitude', snapshot.compositionMeta?.text.includes('26.2 mi') && snapshot.compositionMeta?.text.includes('42.3601°N'), snapshot.compositionMeta?.text ?? ''),
     )
     groups.palette.push(
       semanticCheck('Blackline clean paper background matches sampled neutral', String(style.background_color).toUpperCase() === '#B9B9B6', String(style.background_color ?? '')),

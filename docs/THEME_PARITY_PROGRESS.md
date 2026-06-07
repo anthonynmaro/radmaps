@@ -82,10 +82,10 @@ reference screenshot or spec contract.
   tokens; field density remains called out for visual review.
 - `blackline`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blackline.png`; capture reported
-  `69.2%` pixel, `96.2%` map, `20.3%` chrome, and `100.0%` semantic (`104/104`).
-  Claude feedback is addressed with sampled neutral/black/white tokens, stronger
-  contour density and contrast, and visible grey topo echo linework filling the
-  map field.
+  `69.2%` pixel, `96.2%` map, `20.4%` chrome, and `100.0%` semantic (`106/106`).
+  Claude footer nit is addressed with the Boston Marathon subtitle,
+  Hopkinton-to-Boylston line, `26.2 mi` distance, and `42.3601°N` latitude in
+  the modernist titleblock.
 - `blueprint`: overnight queue status is `ready-for-review` without changing
   the existing manifest review state. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blueprint.png`; capture reported
