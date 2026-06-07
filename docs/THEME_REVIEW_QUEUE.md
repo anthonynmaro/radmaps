@@ -11,7 +11,7 @@ Codex never marks a theme `approved`.
 | `midcentury-travel` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/midcentury-travel.png` | Travel-banner tokens and sun motif pass; watch overall/chrome smoke score because screenshot balance may need vision review. |
 | `ranch-ochre` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/ranch-ochre.png` | Ochre travel-banner colorway inherits the parent motif and passes tokens; watch map/chrome smoke because the target terrain differs. |
 | `daybreak-trace` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/daybreak-trace.png` | Dawn travel-banner tokens and sun motif pass; watch chrome balance in Claude review because smoke score is low. |
-| `risograph` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `risograph` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/risograph.png` | Riso contour plate, overprint route, paper grain, and title offset are visible; watch low chrome smoke against the large target PNG. |
 | `brutalist` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `editorial-minimal` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `contour-wash` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 5
+- `ready-for-review`: 6
 - `blocked`: 0
-- `unchanged`: 22
+- `unchanged`: 21

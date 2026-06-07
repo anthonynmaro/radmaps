@@ -49,6 +49,11 @@ reference screenshot or spec contract.
   reported `90.6%` pixel, `99.1%` map, `78.2%` chrome, and `100.0%` semantic
   (`105/105`). Review queue status is `ready-for-review`; lower chrome smoke
   score is noted for visual review.
+- `risograph`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/risograph.png`; capture reported
+  `84.8%` pixel, `91.9%` map, `67.8%` chrome, and `100.0%` semantic (`103/103`).
+  Review queue status is `ready-for-review`; low visual smoke is noted for
+  Claude review even though the riso motif is present.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
