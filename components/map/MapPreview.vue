@@ -10185,19 +10185,35 @@ onUnmounted(() => {
 }
 
 .poster-composition--modernist-block[data-theme="blackline"] .poster-header {
-  background: #f6f6f3 !important;
-  color: #0b0b0a !important;
+  background: #b9b9b6 !important;
+  color: #000 !important;
 }
 
 .poster-composition--modernist-block[data-theme="blackline"] .poster-rule {
-  background: #0b0b0a !important;
+  background: #000 !important;
 }
 
 .poster-composition--modernist-block[data-theme="blackline"] .composition-kicker,
 .poster-composition--modernist-block[data-theme="blackline"] .poster-trail-name,
 .poster-composition--modernist-block[data-theme="blackline"] .poster-location-line,
 .poster-composition--modernist-block[data-theme="blackline"] .composition-meta-line {
-  color: #0b0b0a !important;
+  color: #000 !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] [data-testid="poster-map"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0.38;
+  mix-blend-mode: multiply;
+  background:
+    radial-gradient(ellipse at 13% 18%, transparent 0 9%, rgba(0, 0, 0, 0.42) 9.25% 9.55%, transparent 9.9% 14%, rgba(0, 0, 0, 0.24) 14.25% 14.48%, transparent 14.9%),
+    radial-gradient(ellipse at 76% 22%, transparent 0 7%, rgba(0, 0, 0, 0.36) 7.2% 7.5%, transparent 7.9% 12%, rgba(0, 0, 0, 0.22) 12.2% 12.45%, transparent 12.9%),
+    radial-gradient(ellipse at 38% 67%, transparent 0 10%, rgba(0, 0, 0, 0.34) 10.25% 10.52%, transparent 10.9% 16%, rgba(0, 0, 0, 0.20) 16.25% 16.5%, transparent 16.9%),
+    radial-gradient(ellipse at 88% 78%, transparent 0 8%, rgba(0, 0, 0, 0.38) 8.25% 8.55%, transparent 8.9% 13%, rgba(0, 0, 0, 0.22) 13.25% 13.5%, transparent 13.9%),
+    repeating-linear-gradient(0deg, transparent 0 4.2cqh, rgba(0, 0, 0, 0.12) 4.2cqh calc(4.2cqh + 1px), transparent calc(4.2cqh + 1px) 8.4cqh);
 }
 
 .poster-composition--splits-grid .poster-footer-rule,

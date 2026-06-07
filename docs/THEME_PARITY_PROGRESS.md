@@ -82,9 +82,10 @@ reference screenshot or spec contract.
   hatch layers.
 - `blackline`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blackline.png`; capture reported
-  `89.5%` pixel, `16.0%` map, `90.1%` chrome, and `100.0%` semantic (`101/101`).
-  Review queue status is `ready-for-review`; very low map smoke is noted for
-  visual review.
+  `69.2%` pixel, `96.2%` map, `20.3%` chrome, and `100.0%` semantic (`104/104`).
+  Claude feedback is addressed with sampled neutral/black/white tokens, stronger
+  contour density and contrast, and visible grey topo echo linework filling the
+  map field.
 - `blueprint`: overnight queue status is `ready-for-review` without changing
   the existing manifest review state. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blueprint.png`; capture reported

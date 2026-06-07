@@ -1808,10 +1808,10 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Blackline generic footer hidden; metadata lives in titleblock', footerVisible === false, `${footerVisible}`),
     )
     groups.palette.push(
-      semanticCheck('Blackline clean paper background', String(style.background_color).toUpperCase() === '#F6F6F3', String(style.background_color ?? '')),
-      semanticCheck('Blackline accent slab is black', String(style.label_bg_color).toUpperCase() === '#11100E', String(style.label_bg_color ?? '')),
-      semanticCheck('Blackline label text token remains contrast-safe', String(style.label_text_color).toUpperCase() === '#F6F6F3', String(style.label_text_color ?? '')),
-      semanticCheck('Blackline route is pure black', String(style.route_color).toUpperCase() === '#0C0C0C', String(style.route_color ?? '')),
+      semanticCheck('Blackline clean paper background matches sampled neutral', String(style.background_color).toUpperCase() === '#B9B9B6', String(style.background_color ?? '')),
+      semanticCheck('Blackline accent slab is pure black', String(style.label_bg_color).toUpperCase() === '#000000', String(style.label_bg_color ?? '')),
+      semanticCheck('Blackline label text token is white', String(style.label_text_color).toUpperCase() === '#FFFFFF', String(style.label_text_color ?? '')),
+      semanticCheck('Blackline route is pure black', String(style.route_color).toUpperCase() === '#000000', String(style.route_color ?? '')),
     )
     groups.mapLayers.push(
       semanticCheck('Blackline uses owned toner map', style.preset === 'radmaps-toner-light', String(style.preset ?? '')),
@@ -1828,7 +1828,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Blackline roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Blackline hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Blackline landcover disabled in owned map', Number(atlasLayerSettings.landcover?.opacity ?? 1) === 0, JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Blackline mono contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#D7D7D2' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#11100E', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Blackline mono contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#777774' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#000000', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Blackline contours have target density and contrast', Number(style.contour_detail ?? 0) >= 4 && Number(style.contour_minor_width ?? 0) >= 0.8 && Number(atlasLayerSettings.contour?.minor_opacity ?? 0) >= 0.55, `${style.contour_detail}/${style.contour_minor_width}/${atlasLayerSettings.contour?.minor_opacity}`),
     )
     groups.routeStyling.push(
       semanticCheck('Blackline print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),

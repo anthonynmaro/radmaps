@@ -2565,11 +2565,11 @@ describe('RadMaps Atlas style integration', () => {
     const style = buildMapStyle(config, 'mapbox-test-token')
 
     expect(config.route_width).toBeGreaterThanOrEqual(4)
-    expect(config.route_color).toBe('#0C0C0C')
+    expect(config.route_color).toBe('#000000')
     expect(config.route_opacity).toBe(0.9)
     expect(layerById(style, 'route-line-blackline-plate')?.source).toBe('route')
     expect(layerById(style, 'route-line-blackline-knockout')?.source).toBe('route')
-    expect(layerById(style, 'route-line-blackline-plate')?.paint?.['line-color']).toBe('#11100E')
+    expect(layerById(style, 'route-line-blackline-plate')?.paint?.['line-color']).toBe('#000000')
     expect(layerById(style, 'route-line-blackline-plate')?.paint?.['line-width']).toBe(6.6)
     expect(layerById(style, 'route-line-blackline-plate')?.paint?.['line-opacity']).toBeCloseTo(0.1536)
     expect(layerById(style, 'route-line-blackline-plate')?.paint?.['line-translate']).toEqual([1.5, 1.5])
@@ -2602,14 +2602,14 @@ describe('RadMaps Atlas style integration', () => {
       {
         id: 'blackline',
         body: 'IBM Plex Sans',
-        route: '#0C0C0C',
+        route: '#000000',
         width: 4,
-        pin: '#0C0C0C',
-        land: '#F6F6F3',
-        minorContour: '#D7D7D2',
-        majorContour: '#11100E',
-        minorOpacity: 0.42,
-        majorOpacity: 0.92,
+        pin: '#000000',
+        land: '#B9B9B6',
+        minorContour: '#777774',
+        majorContour: '#000000',
+        minorOpacity: 0.58,
+        majorOpacity: 0.96,
       },
     ] as const
 
