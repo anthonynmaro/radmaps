@@ -565,6 +565,21 @@ const sampleRegions: Record<string, {
       [12.282, 46.585],
     ],
   },
+  'dolomites-copper': {
+    title: 'Tre Cime',
+    location: 'Dolomiti, Italia',
+    bbox: [12.18, 46.54, 12.42, 46.72],
+    route: [
+      [12.214, 46.586],
+      [12.246, 46.594],
+      [12.283, 46.592],
+      [12.316, 46.587],
+      [12.344, 46.575],
+      [12.365, 46.552],
+      [12.380, 46.584],
+      [12.394, 46.618],
+    ],
+  },
   moab: {
     title: 'Moab',
     location: 'Sand Flats, Utah',

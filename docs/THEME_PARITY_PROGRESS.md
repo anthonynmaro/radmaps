@@ -133,10 +133,11 @@ reference screenshot or spec contract.
 - `copper-night`: Claude feedback remediation is ready for review after porting
   the dark-sky composition treatment. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture
-  reported `97.7%` pixel, `73.3%` map, `98.6%` chrome, and `100.0%` semantic
-  (`106/106`). The shared sky primitive is re-ported with a visible starfield
-  and constellation overlay, warm top eyebrow, bronze route, stronger contours,
-  and quiet Dolomiti footer while keeping the generic stats/logo band removed.
+  reported `93.8%` pixel, `64.5%` map, `98.7%` chrome, and `100.0%` semantic
+  (`106/106`). The shared sky primitive is re-ported with a clean brown field,
+  faint concentric contours, visible starfield and summit constellation, warm
+  top eyebrow, lower copper route fixture, and target Dolomiti / `10.5 km` /
+  `JUL 2025` footer values while keeping the generic stats/logo band removed.
 - `marathon-bib`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/marathon-bib.png`; capture

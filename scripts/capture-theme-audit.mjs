@@ -1957,7 +1957,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           grainMax: 0.26,
           routeWidthMin: 3.7,
           routeWidthMax: 4.0,
-          contourDetailMin: 4,
+          contourDetailMin: 1,
         }
     groups.typography.push(
       semanticCheck('Dark Sky family title uses Cormorant Garamond', snapshot.title.fontFamily.includes('Cormorant Garamond'), snapshot.title.fontFamily),

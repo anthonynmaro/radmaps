@@ -2274,18 +2274,20 @@ describe('RadMaps Atlas style integration', () => {
         routeWidth: 3.85,
         grain: 0.24,
         land: '#15100C',
-        landOpacity: 0.95,
-        park: '#21140D',
-        parkOpacity: 0.2,
+        landOpacity: 0,
+        park: '#15100C',
+        parkOpacity: 0,
         water: '#1B202A',
-        waterOpacity: 0.74,
+        waterOpacity: 0,
         waterway: '#2E3440',
-        waterwayOpacity: 0.36,
+        waterwayOpacity: 0,
         minorContour: '#493021',
         majorContour: '#9C6741',
-        contourDetail: 4,
-        minorOpacity: 0.34,
-        majorOpacity: 0.48,
+        contourDetail: 1,
+        minorOpacity: 0.08,
+        majorOpacity: 0.36,
+        footerDistanceUnit: 'km',
+        footerDateFormat: 'month-year',
       },
     ] as const
 
@@ -2310,6 +2312,13 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.show_hillshade).toBe(false)
       expect(config.show_grid).toBe(false)
       expect(config.contour_detail).toBe(expected.contourDetail)
+      if ('footerDistanceUnit' in expected) {
+        expect(config.composition_footer_distance_unit).toBe(expected.footerDistanceUnit)
+        expect(config.composition_footer_date_format).toBe(expected.footerDateFormat)
+      } else {
+        expect(config.composition_footer_distance_unit).toBeUndefined()
+        expect(config.composition_footer_date_format).toBeUndefined()
+      }
       expect(config.show_start_pin).toBe(false)
       expect(config.show_finish_pin).toBe(false)
       expect(config.tile_effect).toBe('layer-color')

@@ -104,6 +104,8 @@ export const FIELD_LAYER = {
   composition: 'chrome',
   audience: 'chrome',
   dark: 'map',
+  composition_footer_distance_unit: 'chrome',
+  composition_footer_date_format: 'chrome',
   show_grid: 'chrome',
   grid_scope: 'chrome',
   grid_color: 'chrome',

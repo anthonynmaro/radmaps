@@ -479,6 +479,8 @@ export interface StyleConfig {
   composition?: CompositionId
   audience?: string
   dark?: boolean
+  composition_footer_distance_unit?: 'mi' | 'km'
+  composition_footer_date_format?: 'day-month-year' | 'month-year'
   show_grid?: boolean
   grid_scope?: 'poster' | 'map'
   grid_color?: string

@@ -457,16 +457,31 @@
         aria-hidden="true"
         data-testid="composition-star-constellation"
       >
-        <path class="star-constellation-line" d="M6 13 L24 10 L48 16 L72 11 L91 15" />
-        <path class="star-constellation-line star-constellation-line--secondary" d="M24 10 L39 5 L72 11 L84 4" />
-        <g class="star-constellation-points">
-          <circle cx="6" cy="13" r="1.35" />
-          <circle cx="24" cy="10" r="0.78" />
-          <circle cx="39" cy="5" r="0.54" />
-          <circle cx="48" cy="16" r="1.05" />
-          <circle cx="72" cy="11" r="1.22" />
-          <circle cx="84" cy="4" r="0.62" />
-          <circle cx="91" cy="15" r="1.05" />
+        <g class="star-constellation-shape star-constellation-shape--horizon">
+          <path class="star-constellation-line" d="M6 13 L24 10 L48 16 L72 11 L91 15" />
+          <path class="star-constellation-line star-constellation-line--secondary" d="M24 10 L39 5 L72 11 L84 4" />
+          <g class="star-constellation-points">
+            <circle cx="6" cy="13" r="1.35" />
+            <circle cx="24" cy="10" r="0.78" />
+            <circle cx="39" cy="5" r="0.54" />
+            <circle cx="48" cy="16" r="1.05" />
+            <circle cx="72" cy="11" r="1.22" />
+            <circle cx="84" cy="4" r="0.62" />
+            <circle cx="91" cy="15" r="1.05" />
+          </g>
+        </g>
+        <g class="star-constellation-shape star-constellation-shape--summit">
+          <path class="star-constellation-line" d="M57 2 L43 19 L28 24 L57 2 L75 17 L83 23" />
+          <path class="star-constellation-line star-constellation-line--secondary" d="M43 19 L66 8 L75 17 L68 22 L83 23" />
+          <g class="star-constellation-points">
+            <ellipse cx="57" cy="2" rx="1.22" ry="0.32" />
+            <ellipse cx="43" cy="19" rx="0.82" ry="0.22" />
+            <ellipse cx="28" cy="24" rx="0.92" ry="0.24" />
+            <ellipse cx="66" cy="8" rx="0.62" ry="0.16" />
+            <ellipse cx="75" cy="17" rx="0.86" ry="0.23" />
+            <ellipse cx="68" cy="22" rx="0.62" ry="0.16" />
+            <ellipse cx="83" cy="23" rx="0.78" ry="0.21" />
+          </g>
         </g>
       </svg>
       <svg
@@ -4563,6 +4578,13 @@ const formattedDistanceKm = computed(() => {
   return km ? km.toFixed(1) : ''
 })
 
+const compositionFooterDistance = computed(() => {
+  if (props.styleConfig.composition_footer_distance_unit === 'km') {
+    return formattedDistanceKm.value ? `${formattedDistanceKm.value} km` : ''
+  }
+  return formattedDistance.value ? `${formattedDistance.value} mi` : ''
+})
+
 const formattedGain = computed(() => {
   const m = props.map.stats?.elevation_gain_m ?? 0
   return m ? Math.round(m * 3.28084).toLocaleString() : ''
@@ -4652,6 +4674,10 @@ const formattedDateCompact = computed(() => {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
+  if (props.styleConfig.composition_footer_date_format === 'month-year') {
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+    return `${month} ${date.getUTCFullYear()}`
+  }
   if (composition.value.id === 'darksky-stars') {
     const day = date.getUTCDate().toString().padStart(2, '0')
     const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
@@ -4826,7 +4852,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'darksky-stars':
       return {
         kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
-        footerNote: `${location}\n${distance} · ${formattedDateCompact.value || date}`,
+        footerNote: `${location}\n${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
       }
     case 'botanical-plate':
       return {
@@ -9565,6 +9591,11 @@ onUnmounted(() => {
   transform-origin: 50% 58%;
 }
 
+.poster-composition--darksky-stars[data-theme="copper-night"] [data-testid="poster-map"] .maplibregl-canvas-container {
+  transform: translateY(31cqh) scale(1.38);
+  transform-origin: 50% 58%;
+}
+
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
   position: absolute !important;
   inset: calc(6.4cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
@@ -9721,6 +9752,38 @@ onUnmounted(() => {
     radial-gradient(circle at 97% 68%, currentColor 0 0.11cqw, transparent 0.17cqw);
 }
 
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field {
+  z-index: 12;
+  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 92%, transparent);
+  filter: drop-shadow(0 0 0.36cqh color-mix(in srgb, currentColor 34%, transparent));
+  background-image:
+    radial-gradient(circle at 4% 29%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 6% 7%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 10% 52%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 14% 16%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 17% 38%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 21% 72%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 25% 22%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 29% 49%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 33% 12%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 37% 62%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 41% 33%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 45% 6%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 49% 45%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 53% 71%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 57% 21%, var(--route-color, #f0b15f) 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 61% 57%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 65% 12%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 69% 35%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 73% 73%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 77% 24%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 81% 48%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 85% 13%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 89% 66%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 93% 29%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 96% 52%, currentColor 0 0.10cqw, transparent 0.16cqw);
+}
+
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-constellation {
   z-index: 13;
   top: calc(6.4cqh + var(--print-bleed, 0px));
@@ -9738,6 +9801,38 @@ onUnmounted(() => {
   left: calc(24cqw + var(--print-bleed, 0px));
   height: 13.5cqh;
   opacity: 0.98;
+}
+
+.star-constellation-shape--summit {
+  display: none;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-shape--horizon {
+  display: none;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-shape--summit {
+  display: inline;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-constellation {
+  z-index: 15;
+  top: calc(7.2cqh + var(--print-bleed, 0px));
+  right: auto;
+  left: calc(26cqw + var(--print-bleed, 0px));
+  width: 56cqw;
+  height: 36cqh;
+  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 88%, transparent);
+  opacity: 0.98;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line {
+  stroke-width: 0.34;
+  opacity: 0.78;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line--secondary {
+  opacity: 0.5;
 }
 
 .star-constellation-line {
