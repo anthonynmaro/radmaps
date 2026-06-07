@@ -111,10 +111,11 @@ reference screenshot or spec contract.
   title, and stronger violet topo/grid treatment.
 - `splits-stats`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/splits-stats.png`; capture
-  reported `80.5%` pixel, `100.0%` map, `80.5%` chrome, and `100.0%` semantic
-  (`114/114`). Claude feedback is addressed with a map-first profile sheet,
-  huge bottom BOSTON slab, labeled elevation profile header and axis, labeled
-  technical footer, and no generic stats/logo band.
+  reported `80.4%` pixel, `100.0%` map, `80.4%` chrome, and `100.0%` semantic
+  (`114/114`). The map-first profile sheet keeps the BOSTON slab, labeled
+  elevation profile header and axis, and no generic stats/logo band, now with
+  the Hopkinton to Boylston subtitle and `26.2 mi / 813 ft / 04.21.2025`
+  footer/profile values.
 - `night-ride`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/night-ride.png`; capture reported
   `88.0%` pixel, `0.0%` map, `88.0%` chrome, and `100.0%` semantic (`97/97`).
