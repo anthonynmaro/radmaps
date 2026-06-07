@@ -186,9 +186,9 @@
   {
     "themeId": "cartouche-place",
     "typography": { "titleFont": "Playfair Display", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-plate-frame", "composition-cartouche-seal"],
-    "requiredSelectors": [".cartouche-corner"],
+    "requiredSelectors": [".cartouche-corner", ".composition-grid-overlay--map"],
     "forbiddenTestIds": ["composition-sea-chart-art"]
   },
   {

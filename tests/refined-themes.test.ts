@@ -344,7 +344,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       ['copper-night', { titlePosition: 'top', titleAlign: 'center' }],
       ['usgs-vintage', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['classic-trail', { titlePosition: 'bottom', titleAlign: 'center' }],
-      ['cartouche-place', { titlePosition: 'bottom', titleAlign: 'center' }],
+      ['cartouche-place', { titlePosition: 'top', titleAlign: 'center' }],
       ['sea-chart', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['relief-shaded', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['contour-wash', { titlePosition: 'bottom', titleAlign: 'center' }],

@@ -638,10 +638,10 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'cartouche-place') {
-    const paper = hexToRgb('#F4EFE4')
+    const paper = hexToRgb('#E2E2D9')
     groups.palette.push(
-      semanticCheck('Cartouche poster dominant color is engraved paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #F4EFE4`),
-      semanticCheck('Cartouche map dominant color is engraved paper', colorDistance(mapAverage, paper) < 48, `${formatRgb(mapAverage)} vs #F4EFE4`),
+      semanticCheck('Cartouche poster dominant color is sampled engraved paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #E2E2D9`),
+      semanticCheck('Cartouche map dominant color is sampled engraved paper', colorDistance(mapAverage, paper) < 48, `${formatRgb(mapAverage)} vs #E2E2D9`),
     )
   }
 
@@ -2189,6 +2189,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
 
   if (entry.themeId === 'cartouche-place') {
     const atlasLayerSettings = style.atlas_layer_settings ?? {}
+    const headerCenterRatio = snapshot.canvas.rect?.height
+      ? (snapshot.header.rect.top + (snapshot.header.rect.height / 2)) / snapshot.canvas.rect.height
+      : 0
     groups.typography.push(
       semanticCheck('Cartouche title uses Playfair Display', snapshot.title.fontFamily.includes('Playfair Display'), snapshot.title.fontFamily),
       semanticCheck('Cartouche title is uppercase', snapshot.title.textTransform === 'uppercase', snapshot.title.textTransform),
@@ -2198,24 +2201,26 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Cartouche place-frame composition active', style.composition === 'place-frame', String(style.composition ?? '')),
       semanticCheck('Cartouche hides generic footer band', !footerVisible, `${footerVisible ? 'visible' : 'hidden'}`),
       semanticCheck('Cartouche map fills engraved plate', mapHeightRatio > 0.70 && mapHeightRatio <= 1.01, mapHeightRatio.toFixed(3)),
+      semanticCheck('Cartouche plate is centered', headerCenterRatio >= 0.44 && headerCenterRatio <= 0.56, headerCenterRatio.toFixed(3)),
     )
     groups.palette.push(
-      semanticCheck('Cartouche engraved paper background', String(style.background_color).toUpperCase() === '#F4EFE4', String(style.background_color ?? '')),
-      semanticCheck('Cartouche label background matches paper', String(style.label_bg_color).toUpperCase() === '#F4EFE4', String(style.label_bg_color ?? '')),
-      semanticCheck('Cartouche ink text is dark blue-black', String(style.label_text_color).toUpperCase() === '#20242B', String(style.label_text_color ?? '')),
+      semanticCheck('Cartouche engraved paper background matches sampled target', String(style.background_color).toUpperCase() === '#E2E2D9', String(style.background_color ?? '')),
+      semanticCheck('Cartouche label background matches sampled paper', String(style.label_bg_color).toUpperCase() === '#E2E2D9', String(style.label_bg_color ?? '')),
+      semanticCheck('Cartouche ink text is target blue-black', String(style.label_text_color).toUpperCase() === '#0F121A', String(style.label_text_color ?? '')),
       semanticCheck('Cartouche optional route color is rust', String(style.route_color).toUpperCase() === '#9A3B27', String(style.route_color ?? '')),
       semanticCheck('Cartouche paper grain configured', Number(style.tile_grain ?? 0) >= 0.10 && Number(style.tile_grain ?? 0) <= 0.14, String(style.tile_grain ?? '')),
     )
     groups.mapLayers.push(
       semanticCheck('Cartouche uses owned alidade place map', style.preset === 'radmaps-alidade', String(style.preset ?? '')),
       semanticCheck('Cartouche contours disabled', style.show_contours === false, String(style.show_contours)),
-      semanticCheck('Cartouche roads and place labels enabled', style.show_roads === true && style.show_place_labels === true, `${style.show_roads}/${style.show_place_labels}`),
-      semanticCheck('Cartouche POIs enabled', style.show_poi_labels === true, String(style.show_poi_labels)),
+      semanticCheck('Cartouche major drafting roads only', style.show_roads === true && atlasLayerSettings.transportation?.show_major === true && atlasLayerSettings.transportation?.show_minor === false, JSON.stringify(atlasLayerSettings.transportation ?? {})),
+      semanticCheck('Cartouche literal labels suppressed', style.show_place_labels === false && style.show_poi_labels === false, `${style.show_place_labels}/${style.show_poi_labels}`),
+      semanticCheck('Cartouche map drafting grid enabled', style.show_grid === true && style.grid_scope === 'map' && Number(style.grid_opacity ?? 0) >= 0.12, `${style.show_grid}/${style.grid_scope}/${style.grid_opacity}`),
       semanticCheck('Cartouche hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
-      semanticCheck('Cartouche engraved land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#F1EBDD' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.9, JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Cartouche street-network tokens configured', String(atlasLayerSettings.transportation?.major_color ?? '').toUpperCase() === '#7A6E55' && String(atlasLayerSettings.transportation?.minor_color ?? '').toUpperCase() === '#9A8F76', JSON.stringify(atlasLayerSettings.transportation ?? {})),
-      semanticCheck('Cartouche place label token configured', String(atlasLayerSettings.place?.label_color ?? '').toUpperCase() === '#5C513F' && Number(atlasLayerSettings.place?.label_opacity ?? 0) >= 0.6, JSON.stringify(atlasLayerSettings.place ?? {})),
-      semanticCheck('Cartouche POI label token configured', String(atlasLayerSettings.poi?.label_color ?? '').toUpperCase() === '#6F604A' && Number(atlasLayerSettings.poi?.label_opacity ?? 0) >= 0.24, JSON.stringify(atlasLayerSettings.poi ?? {})),
+      semanticCheck('Cartouche engraved land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#E2E2D9' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.95, JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Cartouche street-network tokens are quiet', Number(atlasLayerSettings.transportation?.opacity ?? 1) <= 0.12 && Number(atlasLayerSettings.transportation?.major_width ?? 9) <= 0.9, JSON.stringify(atlasLayerSettings.transportation ?? {})),
+      semanticCheck('Cartouche place label token suppressed', String(atlasLayerSettings.place?.label_color ?? '').toUpperCase() === '#5C513F' && Number(atlasLayerSettings.place?.label_opacity ?? 1) === 0, JSON.stringify(atlasLayerSettings.place ?? {})),
+      semanticCheck('Cartouche POI label token suppressed', String(atlasLayerSettings.poi?.label_color ?? '').toUpperCase() === '#6F604A' && Number(atlasLayerSettings.poi?.label_opacity ?? 1) === 0, JSON.stringify(atlasLayerSettings.poi ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Cartouche route can be omitted for place fixture', geometry.renderStatus?.primaryRouteExpected === false || (
@@ -2228,8 +2233,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Cartouche endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
     )
     groups.motifs.push(
-      semanticCheck('Cartouche poster grid disabled', style.show_grid === false, String(style.show_grid)),
+      semanticCheck('Cartouche poster-wide grid disabled', style.show_grid === true && style.grid_scope === 'map', `${style.show_grid}/${style.grid_scope}`),
       semanticCheck('Cartouche plate frame present', (snapshot.contractPresence?.testIdCounts?.['composition-plate-frame'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Cartouche drafting grid overlay present', (snapshot.contractPresence?.selectorCounts?.['.composition-grid-overlay--map'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Cartouche seal present', (snapshot.contractPresence?.testIdCounts?.['composition-cartouche-seal'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Cartouche engraved corners present', (snapshot.contractPresence?.selectorCounts?.['.cartouche-corner'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )

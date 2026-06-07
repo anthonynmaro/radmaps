@@ -164,11 +164,10 @@ reference screenshot or spec contract.
 - `cartouche-place`: ready for Claude/human review. The live render was
   regenerated at
   `docs/theme_audit_output/poster-themes/print/cartouche-place.png`; capture
-  reported `83.7%` pixel, `87.4%` map, `100.0%` chrome, and `100.0%` semantic
-  (`90/90`). The place-frame poster now uses a no-route CDMX fixture, centered
-  cartouche plate, red `MÉXICO` kicker, exact decimal coordinate/elevation
-  footer, and shared header-decor slots instead of a theme-specific renderer.
-  Watch live street-label geometry against the screenshot in visual review.
+  reported `7.2%` pixel, `35.9%` map, `100.0%` chrome, and `100.0%` semantic
+  (`98/98`). Claude feedback is addressed with sampled parchment/ink tokens, a
+  centered framed cartouche plate, quiet abstract drafting grid with faint hill
+  silhouettes, a clearer neatline, and suppressed literal label clutter.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.

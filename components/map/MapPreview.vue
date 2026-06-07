@@ -9503,10 +9503,16 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame .composition-plate-frame {
-  opacity: 0.58;
+  opacity: 0.82;
   background:
-    linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, currentColor 9%, transparent) 8% 8.18%, transparent 8.18% 91.8%, color-mix(in srgb, currentColor 9%, transparent) 91.8% 92%, transparent 92%),
-    linear-gradient(0deg, transparent 0 7.2%, color-mix(in srgb, currentColor 8%, transparent) 7.2% 7.36%, transparent 7.36% 92.6%, color-mix(in srgb, currentColor 8%, transparent) 92.6% 92.76%, transparent 92.76%);
+    radial-gradient(ellipse at 18% 30%, transparent 0 19%, color-mix(in srgb, currentColor 14%, transparent) 19.4% 19.75%, transparent 20.2%),
+    radial-gradient(ellipse at 76% 66%, transparent 0 24%, color-mix(in srgb, currentColor 12%, transparent) 24.3% 24.62%, transparent 25.1%),
+    linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, currentColor 12%, transparent) 8% 8.18%, transparent 8.18% 91.8%, color-mix(in srgb, currentColor 12%, transparent) 91.8% 92%, transparent 92%),
+    linear-gradient(0deg, transparent 0 7.2%, color-mix(in srgb, currentColor 11%, transparent) 7.2% 7.36%, transparent 7.36% 92.6%, color-mix(in srgb, currentColor 11%, transparent) 92.6% 92.76%, transparent 92.76%);
+  border-color: color-mix(in srgb, currentColor 82%, transparent);
+  box-shadow:
+    inset 0 0 0 0.48cqw color-mix(in srgb, var(--composition-paper, white) 58%, transparent),
+    inset 0 0 0 0.66cqw color-mix(in srgb, currentColor 22%, transparent);
 }
 
 .cartouche-corner,
@@ -12692,21 +12698,25 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame .poster-header {
-  left: 18cqw;
-  right: 18cqw;
-  bottom: calc(8.2cqh + var(--print-bleed, 0px));
+  left: 13.5cqw;
+  right: 13.5cqw;
+  top: 50%;
+  bottom: auto;
   align-items: center !important;
-  padding: 2.35cqh 3.4cqw !important;
-  background: var(--composition-paper, white) !important;
-  border: 3px double color-mix(in srgb, currentColor 72%, transparent);
+  padding: 2.65cqh 3.8cqw !important;
+  background: color-mix(in srgb, var(--composition-paper, white) 92%, #fffdf2 8%) !important;
+  border: 3px double color-mix(in srgb, currentColor 84%, transparent);
   box-shadow:
-    inset 0 0 0 0.75cqw color-mix(in srgb, var(--composition-paper, white) 88%, currentColor 12%),
-    0 1.5cqh 4.5cqh rgba(0, 0, 0, 0.12);
+    inset 0 0 0 0.75cqw color-mix(in srgb, var(--composition-paper, white) 84%, currentColor 16%),
+    inset 0 0 0 0.92cqw color-mix(in srgb, currentColor 12%, transparent),
+    0 1.4cqh 3.2cqh rgba(15, 18, 26, 0.08);
+  transform: translateY(-50%);
 }
 
 .poster-composition--place-frame.poster-has-route .poster-header {
   left: calc(7.2cqw + var(--print-bleed, 0px));
   right: auto;
+  top: auto;
   bottom: calc(6.8cqh + var(--print-bleed, 0px));
   width: min(58cqw, 38cqh);
   align-items: flex-start !important;
@@ -12718,6 +12728,7 @@ onUnmounted(() => {
     inset 0 0 0 0.44cqw color-mix(in srgb, var(--composition-paper, white) 86%, currentColor 14%),
     inset 0 0 0 0.52cqw color-mix(in srgb, currentColor 12%, transparent),
     0 1cqh 2.8cqh rgba(32, 24, 16, 0.14);
+  transform: none;
 }
 
 .poster-composition--place-frame .poster-header::before,
@@ -12782,11 +12793,11 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame .poster-trail-name {
-  font-size: min(var(--trail-title-size, 4.7cqh), 5.8cqh) !important;
+  font-size: min(var(--trail-title-size, 4.9cqh), 6.1cqh) !important;
   text-transform: uppercase !important;
   letter-spacing: 0.035em !important;
   line-height: 0.94 !important;
-  max-width: 78% !important;
+  max-width: 84% !important;
 }
 
 .poster-composition--place-frame.poster-has-route .poster-trail-name {
