@@ -359,6 +359,16 @@ function formatRgb(rgb) {
   return `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`
 }
 
+function cssPx(value) {
+  const parsed = Number.parseFloat(String(value ?? '0'))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function isTransparentCssColor(value) {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized === 'transparent' || normalized === 'rgba(0, 0, 0, 0)'
+}
+
 async function averageColorForRegion(file, region) {
   const meta = await sharp(file).metadata()
   const width = meta.width ?? 0
@@ -472,6 +482,7 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
     )
     groups.palette.push(
       semanticCheck('Risograph poster dominant color is warm paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #F3EFE2`),
+      semanticCheck('Risograph map dominant color is warm paper, not blank white', colorDistance(mapAverage, paper) < 54, `${formatRgb(mapAverage)} vs #F3EFE2`),
     )
     groups.mapLayers.push(
       semanticCheck('Risograph blue contour ink visible', blueContourPixels > 1200, `${blueContourPixels} pixels`),
@@ -485,8 +496,14 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
     const routePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 25 && r < 95 && g > 15 && g < 75 && b > 10 && b < 65,
     )
+    const sunPixels = await countPixelsForRegion(printFile, null, (r, g, b) =>
+      r > 165 && r < 235 && g > 95 && g < 175 && b > 45 && b < 125,
+    )
     groups.routeStyling.push(
       semanticCheck('Mid-Century family dark ink route visible', routePixels > 180, `${routePixels} pixels`),
+    )
+    groups.mapLayers.push(
+      semanticCheck('Mid-Century family sun-arc ink visibly prints', sunPixels > 2200, `${sunPixels} pixels`),
     )
   }
 
@@ -497,6 +514,7 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
     )
     groups.palette.push(
       semanticCheck('Brutalist poster dominant color is concrete', colorDistance(fullAverage, concrete) < 48, `${formatRgb(fullAverage)} vs #E4E0D7`),
+      semanticCheck('Brutalist map field remains concrete-toned', colorDistance(mapAverage, concrete) < 72, `${formatRgb(mapAverage)} vs #E4E0D7`),
     )
     groups.routeStyling.push(
       semanticCheck('Brutalist orange route visible', orangeRoutePixels > 180, `${orangeRoutePixels} pixels`),
@@ -743,6 +761,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const blueprintFigure = document.querySelector('[data-testid="blueprint-drafting-figure"]')
     const blueprintCoordinate = document.querySelector('[data-testid="blueprint-drafting-coordinate"]')
     const blueprintNeatline = document.querySelector('[data-testid="blueprint-sheet-neatline"]')
+    const travelSun = document.querySelector('[data-testid="composition-travel-sun"]')
+    const brutalistBaselineGrid = document.querySelector('[data-testid="composition-brutalist-baseline-grid"]')
+    const brutalistRegistrationMarks = document.querySelector('[data-testid="composition-brutalist-registration-marks"]')
     const titleStyle = title ? window.getComputedStyle(title) : null
     const headerStyle = header ? window.getComputedStyle(header) : null
     const headerRuleStyle = headerRule ? window.getComputedStyle(headerRule) : null
@@ -750,6 +771,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const mapStyle = map ? window.getComputedStyle(map) : null
     const footerStyle = footer ? window.getComputedStyle(footer) : null
     const gridStyle = grid ? window.getComputedStyle(grid) : null
+    const travelSunStyle = travelSun ? window.getComputedStyle(travelSun) : null
+    const brutalistBaselineGridStyle = brutalistBaselineGrid ? window.getComputedStyle(brutalistBaselineGrid) : null
+    const brutalistRegistrationMarksStyle = brutalistRegistrationMarks ? window.getComputedStyle(brutalistRegistrationMarks) : null
     const titleBeforeStyle = title ? window.getComputedStyle(title, '::before') : null
     const editorControlSelectors = [
       '[data-testid="chrome-cell-trash"]',
@@ -838,6 +862,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       },
       map: {
         backgroundColor: mapStyle?.backgroundColor ?? '',
+        borderTopWidth: mapStyle?.borderTopWidth ?? '',
+        borderTopColor: mapStyle?.borderTopColor ?? '',
+        boxShadow: mapStyle?.boxShadow ?? '',
         rect: mapRect ? { width: mapRect.width, height: mapRect.height } : null,
       },
       footer: {
@@ -845,6 +872,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
         visibility: footerStyle?.visibility ?? '',
         opacity: footerStyle?.opacity ?? '',
         fontFamily: footerStyle?.fontFamily ?? '',
+        backgroundColor: footerStyle?.backgroundColor ?? '',
+        boxShadow: footerStyle?.boxShadow ?? '',
+        borderTopWidth: footerStyle?.borderTopWidth ?? '',
         rect: footerRect && canvasRect ? {
           top: footerRect.top - canvasRect.top,
           left: footerRect.left - canvasRect.left,
@@ -864,6 +894,17 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
         topline: Boolean(blueprintTopline),
         figure: Boolean(blueprintFigure),
         neatline: Boolean(blueprintNeatline),
+      },
+      travelSun: {
+        exists: Boolean(travelSun),
+        opacity: travelSunStyle?.opacity ?? '',
+        mixBlendMode: travelSunStyle?.mixBlendMode ?? '',
+      },
+      brutalistMotifs: {
+        baselineGrid: Boolean(brutalistBaselineGrid),
+        baselineGridOpacity: brutalistBaselineGridStyle?.opacity ?? '',
+        registrationMarks: Boolean(brutalistRegistrationMarks),
+        registrationOpacity: brutalistRegistrationMarksStyle?.opacity ?? '',
       },
       risoTitleOffset: {
         content: titleBeforeStyle?.content ?? '',
@@ -1227,6 +1268,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('USGS full quad map area is dominant', mapHeightRatio > 0.72 && mapHeightRatio < 0.90, mapHeightRatio.toFixed(3)),
       semanticCheck('USGS bottom collar is present', snapshot.header.display !== 'none' && Boolean(snapshot.header.rect?.height), snapshot.header.display),
       semanticCheck('USGS footer collar corner ticks are present', snapshot.footer.display !== 'none' && Boolean(snapshot.footer.rect?.height), snapshot.footer.display),
+      semanticCheck('USGS map neatline has real stroke weight', cssPx(snapshot.map.borderTopWidth) >= 1.4, snapshot.map.borderTopWidth),
+      semanticCheck('USGS collar is integrated with paper, not carded', isTransparentCssColor(snapshot.header.backgroundColor) && isTransparentCssColor(snapshot.footer.backgroundColor) && String(snapshot.header.boxShadow ?? '').toLowerCase() === 'none', `${snapshot.header.backgroundColor}/${snapshot.footer.backgroundColor}/${snapshot.header.boxShadow}`),
     )
     groups.palette.push(
       semanticCheck('USGS cream paper background', colorDistance(backgroundRgb, paperReference) < 18, String(style.background_color ?? '')),
@@ -1322,6 +1365,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Risograph uses riso-stack composition', style.composition === 'riso-stack', String(style.composition ?? '')),
       semanticCheck('Risograph caption/meta footer remains visible', footerVisible === true, `${footerVisible}`),
+      semanticCheck('Risograph title floats as ink, not a panel', isTransparentCssColor(snapshot.header.backgroundColor) && String(snapshot.header.boxShadow ?? '').toLowerCase() === 'none', `${snapshot.header.backgroundColor}/${snapshot.header.boxShadow}`),
+      semanticCheck('Risograph map stack occupies print field', mapHeightRatio >= 0.68 && mapHeightRatio <= 0.76, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
       semanticCheck('Risograph paper background', String(style.background_color).toUpperCase() === '#F4F0E3', String(style.background_color ?? '')),
@@ -1415,6 +1460,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Mid-Century family travel-banner composition', style.composition === 'travel-banner', String(style.composition ?? '')),
       semanticCheck('Mid-Century family map-dominant travel-poster balance', mapHeightRatio >= 0.68 && mapHeightRatio <= 0.84, mapHeightRatio.toFixed(3)),
+      semanticCheck('Mid-Century banner is integrated with paper, not shadowed card', String(snapshot.header.boxShadow ?? '').toLowerCase() === 'none', String(snapshot.header.boxShadow ?? '')),
     )
     groups.palette.push(
       semanticCheck('Mid-Century family colorway paper token', String(style.background_color).toUpperCase() === expected.paper, `${style.background_color ?? ''} vs ${expected.paper}`),
@@ -1441,6 +1487,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.motifs.push(
       semanticCheck('Mid-Century sun motif present', (snapshot.contractPresence?.testIdCounts?.['composition-travel-sun'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Mid-Century sun motif has print opacity', snapshot.travelSun.exists === true && Number.parseFloat(snapshot.travelSun.opacity || '0') >= 0.65 && snapshot.travelSun.mixBlendMode === 'multiply', JSON.stringify(snapshot.travelSun)),
       semanticCheck('Mid-Century sun arc selectors present', ['.composition-travel-sun__disk', '.composition-travel-sun__arc--wide', '.composition-travel-sun__arc--mid', '.composition-travel-sun__arc--inner'].every(selector => Number(snapshot.contractPresence?.selectorCounts?.[selector] ?? 0) > 0), JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Mid-Century printed grid disabled', style.show_grid === false, String(style.show_grid)),
     )
@@ -1472,6 +1519,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Brutalist baseline grid present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-baseline-grid'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Brutalist registration marks present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-registration-marks'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Brutalist baseline grid is visible but restrained', snapshot.brutalistMotifs.baselineGrid === true && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') >= 0.12 && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') <= 0.22, JSON.stringify(snapshot.brutalistMotifs)),
+      semanticCheck('Brutalist registration marks have print contrast', snapshot.brutalistMotifs.registrationMarks === true && Number.parseFloat(snapshot.brutalistMotifs.registrationOpacity || '0') >= 0.30, JSON.stringify(snapshot.brutalistMotifs)),
     )
   }
 

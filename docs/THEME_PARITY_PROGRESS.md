@@ -17,17 +17,22 @@ reference screenshot or spec contract.
   `npx vue-tsc --noEmit --pretty false`
 - Browser parity was run only in batches for completed review points, not after
   every edit.
+- Treatment-intensity checks have been backfilled for the most likely false
+  positives: USGS/Classic park-quad, Risograph, Brutalist, and the
+  travel-banner family.
 
 ## Theme Status Notes
 
-- `usgs-vintage`: semantic checks pass and parity capture reports strong map and
-  chrome scores. Visual review still needs final human approval.
+- `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
+  increasing the quad neatline to a real 2px print stroke. Latest parity
+  reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
+  Visual review still needs final human approval.
 - `classic-trail`: restored as a Slate colorway of the USGS/park-quad contract.
   Semantic checks pass and visual review looked materially closer after removing
   stale start/finish label artifacts.
-- `risograph`, `brutalist`, and the travel-banner family have completed focused
-  implementation passes, but still need final human visual approval before they
-  are marked done.
+- `risograph`, `brutalist`, and the travel-banner family pass the strengthened
+  treatment checks, but still need final human visual approval before they are
+  marked done.
 - `sea-chart`: semantic checks now pass (`117/117`) after correcting the map
   field to pale mint, adding treatment checks for the transparent titleblock,
   single rule, neatline, and sounding density. Latest parity reported `97.0%`
@@ -36,6 +41,8 @@ reference screenshot or spec contract.
 
 ## Next Steps
 
-1. Get human visual approval or requested corrections for `sea-chart`.
+1. Get human visual approval or requested corrections for `sea-chart`,
+   `usgs-vintage`, `classic-trail`, `risograph`, `brutalist`, and the
+   travel-banner family.
 2. Continue one theme at a time, using the token contract as the gate and the
    contact sheet as required visual review.

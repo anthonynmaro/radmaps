@@ -10296,7 +10296,7 @@ onUnmounted(() => {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   margin: calc(4.25cqh + var(--print-bleed, 0px)) calc(6.25cqw + var(--print-bleed, 0px)) 0 !important;
-  border: 1.5px solid #243021 !important;
+  border: 2px solid #243021 !important;
   background-color: var(--label-bg-color, #f0ecde) !important;
   box-shadow: none !important;
 }
