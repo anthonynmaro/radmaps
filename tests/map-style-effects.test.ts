@@ -2697,7 +2697,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.contour_detail).toBe(4)
     expect(config.contour_opacity).toBe(0.52)
     expect(config.contour_minor_width).toBe(1.08)
-    expect(config.contour_major_width).toBe(1.72)
+    expect(config.contour_major_width).toBe(2.25)
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#E6E3DD')
     expect(layerById(style, 'radmaps-toner-light-landcover')).toBeUndefined()
     expect(layerById(style, 'radmaps-toner-light-water')).toBeUndefined()
@@ -2715,7 +2715,7 @@ describe('RadMaps Atlas style integration', () => {
       'interpolate', ['linear'], ['zoom'], 5, 1.08 * 0.8, 14, 1.08,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#010202')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.82)
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.94)
     expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#EA4B23')
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(5.2)
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.96)

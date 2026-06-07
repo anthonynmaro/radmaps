@@ -57,10 +57,10 @@ reference screenshot or spec contract.
   for Claude review.
 - `brutalist`: ready for Claude/human review. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/brutalist.png`; capture reported
-  `55.5%` pixel, `22.5%` map, `87.9%` chrome, and `100.0%` semantic (`98/98`).
-  Claude feedback is addressed with sampled concrete/black/orange tokens, heavy
-  black contour linework, visible plus-crosshair registration marks, and a
-  thicker map frame.
+  `55.6%` pixel, `26.3%` map, `83.8%` chrome, and `100.0%` semantic
+  (`102/102`). Claude feedback is addressed with the monumental BOSTON slab,
+  target 04.21.2025/Massachusetts header, Boston Marathon footer, `26.2 mi`
+  distance, heavier black contour linework, and high-contrast corner plus marks.
 - `editorial-minimal`: Claude feedback remediation is ready for review. The
   live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/editorial-minimal.png`; capture

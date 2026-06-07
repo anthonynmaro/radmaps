@@ -13296,16 +13296,16 @@ onUnmounted(() => {
 }
 
 .composition-brutalist-registration-marks {
-  opacity: 0.62;
+  opacity: 0.9;
   background:
-    linear-gradient(currentColor 0 0) left 3.8cqw top 5.2cqh / 7.6cqw 2px no-repeat,
-    linear-gradient(currentColor 0 0) left 7.6cqw top 1.4cqh / 2px 7.6cqh no-repeat,
-    linear-gradient(currentColor 0 0) right 3.8cqw top 5.2cqh / 7.6cqw 2px no-repeat,
-    linear-gradient(currentColor 0 0) right 7.6cqw top 1.4cqh / 2px 7.6cqh no-repeat,
-    linear-gradient(currentColor 0 0) left 3.8cqw bottom 5.2cqh / 7.6cqw 2px no-repeat,
-    linear-gradient(currentColor 0 0) left 7.6cqw bottom 1.4cqh / 2px 7.6cqh no-repeat,
-    linear-gradient(currentColor 0 0) right 3.8cqw bottom 5.2cqh / 7.6cqw 2px no-repeat,
-    linear-gradient(currentColor 0 0) right 7.6cqw bottom 1.4cqh / 2px 7.6cqh no-repeat;
+    linear-gradient(currentColor 0 0) left 0 top 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 2.1cqw top 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 0 top 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 2.1cqw top 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) left 0 bottom 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 2.1cqw bottom 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 0 bottom 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 2.1cqw bottom 0 / 2px 4.2cqh no-repeat;
 }
 
 .poster-composition--brutalist-slab .poster-header {
@@ -13370,10 +13370,10 @@ onUnmounted(() => {
 }
 
 .poster-composition--brutalist-slab .poster-trail-name {
-  margin: 5.6cqh 0 0 !important;
+  margin: 5.4cqh 0 0 !important;
   color: var(--label-text-color, #0a0a0a) !important;
-  font-size: min(max(var(--trail-title-size, 12.4cqh), 12.4cqh), 14.4cqh) !important;
-  line-height: 0.78 !important;
+  font-size: min(max(var(--trail-title-size, 22cqh), 22cqh), 24cqh) !important;
+  line-height: 0.7 !important;
   letter-spacing: 0 !important;
   text-transform: uppercase !important;
 }

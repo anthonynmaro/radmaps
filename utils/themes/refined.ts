@@ -861,7 +861,7 @@ const REFINED_THEME_RECIPES = [
       route_opacity: 0.96,
       contour_opacity: 0.52,
       contour_minor_width: 1.08,
-      contour_major_width: 1.72,
+      contour_major_width: 2.25,
       tile_effect: 'none',
       show_grid: false,
       show_start_pin: false,
@@ -879,7 +879,7 @@ const REFINED_THEME_RECIPES = [
       },
       atlas_layer_settings: {
         landcover: { color: '#E6E3DD', opacity: 0 },
-        contour: { minor_color: '#2D2D2A', major_color: '#010202', minor_opacity: 0.52, major_opacity: 0.82, minor_width: 1.08, major_width: 1.72 },
+        contour: { minor_color: '#2D2D2A', major_color: '#010202', minor_opacity: 0.52, major_opacity: 0.94, minor_width: 1.08, major_width: 2.25 },
         transportation: { opacity: 0, show_major: false, show_minor: false, show_trails: false },
         place: { label_color: '#010202', label_opacity: 0, halo_color: '#E6E3DD', halo_opacity: 0 },
         poi: { label_color: '#010202', label_opacity: 0 },

@@ -783,6 +783,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const title = document.querySelector('.poster-trail-name')
     const locationLine = document.querySelector('.poster-location-line')
     const compositionMeta = document.querySelector('[data-testid="composition-meta-line"]')
+    const compositionFooter = document.querySelector('[data-testid="composition-footer-note"]')
+    const brutalistDistance = document.querySelector('[data-testid="composition-brutalist-distance"]')
     const canvas = document.querySelector('[data-testid="poster-canvas"]')
     const map = document.querySelector('[data-testid="poster-map"]')
     const header = document.querySelector('[data-testid="poster-header"]')
@@ -869,6 +871,12 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       },
       compositionMeta: {
         text: compositionMeta?.textContent?.trim() ?? '',
+      },
+      compositionFooter: {
+        text: compositionFooter?.textContent?.trim() ?? '',
+      },
+      brutalistDistance: {
+        text: brutalistDistance?.textContent?.trim() ?? '',
       },
       header: {
         display: headerStyle?.display ?? '',
@@ -1555,7 +1563,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.typography.push(
       semanticCheck('Brutalist title uses Bebas Neue', snapshot.title.fontFamily.includes('Bebas Neue'), snapshot.title.fontFamily),
       semanticCheck('Brutalist title is uppercase', snapshot.title.textTransform === 'uppercase', snapshot.title.textTransform),
-      semanticCheck('Brutalist title is monumental', titleSizePx >= 58, `${titleSizePx}px`),
+      semanticCheck('Brutalist title is monumental', titleSizePx >= 135, `${titleSizePx}px`),
+      semanticCheck('Brutalist header binds target region', snapshot.locationLine?.text.includes('MASSACHUSETTS'), snapshot.locationLine?.text ?? ''),
+      semanticCheck('Brutalist header binds target date', snapshot.compositionMeta?.text.includes('04.21.2025'), snapshot.compositionMeta?.text ?? ''),
     )
     groups.palette.push(
       semanticCheck('Brutalist concrete background matches sampled target', String(style.background_color).toUpperCase() === '#E6E3DD', String(style.background_color ?? '')),
@@ -1566,19 +1576,21 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Brutalist contours enabled', style.show_contours === true, String(style.show_contours)),
       semanticCheck('Brutalist minor contours are heavy graphite', String(style.contour_color).toUpperCase() === '#2D2D2A', String(style.contour_color ?? '')),
       semanticCheck('Brutalist index contours are black', String(style.contour_major_color).toUpperCase() === '#010202', String(style.contour_major_color ?? '')),
-      semanticCheck('Brutalist contours are bold target weight', Number(style.contour_minor_width ?? 0) >= 1 && Number(style.contour_major_width ?? 0) >= 1.6 && Number(style.atlas_layer_settings?.contour?.major_opacity ?? 0) >= 0.78, `${style.contour_minor_width}/${style.contour_major_width}/${style.atlas_layer_settings?.contour?.major_opacity}`),
+      semanticCheck('Brutalist contours are bold target weight', Number(style.contour_minor_width ?? 0) >= 1 && Number(style.contour_major_width ?? 0) >= 2.2 && Number(style.atlas_layer_settings?.contour?.major_opacity ?? 0) >= 0.9, `${style.contour_minor_width}/${style.contour_major_width}/${style.atlas_layer_settings?.contour?.major_opacity}`),
       semanticCheck('Brutalist roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
     )
     groups.routeStyling.push(
       semanticCheck('Brutalist route is deliberate heavy line', Number(style.route_width ?? 0) >= 4.4, String(style.route_width ?? '')),
       semanticCheck('Brutalist endpoint markers disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
       semanticCheck('Brutalist elevation profile disabled', style.show_elevation_profile !== true, String(style.show_elevation_profile)),
+      semanticCheck('Brutalist footer binds marathon distance', snapshot.brutalistDistance?.text.includes('26.2 mi'), snapshot.brutalistDistance?.text ?? ''),
     )
     groups.motifs.push(
       semanticCheck('Brutalist baseline grid present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-baseline-grid'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Brutalist registration marks present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-registration-marks'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Brutalist baseline grid is visible but restrained', snapshot.brutalistMotifs.baselineGrid === true && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') >= 0.12 && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') <= 0.22, JSON.stringify(snapshot.brutalistMotifs)),
       semanticCheck('Brutalist registration marks have high print contrast', snapshot.brutalistMotifs.registrationMarks === true && Number.parseFloat(snapshot.brutalistMotifs.registrationOpacity || '0') >= 0.55, JSON.stringify(snapshot.brutalistMotifs)),
+      semanticCheck('Brutalist footer binds marathon subtitle', snapshot.compositionFooter?.text.includes('Boston Marathon') && snapshot.compositionFooter?.text.includes('Hopkinton'), snapshot.compositionFooter?.text ?? ''),
     )
   }
 
