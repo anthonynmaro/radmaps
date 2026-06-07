@@ -88,7 +88,7 @@ route posters so dense city maps do not overpower the poster chrome.
 
 Some theme defaults exist specifically to keep picker previews readable:
 
-- Blueprint and Blueprint Strava keep grids scoped to the map area by default.
+- Blueprint and Trail Blueprint keep grids scoped to the map area by default.
 - Refined contour defaults are intentionally lower contrast than the legacy
   editor defaults.
 - Mid-Century uses separate dark map-label ink for place and POI labels, rather

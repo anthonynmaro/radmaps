@@ -8,7 +8,9 @@ new themes opt into composition-aware poster chrome.
 
 Source-of-truth type additions live in [types/index.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/types/index.ts):
 
-- `CompositionId` covers the 13 planned poster compositions.
+- `CompositionId` covers the production poster compositions, including the
+  June 5 review additions: `art-wash`, `place-frame`, `sea-chart`, and
+  `transit-diagram`.
 - `ColorTheme` includes the existing ids plus the refined design ids.
 - `StyleConfig` has optional `composition`, `audience`, `dark`, and grid
   controls: `show_grid`, `grid_scope`, `grid_color`, `grid_opacity`,
@@ -22,7 +24,7 @@ layout.
 
 ## Refined Registry
 
-[utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts) contains the 22 refined themes:
+[utils/themes/refined.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/refined.ts) contains 27 renderable refined theme ids. The June 5 standalone review treats 15 of the original ids as distinct anchor themes, folds 7 older ids into parent colorways, and adds 5 new directions.
 
 - `editorial-minimal`
 - `usgs-vintage`
@@ -46,17 +48,49 @@ layout.
 - `night-ride`
 - `daybreak-trace`
 - `electric-atlas`
+- `cartouche-place`
+- `sea-chart`
+- `relief-shaded`
+- `transit-diagram`
+- `plein-air`
+
+The colorway ids remain renderable for saved maps and direct links:
+
+- `classic-trail` -> `usgs-vintage`
+- `ranch-ochre` -> `midcentury-travel`
+- `daybreak-trace` -> `midcentury-travel`
+- `blackline` -> `bold-modern`
+- `moonstone` -> `blueprint`
+- `night-ride` -> `splits-stats`
+- `copper-night` -> `dark-sky`
 
 Each refined theme declares palette, typography, composition, audience, and
 `map_defaults`. The map defaults are intent fields; the layer graph still decides
 what each preset can consume.
 
+The standalone design review is now represented as a code-level implementation
+contract in
+[utils/themes/specContract.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/themes/specContract.ts).
+That contract is the checklist for theme rebuilds and visual QA; anything called
+out there as not implemented should not be approximated with speculative chrome
+or route effects.
+
 The June 4, 2026 refinement pass tightened the set around print-safe contrast,
 quieter contours, authored thumbnail typography, and reduced composition insets.
+The June 5, 2026 typography pass then reviewed all 22 existing refined themes as
+a product set, upgraded display/body pairings, restored mixed-case serif titles
+in the fixed-template chrome path, aligned picker card typography with the
+actual poster renderer, added 5 new production-safe directions from the
+standalone design review, and converted duplicate-looking themes into explicit
+colorways through `review_decision` and `colorway_of`.
+The June 6, 2026 corrective pass then locked the handoff inventory in tests and
+removed non-editable speculative overlay art from `MapPreview.vue`; refined
+theme character should be expressed through the live map style, editable chrome,
+and self-hosted typography.
 See [docs/POSTER_THEME_REFINEMENT_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/POSTER_THEME_REFINEMENT_REVIEW.md)
 for the detailed design review, code review notes, and next steps.
 
-Blueprint and Blueprint Strava default their grids to the map area, not the full
+Blueprint and Trail Blueprint default their grids to the map area, not the full
 poster. Most refined contour defaults are intentionally quieter than the legacy
 editor contour defaults so roads, water, labels, and route linework can remain
 legible when several map-context layers are enabled. Mid-Century declares dark
@@ -71,8 +105,8 @@ Theme fonts are loaded from the typed self-hosted registry in
 [utils/render/fontRegistry.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/fontRegistry.ts).
 Nuxt injects `@font-face` rules for `/fonts/*.ttf`, served by the local font
 route, so editor previews and Browserless render pages use the same available
-families and weights. Google Fonts remains a browser fallback, not the source of
-truth.
+families and weights. Google Fonts is not a runtime source for refined theme
+typography.
 
 ## Composition Registry
 
@@ -175,7 +209,7 @@ npm run test:style
 The refined theme tests verify that all refined themes exist, composition ids
 are valid, old defaults are unchanged, and legacy migration targets are declared.
 
-The Playwright browser harness renders all 13 compositions on desktop and mobile,
+The Playwright browser harness renders all production compositions on desktop and mobile,
 verifies the selected theme/composition attributes, checks top-title versus
 bottom-title ordering, and asserts composition-specific overlays such as
 blueprint grid, dark-sky stars, and journal side rails. It also exercises the

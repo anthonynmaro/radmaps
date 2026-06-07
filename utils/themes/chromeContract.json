@@ -1,0 +1,219 @@
+[
+  {
+    "themeId": "editorial-minimal",
+    "typography": { "titleFont": "Playfair Display", "titleCase": "none" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "requiredRouteLayers": ["route-line-editorial-gallery-shadow", "route-line-editorial-ink-ridge"],
+    "forbiddenTestIds": ["composition-travel-sun", "composition-star-field", "composition-plate-frame"]
+  },
+  {
+    "themeId": "usgs-vintage",
+    "typography": { "titleFont": "Libre Baskerville", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "standard" },
+    "requiredTestIds": ["usgs-heritage-coordinate", "usgs-heritage-scale", "usgs-coordinate-ticks", "usgs-coordinate-tick"],
+    "requiredSelectors": [".usgs-heritage-map-label--coord", ".usgs-heritage-map-label--scale", ".usgs-coordinate-tick", ".usgs-coordinate-tick--nw", ".usgs-coordinate-tick--ne", ".usgs-coordinate-tick--se", ".usgs-coordinate-tick--sw"],
+    "requiredRouteLayers": ["route-line-usgs-paper-channel"],
+    "forbiddenRouteLayers": ["route-line-usgs-survey-hachures", "route-line-usgs-survey-stations"]
+  },
+  {
+    "themeId": "classic-trail",
+    "typography": { "titleFont": "Libre Baskerville", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "standard" },
+    "requiredRouteLayers": ["route-line-classic-trail-paper-channel", "route-line-classic-trail-slate-offset"],
+    "forbiddenTestIds": ["usgs-heritage-coordinate", "usgs-heritage-scale", "composition-classic-trail-markers", "pin-label-start", "pin-label-finish"],
+    "forbiddenRouteLayers": ["route-line-classic-trail-blaze-cuts", "route-line-classic-trail-blazes"]
+  },
+  {
+    "themeId": "midcentury-travel",
+    "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-travel-sun"],
+    "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
+    "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
+  },
+  {
+    "themeId": "ranch-ochre",
+    "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-travel-sun"],
+    "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
+    "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
+  },
+  {
+    "themeId": "daybreak-trace",
+    "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-travel-sun"],
+    "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
+    "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
+  },
+  {
+    "themeId": "risograph",
+    "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "standard" },
+    "requiredTestIds": ["composition-riso-caption", "composition-riso-meta"],
+    "requiredRouteLayers": ["route-line-riso-blue", "route-line-riso-pink-overprint"]
+  },
+  {
+    "themeId": "blueprint",
+    "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-grid-overlay", "blueprint-drafting-topline", "blueprint-drafting-figure", "blueprint-sheet-neatline"],
+    "requiredRouteLayers": ["route-line-blueprint-construction-glow", "route-line-blueprint-drafting-offset", "route-line-blueprint-station-crosses"]
+  },
+  {
+    "themeId": "moonstone",
+    "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-map-grid-overlay"],
+    "requiredRouteLayers": ["route-line-moonstone-engraved-channel", "route-line-moonstone-survey-ticks"],
+    "forbiddenTestIds": ["blueprint-drafting-topline", "blueprint-drafting-figure", "blueprint-sheet-neatline"]
+  },
+  {
+    "themeId": "blueprint-strava",
+    "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay"],
+    "requiredSelectors": [".poster-composition--blueprint-strava .poster-stats"],
+    "requiredRouteLayers": ["route-line"],
+    "forbiddenTestIds": ["blueprint-drafting-topline", "blueprint-drafting-figure"]
+  },
+  {
+    "themeId": "electric-atlas",
+    "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay", "composition-electric-trace", "composition-electric-chip"],
+    "requiredSelectors": [".electric-trace-line", ".composition-electric-chip b"],
+    "requiredRouteLayers": ["route-line-electric-glow-wide", "route-line-electric-pulse"],
+    "forbiddenTestIds": []
+  },
+  {
+    "themeId": "field-journal",
+    "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "requiredTestIds": ["composition-journal-notes", "composition-journal-route-sketch", "composition-journal-tape"],
+    "requiredSelectors": [".journal-note-rule", ".journal-specimen-tag", ".journal-tape-strip"],
+    "requiredRouteLayers": ["route-line-journal-wash", "route-line-journal-drybrush"]
+  },
+  {
+    "themeId": "botanical",
+    "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "standard" },
+    "requiredTestIds": ["composition-botanical-frame", "composition-botanical-caption"],
+    "requiredSelectors": [".botanical-corner", ".botanical-caption-label"],
+    "requiredRouteLayers": ["route-line-botanical-pressed", "route-line-botanical-ink-vein", "route-line-botanical-specimen-dots"]
+  },
+  {
+    "themeId": "bold-modern",
+    "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-modernist-accent"],
+    "forbiddenTestIds": ["composition-side-rail", "composition-modernist-bleed"],
+    "requiredRouteLayers": ["route-line-modernist-trap", "route-line-modernist-register"]
+  },
+  {
+    "themeId": "blackline",
+    "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-modernist-accent"],
+    "forbiddenTestIds": ["composition-side-rail", "composition-modernist-bleed"],
+    "requiredRouteLayers": ["route-line-blackline-plate", "route-line-blackline-knockout"],
+    "forbiddenRouteLayers": ["route-line-blackline-register-cuts", "route-line-modernist-register"]
+  },
+  {
+    "themeId": "contour-wash",
+    "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredRouteLayers": ["route-line-contour-wash-field", "route-line-contour-wash-echo-high"],
+    "forbiddenTestIds": ["composition-plein-air-deckle", "composition-plein-air-palette"]
+  },
+  {
+    "themeId": "splits-stats",
+    "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay", "elevation-profile-band"],
+    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"]
+  },
+  {
+    "themeId": "night-ride",
+    "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["elevation-profile-band"],
+    "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"]
+  },
+  {
+    "themeId": "marathon-bib",
+    "typography": { "titleFont": "Bebas Neue", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "bib" },
+    "requiredTestIds": ["composition-bib-ghost", "composition-bib-paper", "composition-bib-pin-hole", "composition-bib-tear-strip", "composition-bib-finish-headline"],
+    "requiredRouteLayers": ["route-line-bib-knockout", "route-line-bib-mile-ticks", "route-line-bib-checkpoint-dots"]
+  },
+  {
+    "themeId": "dark-sky",
+    "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-star-field", "composition-darksky-ridge"],
+    "requiredSelectors": [".darksky-ridge-line"],
+    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-constellation", "route-line-darksky-star-crosses"]
+  },
+  {
+    "themeId": "copper-night",
+    "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-star-field", "composition-darksky-ridge"],
+    "requiredSelectors": [".darksky-ridge-line"],
+    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-star-crosses"]
+  },
+  {
+    "themeId": "brutalist",
+    "typography": { "titleFont": "Bebas Neue", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "requiredTestIds": ["composition-brutalist-baseline-grid", "composition-brutalist-registration-marks"],
+    "requiredSelectors": [".composition-brutalist-baseline-grid", ".composition-brutalist-registration-marks"],
+    "requiredRouteLayers": ["route-line-brutalist-slab-shadow", "route-line-brutalist-cement-cut"],
+    "forbiddenRouteLayers": ["route-line-brutalist-proof-dashes", "route-line-brutalist-proof-bars"]
+  },
+  {
+    "themeId": "cartouche-place",
+    "typography": { "titleFont": "Playfair Display", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-plate-frame", "composition-cartouche-seal"],
+    "requiredSelectors": [".cartouche-corner"],
+    "forbiddenTestIds": ["composition-sea-chart-art"]
+  },
+  {
+    "themeId": "sea-chart",
+    "typography": { "titleFont": "Libre Baskerville", "titleCase": "none" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-sea-chart-art", "sea-chart-rose"],
+    "requiredSelectors": [".sea-chart-graticule", ".sea-chart-depth-bands", ".sea-chart-rose", ".sea-chart-soundings", ".sea-chart-rhumb-lines"],
+    "requiredRouteLayers": ["route-line-sea-course", "route-line-sea-waypoints"],
+    "forbiddenTestIds": ["composition-plate-frame"]
+  },
+  {
+    "themeId": "relief-shaded",
+    "typography": { "titleFont": "Newsreader", "titleCase": "none" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "requiredTestIds": ["composition-relief-bands", "composition-relief-legend", "composition-relief-stamp"],
+    "requiredSelectors": [".relief-band", ".relief-legend-swatch"],
+    "requiredRouteLayers": ["route-line-relief-shadow", "route-line-relief-highlight"]
+  },
+  {
+    "themeId": "transit-diagram",
+    "typography": { "titleFont": "Outfit", "titleCase": "uppercase" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-transit-diagram-art", "transit-diagram-legend", "transit-diagram-station-key"],
+    "requiredSelectors": [".transit-diagram-line-key", ".transit-diagram-station-key"],
+    "requiredRouteLayers": ["transit-station-halo", "transit-station-dot", "transit-station-label"],
+    "forbiddenTestIds": []
+  },
+  {
+    "themeId": "plein-air",
+    "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-plein-air-deckle", "composition-plein-air-palette"],
+    "requiredSelectors": [".plein-air-palette-swatch"],
+    "requiredRouteLayers": ["route-line-plein-air-drybrush"],
+    "forbiddenRouteLayers": ["route-line-pigment-bleed", "route-line-pigment-offset"]
+  }
+]
