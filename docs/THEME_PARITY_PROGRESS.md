@@ -28,23 +28,13 @@ reference screenshot or spec contract.
 - `risograph`, `brutalist`, and the travel-banner family have completed focused
   implementation passes, but still need final human visual approval before they
   are marked done.
-- `sea-chart`: explicitly not done. Latest parity reported `97.8%` pixel and
-  `100%` semantic, but the contact sheet exposed a false positive. The live
-  output is too washed out, has weaker chart/neatline intensity, and the bottom
-  titleblock still reads as a floating generic card instead of an integrated
-  nautical label block.
+- `sea-chart`: semantic checks now pass (`112/112`) after tightening the map
+  field, chart overlay, and integrated titleblock checks. Latest parity reported
+  `97.2%` pixel, `97.5%` map, `100.0%` chrome, and `100.0%` semantic. It still
+  needs final human visual approval before it can be marked done.
 
 ## Next Steps
 
-1. Tighten `sea-chart` with scoped changes only:
-   - stronger teal nautical chart field
-   - clearer neatline/graticule/rhumb/depth treatment
-   - integrated bottom titleblock proportions
-   - preserve GPX-sourced route/course layers
-2. Add semantic checks that catch the Sea Chart false positive:
-   - dominant chart field intensity
-   - map/titleblock proportions
-   - titleblock not rendered as a floating generic card
-3. Rerun focused tests and one Sea Chart parity capture.
-4. Continue one theme at a time, using the token contract as the gate and the
+1. Get human visual approval or requested corrections for `sea-chart`.
+2. Continue one theme at a time, using the token contract as the gate and the
    contact sheet as required visual review.

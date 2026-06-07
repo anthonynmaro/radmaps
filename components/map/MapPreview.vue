@@ -9901,7 +9901,7 @@ onUnmounted(() => {
   z-index: 6;
   pointer-events: none;
   color: var(--label-text-color, #1d2a36);
-  opacity: 0.44;
+  opacity: 0.62;
   mix-blend-mode: multiply;
 }
 
@@ -9921,34 +9921,34 @@ onUnmounted(() => {
 }
 
 .sea-chart-graticule {
-  opacity: 0.24;
-}
-
-.sea-chart-graticule path {
-  stroke-width: 0.42;
-}
-
-.sea-chart-rhumb-lines {
   opacity: 0.34;
 }
 
+.sea-chart-graticule path {
+  stroke-width: 0.5;
+}
+
+.sea-chart-rhumb-lines {
+  opacity: 0.42;
+}
+
 .sea-chart-rhumb-lines path {
-  stroke-width: 0.52;
+  stroke-width: 0.58;
   stroke-dasharray: 2 2.6;
 }
 
 .sea-chart-depth-bands {
   color: var(--water-color, #d7e7e0);
-  opacity: 0.62;
+  opacity: 0.78;
 }
 
 .sea-chart-depth-bands path {
-  stroke-width: 0.7;
+  stroke-width: 0.86;
 }
 
 .sea-chart-soundings {
   color: color-mix(in srgb, var(--label-text-color, #1d2a36) 72%, var(--water-color, #d7e7e0));
-  opacity: 0.52;
+  opacity: 0.64;
 }
 
 .sea-chart-soundings circle {
@@ -9957,7 +9957,7 @@ onUnmounted(() => {
 }
 
 .sea-chart-rose {
-  opacity: 0.62;
+  opacity: 0.72;
 }
 
 .sea-chart-rose circle {
@@ -11701,19 +11701,17 @@ onUnmounted(() => {
 }
 
 .poster-composition--sea-chart .poster-header {
-  left: calc(6.5cqw + var(--print-bleed, 0px));
+  left: calc(5.2cqw + var(--print-bleed, 0px));
   right: auto;
-  bottom: calc(5.9cqh + var(--print-bleed, 0px));
-  width: min(72cqw, 44cqh);
+  bottom: calc(4.5cqh + var(--print-bleed, 0px));
+  width: min(70cqw, 46cqh);
   align-items: flex-start !important;
-  padding: 1.15cqh 2cqw 1.35cqh !important;
+  padding: 1.0cqh 1.85cqw 1.15cqh !important;
   background:
-    linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent), transparent 32%),
-    color-mix(in srgb, var(--composition-paper, white) 86%, transparent) !important;
-  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
-  box-shadow:
-    0 0 0 0.25cqw color-mix(in srgb, var(--composition-paper, white) 48%, transparent),
-    0 0.85cqh 2.3cqh rgba(29, 42, 54, 0.08);
+    linear-gradient(90deg, color-mix(in srgb, currentColor 9%, transparent), transparent 36%),
+    color-mix(in srgb, var(--composition-paper, white) 94%, transparent) !important;
+  border: 2px solid color-mix(in srgb, currentColor 48%, transparent);
+  box-shadow: none !important;
 }
 
 .poster-composition--sea-chart .poster-header::before,
@@ -11724,16 +11722,16 @@ onUnmounted(() => {
 }
 
 .poster-composition--sea-chart .poster-header::before {
-  inset: 0.52cqh 0.72cqw;
-  border: 1px solid color-mix(in srgb, currentColor 17%, transparent);
+  inset: 0.42cqh 0.55cqw;
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
 }
 
 .poster-composition--sea-chart .poster-header::after {
   top: 0.55cqh;
   bottom: 0.55cqh;
-  right: 29%;
+  right: 27%;
   width: 1px;
-  background: color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, currentColor 24%, transparent);
 }
 
 .poster-composition--sea-chart .composition-kicker {
@@ -11743,30 +11741,30 @@ onUnmounted(() => {
   font-size: 0.72cqh !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-weight: 700 !important;
-  padding-right: 30% !important;
+  padding-right: 29% !important;
 }
 
 .poster-composition--sea-chart .poster-trail-name {
-  margin-top: 0.36cqh !important;
-  font-size: min(var(--trail-title-size, 3.65cqh), 3.65cqh) !important;
+  margin-top: 0.26cqh !important;
+  font-size: min(var(--trail-title-size, 4.15cqh), 4.15cqh) !important;
   line-height: 0.94 !important;
-  max-width: 43cqw !important;
+  max-width: 45cqw !important;
 }
 
 .poster-composition--sea-chart .poster-location-line {
   margin-top: 0.6cqh !important;
-  padding-top: 0.58cqh !important;
-  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  padding-top: 0.52cqh !important;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   letter-spacing: 0.06em !important;
   text-align: left !important;
   opacity: 0.72 !important;
-  max-width: 42cqw !important;
+  max-width: 44cqw !important;
 }
 
 .poster-composition--sea-chart .composition-meta-line {
   position: absolute;
-  right: 1.2cqw;
-  top: 1.25cqh;
+  right: 1.05cqw;
+  top: 1.05cqh;
   bottom: auto;
   width: 16.5cqw !important;
   font-family: "IBM Plex Mono", monospace !important;
@@ -11775,7 +11773,7 @@ onUnmounted(() => {
   text-align: right !important;
   white-space: normal !important;
   letter-spacing: 0.12em !important;
-  opacity: 0.76 !important;
+  opacity: 0.82 !important;
 }
 
 .poster-composition--art-wash .poster-header {
