@@ -617,13 +617,13 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
 
   if (entry.themeId === 'sea-chart') {
     const chartPaper = hexToRgb('#EDE6D2')
-    const chartField = hexToRgb('#DCEBE4')
+    const chartField = hexToRgb('#E6F0EC')
     const magentaRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 135 && r < 205 && g > 35 && g < 95 && b > 80 && b < 145,
     )
     groups.palette.push(
       semanticCheck('Sea Chart dominant color is warm chart paper', colorDistance(fullAverage, chartPaper) < 44, `${formatRgb(fullAverage)} vs #EDE6D2`),
-      semanticCheck('Sea Chart map field is nautical teal, not cream-only paper', colorDistance(mapAverage, chartField) < 42, `${formatRgb(mapAverage)} vs #DCEBE4`),
+      semanticCheck('Sea Chart map field is pale mint, not cream paper', colorDistance(mapAverage, chartField) < 38, `${formatRgb(mapAverage)} vs #E6F0EC`),
     )
     groups.routeStyling.push(
       semanticCheck('Sea Chart magenta course line visible', magentaRoutePixels > 150, `${magentaRoutePixels} pixels`),
@@ -734,6 +734,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const canvas = document.querySelector('[data-testid="poster-canvas"]')
     const map = document.querySelector('[data-testid="poster-map"]')
     const header = document.querySelector('[data-testid="poster-header"]')
+    const headerRule = header?.querySelector('.poster-rule') ?? null
     const footer = document.querySelector('[data-testid="poster-footer"]')
     const posterGrid = document.querySelector('[data-testid="composition-grid-overlay"]')
     const mapGrid = document.querySelector('[data-testid="composition-map-grid-overlay"]')
@@ -744,6 +745,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const blueprintNeatline = document.querySelector('[data-testid="blueprint-sheet-neatline"]')
     const titleStyle = title ? window.getComputedStyle(title) : null
     const headerStyle = header ? window.getComputedStyle(header) : null
+    const headerRuleStyle = headerRule ? window.getComputedStyle(headerRule) : null
     const canvasStyle = canvas ? window.getComputedStyle(canvas) : null
     const mapStyle = map ? window.getComputedStyle(map) : null
     const footerStyle = footer ? window.getComputedStyle(footer) : null
@@ -779,6 +781,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     ].map(selector => [selector, document.querySelectorAll(selector).length]))
     const canvasRect = canvas?.getBoundingClientRect()
     const headerRect = header?.getBoundingClientRect()
+    const headerRuleRect = headerRule?.getBoundingClientRect()
     const mapRect = map?.getBoundingClientRect()
     const footerRect = footer?.getBoundingClientRect()
     const pixelMaskRects = []
@@ -816,6 +819,17 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           left: headerRect.left - canvasRect.left,
           width: headerRect.width,
           height: headerRect.height,
+        } : null,
+      },
+      headerRule: {
+        exists: Boolean(headerRule),
+        opacity: headerRuleStyle?.opacity ?? '',
+        backgroundColor: headerRuleStyle?.backgroundColor ?? '',
+        rect: headerRuleRect && canvasRect ? {
+          top: headerRuleRect.top - canvasRect.top,
+          left: headerRuleRect.left - canvasRect.left,
+          width: headerRuleRect.width,
+          height: headerRuleRect.height,
         } : null,
       },
       canvas: {
@@ -1472,8 +1486,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Sea Chart uses nautical composition', style.composition === 'sea-chart', String(style.composition ?? '')),
       semanticCheck('Sea Chart footer remains hidden', footerVisible === false, `${footerVisible}`),
       semanticCheck('Sea Chart titleblock is integrated near lower neatline', Boolean(snapshot.header.rect && snapshot.canvas.rect) && snapshot.header.rect.left / snapshot.canvas.rect.width < 0.075 && (snapshot.header.rect.top + snapshot.header.rect.height) / snapshot.canvas.rect.height > 0.84, JSON.stringify(snapshot.header.rect ?? {})),
+      semanticCheck('Sea Chart titleblock background is transparent', ['rgba(0, 0, 0, 0)', 'transparent'].includes(String(snapshot.header.backgroundColor ?? '').toLowerCase()), String(snapshot.header.backgroundColor ?? '')),
       semanticCheck('Sea Chart titleblock is not a floating card shadow', String(snapshot.header.boxShadow ?? '').toLowerCase() === 'none', String(snapshot.header.boxShadow ?? '')),
-      semanticCheck('Sea Chart titleblock has chart-rule border weight', Number.parseFloat(snapshot.header.borderTopWidth || '0') >= 1.2, snapshot.header.borderTopWidth),
+      semanticCheck('Sea Chart titleblock uses a single chart rule', snapshot.headerRule.exists === true && Number(snapshot.headerRule.rect?.height ?? 0) >= 1 && Number.parseFloat(snapshot.headerRule.opacity || '0') >= 0.35, JSON.stringify(snapshot.headerRule ?? {})),
     )
     groups.palette.push(
       semanticCheck('Sea Chart warm chart paper background', String(style.background_color).toUpperCase() === '#EDE6D2', String(style.background_color ?? '')),
@@ -1487,8 +1502,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Sea Chart contours enabled', style.show_contours === true, String(style.show_contours)),
       semanticCheck('Sea Chart roads, place labels, and POIs hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Sea Chart hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
-      semanticCheck('Sea Chart chart field token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#DCEBE4', JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Sea Chart water and waterway tokens configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#C8DDD6' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#7FA999', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
+      semanticCheck('Sea Chart chart field token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#E6F0EC', JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Sea Chart water and waterway tokens configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#CFE2DD' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#7FA999', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
       semanticCheck('Sea Chart contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#7FA999' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#4A786D', JSON.stringify(atlasLayerSettings.contour ?? {})),
       semanticCheck('Sea Chart place label token suppressed', String(atlasLayerSettings.place?.label_color ?? '').toUpperCase() === '#315C65' && Number(atlasLayerSettings.place?.label_opacity ?? 1) === 0, JSON.stringify(atlasLayerSettings.place ?? {})),
     )
@@ -1502,10 +1517,12 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Sea Chart poster grid disabled', style.show_grid === false, String(style.show_grid)),
       semanticCheck('Sea Chart vector chart motif present', (snapshot.contractPresence?.testIdCounts?.['composition-sea-chart-art'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Sea Chart neatline present', (snapshot.contractPresence?.selectorCounts?.['.sea-chart-neatline'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Sea Chart compass rose present', (snapshot.contractPresence?.testIdCounts?.['sea-chart-rose'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Sea Chart graticule present', (snapshot.contractPresence?.selectorCounts?.['.sea-chart-graticule'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Sea Chart rhumb lines present', (snapshot.contractPresence?.selectorCounts?.['.sea-chart-rhumb-lines'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Sea Chart depth/sounding marks present', (snapshot.contractPresence?.selectorCounts?.['.sea-chart-depth-bands'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.sea-chart-soundings'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Sea Chart soundings are dense enough to read as chart data', (snapshot.contractPresence?.selectorCounts?.['.sea-chart-soundings text'] ?? 0) >= 8, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )
   }
 

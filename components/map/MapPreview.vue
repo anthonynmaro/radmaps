@@ -1056,6 +1056,7 @@
           aria-hidden="true"
           data-testid="composition-sea-chart-art"
         >
+          <rect class="sea-chart-neatline" x="4" y="5" width="92" height="140" />
           <g class="sea-chart-graticule">
             <path d="M0 34 H100 M0 70 H100 M0 106 H100" />
             <path d="M18 0 V150 M50 0 V150 M82 0 V150" />
@@ -1077,6 +1078,8 @@
             <text x="86" y="58">9</text>
             <text x="18" y="91">4</text>
             <text x="66" y="101">16</text>
+            <text x="36" y="116">8</text>
+            <text x="79" y="121">14</text>
             <circle cx="24" cy="55" r="0.7" />
             <circle cx="43" cy="31" r="0.7" />
             <circle cx="78" cy="82" r="0.7" />
@@ -9906,10 +9909,16 @@ onUnmounted(() => {
 }
 
 .composition-sea-chart-art path,
-.composition-sea-chart-art circle {
+.composition-sea-chart-art circle,
+.composition-sea-chart-art rect {
   fill: none;
   stroke: currentColor;
   vector-effect: non-scaling-stroke;
+}
+
+.sea-chart-neatline {
+  opacity: 0.56;
+  stroke-width: 0.72;
 }
 
 .composition-sea-chart-art text {
@@ -11703,35 +11712,27 @@ onUnmounted(() => {
 .poster-composition--sea-chart .poster-header {
   left: calc(5.2cqw + var(--print-bleed, 0px));
   right: auto;
-  bottom: calc(4.5cqh + var(--print-bleed, 0px));
+  bottom: calc(5.0cqh + var(--print-bleed, 0px));
   width: min(70cqw, 46cqh);
   align-items: flex-start !important;
-  padding: 1.0cqh 1.85cqw 1.15cqh !important;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, currentColor 9%, transparent), transparent 36%),
-    color-mix(in srgb, var(--composition-paper, white) 94%, transparent) !important;
-  border: 2px solid color-mix(in srgb, currentColor 48%, transparent);
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
   box-shadow: none !important;
 }
 
 .poster-composition--sea-chart .poster-header::before,
 .poster-composition--sea-chart .poster-header::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
+  display: none !important;
+  content: none !important;
 }
 
-.poster-composition--sea-chart .poster-header::before {
-  inset: 0.42cqh 0.55cqw;
-  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
-}
-
-.poster-composition--sea-chart .poster-header::after {
-  top: 0.55cqh;
-  bottom: 0.55cqh;
-  right: 27%;
-  width: 1px;
-  background: color-mix(in srgb, currentColor 24%, transparent);
+.poster-composition--sea-chart .poster-rule {
+  width: 100% !important;
+  height: 1px !important;
+  margin: 0 0 0.48cqh !important;
+  background: currentColor !important;
+  opacity: 0.42 !important;
 }
 
 .poster-composition--sea-chart .composition-kicker {
@@ -11741,7 +11742,8 @@ onUnmounted(() => {
   font-size: 0.72cqh !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-weight: 700 !important;
-  padding-right: 29% !important;
+  padding-right: 30% !important;
+  text-transform: uppercase !important;
 }
 
 .poster-composition--sea-chart .poster-trail-name {
@@ -11752,9 +11754,9 @@ onUnmounted(() => {
 }
 
 .poster-composition--sea-chart .poster-location-line {
-  margin-top: 0.6cqh !important;
-  padding-top: 0.52cqh !important;
-  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  margin-top: 0.38cqh !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
   letter-spacing: 0.06em !important;
   text-align: left !important;
   opacity: 0.72 !important;
@@ -11763,10 +11765,10 @@ onUnmounted(() => {
 
 .poster-composition--sea-chart .composition-meta-line {
   position: absolute;
-  right: 1.05cqw;
-  top: 1.05cqh;
-  bottom: auto;
-  width: 16.5cqw !important;
+  right: 0;
+  top: auto;
+  bottom: 0.08cqh;
+  width: 23cqw !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-size: 0.58cqh !important;
   line-height: 1.42 !important;

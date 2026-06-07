@@ -404,9 +404,11 @@ describe('refined theme Phase 0 scaffolding', () => {
     ]))
     expect(getThemeChromeContract('sea-chart')?.requiredSelectors).toEqual(expect.arrayContaining([
       '.sea-chart-graticule',
+      '.sea-chart-neatline',
       '.sea-chart-depth-bands',
       '.sea-chart-rose',
       '.sea-chart-soundings',
+      '.sea-chart-soundings text',
       '.sea-chart-rhumb-lines',
     ]))
     expect(getThemeChromeContract('transit-diagram')?.requiredTestIds).toEqual(expect.arrayContaining([

@@ -28,10 +28,11 @@ reference screenshot or spec contract.
 - `risograph`, `brutalist`, and the travel-banner family have completed focused
   implementation passes, but still need final human visual approval before they
   are marked done.
-- `sea-chart`: semantic checks now pass (`112/112`) after tightening the map
-  field, chart overlay, and integrated titleblock checks. Latest parity reported
-  `97.2%` pixel, `97.5%` map, `100.0%` chrome, and `100.0%` semantic. It still
-  needs final human visual approval before it can be marked done.
+- `sea-chart`: semantic checks now pass (`117/117`) after correcting the map
+  field to pale mint, adding treatment checks for the transparent titleblock,
+  single rule, neatline, and sounding density. Latest parity reported `97.0%`
+  pixel, `97.3%` map, `100.0%` chrome, and `100.0%` semantic. It still needs
+  final human visual approval before it can be marked done.
 
 ## Next Steps
 

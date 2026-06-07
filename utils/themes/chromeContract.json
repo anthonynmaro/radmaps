@@ -186,7 +186,7 @@
     "typography": { "titleFont": "Libre Baskerville", "titleCase": "none" },
     "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-sea-chart-art", "sea-chart-rose"],
-    "requiredSelectors": [".sea-chart-graticule", ".sea-chart-depth-bands", ".sea-chart-rose", ".sea-chart-soundings", ".sea-chart-rhumb-lines"],
+    "requiredSelectors": [".sea-chart-neatline", ".sea-chart-graticule", ".sea-chart-depth-bands", ".sea-chart-rose", ".sea-chart-soundings", ".sea-chart-soundings text", ".sea-chart-rhumb-lines"],
     "requiredRouteLayers": ["route-line-sea-course", "route-line-sea-waypoints"],
     "forbiddenTestIds": ["composition-plate-frame"]
   },
