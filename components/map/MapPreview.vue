@@ -9824,35 +9824,43 @@ onUnmounted(() => {
 }
 
 .poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field {
-  z-index: 12;
-  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 98%, transparent);
-  filter: drop-shadow(0 0 0.46cqh color-mix(in srgb, currentColor 46%, transparent));
+  z-index: 13;
+  inset: 0 0 30% 0;
+  color: var(--label-text-color, #f0d9bf);
+  filter: drop-shadow(0 0 0.5cqh color-mix(in srgb, currentColor 52%, transparent));
+  mix-blend-mode: normal;
   background-image:
-    radial-gradient(circle at 4% 29%, currentColor 0 0.09cqw, transparent 0.15cqw),
-    radial-gradient(circle at 6% 7%, currentColor 0 0.12cqw, transparent 0.18cqw),
-    radial-gradient(circle at 10% 52%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 14% 16%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 17% 38%, currentColor 0 0.12cqw, transparent 0.18cqw),
-    radial-gradient(circle at 21% 72%, currentColor 0 0.10cqw, transparent 0.16cqw),
-    radial-gradient(circle at 25% 22%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 29% 49%, currentColor 0 0.13cqw, transparent 0.19cqw),
-    radial-gradient(circle at 33% 12%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 37% 62%, currentColor 0 0.10cqw, transparent 0.16cqw),
-    radial-gradient(circle at 41% 33%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 45% 6%, currentColor 0 0.12cqw, transparent 0.18cqw),
-    radial-gradient(circle at 49% 45%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 53% 71%, currentColor 0 0.11cqw, transparent 0.17cqw),
-    radial-gradient(circle at 57% 21%, var(--route-color, #f0b15f) 0 0.09cqw, transparent 0.15cqw),
-    radial-gradient(circle at 61% 57%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 65% 12%, currentColor 0 0.14cqw, transparent 0.2cqw),
-    radial-gradient(circle at 69% 35%, currentColor 0 0.09cqw, transparent 0.15cqw),
-    radial-gradient(circle at 73% 73%, currentColor 0 0.12cqw, transparent 0.18cqw),
-    radial-gradient(circle at 77% 24%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 81% 48%, currentColor 0 0.13cqw, transparent 0.19cqw),
-    radial-gradient(circle at 85% 13%, currentColor 0 0.09cqw, transparent 0.15cqw),
-    radial-gradient(circle at 89% 66%, currentColor 0 0.11cqw, transparent 0.17cqw),
-    radial-gradient(circle at 93% 29%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 96% 52%, currentColor 0 0.10cqw, transparent 0.16cqw);
+    radial-gradient(circle at 3% 20%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 5% 51%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 7% 78%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 10% 38%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 13% 6%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 16% 44%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 19% 26%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 21% 70%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 25% 16%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 29% 31%, currentColor 0 0.06cqw, transparent 0.11cqw),
+    radial-gradient(circle at 33% 62%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 36% 12%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 39% 40%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 43% 23%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 47% 56%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 51% 7%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 53% 37%, var(--route-color, #f0b15f) 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 57% 76%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 61% 21%, currentColor 0 0.09cqw, transparent 0.14cqw),
+    radial-gradient(circle at 64% 44%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 68% 10%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 70% 60%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 73% 32%, currentColor 0 0.15cqw, transparent 0.21cqw),
+    radial-gradient(circle at 77% 15%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 80% 48%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 83% 4%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 86% 72%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 89% 28%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 92% 12%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 95% 43%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 97% 68%, currentColor 0 0.11cqw, transparent 0.17cqw);
 }
 
 .poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field::before {
@@ -9877,7 +9885,34 @@ onUnmounted(() => {
     radial-gradient(circle at 84% 57%, currentColor 0 0.10cqw, transparent 0.17cqw),
     radial-gradient(circle at 90% 25%, currentColor 0 0.12cqw, transparent 0.19cqw),
     radial-gradient(circle at 96% 41%, currentColor 0 0.09cqw, transparent 0.15cqw);
-  opacity: 0.9;
+  opacity: 0.95;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 90%, var(--route-color, #f0b15f) 10%);
+  background-image:
+    radial-gradient(circle at 21% 23%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 68% 37%, currentColor 0 0.085cqw, transparent 0.14cqw),
+    radial-gradient(circle at 42% 71%, var(--route-color, #f0b15f) 0 0.105cqw, transparent 0.16cqw),
+    radial-gradient(circle at 83% 14%, currentColor 0 0.15cqw, transparent 0.22cqw),
+    radial-gradient(circle at 13% 82%, currentColor 0 0.075cqw, transparent 0.13cqw);
+  background-position:
+    0 0,
+    5.2cqw 2.4cqh,
+    2.8cqw 5.6cqh,
+    8.6cqw 1.2cqh,
+    1.4cqw 7.8cqh;
+  background-repeat: repeat;
+  background-size:
+    13cqw 11cqh,
+    17cqw 14cqh,
+    19cqw 16cqh,
+    23cqw 19cqh,
+    11cqw 13cqh;
+  opacity: 0.88;
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-constellation {
@@ -9923,8 +9958,8 @@ onUnmounted(() => {
 }
 
 .poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line {
-  stroke-width: 0.34;
-  opacity: 0.78;
+  stroke-width: 0.42;
+  opacity: 0.88;
 }
 
 .poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line--secondary {

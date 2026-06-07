@@ -135,8 +135,8 @@ reference screenshot or spec contract.
 - `copper-night`: Claude feedback remediation is ready for review after
   strengthening the copper starfield. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture
-  reported `93.8%` pixel, `64.6%` map, `98.7%` chrome, and `100.0%` semantic
-  (`106/106`). The upper-field star density now reads with the summit
+  reported `93.8%` pixel, `64.0%` map, `98.7%` chrome, and `100.0%` semantic
+  (`107/107`). The upper-field star density now reads with the summit
   constellation while preserving the lower soft route, `Tre Cime di Lavaredo`
   subtitle, `ITALIA · 46°38'N` kicker, and Dolomiti / `10.5 km` / `JUL 2025`
   footer values.

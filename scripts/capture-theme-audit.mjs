@@ -649,8 +649,19 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
     const nightRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 190 && g > 120 && b < 130,
     )
+    const upperStarfieldRect = { left: 0, top: 0, right: imageWidth, bottom: Math.round(imageHeight * 0.62) }
+    const starfieldPixels = await countPixelsForRegion(printFile, upperStarfieldRect, entry.themeId === 'copper-night'
+      ? (r, g, b) => r > 95 && g > 75 && b > 50 && r > g + 10 && g > b + 8
+      : (r, g, b) => r > 185 && g > 155 && b > 110)
     groups.routeStyling.push(
       semanticCheck('Dark Sky family warm route visible', nightRoutePixels > 120, `${nightRoutePixels} pixels`),
+    )
+    groups.motifs.push(
+      semanticCheck(
+        'Dark Sky family visible upper starfield density',
+        starfieldPixels >= (entry.themeId === 'copper-night' ? 9000 : 10000),
+        `${starfieldPixels} pixels`,
+      ),
     )
   }
 
