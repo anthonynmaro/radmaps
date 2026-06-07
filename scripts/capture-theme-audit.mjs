@@ -2307,7 +2307,9 @@ function fixtureOverrideQuery(entry) {
   if (overrides.title) params.set('title', overrides.title)
   if (overrides.location) params.set('location', overrides.location)
   if (overrides.occasion) params.set('occasion', overrides.occasion)
+  if (overrides.compositionKicker) params.set('compositionKicker', overrides.compositionKicker)
   if (overrides.compositionMeta) params.set('compositionMeta', overrides.compositionMeta)
+  if (overrides.compositionFooter) params.set('compositionFooter', overrides.compositionFooter)
   if (typeof overrides.distanceKm === 'number' && Number.isFinite(overrides.distanceKm)) {
     params.set('distanceKm', String(overrides.distanceKm))
   }

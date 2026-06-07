@@ -4504,6 +4504,7 @@ const locationLine = computed(() => {
   if (composition.value.id === 'bib-numerals') return locationText.value
   if (composition.value.id === 'botanical-plate') return locationText.value
   if (composition.value.id === 'place-frame') return locationText.value
+  if (composition.value.id === 'darksky-stars') return locationText.value
   return locationText.value.toUpperCase()
 })
 

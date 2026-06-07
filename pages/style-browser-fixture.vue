@@ -133,7 +133,9 @@ const fixtureTonerVariant = parseTonerVariant(route.query.tonerVariant)
 const fixtureTrailName = typeof route.query.title === 'string' ? route.query.title : undefined
 const fixtureLocationText = typeof route.query.location === 'string' ? route.query.location : undefined
 const fixtureOccasionText = typeof route.query.occasion === 'string' ? route.query.occasion : undefined
+const fixtureCompositionKickerText = typeof route.query.compositionKicker === 'string' ? route.query.compositionKicker : undefined
 const fixtureCompositionMetaText = typeof route.query.compositionMeta === 'string' ? route.query.compositionMeta : undefined
+const fixtureCompositionFooterText = typeof route.query.compositionFooter === 'string' ? route.query.compositionFooter : undefined
 const fixtureDistanceKm = typeof route.query.distanceKm === 'string'
   ? Number.parseFloat(route.query.distanceKm)
   : undefined
@@ -322,14 +324,34 @@ const styleConfig = ref<StyleConfig>({
   ...(fixtureTrailName ? { trail_name: fixtureTrailName } : {}),
   ...(fixtureLocationText ? { location_text: fixtureLocationText } : {}),
   ...(fixtureOccasionText ? { occasion_text: fixtureOccasionText } : {}),
-  ...(fixtureCompositionMetaText
+  ...(fixtureCompositionKickerText || fixtureCompositionMetaText || fixtureCompositionFooterText
     ? {
         poster_text_overrides: {
           ...(initialStyleConfig.poster_text_overrides ?? {}),
-          composition_meta: {
-            ...(initialStyleConfig.poster_text_overrides?.composition_meta ?? {}),
-            text: fixtureCompositionMetaText,
-          },
+          ...(fixtureCompositionKickerText
+            ? {
+                composition_kicker: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_kicker ?? {}),
+                  text: fixtureCompositionKickerText,
+                },
+              }
+            : {}),
+          ...(fixtureCompositionMetaText
+            ? {
+                composition_meta: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_meta ?? {}),
+                  text: fixtureCompositionMetaText,
+                },
+              }
+            : {}),
+          ...(fixtureCompositionFooterText
+            ? {
+                composition_footer: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_footer ?? {}),
+                  text: fixtureCompositionFooterText,
+                },
+              }
+            : {}),
         },
       }
     : {}),
@@ -582,14 +604,24 @@ const sampleRegions: Record<string, {
     location: 'Dolomiti, Italia',
     bbox: [12.18, 46.54, 12.42, 46.72],
     route: [
-      [12.214, 46.586],
-      [12.246, 46.594],
-      [12.283, 46.592],
-      [12.316, 46.587],
-      [12.344, 46.575],
-      [12.365, 46.552],
-      [12.380, 46.584],
-      [12.394, 46.618],
+      [12.213, 46.582],
+      [12.226, 46.588],
+      [12.246, 46.593],
+      [12.267, 46.592],
+      [12.288, 46.588],
+      [12.270, 46.585],
+      [12.244, 46.586],
+      [12.224, 46.584],
+      [12.215, 46.581],
+      [12.236, 46.578],
+      [12.265, 46.577],
+      [12.294, 46.572],
+      [12.323, 46.562],
+      [12.345, 46.548],
+      [12.358, 46.553],
+      [12.369, 46.574],
+      [12.383, 46.595],
+      [12.397, 46.612],
     ],
   },
   moab: {

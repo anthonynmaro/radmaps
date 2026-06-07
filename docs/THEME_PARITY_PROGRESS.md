@@ -134,10 +134,11 @@ reference screenshot or spec contract.
   the dark-sky composition treatment. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture
   reported `93.8%` pixel, `64.5%` map, `98.7%` chrome, and `100.0%` semantic
-  (`106/106`). The shared sky primitive is re-ported with a clean brown field,
-  faint concentric contours, visible starfield and summit constellation, warm
-  top eyebrow, lower copper route fixture, and target Dolomiti / `10.5 km` /
-  `JUL 2025` footer values while keeping the generic stats/logo band removed.
+  (`106/106`). The 09:02 feedback pass is addressed with the restored starfield
+  and summit constellation, a lower/smoother copper route fixture, `Tre Cime di
+  Lavaredo` subtitle, `ITALIA · 46°38'N` top kicker, and target Dolomiti /
+  `10.5 km` / `JUL 2025` footer values while keeping the generic stats/logo band
+  removed. A Dark Sky regression capture held at `107/107`.
 - `marathon-bib`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/marathon-bib.png`; capture
