@@ -15,7 +15,7 @@ Codex never marks a theme `approved`.
 | `brutalist` | `ready-for-review` | 100.0% (`96/96`) | `docs/theme_audit_output/poster-themes/print/brutalist.png` | Slab grid, registration marks, framed map, and orange route are present; watch low map smoke because dynamic Boston geometry diverges strongly from target. |
 | `editorial-minimal` | `ready-for-review` | 100.0% (`92/92`) | `docs/theme_audit_output/poster-themes/print/editorial-minimal.png` | Editorial-tall palette, typography, and gallery route tokens pass; watch lower map smoke from fixture terrain differences. |
 | `contour-wash` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/contour-wash.png` | Full-bleed wash field, centered caption, and echo route treatment pass; watch lower map smoke from dynamic contour geometry. |
-| `bold-modern` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `bold-modern` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/bold-modern.png` | Modernist block tokens, accent slab, and print-trap route layers pass; watch low map smoke from dynamic map geometry. |
 | `blackline` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `blueprint` | `unchanged` | n/a | n/a | Existing manifest review state left untouched per guardrail. |
 | `moonstone` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 9
+- `ready-for-review`: 10
 - `blocked`: 0
-- `unchanged`: 18
+- `unchanged`: 17
