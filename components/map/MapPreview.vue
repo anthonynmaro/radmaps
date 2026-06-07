@@ -4656,7 +4656,7 @@ const technicalDataFooterItems = computed(() => [
   { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
   { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
   { label: 'Location', value: technicalDataRegion.value },
-  { label: 'Date', value: formattedTechnicalDate.value },
+  { label: 'Date', value: props.styleConfig.color_theme === 'night-ride' ? formattedMonthYear.value : formattedTechnicalDate.value },
 ])
 const blueprintDraftingToplineLabel = computed(() =>
   composition.value.id === 'blueprint-strava'

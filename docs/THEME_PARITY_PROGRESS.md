@@ -118,9 +118,10 @@ reference screenshot or spec contract.
   footer/profile values.
 - `night-ride`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/night-ride.png`; capture reported
-  `88.0%` pixel, `0.0%` map, `88.0%` chrome, and `100.0%` semantic (`97/97`).
-  Review queue status is `ready-for-review`; the zero map smoke is noted as a
-  reference/live terrain mismatch after visual sanity check.
+  `75.5%` pixel, `100.0%` map, `75.5%` chrome, and `100.0%` semantic
+  (`107/107`). The cyan profile sheet keeps the large MOAB slab, labeled profile
+  header and axis, and no generic stats/logo band, now with the Sand Flats
+  subtitle and `6.5 mi / 1,100 ft / MAY 2025` footer/profile values.
 - `dark-sky`: Claude feedback remediation is ready for review. The live render
   was regenerated at `docs/theme_audit_output/poster-themes/print/dark-sky.png`;
   capture reported `94.2%` pixel, `96.3%` map, `97.3%` chrome, and `100.0%`
