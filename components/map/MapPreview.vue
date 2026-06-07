@@ -9350,13 +9350,13 @@ onUnmounted(() => {
     radial-gradient(circle at 52% 38%, var(--route-color, #e8c66a) 0 0.065cqw, transparent 0.1cqw);
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] [data-testid="poster-map"] {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) [data-testid="poster-map"] {
   order: 0 !important;
   flex: 1 1 100% !important;
   height: 100% !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .poster-header {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
   position: absolute !important;
   inset: calc(6.4cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
   z-index: 14 !important;
@@ -9366,11 +9366,11 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .poster-rule {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-rule {
   display: none !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-kicker {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-kicker {
   order: 0;
   color: var(--route-color, #e8c66a) !important;
   font-family: "IBM Plex Mono", monospace !important;
@@ -9379,7 +9379,7 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .poster-trail-name {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-trail-name {
   order: 1;
   width: 62cqw !important;
   font-size: 10.8cqh !important;
@@ -9391,7 +9391,7 @@ onUnmounted(() => {
     0 0 0.25cqh var(--background-color, #070c1e) !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .poster-location-line {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-location-line {
   order: 2;
   color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 72%, var(--contour-major-color, #50689c) 28%) !important;
   font-size: 1.45cqh !important;
@@ -9401,15 +9401,15 @@ onUnmounted(() => {
   text-transform: none !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-meta-line {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-meta-line {
   display: none !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .poster-footer {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer {
   display: none !important;
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-star-field {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-field {
   inset: 0;
   opacity: 1;
   color: var(--label-text-color, #e7ecfb);
@@ -9439,7 +9439,7 @@ onUnmounted(() => {
     radial-gradient(circle at 51% 39%, var(--route-color, #e8c66a) 0 0.075cqw, transparent 0.12cqw);
 }
 
-.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-darksky-ridge {
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-darksky-ridge {
   top: 87%;
   height: 9.5cqh;
   opacity: 0.22;

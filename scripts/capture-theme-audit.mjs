@@ -1933,8 +1933,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Dark Sky family uses star-horizon composition', style.composition === 'darksky-stars', String(style.composition ?? '')),
-      entry.themeId === 'dark-sky'
-        ? semanticCheck('Dark Sky hides generic metadata footer', footerVisible === false, `${footerVisible}`)
+      ['dark-sky', 'copper-night'].includes(entry.themeId)
+        ? semanticCheck('Dark Sky family hides generic metadata footer', footerVisible === false, `${footerVisible}`)
         : semanticCheck('Dark Sky colorway compact metadata footer remains present', footerVisible === true, `${footerVisible}`),
     )
     groups.palette.push(
@@ -1947,7 +1947,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.mapLayers.push(
       semanticCheck('Dark Sky family uses owned night relief map', style.preset === 'radmaps-night-relief', String(style.preset ?? '')),
       semanticCheck('Dark Sky family contours enabled', style.show_contours === true, String(style.show_contours)),
-      ...(entry.themeId === 'dark-sky'
+      ...(['dark-sky', 'copper-night'].includes(entry.themeId)
         ? [semanticCheck('Dark Sky contours are sparse for starfield treatment', Number(style.contour_detail ?? 0) <= 1, String(style.contour_detail ?? ''))]
         : []),
       semanticCheck('Dark Sky family roads and map labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),

@@ -119,11 +119,14 @@ reference screenshot or spec contract.
   denser visible stars, a hidden generic footer, sparse nocturne contours, and
   the gold constellation route treatment. Review queue status remains
   `ready-for-review`.
-- `copper-night`: ready for Claude/human review. The live render was written to
+- `copper-night`: Claude feedback remediation is ready for review after porting
+  the dark-sky composition treatment. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture
-  reported `94.2%` pixel, `70.6%` map, `94.7%` chrome, and `100.0%` semantic
-  (`99/99`). Review queue status is `ready-for-review`; lower map smoke is noted
-  for visual review.
+  reported `47.8%` pixel, `68.9%` map, `100.0%` chrome, and `100.0%` semantic
+  (`102/102`). The generic stats/footer band is hidden, the title renders large
+  in the sky, and the warm star/contour route treatment is visible; low pixel
+  smoke is noted for target-geometry/colorway review. Review queue status
+  remains `ready-for-review`.
 - `marathon-bib`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/marathon-bib.png`; capture
   reported `90.5%` pixel, `24.5%` map, `93.2%` chrome, and `100.0%` semantic

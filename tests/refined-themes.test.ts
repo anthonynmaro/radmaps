@@ -341,6 +341,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     const renderedLayoutOverrides = new Map<ColorTheme, { titlePosition: 'top' | 'bottom'; titleAlign: 'left' | 'center' }>([
       ['editorial-minimal', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['dark-sky', { titlePosition: 'top', titleAlign: 'center' }],
+      ['copper-night', { titlePosition: 'top', titleAlign: 'center' }],
       ['usgs-vintage', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['classic-trail', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['cartouche-place', { titlePosition: 'bottom', titleAlign: 'left' }],
@@ -351,6 +352,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     const renderedFooterOverrides = new Map<ColorTheme, 'standard' | 'compact' | 'data' | 'bib' | 'hidden'>([
       ['editorial-minimal', 'hidden'],
       ['dark-sky', 'hidden'],
+      ['copper-night', 'hidden'],
     ])
     const renderedTitleCaseOverrides = new Map<ColorTheme, 'uppercase' | 'none'>([
       ['usgs-vintage', 'uppercase'],
