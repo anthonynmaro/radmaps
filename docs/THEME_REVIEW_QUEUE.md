@@ -30,12 +30,12 @@ Codex never marks a theme `approved`.
 | `relief-shaded` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/relief-shaded.png` | Claude 09:02 feedback addressed: pale smoothed relief field, black route with round/square endpoint markers, cream bottom titleblock with red Washington tag, subtitle, and coordinate/stats line now pass. |
 | `cartouche-place` | `ready-for-review` | 100.0% (`90/90`) | `docs/theme_audit_output/poster-themes/print/cartouche-place.png` | Place-frame poster now omits the GPX route, centers the cartouche plate, shows the red México kicker plus coordinate/elevation footer, and passes the no-route engraved-map contract; watch live map label geometry in visual review. |
 | `sea-chart` | `ready-for-review` | 100.0% (`119/119`) | `docs/theme_audit_output/poster-themes/print/sea-chart.png` | Fresh rerun confirms the pale mint chart field, transparent titleblock, single rule, neatline, sounding density, compass/rhumb motifs, and magenta course route all pass; visual review remains human/Claude-only. |
-| `field-journal` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
+| `field-journal` | `ready-for-review` | 100.0% (`109/109`) | `docs/theme_audit_output/poster-themes/print/field-journal.png` | Spec-only rerun confirms the journal-spread composition, notebook notes/sketch motifs, field-paper palette, drybrush route treatment, and contract typography all pass; awaiting visual review only. |
 | `transit-diagram` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
 | `plein-air` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
 
 ## Summary
 
-- `ready-for-review`: 24
+- `ready-for-review`: 25
 - `blocked`: 0
-- `unchanged`: 3
+- `unchanged`: 2

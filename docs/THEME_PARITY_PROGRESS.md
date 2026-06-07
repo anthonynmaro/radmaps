@@ -186,6 +186,12 @@ reference screenshot or spec contract.
   (`119/119`). The pale mint chart field, transparent titleblock, single rule,
   neatline, sounding density, compass/rhumb motifs, and magenta course route all
   pass. It still needs final human visual approval before it can be marked done.
+- `field-journal`: ready for Claude/human review. The spec-only queue rerun
+  generated `docs/theme_audit_output/poster-themes/print/field-journal.png`;
+  capture reported `86.4%` pixel, `77.8%` map, `94.9%` chrome, and `100.0%`
+  semantic (`109/109`). The journal-spread composition, notebook notes/sketch
+  motifs, field-paper palette, drybrush route treatment, and contract typography
+  pass; remaining review is visual only.
 
 ## Next Steps
 
