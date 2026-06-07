@@ -203,7 +203,7 @@
   {
     "themeId": "relief-shaded",
     "typography": { "titleFont": "Newsreader", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-relief-bands", "composition-relief-legend", "composition-relief-stamp"],
     "requiredSelectors": [".relief-band", ".relief-legend-swatch"],
     "requiredRouteLayers": ["route-line-relief-shadow", "route-line-relief-highlight"]

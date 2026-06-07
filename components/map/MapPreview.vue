@@ -4798,6 +4798,11 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
 
   switch (composition.value.id) {
     case 'editorial-tall':
+      if (props.styleConfig.color_theme === 'relief-shaded') {
+        return {
+          meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
+        }
+      }
       return {
         kicker: 'No. 01 — A field record',
         meta: `${location} · ${date}`,
@@ -12158,13 +12163,65 @@ onUnmounted(() => {
 }
 
 .poster-composition--editorial-tall[data-theme="relief-shaded"] [data-testid="poster-map"] {
-  border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  order: 0 !important;
+  flex: 0 0 72% !important;
+  height: 72% !important;
+  margin: calc(4.6cqh + var(--print-bleed, 0px)) calc(7.8cqw + var(--print-bleed, 0px)) 0 !important;
+  border: 0 !important;
+  border-bottom: 2px double color-mix(in srgb, var(--label-text-color, #27231d) 22%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-header {
+  order: 1 !important;
+  flex: 1 1 28% !important;
+  justify-content: flex-start !important;
+  gap: 1.05cqh !important;
+  padding: 3.1cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(3.9cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #ece4d3) !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-kicker,
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-rule {
+  display: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-trail-name {
   font-family: "Newsreader", "Libre Baskerville", serif !important;
-  font-size: min(var(--trail-title-size, 5.5cqh), 6.4cqh) !important;
+  font-size: min(var(--trail-title-size, 8.4cqh), 8.6cqh) !important;
+  line-height: 0.92 !important;
+  max-width: 76cqw !important;
+  text-wrap: balance;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-location-line,
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .chrome-grid-block--subtitle {
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 66%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.28em !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-meta-line {
+  position: absolute !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: 34cqw !important;
+  margin-top: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 58%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-footer {
+  display: none !important;
 }
 
 .composition-relief-bands {

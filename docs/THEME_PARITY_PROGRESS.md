@@ -153,6 +153,13 @@ reference screenshot or spec contract.
   route with round/square marker endpoints, bottom `PLATE IX — ITALIA`
   titleblock, `Dolomiti, Italia / 46.6186°N` captioning, and no generic
   stats/logo footer.
+- `relief-shaded`: ready for Claude/human review. The live render was regenerated
+  at `docs/theme_audit_output/poster-themes/print/relief-shaded.png`; capture
+  reported `79.2%` pixel, `72.8%` map, `94.6%` chrome, and `100.0%` semantic
+  (`105/105`). The terrain sheet now uses a map-first frame, bottom Newsreader
+  titleblock, black/cream relief route ink, Rainier/Wonderland activity values,
+  and no generic stats/logo footer. Watch the dense real-terrain map smoke
+  against the more abstract target relief bands.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.

@@ -27,7 +27,7 @@ Codex never marks a theme `approved`.
 | `copper-night` | `ready-for-review` | 100.0% (`106/106`) | `docs/theme_audit_output/poster-themes/print/copper-night.png` | Claude feedback addressed: clean brown field with faint contours, visible starfield/summit constellation, lower copper route fixture, and Dolomiti / 10.5 km / JUL 2025 footer values now pass. |
 | `marathon-bib` | `ready-for-review` | 100.0% (`118/118`) | `docs/theme_audit_output/poster-themes/print/marathon-bib.png` | Claude feedback addressed: map-first bib sheet now has the large navy BOSTON slab, pale 2025 ghost, red FINISHER collar, marker-only endpoints, and 26.2 mi / 813 ft GAIN / 42.3601°N footer. |
 | `botanical` | `ready-for-review` | 100.0% (`109/109`) | `docs/theme_audit_output/poster-themes/print/botanical.png` | Claude feedback addressed: pale contour-only field, dark green route with round/square endpoint markers, bottom `PLATE IX — ITALIA` titleblock, coordinate caption, and no generic stats/logo footer. |
-| `relief-shaded` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `relief-shaded` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/relief-shaded.png` | Map-first terrain sheet now uses bottom Newsreader titleblock, black/cream relief route ink, target Rainier activity values, and no generic stats/logo footer; watch dense real-terrain map smoke. |
 | `cartouche-place` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `sea-chart` | `unchanged` | n/a | n/a | Already near-ready from previous checkpoint; will rerun only if queue/shared changes affect it. |
 | `field-journal` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 21
+- `ready-for-review`: 22
 - `blocked`: 0
-- `unchanged`: 6
+- `unchanged`: 5

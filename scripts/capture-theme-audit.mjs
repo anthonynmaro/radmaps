@@ -1896,7 +1896,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Relief warm terrain paper background', String(style.background_color).toUpperCase() === '#ECE4D3', String(style.background_color ?? '')),
       semanticCheck('Relief label background matches paper', String(style.label_bg_color).toUpperCase() === '#ECE4D3', String(style.label_bg_color ?? '')),
       semanticCheck('Relief text is warm dark ink', String(style.label_text_color).toUpperCase() === '#27231D', String(style.label_text_color ?? '')),
-      semanticCheck('Relief route is deep terrain ink', String(style.route_color).toUpperCase() === '#6C271B', String(style.route_color ?? '')),
+      semanticCheck('Relief route is deep terrain ink', String(style.route_color).toUpperCase() === '#27231D', String(style.route_color ?? '')),
       semanticCheck('Relief terrain grain configured', Number(style.tile_grain ?? 0) >= 0.08 && Number(style.tile_grain ?? 0) <= 0.12, String(style.tile_grain ?? '')),
     )
     groups.mapLayers.push(
@@ -1911,7 +1911,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.routeStyling.push(
       semanticCheck('Relief print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
-      semanticCheck('Relief route is exact terrain ink token', String(style.route_color).toUpperCase() === '#6C271B', String(style.route_color ?? '')),
+      semanticCheck('Relief route is exact terrain ink token', String(style.route_color).toUpperCase() === '#27231D', String(style.route_color ?? '')),
       semanticCheck('Relief endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
       semanticCheck('Relief route has confident weight', Number(style.route_width ?? 0) >= 4.4, String(style.route_width ?? '')),
       semanticCheck('Relief shadow/highlight route layers present', ['route-line-relief-shadow', 'route-line-relief-highlight'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
