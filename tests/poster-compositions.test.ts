@@ -49,6 +49,15 @@ describe('poster composition registry', () => {
     expect(posterCompositionClassName('legacy-classic')).toBe('poster-composition--legacy-classic')
   })
 
+  it('renders technical data compositions with map-first bottom title chrome', () => {
+    const profile = POSTER_COMPOSITIONS['blueprint-strava']
+
+    expect(profile.titlePosition).toBe('bottom')
+    expect(profile.mapOrder).toBeLessThan(profile.headerOrder)
+    expect(profile.footerVariant).toBe('data')
+    expect(profile.showGridOverlay).toBe(true)
+  })
+
   it('marks label-band title compositions so light text stays readable', () => {
     expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('paper')
     expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('paper')

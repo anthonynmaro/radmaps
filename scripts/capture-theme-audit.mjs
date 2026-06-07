@@ -1231,6 +1231,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Trail Blueprint uses technical composition', style.composition === 'blueprint-strava', String(style.composition ?? '')),
       semanticCheck('Trail Blueprint data footer is present', snapshot.footer.display !== 'none' && Boolean(snapshot.footer.rect?.height), snapshot.footer.display),
+      semanticCheck('Trail Blueprint rendered title is bottom slab', titlePositionFromSnapshot(snapshot) === 'bottom', JSON.stringify({ title: snapshot.title.rect, map: snapshot.map.rect })),
       semanticCheck('Trail Blueprint map panel is dominant', mapHeightRatio > 0.68 && mapHeightRatio < 0.88, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
@@ -1258,7 +1259,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Trail Blueprint map grid enabled', style.show_grid === true && style.grid_scope === 'map', `${style.show_grid}/${style.grid_scope}`),
       semanticCheck('Trail Blueprint grid density is technical and restrained', Number(style.grid_spacing ?? 0) === 8 && Number(style.grid_opacity ?? 0) >= 0.12 && Number(style.grid_opacity ?? 0) <= 0.16 && Number(style.grid_weight ?? 0) === 1, `${style.grid_spacing}/${style.grid_opacity}/${style.grid_weight}`),
       semanticCheck('Trail Blueprint map grid present', snapshot.grid.mapExists === true, JSON.stringify(snapshot.grid)),
-      semanticCheck('Trail Blueprint does not inherit Blueprint drafting labels', snapshot.blueprintDrafting.topline === false && snapshot.blueprintDrafting.figure === false, JSON.stringify(snapshot.blueprintDrafting)),
+      semanticCheck('Trail Blueprint top drafting labels present', snapshot.blueprintDrafting.topline === true && snapshot.blueprintDrafting.figure === true, JSON.stringify(snapshot.blueprintDrafting)),
+      semanticCheck('Trail Blueprint labeled technical footer present', (snapshot.contractPresence?.testIdCounts?.['composition-technical-data-footer'] ?? 0) > 0 && (snapshot.contractPresence?.selectorCounts?.['.composition-technical-data-item'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence ?? {})),
     )
   }
 

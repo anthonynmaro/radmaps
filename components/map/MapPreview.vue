@@ -414,7 +414,7 @@
         data-testid="blueprint-drafting-topline"
         aria-hidden="true"
       >
-        <span>RADMAPS · SHEET A</span>
+        <span>{{ blueprintDraftingToplineLabel }}</span>
         <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '36.5785°N' }}</span>
       </div>
       <div
@@ -423,7 +423,7 @@
         data-testid="blueprint-drafting-figure"
         aria-hidden="true"
       >
-        FIG. 01 — ROUTE PLAN
+        {{ blueprintDraftingFigureLabel }}
       </div>
       <div
         v-if="isBlueprintDraftingTheme"
@@ -1646,6 +1646,20 @@
           <span>{{ risoMetaLabel }}</span>
           <span>{{ formattedDistance ? `${formattedDistance} mi` : compositionDecor.meta }}</span>
         </div>
+        <div
+          v-if="showTechnicalDataFooter"
+          class="composition-technical-data-footer"
+          data-testid="composition-technical-data-footer"
+        >
+          <div
+            v-for="item in technicalDataFooterItems"
+            :key="item.label"
+            class="composition-technical-data-item"
+          >
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        </div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -1656,7 +1670,7 @@
         />
 
         <!-- Stat blocks (left) -->
-        <div class="poster-stats" :style="posterStatsStyle">
+        <div v-if="!showTechnicalDataFooter" class="poster-stats" :style="posterStatsStyle">
           <div
             v-if="showDistanceSlot"
             class="stat-block editable-text"
@@ -1778,7 +1792,7 @@
         >{{ occasionText }}</p>
 
         <!-- RadMaps mark (right) -->
-        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible" class="poster-mark">
+        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible && !showTechnicalDataFooter" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
@@ -4545,13 +4559,44 @@ const chromeCoordinatesText = computed(() => {
   }
   return location || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
 })
+const technicalDataRegion = computed(() =>
+  locationLine.value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?.toUpperCase() || 'ROUTE',
+)
+const formattedTechnicalDate = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return formattedDateCompact.value || 'DATE'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10).replaceAll('-', '.')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${month}.${day}.${date.getUTCFullYear()}`
+})
+const showTechnicalDataFooter = computed(() => composition.value.id === 'blueprint-strava')
+const technicalDataFooterItems = computed(() => [
+  { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
+  { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
+  { label: 'Location', value: technicalDataRegion.value },
+  { label: 'Date', value: formattedTechnicalDate.value },
+])
+const blueprintDraftingToplineLabel = computed(() =>
+  composition.value.id === 'blueprint-strava'
+    ? `RADMAPS · ${technicalDataRegion.value}`
+    : 'RADMAPS · SHEET A',
+)
+const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
 const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
 const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
 const isBlueprintDraftingTheme = computed(() =>
-  composition.value.id === 'blueprint-grid' &&
-  (props.styleConfig.color_theme === 'blueprint' || props.styleConfig.color_theme === 'moonstone'),
+  (composition.value.id === 'blueprint-grid' &&
+    (props.styleConfig.color_theme === 'blueprint' || props.styleConfig.color_theme === 'moonstone')) ||
+  composition.value.id === 'blueprint-strava',
 )
 
 const compositionDecorDefaults = computed<CompositionDecor>(() => {
@@ -4602,10 +4647,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         meta: 'SHEET 01',
       }
     case 'blueprint-strava':
-      return {
-        kicker: 'ACTIVITY',
-        meta: date,
-      }
+      return {}
     case 'journal-spread':
       return {
         kicker: 'IX · MMXXVI — A field study',
@@ -10754,8 +10796,7 @@ onUnmounted(() => {
   display: none !important;
 }
 
-.poster-composition--blueprint-grid .poster-header,
-.poster-composition--blueprint-strava .poster-header {
+.poster-composition--blueprint-grid .poster-header {
   border-top: 1px solid color-mix(in srgb, currentColor 32%, transparent);
 }
 
@@ -10767,8 +10808,128 @@ onUnmounted(() => {
 
 .poster-composition--blueprint-strava .poster-trail-name {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
-  letter-spacing: 0.045em !important;
+  font-size: clamp(6.4cqh, var(--trail-title-size, 8.4cqh), 8.9cqh) !important;
+  font-weight: 900 !important;
+  line-height: 0.86 !important;
+  letter-spacing: 0.035em !important;
   text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava .poster-header {
+  border-top: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  align-items: flex-start !important;
+  gap: 0.62cqh !important;
+}
+
+.poster-composition--blueprint-strava .poster-location-line {
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.62cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: color-mix(in srgb, var(--label-text-color, currentColor) 68%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--blueprint-strava .poster-rule {
+  margin-bottom: 1.35cqh !important;
+  opacity: 0.42 !important;
+}
+
+.poster-composition--blueprint-strava [data-testid="poster-map"] {
+  border-color: color-mix(in srgb, var(--label-text-color, currentColor) 48%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, currentColor) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, currentColor) 10%, transparent) !important;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-topline,
+.poster-composition--blueprint-strava .blueprint-drafting-figure {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #ddf7ec) 70%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.12cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-topline {
+  left: 5.2cqw;
+  right: 5.2cqw;
+  top: 4.9cqh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-figure {
+  left: 6.9cqw;
+  top: 8.45cqh;
+}
+
+.poster-composition--blueprint-strava .blueprint-sheet-neatline {
+  display: none !important;
+}
+
+.poster-composition--blueprint-strava .logo-map,
+.poster-composition--blueprint-strava .logo-header-right,
+.poster-composition--blueprint-strava .poster-footer img {
+  display: none !important;
+}
+
+.poster-composition--blueprint-strava .poster-footer {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.composition-technical-data-footer {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 0.92fr 0.92fr 1.32fr 1.08fr;
+  column-gap: 1.25cqw;
+  align-items: end;
+  color: var(--label-text-color, currentColor);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.composition-technical-data-item {
+  min-width: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 36%, transparent);
+  padding-left: 1.25cqw;
+}
+
+.composition-technical-data-item:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.composition-technical-data-item span,
+.composition-technical-data-item strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.composition-technical-data-item span {
+  margin-bottom: 1.05cqh;
+  font-size: 1.05cqh;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+}
+
+.composition-technical-data-item strong {
+  font-size: clamp(1.45cqh, 1.82cqh, 2.04cqh);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name,
@@ -10781,7 +10942,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name {
-  font-size: min(var(--trail-title-size, 5.2cqh), 5.2cqh) !important;
+  font-size: clamp(7cqh, var(--trail-title-size, 8.2cqh), 8.8cqh) !important;
 }
 
 .composition-electric-trace {

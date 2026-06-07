@@ -73,20 +73,20 @@
   {
     "themeId": "blueprint-strava",
     "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["composition-map-grid-overlay"],
-    "requiredSelectors": [".poster-composition--blueprint-strava .poster-stats"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay", "blueprint-drafting-topline", "blueprint-drafting-figure", "composition-technical-data-footer"],
+    "requiredSelectors": [".composition-technical-data-item"],
     "requiredRouteLayers": ["route-line"],
-    "forbiddenTestIds": ["blueprint-drafting-topline", "blueprint-drafting-figure"]
+    "forbiddenSelectors": [".poster-composition--blueprint-strava .poster-stats"]
   },
   {
     "themeId": "electric-atlas",
     "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["composition-map-grid-overlay", "composition-electric-trace", "composition-electric-chip"],
-    "requiredSelectors": [".electric-trace-line", ".composition-electric-chip b"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
+    "requiredTestIds": ["composition-map-grid-overlay", "blueprint-drafting-topline", "blueprint-drafting-figure", "composition-technical-data-footer", "composition-electric-trace", "composition-electric-chip"],
+    "requiredSelectors": [".composition-technical-data-item", ".electric-trace-line", ".composition-electric-chip b"],
     "requiredRouteLayers": ["route-line-electric-glow-wide", "route-line-electric-pulse"],
-    "forbiddenTestIds": []
+    "forbiddenSelectors": [".poster-composition--blueprint-strava .poster-stats"]
   },
   {
     "themeId": "field-journal",

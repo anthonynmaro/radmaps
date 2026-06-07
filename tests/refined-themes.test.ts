@@ -482,7 +482,12 @@ describe('refined theme Phase 0 scaffolding', () => {
       '.electric-trace-line',
       '.composition-electric-chip b',
     ]))
-    expect(getThemeChromeContract('blueprint-strava')?.requiredSelectors).toContain('.poster-composition--blueprint-strava .poster-stats')
+    expect(getThemeChromeContract('blueprint-strava')?.requiredTestIds).toEqual(expect.arrayContaining([
+      'blueprint-drafting-topline',
+      'blueprint-drafting-figure',
+      'composition-technical-data-footer',
+    ]))
+    expect(getThemeChromeContract('blueprint-strava')?.requiredSelectors).toContain('.composition-technical-data-item')
     expect(getThemeChromeContract('plein-air')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-plein-air-deckle',
       'composition-plein-air-palette',

@@ -94,11 +94,13 @@ reference screenshot or spec contract.
   semantic (`104/104`). Blueprint drafting labels, map grid, neatline, technical
   footer cleanup, and etched route treatment now pass; lower map smoke is noted
   for fixture geometry review.
-- `blueprint-strava`: ready for Claude/human review. The live render was written
-  to `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
-  reported `94.9%` pixel, `97.4%` map, `89.8%` chrome, and `100.0%` semantic
-  (`103/103`). Review queue status is `ready-for-review`. The contour-density
-  assertion was corrected to match the restrained Trail Blueprint token.
+- `blueprint-strava`: Claude feedback remediation is ready for review. The live
+  render was regenerated at
+  `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
+  reported `92.8%` pixel, `98.4%` map, `83.5%` chrome, and `100.0%` semantic
+  (`109/109`). The print render now uses the map-first technical sheet, large
+  bottom BOSTON slab, FIG. 01 route-plan label, labeled data footer, and no
+  generic logo/stats band.
 - `electric-atlas`: ready for Claude/human review. The live render was written
   to `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
   reported `96.6%` pixel, `98.7%` map, `93.5%` chrome, and `100.0%` semantic
