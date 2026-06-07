@@ -100,6 +100,11 @@ reference screenshot or spec contract.
   to `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
   reported `96.6%` pixel, `98.7%` map, `93.5%` chrome, and `100.0%` semantic
   (`106/106`). Review queue status is `ready-for-review`.
+- `splits-stats`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/splits-stats.png`; capture
+  reported `87.6%` pixel, `100.0%` map, `87.6%` chrome, and `100.0%` semantic
+  (`104/104`). Review queue status is `ready-for-review`; chrome smoke is noted
+  for visual review.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.

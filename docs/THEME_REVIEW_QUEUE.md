@@ -21,7 +21,7 @@ Codex never marks a theme `approved`.
 | `moonstone` | `ready-for-review` | 100.0% (`102/102`) | `docs/theme_audit_output/poster-themes/print/moonstone.png` | Cool-paper blueprint colorway, map grid, and etched route treatment pass; watch low map smoke from fixture geometry. |
 | `blueprint-strava` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/blueprint-strava.png` | Technical data composition, map grid, restrained contours, and green GPX route pass; watch chrome smoke for data-band balance. |
 | `electric-atlas` | `ready-for-review` | 100.0% (`106/106`) | `docs/theme_audit_output/poster-themes/print/electric-atlas.png` | Neon technical map, magenta glow route, grid density, trace motif, and chip motif all pass. |
-| `splits-stats` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `splits-stats` | `ready-for-review` | 100.0% (`104/104`) | `docs/theme_audit_output/poster-themes/print/splits-stats.png` | Full-width dark map, elevation profile band, stats footer, and orange performance route layers pass; watch chrome smoke for data-band balance. |
 | `night-ride` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `dark-sky` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `copper-night` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 15
+- `ready-for-review`: 16
 - `blocked`: 0
-- `unchanged`: 12
+- `unchanged`: 11
