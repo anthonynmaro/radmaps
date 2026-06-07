@@ -233,7 +233,7 @@ export const THEME_SPEC_CONTRACTS: readonly ThemeSpecContract[] = [
     bodyFont: 'IBM Plex Sans',
     monoFont: 'IBM Plex Mono',
     caseBehavior: 'upper',
-    palette: { paper: '#0a0a12', ink: '#f4f4ff', sub: '#9a9ad0', line: '#3a3a66', accent: '#ff2e88', accent2: '#22e3ff', mapBg: '#0a0a12' },
+    palette: { paper: '#0a0a11', ink: '#b8b6f4', sub: '#8d8ad0', line: '#4a49a2', accent: '#fa498e', accent2: '#5fc3dd', mapBg: '#0a0a11' },
     mapStyleRequirements: ['vivid night-athletic map', 'neon data ticks'],
     routeStyleRequirements: ['electric magenta route', 'controlled glow', 'no random leader labels'],
     requiredLayoutFeatures: ['technical stats bar', 'Big Shoulders title'],

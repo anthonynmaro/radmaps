@@ -10939,10 +10939,22 @@ onUnmounted(() => {
   letter-spacing: 0.035em !important;
   line-height: 0.86 !important;
   text-transform: uppercase !important;
+  color: var(--route-color, #FA498E) !important;
 }
 
 .poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name {
   font-size: clamp(7cqh, var(--trail-title-size, 8.2cqh), 8.8cqh) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-location-line,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .blueprint-drafting-topline,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .blueprint-drafting-figure,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .composition-technical-data-item span {
+  color: color-mix(in srgb, var(--label-text-color, #B8B6F4) 82%, transparent) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .composition-technical-data-item strong {
+  color: #5FC3DD !important;
 }
 
 .composition-electric-trace {
@@ -10995,7 +11007,7 @@ onUnmounted(() => {
   min-width: 12cqw;
   padding: 0.58cqh 0.74cqw;
   pointer-events: none;
-  color: var(--label-text-color, #edf8ff);
+  color: var(--label-text-color, #B8B6F4);
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.68cqh;
   font-weight: 800;
@@ -11003,10 +11015,10 @@ onUnmounted(() => {
   text-transform: uppercase;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--water-color, #22e3ff) 28%, transparent) 0 1px, transparent 1px) 0 0 / 2.4cqw 100%,
-    color-mix(in srgb, var(--background-color, #060814) 74%, transparent);
+    color-mix(in srgb, var(--background-color, #0A0A11) 74%, transparent);
   border: 1px solid color-mix(in srgb, var(--water-color, #22e3ff) 48%, transparent);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--route-color, #ff2e88) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, #FA498E) 18%, transparent),
     0 0 1.6cqh color-mix(in srgb, var(--water-color, #22e3ff) 20%, transparent);
 }
 

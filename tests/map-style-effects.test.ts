@@ -1914,7 +1914,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'route-line-electric-glow-wide')?.paint?.['line-width']).toBe(14.2)
     expect(layerById(style, 'route-line-electric-glow-wide')?.paint?.['line-opacity']).toBe(0.162)
     expect(layerById(style, 'route-line-electric-glow-wide')?.paint?.['line-blur']).toBe(6)
-    expect(layerById(style, 'route-line-electric-glow-hot')?.paint?.['line-color']).toBe('#FF2E88')
+    expect(layerById(style, 'route-line-electric-glow-hot')?.paint?.['line-color']).toBe('#FA498E')
     expect(layerById(style, 'route-line-electric-glow-hot')?.paint?.['line-width']).toBe(8.8)
     expect(layerById(style, 'route-line-electric-glow-hot')?.paint?.['line-opacity']).toBe(0.324)
     expect(layerById(style, 'route-line-electric-glow-hot')?.paint?.['line-blur']).toBe(2.4)
@@ -1922,7 +1922,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'route-line-electric-offset')?.paint?.['line-width']).toBeCloseTo(3.05, 6)
     expect(layerById(style, 'route-line-electric-offset')?.paint?.['line-opacity']).toBe(0.522)
     expect(layerById(style, 'route-line-electric-offset')?.paint?.['line-translate']).toEqual([1.7, 1.2])
-    expect(layerById(style, 'route-line-electric-pulse')?.paint?.['line-color']).toBe('#EDF8FF')
+    expect(layerById(style, 'route-line-electric-pulse')?.paint?.['line-color']).toBe('#5FC3DD')
     expect(layerById(style, 'route-line-electric-pulse')?.paint?.['line-width']).toBe(1.2)
     expect(layerById(style, 'route-line-electric-pulse')?.paint?.['line-opacity']).toBe(0.648)
     expect(layerById(style, 'route-line-electric-pulse')?.paint?.['line-dasharray']).toEqual([0.5, 7.2])
@@ -1991,13 +1991,13 @@ describe('RadMaps Atlas style integration', () => {
       {
         id: 'electric-atlas',
         font: 'Big Shoulders Display',
-        route: '#FF2E88',
+        route: '#FA498E',
         routeWidth: 4.2,
         routeOpacity: 0.9,
         grain: 0.08,
-        gridOpacity: 0.12,
+        gridOpacity: 0.16,
         gridSpacing: 6,
-        land: '#0B101F',
+        land: '#0B0E1A',
         landOpacity: 0.96,
         park: '#10152C',
         parkOpacity: 0.20,
@@ -2005,10 +2005,10 @@ describe('RadMaps Atlas style integration', () => {
         waterOpacity: 0.50,
         waterway: '#182A56',
         waterwayOpacity: 0.34,
-        minorContour: '#34346E',
-        majorContour: '#5A5AB0',
-        minorOpacity: 0.34,
-        majorOpacity: 0.50,
+        minorContour: '#4A49A2',
+        majorContour: '#7772EA',
+        minorOpacity: 0.44,
+        majorOpacity: 0.62,
       },
     ] as const
 

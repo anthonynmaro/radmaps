@@ -1985,10 +1985,10 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Electric Atlas technical footer/data band present', footerVisible === true, `${footerVisible}`),
     )
     groups.palette.push(
-      semanticCheck('Electric Atlas ink background', String(style.background_color).toUpperCase() === '#060814', String(style.background_color ?? '')),
-      semanticCheck('Electric Atlas label background matches ink', String(style.label_bg_color).toUpperCase() === '#060814', String(style.label_bg_color ?? '')),
-      semanticCheck('Electric Atlas text is cold white', String(style.label_text_color).toUpperCase() === '#EDF8FF', String(style.label_text_color ?? '')),
-      semanticCheck('Electric Atlas route is electric magenta', String(style.route_color).toUpperCase() === '#FF2E88', String(style.route_color ?? '')),
+      semanticCheck('Electric Atlas ink background', String(style.background_color).toUpperCase() === '#0A0A11', String(style.background_color ?? '')),
+      semanticCheck('Electric Atlas label background matches ink', String(style.label_bg_color).toUpperCase() === '#0A0A11', String(style.label_bg_color ?? '')),
+      semanticCheck('Electric Atlas text is violet technical ink', String(style.label_text_color).toUpperCase() === '#B8B6F4', String(style.label_text_color ?? '')),
+      semanticCheck('Electric Atlas route is sampled electric magenta', String(style.route_color).toUpperCase() === '#FA498E', String(style.route_color ?? '')),
       semanticCheck('Electric Atlas grain configured', Number(style.tile_grain ?? 0) >= 0.06 && Number(style.tile_grain ?? 0) <= 0.10, String(style.tile_grain ?? '')),
     )
     groups.mapLayers.push(
@@ -1996,9 +1996,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Electric Atlas contours enabled', style.show_contours === true, String(style.show_contours)),
       semanticCheck('Electric Atlas roads and map labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Electric Atlas hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
-      semanticCheck('Electric Atlas neon land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#0B101F', JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Electric Atlas neon land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#0B0E1A', JSON.stringify(atlasLayerSettings.landcover ?? {})),
       semanticCheck('Electric Atlas neon water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#08172A', JSON.stringify(atlasLayerSettings.water ?? {})),
-      semanticCheck('Electric Atlas violet contour token configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#34346E' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#5A5AB0', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Electric Atlas violet contour token configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#4A49A2' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#7772EA', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Electric Atlas print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
@@ -2008,7 +2008,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.motifs.push(
       semanticCheck('Electric Atlas map grid present', snapshot.grid.mapExists === true && style.grid_scope === 'map', `${snapshot.grid.mapExists}/${style.grid_scope}`),
-      semanticCheck('Electric Atlas map grid density configured', Number(style.grid_spacing ?? 0) === 6 && Number(style.grid_opacity ?? 0) >= 0.10 && Number(style.grid_opacity ?? 0) <= 0.14, `${style.grid_spacing}/${style.grid_opacity}`),
+      semanticCheck('Electric Atlas map grid density configured', Number(style.grid_spacing ?? 0) === 6 && Number(style.grid_opacity ?? 0) >= 0.14 && Number(style.grid_opacity ?? 0) <= 0.18, `${style.grid_spacing}/${style.grid_opacity}`),
       semanticCheck('Electric Atlas trace motif present', (snapshot.contractPresence?.testIdCounts?.['composition-electric-trace'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Electric Atlas chip motif present', (snapshot.contractPresence?.testIdCounts?.['composition-electric-chip'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Electric Atlas neon trace lines present', (snapshot.contractPresence?.selectorCounts?.['.electric-trace-line'] ?? 0) >= 3, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),

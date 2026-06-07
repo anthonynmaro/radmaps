@@ -1292,7 +1292,7 @@ function routeLayers(config: StyleConfig) {
           source: 'route',
           layout: routeLayout,
           paint: {
-            'line-color': '#EDF8FF',
+            'line-color': '#5FC3DD',
             'line-width': 1.2,
             'line-opacity': Math.min(config.route_opacity * 0.72, 0.72),
             'line-dasharray': [0.5, 7.2],

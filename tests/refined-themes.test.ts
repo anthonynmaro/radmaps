@@ -722,7 +722,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(getRefinedThemeById('night-ride')?.map_defaults.trail_label_style).toBeUndefined()
     expect(getRefinedThemeById('daybreak-trace')?.font_family).toBe('Oswald')
     expect(getRefinedThemeById('electric-atlas')?.map_defaults.grid_spacing).toBe(6)
-    expect(getRefinedThemeById('electric-atlas')?.route_color).toBe('#FF2E88')
+    expect(getRefinedThemeById('electric-atlas')?.route_color).toBe('#FA498E')
   })
 
   it('registers the standalone review new-direction themes', () => {

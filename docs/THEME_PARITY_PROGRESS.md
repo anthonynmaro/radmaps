@@ -101,10 +101,12 @@ reference screenshot or spec contract.
   (`109/109`). The print render now uses the map-first technical sheet, large
   bottom BOSTON slab, FIG. 01 route-plan label, labeled data footer, and no
   generic logo/stats band.
-- `electric-atlas`: ready for Claude/human review. The live render was written
-  to `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
-  reported `96.6%` pixel, `98.7%` map, `93.5%` chrome, and `100.0%` semantic
-  (`106/106`). Review queue status is `ready-for-review`.
+- `electric-atlas`: Claude feedback remediation is ready for review. The live
+  render was regenerated at
+  `docs/theme_audit_output/poster-themes/print/electric-atlas.png`; capture
+  reported `93.7%` pixel, `97.2%` map, `91.2%` chrome, and `100.0%` semantic
+  (`113/113`). It now inherits the map-first data chrome and uses a magenta slab
+  title, cyan footer values, and stronger violet topo/grid treatment.
 - `splits-stats`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/splits-stats.png`; capture
   reported `87.6%` pixel, `100.0%` map, `87.6%` chrome, and `100.0%` semantic
