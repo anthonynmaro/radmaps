@@ -60,6 +60,11 @@ reference screenshot or spec contract.
   capture reported `86.4%` pixel, `44.7%` map, `87.8%` chrome, and `100.0%`
   semantic (`96/96`). Review queue status is `ready-for-review`; low map smoke
   is noted for visual review.
+- `editorial-minimal`: ready for Claude/human review. The live render was
+  written to `docs/theme_audit_output/poster-themes/print/editorial-minimal.png`;
+  capture reported `92.6%` pixel, `75.0%` map, `92.6%` chrome, and `100.0%`
+  semantic (`92/92`). Review queue status is `ready-for-review`; lower map smoke
+  is noted for visual review.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
