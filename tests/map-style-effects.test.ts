@@ -1202,28 +1202,30 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.show_place_labels).toBe(false)
     expect(config.show_hillshade).toBe(false)
     expect(config.show_grid).toBe(false)
+    expect(config.show_start_pin).toBe(true)
+    expect(config.show_finish_pin).toBe(true)
     expect(config.route_color).toBe('#9A3B27')
     expect(config.route_width).toBe(3.4)
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#F1EADD')
     expect(layerById(style, 'radmaps-simple-contour-landcover')?.paint?.['fill-color']).toBe('#F1EADD')
-    expect(layerById(style, 'radmaps-simple-contour-landcover')?.paint?.['fill-opacity']).toBe(0.96)
+    expect(layerById(style, 'radmaps-simple-contour-landcover')?.paint?.['fill-opacity']).toBe(0.98)
     expect(layerById(style, 'radmaps-simple-contour-water')?.paint?.['fill-color']).toBe('#D8DEE0')
-    expect(layerById(style, 'radmaps-simple-contour-water')?.paint?.['fill-opacity']).toBe(0.30)
+    expect(layerById(style, 'radmaps-simple-contour-water')?.paint?.['fill-opacity']).toBe(0.18)
     expect(layerById(style, 'radmaps-simple-contour-waterway')?.paint?.['line-color']).toBe('#B7C8CC')
-    expect(layerById(style, 'radmaps-simple-contour-waterway')?.paint?.['line-opacity']).toBe(0.34)
+    expect(layerById(style, 'radmaps-simple-contour-waterway')?.paint?.['line-opacity']).toBe(0.20)
     expect(layerById(style, 'radmaps-simple-contour-roads-major')).toBeUndefined()
     expect(layerById(style, 'radmaps-simple-contour-place-labels')).toBeUndefined()
     expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#D7CFC0')
     expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.28, 14, 0.28 * 0.9,
+      'interpolate', ['linear'], ['zoom'], 5, 0.16, 14, 0.16 * 0.9,
     ])
     expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.58 * 0.8, 14, 0.58,
+      'interpolate', ['linear'], ['zoom'], 5, 0.42 * 0.8, 14, 0.42,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#AFA28B')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.38)
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.24)
     expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.72, 14, 1.2,
+      'interpolate', ['linear'], ['zoom'], 5, 0.38 * 1.5, 14, 0.38 * 2.5,
     ])
   })
 

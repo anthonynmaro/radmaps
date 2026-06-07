@@ -60,11 +60,13 @@ reference screenshot or spec contract.
   capture reported `86.4%` pixel, `44.7%` map, `87.8%` chrome, and `100.0%`
   semantic (`96/96`). Review queue status is `ready-for-review`; low map smoke
   is noted for visual review.
-- `editorial-minimal`: ready for Claude/human review. The live render was
-  written to `docs/theme_audit_output/poster-themes/print/editorial-minimal.png`;
-  capture reported `92.6%` pixel, `75.0%` map, `92.6%` chrome, and `100.0%`
-  semantic (`92/92`). Review queue status is `ready-for-review`; lower map smoke
-  is noted for visual review.
+- `editorial-minimal`: Claude feedback remediation is ready for review. The
+  live render was regenerated at
+  `docs/theme_audit_output/poster-themes/print/editorial-minimal.png`; capture
+  reported `91.2%` pixel, `61.5%` map, `91.2%` chrome, and `100.0%` semantic
+  (`100/100`). The render now uses a bottom-left Playfair gallery title, hides
+  the generic stats footer/logo band, quiets the contour field, and shows square
+  route endpoint markers. Review queue status remains `ready-for-review`.
 - `contour-wash`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/contour-wash.png`; capture
   reported `89.1%` pixel, `92.5%` map, `100.0%` chrome, and `100.0%` semantic

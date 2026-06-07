@@ -2,8 +2,9 @@
   {
     "themeId": "editorial-minimal",
     "typography": { "titleFont": "Playfair Display", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
     "requiredRouteLayers": ["route-line-editorial-gallery-shadow", "route-line-editorial-ink-ridge"],
+    "requiredTestIds": ["pin-marker-start", "pin-marker-finish"],
     "forbiddenTestIds": ["composition-travel-sun", "composition-star-field", "composition-plate-frame"]
   },
   {

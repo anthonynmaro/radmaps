@@ -339,12 +339,16 @@ describe('refined theme Phase 0 scaffolding', () => {
 
   it('defines chrome and motif audit contracts for every parity theme', () => {
     const renderedLayoutOverrides = new Map<ColorTheme, { titlePosition: 'top' | 'bottom'; titleAlign: 'left' | 'center' }>([
+      ['editorial-minimal', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['usgs-vintage', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['classic-trail', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['cartouche-place', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['sea-chart', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['contour-wash', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['plein-air', { titlePosition: 'bottom', titleAlign: 'left' }],
+    ])
+    const renderedFooterOverrides = new Map<ColorTheme, 'standard' | 'compact' | 'data' | 'bib' | 'hidden'>([
+      ['editorial-minimal', 'hidden'],
     ])
     const renderedTitleCaseOverrides = new Map<ColorTheme, 'uppercase' | 'none'>([
       ['usgs-vintage', 'uppercase'],
@@ -373,7 +377,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       })
       expect(contract?.layout, entry.themeId).toEqual({
         ...expectedLayout,
-        footerVariant: composition.footerVariant,
+        footerVariant: renderedFooterOverrides.get(entry.themeId) ?? composition.footerVariant,
       })
 
       const requiredCount = [

@@ -1303,7 +1303,7 @@
           style="z-index: 14; overflow: visible; pointer-events: none;"
         >
           <!-- Pin labels with leader lines (labels are draggable) -->
-          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail'">
+          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail' && styleConfig.color_theme !== 'editorial-minimal'">
             <template v-for="pin in pinOverlayItems" :key="pin.id">
               <line
                 v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
@@ -7435,12 +7435,17 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
   const usgs = isUsgsHeritageTheme.value
-  const markerSize = usgs ? size * (kind === 'start' ? 0.92 : 1.04) : size
-  const radius = usgs && kind === 'start' ? '0' : '50%'
+  const editorial = props.styleConfig.color_theme === 'editorial-minimal'
+  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : size
+  const radius = editorial || (usgs && kind === 'start') ? '0' : '50%'
+  el.dataset.testid = `pin-marker-${kind}`
+  el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
     `width:${markerSize}px`, `height:${markerSize}px`, `border-radius:${radius}`,
     `background:${color}`, `opacity:${opacity}`,
-    usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
+    editorial
+      ? 'box-shadow:0 0 0 2px #F8F3EA'
+      : usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
   return el
@@ -11231,24 +11236,32 @@ onUnmounted(() => {
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] [data-testid="poster-map"] {
-  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--composition-paper, #F8F3EA) 62%, transparent),
-    inset 0 0 4.4cqh color-mix(in srgb, var(--water-color, #D8DEE0) 14%, transparent);
+  order: 0 !important;
+  flex: 0 0 72% !important;
+  height: 72% !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-header {
-  background:
-    linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent) 0 1px, transparent 1px) 6.8cqw 0 / 9.2cqw 100%,
-    var(--label-bg-color, #F8F3EA) !important;
+  order: 1 !important;
+  flex: 1 1 28% !important;
+  justify-content: flex-start !important;
+  gap: 1.15cqh !important;
+  padding: 3.2cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(4.6cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #F8F3EA) !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-kicker,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-rule {
+  display: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-trail-name,
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--title {
-  font-size: min(var(--trail-title-size, 5.5cqh), 6.1cqh) !important;
-  line-height: 0.94 !important;
-  max-width: 84cqw !important;
+  font-size: min(var(--trail-title-size, 6.8cqh), 7.2cqh) !important;
+  line-height: 0.92 !important;
+  max-width: 76cqw !important;
   text-wrap: balance;
 }
 
@@ -11259,10 +11272,14 @@ onUnmounted(() => {
   opacity: 0.52 !important;
 }
 
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-meta-line {
+  margin-top: 0.25cqh !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.46 !important;
+}
+
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer {
-  background:
-    linear-gradient(90deg, transparent 0 58%, color-mix(in srgb, currentColor 10%, transparent) 58% calc(58% + 1px), transparent calc(58% + 1px)),
-    var(--label-bg-color, #F8F3EA) !important;
+  display: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--stat::first-line {

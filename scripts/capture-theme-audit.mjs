@@ -858,6 +858,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       },
       canvas: {
         backgroundColor: canvasStyle?.backgroundColor ?? '',
+        composition: canvas?.getAttribute('data-composition') ?? '',
+        theme: canvas?.getAttribute('data-theme') ?? '',
         rect: canvasRect ? { width: canvasRect.width, height: canvasRect.height } : null,
       },
       map: {
@@ -1000,6 +1002,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('map band exists', Boolean(geometry.mapBox?.width && geometry.mapBox?.height), JSON.stringify(geometry.mapBox ?? {})),
       semanticCheck('manifest composition applied', style.composition === entry.composition, `${style.composition ?? ''} vs ${entry.composition}`),
       semanticCheck('theme id applied', style.color_theme === entry.themeId, `${style.color_theme ?? ''} vs ${entry.themeId}`),
+      semanticCheck('rendered composition id matches manifest', snapshot.canvas.composition === entry.composition, `${snapshot.canvas.composition ?? ''} vs ${entry.composition}`),
+      semanticCheck('rendered theme id matches manifest', snapshot.canvas.theme === entry.themeId, `${snapshot.canvas.theme ?? ''} vs ${entry.themeId}`),
       semanticCheck('title position matches contract', !expectedTitlePosition || renderedTitlePosition === expectedTitlePosition, `${renderedTitlePosition} vs ${expectedTitlePosition ?? 'n/a'}`),
       semanticCheck('title alignment matches contract', !expectedTitleAlign || renderedTitleAlign === expectedTitleAlign, `${renderedTitleAlign} vs ${expectedTitleAlign ?? 'n/a'}`),
       semanticCheck('footer visibility matches contract', !expectedFooterVariant || (expectedFooterVariant === 'hidden' ? !footerVisible : footerVisible), `${footerVisible ? 'visible' : 'hidden'} vs ${expectedFooterVariant ?? 'n/a'}`),
@@ -1095,7 +1099,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const atlasLayerSettings = style.atlas_layer_settings ?? {}
     groups.layout.push(
       semanticCheck('Editorial uses editorial-tall composition', style.composition === 'editorial-tall', String(style.composition ?? '')),
-      semanticCheck('Editorial map band is 64 percent of poster height', mapHeightRatio >= 0.635 && mapHeightRatio <= 0.665, mapHeightRatio.toFixed(3)),
+      semanticCheck('Editorial title renders in bottom gallery caption band', renderedTitlePosition === 'bottom', renderedTitlePosition),
+      semanticCheck('Editorial hides generic stats footer', footerVisible === false, `${footerVisible}`),
+      semanticCheck('Editorial map band leaves bottom caption space', mapHeightRatio >= 0.66 && mapHeightRatio <= 0.76, mapHeightRatio.toFixed(3)),
     )
     groups.typography.push(
       semanticCheck('Editorial title uses Playfair Display', snapshot.title.fontFamily.includes('Playfair Display'), snapshot.title.fontFamily),
@@ -1110,17 +1116,19 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.mapLayers.push(
       semanticCheck('Editorial uses owned contour map', style.preset === 'radmaps-simple-contour', String(style.preset ?? '')),
-      semanticCheck('Editorial contours enabled', style.show_contours === true, String(style.show_contours)),
+      semanticCheck('Editorial sparse contours enabled', style.show_contours === true && Number(style.contour_detail ?? 0) <= 1, `${style.show_contours}/${style.contour_detail}`),
       semanticCheck('Editorial roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Editorial hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Editorial warm land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#F1EADD' && String(atlasLayerSettings.landcover?.texture ?? '') === 'paper', JSON.stringify(atlasLayerSettings.landcover ?? {})),
       semanticCheck('Editorial water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#D8DEE0' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#B7C8CC', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
-      semanticCheck('Editorial contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#D7CFC0' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#AFA28B', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Editorial contour tokens are quiet gallery ink', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#D7CFC0' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#AFA28B' && Number(atlasLayerSettings.contour?.major_opacity ?? 1) <= 0.26, JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Editorial print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
       semanticCheck('Editorial gallery route layers present', ['route-line-editorial-gallery-shadow', 'route-line-editorial-paper-channel', 'route-line-editorial-ink-ridge', 'route-line-editorial-collector-cuts'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
       semanticCheck('Editorial route weight is gallery accent', Number(style.route_width ?? 0) >= 3.2 && Number(style.route_width ?? 0) <= 3.8, String(style.route_width ?? '')),
+      semanticCheck('Editorial square endpoint markers enabled', style.show_start_pin === true && style.show_finish_pin === true, `${style.show_start_pin}/${style.show_finish_pin}`),
+      semanticCheck('Editorial square endpoint markers render', (snapshot.contractPresence?.testIdCounts?.['pin-marker-start'] ?? 0) > 0 && (snapshot.contractPresence?.testIdCounts?.['pin-marker-finish'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Editorial poster grid disabled', style.show_grid === false, String(style.show_grid)),
     )
   }
