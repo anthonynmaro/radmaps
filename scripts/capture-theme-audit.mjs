@@ -511,13 +511,13 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'brutalist') {
-    const concrete = hexToRgb('#E4E0D7')
+    const concrete = hexToRgb('#E6E3DD')
     const orangeRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 210 && g > 35 && g < 95 && b < 45,
     )
     groups.palette.push(
-      semanticCheck('Brutalist poster dominant color is concrete', colorDistance(fullAverage, concrete) < 48, `${formatRgb(fullAverage)} vs #E4E0D7`),
-      semanticCheck('Brutalist map field remains concrete-toned', colorDistance(mapAverage, concrete) < 72, `${formatRgb(mapAverage)} vs #E4E0D7`),
+      semanticCheck('Brutalist poster dominant color is sampled concrete', colorDistance(fullAverage, concrete) < 48, `${formatRgb(fullAverage)} vs #E6E3DD`),
+      semanticCheck('Brutalist map field remains sampled concrete-toned', colorDistance(mapAverage, concrete) < 72, `${formatRgb(mapAverage)} vs #E6E3DD`),
     )
     groups.routeStyling.push(
       semanticCheck('Brutalist orange route visible', orangeRoutePixels > 180, `${orangeRoutePixels} pixels`),
@@ -1539,15 +1539,15 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Brutalist title is monumental', titleSizePx >= 58, `${titleSizePx}px`),
     )
     groups.palette.push(
-      semanticCheck('Brutalist concrete background', String(style.background_color).toUpperCase() === '#E4E0D7', String(style.background_color ?? '')),
-      semanticCheck('Brutalist route is orange', String(style.route_color).toUpperCase() === '#FF3B00', String(style.route_color ?? '')),
+      semanticCheck('Brutalist concrete background matches sampled target', String(style.background_color).toUpperCase() === '#E6E3DD', String(style.background_color ?? '')),
+      semanticCheck('Brutalist route is sampled orange', String(style.route_color).toUpperCase() === '#EA4B23', String(style.route_color ?? '')),
     )
     groups.mapLayers.push(
       semanticCheck('Brutalist uses owned toner map', style.preset === 'radmaps-toner-light', String(style.preset ?? '')),
       semanticCheck('Brutalist contours enabled', style.show_contours === true, String(style.show_contours)),
-      semanticCheck('Brutalist minor contours are pale concrete', String(style.contour_color).toUpperCase() === '#C2BFB5', String(style.contour_color ?? '')),
-      semanticCheck('Brutalist index contours are concrete graphite', String(style.contour_major_color).toUpperCase() === '#4C4740', String(style.contour_major_color ?? '')),
-      semanticCheck('Brutalist index contours are deliberate but not map-dominant', Number(style.contour_major_width ?? 0) >= 0.8 && Number(style.atlas_layer_settings?.contour?.major_opacity ?? 0) >= 0.38 && Number(style.atlas_layer_settings?.contour?.major_opacity ?? 0) <= 0.5, `${style.contour_major_width}/${style.atlas_layer_settings?.contour?.major_opacity}`),
+      semanticCheck('Brutalist minor contours are heavy graphite', String(style.contour_color).toUpperCase() === '#2D2D2A', String(style.contour_color ?? '')),
+      semanticCheck('Brutalist index contours are black', String(style.contour_major_color).toUpperCase() === '#010202', String(style.contour_major_color ?? '')),
+      semanticCheck('Brutalist contours are bold target weight', Number(style.contour_minor_width ?? 0) >= 1 && Number(style.contour_major_width ?? 0) >= 1.6 && Number(style.atlas_layer_settings?.contour?.major_opacity ?? 0) >= 0.78, `${style.contour_minor_width}/${style.contour_major_width}/${style.atlas_layer_settings?.contour?.major_opacity}`),
       semanticCheck('Brutalist roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
     )
     groups.routeStyling.push(
@@ -1559,7 +1559,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Brutalist baseline grid present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-baseline-grid'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Brutalist registration marks present', (snapshot.contractPresence?.testIdCounts?.['composition-brutalist-registration-marks'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Brutalist baseline grid is visible but restrained', snapshot.brutalistMotifs.baselineGrid === true && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') >= 0.12 && Number.parseFloat(snapshot.brutalistMotifs.baselineGridOpacity || '0') <= 0.22, JSON.stringify(snapshot.brutalistMotifs)),
-      semanticCheck('Brutalist registration marks have print contrast', snapshot.brutalistMotifs.registrationMarks === true && Number.parseFloat(snapshot.brutalistMotifs.registrationOpacity || '0') >= 0.30, JSON.stringify(snapshot.brutalistMotifs)),
+      semanticCheck('Brutalist registration marks have high print contrast', snapshot.brutalistMotifs.registrationMarks === true && Number.parseFloat(snapshot.brutalistMotifs.registrationOpacity || '0') >= 0.55, JSON.stringify(snapshot.brutalistMotifs)),
     )
   }
 

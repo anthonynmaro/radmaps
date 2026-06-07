@@ -722,7 +722,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(brutalist?.composition).toBe('brutalist-slab')
     expect(brutalist?.map_defaults.preset).toBe('radmaps-toner-light')
     expect(brutalist?.map_defaults.show_contours).toBe(true)
-    expect(brutalist?.map_defaults.contour_detail).toBe(3)
+    expect(brutalist?.map_defaults.contour_detail).toBe(4)
     expect(contourWash?.composition).toBe('art-wash')
     expect(contourWash?.map_defaults.preset).toBe('radmaps-contour-wash')
     expect(contourWash?.map_defaults.show_contours).toBe(true)

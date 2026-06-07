@@ -55,12 +55,12 @@ reference screenshot or spec contract.
   semantic (`105/105`). Sampled warm paper, the bolder fluoro-pink route, and
   visible blue misregistration offset now pass; low chrome smoke is still noted
   for Claude review.
-- `brutalist`: ready for Claude/human review after retrying capture on fresh
-  local port `3004` because the existing `3003` server stopped responding. The
-  live render was written to `docs/theme_audit_output/poster-themes/print/brutalist.png`;
-  capture reported `86.4%` pixel, `44.7%` map, `87.8%` chrome, and `100.0%`
-  semantic (`96/96`). Review queue status is `ready-for-review`; low map smoke
-  is noted for visual review.
+- `brutalist`: ready for Claude/human review. The live render was regenerated at
+  `docs/theme_audit_output/poster-themes/print/brutalist.png`; capture reported
+  `55.5%` pixel, `22.5%` map, `87.9%` chrome, and `100.0%` semantic (`98/98`).
+  Claude feedback is addressed with sampled concrete/black/orange tokens, heavy
+  black contour linework, visible plus-crosshair registration marks, and a
+  thicker map frame.
 - `editorial-minimal`: Claude feedback remediation is ready for review. The
   live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/editorial-minimal.png`; capture

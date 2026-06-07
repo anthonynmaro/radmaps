@@ -13198,16 +13198,16 @@ onUnmounted(() => {
 }
 
 .composition-brutalist-registration-marks {
-  opacity: 0.38;
+  opacity: 0.62;
   background:
-    linear-gradient(currentColor 0 0) left top / 5.2cqw 1px no-repeat,
-    linear-gradient(currentColor 0 0) left top / 1px 5.2cqw no-repeat,
-    linear-gradient(currentColor 0 0) right top / 5.2cqw 1px no-repeat,
-    linear-gradient(currentColor 0 0) right top / 1px 5.2cqw no-repeat,
-    linear-gradient(currentColor 0 0) left bottom / 5.2cqw 1px no-repeat,
-    linear-gradient(currentColor 0 0) left bottom / 1px 5.2cqw no-repeat,
-    linear-gradient(currentColor 0 0) right bottom / 5.2cqw 1px no-repeat,
-    linear-gradient(currentColor 0 0) right bottom / 1px 5.2cqw no-repeat;
+    linear-gradient(currentColor 0 0) left 3.8cqw top 5.2cqh / 7.6cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 7.6cqw top 1.4cqh / 2px 7.6cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 3.8cqw top 5.2cqh / 7.6cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 7.6cqw top 1.4cqh / 2px 7.6cqh no-repeat,
+    linear-gradient(currentColor 0 0) left 3.8cqw bottom 5.2cqh / 7.6cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 7.6cqw bottom 1.4cqh / 2px 7.6cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 3.8cqw bottom 5.2cqh / 7.6cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 7.6cqw bottom 1.4cqh / 2px 7.6cqh no-repeat;
 }
 
 .poster-composition--brutalist-slab .poster-header {
@@ -13293,13 +13293,13 @@ onUnmounted(() => {
   inset: 0;
   z-index: 13;
   pointer-events: none;
-  background: rgba(215, 211, 202, 0.42);
+  background: rgba(230, 227, 221, 0.16);
   mix-blend-mode: multiply;
   opacity: 1;
 }
 
 .poster-composition--brutalist-slab .maplibregl-canvas {
-  filter: brightness(0.93) contrast(0.96) sepia(0.16) saturate(0.62);
+  filter: brightness(0.96) contrast(1.28) sepia(0.08) saturate(0.72);
 }
 
 .poster-composition--brutalist-slab .poster-footer {

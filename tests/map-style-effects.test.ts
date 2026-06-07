@@ -2691,10 +2691,14 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.show_grid).toBe(false)
     expect(config.show_start_pin).toBe(false)
     expect(config.show_finish_pin).toBe(false)
-    expect(config.route_color).toBe('#FF3B00')
+    expect(config.route_color).toBe('#EA4B23')
     expect(config.route_width).toBe(5.2)
     expect(config.route_opacity).toBe(0.96)
-    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#D7D3CA')
+    expect(config.contour_detail).toBe(4)
+    expect(config.contour_opacity).toBe(0.52)
+    expect(config.contour_minor_width).toBe(1.08)
+    expect(config.contour_major_width).toBe(1.72)
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#E6E3DD')
     expect(layerById(style, 'radmaps-toner-light-landcover')).toBeUndefined()
     expect(layerById(style, 'radmaps-toner-light-water')).toBeUndefined()
     expect(layerById(style, 'radmaps-toner-light-waterway')).toBeUndefined()
@@ -2703,16 +2707,16 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-toner-light-roads-minor')).toBeUndefined()
     expect(layerById(style, 'radmaps-toner-light-place-labels')).toBeUndefined()
     expect(layerById(style, 'radmaps-toner-light-poi-labels')).toBeUndefined()
-    expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#C2BFB5')
+    expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#2D2D2A')
     expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.22, 14, 0.22 * 0.9,
+      'interpolate', ['linear'], ['zoom'], 5, 0.52, 14, 0.52 * 0.9,
     ])
     expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.62 * 0.8, 14, 0.62,
+      'interpolate', ['linear'], ['zoom'], 5, 1.08 * 0.8, 14, 1.08,
     ])
-    expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#4C4740')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.42)
-    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#FF3B00')
+    expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#010202')
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.82)
+    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#EA4B23')
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(5.2)
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.96)
   })

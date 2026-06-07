@@ -246,7 +246,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     headerPadding: 'calc(4.6cqh + var(--print-bleed, 0px)) calc(6.7cqw + var(--print-bleed, 0px)) 2.3cqh',
     footerPadding: '1.8cqh calc(6.7cqw + var(--print-bleed, 0px)) calc(2.4cqh + var(--print-bleed, 0px))',
     mapMargin: '0 6.7cqw',
-    mapBorder: '3px solid currentColor',
+    mapBorder: '5px solid currentColor',
     statsEmphasis: 'large',
   },
   'art-wash': {
