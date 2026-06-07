@@ -9,7 +9,7 @@ Codex never marks a theme `approved`.
 | `usgs-vintage` | `ready-for-review` | 100.0% (`115/115`) | `docs/theme_audit_output/poster-themes/print/usgs-vintage.png` | Full quad treatment is token-aligned; watch chrome pixel score because geometry differs, but semantic gate is clean. |
 | `classic-trail` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/classic-trail.png` | Slate park-quad colorway is aligned to the strengthened USGS contract; watch lower chrome score as non-gating geometry/chrome smoke only. |
 | `midcentury-travel` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/midcentury-travel.png` | Travel-banner tokens and sun motif pass; watch overall/chrome smoke score because screenshot balance may need vision review. |
-| `ranch-ochre` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `ranch-ochre` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/ranch-ochre.png` | Ochre travel-banner colorway inherits the parent motif and passes tokens; watch map/chrome smoke because the target terrain differs. |
 | `daybreak-trace` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `risograph` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `brutalist` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 3
+- `ready-for-review`: 4
 - `blocked`: 0
-- `unchanged`: 24
+- `unchanged`: 23
