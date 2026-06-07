@@ -12,6 +12,7 @@
           :map="map"
           :show-inspector="false"
           class="h-full w-full"
+          @done="dismissFixedTemplateEditor"
         />
       </main>
 
@@ -328,6 +329,7 @@ const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const selectedPosterElementId = ref<string | null>(null)
 const posterEditorMode = ref<PosterEditorMode>(parsePosterEditorMode(route.query.posterMode))
 const posterGuidesVisible = ref(false)
+const templateEditorDismissed = ref(false)
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
 const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
 const segmentDrawMode = ref<SegmentDrawMode | null>(null)
@@ -367,7 +369,7 @@ const posterElementsEditor = computed(() => {
 const fixedTemplateEditorActive = computed(() => {
   const queryValue = route.query.surfaceTemplateEditor ?? route.query.templateEditor
   const queryEnabled = queryValue === '1' || queryValue === 'true'
-  return posterElementsEditor.value && (posterTemplateEditorFlag.value || (import.meta.dev && queryEnabled))
+  return posterElementsEditor.value && !templateEditorDismissed.value && (posterTemplateEditorFlag.value || (import.meta.dev && queryEnabled))
 })
 const chromeDirectEdit = computed(() => {
   if (fixedTemplateEditorActive.value) return false
@@ -417,6 +419,10 @@ watch(() => route.query.posterMode, (mode) => {
   if (posterEditorMode.value === 'guides') posterGuidesVisible.value = true
 })
 
+watch(() => route.fullPath, () => {
+  templateEditorDismissed.value = false
+})
+
 function parsePosterEditorMode(value: unknown): PosterEditorMode {
   return value === 'select' || value === 'text' || value === 'image' || value === 'icon' || value === 'guides'
     ? value
@@ -443,6 +449,11 @@ function toggleSheet() {
   if (sheetState.value === 'closed') sheetState.value = 'half'
   else if (sheetState.value === 'half') sheetState.value = 'full'
   else sheetState.value = 'half'
+}
+
+function dismissFixedTemplateEditor() {
+  templateEditorDismissed.value = true
+  posterEditorMode.value = 'layout'
 }
 
 function onSwipeUp() {

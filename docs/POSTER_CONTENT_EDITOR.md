@@ -77,13 +77,27 @@ new theme/template.
 
 The June 4, 2026 theme pass reduced default composition gutters and spacer row
 fractions so the fixed 2:3 poster area feels deliberately designed rather than
-boxed inside excessive chrome. The whitespace is still represented as explicit
-spacer rows, which means themes can include it and users can remove or resize it.
+boxed inside excessive chrome. The June 5, 2026 typography pass then reviewed
+all 22 refined themes as a product set, upgraded display/body font pairings,
+restored mixed-case serif titles in the fixed-template path, aligned theme
+picker thumbnail typography, and tuned footer hierarchy by composition. A
+follow-up pass added the live owned/Beta Atlas map styles to the Quick tab as
+map-only themes, so the review surface includes the same RadMaps-hosted map
+directions available in the real editor's Map tab. The whitespace is still
+represented as explicit spacer rows, which means themes can include it and users
+can remove or resize it.
+
+The June 6, 2026 corrective pass locked the 27-theme design handoff inventory
+as the source of truth for labels, compositions, fonts, and owned Atlas map
+defaults. It also removed speculative non-editable overlay art from the poster
+renderer so theme character now comes from editable chrome, typography, palette,
+and live MapLibre/Atlas route styling rather than pasted-on static decoration.
 For the full theme review, see
 [docs/POSTER_THEME_REFINEMENT_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/POSTER_THEME_REFINEMENT_REVIEW.md).
 
-The refined registry now contains 22 recipes. The newest theme directions add
-more classical and expressive poster language:
+The refined registry now contains 27 renderable poster recipes. The newest
+theme directions add more classical, expressive, technical, and terrain-forward
+poster language:
 
 - `classic-trail`
 - `ranch-ochre`
@@ -93,8 +107,13 @@ more classical and expressive poster language:
 - `night-ride`
 - `daybreak-trace`
 - `electric-atlas`
+- `cartouche-place`
+- `sea-chart`
+- `relief-shaded`
+- `transit-diagram`
+- `plein-air`
 
-## Current Status - June 4, 2026
+## Current Status - June 6, 2026
 
 The fixed-template editor is the current control path for the poster content
 editor. It is not production-ready yet, but it is now the most credible path
@@ -130,7 +149,7 @@ Recent stabilization work:
 Current manual review URL:
 
 ```text
-http://localhost:3002/style-browser-fixture?surface=1&composition=travel-banner&theme=midcentury-travel&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820
+http://localhost:3003/style-browser-fixture?surface=1&composition=travel-banner&theme=midcentury-travel&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820
 ```
 
 Current quality bar:
@@ -138,18 +157,20 @@ Current quality bar:
 - The fixed 2:3 poster shape is preserved.
 - Header/footer blank areas are explicit spacer rows.
 - Inline text editing is direct on the poster.
+- Theme-owned text/chrome remains editable through the fixed-template path.
+- Refined themes use self-hosted local fonts for editor and Browserless render
+  parity; Google Fonts is not a runtime dependency.
 - Left-side selected controls can edit font, emphasis, alignment, duplicate,
   delete, row size, and column operations.
 - The existing right style panel remains responsible for theme, route, map,
   terrain, grid, typography, and text settings.
 - Browser tests cover map lock, edit/preview parity, footer slot hierarchy,
   deletion behavior, compact margins, and embedded style-surface mounting.
+- `npm run themes:capture-audit` captures all 27 poster themes and 11 owned
+  Atlas presets for visual review.
 
 Known gaps:
 
-- The footer stat strip is improved, but the theme set still needs a true visual
-  review pass across all 22 themes in both edit and preview mode. The current
-  tests protect hierarchy and behavior, not taste.
 - Image/logo and icon blocks are not yet integrated into the fixed-template
   editor path.
 - Drag-to-reorder rows/blocks and drag-beside-to-create-columns are still not
@@ -226,35 +247,31 @@ Resolved during implementation:
 
 ## Next Steps
 
-1. Do a design review pass on the fixed-template footer system.
-   Compare every refined theme in edit and preview mode, specifically checking
-   footer stat hierarchy, column rhythm, brand treatment, and whether the route
-   map still feels like the primary artwork.
-
-2. Add screenshot-based visual regression for approved theme templates.
-   Start with a smaller accepted set before snapshotting all 22 themes. Capture
+1. Add screenshot-based visual regression for approved theme templates.
+   Start with a smaller accepted set before snapshotting all 27 themes. Capture
    editor geometry and final-print geometry so edit mode cannot drift away from
    render output.
 
-3. Finish fixed-template structure interactions.
+2. Finish fixed-template structure interactions.
    Prioritize row delete, column delete, add column, independent top/bottom row
    resizing, and selected-control placement before adding more block types.
 
-4. Add image/logo and icon blocks.
+3. Add image/logo and icon blocks.
    Use the existing trusted upload flow for images/logos and the local SVG icon
    registry for icons. Do not introduce remote image URLs or raw HTML export.
 
-5. Build mobile editing as a separate focused pass.
+4. Build mobile editing as a separate focused pass.
    Use bottom sheets for Insert, Layers, Selected, and Style. Keep precise
    drag-to-column and row resizing desktop-only until they can be made genuinely
    good on touch.
 
-6. Run print-render smoke tests.
-   Generate proof/final smoke renders for a small approved theme set and inspect
-   route placement, zoom level, footer/header chrome, and 24x36 print pixel
-   output before promoting the editor path.
+5. Run print-render smoke tests.
+   Generate proof/final smoke renders for heritage, expressive, data-forward,
+   and atmospheric themes and inspect route placement, zoom level,
+   footer/header chrome, and 24x36 print pixel output before promoting the
+   editor path.
 
-7. Decide what to retire.
+6. Decide what to retire.
    Once the fixed-template editor is validated, retire or quarantine
    `layoutSpike=1`, `puckSpike=1`, and any old chrome-grid UI that no longer
    informs the production path.

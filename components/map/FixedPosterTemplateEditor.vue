@@ -196,7 +196,7 @@
 
     <main class="fixed-template-main">
       <header class="fixed-template-topbar">
-        <button class="fixed-template-done">Done</button>
+        <button class="fixed-template-done" data-testid="template-done" @click="emit('done')">Done</button>
         <div>
           <strong>Fixed Poster Template</strong>
           <span>Header and footer are editable. Map band is locked.</span>
@@ -409,6 +409,7 @@ defineExpose({
 
 const emit = defineEmits<{
   'update:modelValue': [value: StyleConfig]
+  'done': []
 }>()
 
 const draft = ref<PosterLayoutDraft>(posterLayoutToDraft(props.modelValue, props.map.stats))

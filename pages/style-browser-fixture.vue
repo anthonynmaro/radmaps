@@ -98,6 +98,9 @@ const preset = typeof route.query.preset === 'string'
 const region = typeof route.query.region === 'string'
   ? route.query.region
   : 'chicago'
+const routeShape = typeof route.query.routeShape === 'string'
+  ? route.query.routeShape
+  : region
 const gridScope = route.query.gridScope === 'map' || route.query.gridScope === 'poster'
   ? route.query.gridScope
   : undefined
@@ -119,10 +122,24 @@ const withAsset = route.query.asset === 'true' || route.query.asset === '1'
 const withIcon = route.query.icon === 'true' || route.query.icon === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
 const withElevationData = route.query.elevation === 'true' || route.query.elevation === '1'
+const withRoute = route.query.route !== 'false' && route.query.route !== '0'
+const hasFixtureRoadsOverride = hasQueryFlag(route.query.roads)
+const hasFixtureLabelsOverride = hasQueryFlag(route.query.labels)
+const hasFixturePoisOverride = hasQueryFlag(route.query.pois)
 const showFixtureRoads = queryFlag(route.query.roads, false)
 const showFixtureLabels = queryFlag(route.query.labels, false)
 const showFixturePois = queryFlag(route.query.pois, false)
 const fixtureTonerVariant = parseTonerVariant(route.query.tonerVariant)
+const fixtureTrailName = typeof route.query.title === 'string' ? route.query.title : undefined
+const fixtureLocationText = typeof route.query.location === 'string' ? route.query.location : undefined
+const fixtureOccasionText = typeof route.query.occasion === 'string' ? route.query.occasion : undefined
+const fixtureDistanceKm = typeof route.query.distanceKm === 'string'
+  ? Number.parseFloat(route.query.distanceKm)
+  : undefined
+const fixtureGainM = typeof route.query.gainM === 'string'
+  ? Number.parseFloat(route.query.gainM)
+  : undefined
+const fixtureDate = typeof route.query.date === 'string' ? route.query.date : undefined
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -287,17 +304,20 @@ const fixtureLayerSettings: StyleConfig['atlas_layer_settings'] = {
     : {}),
 }
 const fixtureQueryOverrides: Partial<StyleConfig> = {
-  show_roads: showFixtureRoads,
-  show_place_labels: showFixtureLabels,
-  show_poi_labels: showFixturePois,
+  ...(hasFixtureRoadsOverride ? { show_roads: showFixtureRoads } : {}),
+  ...(hasFixtureLabelsOverride ? { show_place_labels: showFixtureLabels } : {}),
+  ...(hasFixturePoisOverride ? { show_poi_labels: showFixturePois } : {}),
   ...(fixtureTonerVariant ? { toner_variant: fixtureTonerVariant } : {}),
   ...(showFixtureRoads ? { roads_opacity: 0.9 } : {}),
-  ...(hasFixtureLayerOverrides || fixturePresetIsRadMapsToner ? { atlas_layer_settings: fixtureLayerSettings } : {}),
+  ...(hasFixtureLayerOverrides ? { atlas_layer_settings: fixtureLayerSettings } : {}),
 }
 
 const styleConfig = ref<StyleConfig>({
   ...initialStyleConfig,
   ...fixtureQueryOverrides,
+  ...(fixtureTrailName ? { trail_name: fixtureTrailName } : {}),
+  ...(fixtureLocationText ? { location_text: fixtureLocationText } : {}),
+  ...(fixtureOccasionText ? { occasion_text: fixtureOccasionText } : {}),
 })
 const selectedPosterElementId = ref<string | null>(
   typeof route.query.selectedPosterElement === 'string' ? route.query.selectedPosterElement : null,
@@ -386,6 +406,10 @@ function queryFlag(value: unknown, fallback = false): boolean {
   return fallback
 }
 
+function hasQueryFlag(value: unknown): boolean {
+  return value === 'true' || value === '1' || value === 'false' || value === '0'
+}
+
 function parseTonerVariant(value: unknown): TonerVariant | undefined {
   return value === 'auto' || value === 'light' || value === 'dark' ? value : undefined
 }
@@ -448,6 +472,161 @@ const sampleRegions: Record<string, {
       [-87.628, 41.861],
       [-87.609, 41.875],
       [-87.592, 41.842],
+    ],
+  },
+  whitney: {
+    title: 'Mount Whitney',
+    location: 'Sierra Nevada, California · California',
+    bbox: [-118.37, 36.51, -118.17, 36.69],
+    route: [
+      [-118.333, 36.592],
+      [-118.315, 36.602],
+      [-118.295, 36.609],
+      [-118.280, 36.617],
+      [-118.268, 36.610],
+      [-118.276, 36.598],
+      [-118.284, 36.580],
+      [-118.276, 36.562],
+      [-118.254, 36.548],
+      [-118.226, 36.540],
+      [-118.202, 36.539],
+    ],
+  },
+  rainier: {
+    title: 'Wonderland',
+    location: 'Mount Rainier, Washington',
+    bbox: [-121.95, 46.72, -121.58, 46.98],
+    route: [
+      [-121.840, 46.802],
+      [-121.805, 46.828],
+      [-121.758, 46.858],
+      [-121.705, 46.890],
+      [-121.640, 46.918],
+      [-121.622, 46.900],
+      [-121.692, 46.870],
+      [-121.760, 46.840],
+      [-121.824, 46.770],
+    ],
+  },
+  'rainier-riso': {
+    title: 'Wonderland',
+    location: 'Mount Rainier, Washington',
+    bbox: [-121.95, 46.72, -121.58, 46.98],
+    route: [
+      [-121.840, 46.875],
+      [-121.780, 46.902],
+      [-121.685, 46.924],
+      [-121.624, 46.919],
+      [-121.646, 46.904],
+      [-121.756, 46.872],
+      [-121.838, 46.802],
+    ],
+  },
+  'whitney-blueprint': {
+    title: 'Mount Whitney',
+    location: 'Sierra Nevada, California',
+    bbox: [-118.34, 36.475, -118.215, 36.635],
+    route: [
+      [-118.350, 36.540],
+      [-118.338, 36.548],
+      [-118.322, 36.552],
+      [-118.305, 36.548],
+      [-118.288, 36.535],
+      [-118.272, 36.515],
+      [-118.260, 36.497],
+      [-118.254, 36.482],
+      [-118.249, 36.480],
+      [-118.245, 36.488],
+      [-118.247, 36.516],
+      [-118.250, 36.543],
+      [-118.247, 36.566],
+      [-118.240, 36.590],
+      [-118.257, 36.604],
+    ],
+  },
+  dolomites: {
+    title: 'Tre Cime',
+    location: 'Dolomiti, Italia',
+    bbox: [12.18, 46.54, 12.42, 46.72],
+    route: [
+      [12.217, 46.610],
+      [12.234, 46.642],
+      [12.250, 46.674],
+      [12.270, 46.690],
+      [12.294, 46.662],
+      [12.318, 46.625],
+      [12.348, 46.588],
+      [12.386, 46.602],
+      [12.350, 46.574],
+      [12.306, 46.562],
+      [12.282, 46.585],
+    ],
+  },
+  moab: {
+    title: 'Moab',
+    location: 'Sand Flats, Utah',
+    bbox: [-109.65, 38.49, -109.42, 38.66],
+    route: [
+      [-109.604, 38.548],
+      [-109.575, 38.568],
+      [-109.562, 38.602],
+      [-109.535, 38.628],
+      [-109.494, 38.618],
+      [-109.474, 38.586],
+      [-109.507, 38.556],
+      [-109.553, 38.535],
+    ],
+  },
+  napa: {
+    title: 'Napa Valley',
+    location: 'Calistoga · Napa · California',
+    bbox: [-122.68, 38.42, -122.34, 38.78],
+    route: [
+      [-122.618, 38.718],
+      [-122.570, 38.684],
+      [-122.540, 38.642],
+      [-122.497, 38.596],
+      [-122.470, 38.550],
+      [-122.438, 38.492],
+    ],
+  },
+  boston: {
+    title: 'Boston',
+    location: 'Boston, Massachusetts',
+    bbox: [-71.18, 42.27, -70.98, 42.40],
+    route: [
+      [-71.147, 42.360],
+      [-71.124, 42.372],
+      [-71.101, 42.352],
+      [-71.079, 42.364],
+      [-71.058, 42.342],
+      [-71.035, 42.352],
+      [-71.012, 42.323],
+    ],
+  },
+  scotland: {
+    title: 'The Cobbler',
+    location: 'Argyll, Scotland',
+    bbox: [-4.86, 56.15, -4.70, 56.29],
+    route: [
+      [-4.815, 56.182],
+      [-4.792, 56.197],
+      [-4.775, 56.218],
+      [-4.768, 56.242],
+      [-4.748, 56.263],
+      [-4.724, 56.254],
+    ],
+  },
+  cdmx: {
+    title: 'Centro Histórico',
+    location: 'Mexico City, Mexico',
+    bbox: [-99.158, 19.420, -99.115, 19.452],
+    route: [
+      [-99.151, 19.432],
+      [-99.144, 19.438],
+      [-99.136, 19.435],
+      [-99.130, 19.441],
+      [-99.123, 19.436],
     ],
   },
   banff: {
@@ -527,15 +706,17 @@ const sampleRegions: Record<string, {
 }
 
 const sampleRegion = sampleRegions[region] ?? sampleRegions.chicago
+const routeRegion = sampleRegions[routeShape] ?? sampleRegion
+const sampleMapBbox = routeRegion.bbox ?? sampleRegion.bbox
 if (region !== 'chicago') {
   styleConfig.value = {
     ...styleConfig.value,
-    trail_name: sampleRegion.title,
-    location_text: sampleRegion.location,
-    occasion_text: '',
+    trail_name: fixtureTrailName ?? sampleRegion.title,
+    location_text: fixtureLocationText ?? sampleRegion.location,
+    occasion_text: fixtureOccasionText ?? '',
   }
 }
-const sampleRoute = sampleRegion.route
+const sampleRoute = withRoute ? routeRegion.route : []
 const sampleRouteWithElevation = withElevationData
   ? densifyRoute(sampleRoute).map(([lng, lat], index) => [
       lng,
@@ -550,23 +731,28 @@ const sampleMap: TrailMap = {
   title: sampleRegion.title,
   geojson: {
     type: 'FeatureCollection',
-    features: [{
+    features: sampleRouteWithElevation.length > 1 ? [{
       type: 'Feature',
       properties: {},
       geometry: {
         type: 'LineString',
         coordinates: sampleRouteWithElevation,
       },
-    }],
+    }] : [],
   },
-  bbox: sampleRegion.bbox,
+  bbox: sampleMapBbox,
   stats: {
-    distance_km: 30.7,
-    elevation_gain_m: 1320,
+    distance_km: typeof fixtureDistanceKm === 'number' && Number.isFinite(fixtureDistanceKm)
+      ? fixtureDistanceKm
+      : 30.7,
+    elevation_gain_m: typeof fixtureGainM === 'number' && Number.isFinite(fixtureGainM)
+      ? fixtureGainM
+      : 1320,
     elevation_loss_m: 1280,
     min_elevation_m: 180,
     max_elevation_m: 390,
-    date: '2026-05-11',
+    duration_seconds: 14_832,
+    date: fixtureDate ?? '2026-05-11',
     location: sampleRegion.location,
   },
   style_config: initialStyleConfig,

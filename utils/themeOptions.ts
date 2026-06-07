@@ -3,6 +3,7 @@ import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
 import { REFINED_THEMES } from '~/utils/themes/refined'
+import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
 
 export type ThemeThumbProfile = {
   titlePosition: 'top' | 'bottom'
@@ -33,24 +34,29 @@ const THEME_THUMB: Record<string, ThemeThumbProfile> = {
   'mid-century':   { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '6px',   letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: '1.05' },
   'topo-art':      { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '5.5px', letterSpacing: '0.28em', textTransform: 'uppercase', lineHeight: '1.15' },
   'dark-sky':      { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: '1.0'  },
-  'editorial-minimal': { titlePosition: 'top', titleAlign: 'left', fontWeight: '400', fontSize: '7.4px', letterSpacing: '0', textTransform: 'none', lineHeight: '1.02' },
-  'usgs-vintage': { titlePosition: 'top', titleAlign: 'left', fontWeight: '500', fontSize: '6.8px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.02' },
-  'midcentury-travel': { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '700', fontSize: '7.4px', letterSpacing: '0.01em', textTransform: 'uppercase', lineHeight: '0.96' },
-  'blueprint-strava': { titlePosition: 'top', titleAlign: 'left', fontWeight: '800', fontSize: '6px', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: '0.98' },
-  'field-journal': { titlePosition: 'top', titleAlign: 'left', fontWeight: '400', fontSize: '7px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.02' },
-  'bold-modern': { titlePosition: 'bottom', titleAlign: 'left', fontWeight: '900', fontSize: '8px', letterSpacing: '0', textTransform: 'uppercase', lineHeight: '0.88' },
-  'contour-wash': { titlePosition: 'bottom', titleAlign: 'left', fontWeight: '800', fontSize: '7.2px', letterSpacing: '0', textTransform: 'uppercase', lineHeight: '0.92' },
-  'splits-stats': { titlePosition: 'top', titleAlign: 'left', fontWeight: '800', fontSize: '6px', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: '0.98' },
-  'marathon-bib': { titlePosition: 'top', titleAlign: 'center', fontWeight: '900', fontSize: '8px', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: '0.94' },
-  botanical: { titlePosition: 'top', titleAlign: 'center', fontWeight: '400', fontSize: '6.8px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.04' },
-  'classic-trail': { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.015em', textTransform: 'none',      lineHeight: '0.98' },
-  'ranch-ochre':   { titlePosition: 'top',    titleAlign: 'center', fontWeight: '600', fontSize: '8px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.95' },
-  blackline:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '900', fontSize: '9px',   letterSpacing: '0',       textTransform: 'uppercase', lineHeight: '0.86' },
-  'copper-night':  { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '7.5px', letterSpacing: '0.06em',  textTransform: 'uppercase', lineHeight: '0.98' },
-  moonstone:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.08em',  textTransform: 'uppercase', lineHeight: '1.02' },
-  'night-ride':    { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '800', fontSize: '7px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.96' },
-  'daybreak-trace': { titlePosition: 'top',   titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.01em',  textTransform: 'none',      lineHeight: '0.98' },
-  'electric-atlas': { titlePosition: 'bottom', titleAlign: 'left',  fontWeight: '800', fontSize: '6px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '0.98' },
+  'editorial-minimal': { titlePosition: 'top', titleAlign: 'left', fontWeight: '500', fontSize: '7.5px', letterSpacing: '0', textTransform: 'none', lineHeight: '1' },
+  'usgs-vintage': { titlePosition: 'top', titleAlign: 'left', fontWeight: '600', fontSize: '6.7px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.03' },
+  'midcentury-travel': { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '600', fontSize: '7.5px', letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: '0.98' },
+  'blueprint-strava': { titlePosition: 'top', titleAlign: 'left', fontWeight: '700', fontSize: '6.1px', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: '0.98' },
+  'field-journal': { titlePosition: 'top', titleAlign: 'left', fontWeight: '500', fontSize: '7.5px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '0.98' },
+  'bold-modern': { titlePosition: 'bottom', titleAlign: 'left', fontWeight: '900', fontSize: '9px', letterSpacing: '0.015em', textTransform: 'uppercase', lineHeight: '0.88' },
+  'contour-wash': { titlePosition: 'top', titleAlign: 'center', fontWeight: '500', fontSize: '5.6px', letterSpacing: '0.015em', textTransform: 'uppercase', lineHeight: '1.06' },
+  'splits-stats': { titlePosition: 'top', titleAlign: 'left', fontWeight: '700', fontSize: '6.2px', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: '0.98' },
+  'marathon-bib': { titlePosition: 'top', titleAlign: 'center', fontWeight: '400', fontSize: '9px', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: '0.9' },
+  botanical: { titlePosition: 'top', titleAlign: 'center', fontWeight: '500', fontSize: '7.2px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1' },
+  'classic-trail': { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '600', fontSize: '6.8px', letterSpacing: '0.01em', textTransform: 'none',      lineHeight: '1.02' },
+  'ranch-ochre':   { titlePosition: 'top',    titleAlign: 'center', fontWeight: '600', fontSize: '7.6px', letterSpacing: '0.07em',  textTransform: 'uppercase', lineHeight: '0.98' },
+  blackline:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '900', fontSize: '9.5px', letterSpacing: '0.01em',  textTransform: 'uppercase', lineHeight: '0.9' },
+  'copper-night':  { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '500', fontSize: '7.3px', letterSpacing: '0.02em',  textTransform: 'none',      lineHeight: '0.98' },
+  moonstone:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.04em',  textTransform: 'uppercase', lineHeight: '1.02' },
+  'night-ride':    { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '700', fontSize: '7.1px', letterSpacing: '0.06em',  textTransform: 'uppercase', lineHeight: '0.96' },
+  'daybreak-trace': { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '600', fontSize: '7.5px', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: '0.98' },
+  'electric-atlas': { titlePosition: 'bottom', titleAlign: 'left',  fontWeight: '900', fontSize: '8.2px', letterSpacing: '0.03em',  textTransform: 'uppercase', lineHeight: '0.92' },
+  'cartouche-place': { titlePosition: 'top', titleAlign: 'center', fontWeight: '500', fontSize: '7.4px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.02' },
+  'sea-chart': { titlePosition: 'top', titleAlign: 'left', fontWeight: '600', fontSize: '6.7px', letterSpacing: '0.015em', textTransform: 'none', lineHeight: '1.04' },
+  'relief-shaded': { titlePosition: 'top', titleAlign: 'left', fontWeight: '500', fontSize: '7.1px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.04' },
+  'transit-diagram': { titlePosition: 'bottom', titleAlign: 'left', fontWeight: '800', fontSize: '8px', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: '0.92' },
+  'plein-air': { titlePosition: 'top', titleAlign: 'center', fontWeight: '500', fontSize: '7.2px', letterSpacing: '0.01em', textTransform: 'none', lineHeight: '1.02' },
 }
 
 const DEFAULT_THEME_THUMB: ThemeThumbProfile = {
@@ -73,31 +79,36 @@ export const THEME_FONT_PREVIEW: Record<string, string> = {
   editorial:   "'Newsreader', serif",
   bauhaus:     "'IBM Plex Sans', sans-serif",
   vintage:     "'Source Serif 4', serif",
-  brutalist:   "'IBM Plex Sans', sans-serif",
-  risograph:   "'IBM Plex Sans', sans-serif",
-  blueprint:   "'IBM Plex Sans', sans-serif",
+  brutalist:   "'Bebas Neue', sans-serif",
+  risograph:   "'Big Shoulders Display', sans-serif",
+  blueprint:   "'Space Grotesk', sans-serif",
   kertok:      "'Work Sans', sans-serif",
   'mid-century': "'Oswald', sans-serif",
   'topo-art':  "'Work Sans', sans-serif",
   'dark-sky':  "'Fjalla One', sans-serif",
-  'editorial-minimal': "'Newsreader', serif",
-  'usgs-vintage': "'Source Serif 4', serif",
-  'midcentury-travel': "'IBM Plex Sans', sans-serif",
-  'blueprint-strava': "'IBM Plex Sans', sans-serif",
-  'field-journal': "'Newsreader', serif",
-  'bold-modern': "'IBM Plex Sans', sans-serif",
-  'contour-wash': "'IBM Plex Sans', sans-serif",
-  'splits-stats': "'IBM Plex Sans', sans-serif",
-  'marathon-bib': "'Atkinson Hyperlegible Next', sans-serif",
-  botanical: "'Newsreader', serif",
-  'classic-trail': "'Source Serif 4', serif",
-  'ranch-ochre': "'Source Sans 3', sans-serif",
-  blackline: "'IBM Plex Sans', sans-serif",
-  'copper-night': "'Newsreader', serif",
-  moonstone: "'IBM Plex Sans', sans-serif",
-  'night-ride': "'IBM Plex Sans', sans-serif",
-  'daybreak-trace': "'Newsreader', serif",
-  'electric-atlas': "'IBM Plex Sans', sans-serif",
+  'editorial-minimal': "'Playfair Display', serif",
+  'usgs-vintage': "'Libre Baskerville', serif",
+  'midcentury-travel': "'Oswald', sans-serif",
+  'blueprint-strava': "'Space Grotesk', sans-serif",
+  'field-journal': "'Cormorant Garamond', serif",
+  'bold-modern': "'Big Shoulders Display', sans-serif",
+  'contour-wash': "'Space Grotesk', sans-serif",
+  'splits-stats': "'Space Grotesk', sans-serif",
+  'marathon-bib': "'Bebas Neue', sans-serif",
+  botanical: "'Cormorant Garamond', serif",
+  'classic-trail': "'Libre Baskerville', serif",
+  'ranch-ochre': "'Oswald', sans-serif",
+  blackline: "'Big Shoulders Display', sans-serif",
+  'copper-night': "'Cormorant Garamond', serif",
+  moonstone: "'Space Grotesk', sans-serif",
+  'night-ride': "'Oswald', sans-serif",
+  'daybreak-trace': "'Oswald', sans-serif",
+  'cartouche-place': "'Playfair Display', serif",
+  'sea-chart': "'Libre Baskerville', serif",
+  'relief-shaded': "'Newsreader', serif",
+  'transit-diagram': "'Outfit', sans-serif",
+  'plein-air': "'Cormorant Garamond', serif",
+  'electric-atlas': "'Big Shoulders Display', sans-serif",
 }
 
 export const THEME_FONT_NAME: Record<string, string> = {
@@ -110,37 +121,70 @@ export const THEME_FONT_NAME: Record<string, string> = {
   editorial:   'Newsreader',
   bauhaus:     'IBM Plex Sans',
   vintage:     'Source Serif 4',
-  brutalist:   'IBM Plex Sans',
-  risograph:   'IBM Plex Sans',
-  blueprint:   'IBM Plex Sans',
+  brutalist:   'Bebas Neue',
+  risograph:   'Big Shoulders Display',
+  blueprint:   'Space Grotesk',
   kertok:      'Work Sans',
   'mid-century': 'Oswald',
   'topo-art':  'Work Sans',
   'dark-sky':  'Fjalla One',
-  'editorial-minimal': 'Newsreader',
-  'usgs-vintage': 'Source Serif 4',
-  'midcentury-travel': 'IBM Plex Sans',
-  'blueprint-strava': 'IBM Plex Sans',
-  'field-journal': 'Newsreader',
-  'bold-modern': 'IBM Plex Sans',
-  'contour-wash': 'IBM Plex Sans',
-  'splits-stats': 'IBM Plex Sans',
-  'marathon-bib': 'Atkinson Hyperlegible Next',
-  botanical: 'Newsreader',
-  'classic-trail': 'Source Serif 4',
-  'ranch-ochre': 'Source Sans 3',
-  blackline: 'IBM Plex Sans',
-  'copper-night': 'Newsreader',
-  moonstone: 'IBM Plex Sans',
-  'night-ride': 'IBM Plex Sans',
-  'daybreak-trace': 'Newsreader',
-  'electric-atlas': 'IBM Plex Sans',
+  'editorial-minimal': 'Playfair Display',
+  'usgs-vintage': 'Libre Baskerville',
+  'midcentury-travel': 'Oswald',
+  'blueprint-strava': 'Space Grotesk',
+  'field-journal': 'Cormorant Garamond',
+  'bold-modern': 'Big Shoulders Display',
+  'contour-wash': 'Space Grotesk',
+  'splits-stats': 'Space Grotesk',
+  'marathon-bib': 'Bebas Neue',
+  botanical: 'Cormorant Garamond',
+  'classic-trail': 'Libre Baskerville',
+  'ranch-ochre': 'Oswald',
+  blackline: 'Big Shoulders Display',
+  'copper-night': 'Cormorant Garamond',
+  moonstone: 'Space Grotesk',
+  'night-ride': 'Oswald',
+  'daybreak-trace': 'Oswald',
+  'cartouche-place': 'Playfair Display',
+  'sea-chart': 'Libre Baskerville',
+  'relief-shaded': 'Newsreader',
+  'transit-diagram': 'Outfit',
+  'plein-air': 'Cormorant Garamond',
+  'electric-atlas': 'Big Shoulders Display',
 }
 
 export const QUICK_THEME_OPTIONS: ThemeDefinition[] = [
   ...REFINED_THEMES,
   ...COLOR_THEMES.filter(theme => !theme.legacy && !REFINED_THEMES.some(refined => refined.id === theme.id)),
 ]
+
+export type ThemeOptionGroup = {
+  theme: ThemeDefinition
+  colorways: ThemeDefinition[]
+}
+
+export function groupThemeOptionsByColorway(options: ThemeDefinition[] = QUICK_THEME_OPTIONS): ThemeOptionGroup[] {
+  const byId = new Map(options.map(theme => [theme.id, theme]))
+  const colorwaysByParent = new Map<ColorTheme, ThemeDefinition[]>()
+  const groupedColorwayIds = new Set<ColorTheme>()
+
+  for (const theme of options) {
+    if (!theme.colorway_of || !byId.has(theme.colorway_of)) continue
+    const colorways = colorwaysByParent.get(theme.colorway_of) ?? []
+    colorways.push(theme)
+    colorwaysByParent.set(theme.colorway_of, colorways)
+    groupedColorwayIds.add(theme.id)
+  }
+
+  return options
+    .filter(theme => !groupedColorwayIds.has(theme.id))
+    .map(theme => ({
+      theme,
+      colorways: colorwaysByParent.get(theme.id) ?? [],
+    }))
+}
+
+export const QUICK_THEME_OPTION_GROUPS: ThemeOptionGroup[] = groupThemeOptionsByColorway(QUICK_THEME_OPTIONS)
 
 export const CLASSIC_THEME_OPTIONS: ThemeDefinition[] = COLOR_THEMES
 
@@ -158,7 +202,7 @@ export function getThemeThumbnailProfile(theme: ThemeDefinition, classic = false
     titleAlign: composition.titleAlign,
     fontWeight: theme.id === 'brutalist' || theme.id === 'marathon-bib' ? '900' : base.fontWeight,
     fontSize: theme.id === 'brutalist' || theme.id === 'bold-modern' ? '8px' : base.fontSize,
-    letterSpacing: theme.id === 'editorial-minimal' ? '0.02em' : base.letterSpacing,
+    letterSpacing: theme.id === 'editorial-minimal' ? '0' : base.letterSpacing,
     textTransform: theme.id === 'editorial-minimal' ? 'none' : base.textTransform,
     headerBackground: composition.headerBackground,
     footerBackground: 'label',
@@ -173,12 +217,16 @@ export function getThemeFontName(themeId: ColorTheme | string, theme?: ThemeDefi
   return THEME_FONT_NAME[themeId] ?? theme?.font_family ?? 'Work Sans'
 }
 
+export function showsRefinedThemeBadge(themeId: ColorTheme | string): boolean {
+  return isManifestRefinedTheme(themeId)
+}
+
 type ThemeContext = {
   stats?: Partial<RouteStats> | null
   geojson?: GeoJSON.FeatureCollection | null
 }
 
-const PLACE_THEME_PRIORITY: ColorTheme[] = ['editorial-minimal', 'usgs-vintage', 'risograph']
+const PLACE_THEME_PRIORITY: ColorTheme[] = ['cartouche-place', 'editorial-minimal', 'usgs-vintage']
 
 export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
   const base = JSON.parse(JSON.stringify(baseConfig)) as StyleConfig
@@ -196,20 +244,22 @@ export function priorityThemeIdsForMap(stats?: Partial<RouteStats> | null, geojs
   const distanceKm = stats?.distance_km ?? 0
 
   if (elevationGain >= 900 || activity.match(/hike|trail|mountain|alpine/)) {
-    return ['usgs-vintage', 'field-journal', 'contour-wash']
+    return ['relief-shaded', 'usgs-vintage', 'field-journal', 'contour-wash']
   }
 
   if (activity.match(/run|ride|cycling|bike|virtualride|walk|strava/) || distanceKm >= 30) {
-    return ['splits-stats', 'blueprint-strava', 'marathon-bib']
+    return ['splits-stats', 'blueprint-strava', 'marathon-bib', 'transit-diagram']
   }
 
-  return ['editorial-minimal', 'midcentury-travel', 'bold-modern']
+  return ['editorial-minimal', 'midcentury-travel', 'bold-modern', 'sea-chart', 'plein-air']
 }
 
 export function orderedQuickThemeOptionsForRoute(stats?: Partial<RouteStats> | null, geojson?: GeoJSON.FeatureCollection | null): ThemeDefinition[] {
-  const priority = new Set(priorityThemeIdsForMap(stats, geojson))
+  const priorityIds = priorityThemeIdsForMap(stats, geojson)
+  const priority = new Set(priorityIds)
+  const byId = new Map(QUICK_THEME_OPTIONS.map(theme => [theme.id, theme]))
   return [
-    ...QUICK_THEME_OPTIONS.filter(theme => priority.has(theme.id)),
+    ...priorityIds.map(id => byId.get(id)).filter((theme): theme is ThemeDefinition => Boolean(theme)),
     ...QUICK_THEME_OPTIONS.filter(theme => !priority.has(theme.id)),
   ]
 }
@@ -232,7 +282,7 @@ function hasRenderableLine(geojson?: GeoJSON.FeatureCollection | null): boolean 
 function mapRichPlaceConfig(config: StyleConfig): StyleConfig {
   const showContours = config.show_contours !== false
   const roadOpacity = config.dark ? 0.48 : 0.42
-  const roadColor = config.roads_color ?? config.contour_major_color ?? (config.dark ? '#7CB0E8' : '#9A8062')
+  const roadColor = config.contour_major_color ?? config.roads_color ?? (config.dark ? '#7CB0E8' : '#9A8062')
   const minorRoadColor = config.atlas_layer_settings?.transportation?.minor_color ?? config.contour_color ?? roadColor
   const trailColor = config.atlas_layer_settings?.transportation?.trail_color ?? config.label_text_color ?? roadColor
   const placeLabelOpacity = config.dark ? 0.68 : 0.64

@@ -68,7 +68,7 @@ const heightValue = computed(() => props.styleConfig.elevation_profile_height ??
 const relief = computed(() => clampNumber(props.styleConfig.elevation_profile_relief ?? 0.65, 0.35, 1))
 const bottomOpacity = computed(() => opacity.value >= 0.995 ? 1 : opacity.value * 0.18)
 const strokeWidth = 1.15
-const showLabels = computed(() => heightValue.value >= 14)
+const showLabels = computed(() => heightValue.value >= 14 && !profile.value?.synthetic)
 const rootClass = computed(() => placement.value === 'map-overlay'
   ? 'absolute bottom-0 inset-x-0'
   : 'relative w-full h-full')
@@ -81,7 +81,7 @@ const rootStyle = computed(() => ({
 }))
 
 const profile = computed(() =>
-  buildElevationProfile(props.map.geojson as GeoJSON.FeatureCollection, 250, relief.value),
+  buildElevationProfile(props.map.geojson as GeoJSON.FeatureCollection, 250, relief.value, true),
 )
 
 function fmtElev(m: number): string {

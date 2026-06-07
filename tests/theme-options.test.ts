@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { COLOR_THEMES, DEFAULT_STYLE_CONFIG, type StyleConfig } from '~/types'
 import {
+  QUICK_THEME_OPTION_GROUPS,
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
+  groupThemeOptionsByColorway,
   orderedQuickThemeOptionsForRoute,
   priorityThemeIdsForMap,
+  showsRefinedThemeBadge,
 } from '~/utils/themeOptions'
 import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
 
@@ -30,6 +33,36 @@ const PLACE_STATS = {
   min_elevation_m: 0,
 }
 
+const SPEC_POSTER_THEME_IDS = [
+  'editorial-minimal',
+  'usgs-vintage',
+  'classic-trail',
+  'midcentury-travel',
+  'ranch-ochre',
+  'daybreak-trace',
+  'risograph',
+  'blueprint',
+  'moonstone',
+  'blueprint-strava',
+  'electric-atlas',
+  'field-journal',
+  'botanical',
+  'bold-modern',
+  'blackline',
+  'contour-wash',
+  'splits-stats',
+  'night-ride',
+  'marathon-bib',
+  'dark-sky',
+  'copper-night',
+  'brutalist',
+  'cartouche-place',
+  'sea-chart',
+  'relief-shaded',
+  'transit-diagram',
+  'plein-air',
+]
+
 function config(patch: Partial<StyleConfig> = {}): StyleConfig {
   return {
     ...DEFAULT_STYLE_CONFIG,
@@ -51,6 +84,41 @@ describe('theme options', () => {
     ]
 
     expect(QUICK_THEME_OPTIONS.map(theme => theme.id)).toEqual(expectedIds)
+  })
+
+  it('exposes every design-spec poster recipe through Quick theme options', () => {
+    expect(QUICK_THEME_OPTIONS.map(theme => theme.id)).toEqual(expect.arrayContaining(SPEC_POSTER_THEME_IDS))
+  })
+
+  it('groups refined colorways under their parent theme without removing quick options', () => {
+    const groups = groupThemeOptionsByColorway(QUICK_THEME_OPTIONS)
+    const byParent = new Map(groups.map(group => [group.theme.id, group.colorways.map(theme => theme.id)]))
+
+    expect(groups).toEqual(QUICK_THEME_OPTION_GROUPS)
+    expect(QUICK_THEME_OPTIONS.map(theme => theme.id)).toEqual(expect.arrayContaining([
+      'classic-trail',
+      'ranch-ochre',
+      'daybreak-trace',
+      'blackline',
+      'moonstone',
+      'night-ride',
+      'copper-night',
+    ]))
+    expect(byParent.get('usgs-vintage')).toEqual(['classic-trail'])
+    expect(byParent.get('midcentury-travel')).toEqual(['ranch-ochre', 'daybreak-trace'])
+    expect(byParent.get('bold-modern')).toEqual(['blackline'])
+    expect(byParent.get('blueprint')).toEqual(['moonstone'])
+    expect(byParent.get('splits-stats')).toEqual(['night-ride'])
+    expect(byParent.get('dark-sky')).toEqual(['copper-night'])
+  })
+
+  it('drives the Refined picker badge from the manifest only', () => {
+    for (const themeId of SPEC_POSTER_THEME_IDS) {
+      expect(showsRefinedThemeBadge(themeId), themeId).toBe(true)
+    }
+
+    expect(showsRefinedThemeBadge('chalk')).toBe(false)
+    expect(showsRefinedThemeBadge('topaz')).toBe(false)
   })
 
   it('derives preview configs without mutating the base style config', () => {
@@ -78,37 +146,41 @@ describe('theme options', () => {
       'splits-stats',
       'blueprint-strava',
       'marathon-bib',
+      'transit-diagram',
     ])
 
     expect(priorityThemeIdsForMap({ distance_km: 9, elevation_gain_m: 1400, elevation_loss_m: 0, max_elevation_m: 0, min_elevation_m: 0 })).toEqual([
+      'relief-shaded',
       'usgs-vintage',
       'field-journal',
       'contour-wash',
     ])
 
-    expect(orderedQuickThemeOptionsForRoute({ distance_km: 5, elevation_gain_m: 80, elevation_loss_m: 0, max_elevation_m: 0, min_elevation_m: 0 }).slice(0, 3).map(theme => theme.id)).toEqual([
+    expect(orderedQuickThemeOptionsForRoute({ distance_km: 5, elevation_gain_m: 80, elevation_loss_m: 0, max_elevation_m: 0, min_elevation_m: 0 }).slice(0, 5).map(theme => theme.id)).toEqual([
       'editorial-minimal',
       'midcentury-travel',
       'bold-modern',
+      'sea-chart',
+      'plein-air',
     ])
   })
 
   it('prioritizes place-readable themes for point maps', () => {
     expect(priorityThemeIdsForMap(PLACE_STATS, POINT_GEOJSON)).toEqual([
+      'cartouche-place',
       'editorial-minimal',
       'usgs-vintage',
-      'risograph',
     ])
 
     expect(orderedQuickThemeOptionsForRoute(PLACE_STATS, POINT_GEOJSON).slice(0, 3).map(theme => theme.id)).toEqual([
+      'cartouche-place',
       'editorial-minimal',
       'usgs-vintage',
-      'risograph',
     ])
   })
 
   it('adds map context to place previews without forcing contours back on', () => {
-    const theme = getThemeDefinition('splits-stats')
+    const theme = getThemeDefinition('transit-diagram')
     expect(theme).toBeTruthy()
 
     const preview = deriveThemePreviewConfig(config(), theme!, {
@@ -142,8 +214,8 @@ describe('theme options', () => {
       geojson: POINT_GEOJSON,
     })
 
-    expect(preview.place_labels_color).toBe('#3A4A2A')
-    expect(preview.poi_labels_color).toBe('#3A4A2A')
-    expect(preview.atlas_layer_settings?.place?.label_color).toBe('#3A4A2A')
+    expect(preview.place_labels_color).toBe('#31442D')
+    expect(preview.poi_labels_color).toBe('#31442D')
+    expect(preview.atlas_layer_settings?.place?.label_color).toBe('#31442D')
   })
 })
