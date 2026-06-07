@@ -187,10 +187,10 @@ reference screenshot or spec contract.
   number, and fathoms metadata now pass.
 - `field-journal`: ready for Claude/human review. The spec-only queue rerun
   generated `docs/theme_audit_output/poster-themes/print/field-journal.png`;
-  capture reported `86.4%` pixel, `77.8%` map, `94.9%` chrome, and `100.0%`
-  semantic (`109/109`). The journal-spread composition, notebook notes/sketch
-  motifs, field-paper palette, drybrush route treatment, and contract typography
-  pass; remaining review is visual only.
+  capture reported `86.4%` pixel, `77.3%` map, `96.1%` chrome, and `100.0%`
+  semantic (`110/110`). Claude feedback is addressed: the generic stats footer
+  is hidden, the ruled notes and tipped-in plate treatment are stronger, and the
+  drybrush route/specimen caption now pass.
 - `transit-diagram`: Claude feedback remediation is ready for review. The
   spec-only capture regenerated
   `docs/theme_audit_output/poster-themes/print/transit-diagram.png`; capture

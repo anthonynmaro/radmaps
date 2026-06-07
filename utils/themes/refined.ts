@@ -454,8 +454,8 @@ const REFINED_THEME_RECIPES = [
       show_hillshade: false,
       show_contours: true,
       contour_detail: 5,
-      route_width: 3.35,
-      route_opacity: 0.94,
+      route_width: 3.85,
+      route_opacity: 0.98,
       tile_effect: 'layer-color',
       show_grid: false,
       atlas_layers: {

@@ -91,7 +91,7 @@
   {
     "themeId": "field-journal",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
+    "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-journal-notes", "composition-journal-route-sketch", "composition-journal-tape"],
     "requiredSelectors": [".journal-note-rule", ".journal-specimen-tag", ".journal-tape-strip"],
     "requiredRouteLayers": ["route-line-journal-wash", "route-line-journal-drybrush"]

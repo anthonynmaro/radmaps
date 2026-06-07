@@ -1124,9 +1124,9 @@ function routeLayers(config: StyleConfig) {
           layout: routeLayout,
           paint: {
             'line-color': '#A17B4D',
-            'line-width': config.route_width + 3.6,
-            'line-opacity': Math.min(config.route_opacity * 0.20, 0.22),
-            'line-blur': 2.2,
+            'line-width': config.route_width + 4.1,
+            'line-opacity': Math.min(config.route_opacity * 0.28, 0.30),
+            'line-blur': 1.7,
             'line-translate': [1.3, 1.1],
           },
         }, ROUTE_SCALE_PROPERTIES),
@@ -1137,8 +1137,8 @@ function routeLayers(config: StyleConfig) {
           layout: routeLayout,
           paint: {
             'line-color': config.route_color,
-            'line-width': Math.max(1, config.route_width - 0.35),
-            'line-opacity': Math.min(config.route_opacity * 0.54, 0.56),
+            'line-width': Math.max(1, config.route_width - 0.25),
+            'line-opacity': Math.min(config.route_opacity * 0.78, 0.80),
             'line-dasharray': [1.25, 0.52],
             'line-translate': [-0.8, 0.7],
           },

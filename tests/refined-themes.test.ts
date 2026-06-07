@@ -355,6 +355,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       ['dark-sky', 'compact'],
       ['copper-night', 'compact'],
       ['relief-shaded', 'standard'],
+      ['field-journal', 'hidden'],
     ])
     const renderedTitleCaseOverrides = new Map<ColorTheme, 'uppercase' | 'none'>([
       ['usgs-vintage', 'uppercase'],

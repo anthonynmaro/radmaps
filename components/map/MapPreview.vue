@@ -11934,11 +11934,11 @@ onUnmounted(() => {
 
 .poster-composition--journal-spread [data-testid="poster-map"] {
   margin: 0 calc(27cqw + var(--print-bleed, 0px)) 0 calc(6.4cqw + var(--print-bleed, 0px)) !important;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent) !important;
+  border: 1.5px solid color-mix(in srgb, currentColor 34%, transparent) !important;
   overflow: visible !important;
   box-shadow:
-    0 0 0 0.9cqw color-mix(in srgb, var(--composition-paper, #e8ded0) 52%, transparent),
-    0 1.1cqh 2.6cqh rgba(45, 36, 25, 0.14) !important;
+    0 0 0 1.05cqw color-mix(in srgb, var(--composition-paper, #e8ded0) 62%, transparent),
+    0 1.25cqh 2.8cqh rgba(45, 36, 25, 0.18) !important;
   transform: rotate(-0.45deg);
   transform-origin: center;
 }
@@ -11951,7 +11951,7 @@ onUnmounted(() => {
   width: 19cqw;
   height: 24cqh;
   pointer-events: none;
-  color: color-mix(in srgb, var(--label-text-color, #362616) 78%, transparent);
+  color: color-mix(in srgb, var(--label-text-color, #362616) 92%, transparent);
   font-family: "Source Serif 4", "Cormorant Garamond", serif;
   font-size: 1.18cqh;
   letter-spacing: 0.05em;
@@ -11971,10 +11971,10 @@ onUnmounted(() => {
 .journal-note-rule {
   display: block;
   height: 4.2cqh;
-  border-top: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 38%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 58%, transparent);
   background:
     linear-gradient(90deg, color-mix(in srgb, currentColor 28%, transparent) 0 0.5cqw, transparent 0.5cqw) 0 1.4cqh / 4.4cqw 1px no-repeat;
-  opacity: 0.88;
+  opacity: 1;
 }
 
 .journal-note-rule--short {
@@ -12038,7 +12038,7 @@ onUnmounted(() => {
   background:
     linear-gradient(90deg, color-mix(in srgb, #fff 34%, transparent), transparent 22% 78%, color-mix(in srgb, #6a4a2a 12%, transparent)),
     color-mix(in srgb, #d6c39a 64%, var(--composition-paper, #e8ded0) 36%);
-  opacity: 0.76;
+  opacity: 0.9;
   mix-blend-mode: multiply;
   box-shadow: 0 0.25cqh 0.8cqh rgba(45, 36, 25, 0.12);
 }
@@ -12057,6 +12057,16 @@ onUnmounted(() => {
 
 .poster-composition--journal-spread .poster-header {
   padding-right: calc(27cqw + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--journal-spread[data-theme="field-journal"] .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--journal-spread[data-theme="field-journal"] [data-testid="poster-map"] {
+  flex: 0 0 76% !important;
+  height: 76% !important;
+  margin-bottom: calc(4cqh + var(--print-bleed, 0px)) !important;
 }
 
 .poster-composition--journal-spread .poster-trail-name {

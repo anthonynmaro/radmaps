@@ -1659,6 +1659,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Field Journal journal-spread composition active', style.composition === 'journal-spread', String(style.composition ?? '')),
+      semanticCheck('Field Journal generic stats footer hidden', footerVisible === false, `${footerVisible}`),
       semanticCheck('Field Journal map leaves right margin notes column', mapHeightRatio > 0.62 && mapHeightRatio < 0.82, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
@@ -1683,7 +1684,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.routeStyling.push(
       semanticCheck('Field Journal print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
       semanticCheck('Field Journal route is exact brown token', String(style.route_color).toUpperCase() === '#6A4A2A', String(style.route_color ?? '')),
-      semanticCheck('Field Journal route has ink sketch weight', Number(style.route_width ?? 0) >= 3 && Number(style.route_width ?? 0) <= 3.8, String(style.route_width ?? '')),
+      semanticCheck('Field Journal route has stronger ink sketch weight', Number(style.route_width ?? 0) >= 3.6 && Number(style.route_width ?? 0) <= 4.1, String(style.route_width ?? '')),
       semanticCheck('Field Journal route remains mostly opaque', Number(style.route_opacity ?? 0) >= 0.9, String(style.route_opacity ?? '')),
       semanticCheck('Field Journal endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
       semanticCheck('Field Journal drybrush route layers present', ['route-line-journal-wash', 'route-line-journal-drybrush'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
@@ -1692,7 +1693,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Field Journal ruled notes present', (snapshot.contractPresence?.testIdCounts?.['composition-journal-notes'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Field Journal route specimen tag present', (snapshot.contractPresence?.testIdCounts?.['composition-journal-route-sketch'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Field Journal tipped-in tape present', (snapshot.contractPresence?.testIdCounts?.['composition-journal-tape'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
-      semanticCheck('Field Journal note rules present', (snapshot.contractPresence?.selectorCounts?.['.journal-note-rule'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Field Journal ruled notes are dense enough', (snapshot.contractPresence?.selectorCounts?.['.journal-note-rule'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Field Journal specimen tag selector present', (snapshot.contractPresence?.selectorCounts?.['.journal-specimen-tag'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Field Journal tape strip selector present', (snapshot.contractPresence?.selectorCounts?.['.journal-tape-strip'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )
