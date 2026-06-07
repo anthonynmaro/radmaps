@@ -26,7 +26,7 @@ Codex never marks a theme `approved`.
 | `dark-sky` | `ready-for-review` | 100.0% (`100/100`) | `docs/theme_audit_output/poster-themes/print/dark-sky.png` | Star field, ridge motif, dark relief tokens, and gold route treatment pass; watch atmosphere against target. |
 | `copper-night` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/copper-night.png` | Copper dark-sky colorway, ridge/star motif, and warm route tokens pass; watch lower map smoke against target. |
 | `marathon-bib` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/marathon-bib.png` | Bib paper, ghost numeral motif, race collar, red route, and map tokens pass; watch low map smoke from fixture mismatch. |
-| `botanical` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `botanical` | `ready-for-review` | 100.0% (`101/101`) | `docs/theme_audit_output/poster-themes/print/botanical.png` | Plate frame, ornamental corners, specimen caption, natural map tokens, and green route treatment pass. |
 | `relief-shaded` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `cartouche-place` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `sea-chart` | `unchanged` | n/a | n/a | Already near-ready from previous checkpoint; will rerun only if queue/shared changes affect it. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 20
+- `ready-for-review`: 21
 - `blocked`: 0
-- `unchanged`: 7
+- `unchanged`: 6
