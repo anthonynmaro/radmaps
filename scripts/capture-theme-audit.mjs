@@ -599,12 +599,12 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'contour-wash') {
-    const field = hexToRgb('#9AA7A2')
+    const field = hexToRgb('#EBE9E6')
     const washRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
-      r > 35 && r < 75 && g > 40 && g < 80 && b > 40 && b < 85,
+      r > 12 && r < 55 && g > 12 && g < 55 && b > 10 && b < 55,
     )
     groups.palette.push(
-      semanticCheck('Contour Wash poster dominant color is soft contour field', colorDistance(fullAverage, field) < 42, `${formatRgb(fullAverage)} vs #9AA7A2`),
+      semanticCheck('Contour Wash poster dominant color is pale near-white wash', colorDistance(fullAverage, field) < 42, `${formatRgb(fullAverage)} vs #EBE9E6`),
     )
     groups.routeStyling.push(
       semanticCheck('Contour Wash visible charcoal route pixels', washRoutePixels > 120, `${washRoutePixels} pixels`),
@@ -2067,12 +2067,14 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.layout.push(
       semanticCheck('Contour Wash uses quiet art-wash composition', style.composition === 'art-wash', String(style.composition ?? '')),
       semanticCheck('Contour Wash footer remains hidden', footerVisible === false, `${footerVisible}`),
+      semanticCheck('Contour Wash titleblock is transparent, not a card', isTransparentCssColor(snapshot.header.backgroundColor), String(snapshot.header.backgroundColor ?? '')),
+      semanticCheck('Contour Wash titleblock has no shadow card', String(snapshot.header.boxShadow ?? '').toLowerCase() === 'none', String(snapshot.header.boxShadow ?? '')),
     )
     groups.palette.push(
-      semanticCheck('Contour Wash soft paper background', String(style.background_color).toUpperCase() === '#ECEAE6', String(style.background_color ?? '')),
-      semanticCheck('Contour Wash label background matches paper', String(style.label_bg_color).toUpperCase() === '#ECEAE6', String(style.label_bg_color ?? '')),
-      semanticCheck('Contour Wash text is charcoal', String(style.label_text_color).toUpperCase() === '#2B2A28', String(style.label_text_color ?? '')),
-      semanticCheck('Contour Wash route is charcoal', String(style.route_color).toUpperCase() === '#303538', String(style.route_color ?? '')),
+      semanticCheck('Contour Wash soft paper background matches sampled target', String(style.background_color).toUpperCase() === '#EBE9E6', String(style.background_color ?? '')),
+      semanticCheck('Contour Wash label background matches sampled paper', String(style.label_bg_color).toUpperCase() === '#EBE9E6', String(style.label_bg_color ?? '')),
+      semanticCheck('Contour Wash text is sampled charcoal', String(style.label_text_color).toUpperCase() === '#151412', String(style.label_text_color ?? '')),
+      semanticCheck('Contour Wash route is sampled charcoal', String(style.route_color).toUpperCase() === '#151412', String(style.route_color ?? '')),
       semanticCheck('Contour Wash paper grain configured', Number(style.tile_grain ?? 0) >= 0.06 && Number(style.tile_grain ?? 0) <= 0.10, String(style.tile_grain ?? '')),
     )
     groups.mapLayers.push(
@@ -2081,9 +2083,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Contour Wash roads and map labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Contour Wash hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Contour Wash grid disabled', style.show_grid === false, String(style.show_grid)),
-      semanticCheck('Contour Wash land wash token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#ECEAE6' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.94, JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Contour Wash water wash token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#C9D6D3' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#AEBBB7', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
-      semanticCheck('Contour Wash broad contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#A9B5B1' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#758A85', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Contour Wash pale land wash token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#EBE9E6' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.98, JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Contour Wash near-white water wash token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#F2F3EF' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#D5D2CA', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
+      semanticCheck('Contour Wash fine echo contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#C7C3BB' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#7A756E' && Number(atlasLayerSettings.contour?.minor_width ?? 0) <= 1.4, JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Contour Wash print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),

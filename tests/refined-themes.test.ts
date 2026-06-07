@@ -726,7 +726,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(contourWash?.composition).toBe('art-wash')
     expect(contourWash?.map_defaults.preset).toBe('radmaps-contour-wash')
     expect(contourWash?.map_defaults.show_contours).toBe(true)
-    expect(contourWash?.route_color).toBe('#303538')
+    expect(contourWash?.route_color).toBe('#151412')
   })
 
   it('registers the expanded classical and expressive theme recipes', () => {

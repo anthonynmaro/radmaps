@@ -13001,7 +13001,54 @@ onUnmounted(() => {
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] .poster-header {
-  box-shadow: 0 0.8cqh 3cqh rgba(0, 0, 0, 0.08);
+  bottom: calc(6.9cqh + var(--print-bleed, 0px));
+  padding: 0.65cqh 2.2cqw 0.85cqh !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-header::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--label-text-color, #151412) 28%, transparent);
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"] {
+  background: #ebe9e6 !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0.28;
+  mix-blend-mode: multiply;
+  background:
+    radial-gradient(ellipse at 18% 22%, transparent 0 12%, rgba(21, 20, 18, 0.18) 12.18% 12.32%, transparent 12.6% 18%, rgba(21, 20, 18, 0.12) 18.18% 18.3%, transparent 18.6%),
+    radial-gradient(ellipse at 72% 18%, transparent 0 10%, rgba(21, 20, 18, 0.16) 10.18% 10.32%, transparent 10.6% 16%, rgba(21, 20, 18, 0.10) 16.18% 16.3%, transparent 16.6%),
+    radial-gradient(ellipse at 42% 58%, transparent 0 14%, rgba(21, 20, 18, 0.16) 14.18% 14.32%, transparent 14.6% 21%, rgba(21, 20, 18, 0.10) 21.18% 21.3%, transparent 21.6%),
+    radial-gradient(ellipse at 82% 76%, transparent 0 12%, rgba(21, 20, 18, 0.14) 12.18% 12.32%, transparent 12.6% 18%, rgba(21, 20, 18, 0.09) 18.18% 18.3%, transparent 18.6%);
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background: rgba(235, 233, 230, 0.78);
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .maplibregl-canvas {
+  filter: grayscale(1) brightness(2.28) contrast(0.34) saturate(0.02);
+  opacity: 0.62;
 }
 
 .poster-composition--art-wash[data-theme="plein-air"] .poster-header {

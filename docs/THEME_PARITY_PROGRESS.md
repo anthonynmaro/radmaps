@@ -70,10 +70,10 @@ reference screenshot or spec contract.
   route endpoint markers. Review queue status remains `ready-for-review`.
 - `contour-wash`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/contour-wash.png`; capture
-  reported `89.1%` pixel, `92.5%` map, `100.0%` chrome, and `100.0%` semantic
-  (`99/99`). Review queue status is `ready-for-review`. The image treatment
-  check was corrected to assert the full-bleed contour field color instead of
-  paper dominance.
+  reported `81.1%` pixel, `83.0%` map, `100.0%` chrome, and `100.0%` semantic
+  (`103/103`). Claude feedback is addressed with the sampled near-white wash
+  field, fine echo contour treatment, transparent centered titleblock with a
+  single rule, and charcoal route.
 - `bold-modern`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/bold-modern.png`; capture
   reported `23.9%` pixel, `47.6%` map, `24.1%` chrome, and `100.0%` semantic
