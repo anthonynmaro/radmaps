@@ -11009,36 +11009,38 @@ onUnmounted(() => {
 
 .composition-plein-air-palette {
   position: absolute;
-  right: calc(4.8cqw + var(--print-bleed, 0px));
-  bottom: calc(4.4cqh + var(--print-bleed, 0px));
+  right: calc(5.4cqw + var(--print-bleed, 0px));
+  bottom: calc(4.9cqh + var(--print-bleed, 0px));
   z-index: 13;
   display: flex;
   align-items: center;
-  gap: 0.65cqw;
+  gap: 0.86cqw;
   pointer-events: none;
-  opacity: 0.74;
+  opacity: 0.96;
 }
 
 .plein-air-palette-swatch {
   display: block;
-  width: 1.55cqh;
-  height: 1.55cqh;
+  width: 2.18cqh;
+  height: 2.18cqh;
   border-radius: 46% 54% 42% 58%;
-  border: 1px solid color-mix(in srgb, var(--label-text-color, #33302a) 26%, transparent);
-  box-shadow: 0 0 0 0.22cqh color-mix(in srgb, var(--composition-paper, #f6f1e8) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #33302a) 44%, transparent);
+  box-shadow:
+    0 0 0 0.18cqh color-mix(in srgb, var(--composition-paper, #f6f1e8) 78%, transparent),
+    0 0.18cqh 0.5cqh color-mix(in srgb, var(--label-text-color, #33302a) 22%, transparent);
   mix-blend-mode: multiply;
 }
 
 .plein-air-palette-swatch--route {
-  background: color-mix(in srgb, var(--route-color, #c2683f) 72%, var(--composition-paper, #f6f1e8));
+  background: color-mix(in srgb, var(--route-color, #c2683f) 84%, var(--composition-paper, #f6f1e8));
 }
 
 .plein-air-palette-swatch--water {
-  background: color-mix(in srgb, var(--water-color, #a9c2b4) 76%, var(--composition-paper, #f6f1e8));
+  background: color-mix(in srgb, var(--water-color, #a9c2b4) 86%, var(--composition-paper, #f6f1e8));
 }
 
 .plein-air-palette-swatch--contour {
-  background: color-mix(in srgb, var(--contour-color, #c0b59a) 82%, var(--composition-paper, #f6f1e8));
+  background: color-mix(in srgb, var(--contour-color, #c0b59a) 92%, var(--composition-paper, #f6f1e8));
 }
 
 .poster-composition--park-quad[data-theme="classic-trail"] [data-testid="poster-map"] {

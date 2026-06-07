@@ -800,6 +800,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const travelSun = document.querySelector('[data-testid="composition-travel-sun"]')
     const brutalistBaselineGrid = document.querySelector('[data-testid="composition-brutalist-baseline-grid"]')
     const brutalistRegistrationMarks = document.querySelector('[data-testid="composition-brutalist-registration-marks"]')
+    const pleinAirPalette = document.querySelector('[data-testid="composition-plein-air-palette"]')
+    const pleinAirPaletteSwatch = document.querySelector('.plein-air-palette-swatch')
     const titleStyle = title ? window.getComputedStyle(title) : null
     const headerStyle = header ? window.getComputedStyle(header) : null
     const headerRuleStyle = headerRule ? window.getComputedStyle(headerRule) : null
@@ -810,6 +812,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const travelSunStyle = travelSun ? window.getComputedStyle(travelSun) : null
     const brutalistBaselineGridStyle = brutalistBaselineGrid ? window.getComputedStyle(brutalistBaselineGrid) : null
     const brutalistRegistrationMarksStyle = brutalistRegistrationMarks ? window.getComputedStyle(brutalistRegistrationMarks) : null
+    const pleinAirPaletteStyle = pleinAirPalette ? window.getComputedStyle(pleinAirPalette) : null
+    const pleinAirPaletteSwatchStyle = pleinAirPaletteSwatch ? window.getComputedStyle(pleinAirPaletteSwatch) : null
     const titleBeforeStyle = title ? window.getComputedStyle(title, '::before') : null
     const editorControlSelectors = [
       '[data-testid="chrome-cell-trash"]',
@@ -844,6 +848,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     const headerRuleRect = headerRule?.getBoundingClientRect()
     const mapRect = map?.getBoundingClientRect()
     const footerRect = footer?.getBoundingClientRect()
+    const pleinAirPaletteSwatchRect = pleinAirPaletteSwatch?.getBoundingClientRect()
     const pixelMaskRects = []
     if (canvasRect && blueprintCoordinate) {
       const rect = blueprintCoordinate.getBoundingClientRect()
@@ -955,6 +960,16 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
         baselineGridOpacity: brutalistBaselineGridStyle?.opacity ?? '',
         registrationMarks: Boolean(brutalistRegistrationMarks),
         registrationOpacity: brutalistRegistrationMarksStyle?.opacity ?? '',
+      },
+      pleinAirMotifs: {
+        palette: Boolean(pleinAirPalette),
+        paletteOpacity: pleinAirPaletteStyle?.opacity ?? '',
+        swatchWidth: pleinAirPaletteSwatchStyle?.width ?? '',
+        swatchHeight: pleinAirPaletteSwatchStyle?.height ?? '',
+        swatchRect: pleinAirPaletteSwatchRect ? {
+          width: pleinAirPaletteSwatchRect.width,
+          height: pleinAirPaletteSwatchRect.height,
+        } : null,
       },
       risoTitleOffset: {
         content: titleBeforeStyle?.content ?? '',
@@ -2323,6 +2338,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Plein Air torn deckle has four edge strokes', (snapshot.contractPresence?.selectorCounts?.['.plein-air-deckle-edge'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
       semanticCheck('Plein Air palette marks present', (snapshot.contractPresence?.testIdCounts?.['composition-plein-air-palette'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Plein Air palette has three swatches', (snapshot.contractPresence?.selectorCounts?.['.plein-air-palette-swatch'] ?? 0) === 3, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Plein Air palette marks are print-visible', snapshot.pleinAirMotifs.palette === true && Number.parseFloat(snapshot.pleinAirMotifs.paletteOpacity || '0') >= 0.9 && Number(snapshot.pleinAirMotifs.swatchRect?.width ?? 0) >= 18, JSON.stringify(snapshot.pleinAirMotifs)),
     )
   }
 

@@ -202,9 +202,9 @@ reference screenshot or spec contract.
 - `plein-air`: ready for Claude/human review. The spec-only queue rerun
   generated `docs/theme_audit_output/poster-themes/print/plein-air.png`;
   capture reported `94.8%` pixel, `96.1%` map, `100.0%` chrome, and `100.0%`
-  semantic (`107/107`). Claude feedback is addressed: the torn deckle edge now
-  renders as four irregular strokes, watercolor palette marks remain visible,
-  and the brushed terracotta route/art-wash treatment passes.
+  semantic (`108/108`). Claude feedback is addressed: the torn deckle edge now
+  renders as four irregular strokes, watercolor palette marks are enlarged and
+  print-visible, and the brushed terracotta route/art-wash treatment passes.
 
 ## Overnight Queue Summary
 
