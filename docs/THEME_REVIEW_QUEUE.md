@@ -29,13 +29,13 @@ Codex never marks a theme `approved`.
 | `botanical` | `ready-for-review` | 100.0% (`109/109`) | `docs/theme_audit_output/poster-themes/print/botanical.png` | Claude feedback addressed: pale contour-only field, dark green route with round/square endpoint markers, bottom `PLATE IX — ITALIA` titleblock, coordinate caption, and no generic stats/logo footer. |
 | `relief-shaded` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/relief-shaded.png` | Claude 09:02 feedback addressed: pale smoothed relief field, black route with round/square endpoint markers, cream bottom titleblock with red Washington tag, subtitle, and coordinate/stats line now pass. |
 | `cartouche-place` | `ready-for-review` | 100.0% (`90/90`) | `docs/theme_audit_output/poster-themes/print/cartouche-place.png` | Place-frame poster now omits the GPX route, centers the cartouche plate, shows the red México kicker plus coordinate/elevation footer, and passes the no-route engraved-map contract; watch live map label geometry in visual review. |
-| `sea-chart` | `unchanged` | n/a | n/a | Already near-ready from previous checkpoint; will rerun only if queue/shared changes affect it. |
+| `sea-chart` | `ready-for-review` | 100.0% (`119/119`) | `docs/theme_audit_output/poster-themes/print/sea-chart.png` | Fresh rerun confirms the pale mint chart field, transparent titleblock, single rule, neatline, sounding density, compass/rhumb motifs, and magenta course route all pass; visual review remains human/Claude-only. |
 | `field-journal` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
 | `transit-diagram` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
 | `plein-air` | `unchanged` | n/a | n/a | Awaiting spec-only queue pass. |
 
 ## Summary
 
-- `ready-for-review`: 23
+- `ready-for-review`: 24
 - `blocked`: 0
-- `unchanged`: 4
+- `unchanged`: 3

@@ -180,11 +180,12 @@ reference screenshot or spec contract.
 - `risograph`, `brutalist`, and the travel-banner family pass the strengthened
   treatment checks, but still need final human visual approval before they are
   marked done.
-- `sea-chart`: semantic checks now pass (`117/117`) after correcting the map
-  field to pale mint, adding treatment checks for the transparent titleblock,
-  single rule, neatline, and sounding density. Latest parity reported `97.0%`
-  pixel, `97.3%` map, `100.0%` chrome, and `100.0%` semantic. It still needs
-  final human visual approval before it can be marked done.
+- `sea-chart`: ready for Claude/human review. A fresh queue rerun regenerated
+  `docs/theme_audit_output/poster-themes/print/sea-chart.png`; capture reported
+  `97.0%` pixel, `97.3%` map, `100.0%` chrome, and `100.0%` semantic
+  (`119/119`). The pale mint chart field, transparent titleblock, single rule,
+  neatline, sounding density, compass/rhumb motifs, and magenta course route all
+  pass. It still needs final human visual approval before it can be marked done.
 
 ## Next Steps
 
