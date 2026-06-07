@@ -1653,8 +1653,8 @@ function routeLayers(config: StyleConfig) {
           paint: {
             'line-color': config.water_color ?? '#A7BFA8',
             'line-width': config.route_width + 6.6,
-            'line-opacity': Math.min(config.route_opacity * 0.26, 0.26),
-            'line-blur': 2.8,
+            'line-opacity': Math.min(config.route_opacity * 0.12, 0.12),
+            'line-blur': 1.6,
           },
         }, ROUTE_SCALE_PROPERTIES),
         withScaleMetadata({
@@ -1663,10 +1663,10 @@ function routeLayers(config: StyleConfig) {
           source: 'route',
           layout: routeLayout,
           paint: {
-            'line-color': config.contour_major_color ?? '#5D6D3F',
-            'line-width': Math.max(1, config.route_width - 0.85),
-            'line-opacity': Math.min(config.route_opacity * 0.44, 0.44),
-            'line-translate': [-1.25, 0.95],
+            'line-color': config.route_color ?? '#31512B',
+            'line-width': Math.max(1.6, config.route_width - 0.35),
+            'line-opacity': Math.min(config.route_opacity * 0.72, 0.72),
+            'line-translate': [-0.45, 0.35],
           },
         }, ROUTE_SCALE_PROPERTIES),
         withScaleMetadata({
@@ -1676,10 +1676,10 @@ function routeLayers(config: StyleConfig) {
           layout: routeLayout,
           paint: {
             'line-color': '#2D3F22',
-            'line-width': Math.max(1.1, config.route_width - 1.35),
-            'line-opacity': Math.min(config.route_opacity * 0.24, 0.24),
-            'line-translate': [1.15, 1.15],
-            'line-blur': 0.24,
+            'line-width': Math.max(1.1, config.route_width - 1.1),
+            'line-opacity': Math.min(config.route_opacity * 0.30, 0.30),
+            'line-translate': [0.8, 0.8],
+            'line-blur': 0.18,
           },
         }, ROUTE_SCALE_PROPERTIES),
       ]
@@ -1692,10 +1692,10 @@ function routeLayers(config: StyleConfig) {
           source: 'route',
           layout: routeLayout,
           paint: {
-            'line-color': config.background_color ?? '#EFE6D4',
-            'line-width': 1.25,
-            'line-opacity': Math.min(config.route_opacity * 0.70, 0.70),
-            'line-translate': [-1.1, -0.95],
+            'line-color': config.route_color ?? '#31512B',
+            'line-width': 1.35,
+            'line-opacity': Math.min(config.route_opacity * 0.88, 0.88),
+            'line-translate': [-0.2, -0.2],
           },
         }, ROUTE_SCALE_PROPERTIES),
         withScaleMetadata({
@@ -1706,7 +1706,7 @@ function routeLayers(config: StyleConfig) {
           paint: {
             'line-color': config.background_color ?? '#EFE6D4',
             'line-width': Math.max(1, config.route_width - 1.6),
-            'line-opacity': Math.min(config.route_opacity * 0.56, 0.56),
+            'line-opacity': Math.min(config.route_opacity * 0.12, 0.12),
             'line-dasharray': [0.22, 5.4],
             'line-translate': [0.45, -0.35],
           },
@@ -1727,7 +1727,7 @@ function routeLayers(config: StyleConfig) {
           },
           paint: {
             'text-color': config.route_color,
-            'text-opacity': Math.min(config.route_opacity * 0.74, 0.74),
+            'text-opacity': Math.min(config.route_opacity * 0.32, 0.32),
             'text-halo-color': config.background_color ?? '#EFE6D4',
             'text-halo-width': 1,
           },

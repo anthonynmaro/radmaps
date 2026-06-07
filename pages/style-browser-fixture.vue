@@ -552,7 +552,7 @@ const sampleRegions: Record<string, {
     location: 'Dolomiti, Italia',
     bbox: [12.18, 46.54, 12.42, 46.72],
     route: [
-      [12.217, 46.610],
+      [12.217, 46.6186],
       [12.234, 46.642],
       [12.250, 46.674],
       [12.270, 46.690],

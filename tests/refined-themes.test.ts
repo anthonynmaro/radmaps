@@ -436,11 +436,12 @@ describe('refined theme Phase 0 scaffolding', () => {
     ]))
     expect(getThemeChromeContract('botanical')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-botanical-frame',
-      'composition-botanical-caption',
+      'composition-kicker',
+      'composition-meta-line',
     ]))
     expect(getThemeChromeContract('botanical')?.requiredSelectors).toEqual(expect.arrayContaining([
       '.botanical-corner',
-      '.botanical-caption-label',
+      '.poster-composition--botanical-plate .poster-location-line',
     ]))
     expect(getThemeChromeContract('marathon-bib')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-bib-ghost',

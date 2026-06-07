@@ -99,9 +99,10 @@
   {
     "themeId": "botanical",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "standard" },
-    "requiredTestIds": ["composition-botanical-frame", "composition-botanical-caption"],
-    "requiredSelectors": [".botanical-corner", ".botanical-caption-label"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-botanical-frame", "composition-kicker", "composition-meta-line"],
+    "requiredSelectors": [".botanical-corner", ".poster-composition--botanical-plate .poster-location-line"],
+    "forbiddenSelectors": [".poster-composition--botanical-plate .poster-stats", ".poster-composition--botanical-plate .poster-mark", ".composition-botanical-caption"],
     "requiredRouteLayers": ["route-line-botanical-pressed", "route-line-botanical-ink-vein", "route-line-botanical-specimen-dots"]
   },
   {

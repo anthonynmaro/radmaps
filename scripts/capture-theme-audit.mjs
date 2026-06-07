@@ -1697,11 +1697,11 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Botanical plate composition active', style.composition === 'botanical-plate', String(style.composition ?? '')),
-      semanticCheck('Botanical map sits as centered plate', mapHeightRatio > 0.62 && mapHeightRatio < 0.82, mapHeightRatio.toFixed(3)),
+      semanticCheck('Botanical map sits above title plate', mapHeightRatio > 0.56 && mapHeightRatio < 0.76, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
-      semanticCheck('Botanical warm green paper background', String(style.background_color).toUpperCase() === '#F0E7D4', String(style.background_color ?? '')),
-      semanticCheck('Botanical label background matches paper', String(style.label_bg_color).toUpperCase() === '#F0E7D4', String(style.label_bg_color ?? '')),
+      semanticCheck('Botanical pale green paper background', String(style.background_color).toUpperCase() === '#EEF1E8', String(style.background_color ?? '')),
+      semanticCheck('Botanical label background matches paper', String(style.label_bg_color).toUpperCase() === '#EEF1E8', String(style.label_bg_color ?? '')),
       semanticCheck('Botanical text is dark botanical green', String(style.label_text_color).toUpperCase() === '#253721', String(style.label_text_color ?? '')),
       semanticCheck('Botanical route is green ink', String(style.route_color).toUpperCase() === '#31512B', String(style.route_color ?? '')),
       semanticCheck('Botanical paper grain configured', Number(style.tile_grain ?? 0) >= 0.16, String(style.tile_grain ?? '')),
@@ -1711,23 +1711,25 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Botanical contours enabled', style.show_contours === true, String(style.show_contours)),
       semanticCheck('Botanical roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Botanical hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
-      semanticCheck('Botanical green land wash configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#E1D8BE' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.94, JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Botanical water wash configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#9EBB9F', JSON.stringify(atlasLayerSettings.water ?? {})),
-      semanticCheck('Botanical specimen contours configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#8F9F6D' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#536737', JSON.stringify(atlasLayerSettings.contour ?? {})),
+      semanticCheck('Botanical relief fill disabled', Number(atlasLayerSettings.landcover?.opacity ?? 1) === 0 && Number(atlasLayerSettings.park?.opacity ?? 1) === 0, JSON.stringify({ landcover: atlasLayerSettings.landcover, park: atlasLayerSettings.park })),
+      semanticCheck('Botanical water wash disabled', Number(atlasLayerSettings.water?.fill_opacity ?? 1) === 0 && Number(atlasLayerSettings.waterway?.opacity ?? 1) === 0, JSON.stringify({ water: atlasLayerSettings.water, waterway: atlasLayerSettings.waterway })),
+      semanticCheck('Botanical specimen contours configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#A8B995' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#536737', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
       semanticCheck('Botanical print route source loaded', geometry.renderStatus?.routeSourcePresent === true && geometry.renderStatus?.routeSourceLoaded === true && geometry.renderStatus?.routeContentPresent === true, JSON.stringify(geometry.renderStatus ?? snapshot.renderStatus)),
       semanticCheck('Botanical route is exact green token', String(style.route_color).toUpperCase() === '#31512B', String(style.route_color ?? '')),
       semanticCheck('Botanical route has specimen weight', Number(style.route_width ?? 0) >= 4 && Number(style.route_width ?? 0) <= 4.7, String(style.route_width ?? '')),
       semanticCheck('Botanical route remains mostly opaque', Number(style.route_opacity ?? 0) >= 0.9, String(style.route_opacity ?? '')),
-      semanticCheck('Botanical endpoint pins disabled', style.show_start_pin === false && style.show_finish_pin === false, `${style.show_start_pin}/${style.show_finish_pin}`),
+      semanticCheck('Botanical endpoint pins enabled', style.show_start_pin === true && style.show_finish_pin === true, `${style.show_start_pin}/${style.show_finish_pin}`),
+      semanticCheck('Botanical endpoint labels hidden', (snapshot.contractPresence?.testIdCounts?.['pin-label-start'] ?? 0) === 0 && (snapshot.contractPresence?.testIdCounts?.['pin-label-finish'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Botanical specimen route layers present', ['route-line-botanical-pressed', 'route-line-botanical-ink-vein', 'route-line-botanical-specimen-dots'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
     )
     groups.motifs.push(
       semanticCheck('Botanical engraved frame present', (snapshot.contractPresence?.testIdCounts?.['composition-botanical-frame'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
-      semanticCheck('Botanical specimen caption present', (snapshot.contractPresence?.testIdCounts?.['composition-botanical-caption'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Botanical bottom plate titleblock present', (snapshot.contractPresence?.testIdCounts?.['composition-kicker'] ?? 0) > 0 && (snapshot.contractPresence?.testIdCounts?.['composition-meta-line'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Botanical ornamental corners present', (snapshot.contractPresence?.selectorCounts?.['.botanical-corner'] ?? 0) >= 4, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
-      semanticCheck('Botanical specimen caption label present', (snapshot.contractPresence?.selectorCounts?.['.botanical-caption-label'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Botanical old specimen route badge removed', (snapshot.contractPresence?.selectorCounts?.['.composition-botanical-caption'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
+      semanticCheck('Botanical generic footer removed', (snapshot.contractPresence?.selectorCounts?.['.poster-composition--botanical-plate .poster-stats'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )
   }
 

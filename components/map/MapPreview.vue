@@ -812,6 +812,14 @@
           <button v-if="chromeDirectEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
         </div>
         <div
+          v-if="composition.id === 'botanical-plate'"
+          class="botanical-titleblock-eyebrow"
+          data-testid="composition-kicker"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.kicker }}
+        </div>
+        <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
           class="composition-kicker"
           :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_kicker') }"
@@ -897,6 +905,14 @@
           @click="onSlotClick($event, 'composition_meta')"
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.meta }}</div>
+        <div
+          v-if="composition.id === 'botanical-plate'"
+          class="botanical-titleblock-coordinate"
+          data-testid="composition-meta-line"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.meta }}
+        </div>
 
         <!-- Thin rule at bottom — only for top-positioned header -->
         <div v-if="layout.titlePosition === 'top'" class="poster-rule" :style="ruleStyle" />
@@ -1037,15 +1053,6 @@
           <span class="botanical-corner botanical-corner--tr" />
           <span class="botanical-corner botanical-corner--br" />
           <span class="botanical-corner botanical-corner--bl" />
-        </div>
-        <div
-          v-if="styleConfig.color_theme === 'botanical'"
-          class="composition-botanical-caption"
-          data-testid="composition-botanical-caption"
-          aria-hidden="true"
-        >
-          <span class="botanical-caption-label">Specimen route</span>
-          <span>{{ formattedDistance ? `${formattedDistance} mi` : compositionDecor.meta }}</span>
         </div>
         <div
           v-if="showPlateFrameOverlay"
@@ -4480,6 +4487,7 @@ const locationLine = computed(() => {
   if (props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid') return locationText.value
   if (composition.value.id === 'modernist-block') return locationText.value
   if (composition.value.id === 'bib-numerals') return locationText.value
+  if (composition.value.id === 'botanical-plate') return locationText.value
   return locationText.value.toUpperCase()
 })
 
@@ -4610,6 +4618,14 @@ const marathonBibFooterItems = computed(() => [
   formattedGain.value ? `${formattedGain.value} ft GAIN` : '813 ft GAIN',
   marathonBibLatitude.value || '42.3601°N',
 ])
+const botanicalPlateLatitude = computed(() => {
+  const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  const first = routeCoords[0]
+  const lat = Array.isArray(first) ? first[1] : undefined
+  if (typeof lat !== 'number' || !Number.isFinite(lat)) return coords.value?.lat ?? ''
+  const suffix = lat >= 0 ? 'N' : 'S'
+  return `${Math.abs(lat).toFixed(4)}°${suffix}`
+})
 
 const hasRenderableRoute = computed(() => {
   const hasVisibleSegments = (props.styleConfig.trail_segments ?? []).some(segment => segment.visible)
@@ -4701,6 +4717,7 @@ const showMoonstoneTechnicalFooter = computed(() =>
 )
 const hideGenericFooterStats = computed(() =>
   composition.value.id === 'darksky-stars' ||
+  composition.value.id === 'botanical-plate' ||
   showBibDataFooter.value ||
   showMoonstoneTechnicalFooter.value,
 )
@@ -4719,12 +4736,12 @@ const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
 const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid')
 const profileGainLabel = computed(() => formattedGain.value ? `${formattedGain.value} ft GAIN` : 'GAIN')
 const startPinLabel = computed(() =>
-  composition.value.id === 'bib-numerals'
+  composition.value.id === 'bib-numerals' || composition.value.id === 'botanical-plate'
     ? ''
     : textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'),
 )
 const finishPinLabel = computed(() =>
-  composition.value.id === 'bib-numerals'
+  composition.value.id === 'bib-numerals' || composition.value.id === 'botanical-plate'
     ? ''
     : textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'),
 )
@@ -4808,9 +4825,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'botanical-plate':
       return {
-        kicker: 'Plate XLI — Cordillera Cascadia',
-        meta: 'Observed along the route transect',
-        footerNote: 'Drawn from life · elevation and terrain survey',
+        kicker: 'Plate IX — Italia',
+        meta: botanicalPlateLatitude.value || '46.6186°N',
       }
     case 'brutalist-slab':
       return {
@@ -7612,8 +7628,9 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const usgs = isUsgsHeritageTheme.value
   const editorial = props.styleConfig.color_theme === 'editorial-minimal'
   const bib = composition.value.id === 'bib-numerals'
-  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib ? size * 1.08 : size
-  const radius = editorial || (usgs && kind === 'start') || (bib && kind === 'finish') ? '0' : '50%'
+  const botanical = composition.value.id === 'botanical-plate'
+  const markerSize = editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib || botanical ? size * 1.08 : size
+  const radius = editorial || (usgs && kind === 'start') || ((bib || botanical) && kind === 'finish') ? '0' : '50%'
   el.dataset.testid = `pin-marker-${kind}`
   el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
@@ -11781,22 +11798,21 @@ onUnmounted(() => {
 }
 
 .poster-composition--botanical-plate [data-testid="poster-map"] {
-  margin: 0 7.4cqw !important;
-  border: 1px solid color-mix(in srgb, currentColor 34%, transparent) !important;
-  box-shadow:
-    inset 0 0 0 0.7cqw color-mix(in srgb, var(--composition-paper, white) 72%, transparent),
-    inset 0 0 3.4cqh color-mix(in srgb, var(--route-color, #31512b) 8%, transparent) !important;
+  flex: 1 1 68% !important;
+  margin: calc(5.25cqh + var(--print-bleed, 0px)) 6.8cqw 0 !important;
+  border: 1px solid color-mix(in srgb, var(--route-color, #31512b) 54%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .composition-botanical-frame {
   position: absolute;
   z-index: 8;
-  inset: 1.65cqh 2.15cqw;
+  inset: calc(4.4cqh + var(--print-bleed, 0px)) calc(5.4cqw + var(--print-bleed, 0px)) calc(3.15cqh + var(--print-bleed, 0px));
   pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 44%, transparent);
+  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 64%, transparent);
   box-shadow:
-    inset 0 0 0 0.32cqw color-mix(in srgb, var(--composition-paper, #eef0e6) 78%, transparent),
-    inset 0 0 0 0.38cqw color-mix(in srgb, var(--route-color, #3f5a32) 14%, transparent);
+    inset 0 0 0 1.08cqw color-mix(in srgb, var(--composition-paper, #eef1e8) 86%, transparent),
+    inset 0 0 0 calc(1.08cqw + 2px) color-mix(in srgb, var(--route-color, #3f5a32) 42%, transparent);
 }
 
 .botanical-corner {
@@ -11836,24 +11852,7 @@ onUnmounted(() => {
 }
 
 .composition-botanical-caption {
-  position: absolute;
-  z-index: 9;
-  left: 50%;
-  bottom: 2.55cqh;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 0.7cqw;
-  align-items: baseline;
-  max-width: 62cqw;
-  padding: 0.72cqh 1.15cqw;
-  pointer-events: none;
-  color: color-mix(in srgb, var(--label-text-color, #23311f) 84%, transparent);
-  font-family: "Source Serif 4", "Cormorant Garamond", serif;
-  font-size: 1.08cqh;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: color-mix(in srgb, var(--composition-paper, #eef0e6) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 24%, transparent);
+  display: none !important;
 }
 
 .botanical-caption-label {
@@ -11867,55 +11866,89 @@ onUnmounted(() => {
 .poster-composition--botanical-plate .poster-header {
   align-items: center !important;
   text-align: center !important;
-  padding-top: 3.1cqh !important;
-  background:
-    linear-gradient(90deg, transparent 0 12%, color-mix(in srgb, currentColor 12%, transparent) 12% calc(12% + 1px), transparent calc(12% + 1px)),
-    linear-gradient(90deg, transparent 0 88%, color-mix(in srgb, currentColor 12%, transparent) 88% calc(88% + 1px), transparent calc(88% + 1px)),
-    var(--label-bg-color, #f0e7d4) !important;
+  flex: 0 0 28.6cqh !important;
+  min-height: 28.6cqh !important;
+  padding: 4.4cqh calc(9cqw + var(--print-bleed, 0px)) calc(4.4cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #eef1e8) !important;
+}
+
+.poster-composition--botanical-plate .composition-kicker,
+.poster-composition--botanical-plate .botanical-titleblock-eyebrow {
+  color: color-mix(in srgb, var(--label-text-color, #253721) 72%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.38cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.33em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  width: 100%;
+  text-align: center;
 }
 
 .poster-composition--botanical-plate .poster-trail-name,
 .poster-composition--botanical-plate .chrome-grid-block--title {
   font-family: "Cormorant Garamond", "Libre Baskerville", serif !important;
-  font-size: min(var(--trail-title-size, 5cqh), 5.55cqh) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.015em !important;
-  line-height: 0.94 !important;
+  font-size: 6.9cqh !important;
+  font-style: italic !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 0.9 !important;
   text-transform: none !important;
   text-align: center !important;
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #f0e7d4) 82%, transparent);
+  color: var(--label-text-color, #253721) !important;
+  text-shadow: none !important;
 }
 
 .poster-composition--botanical-plate .poster-location-line,
 .poster-composition--botanical-plate .chrome-grid-block--subtitle,
 .poster-composition--botanical-plate .chrome-grid-block--occasion {
-  color: color-mix(in srgb, currentColor 62%, transparent) !important;
+  color: color-mix(in srgb, var(--label-text-color, #253721) 72%, transparent) !important;
   font-family: "Source Serif 4", Georgia, serif !important;
-  letter-spacing: 0.18em !important;
+  font-size: 2cqh !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em !important;
   text-align: center !important;
-  text-transform: uppercase !important;
+  text-transform: none !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--botanical-plate .composition-meta-line,
+.poster-composition--botanical-plate .botanical-titleblock-coordinate {
+  position: relative;
+  margin-top: 3.05cqh;
+  color: color-mix(in srgb, var(--label-text-color, #253721) 70%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.75cqh !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.15em !important;
+  opacity: 1 !important;
+  text-align: center !important;
+}
+
+.poster-composition--botanical-plate .composition-meta-line::before,
+.poster-composition--botanical-plate .botanical-titleblock-coordinate::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -1.55cqh;
+  width: 7.2cqw;
+  height: 1px;
+  transform: translateX(-50%);
+  background: var(--route-color, #31512b);
+  opacity: 0.76;
 }
 
 .poster-composition--botanical-plate .poster-footer {
-  opacity: 0.68;
-  min-height: 8.8cqh !important;
-  padding: 0.8cqh calc(5cqw + var(--print-bleed, 0px)) calc(1.15cqh + var(--print-bleed, 0px)) !important;
-  background:
-    repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 6%, transparent) 0 1px, transparent 1px 9.4cqw),
-    var(--label-bg-color, #f0e7d4) !important;
+  display: none !important;
 }
 
 .poster-composition--botanical-plate .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
   transform: translateY(-0.25cqh);
 }
 
-.poster-composition--botanical-plate .poster-stats {
-  transform: scale(0.82) !important;
-  transform-origin: left center !important;
-}
-
+.poster-composition--botanical-plate .poster-stats,
 .poster-composition--botanical-plate .poster-mark {
-  opacity: 0.34 !important;
+  display: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] [data-testid="poster-map"] {
@@ -12239,7 +12272,7 @@ onUnmounted(() => {
 
 .poster-composition--botanical-plate .poster-header::before,
 .poster-composition--botanical-plate .poster-header::after {
-  content: "";
+  content: none;
   position: absolute;
   top: calc(2.8cqh + var(--print-bleed, 0px));
   width: 6cqw;

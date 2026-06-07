@@ -144,10 +144,13 @@ reference screenshot or spec contract.
   pale `2025` ghost numeral behind the title block, red `FINISHER` collar with
   race time, marker-only endpoints, and the `26.2 mi / 813 ft GAIN / 42.3601°N`
   footer while keeping generic stats/logo chrome removed.
-- `botanical`: ready for Claude/human review. The live render was written to
-  `docs/theme_audit_output/poster-themes/print/botanical.png`; capture reported
-  `87.9%` pixel, `92.5%` map, `94.7%` chrome, and `100.0%` semantic (`101/101`).
-  Review queue status is `ready-for-review`.
+- `botanical`: Claude feedback remediation is ready for review. The live render
+  was regenerated at `docs/theme_audit_output/poster-themes/print/botanical.png`;
+  capture reported `94.7%` pixel, `97.2%` map, `95.6%` chrome, and `100.0%`
+  semantic (`109/109`). The plate now uses a pale contour-only field, dark green
+  route with round/square marker endpoints, bottom `PLATE IX — ITALIA`
+  titleblock, `Dolomiti, Italia / 46.6186°N` captioning, and no generic
+  stats/logo footer.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
