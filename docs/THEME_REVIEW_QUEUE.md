@@ -23,7 +23,7 @@ Codex never marks a theme `approved`.
 | `electric-atlas` | `ready-for-review` | 100.0% (`106/106`) | `docs/theme_audit_output/poster-themes/print/electric-atlas.png` | Neon technical map, magenta glow route, grid density, trace motif, and chip motif all pass. |
 | `splits-stats` | `ready-for-review` | 100.0% (`104/104`) | `docs/theme_audit_output/poster-themes/print/splits-stats.png` | Full-width dark map, elevation profile band, stats footer, and orange performance route layers pass; watch chrome smoke for data-band balance. |
 | `night-ride` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/night-ride.png` | Cyan night profile colorway, dark topo field, profile band, and performance route layers pass; map smoke is zero due to reference/live terrain mismatch. |
-| `dark-sky` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `dark-sky` | `ready-for-review` | 100.0% (`100/100`) | `docs/theme_audit_output/poster-themes/print/dark-sky.png` | Star field, ridge motif, dark relief tokens, and gold route treatment pass; watch atmosphere against target. |
 | `copper-night` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `marathon-bib` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `botanical` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 17
+- `ready-for-review`: 18
 - `blocked`: 0
-- `unchanged`: 10
+- `unchanged`: 9

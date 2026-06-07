@@ -110,6 +110,10 @@ reference screenshot or spec contract.
   `88.0%` pixel, `0.0%` map, `88.0%` chrome, and `100.0%` semantic (`97/97`).
   Review queue status is `ready-for-review`; the zero map smoke is noted as a
   reference/live terrain mismatch after visual sanity check.
+- `dark-sky`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/dark-sky.png`; capture reported
+  `94.0%` pixel, `99.4%` map, `93.7%` chrome, and `100.0%` semantic (`100/100`).
+  Review queue status is `ready-for-review`.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
