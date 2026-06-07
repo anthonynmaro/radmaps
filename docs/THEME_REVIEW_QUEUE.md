@@ -12,7 +12,7 @@ Codex never marks a theme `approved`.
 | `ranch-ochre` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/ranch-ochre.png` | Ochre travel-banner colorway inherits the parent motif and passes tokens; watch map/chrome smoke because the target terrain differs. |
 | `daybreak-trace` | `ready-for-review` | 100.0% (`105/105`) | `docs/theme_audit_output/poster-themes/print/daybreak-trace.png` | Dawn travel-banner tokens and sun motif pass; watch chrome balance in Claude review because smoke score is low. |
 | `risograph` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/risograph.png` | Riso contour plate, overprint route, paper grain, and title offset are visible; watch low chrome smoke against the large target PNG. |
-| `brutalist` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `brutalist` | `ready-for-review` | 100.0% (`96/96`) | `docs/theme_audit_output/poster-themes/print/brutalist.png` | Slab grid, registration marks, framed map, and orange route are present; watch low map smoke because dynamic Boston geometry diverges strongly from target. |
 | `editorial-minimal` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `contour-wash` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `bold-modern` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 6
+- `ready-for-review`: 7
 - `blocked`: 0
-- `unchanged`: 21
+- `unchanged`: 20

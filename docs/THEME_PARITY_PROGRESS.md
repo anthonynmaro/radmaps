@@ -54,6 +54,12 @@ reference screenshot or spec contract.
   `84.8%` pixel, `91.9%` map, `67.8%` chrome, and `100.0%` semantic (`103/103`).
   Review queue status is `ready-for-review`; low visual smoke is noted for
   Claude review even though the riso motif is present.
+- `brutalist`: ready for Claude/human review after retrying capture on fresh
+  local port `3004` because the existing `3003` server stopped responding. The
+  live render was written to `docs/theme_audit_output/poster-themes/print/brutalist.png`;
+  capture reported `86.4%` pixel, `44.7%` map, `87.8%` chrome, and `100.0%`
+  semantic (`96/96`). Review queue status is `ready-for-review`; low map smoke
+  is noted for visual review.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
