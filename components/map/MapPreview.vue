@@ -1696,6 +1696,15 @@
             <strong>{{ item.value }}</strong>
           </div>
         </div>
+        <div
+          v-if="showMoonstoneTechnicalFooter"
+          class="composition-technical-line-footer"
+          data-testid="composition-technical-line-footer"
+        >
+          <span>DIST {{ formattedDistanceKm }} km</span>
+          <span>GAIN {{ formattedGainM }} m</span>
+          <span>{{ formattedMonthYear }}</span>
+        </div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -4520,9 +4529,19 @@ const formattedDistance = computed(() => {
   return km ? (km * 0.621371).toFixed(1) : ''
 })
 
+const formattedDistanceKm = computed(() => {
+  const km = props.map.stats?.distance_km ?? 0
+  return km ? km.toFixed(1) : ''
+})
+
 const formattedGain = computed(() => {
   const m = props.map.stats?.elevation_gain_m ?? 0
   return m ? Math.round(m * 3.28084).toLocaleString() : ''
+})
+
+const formattedGainM = computed(() => {
+  const m = props.map.stats?.elevation_gain_m ?? 0
+  return m ? Math.round(m).toLocaleString() : ''
 })
 
 const formattedDuration = computed(() => {
@@ -4579,6 +4598,15 @@ const formattedDateCompact = computed(() => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 })
 
+const formattedMonthYear = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+  return `${month} ${date.getUTCFullYear()}`
+})
+
 const distanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''))
 const brutalistDistanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value} mi` : ''))
 const elevationGainText = computed(() => textWithOverride('elevation_gain', formattedGain.value ? `${formattedGain.value}\nft gain` : ''))
@@ -4616,7 +4644,13 @@ const showTechnicalDataFooter = computed(() =>
   composition.value.id === 'blueprint-strava' ||
   composition.value.id === 'splits-grid',
 )
-const hideGenericFooterStats = computed(() => composition.value.id === 'darksky-stars')
+const showMoonstoneTechnicalFooter = computed(() =>
+  composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'moonstone',
+)
+const hideGenericFooterStats = computed(() =>
+  composition.value.id === 'darksky-stars' ||
+  showMoonstoneTechnicalFooter.value,
+)
 const technicalDataFooterItems = computed(() => [
   { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
   { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
@@ -11425,6 +11459,16 @@ onUnmounted(() => {
   text-transform: uppercase !important;
 }
 
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-location-line,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--subtitle {
+  color: color-mix(in srgb, var(--label-text-color, #243238) 62%, transparent) !important;
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.55cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
 .poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--stat::first-line {
   color: var(--route-color, currentColor);
 }
@@ -11444,6 +11488,30 @@ onUnmounted(() => {
 .poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats .stat-divider,
 .poster-composition--blueprint-grid[data-theme="moonstone"] .poster-mark {
   display: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  gap: 2cqw;
+  padding: 0 calc(5.2cqw + var(--print-bleed, 0px)) calc(0.9cqh + var(--print-bleed, 0px));
+  color: color-mix(in srgb, var(--label-text-color, #243238) 70%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.62cqh;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer span:nth-child(2) {
+  text-align: center;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer span:nth-child(3) {
+  text-align: right;
 }
 
 .poster-composition--blueprint-grid[data-theme="moonstone"] .stat-block,

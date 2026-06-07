@@ -1191,6 +1191,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Moonstone uses Blueprint grid composition', style.composition === 'blueprint-grid', String(style.composition ?? '')),
+      semanticCheck('Moonstone technical line footer present', (snapshot.contractPresence?.testIdCounts?.['composition-technical-line-footer'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
     )
     groups.palette.push(
       semanticCheck('Moonstone cool paper background', String(style.background_color).toUpperCase() === '#EEF0ED', String(style.background_color ?? '')),
@@ -1218,6 +1219,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Moonstone map grid density configured', Number(style.grid_spacing ?? 0) === 8 && Number(style.grid_opacity ?? 0) >= 0.06 && Number(style.grid_opacity ?? 0) <= 0.09, `${style.grid_spacing}/${style.grid_opacity}`),
       semanticCheck('Moonstone map grid present', snapshot.grid.mapExists === true, JSON.stringify(snapshot.grid)),
       semanticCheck('Moonstone drafting labels present', snapshot.blueprintDrafting.topline === true && snapshot.blueprintDrafting.figure === true && snapshot.blueprintDrafting.neatline === true, JSON.stringify(snapshot.blueprintDrafting)),
+      semanticCheck('Moonstone legacy stats band removed', (snapshot.contractPresence?.selectorCounts?.['.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats'] ?? 0) === 0, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )
   }
 

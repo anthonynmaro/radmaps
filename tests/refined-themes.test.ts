@@ -477,6 +477,9 @@ describe('refined theme Phase 0 scaffolding', () => {
       'composition-darksky-ridge',
       'composition-footer-note',
     ]))
+    expect(getThemeChromeContract('moonstone')?.requiredTestIds).toEqual(expect.arrayContaining([
+      'composition-technical-line-footer',
+    ]))
     expect(getThemeChromeContract('electric-atlas')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-map-grid-overlay',
       'composition-electric-trace',

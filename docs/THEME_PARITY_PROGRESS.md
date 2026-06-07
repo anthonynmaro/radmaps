@@ -90,10 +90,11 @@ reference screenshot or spec contract.
   `89.9%` pixel, `93.8%` map, `86.7%` chrome, and `100.0%` semantic (`105/105`).
 - `moonstone`: Claude feedback remediation is ready for review. The live render
   was regenerated at `docs/theme_audit_output/poster-themes/print/moonstone.png`;
-  capture reported `85.9%` pixel, `40.7%` map, `88.6%` chrome, and `100.0%`
-  semantic (`104/104`). Blueprint drafting labels, map grid, neatline, technical
-  footer cleanup, and etched route treatment now pass; lower map smoke is noted
-  for fixture geometry review.
+  capture reported `87.0%` pixel, `41.1%` map, `90.1%` chrome, and `100.0%`
+  semantic (`108/108`). The generic stats band is replaced with the metric
+  `DIST / GAIN / JUL 2025` technical footer, the Dolomiti subtitle is restored,
+  and the drafting labels, map grid, neatline, and etched route treatment still
+  pass.
 - `blueprint-strava`: Claude feedback remediation is ready for review. The live
   render was regenerated at
   `docs/theme_audit_output/poster-themes/print/blueprint-strava.png`; capture
