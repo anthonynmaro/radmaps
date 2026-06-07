@@ -14,9 +14,60 @@ const compositions = [
   ['darksky-stars', 'dark-sky'],
   ['botanical-plate', 'botanical'],
   ['brutalist-slab', 'brutalist'],
+  ['art-wash', 'contour-wash'],
+  ['place-frame', 'cartouche-place'],
+  ['sea-chart', 'sea-chart'],
+  ['transit-diagram', 'transit-diagram'],
 ] as const
 
 const headerDecorCompositions = new Set(['blueprint-grid', 'blueprint-strava', 'splits-grid'])
+const hiddenFooterCompositions = new Set(['art-wash', 'place-frame', 'sea-chart'])
+
+const finalPrintForbiddenSelectors = [
+  '[contenteditable="true"]',
+  '.poster-controls',
+  '[data-testid="poster-editor-guides"]',
+  '[data-testid="chrome-cell-trash"]',
+  '[data-testid="chrome-cell-add-column"]',
+  '[data-testid="chrome-cell-resize-column"]',
+  '[data-testid="chrome-row-add-row"]',
+  '[data-testid="chrome-row-resize-row"]',
+  '[data-testid="chrome-band-add-row"]',
+  '[data-testid="chrome-editor-add-block"]',
+  '[data-testid="chrome-add-block-panel"]',
+  '[data-testid="chrome-context-toolbar-handle"]',
+  '[data-testid="composition-blueprint-drafting"]',
+]
+
+const specThemeRecipes = [
+  ['editorial-minimal', 'editorial-tall'],
+  ['usgs-vintage', 'park-quad'],
+  ['classic-trail', 'park-quad'],
+  ['midcentury-travel', 'travel-banner'],
+  ['ranch-ochre', 'travel-banner'],
+  ['daybreak-trace', 'travel-banner'],
+  ['risograph', 'riso-stack'],
+  ['blueprint', 'blueprint-grid'],
+  ['moonstone', 'blueprint-grid'],
+  ['blueprint-strava', 'blueprint-strava'],
+  ['electric-atlas', 'blueprint-strava'],
+  ['field-journal', 'journal-spread'],
+  ['botanical', 'botanical-plate'],
+  ['bold-modern', 'modernist-block'],
+  ['blackline', 'modernist-block'],
+  ['contour-wash', 'art-wash'],
+  ['splits-stats', 'splits-grid'],
+  ['night-ride', 'splits-grid'],
+  ['marathon-bib', 'bib-numerals'],
+  ['dark-sky', 'darksky-stars'],
+  ['copper-night', 'darksky-stars'],
+  ['brutalist', 'brutalist-slab'],
+  ['cartouche-place', 'place-frame'],
+  ['sea-chart', 'sea-chart'],
+  ['relief-shaded', 'editorial-tall'],
+  ['transit-diagram', 'transit-diagram'],
+  ['plein-air', 'art-wash'],
+] as const
 
 test.describe('style browser visual harness', () => {
   for (const [composition, theme] of compositions) {
@@ -34,7 +85,11 @@ test.describe('style browser visual harness', () => {
       await expect(poster).toHaveAttribute('data-theme', theme)
       await expect(page.getByTestId('poster-header')).toBeVisible()
       await expect(page.getByTestId('poster-map')).toBeVisible()
-      await expect(page.getByTestId('poster-footer')).toBeVisible()
+      if (hiddenFooterCompositions.has(composition)) {
+        await expect(page.getByTestId('poster-footer')).toBeHidden()
+      } else {
+        await expect(page.getByTestId('poster-footer')).toBeVisible()
+      }
       if (headerDecorCompositions.has(composition)) {
         await expect(page.getByTestId('composition-kicker')).toBeVisible()
       } else {
@@ -64,14 +119,798 @@ test.describe('style browser visual harness', () => {
   })
 
   test('renders composition-specific overlays', async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-editorial-gallery-shadow')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-editorial-collector-cuts')
+    await expect.poll(async () => page.locator('.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-trail-name').evaluate(el => getComputedStyle(el).maxWidth)).not.toBe('none')
+
     await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=blueprint&gridScope=poster')
     await expect(page.getByTestId('composition-grid-overlay')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-blueprint-construction-glow')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-blueprint-station-crosses')
+
+    await page.goto('/style-browser-fixture?composition=blueprint-grid&theme=moonstone')
+    await expect(page.getByTestId('composition-blueprint-drafting')).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-moonstone-engraved-channel')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-moonstone-survey-ticks')
+    await expect.poll(async () => page.locator('.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Space Grotesk')
+
+    await page.goto('/style-browser-fixture?composition=park-quad&theme=classic-trail')
+    await expect(page.getByTestId('composition-classic-trail-markers')).toHaveCount(0)
+    await expect(page.locator('.classic-trail-blaze, .classic-trail-quad')).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-classic-trail-paper-channel')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-classic-trail-blaze-cuts')
+    await expect.poll(async () => page.locator('.poster-composition--park-quad[data-theme="classic-trail"] .poster-trail-name').evaluate(el => getComputedStyle(el).letterSpacing)).not.toBe('normal')
+
+    await page.goto('/style-browser-fixture?composition=park-quad&theme=usgs-vintage')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-usgs-paper-channel')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-usgs-survey-hachures')
+    await expect.poll(async () => page.locator('.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Libre Baskerville')
+    await expect(page.getByTestId('usgs-coordinate-ticks')).toBeVisible()
+    await expect(page.getByTestId('usgs-coordinate-tick')).toHaveCount(4)
 
     await page.goto('/style-browser-fixture?composition=darksky-stars&theme=dark-sky')
     await expect(page.getByTestId('composition-star-field')).toBeVisible()
+    await expect(page.getByTestId('composition-darksky-ridge')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-darksky-glow-wide')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-darksky-constellation')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-darksky-star-crosses')
+
+    await page.goto('/style-browser-fixture?composition=darksky-stars&theme=copper-night')
+    await expect(page.getByTestId('composition-star-field')).toBeVisible()
+    await expect(page.getByTestId('composition-darksky-ridge')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-darksky-star-crosses')
 
     await page.goto('/style-browser-fixture?composition=modernist-block&theme=bold-modern')
-    await expect(page.getByTestId('composition-side-rail')).toBeVisible()
+    await expect(page.getByTestId('composition-modernist-accent')).toBeVisible()
+    await expect(page.getByTestId('composition-side-rail')).toHaveCount(0)
+    await expect(page.getByTestId('composition-modernist-bleed')).toHaveCount(0)
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-modernist-trap')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-modernist-register')
+
+    await page.goto('/style-browser-fixture?composition=modernist-block&theme=blackline')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-blackline-plate')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-blackline-register-cuts')
+
+    await page.goto('/style-browser-fixture?composition=riso-stack&theme=risograph')
+    await expect(page.getByTestId('composition-riso-caption')).toBeVisible()
+
+    await page.goto('/style-browser-fixture?composition=travel-banner&theme=midcentury-travel')
+    await expect(page.getByTestId('composition-travel-sun')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-travel-shadow')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-travel-highlight')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-travel-register-cuts')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-travel-waypoints')
+
+    await page.goto('/style-browser-fixture?composition=blueprint-strava&theme=electric-atlas')
+    await expect(page.getByTestId('composition-electric-trace')).toBeVisible()
+    await expect(page.getByTestId('composition-electric-chip')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-electric-glow-wide')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-electric-pulse')
+    await expect.poll(async () => page.locator('.poster-composition--blueprint-strava .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Big Shoulders Display')
+
+    await page.goto('/style-browser-fixture?composition=splits-grid&theme=splits-stats&elevation=1')
+    await expect(page.getByTestId('elevation-profile-band')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-performance-glow')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-performance-checkpoints')
+
+    await page.goto('/style-browser-fixture?composition=bib-numerals&theme=marathon-bib')
+    await expect(page.getByTestId('composition-bib-ghost')).toBeVisible()
+    await expect(page.getByTestId('composition-bib-paper')).toBeVisible()
+    await expect(page.getByTestId('composition-bib-pin-hole')).toHaveCount(4)
+    await expect(page.getByTestId('composition-bib-tear-strip')).toBeVisible()
+    await expect(page.getByTestId('composition-bib-finish-headline')).toBeVisible()
+    await expect(page.getByTestId('composition-bib-finish-headline')).toContainText('4:07:12')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-bib-knockout')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-bib-mile-ticks')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-bib-checkpoint-dots')
+
+    await page.goto('/style-browser-fixture?composition=journal-spread&theme=field-journal')
+    await expect(page.getByTestId('composition-journal-notes')).toBeVisible()
+    await expect(page.getByTestId('composition-journal-route-sketch')).toBeVisible()
+    await expect(page.getByTestId('composition-journal-tape')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-journal-wash')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-journal-drybrush')
+
+    await page.goto('/style-browser-fixture?composition=botanical-plate&theme=botanical')
+    await expect(page.getByTestId('composition-botanical-frame')).toBeVisible()
+    await expect(page.getByTestId('composition-botanical-caption')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-botanical-pressed')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-botanical-ink-vein')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-botanical-leaf-cuts')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-botanical-specimen-dots')
+    await expect.poll(async () => page.locator('.poster-composition--botanical-plate .poster-trail-name').evaluate(el => getComputedStyle(el).letterSpacing)).not.toBe('normal')
+
+    await page.goto('/style-browser-fixture?composition=place-frame&theme=cartouche-place')
+    await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
+
+    await page.goto('/style-browser-fixture?composition=sea-chart&theme=sea-chart')
+    await expect(page.getByTestId('composition-plate-frame')).toHaveCount(0)
+    await expect(page.getByTestId('composition-sea-chart-art')).toBeVisible()
+    await expect(page.getByTestId('sea-chart-rose')).toBeVisible()
+    await expect(page.locator('.sea-chart-graticule, .sea-chart-depth-bands, .sea-chart-rose, .sea-chart-soundings, .sea-chart-rhumb-lines')).toHaveCount(5)
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-sea-course')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-sea-waypoints')
+
+    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=relief-shaded')
+    await expect(page.getByTestId('composition-relief-bands')).toBeVisible()
+    await expect(page.getByTestId('composition-relief-legend')).toBeVisible()
+    await expect(page.getByTestId('composition-relief-stamp')).toBeVisible()
+
+    await page.goto('/style-browser-fixture?composition=transit-diagram&theme=transit-diagram')
+    await expect(page.getByTestId('composition-transit-diagram-art')).toBeVisible()
+    await expect(page.getByTestId('transit-diagram-legend')).toBeVisible()
+    await expect(page.getByTestId('transit-diagram-station-key')).toBeVisible()
+
+    await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
+    await expect(page.getByTestId('composition-brutalist-baseline-grid')).toBeVisible()
+    await expect(page.getByTestId('composition-brutalist-registration-marks')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-brutalist-slab-shadow')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-brutalist-proof-dashes')
+
+    await page.goto('/style-browser-fixture?composition=art-wash&theme=contour-wash')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-contour-wash-field')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-contour-wash-echo-high')
+
+    await page.goto('/style-browser-fixture?composition=art-wash&theme=plein-air')
+    await expect(page.getByTestId('composition-plein-air-deckle')).toBeVisible()
+    await expect(page.getByTestId('composition-plein-air-palette')).toBeVisible()
+    await expect(page.locator('.plein-air-palette-swatch')).toHaveCount(3)
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-pigment-bleed')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-pigment-offset')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toContain('route-line-plein-air-drybrush')
+  })
+
+  test('renders Transit stops from the GPX-derived diagram', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=transit-diagram&theme=transit-diagram')
+    await expect(page.getByTestId('composition-transit-diagram-art')).toBeVisible()
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).toEqual(expect.arrayContaining(['transit-station-halo', 'transit-station-dot', 'transit-station-label']))
+  })
+
+  test('adapts route-derived poster artwork to non-default GPX regions', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop-only multi-region route-art stress pass')
+    test.setTimeout(90_000)
+    const regions = ['banff', 'patagonia', 'fuji', 'newzealand'] as const
+
+    const transitShapes = new Set<string>()
+    for (const region of regions) {
+      await page.goto(`/style-browser-fixture?region=${region}&composition=transit-diagram&theme=transit-diagram`, { waitUntil: 'domcontentloaded' })
+      await expect(page.getByTestId('composition-transit-diagram-art')).toBeVisible()
+      await expect.poll(async () => page.evaluate(() => {
+        const win = window as unknown as {
+          __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+        }
+        return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+      }), { message: region }).toEqual(expect.arrayContaining(['transit-station-halo', 'transit-station-dot', 'transit-station-label']))
+      transitShapes.add(region)
+    }
+    expect(transitShapes.size).toBe(regions.length)
+
+    for (const region of regions) {
+      await page.goto(`/style-browser-fixture?region=${region}&composition=journal-spread&theme=field-journal`, { waitUntil: 'domcontentloaded' })
+      await expect(page.getByTestId('composition-journal-route-sketch')).toBeVisible()
+      await expect.poll(async () => page.evaluate(() => {
+        const win = window as unknown as {
+          __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+        }
+        return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+      })).toContain('route-line-journal-wash')
+    }
+
+  })
+
+  test('adapts Cartouche title plate for route maps and no-route place portraits', async ({ page }) => {
+    await page.goto('/style-browser-fixture?surface=1&composition=place-frame&theme=cartouche-place&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
+    await expect(page.getByTestId('poster-canvas')).toHaveClass(/poster-has-route/)
+    await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
+    await expect(page.getByTestId('composition-cartouche-seal')).toBeVisible()
+    await expect(page.locator('.cartouche-corner')).toHaveCount(4)
+    const routeBoxes = await page.evaluate(() => {
+      const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+      return {
+        poster: poster?.getBoundingClientRect().toJSON(),
+        header: header?.getBoundingClientRect().toJSON(),
+      }
+    })
+    expect(routeBoxes.poster).toBeTruthy()
+    expect(routeBoxes.header).toBeTruthy()
+    expect(routeBoxes.header!.width).toBeGreaterThan(routeBoxes.poster!.width * 0.50)
+    expect(routeBoxes.header!.width).toBeLessThan(routeBoxes.poster!.width * 0.62)
+    expect(routeBoxes.header!.x - routeBoxes.poster!.x).toBeLessThan(routeBoxes.poster!.width * 0.16)
+
+    await page.goto('/style-browser-fixture?surface=1&composition=place-frame&theme=cartouche-place&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820&route=0')
+    await expect(page.getByTestId('poster-canvas')).toHaveClass(/poster-place-map/)
+    await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
+    await expect(page.getByTestId('composition-cartouche-seal')).toBeVisible()
+    await expect(page.locator('.cartouche-corner')).toHaveCount(4)
+    const placeBoxes = await page.evaluate(() => {
+      const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+      return {
+        poster: poster?.getBoundingClientRect().toJSON(),
+        header: header?.getBoundingClientRect().toJSON(),
+      }
+    })
+    expect(placeBoxes.poster).toBeTruthy()
+    expect(placeBoxes.header).toBeTruthy()
+    expect(placeBoxes.header!.width).toBeGreaterThan(placeBoxes.poster!.width * 0.58)
+    const posterCenter = placeBoxes.poster!.x + (placeBoxes.poster!.width / 2)
+    const headerCenter = placeBoxes.header!.x + (placeBoxes.header!.width / 2)
+    expect(Math.abs(headerCenter - posterCenter)).toBeLessThan(placeBoxes.poster!.width * 0.04)
+  })
+
+  test('keeps Transit fixed-template title inside the bottom title band', async ({ page }) => {
+    await page.goto('/style-browser-fixture?surface=1&composition=transit-diagram&theme=transit-diagram&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
+    await expect(page.getByTestId('poster-canvas')).toBeVisible()
+
+    const boxes = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+      const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+      const footer = document.querySelector<HTMLElement>('[data-testid="poster-footer"]')
+      const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+      const title = document.querySelector<HTMLElement>('.poster-composition--transit-diagram .chrome-grid-block--title')
+      return {
+        poster: poster?.getBoundingClientRect().toJSON(),
+        map: map?.getBoundingClientRect().toJSON(),
+        header: header?.getBoundingClientRect().toJSON(),
+        footer: footer?.getBoundingClientRect().toJSON(),
+        title: title?.getBoundingClientRect().toJSON(),
+      }
+    })
+    expect(boxes.poster).toBeTruthy()
+    expect(boxes.map).toBeTruthy()
+    expect(boxes.header).toBeTruthy()
+    expect(boxes.footer).toBeTruthy()
+    expect(boxes.title).toBeTruthy()
+    expect(boxes.map!.height / boxes.poster!.height).toBeGreaterThan(0.72)
+    expect(boxes.map!.height / boxes.poster!.height).toBeLessThan(0.77)
+    expect(boxes.header!.height / boxes.poster!.height).toBeLessThan(0.2)
+    expect(boxes.footer!.height / boxes.poster!.height).toBeLessThan(0.1)
+    expect(boxes.title!.y).toBeGreaterThanOrEqual(boxes.header!.y - 1)
+    expect(boxes.title!.y + boxes.title!.height).toBeLessThanOrEqual(boxes.header!.y + boxes.header!.height + 1)
+  })
+
+  test('keeps Risograph fixed-template chrome invisible while preserving misregistered title ink', async ({ page }) => {
+    await page.goto('/style-browser-fixture?surface=1&composition=riso-stack&theme=risograph&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
+    await expect(page.getByTestId('poster-canvas')).toBeVisible()
+
+    const risoChrome = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('.poster-composition--riso-stack [data-testid="poster-header"]')
+      const footer = document.querySelector<HTMLElement>('.poster-composition--riso-stack [data-testid="poster-footer"]')
+      const title = document.querySelector<HTMLElement>('.poster-composition--riso-stack .poster-trail-name')
+      const titleBefore = title ? getComputedStyle(title, '::before') : null
+      const titleStyle = title ? getComputedStyle(title) : null
+      return {
+        headerOutline: header ? getComputedStyle(header).outlineStyle : null,
+        footerOutline: footer ? getComputedStyle(footer).outlineStyle : null,
+        titleBeforeContent: titleBefore?.content ?? '',
+        titleBeforeColor: titleBefore?.color ?? '',
+        titleColor: titleStyle?.color ?? '',
+        titleBlend: titleStyle?.mixBlendMode ?? '',
+      }
+    })
+
+    expect(risoChrome.headerOutline).toBe('none')
+    expect(risoChrome.footerOutline).toBe('none')
+    expect(risoChrome.titleBeforeContent).toContain('Kickapoo Endurance Race')
+    expect(risoChrome.titleBeforeColor).not.toBe(risoChrome.titleColor)
+    expect(risoChrome.titleBlend).toBe('multiply')
+  })
+
+  test('exposes owned Beta map themes in the Quick panel', async ({ page }) => {
+    await page.goto('/style-browser-fixture?surface=1&width=1180&height=820', { waitUntil: 'domcontentloaded' })
+
+    const posterThemeIds = await page.getByTestId('quick-poster-theme').evaluateAll(buttons =>
+      buttons.map(button => button.getAttribute('data-theme-id')),
+    )
+    expect(posterThemeIds).toEqual(expect.arrayContaining(specThemeRecipes.map(([theme]) => theme)))
+
+    await expect(page.getByText('Beta owned map themes')).toBeVisible()
+    const ownedThemeIds = await page.getByTestId('quick-owned-map-theme').evaluateAll(buttons =>
+      buttons.map(button => button.getAttribute('data-preset-id')),
+    )
+    expect(ownedThemeIds).toEqual([
+      'radmaps-minimalist',
+      'radmaps-topographic',
+      'radmaps-natural',
+      'radmaps-toner-light',
+      'radmaps-toner-dark',
+      'radmaps-contour-wash',
+      'radmaps-watercolor',
+      'radmaps-night-relief',
+      'radmaps-simple-contour',
+      'radmaps-alidade',
+      'radmaps-alidade-dark',
+    ])
+
+    const ownedThumbKeys = await page.getByTestId('quick-owned-map-theme').evaluateAll(buttons =>
+      buttons.map(button => button.querySelector('[data-thumb-key]')?.getAttribute('data-thumb-key')),
+    )
+    expect(ownedThumbKeys).toEqual([
+      'atlas-minimal',
+      'atlas-topographic',
+      'atlas-natural',
+      'atlas-toner-light',
+      'atlas-toner-dark',
+      'atlas-contour-wash',
+      'atlas-watercolor',
+      'atlas-night-relief',
+      'atlas-simple-contour',
+      'atlas-alidade',
+      'atlas-alidade-dark',
+    ])
+
+    const uniqueThumbnailMarkup = await page.getByTestId('quick-owned-map-theme').evaluateAll(buttons => {
+      const signatures = buttons.map(button => button.querySelector('svg')?.innerHTML.trim() ?? '')
+      return new Set(signatures).size
+    })
+    expect(uniqueThumbnailMarkup).toBe(ownedThemeIds.length)
+  })
+
+  test('keeps long route titles inside title bands for expressive layouts', async ({ page }) => {
+    test.setTimeout(60_000)
+    const cases = [
+      ['transit-diagram', 'transit-diagram'],
+      ['travel-banner', 'midcentury-travel'],
+      ['riso-stack', 'risograph'],
+      ['botanical-plate', 'botanical'],
+    ] as const
+    const longTitle = 'Mount Washington Presidential Traverse Ultra Loop'
+
+    for (const [composition, theme] of cases) {
+      await page.goto(`/style-browser-fixture?composition=${composition}&theme=${theme}&width=720&height=1080&title=${encodeURIComponent(longTitle)}`, { waitUntil: 'domcontentloaded' })
+      await expect(page.getByTestId('poster-canvas')).toBeVisible()
+
+      const boxes = await page.evaluate(() => {
+        const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+        const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+        const title = document.querySelector<HTMLElement>('.poster-trail-name')
+        return {
+          poster: poster?.getBoundingClientRect().toJSON(),
+          header: header?.getBoundingClientRect().toJSON(),
+          title: title?.getBoundingClientRect().toJSON(),
+        }
+      })
+      expect(boxes.poster).toBeTruthy()
+      expect(boxes.header).toBeTruthy()
+      expect(boxes.title).toBeTruthy()
+      expect(boxes.title!.x).toBeGreaterThanOrEqual(boxes.poster!.x - 1)
+      expect(boxes.title!.x + boxes.title!.width).toBeLessThanOrEqual(boxes.poster!.x + boxes.poster!.width + 1)
+      expect(boxes.title!.y).toBeGreaterThanOrEqual(boxes.header!.y - 1)
+      expect(boxes.title!.y + boxes.title!.height).toBeLessThanOrEqual(boxes.header!.y + boxes.header!.height + 1)
+    }
+  })
+
+  test('renders every design-spec poster recipe at a stable 2:3 aspect', async ({ context }) => {
+    test.setTimeout(180_000)
+
+    for (const [theme, composition] of specThemeRecipes) {
+      const page = await context.newPage()
+      const consoleErrors: string[] = []
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') consoleErrors.push(msg.text())
+      })
+      await page.goto(`/style-browser-fixture?theme=${theme}&composition=${composition}&width=360&height=540`, { waitUntil: 'domcontentloaded' })
+      const poster = page.getByTestId('poster-canvas')
+      await expect(poster).toBeVisible()
+      await expect(poster).toHaveAttribute('data-theme', theme)
+      await expect(poster).toHaveAttribute('data-composition', composition)
+      await expect(page.getByTestId('poster-map')).toBeVisible()
+      await page.locator('.maplibregl-canvas').first().waitFor({ state: 'visible', timeout: 20_000 })
+
+      const box = await poster.boundingBox()
+      expect(box, theme).toBeTruthy()
+      expect(Math.abs((box!.width / box!.height) - (2 / 3)), theme).toBeLessThan(0.02)
+      await expect.poll(() => {
+        const hasBlobWorkerNoise = consoleErrors.some(error => error.includes('Cannot load blob:http://localhost'))
+        return consoleErrors
+          .filter(error => !error.includes('Failed to load resource'))
+          .filter(error => !error.includes('Cannot load blob:http://localhost'))
+          .filter(error => !(hasBlobWorkerNoise && error === 'Error'))
+          .join('\n')
+      }, { message: theme }).toBe('')
+      await page.close()
+    }
+  })
+
+  test('renders every design-spec poster recipe in final-print geometry with bleed', async ({ context }) => {
+    test.setTimeout(180_000)
+
+    for (const [theme, composition] of specThemeRecipes) {
+      const page = await context.newPage()
+      const consoleErrors: string[] = []
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') consoleErrors.push(msg.text())
+      })
+
+      await page.goto(`/style-browser-fixture?print=final&printScale=20&theme=${theme}&composition=${composition}`, { waitUntil: 'domcontentloaded' })
+      const poster = page.getByTestId('poster-canvas')
+      await expect(poster).toBeVisible()
+      await expect(poster).toHaveAttribute('data-theme', theme)
+      await expect(poster).toHaveAttribute('data-composition', composition)
+      await expect(page.getByTestId('poster-map')).toBeVisible()
+      await page.locator('.maplibregl-canvas').first().waitFor({ state: 'visible', timeout: 20_000 })
+      await expect.poll(async () => page.evaluate(() => {
+        const win = window as unknown as { __RENDER_READY?: boolean }
+        return win.__RENDER_READY === true
+      }), { message: theme, timeout: 30_000 }).toBe(true)
+
+      const print = await page.evaluate((forbiddenSelectors) => {
+        const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+        const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+        const canvas = document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
+        const box = poster?.getBoundingClientRect()
+        const mapBox = map?.getBoundingClientRect()
+        const canvasBox = canvas?.getBoundingClientRect()
+        const styles = poster ? getComputedStyle(poster) : null
+        const win = window as unknown as {
+          __RENDER_READY?: boolean
+          __RADMAPS_RENDER_STATUS?: { ready?: boolean; routeContentPresent?: boolean; error?: string }
+        }
+        return {
+          width: box?.width ?? 0,
+          height: box?.height ?? 0,
+          mapWidth: mapBox?.width ?? 0,
+          mapHeight: mapBox?.height ?? 0,
+          canvasWidth: canvasBox?.width ?? 0,
+          canvasHeight: canvasBox?.height ?? 0,
+          bleed: styles?.getPropertyValue('--print-bleed').trim() ?? '',
+          renderReady: win.__RENDER_READY === true,
+          renderStatusReady: win.__RADMAPS_RENDER_STATUS?.ready === true,
+          routeContentPresent: win.__RADMAPS_RENDER_STATUS?.routeContentPresent !== false,
+          renderError: win.__RADMAPS_RENDER_STATUS?.error ?? '',
+          forbidden: forbiddenSelectors.flatMap((selector) => (
+            Array.from(document.querySelectorAll(selector)).map(el => selector)
+          )),
+        }
+      }, finalPrintForbiddenSelectors)
+
+      expect(print.width, theme).toBeGreaterThan(300)
+      expect(print.height, theme).toBeGreaterThan(450)
+      expect(print.mapWidth, theme).toBeGreaterThan(100)
+      expect(print.mapHeight, theme).toBeGreaterThan(100)
+      expect(print.canvasWidth, theme).toBeGreaterThan(100)
+      expect(print.canvasHeight, theme).toBeGreaterThan(100)
+      expect(print.width / print.height, theme).toBeGreaterThan(0.64)
+      expect(print.width / print.height, theme).toBeLessThan(0.69)
+      expect(print.bleed, theme).not.toBe('0px')
+      expect(print.renderReady, theme).toBe(true)
+      expect(print.renderStatusReady, theme).toBe(true)
+      expect(print.routeContentPresent, theme).toBe(true)
+      expect(print.renderError, theme).toBe('')
+      expect(print.forbidden, theme).toEqual([])
+      await expect.poll(() => {
+        const hasBlobWorkerNoise = consoleErrors.some(error => error.includes('Cannot load blob:http://localhost'))
+        return consoleErrors
+          .filter(error => !error.includes('Failed to load resource'))
+          .filter(error => !error.includes('Cannot load blob:http://localhost'))
+          .filter(error => !(hasBlobWorkerNoise && error === 'Error'))
+          .join('\n')
+      }, { message: theme }).toBe('')
+      await page.close()
+    }
+  })
+
+  test('keeps every design-spec poster recipe stable when route geometry is missing', async ({ context }) => {
+    test.setTimeout(180_000)
+
+    for (const [theme, composition] of specThemeRecipes) {
+      const page = await context.newPage()
+      const consoleErrors: string[] = []
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') consoleErrors.push(msg.text())
+      })
+
+      await page.goto(`/style-browser-fixture?route=0&theme=${theme}&composition=${composition}&width=360&height=540`, { waitUntil: 'domcontentloaded' })
+      const poster = page.getByTestId('poster-canvas')
+      await expect(poster).toBeVisible()
+      await expect(poster).toHaveAttribute('data-theme', theme)
+      await expect(poster).toHaveAttribute('data-composition', composition)
+      await expect(page.getByTestId('poster-map')).toBeVisible()
+
+      const summary = await page.evaluate(() => {
+        const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+        const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+        const title = document.querySelector<HTMLElement>('.poster-trail-name,.chrome-grid-block--title')
+        return {
+          poster: poster?.getBoundingClientRect().toJSON(),
+          map: map?.getBoundingClientRect().toJSON(),
+          title: title?.getBoundingClientRect().toJSON(),
+          hasRouteClass: poster?.classList.contains('poster-has-route') ?? false,
+          hasPlaceClass: poster?.classList.contains('poster-place-map') ?? false,
+        }
+      })
+
+      expect(summary.poster, theme).toBeTruthy()
+      expect(summary.map, theme).toBeTruthy()
+      expect(summary.title, theme).toBeTruthy()
+      expect(summary.hasRouteClass, theme).toBe(false)
+      expect(summary.hasPlaceClass, theme).toBe(true)
+      await expect.poll(() => {
+        const hasBlobWorkerNoise = consoleErrors.some(error => error.includes('Cannot load blob:http://localhost'))
+        return consoleErrors
+          .filter(error => !error.includes('Failed to load resource'))
+          .filter(error => !error.includes('Cannot load blob:http://localhost'))
+          .filter(error => !(hasBlobWorkerNoise && error === 'Error'))
+          .join('\n')
+      }, { message: theme }).toBe('')
+      await page.close()
+    }
+  })
+
+  test('keeps fixed-template design-spec recipes resilient to long route names', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop-only full recipe stress pass')
+    test.setTimeout(180_000)
+    const longTitle = 'Mount Washington Presidential Traverse Ultra Loop Through The Northern Ravine And Summit Ridge'
+
+    for (const [theme, composition] of specThemeRecipes) {
+      await page.goto(`/style-browser-fixture?surface=1&theme=${theme}&composition=${composition}&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820&title=${encodeURIComponent(longTitle)}`, { waitUntil: 'domcontentloaded' })
+      await expect(page.getByTestId('poster-canvas')).toBeVisible()
+
+      const issues = await page.evaluate((titleText) => {
+        const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')?.getBoundingClientRect()
+        const normalizedTitle = titleText.replace(/\s+/g, ' ').trim().toLowerCase()
+        const visibleTitles = [...document.querySelectorAll<HTMLElement>('.poster-trail-name,.chrome-grid-block--title')]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect()
+            const elementTitle = (element.textContent ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+            return elementTitle === normalizedTitle &&
+              getComputedStyle(element).display !== 'none' &&
+              rect.width > 0 &&
+              rect.height > 0
+          })
+
+        if (!poster || visibleTitles.length === 0) return ['missing visible route title']
+
+        return visibleTitles.flatMap((element) => {
+          const rect = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const failures: string[] = []
+          const clipsOverflow = style.overflowX !== 'visible' || style.overflowY !== 'visible'
+          if (clipsOverflow && (element.scrollWidth > element.clientWidth + 2 || element.scrollHeight > element.clientHeight + 2)) {
+            failures.push(`${element.getAttribute('class') ?? 'title'} clips internally`)
+          }
+          if (
+            rect.x < poster.x - 1 ||
+            rect.y < poster.y - 1 ||
+            rect.right > poster.right + 1 ||
+            rect.bottom > poster.bottom + 1
+          ) {
+            failures.push(`${element.getAttribute('class') ?? 'title'} escapes poster`)
+          }
+          return failures
+        })
+      }, longTitle)
+
+      expect(issues, `${theme}/${composition}`).toEqual([])
+    }
   })
 
   test('theme picker previews themes before mutating saved style', async ({ page }, testInfo) => {
@@ -1301,7 +2140,34 @@ test.describe('style browser visual harness', () => {
     expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowTopBox!)).toBe(false)
     expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowBottomBox!)).toBe(false)
     expect(boxesOverlap(headerTitleAddColBox!, headerTitleRowAddBox!)).toBe(false)
+    expect(boxesOverlap(headerTitleRowTopBox!, headerTitleRowAddBox!)).toBe(false)
     expect(boxesOverlap(headerTitleRowBottomBox!, headerTitleRowAddBox!)).toBe(false)
+    expect(await page.evaluate(() => {
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+      return Array.from(document.querySelectorAll<HTMLElement>('.fixed-template-map-preview .chrome-grid-cell'))
+        .every((cell) => {
+          const add = cell.querySelector<HTMLElement>('[data-testid="chrome-cell-add-column"]')
+          if (!add || window.getComputedStyle(add).opacity === '0') return true
+          const addBox = add.getBoundingClientRect()
+          return Array.from(cell.querySelectorAll<HTMLElement>('[data-testid="chrome-cell-resize-column"]'))
+            .every(handle => !overlaps(addBox, handle.getBoundingClientRect()))
+        })
+    })).toBe(true)
+    expect(await page.evaluate(() => {
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+      return Array.from(document.querySelectorAll<HTMLElement>('.fixed-template-map-preview .chrome-grid-row'))
+        .every((row) => {
+          const add = row.querySelector<HTMLElement>('[data-testid="chrome-row-add-row"]')
+          if (!add || window.getComputedStyle(add).opacity === '0') return true
+          const addBox = add.getBoundingClientRect()
+          return Array.from(row.querySelectorAll<HTMLElement>('[data-testid="chrome-row-resize-row"]'))
+            .every(handle => !overlaps(addBox, handle.getBoundingClientRect()))
+        })
+    })).toBe(true)
     await headerTitleCell.locator('[data-testid="chrome-cell-trash"]').click()
     if (headerTitleCellsBeforeDelete > 1) {
       await expect(headerTitleRow).toHaveCount(1)
@@ -1320,6 +2186,19 @@ test.describe('style browser visual harness', () => {
         return rows.some((row: any) => row.id === 'header-title' && row.deleted === true)
       })).toBe(true)
     }
+  })
+
+  test('fixed poster template editor done returns to the editable surface', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop fixed-template editor coverage')
+
+    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
+    await expect(page.getByTestId('fixed-template-editor')).toBeVisible()
+    await page.getByTestId('template-done').click()
+    await expect(page.getByTestId('fixed-template-editor')).toHaveCount(0)
+    await expect(page.getByTestId('map-editor-surface')).toBeVisible()
+    await expect(page.getByTestId('poster-canvas')).toBeVisible()
+    await expect(page.getByTestId('style-panel')).toBeVisible()
+    await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
   })
 
   test('keeps mid-century fixed-template chrome side margins compact', async ({ page }, testInfo) => {
@@ -1342,6 +2221,7 @@ test.describe('style browser visual harness', () => {
     expect(chromePadding.right).toBeGreaterThanOrEqual(posterBox!.width * 0.035)
     expect(chromePadding.left).toBeLessThanOrEqual(posterBox!.width * 0.038)
     expect(chromePadding.right).toBeLessThanOrEqual(posterBox!.width * 0.038)
+    await expect(page.getByTestId('fixed-template-poster')).not.toContainText('Complete trail network')
   })
 
   test('Puck poster spike renders a structured builder reference on desktop', async ({ page }, testInfo) => {
@@ -1458,6 +2338,28 @@ test.describe('style browser visual harness', () => {
     await page.mouse.move(box!.x + box!.width / 2 + 48, box!.y + box!.height / 2 + 32, { steps: 6 })
     await page.mouse.up()
     await expect.poll(() => freeTextElement.evaluate(el => `${(el as HTMLElement).style.left}|${(el as HTMLElement).style.top}`)).not.toBe(beforeDragStyle)
+  })
+
+  test('style panel exposes text overlay customization controls', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop text overlay editor coverage')
+
+    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&overlay=1&width=1180&height=820')
+    const stylePanel = page.getByTestId('style-panel')
+    await expect(stylePanel).toBeVisible()
+    await stylePanel.getByRole('button', { name: 'Text', exact: true }).click()
+    await expect(stylePanel).toContainText('Text overlays')
+    await stylePanel.getByText('Text overlays').click()
+    await expect(page.getByTestId('text-overlay-toggle-fixture-overlay-label')).toBeVisible()
+    await page.getByTestId('text-overlay-toggle-fixture-overlay-label').click()
+
+    const overlay = page.locator('[data-poster-element-id="text:fixture-overlay-label"]')
+    const content = page.getByTestId('text-overlay-content-fixture-overlay-label')
+    await expect(content).toBeVisible()
+    await content.fill('Finish Line')
+    await expect(overlay).toContainText('Finish Line')
+
+    await page.getByTestId('text-overlay-editor-fixture-overlay-label').getByText('Space Grotesk', { exact: true }).click()
+    await expect.poll(() => overlay.evaluate(element => window.getComputedStyle(element).fontFamily)).toContain('Space Grotesk')
   })
 
   test('poster editor v2 layout builder manages chrome grid content and spacing', async ({ page }, testInfo) => {
@@ -1802,5 +2704,13 @@ test.describe('style browser visual harness', () => {
 
     expect(contrast.headerBg).toBe('rgb(25, 56, 42)')
     expect(contrast.titleColor).toBe('rgb(250, 235, 194)')
+  })
+
+  test('keeps Mid-Century footer focused on route stats', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=travel-banner&theme=midcentury-travel&occasion=Complete%20trail%20network')
+
+    await expect(page.getByTestId('poster-canvas')).toHaveAttribute('data-composition', 'travel-banner')
+    await expect(page.locator('.poster-occasion')).toHaveCount(0)
+    await expect(page.locator('.poster-stats')).toBeVisible()
   })
 })

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { COMPOSITION_IDS, REFINED_THEMES } from '~/utils/themes/refined'
 import {
   COMPOSITION_OPTIONS,
@@ -38,6 +40,8 @@ describe('poster composition registry', () => {
   it('uses theme composition when a refined row has not stored composition yet', () => {
     expect(resolvePosterCompositionId({ color_theme: 'blueprint-strava' })).toBe('blueprint-strava')
     expect(resolvePosterCompositionId({ color_theme: 'marathon-bib' })).toBe('bib-numerals')
+    expect(resolvePosterCompositionId({ color_theme: 'cartouche-place' })).toBe('place-frame')
+    expect(resolvePosterCompositionId({ color_theme: 'contour-wash' })).toBe('art-wash')
   })
 
   it('produces stable CSS class names for browser assertions', () => {
@@ -46,19 +50,39 @@ describe('poster composition registry', () => {
   })
 
   it('marks label-band title compositions so light text stays readable', () => {
-    expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('label')
-    expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('label')
+    expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('paper')
+    expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('paper')
     expect(POSTER_COMPOSITIONS['editorial-tall'].headerBackground).toBe('paper')
   })
 
   it('uses refined typography profiles instead of legacy theme aliases', () => {
     expect(getPosterTypography({ color_theme: 'editorial-minimal' }).titleTracking).toBe('0')
-    expect(getPosterTypography({ color_theme: 'brutalist' }).titleTracking).toBe('0.02em')
-    expect(getPosterTypography({ color_theme: 'bold-modern' }).titleLineHeight).toBe('0.94')
-    expect(getPosterTypography({ color_theme: 'field-journal' }).titleFont).toContain('Newsreader')
-    expect(getPosterTypography({ color_theme: 'blueprint' }).titleTracking).toBe('0.02em')
-    expect(getPosterTypography({ color_theme: 'blackline' }).titleLineHeight).toBe('0.95')
+    expect(getPosterTypography({ color_theme: 'brutalist' }).titleFont).toContain('Bebas Neue')
+    expect(getPosterTypography({ color_theme: 'bold-modern' }).titleLineHeight).toBe('0.88')
+    expect(getPosterTypography({ color_theme: 'field-journal' }).titleFont).toContain('Cormorant Garamond')
+    expect(getPosterTypography({ color_theme: 'blueprint' }).titleTracking).toBe('0.07em')
+    expect(getPosterTypography({ color_theme: 'blackline' }).titleLineHeight).toBe('0.9')
     expect(getPosterTypography({ color_theme: 'night-ride' }).statsWeight).toBe('800')
-    expect(getPosterTypography({ color_theme: 'daybreak-trace' }).titleFont).toContain('Newsreader')
+    expect(getPosterTypography({ color_theme: 'daybreak-trace' }).titleFont).toContain('Oswald')
+    expect(getPosterTypography({ color_theme: 'cartouche-place' }).titleFont).toContain('Playfair Display')
+    expect(getPosterTypography({ color_theme: 'transit-diagram' }).titleFont).toContain('Outfit')
+  })
+
+  it('keeps Field Journal chrome title rendering on the contract font', () => {
+    const source = readFileSync(resolve(process.cwd(), 'components/map/MapPreview.vue'), 'utf8')
+    const rule = source.match(/\.poster-composition--journal-spread \.poster-trail-name \{[\s\S]*?\}/)?.[0] ?? ''
+
+    expect(rule).toContain('font-family: "Cormorant Garamond", "Source Serif 4", serif !important;')
+    expect(rule).not.toContain('Fraunces')
+  })
+
+  it('keeps Plein Air art-wash title rendering hand-set and theme-specific', () => {
+    const source = readFileSync(resolve(process.cwd(), 'components/map/MapPreview.vue'), 'utf8')
+    const rule = source.match(/\.poster-composition--art-wash\[data-theme="plein-air"\] \.poster-trail-name \{[\s\S]*?\}/)?.[0] ?? ''
+
+    expect(rule).toContain('font-family: "Cormorant Garamond", "Newsreader", serif !important;')
+    expect(rule).toContain('font-style: italic !important;')
+    expect(rule).toContain('text-align: left !important;')
+    expect(rule).toContain('text-shadow:')
   })
 })

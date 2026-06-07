@@ -140,10 +140,14 @@ const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
 const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
   'blueprint-grid',
   'blueprint-strava',
+  'brutalist-slab',
+  'modernist-block',
   'splits-grid',
 ])
 
-const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([])
+const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([
+  'brutalist-slab',
+])
 
 const OCCASION_COMPOSITIONS = new Set<CompositionId>([
   'editorial-tall',
@@ -244,7 +248,7 @@ function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRe
     case 'journal-spread':
       return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13.5, headerTopFr: 0.62, headerTitleFr: 2.35, headerBottomFr: 0.74, subtitleScale: 0.72, statScale: 1.12, noteScale: 0.62 }
     case 'modernist-block':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 24, footerHeight: 13.5, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 34.2, footerHeight: 0, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
     case 'bib-numerals':
       return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 15.5, headerTopFr: 0.38, headerTitleFr: 2.2, headerBottomFr: 0.42, footerTopFr: 0.42, footerPrimaryFr: 1.18, footerBottomFr: 0.42, titleScale: 0.95, statScale: 1.56, dateScale: 1.08 }
     case 'brutalist-slab':
@@ -263,13 +267,27 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
     (Boolean(stats?.elevation_gain_m) || hasVisibleText(styleConfig.poster_text_overrides?.elevation_gain?.text))
   const composition = styleConfig.composition
   const hasOccasion = compositionUsesOccasion(composition) && hasVisibleText(styleConfig.occasion_text)
-  const modernistRails = composition === 'modernist-block'
-  const recipe = chromeRecipeForComposition(composition)
+  const isUsgsHeritage = styleConfig.color_theme === 'usgs-vintage'
+  const isBlueprint = styleConfig.color_theme === 'blueprint' && composition === 'blueprint-grid'
+  const recipe = isUsgsHeritage
+    ? {
+        ...chromeRecipeForComposition(composition),
+        headerHeight: 12.6,
+        footerHeight: 5.05,
+        headerTopFr: 0.08,
+        headerMetaFr: 0,
+        headerTitleFr: 1.45,
+        headerSubFr: 0.42,
+        headerBottomFr: 0.08,
+        titleScale: 1.38,
+        subtitleScale: 0.92,
+      }
+    : chromeRecipeForComposition(composition)
 
   const headerRows: ChromeGridRow[] = [
     spacerRow('header-spacer-top', 'Top spacer', recipe.headerTopFr),
   ]
-  if (compositionUsesHeaderDecor(composition)) {
+  if (compositionUsesHeaderDecor(composition) && !isUsgsHeritage) {
     headerRows.push(row('header-meta', [
       cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: recipe.kickerScale })),
       cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: recipe.metaScale })),
@@ -295,24 +313,40 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
     footerCells.push(cell(
       'ft-distance',
       block('ft-distance-block', 'stat', 'distance', footerBlockPatch('distance', composition, recipe)),
-      footerCellPatch('distance', composition),
+      isBlueprint
+        ? { ...footerCellPatch('distance', composition), fr: 1.34, align: 'left' }
+        : footerCellPatch('distance', composition),
     ))
   }
   if (showElevationGain) {
     footerCells.push(cell(
       'ft-gain',
-      block('ft-gain-block', 'stat', 'elevation_gain', footerBlockPatch('elevation_gain', composition, recipe)),
-      footerCellPatch('elevation_gain', composition),
+      block('ft-gain-block', 'stat', 'elevation_gain', {
+        ...footerBlockPatch('elevation_gain', composition, recipe),
+        align: isBlueprint ? 'center' : undefined,
+      }),
+      isBlueprint
+        ? { ...footerCellPatch('elevation_gain', composition), fr: 1.5, align: 'center' }
+        : footerCellPatch('elevation_gain', composition),
     ))
   }
   if (showDate) {
+    if (isBlueprint && footerCells.length) {
+      footerCells.push(cell('ft-blueprint-titleblock-spacer', undefined, {
+        fr: 0.82,
+        align: 'center',
+        valign: 'center',
+      }))
+    }
     footerCells.push(cell(
       'ft-date',
       block('ft-date-block', 'stat', 'date', footerBlockPatch('date', composition, recipe)),
-      footerCellPatch('date', composition),
+      isBlueprint
+        ? { ...footerCellPatch('date', composition), align: 'right', fr: 1.86 }
+        : footerCellPatch('date', composition),
     ))
   }
-  if (showLocation) {
+  if (showLocation && !isBlueprint) {
     footerCells.push(cell(
       'ft-coords',
       block('ft-coords-block', 'coords', 'coordinates', footerBlockPatch('coordinates', composition, recipe)),
@@ -322,7 +356,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   if (compositionUsesFooterNote(composition)) {
     footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: recipe.noteScale })))
   }
-  if (styleConfig.show_branding !== false) {
+  if (styleConfig.show_branding !== false && !isBlueprint) {
     footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.58 }), footerCellPatch('brand', composition)))
   }
 
@@ -335,16 +369,12 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
         spacerRow('footer-spacer-bottom', 'Bottom spacer', recipe.footerBottomFr),
       ] }),
       railLeft: band({
-        width: modernistRails ? 5 : 0,
-        rows: modernistRails
-          ? [row('rail-left-primary', [cell('rail-left-label', block('rail-left-label-block', 'vlabel', 'composition_side_rail', { text: 'RAD', align: 'center' }))])]
-          : [],
+        width: 0,
+        rows: [],
       }),
       railRight: band({
-        width: composition === 'modernist-block' ? 5 : 0,
-        rows: composition === 'modernist-block'
-          ? [row('rail-right-primary', [cell('rail-right-label', block('rail-right-label-block', 'vlabel', 'composition_side_rail', { text: 'RAD', align: 'center' }))])]
-          : [],
+        width: 0,
+        rows: [],
       }),
     },
   }

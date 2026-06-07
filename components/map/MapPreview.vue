@@ -397,6 +397,41 @@
         data-testid="composition-grid-overlay"
       />
       <div
+        v-if="composition.id === 'brutalist-slab'"
+        class="composition-brutalist-baseline-grid"
+        data-testid="composition-brutalist-baseline-grid"
+        aria-hidden="true"
+      />
+      <div
+        v-if="composition.id === 'brutalist-slab'"
+        class="composition-brutalist-registration-marks"
+        data-testid="composition-brutalist-registration-marks"
+        aria-hidden="true"
+      />
+      <div
+        v-if="isBlueprintTheme"
+        class="blueprint-drafting-topline"
+        data-testid="blueprint-drafting-topline"
+        aria-hidden="true"
+      >
+        <span>RADMAPS · SHEET A</span>
+        <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '36.5785°N' }}</span>
+      </div>
+      <div
+        v-if="isBlueprintTheme"
+        class="blueprint-drafting-figure"
+        data-testid="blueprint-drafting-figure"
+        aria-hidden="true"
+      >
+        FIG. 01 — ROUTE PLAN
+      </div>
+      <div
+        v-if="isBlueprintTheme"
+        class="blueprint-sheet-neatline"
+        data-testid="blueprint-sheet-neatline"
+        aria-hidden="true"
+      />
+      <div
         v-if="showEditorGuides"
         class="poster-editor-guides"
         data-testid="poster-editor-guides"
@@ -414,6 +449,80 @@
         class="composition-star-field"
         data-testid="composition-star-field"
       />
+      <svg
+        v-if="composition.id === 'darksky-stars'"
+        class="composition-darksky-ridge"
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        data-testid="composition-darksky-ridge"
+      >
+        <path class="darksky-ridge-line darksky-ridge-line--back" d="M0 24 L8 20 L15 22 L24 12 L31 19 L38 15 L46 23 L54 10 L63 19 L72 14 L82 23 L91 18 L100 22 L100 36 L0 36 Z" />
+        <path class="darksky-ridge-line darksky-ridge-line--front" d="M0 29 L10 25 L18 27 L29 18 L38 26 L49 21 L60 30 L69 20 L80 27 L90 24 L100 28 L100 36 L0 36 Z" />
+      </svg>
+      <div
+        v-if="styleConfig.color_theme === 'marathon-bib'"
+        class="composition-bib-paper"
+        data-testid="composition-bib-paper"
+        aria-hidden="true"
+      >
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--tl" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--tr" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--br" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--bl" data-testid="composition-bib-pin-hole" />
+      </div>
+      <div
+        v-if="styleConfig.color_theme === 'marathon-bib'"
+        class="composition-bib-ghost"
+        data-testid="composition-bib-ghost"
+        aria-hidden="true"
+      >
+        26.2
+      </div>
+      <div
+        v-if="styleConfig.color_theme === 'marathon-bib'"
+        class="composition-bib-tear-strip"
+        data-testid="composition-bib-tear-strip"
+        aria-hidden="true"
+      />
+      <div
+        v-if="styleConfig.color_theme === 'marathon-bib'"
+        class="composition-bib-finish-headline"
+        data-testid="composition-bib-finish-headline"
+        aria-hidden="true"
+      >
+        <span>Finish</span>
+        <b>{{ marathonFinishHeadline }}</b>
+      </div>
+      <div
+        v-if="styleConfig.color_theme === 'plein-air'"
+        class="composition-plein-air-deckle"
+        data-testid="composition-plein-air-deckle"
+        aria-hidden="true"
+      />
+      <aside
+        v-if="styleConfig.color_theme === 'field-journal'"
+        class="composition-journal-notes"
+        data-testid="composition-journal-notes"
+        aria-hidden="true"
+      >
+        <span class="journal-note-heading">Field Notes</span>
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule journal-note-rule--short" />
+      </aside>
+      <aside
+        v-if="styleConfig.color_theme === 'field-journal'"
+        class="composition-journal-route-sketch"
+        data-testid="composition-journal-route-sketch"
+        aria-hidden="true"
+      >
+        <span class="journal-specimen-tag">Route specimen</span>
+        <span class="journal-specimen-line" />
+        <span>{{ formattedDistance ? `${formattedDistance} mi` : 'measured route' }}</span>
+        <span>{{ formattedGain ? `${formattedGain} ft gain` : 'field survey' }}</span>
+      </aside>
       <div
         v-if="composition.showSideRail && !sideRailInsideMap"
         class="composition-side-rail"
@@ -523,6 +632,12 @@
           >+</button>
         </div>
         <div
+          v-if="composition.id === 'modernist-block'"
+          class="composition-modernist-accent"
+          data-testid="composition-modernist-accent"
+          aria-hidden="true"
+        />
+        <div
           v-if="chromeGridRendering"
           class="chrome-grid-band chrome-grid-band--header"
           :class="{
@@ -585,7 +700,7 @@
                 <span>{{ cell.block?.label ?? 'Spacer' }}</span>
               </div>
               <div
-                v-else-if="cell.block && !cell.block.empty"
+                v-else-if="cell.block && !cell.block.empty && (!cell.block.slot || compositionAllowsSlot(cell.block.slot))"
                 class="chrome-grid-block"
                 :class="[
                   `chrome-grid-block--${cell.block.kind}`,
@@ -600,6 +715,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
                 @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -615,11 +731,15 @@
               <button
                 v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
+                :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
                 data-testid="chrome-cell-add-column"
                 title="Add column after this cell"
+                aria-label="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('header', row.id, cell.id)"
                 @click.stop
-              >Col +</button>
+              >
+                <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
+              </button>
               <button
                 v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
@@ -629,7 +749,17 @@
                 @click.stop
               />
             </div>
-            <button v-if="chromeDirectEditing" class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>Row +</button>
+            <button
+              v-if="chromeDirectEditing"
+              class="chrome-row-add-row"
+              data-testid="chrome-row-add-row"
+              title="Add row below"
+              aria-label="Add row below"
+              @pointerdown.prevent.stop="addRowAfter('header', row.id)"
+              @click.stop
+            >
+              <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
+            </button>
             <button
               v-if="chromeDirectEditing && canResizeChromeRowEdge('header', row, 'top')"
               class="chrome-row-resize-row chrome-row-resize-row--top"
@@ -679,12 +809,14 @@
           v-if="!editable && styleConfig.labels?.show_title !== false && chromeSlotVisible('trail_name')"
           class="poster-trail-name"
           :style="trailNameStyle"
+          :data-riso-title="trailName"
         >{{ trailName }}</h1>
         <h1
           v-else-if="editable && chromeSlotVisible('trail_name')"
           class="poster-trail-name editable-text"
           :class="{ 'is-selected-text': isSlotActive('trail_name') }"
           :style="trailNameStyle"
+          :data-riso-title="trailName"
           contenteditable="true"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -800,13 +932,232 @@
           data-testid="composition-map-grid-overlay"
         />
         <div
-          v-if="showTerrainIllusionOverlay"
-          class="terrain-illusion-overlay"
-          :class="terrainIllusionClass"
-          :style="terrainIllusionStyle"
-          data-testid="terrain-illusion-overlay"
-        />
-
+          v-if="styleConfig.color_theme === 'electric-atlas'"
+          class="composition-electric-trace"
+          data-testid="composition-electric-trace"
+          aria-hidden="true"
+        >
+          <span class="electric-trace-line electric-trace-line--a" />
+          <span class="electric-trace-line electric-trace-line--b" />
+          <span class="electric-trace-line electric-trace-line--c" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'electric-atlas'"
+          class="composition-electric-chip"
+          data-testid="composition-electric-chip"
+          aria-hidden="true"
+        >
+          <span>LIVE GPX</span>
+          <b>{{ formattedDistance ? `${formattedDistance} MI` : 'ROUTE' }}</b>
+        </div>
+        <svg
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-bands"
+          viewBox="0 0 100 150"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-relief-bands"
+        >
+          <path class="relief-band relief-band--low" d="M0 116 C18 105 31 122 49 112 C66 103 80 110 100 98 L100 150 L0 150 Z" />
+          <path class="relief-band relief-band--mid" d="M0 86 C20 76 34 91 51 82 C69 72 79 84 100 70 L100 104 C80 116 66 104 49 114 C31 124 18 106 0 118 Z" />
+          <path class="relief-band relief-band--high" d="M0 52 C19 44 34 59 50 49 C67 39 80 48 100 34 L100 72 C80 86 68 73 51 84 C34 94 20 77 0 88 Z" />
+        </svg>
+        <div
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-legend"
+          data-testid="composition-relief-legend"
+          aria-hidden="true"
+        >
+          <span class="relief-legend-swatch relief-legend-swatch--low" />
+          <span class="relief-legend-swatch relief-legend-swatch--mid" />
+          <span class="relief-legend-swatch relief-legend-swatch--high" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-stamp"
+          data-testid="composition-relief-stamp"
+          aria-hidden="true"
+        >
+          Relief
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'plein-air'"
+          class="composition-plein-air-palette"
+          data-testid="composition-plein-air-palette"
+          aria-hidden="true"
+        >
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--route" />
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--water" />
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--contour" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'field-journal'"
+          class="composition-journal-tape"
+          data-testid="composition-journal-tape"
+          aria-hidden="true"
+        >
+          <span class="journal-tape-strip journal-tape-strip--top" />
+          <span class="journal-tape-strip journal-tape-strip--bottom" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'botanical'"
+          class="composition-botanical-frame"
+          data-testid="composition-botanical-frame"
+          aria-hidden="true"
+        >
+          <span class="botanical-corner botanical-corner--tl" />
+          <span class="botanical-corner botanical-corner--tr" />
+          <span class="botanical-corner botanical-corner--br" />
+          <span class="botanical-corner botanical-corner--bl" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'botanical'"
+          class="composition-botanical-caption"
+          data-testid="composition-botanical-caption"
+          aria-hidden="true"
+        >
+          <span class="botanical-caption-label">Specimen route</span>
+          <span>{{ formattedDistance ? `${formattedDistance} mi` : compositionDecor.meta }}</span>
+        </div>
+        <div
+          v-if="showPlateFrameOverlay"
+          class="composition-plate-frame"
+          data-testid="composition-plate-frame"
+        >
+          <template v-if="composition.id === 'place-frame'">
+            <span class="cartouche-corner cartouche-corner--tl" aria-hidden="true" />
+            <span class="cartouche-corner cartouche-corner--tr" aria-hidden="true" />
+            <span class="cartouche-corner cartouche-corner--br" aria-hidden="true" />
+            <span class="cartouche-corner cartouche-corner--bl" aria-hidden="true" />
+            <span class="cartouche-seal" data-testid="composition-cartouche-seal" aria-hidden="true">
+              <i />
+            </span>
+          </template>
+        </div>
+        <svg
+          v-if="composition.id === 'travel-banner'"
+          class="composition-travel-sun"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-travel-sun"
+        >
+          <circle class="composition-travel-sun__disk" cx="50" cy="82" r="78" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--wide" cx="50" cy="82" r="58" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--mid" cx="50" cy="82" r="38" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--inner" cx="50" cy="82" r="22" />
+          <path class="composition-travel-sun__horizon" d="M5 82 H95" />
+        </svg>
+        <svg
+          v-if="composition.id === 'sea-chart'"
+          class="composition-sea-chart-art"
+          viewBox="0 0 100 150"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-sea-chart-art"
+        >
+          <g class="sea-chart-graticule">
+            <path d="M0 34 H100 M0 70 H100 M0 106 H100" />
+            <path d="M18 0 V150 M50 0 V150 M82 0 V150" />
+          </g>
+          <g class="sea-chart-rhumb-lines">
+            <path d="M-8 128 L46 74 L108 12" />
+            <path d="M-12 36 L34 82 L82 130" />
+            <path d="M50 -10 L50 160" />
+            <path d="M-10 75 H110" />
+          </g>
+          <g class="sea-chart-depth-bands">
+            <path d="M-4 117 C17 106 31 123 49 113 C67 103 76 116 104 105" />
+            <path d="M-2 127 C19 117 34 132 51 122 C68 113 82 126 102 116" />
+          </g>
+          <g class="sea-chart-soundings">
+            <text x="14" y="27">7</text>
+            <text x="32" y="43">12</text>
+            <text x="71" y="31">5</text>
+            <text x="86" y="58">9</text>
+            <text x="18" y="91">4</text>
+            <text x="66" y="101">16</text>
+            <circle cx="24" cy="55" r="0.7" />
+            <circle cx="43" cy="31" r="0.7" />
+            <circle cx="78" cy="82" r="0.7" />
+            <circle cx="55" cy="119" r="0.7" />
+          </g>
+          <g class="sea-chart-rose" data-testid="sea-chart-rose" transform="translate(83 24)">
+            <circle r="8.5" />
+            <path d="M0 -12 L2.2 -2.2 L12 0 L2.2 2.2 L0 12 L-2.2 2.2 L-12 0 L-2.2 -2.2 Z" />
+            <path d="M0 -8 V8 M-8 0 H8" />
+            <text x="0" y="-14">N</text>
+          </g>
+        </svg>
+        <div
+          v-if="composition.id === 'transit-diagram'"
+          class="composition-transit-diagram-art"
+          data-testid="composition-transit-diagram-art"
+          aria-hidden="true"
+        >
+          <div class="transit-diagram-legend" data-testid="transit-diagram-legend">
+            <span class="transit-diagram-badge">T1</span>
+            <span class="transit-diagram-line-key">
+              <i />
+              <b />
+              <i />
+            </span>
+            <span class="transit-diagram-legend-text">45/90 GPX LINE</span>
+          </div>
+          <div class="transit-diagram-station-key" data-testid="transit-diagram-station-key">
+            <span><i /> START</span>
+            <span><i /> STOP</span>
+            <span><i /> FINISH</span>
+          </div>
+        </div>
+        <div
+          v-if="isUsgsHeritageTheme && compositionDecor.kicker"
+          class="usgs-heritage-map-label usgs-heritage-map-label--coord"
+          :class="{ 'editable-text': editable || chromeDirectEditing, 'is-selected-text': isSlotActive('composition_kicker') }"
+          :contenteditable="(editable || chromeDirectEditing) ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Map coordinate label"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="usgs-heritage-coordinate"
+          @pointerdown.stop
+          @focus="onSlotFocus($event, 'composition_kicker')"
+          @blur="onSlotBlur($event, 'composition_kicker')"
+          @click="onSlotClick($event, 'composition_kicker')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.kicker }}</div>
+        <div
+          v-if="isUsgsHeritageTheme && compositionDecor.meta"
+          class="usgs-heritage-map-label usgs-heritage-map-label--scale"
+          :class="{ 'editable-text': editable || chromeDirectEditing, 'is-selected-text': isSlotActive('composition_meta') }"
+          :contenteditable="(editable || chromeDirectEditing) ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Map scale label"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="usgs-heritage-scale"
+          @pointerdown.stop
+          @focus="onSlotFocus($event, 'composition_meta')"
+          @blur="onSlotBlur($event, 'composition_meta')"
+          @click="onSlotClick($event, 'composition_meta')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.meta }}</div>
+        <div
+          v-if="isUsgsHeritageTheme && usgsCoordinateTicks.length"
+          class="usgs-coordinate-ticks"
+          data-testid="usgs-coordinate-ticks"
+          aria-hidden="true"
+        >
+          <span
+            v-for="tick in usgsCoordinateTicks"
+            :key="tick.id"
+            class="usgs-coordinate-tick"
+            :class="`usgs-coordinate-tick--${tick.id}`"
+            data-testid="usgs-coordinate-tick"
+          >{{ tick.label }}</span>
+        </div>
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
           v-if="plotMode"
@@ -949,9 +1300,10 @@
           style="z-index: 14; overflow: visible; pointer-events: none;"
         >
           <!-- Pin labels with leader lines (labels are draggable) -->
-          <g v-if="showPinOverlay">
+          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail'">
             <template v-for="pin in pinOverlayItems" :key="pin.id">
               <line
+                v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
                 :x1="pin.dotX" :y1="pin.dotY"
                 :x2="pin.labelX" :y2="pin.labelY"
                 :stroke="pin.color" :stroke-width="svgLineW"
@@ -959,6 +1311,7 @@
                 style="pointer-events: none;"
               />
               <text
+                v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
                 :x="pin.labelX" :y="pin.labelY"
                 :text-anchor="pin.anchor"
                 :font-size="pinLabelFontSize(pin.id)"
@@ -1157,7 +1510,7 @@
                 <span>{{ cell.block?.label ?? 'Spacer' }}</span>
               </div>
               <div
-                v-else-if="cell.block && !cell.block.empty"
+                v-else-if="cell.block && !cell.block.empty && (!cell.block.slot || compositionAllowsSlot(cell.block.slot))"
                 class="chrome-grid-block"
                 :class="[
                   `chrome-grid-block--${cell.block.kind}`,
@@ -1172,6 +1525,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
                 @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -1187,11 +1541,15 @@
               <button
                 v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
+                :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
                 data-testid="chrome-cell-add-column"
                 title="Add column after this cell"
+                aria-label="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('footer', row.id, cell.id)"
                 @click.stop
-              >Col +</button>
+              >
+                <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
+              </button>
               <button
                 v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
@@ -1201,7 +1559,17 @@
                 @click.stop
               />
             </div>
-            <button v-if="chromeDirectEditing" class="chrome-row-add-row" data-testid="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>Row +</button>
+            <button
+              v-if="chromeDirectEditing"
+              class="chrome-row-add-row"
+              data-testid="chrome-row-add-row"
+              title="Add row below"
+              aria-label="Add row below"
+              @pointerdown.prevent.stop="addRowAfter('footer', row.id)"
+              @click.stop
+            >
+              <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
+            </button>
             <button
               v-if="chromeDirectEditing && canResizeChromeRowEdge('footer', row, 'top')"
               class="chrome-row-resize-row chrome-row-resize-row--top"
@@ -1243,6 +1611,38 @@
           @click="onSlotClick($event, 'composition_footer')"
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.footerNote }}</div>
+        <div
+          v-if="composition.id === 'brutalist-slab' && chromeSlotVisible('distance')"
+          class="composition-brutalist-distance editable-text"
+          :class="{ 'is-selected-text': isSlotActive('distance') }"
+          :contenteditable="editable ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Distance"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="composition-brutalist-distance"
+          @focus="onSlotFocus($event, 'distance')"
+          @blur="onSlotBlur($event, 'distance')"
+          @click="onSlotClick($event, 'distance')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ brutalistDistanceText }}</div>
+        <div
+          v-if="composition.id === 'riso-stack'"
+          class="composition-riso-caption"
+          data-testid="composition-riso-caption"
+        >
+          <strong>{{ risoCaptionText }}</strong>
+          <span>{{ risoLocationText }}</span>
+        </div>
+        <div
+          v-if="composition.id === 'riso-stack'"
+          class="composition-riso-meta"
+          data-testid="composition-riso-meta"
+        >
+          <span>{{ risoMetaLabel }}</span>
+          <span>{{ formattedDistance ? `${formattedDistance} mi` : compositionDecor.meta }}</span>
+        </div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -1269,7 +1669,8 @@
             @click="onSlotClick($event, 'distance')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span v-if="hasTextOverride('distance')" class="stat-custom-text" :style="statCustomTextStyle('distance')">{{ distanceText }}</span>
+            <span v-if="isBlueprintTheme && !hasTextOverride('distance')" class="stat-custom-text" :style="blueprintTitleblockStatStyle('distance')">DIST {{ formattedDistance }} mi</span>
+            <span v-else-if="hasTextOverride('distance')" class="stat-custom-text" :style="statCustomTextStyle('distance')">{{ distanceText }}</span>
             <template v-else>
               <span class="stat-number" :style="statNumberStyleFor('distance')">{{ formattedDistance }}</span>
               <span class="stat-unit" :style="statUnitStyleFor('distance')">miles</span>
@@ -1297,7 +1698,8 @@
             @click="onSlotClick($event, 'elevation_gain')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span v-if="hasTextOverride('elevation_gain')" class="stat-custom-text" :style="statCustomTextStyle('elevation_gain')">{{ elevationGainText }}</span>
+            <span v-if="isBlueprintTheme && !hasTextOverride('elevation_gain')" class="stat-custom-text" :style="blueprintTitleblockStatStyle('elevation_gain')">GAIN {{ formattedGain }} ft</span>
+            <span v-else-if="hasTextOverride('elevation_gain')" class="stat-custom-text" :style="statCustomTextStyle('elevation_gain')">{{ elevationGainText }}</span>
             <template v-else>
               <span class="stat-number" :style="statNumberStyleFor('elevation_gain')">{{ formattedGain }}</span>
               <span class="stat-unit" :style="statUnitStyleFor('elevation_gain')">ft gain</span>
@@ -1321,7 +1723,7 @@
             @click="onSlotClick($event, 'date')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span class="stat-custom-text" :style="statCustomTextStyle('date')">{{ dateText }}</span>
+            <span class="stat-custom-text" :style="isBlueprintTheme ? blueprintTitleblockStatStyle('date') : statCustomTextStyle('date')">{{ dateText }}</span>
           </div>
 
           <div v-if="showCoordinatesSlot && (showDistanceSlot || showElevationGainSlot || showDateSlot)" class="stat-divider" :style="dividerStyle" />
@@ -1577,6 +1979,8 @@ import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
+import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
+import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/transitDiagram'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
@@ -2121,7 +2525,13 @@ const activeChromeBlock = computed(() => {
   return findChromeCell(target.band, target.rowId, target.cellId)?.block ?? null
 })
 
+function compositionAllowsSlot(slot: PosterTextSlot) {
+  if (slot === 'occasion_text' && !showOccasionSlot.value) return false
+  return true
+}
+
 function chromeSlotVisible(slot: PosterTextSlot) {
+  if (!compositionAllowsSlot(slot)) return false
   return chromeBlockForSlot(slot) != null
 }
 
@@ -2316,7 +2726,7 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const align = override.align ?? cell.align ?? block.align ?? 'left'
   const bold = override.bold ?? block.bold
   const italic = override.italic ?? block.italic
-  return {
+  const style: Record<string, string> = {
     width: '100%',
     fontFamily: chromeBlockFontFamily(block, override),
     fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
@@ -2331,6 +2741,9 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
     backgroundColor: override.bg_color ?? block.bg_color ?? 'transparent',
     outline: 'none',
   }
+  const minHeight = chromeBlockMinHeight(block)
+  if (minHeight) style.minHeight = minHeight
+  return style
 }
 
 function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride) {
@@ -2345,19 +2758,46 @@ function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride)
 function chromeBlockFontSize(block: ChromeBlock) {
   if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
   const scale = block.scale ?? 1
-  if (block.kind === 'title') return typography.value.titleSize * scale
+  if (block.kind === 'title') return typography.value.titleSize * scale * chromeTitleFitScale(block)
   if (block.kind === 'stat') return 0.72 * scale
   if (block.kind === 'coords') return 0.72 * scale
   if (block.kind === 'brand') return 0.48 * scale
   return 0.9 * scale
 }
 
+function chromeTitleFitScale(block: ChromeBlock) {
+  const text = chromeBlockText(block)
+  const compactPlate = composition.value.id === 'place-frame' && hasRenderableRoute.value
+  if (compactPlate) return lengthFitScale(text, 18, 76, 0.34)
+  if (composition.value.id === 'editorial-tall') return lengthFitScale(text, 20, 82, 0.32)
+  if (composition.value.id === 'travel-banner') return lengthFitScale(text, 20, 82, 0.34)
+  if (composition.value.id === 'transit-diagram') return lengthFitScale(text, 22, 82, 0.44)
+  if (composition.value.id === 'blueprint-strava' || composition.value.id === 'splits-grid') {
+    return lengthFitScale(text, 22, 84, 0.46)
+  }
+  return lengthFitScale(text, 24, 82, 0.48)
+}
+
 function chromeBlockLineHeight(block: ChromeBlock) {
-  if (block.kind === 'title') return typography.value.titleLineHeight
+  if (block.kind === 'title') {
+    if (composition.value.id === 'travel-banner') return '1.08'
+    if (composition.value.id === 'modernist-block') return '1.02'
+    if (composition.value.id === 'brutalist-slab') return '1.02'
+    return typography.value.titleLineHeight
+  }
   if (block.kind === 'stat') return '0.92'
   if (block.kind === 'coords') return '1.25'
   if (block.kind === 'brand') return '1'
   return '1.12'
+}
+
+function chromeBlockMinHeight(block: ChromeBlock) {
+  if (block.kind !== 'title') return undefined
+  const length = chromeBlockText(block).trim().length
+  if (length < 54) return undefined
+  const estimatedLines = length > 96 ? 3 : 2
+  const leading = composition.value.id === 'travel-banner' ? 1.08 : 1
+  return `${(estimatedLines * leading) + 0.45}em`
 }
 
 function chromeBlockLetterSpacing(block: ChromeBlock) {
@@ -2369,8 +2809,8 @@ function chromeBlockLetterSpacing(block: ChromeBlock) {
 }
 
 function chromeBlockTextTransform(block: ChromeBlock) {
+  if (block.kind === 'title') return typography.value.titleCase
   if (
-    block.kind === 'title' ||
     block.kind === 'subtitle' ||
     block.kind === 'eyebrow' ||
     block.kind === 'note' ||
@@ -2390,7 +2830,25 @@ function chromeBlockWeight(block: ChromeBlock) {
 
 function chromeBlockOpacity(block: ChromeBlock) {
   if (block.kind === 'coords') return 0.76
-  if (block.kind === 'brand') return 0.66
+  if (block.kind === 'brand') {
+    if (
+      composition.value.id === 'editorial-tall' ||
+      composition.value.id === 'journal-spread' ||
+      composition.value.id === 'botanical-plate'
+    ) return 0.46
+    if (composition.value.id === 'travel-banner' || composition.value.id === 'darksky-stars') return 0.5
+    if (
+      composition.value.id === 'blueprint-grid' ||
+      composition.value.id === 'blueprint-strava' ||
+      composition.value.id === 'splits-grid'
+    ) return 0.56
+    if (
+      composition.value.id === 'bib-numerals' ||
+      composition.value.id === 'brutalist-slab' ||
+      composition.value.id === 'modernist-block'
+    ) return 0.72
+    return 0.66
+  }
   return 1
 }
 
@@ -2415,6 +2873,11 @@ function chromeSlotText(block: ChromeBlock) {
   if (override.text != null) return override.text
   if (block.kind !== 'stat' && block.kind !== 'coords') return defaultSlotText(block.slot)
 
+  if (composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'blueprint') {
+    if (block.slot === 'distance') return formattedDistance.value ? `DIST ${formattedDistance.value} mi` : ''
+    if (block.slot === 'elevation_gain') return formattedGain.value ? `GAIN ${formattedGain.value} ft` : ''
+    if (block.slot === 'date') return formattedDate.value
+  }
   if (block.slot === 'distance') return formattedDistance.value ? `${formattedDistance.value}\nMILES` : ''
   if (block.slot === 'elevation_gain') return formattedGain.value ? `${formattedGain.value}\nFT GAIN` : ''
   if (block.slot === 'date') return formattedDateCompact.value ? `${formattedDateCompact.value}\nDATE` : defaultSlotText(block.slot)
@@ -3845,6 +4308,8 @@ const posterCanvasClass = computed(() => ({
   'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
   'poster-canvas--print': isPrintRender.value,
   'poster-composition': true,
+  'poster-has-route': hasRenderableRoute.value,
+  'poster-place-map': !hasRenderableRoute.value,
   [posterCompositionClassName(composition.value.id)]: true,
 }))
 
@@ -3866,8 +4331,12 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       containerType: 'size',
       '--print-bleed': `${printBleedCssPx.value}px`,
       '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--land-color': props.styleConfig.land_color ?? props.styleConfig.background_color,
+      '--label-text-color': props.styleConfig.label_text_color,
+      '--contour-major-color': props.styleConfig.contour_major_color ?? props.styleConfig.label_text_color,
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
+      '--composition-title-font': typography.value.titleFont,
       '--composition-body-font': typography.value.subFont,
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
@@ -3886,8 +4355,12 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       containerType: 'size',
       '--print-bleed': '0px',
       '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--land-color': props.styleConfig.land_color ?? props.styleConfig.background_color,
+      '--label-text-color': props.styleConfig.label_text_color,
+      '--contour-major-color': props.styleConfig.contour_major_color ?? props.styleConfig.label_text_color,
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
+      '--composition-title-font': typography.value.titleFont,
       '--composition-body-font': typography.value.subFont,
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
@@ -3900,7 +4373,8 @@ const typography = computed(() => getPosterTypography(props.styleConfig))
 const layout = computed(() => getPosterLayout(props.styleConfig))
 
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
-const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block')
+const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
+const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
 
 interface CompositionDecor {
   kicker?: string
@@ -3915,18 +4389,34 @@ const trailName = computed(() =>
   textWithOverride('trail_name', props.styleConfig.trail_name || props.map.title || 'Your Trail'),
 )
 
-const locationLine = computed(() => {
+const locationText = computed(() => {
   const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
-  const display = textWithOverride('location_text', text)
-  return display ? display.toUpperCase() : ''
+  return textWithOverride('location_text', text)
+})
+const locationLine = computed(() => {
+  if (!locationText.value) return ''
+  if (props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid') return locationText.value
+  if (composition.value.id === 'modernist-block') return locationText.value
+  return locationText.value.toUpperCase()
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
+const genericOccasionText = new Set(['complete trail network'])
+const risoCaptionText = computed(() => {
+  const occasion = occasionText.value.trim()
+  return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
+})
+const risoLocationText = computed(() => locationText.value)
+const risoMetaLabel = computed(() => {
+  const text = risoLocationText.value.trim()
+  if (!text) return compositionDecor.value.kicker
+  const parts = text.split(',').map(part => part.trim()).filter(Boolean)
+  return (parts[parts.length - 1] || text).toUpperCase()
+})
 const OCCASION_SLOT_COMPOSITIONS = new Set([
   'legacy-classic',
   'editorial-tall',
   'park-quad',
-  'travel-banner',
   'riso-stack',
   'journal-spread',
   'darksky-stars',
@@ -3947,6 +4437,31 @@ const coords = computed(() => {
   return { lat: fmt(lat, 'N', 'S'), lng: fmt(lng, 'E', 'W') }
 })
 
+function formatDms(value: number, pos: string, neg: string) {
+  const abs = Math.abs(value)
+  const d = Math.floor(abs)
+  const mFloat = (abs - d) * 60
+  const m = Math.floor(mFloat)
+  const s = Math.round((mFloat - m) * 60)
+  const normalizedSeconds = s === 60 ? 0 : s
+  const normalizedMinutes = s === 60 ? m + 1 : m
+  const normalizedDegrees = normalizedMinutes === 60 ? d + 1 : d
+  const finalMinutes = normalizedMinutes === 60 ? 0 : normalizedMinutes
+  return `${normalizedDegrees}°${finalMinutes.toString().padStart(2, '0')}'${normalizedSeconds.toString().padStart(2, '0')}"${value >= 0 ? pos : neg}`
+}
+
+const usgsCoordinateTicks = computed(() => {
+  const b = props.map.bbox
+  if (!b || b.length < 4) return []
+  const [minLng, minLat, maxLng, maxLat] = b
+  return [
+    { id: 'nw', label: `${formatDms(maxLat, 'N', 'S')} · ${formatDms(minLng, 'E', 'W')}` },
+    { id: 'ne', label: `${formatDms(maxLat, 'N', 'S')} · ${formatDms(maxLng, 'E', 'W')}` },
+    { id: 'se', label: `${formatDms(minLat, 'N', 'S')} · ${formatDms(maxLng, 'E', 'W')}` },
+    { id: 'sw', label: `${formatDms(minLat, 'N', 'S')} · ${formatDms(minLng, 'E', 'W')}` },
+  ]
+})
+
 const formattedDistance = computed(() => {
   const km = props.map.stats?.distance_km ?? 0
   return km ? (km * 0.621371).toFixed(1) : ''
@@ -3957,11 +4472,39 @@ const formattedGain = computed(() => {
   return m ? Math.round(m * 3.28084).toLocaleString() : ''
 })
 
+const formattedDuration = computed(() => {
+  const total = props.map.stats?.duration_seconds
+  if (!total || total <= 0) return ''
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = Math.floor(total % 60)
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+})
+
+const marathonFinishHeadline = computed(() => {
+  if (formattedDuration.value) return formattedDuration.value
+  if (formattedDistance.value) return `${formattedDistance.value} MI`
+  if (formattedGain.value) return `${formattedGain.value} FT`
+  return 'ROUTE DATA'
+})
+
+const hasRenderableRoute = computed(() => {
+  const hasVisibleSegments = (props.styleConfig.trail_segments ?? []).some(segment => segment.visible)
+  if (props.styleConfig.show_primary_route === false && !hasVisibleSegments) return false
+  const coords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  return coords.length > 1
+})
+
 const formattedDate = computed(() => {
   const value = props.map.stats?.date
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
+  if (composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'blueprint') {
+    const day = date.getUTCDate().toString().padStart(2, '0')
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+    return `${day} ${month} ${date.getUTCFullYear()}`
+  }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 })
 
@@ -3984,6 +4527,7 @@ const formattedDateCompact = computed(() => {
 })
 
 const distanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''))
+const brutalistDistanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value} mi` : ''))
 const elevationGainText = computed(() => textWithOverride('elevation_gain', formattedGain.value ? `${formattedGain.value}\nft gain` : ''))
 const dateText = computed(() => textWithOverride('date', formattedDate.value))
 const coordinatesText = computed(() => textWithOverride('coordinates', coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''))
@@ -4000,12 +4544,20 @@ const chromeCoordinatesText = computed(() => {
 })
 const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
 const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
+const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
+const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
 
 const compositionDecorDefaults = computed<CompositionDecor>(() => {
   const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
   const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
   const date = dateText.value || 'undated'
   const location = locationLine.value || 'trail record'
+  const locationRegion = locationLine.value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?? location
 
   switch (composition.value.id) {
     case 'editorial-tall':
@@ -4015,6 +4567,12 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         footerNote: 'Drawn from route telemetry and terrain data',
       }
     case 'park-quad':
+      if (isUsgsHeritageTheme.value) {
+        return {
+          kicker: coords.value?.lat ?? '36.5785°N',
+          meta: 'SCALE 1:24 000',
+        }
+      }
       return {
         kicker: 'United States · Department of the Interior',
         meta: 'Geological Survey · 7.5-minute series',
@@ -4022,8 +4580,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'travel-banner':
       return {
-        kicker: 'Visit · Explore · Return',
-        meta: 'Souvenir route poster',
+        kicker: 'VISIT',
+        meta: `${location} · ${date}`,
       }
     case 'riso-stack':
       return {
@@ -4031,6 +4589,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         meta: 'Two-color trail print',
       }
     case 'blueprint-grid':
+      if (isBlueprintTheme.value) return {}
       return {
         kicker: 'WGS84',
         meta: 'SHEET 01',
@@ -4049,9 +4608,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'modernist-block':
       return {
-        kicker: 'RADMAPS / ROUTE OBJECT',
-        meta: `${distance} · ${gain}`,
-        sideRailLabel: 'RAD',
+        kicker: locationRegion,
+        meta: `${distance}\n${coords.value?.lat ?? gain}`,
       }
     case 'splits-grid':
       return {
@@ -4078,9 +4636,28 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'brutalist-slab':
       return {
-        kicker: 'RADMAPS · 001',
-        meta: 'LOT 12 / 50',
-        footerNote: '250 GSM · UNCOATED · ROUTE SLAB',
+        kicker: 'RADMAPS',
+        meta: date,
+        footerNote: `${occasionText.value || trailName.value}\n${locationText.value}`,
+      }
+    case 'art-wash':
+      return {
+        kicker: `${location} · ${coords.value?.lat ?? ''}`.trim(),
+      }
+    case 'place-frame':
+      return {
+        kicker: location || 'PLACE PORTRAIT',
+        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · ${gain}`.trim(),
+      }
+    case 'sea-chart':
+      return {
+        kicker: `Chart No. 1 · ${location || 'COASTAL ROUTE'}`,
+        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · SOUNDINGS IN FATHOMS`.trim(),
+      }
+    case 'transit-diagram':
+      return {
+        kicker: location || 'TOUR LINE',
+        meta: `STATION · ${date} · ${coords.value?.lat ?? ''}`.trim(),
       }
     default:
       return {}
@@ -4247,7 +4824,12 @@ const headerBandStyle = computed(() => ({
   position: 'relative' as const,
   order: String(composition.value.headerOrder),
   zIndex: chromeBandElevated('header') ? 60 : 3,
-  height: props.styleConfig.poster_layout?.bands?.header?.height != null
+  boxSizing: 'border-box' as const,
+  minHeight: '0',
+  flex: composition.value.id === 'transit-diagram' ? '0 0 17%' : undefined,
+  height: composition.value.id === 'transit-diagram'
+    ? '17%'
+    : props.styleConfig.poster_layout?.bands?.header?.height != null
     ? `${posterLayout.value.bands.header.height}%`
     : undefined,
 }))
@@ -4260,7 +4842,10 @@ function lengthFitScale(text: string, softLimit: number, hardLimit: number, minS
   return 1 - ((1 - minScale) * t)
 }
 
-const trailNameAutoScale = computed(() => lengthFitScale(trailName.value, 28, 58, 0.76))
+const trailNameAutoScale = computed(() => {
+  if (composition.value.id === 'riso-stack') return lengthFitScale(trailName.value, 18, 86, 0.55)
+  return lengthFitScale(trailName.value, 28, 58, 0.76)
+})
 const locationLineAutoScale = computed(() => lengthFitScale(locationLine.value, 30, 64, 0.82))
 const occasionAutoScale = computed(() => lengthFitScale(occasionText.value, 20, 42, 0.78))
 
@@ -4271,6 +4856,7 @@ const trailNameStyle = computed(() => ({
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
   fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize, trailNameAutoScale.value)}cqh`,
+  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize, trailNameAutoScale.value)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
   opacity: String(effectiveSlotOpacity('trail_name', 1)),
@@ -4386,9 +4972,9 @@ const compositionRuleInset = computed(() => {
     case 'splits-grid':
       return { left: `calc(4.35cqw + ${bleed})`, right: `calc(4.35cqw + ${bleed})` }
     case 'modernist-block':
-      return { left: `calc(7.7cqw + ${bleed})`, right: `calc(4.75cqw + ${bleed})` }
+      return { left: `calc(18.9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
     case 'brutalist-slab':
-      return { left: `calc(4.25cqw + ${bleed})`, right: `calc(4.25cqw + ${bleed})` }
+      return { left: `calc(6.7cqw + ${bleed})`, right: `calc(6.7cqw + ${bleed})` }
     case 'travel-banner':
     case 'darksky-stars':
       return { left: `calc(3.6cqw + ${bleed})`, right: `calc(3.6cqw + ${bleed})` }
@@ -4407,21 +4993,34 @@ const footerRuleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
-  padding: chromeGridRendering.value
+  padding: composition.value.footerVariant === 'hidden'
+    ? '0'
+    : chromeGridRendering.value
     ? chromeBandPaddingCss('footer', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
         ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
             ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
             : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
         : composition.value.footerPadding),
-  display: 'flex',
+  display: composition.value.footerVariant === 'hidden' ? 'none' : 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   position: 'relative' as const,
   borderTop: '0',
   order: String(composition.value.footerOrder),
   zIndex: chromeBandElevated('footer') ? 60 : 3,
-  height: props.styleConfig.poster_layout?.bands?.footer?.height != null
+  boxSizing: 'border-box' as const,
+  minHeight: '0',
+  flex: composition.value.footerVariant === 'hidden'
+    ? '0 0 0'
+    : composition.value.id === 'transit-diagram'
+      ? '0 0 8%'
+      : undefined,
+  height: composition.value.footerVariant === 'hidden'
+    ? '0'
+    : composition.value.id === 'transit-diagram'
+      ? '8%'
+      : props.styleConfig.poster_layout?.bands?.footer?.height != null
     ? `${posterLayout.value.bands.footer.height}%`
     : undefined,
 }))
@@ -4431,6 +5030,17 @@ const mapAreaStyle = computed(() => ({
   margin: composition.value.mapMargin,
   border: composition.value.mapBorder,
   boxShadow: composition.value.mapShadow,
+  flex: composition.value.id === 'transit-diagram'
+    ? '0 0 75%'
+    : props.styleConfig.color_theme === 'editorial-minimal'
+      ? '0 0 64%'
+      : undefined,
+  height: composition.value.id === 'transit-diagram'
+    ? '75%'
+    : props.styleConfig.color_theme === 'editorial-minimal'
+      ? '64%'
+      : undefined,
+  boxSizing: 'border-box' as const,
   minHeight: '0',
   zIndex: 2,
   color: fg.value,
@@ -4526,6 +5136,22 @@ function statCustomTextStyle(slot: PosterTextSlot) {
     ...statNumberStyleFor(slot),
     fontSize: `${effectiveSlotFontSizeCqh(slot, 1.6)}cqh`,
     whiteSpace: 'pre-line' as const,
+    textAlign: effectiveSlotAlign(slot),
+  }
+}
+
+function blueprintTitleblockStatStyle(slot: PosterTextSlot) {
+  return {
+    fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
+    fontWeight: effectiveSlotWeight(slot, '520'),
+    fontStyle: effectiveSlotItalic(slot),
+    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.34)}cqh`,
+    letterSpacing: '0.14em',
+    lineHeight: '1',
+    color: effectiveSlotColor(slot, fg.value),
+    opacity: String(effectiveSlotOpacity(slot, 0.76)),
+    display: 'block',
+    whiteSpace: 'nowrap' as const,
     textAlign: effectiveSlotAlign(slot),
   }
 }
@@ -4794,17 +5420,29 @@ function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
   const visibleSegmentLayerCount = (props.styleConfig.trail_segments ?? []).filter(segment =>
     segment.visible && !!instance.getLayer(`trail-seg-line-${segment.id}`),
   ).length
-  const primaryRouteExpected = shouldRenderPrimaryRoute(props.styleConfig)
+  const primaryRouteExpected = shouldExpectPrimaryRouteContent(
+    props.styleConfig,
+    props.map.geojson as GeoJSON.FeatureCollection | undefined,
+  )
   const routeLayerPresent = !!instance.getLayer('route-line')
+  const routeSourcePresent = !!instance.getSource('route')
+  const routeSourceLoaded = !primaryRouteExpected || sourceLoaded(instance, 'route')
+  const routeFeatureCount = (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0
   const segmentLayersPresent = visibleSegmentCount === 0 || visibleSegmentLayerCount === visibleSegmentCount
-  const routeContentPresent = (primaryRouteExpected ? routeLayerPresent : true) && segmentLayersPresent
+  const routeContentPresent = (
+    primaryRouteExpected
+      ? routeLayerPresent && routeSourcePresent && routeSourceLoaded && routeFeatureCount > 0
+      : true
+  ) && segmentLayersPresent
   return {
     ready: true,
     mapLoaded: instance.loaded(),
     tilesLoaded,
     primaryRouteExpected,
     routeLayerPresent,
-    routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
+    routeSourcePresent,
+    routeSourceLoaded,
+    routeFeatureCount,
     visibleSegmentCount,
     visibleSegmentLayerCount,
     segmentLayersPresent,
@@ -4859,6 +5497,13 @@ function markPrintRenderReady() {
   instance.on('styledata', check)
   readyTimer = setTimeout(() => { void complete(true) }, 25_000)
   requestAnimationFrame(check)
+}
+
+function publishEditorRenderStatus() {
+  if (isPrintRender.value || !mapInstance || typeof window === 'undefined') return
+  const status = printableMapStatus(mapInstance)
+  ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status }).__RADMAPS_RENDER_STATUS = status
+  document.dispatchEvent(new CustomEvent('radmaps-render-status', { detail: status }))
 }
 
 // ── Logo styles ───────────────────────────────────────────────────────────────
@@ -5742,27 +6387,6 @@ const vignetteStyle = computed(() => {
 
 const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
 
-const showTerrainIllusionOverlay = computed(() => {
-  const preset = props.styleConfig.preset ?? ''
-  return preset.startsWith('radmaps-')
-    && preset !== 'radmaps-watercolor'
-    && (props.styleConfig.show_contours || props.styleConfig.show_hillshade || preset.includes('watercolor') || preset === 'radmaps-night-relief')
-})
-
-const terrainIllusionClass = computed(() => ({
-  'terrain-illusion-overlay--watercolor': props.styleConfig.preset?.includes('watercolor') && props.styleConfig.preset !== 'radmaps-watercolor',
-  'terrain-illusion-overlay--night': props.styleConfig.preset === 'radmaps-night-relief',
-  'terrain-illusion-overlay--topo': props.styleConfig.preset === 'radmaps-field-topo' || props.styleConfig.preset === 'radmaps-simple-contour',
-}))
-
-const terrainIllusionStyle = computed(() => {
-  const preset = props.styleConfig.preset ?? ''
-  const base = preset.includes('watercolor') && preset !== 'radmaps-watercolor' ? 0.10 : preset === 'radmaps-night-relief' ? 0.12 : 0.07
-  const contourBoost = Math.min(0.05, Math.max(0, (props.styleConfig.contour_detail ?? 3) - 2) * 0.012)
-  const hillshadeBoost = (props.styleConfig.show_hillshade ? props.styleConfig.hillshade_intensity ?? 0.35 : 0) * 0.05
-  return { opacity: Math.min(0.18, base + contourBoost + hillshadeBoost).toFixed(3) }
-})
-
 // ── SVG overlay state (leader lines + pin labels) ─────────────────────────────
 // All positions are in px relative to the map container, recomputed on every
 // map move/zoom via recomputeOverlays(). Sizes scale with container height so
@@ -6436,7 +7060,7 @@ function publishDevCameraHandle() {
   }).__RADMAPS_MAP_CAMERA__ = {
     get: snapshotCurrentCamera,
     jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
-    getLayerIds: () => mapInstance?.getStyle().layers?.map(layer => layer.id) ?? [],
+    getLayerIds: () => mapInstance?.getStyle?.()?.layers?.map(layer => layer.id) ?? [],
     hasImage: (id) => mapInstance?.hasImage(id) ?? false,
     getPaintProperty: (layerId, property) => mapInstance?.getPaintProperty(layerId, property) ?? null,
   }
@@ -6544,6 +7168,13 @@ onMounted(async () => {
       void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
     }
     markPrintRenderReady()
+    if (!isPrintRender.value) {
+      const publishStatus = () => requestAnimationFrame(publishEditorRenderStatus)
+      mapInstance!.on('idle', publishStatus)
+      mapInstance!.on('sourcedata', publishStatus)
+      mapInstance!.on('styledata', publishStatus)
+      publishStatus()
+    }
     if (props.deleteBrushActive) nextTick(activateDeleteBrush)
     // Reconcile freeze state on initial load — the map_frozen watcher returns
     // early before mapReady, so a frozen view saved in the DB would otherwise
@@ -6631,6 +7262,79 @@ function smoothGeojson(geojson: GeoJSON.FeatureCollection, strength: number): Ge
   }
 }
 
+const TRANSIT_STATIONS_SOURCE_ID = 'transit-stations'
+const TRANSIT_STATION_HALO_LAYER_ID = 'transit-station-halo'
+const TRANSIT_STATION_DOT_LAYER_ID = 'transit-station-dot'
+const TRANSIT_STATION_LABEL_LAYER_ID = 'transit-station-label'
+
+function removeTransitStationLayers() {
+  if (!mapInstance) return
+  for (const layerId of [TRANSIT_STATION_LABEL_LAYER_ID, TRANSIT_STATION_DOT_LAYER_ID, TRANSIT_STATION_HALO_LAYER_ID]) {
+    if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId)
+  }
+  if (mapInstance.getSource(TRANSIT_STATIONS_SOURCE_ID)) mapInstance.removeSource(TRANSIT_STATIONS_SOURCE_ID)
+}
+
+function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
+  if (!mapInstance) return
+  if (composition.value.id !== 'transit-diagram') {
+    removeTransitStationLayers()
+    return
+  }
+
+  const data = buildTransitStationGeojson(routeGeojson)
+  const source = mapInstance.getSource(TRANSIT_STATIONS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+  if (source) source.setData(data)
+  else mapInstance.addSource(TRANSIT_STATIONS_SOURCE_ID, { type: 'geojson', data })
+
+  if (!mapInstance.getLayer(TRANSIT_STATION_HALO_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_HALO_LAYER_ID,
+      type: 'circle',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      paint: {
+        'circle-radius': ['case', ['get', 'terminal'], 13, 9],
+        'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'circle-opacity': 1,
+      },
+    })
+  }
+  if (!mapInstance.getLayer(TRANSIT_STATION_DOT_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_DOT_LAYER_ID,
+      type: 'circle',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      paint: {
+        'circle-radius': ['case', ['get', 'terminal'], 10.5, 7],
+        'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'circle-stroke-color': ['case', ['get', 'secondary'], '#1F8A5B', props.styleConfig.route_color ?? '#7A1FA2'],
+        'circle-stroke-width': 3.5,
+      },
+    })
+  }
+  if (!mapInstance.getLayer(TRANSIT_STATION_LABEL_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_LABEL_LAYER_ID,
+      type: 'symbol',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': 13,
+        'text-anchor': 'left',
+        'text-offset': [1.35, 0],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': props.styleConfig.label_text_color ?? '#181818',
+        'text-halo-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'text-halo-width': 1.5,
+      },
+    })
+  }
+}
+
 function populateRouteSource() {
   if (!mapInstance) return
   const raw = props.map.geojson as GeoJSON.FeatureCollection
@@ -6643,10 +7347,14 @@ function populateRouteSource() {
     : raw
 
   const iterations = props.styleConfig.route_smooth ?? 0
-  const geojson = smoothGeojson(processed, iterations)
+  const smoothed = smoothGeojson(processed, iterations)
+  const geojson = composition.value.id === 'transit-diagram'
+    ? buildTransitDiagramGeojson(processed, props.map.bbox)
+    : smoothed
   const src = mapInstance.getSource('route') as maplibregl.GeoJSONSource | undefined
   if (src) src.setData(geojson)
   else mapInstance.addSource('route', { type: 'geojson', data: geojson })
+  syncTransitStationSource(geojson)
 }
 
 function lineMetricsSafeGeojson(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
@@ -6718,15 +7426,18 @@ function activeSegmentEditLineGeojson(): GeoJSON.FeatureCollection {
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function makePinDotEl(): HTMLElement {
+function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const color   = contrastSafePinColor.value
   const opacity = props.styleConfig.pin_opacity ?? 0.9
   const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
+  const usgs = isUsgsHeritageTheme.value
+  const markerSize = usgs ? size * (kind === 'start' ? 0.92 : 1.04) : size
+  const radius = usgs && kind === 'start' ? '0' : '50%'
   el.style.cssText = [
-    `width:${size}px`, `height:${size}px`, 'border-radius:50%',
+    `width:${markerSize}px`, `height:${markerSize}px`, `border-radius:${radius}`,
     `background:${color}`, `opacity:${opacity}`,
-    'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
+    usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
   return el
@@ -6744,13 +7455,13 @@ function placePinMarkers() {
   const endCoord:   [number, number] | null = routeFinish
 
   if (startCoord && props.styleConfig.show_start_pin !== false) {
-    startMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+    startMarker = new maplibregl.Marker({ element: makePinDotEl('start'), anchor: 'center', draggable: false })
       .setLngLat(startCoord)
       .addTo(mapInstance)
   }
 
   if (endCoord && props.styleConfig.show_finish_pin !== false) {
-    finishMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+    finishMarker = new maplibregl.Marker({ element: makePinDotEl('finish'), anchor: 'center', draggable: false })
       .setLngLat(endCoord)
       .addTo(mapInstance)
   }
@@ -8483,39 +9194,125 @@ onUnmounted(() => {
   inset: 0;
 }
 
-.terrain-illusion-overlay {
+.composition-plate-frame {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 9;
   pointer-events: none;
-  mix-blend-mode: soft-light;
-  background-image:
-    repeating-linear-gradient(108deg, rgba(28, 25, 23, 0.16) 0 0.08cqw, transparent 0.08cqw 0.42cqw),
-    repeating-linear-gradient(18deg, rgba(255, 255, 255, 0.22) 0 0.06cqw, transparent 0.06cqw 0.56cqw),
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.32), transparent 18%),
-    radial-gradient(circle at 78% 76%, rgba(28, 25, 23, 0.20), transparent 22%);
 }
 
-.terrain-illusion-overlay--watercolor {
-  mix-blend-mode: multiply;
-  filter: blur(0.14cqw);
-  background-image:
-    radial-gradient(circle at 18% 16%, rgba(69, 190, 210, 0.24), transparent 15%),
-    radial-gradient(circle at 76% 26%, rgba(191, 148, 84, 0.18), transparent 18%),
-    radial-gradient(circle at 42% 72%, rgba(92, 141, 86, 0.18), transparent 24%),
-    repeating-linear-gradient(94deg, rgba(65, 81, 61, 0.13) 0 0.07cqw, transparent 0.07cqw 0.52cqw);
+.composition-plate-frame {
+  inset: 3.5cqh 3.8cqw;
+  border: 3px double currentColor;
+  opacity: 0.46;
+  z-index: 10;
+  box-shadow:
+    inset 0 0 0 0.48cqw color-mix(in srgb, var(--composition-paper, white) 62%, transparent),
+    inset 0 0 0 0.58cqw color-mix(in srgb, currentColor 16%, transparent);
 }
 
-.terrain-illusion-overlay--night {
-  mix-blend-mode: screen;
-  background-image:
-    repeating-linear-gradient(112deg, rgba(142, 211, 159, 0.20) 0 0.06cqw, transparent 0.06cqw 0.45cqw),
-    radial-gradient(circle at 35% 35%, rgba(63, 159, 189, 0.16), transparent 22%),
-    radial-gradient(circle at 70% 78%, rgba(241, 143, 69, 0.10), transparent 18%);
+.poster-composition--place-frame .composition-plate-frame {
+  opacity: 0.58;
+  background:
+    linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, currentColor 9%, transparent) 8% 8.18%, transparent 8.18% 91.8%, color-mix(in srgb, currentColor 9%, transparent) 91.8% 92%, transparent 92%),
+    linear-gradient(0deg, transparent 0 7.2%, color-mix(in srgb, currentColor 8%, transparent) 7.2% 7.36%, transparent 7.36% 92.6%, color-mix(in srgb, currentColor 8%, transparent) 92.6% 92.76%, transparent 92.76%);
 }
 
-.terrain-illusion-overlay--topo {
-  mix-blend-mode: multiply;
+.cartouche-corner,
+.cartouche-seal {
+  position: absolute;
+  pointer-events: none;
+}
+
+.cartouche-corner {
+  width: 7.8cqw;
+  height: 5.4cqh;
+  opacity: 0.68;
+  border-color: currentColor;
+  color: currentColor;
+}
+
+.cartouche-corner::before,
+.cartouche-corner::after {
+  content: "";
+  position: absolute;
+  border-color: currentColor;
+}
+
+.cartouche-corner::before {
+  inset: 0.2cqh 0.2cqw;
+  border-top: 1px solid;
+  border-left: 1px solid;
+  border-radius: 100% 0 0 0;
+}
+
+.cartouche-corner::after {
+  width: 4.4cqw;
+  height: 3.1cqh;
+  border-top: 1px solid;
+  border-left: 1px solid;
+  border-radius: 100% 0 0 0;
+  opacity: 0.54;
+}
+
+.cartouche-corner--tl {
+  left: 1.5cqw;
+  top: 1.3cqh;
+}
+
+.cartouche-corner--tr {
+  right: 1.5cqw;
+  top: 1.3cqh;
+  transform: scaleX(-1);
+}
+
+.cartouche-corner--br {
+  right: 1.5cqw;
+  bottom: 1.3cqh;
+  transform: scale(-1);
+}
+
+.cartouche-corner--bl {
+  left: 1.5cqw;
+  bottom: 1.3cqh;
+  transform: scaleY(-1);
+}
+
+.cartouche-corner--tl::after,
+.cartouche-corner--tr::after {
+  left: 1.1cqw;
+  top: 1cqh;
+}
+
+.cartouche-corner--br::after,
+.cartouche-corner--bl::after {
+  left: 1.1cqw;
+  top: 1cqh;
+}
+
+.cartouche-seal {
+  right: 4.4cqw;
+  bottom: 5.6cqh;
+  width: 5.8cqw;
+  aspect-ratio: 1;
+  border-radius: 44% 52% 48% 50%;
+  background:
+    radial-gradient(circle at 36% 30%, color-mix(in srgb, #fff1d7 45%, transparent), transparent 34%),
+    radial-gradient(circle at 52% 54%, color-mix(in srgb, var(--route-color, #9a3b27) 88%, #562415), color-mix(in srgb, var(--route-color, #9a3b27) 72%, #2b1d14));
+  box-shadow:
+    0 0.45cqh 1.2cqh rgba(44, 29, 18, 0.16),
+    inset -0.35cqw -0.25cqh 0.7cqw rgba(40, 18, 10, 0.26),
+    inset 0.26cqw 0.18cqh 0.5cqw rgba(255, 232, 198, 0.22);
+  opacity: 0.78;
+  transform: rotate(-7deg);
+}
+
+.cartouche-seal i {
+  position: absolute;
+  inset: 24%;
+  display: block;
+  border: 1px solid color-mix(in srgb, #fff0d4 58%, transparent);
+  border-radius: 999px;
 }
 
 .composition-star-field {
@@ -8527,6 +9324,49 @@ onUnmounted(() => {
     radial-gradient(circle at 88% 34%, currentColor 0 0.07cqw, transparent 0.1cqw),
     radial-gradient(circle at 28% 69%, currentColor 0 0.06cqw, transparent 0.09cqw),
     radial-gradient(circle at 54% 82%, currentColor 0 0.05cqw, transparent 0.08cqw);
+}
+
+.poster-composition--darksky-stars .composition-star-field {
+  z-index: 6;
+  inset: 0 0 42% 0;
+  color: var(--label-text-color, #e7ecfb);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(circle at 14% 16%, currentColor 0 0.08cqw, transparent 0.1cqw),
+    radial-gradient(circle at 26% 28%, currentColor 0 0.045cqw, transparent 0.08cqw),
+    radial-gradient(circle at 43% 12%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 66% 22%, currentColor 0 0.05cqw, transparent 0.08cqw),
+    radial-gradient(circle at 83% 13%, currentColor 0 0.075cqw, transparent 0.11cqw),
+    radial-gradient(circle at 91% 35%, currentColor 0 0.045cqw, transparent 0.08cqw),
+    radial-gradient(circle at 52% 38%, var(--route-color, #e8c66a) 0 0.065cqw, transparent 0.1cqw);
+}
+
+.composition-darksky-ridge {
+  position: absolute;
+  z-index: 7;
+  left: 0;
+  right: 0;
+  top: 35.5%;
+  height: 13.4cqh;
+  pointer-events: none;
+  color: var(--label-text-color, #e7ecfb);
+  opacity: 0.78;
+  filter: drop-shadow(0 -0.25cqh 1.1cqh color-mix(in srgb, var(--route-color, #e8c66a) 14%, transparent));
+}
+
+.darksky-ridge-line {
+  stroke: none;
+}
+
+.darksky-ridge-line--back {
+  fill: color-mix(in srgb, var(--contour-major-color, #50689c) 34%, var(--background-color, #070c1e) 66%);
+  opacity: 0.48;
+}
+
+.darksky-ridge-line--front {
+  fill: color-mix(in srgb, var(--background-color, #070c1e) 78%, #000 22%);
+  opacity: 0.92;
 }
 
 .composition-side-rail {
@@ -8610,6 +9450,99 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.poster-composition--modernist-block .poster-header {
+  flex: 0 0 34.2%;
+  height: 34.2%;
+  min-height: 34.2%;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 0.72cqh !important;
+  background: var(--composition-paper, #f2e8da) !important;
+  color: var(--label-text-color, #15130f) !important;
+}
+
+.poster-composition--modernist-block .composition-modernist-accent {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14.6cqw;
+  pointer-events: none;
+  background: var(--label-bg-color, #e2483d);
+}
+
+.poster-composition--modernist-block .composition-kicker {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: color-mix(in srgb, var(--label-text-color, #15130f) 56%, transparent) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.58cqh !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.34em !important;
+  line-height: 1 !important;
+}
+
+.poster-composition--modernist-block .poster-rule {
+  position: relative;
+  z-index: 1;
+  order: 5;
+  width: 100%;
+  height: 0.18cqh !important;
+  margin: 1.7cqh 0 1.3cqh !important;
+  background: var(--label-text-color, #15130f) !important;
+  opacity: 0.92 !important;
+}
+
+.poster-composition--modernist-block .poster-trail-name {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 100%;
+  color: var(--label-text-color, #15130f) !important;
+  font-family: var(--composition-title-font, 'Big Shoulders Display'), sans-serif !important;
+  font-size: min(max(var(--trail-title-size, 8.9cqh), 8.9cqh), 10.4cqh) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  line-height: 0.86 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--modernist-block .poster-location-line {
+  position: relative;
+  z-index: 1;
+  max-width: 57%;
+  margin: 0;
+  color: color-mix(in srgb, var(--label-text-color, #15130f) 62%, transparent) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.95cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  text-transform: none !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--modernist-block .composition-meta-line {
+  position: absolute;
+  z-index: 1;
+  right: var(--composition-rule-right);
+  bottom: calc(4.2cqh + var(--print-bleed, 0px));
+  width: 18cqw !important;
+  color: var(--label-text-color, #15130f) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.9cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: pre-line !important;
+}
+
 .poster-composition--modernist-block .composition-side-rail {
   background: var(--label-bg-color, currentColor);
   opacity: 1;
@@ -8638,6 +9571,22 @@ onUnmounted(() => {
   width: var(--composition-rule-left);
 }
 
+.poster-composition--modernist-block[data-theme="blackline"] .poster-header {
+  background: #f6f6f3 !important;
+  color: #0b0b0a !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] .poster-rule {
+  background: #0b0b0a !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] .composition-kicker,
+.poster-composition--modernist-block[data-theme="blackline"] .poster-trail-name,
+.poster-composition--modernist-block[data-theme="blackline"] .poster-location-line,
+.poster-composition--modernist-block[data-theme="blackline"] .composition-meta-line {
+  color: #0b0b0a !important;
+}
+
 .poster-composition--splits-grid .poster-footer-rule,
 .poster-composition--blueprint-strava .poster-footer-rule,
 .poster-composition--bib-numerals .poster-footer-rule {
@@ -8646,16 +9595,1937 @@ onUnmounted(() => {
   border-top: 1px dashed currentColor;
 }
 
+.poster-composition--bib-numerals {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 10%, transparent) 0 5.8cqw, transparent 5.8cqw calc(100% - 5.8cqw), color-mix(in srgb, var(--route-color, #e0322c) 8%, transparent) calc(100% - 5.8cqw)),
+    var(--composition-paper, #fbfaf4) !important;
+}
+
+.composition-bib-paper {
+  position: absolute;
+  z-index: 1;
+  inset: calc(3.2cqh + var(--print-bleed, 0px)) calc(4.3cqw + var(--print-bleed, 0px));
+  pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--label-text-color, #14264a) 24%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 8%, transparent) 0 1px, transparent 1px) 0 0 / 8cqw 100%,
+    color-mix(in srgb, var(--composition-paper, #f4f1ea) 82%, #fff 18%);
+  opacity: 0.72;
+}
+
+.composition-bib-ghost {
+  position: absolute;
+  z-index: 4;
+  top: 26.5cqh;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  pointer-events: none;
+  color: var(--route-color, #e0322c);
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 28cqh;
+  font-weight: 900;
+  line-height: 0.75;
+  letter-spacing: 0.015em;
+  opacity: 0.105;
+  mix-blend-mode: multiply;
+}
+
+.composition-bib-pin-hole {
+  position: absolute;
+  width: 1.25cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--label-text-color, #14264a) 42%, transparent) 0 38%, transparent 39%),
+    color-mix(in srgb, var(--composition-paper, #f4f1ea) 72%, transparent);
+  box-shadow: inset 0 0.12cqh 0.3cqh rgba(20, 38, 74, 0.12);
+}
+
+.composition-bib-pin-hole--tl {
+  top: 2.2cqh;
+  left: 3.2cqw;
+}
+
+.composition-bib-pin-hole--tr {
+  top: 2.2cqh;
+  right: 3.2cqw;
+}
+
+.composition-bib-pin-hole--br {
+  right: 3.2cqw;
+  bottom: 2.2cqh;
+}
+
+.composition-bib-pin-hole--bl {
+  bottom: 2.2cqh;
+  left: 3.2cqw;
+}
+
+.composition-bib-tear-strip {
+  position: absolute;
+  z-index: 5;
+  left: calc(5.9cqw + var(--print-bleed, 0px));
+  right: calc(5.9cqw + var(--print-bleed, 0px));
+  bottom: calc(10.8cqh + var(--print-bleed, 0px));
+  height: 1px;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--label-text-color, #14264a) 36%, transparent) 0 0.9cqw, transparent 0.9cqw 1.45cqw);
+  opacity: 0.68;
+}
+
+.composition-bib-finish-headline {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(4.4cqh + var(--print-bleed, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.15cqw;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 48cqw;
+  padding: 0.5cqh 1.3cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #0a0a0a);
+  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-size: 1.04cqh;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  text-transform: uppercase;
+  border-top: 1px dashed color-mix(in srgb, var(--label-text-color, #0a0a0a) 34%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--label-text-color, #0a0a0a) 34%, transparent);
+  background: color-mix(in srgb, var(--composition-paper, #fbfaf4) 82%, transparent);
+}
+
+.composition-bib-finish-headline b {
+  color: var(--route-color, #e0322c);
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 3.15cqh;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.poster-composition--bib-numerals .poster-header {
+  min-height: 13cqh !important;
+  padding: 2cqh 7.4cqw 1.4cqh !important;
+  border-bottom: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.poster-composition--bib-numerals .poster-header::before,
+.poster-composition--bib-numerals .poster-header::after {
+  content: "";
+  position: absolute;
+  top: 1.6cqh;
+  bottom: 1.4cqh;
+  width: 0.22cqw;
+  opacity: 0.28;
+  background:
+    repeating-linear-gradient(0deg, currentColor 0 0.42cqh, transparent 0.42cqh 0.92cqh);
+}
+
+.poster-composition--bib-numerals .poster-header::before {
+  left: 5.6cqw;
+}
+
+.poster-composition--bib-numerals .poster-header::after {
+  right: 5.6cqw;
+}
+
+.poster-composition--bib-numerals .composition-kicker {
+  width: auto;
+  padding: 0.18cqh 0.95cqw;
+  color: var(--composition-paper, #fbfaf4) !important;
+  background: var(--route-color, currentColor);
+  border-radius: 0;
+  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif !important;
+  font-size: 0.7cqh !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--bib-numerals .poster-trail-name {
+  font-size: min(var(--trail-title-size, 5.9cqh), 6.4cqh) !important;
+  line-height: 0.86 !important;
+  letter-spacing: 0.015em !important;
+  text-transform: uppercase !important;
+  max-width: 84cqw !important;
+  text-wrap: balance;
+}
+
+.poster-composition--bib-numerals .poster-location-line {
+  margin-top: 0.35cqh !important;
+  max-width: 72cqw !important;
+  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif !important;
+  font-size: min(var(--location-size, 1.9cqh), 1.9cqh) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.poster-composition--bib-numerals .composition-meta-line {
+  position: absolute;
+  right: 7.4cqw;
+  bottom: 1.45cqh;
+  width: 18cqw !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 0.74cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-align: right !important;
+  opacity: 0.66 !important;
+}
+
+.poster-composition--bib-numerals [data-testid="poster-map"] {
+  margin: 0.8cqh 5.9cqw 0 !important;
+  border-top: 1px dashed color-mix(in srgb, currentColor 28%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, currentColor 28%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent),
+    inset 0 0 0 0.8cqw color-mix(in srgb, var(--composition-paper, #fbfaf4) 84%, transparent);
+}
+
+.poster-composition--bib-numerals .poster-footer {
+  min-height: 11cqh !important;
+  padding: 1.4cqh 7.4cqw 2cqh !important;
+  border-top: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.poster-composition--bib-numerals .composition-footer-note {
+  top: 0.55cqh;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 0.62cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.28em !important;
+  opacity: 0.52;
+}
+
+.poster-composition--splits-grid [data-testid="elevation-profile-band"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background-image:
+    linear-gradient(color-mix(in srgb, currentColor 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 1px, transparent 1px);
+  background-size: 100% 50%, 10% 100%;
+}
+
+.poster-composition--splits-grid [data-testid="elevation-profile"] {
+  opacity: 0.98;
+  mix-blend-mode: screen;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="poster-map"],
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="poster-map"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent),
+    inset 0 0 4.2cqh color-mix(in srgb, var(--route-color, #ff5a36) 8%, transparent) !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-header,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-header {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.2cqw 100%,
+    var(--label-bg-color, #0b0d10) !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-trail-name,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-trail-name,
+.poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--title,
+.poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--title {
+  font-weight: 820 !important;
+  letter-spacing: 0.055em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--stat::first-line,
+.poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--travel-banner [data-testid="poster-map"] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+
+.composition-travel-sun {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 63%;
+  z-index: 4;
+  pointer-events: none;
+  color: var(--route-color, #c4561f);
+  mix-blend-mode: multiply;
+  opacity: 0.74;
+}
+
+.composition-travel-sun__disk {
+  fill: color-mix(in srgb, #d89a55 38%, transparent);
+  stroke: none;
+}
+
+.composition-travel-sun__arc,
+.composition-travel-sun__horizon {
+  fill: color-mix(in srgb, #bf7236 36%, transparent);
+  stroke: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-travel-sun__arc--wide {
+  opacity: 0.38;
+}
+
+.composition-travel-sun__arc--mid {
+  opacity: 0.34;
+}
+
+.composition-travel-sun__arc--inner {
+  opacity: 0.30;
+}
+
+.composition-travel-sun__horizon {
+  display: none;
+}
+
+.composition-sea-chart-art {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  color: var(--label-text-color, #1d2a36);
+  opacity: 0.44;
+  mix-blend-mode: multiply;
+}
+
+.composition-sea-chart-art path,
+.composition-sea-chart-art circle {
+  fill: none;
+  stroke: currentColor;
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-sea-chart-art text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 2.5px;
+  letter-spacing: 0.08em;
+  fill: currentColor;
+  stroke: none;
+}
+
+.sea-chart-graticule {
+  opacity: 0.24;
+}
+
+.sea-chart-graticule path {
+  stroke-width: 0.42;
+}
+
+.sea-chart-rhumb-lines {
+  opacity: 0.34;
+}
+
+.sea-chart-rhumb-lines path {
+  stroke-width: 0.52;
+  stroke-dasharray: 2 2.6;
+}
+
+.sea-chart-depth-bands {
+  color: var(--water-color, #d7e7e0);
+  opacity: 0.62;
+}
+
+.sea-chart-depth-bands path {
+  stroke-width: 0.7;
+}
+
+.sea-chart-soundings {
+  color: color-mix(in srgb, var(--label-text-color, #1d2a36) 72%, var(--water-color, #d7e7e0));
+  opacity: 0.52;
+}
+
+.sea-chart-soundings circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.sea-chart-rose {
+  opacity: 0.62;
+}
+
+.sea-chart-rose circle {
+  stroke-width: 0.62;
+}
+
+.sea-chart-rose path {
+  stroke-width: 0.58;
+}
+
+.sea-chart-rose text {
+  text-anchor: middle;
+  font-size: 3px;
+  font-weight: 700;
+}
+
+.composition-transit-diagram-art {
+  position: absolute;
+  left: calc(5.6cqw + var(--print-bleed, 0px));
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  bottom: calc(2.1cqh + var(--print-bleed, 0px));
+  z-index: 12;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #181818);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.transit-diagram-legend,
+.transit-diagram-station-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1cqw;
+  min-height: 2.25cqh;
+  padding: 0.5cqh 1.3cqw;
+  background: color-mix(in srgb, var(--composition-paper, #f7f5f0) 86%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  box-shadow: 0 0 0 0.22cqh color-mix(in srgb, var(--composition-paper, #f7f5f0) 54%, transparent);
+}
+
+.transit-diagram-badge {
+  display: grid;
+  place-items: center;
+  width: 2.4cqh;
+  height: 2.4cqh;
+  border-radius: 999px;
+  color: var(--composition-paper, #f7f5f0);
+  background: var(--route-color, #7a1fa2);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.88cqh;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.transit-diagram-line-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 10.5cqw;
+  height: 1.6cqh;
+}
+
+.transit-diagram-line-key::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0.42cqh;
+  border-radius: 999px;
+  background: var(--route-color, #7a1fa2);
+  transform: translateY(-50%);
+}
+
+.transit-diagram-line-key i,
+.transit-diagram-line-key b,
+.transit-diagram-station-key i {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  width: 1.15cqh;
+  height: 1.15cqh;
+  border-radius: 999px;
+  background: var(--composition-paper, #f7f5f0);
+  border: 0.28cqh solid var(--route-color, #7a1fa2);
+}
+
+.transit-diagram-line-key b {
+  margin-left: auto;
+  margin-right: auto;
+  border-color: var(--contour-major-color, #1f8a5b);
+}
+
+.transit-diagram-line-key i:last-child {
+  margin-left: auto;
+}
+
+.transit-diagram-legend-text,
+.transit-diagram-station-key span {
+  font-size: 0.66cqh;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+
+.transit-diagram-station-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55cqw;
+}
+
+.transit-diagram-station-key span:first-child i,
+.transit-diagram-station-key span:last-child i {
+  width: 1.35cqh;
+  height: 1.35cqh;
+}
+
+.composition-plein-air-deckle {
+  position: absolute;
+  inset: calc(1.7cqh + var(--print-bleed, 0px)) calc(2.1cqw + var(--print-bleed, 0px));
+  z-index: 8;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #33302a) 34%, transparent);
+  border: 1px solid currentColor;
+  opacity: 0.72;
+}
+
+.composition-plein-air-deckle::before,
+.composition-plein-air-deckle::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.composition-plein-air-deckle::before {
+  inset: 0.65cqh 0.65cqw;
+  border: 1px solid color-mix(in srgb, currentColor 58%, transparent);
+  border-radius: 1.2cqw;
+}
+
+.composition-plein-air-deckle::after {
+  inset: -0.36cqh -0.42cqw;
+  background:
+    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 7px) top left / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 9px) bottom left / 100% 1px no-repeat,
+    repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 8px) top left / 1px 100% no-repeat,
+    repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 10px) top right / 1px 100% no-repeat;
+}
+
+.composition-plein-air-palette {
+  position: absolute;
+  right: calc(4.8cqw + var(--print-bleed, 0px));
+  bottom: calc(4.4cqh + var(--print-bleed, 0px));
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 0.65cqw;
+  pointer-events: none;
+  opacity: 0.74;
+}
+
+.plein-air-palette-swatch {
+  display: block;
+  width: 1.55cqh;
+  height: 1.55cqh;
+  border-radius: 46% 54% 42% 58%;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #33302a) 26%, transparent);
+  box-shadow: 0 0 0 0.22cqh color-mix(in srgb, var(--composition-paper, #f6f1e8) 42%, transparent);
+  mix-blend-mode: multiply;
+}
+
+.plein-air-palette-swatch--route {
+  background: color-mix(in srgb, var(--route-color, #c2683f) 72%, var(--composition-paper, #f6f1e8));
+}
+
+.plein-air-palette-swatch--water {
+  background: color-mix(in srgb, var(--water-color, #a9c2b4) 76%, var(--composition-paper, #f6f1e8));
+}
+
+.plein-air-palette-swatch--contour {
+  background: color-mix(in srgb, var(--contour-color, #c0b59a) 82%, var(--composition-paper, #f6f1e8));
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] [data-testid="poster-map"] {
+  border: 1px solid color-mix(in srgb, currentColor 42%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent),
+    inset 0 0 3.2cqh color-mix(in srgb, var(--water-color, #BCCAD2) 18%, transparent) !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header {
+  background:
+    linear-gradient(90deg, transparent 0 12%, color-mix(in srgb, currentColor 14%, transparent) 12% calc(12% + 1px), transparent calc(12% + 1px)),
+    linear-gradient(90deg, transparent 0 88%, color-mix(in srgb, currentColor 14%, transparent) 88% calc(88% + 1px), transparent calc(88% + 1px)),
+    var(--label-bg-color, #EEEEEA) !important;
+}
+
+.composition-classic-trail-markers {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  color: var(--label-text-color, #26313b);
+}
+
+.classic-trail-blaze,
+.classic-trail-quad {
+  position: absolute;
+  pointer-events: none;
+}
+
+.classic-trail-blaze {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6.6cqw;
+  height: 2.25cqh;
+  padding: 0 0.8cqw;
+  border: 1px solid color-mix(in srgb, var(--route-color, #2f536a) 64%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--label-bg-color, #eeeeea) 86%, transparent);
+  color: var(--route-color, #2f536a);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62cqh;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow:
+    0 0.3cqh 1.2cqh rgba(38, 49, 59, 0.08),
+    inset 0 0 0 0.12cqw color-mix(in srgb, var(--label-bg-color, #eeeeea) 70%, transparent);
+  opacity: 0.88;
+}
+
+.classic-trail-blaze--start {
+  left: 6.4cqw;
+  top: 20.8cqh;
+  transform: rotate(-4deg);
+}
+
+.classic-trail-blaze--end {
+  right: 6.7cqw;
+  bottom: 16.4cqh;
+  transform: rotate(3.2deg);
+}
+
+.classic-trail-quad {
+  opacity: 0.48;
+  background: var(--route-color, #2f536a);
+}
+
+.classic-trail-quad--top,
+.classic-trail-quad--bottom {
+  left: 14cqw;
+  right: 14cqw;
+  height: 1px;
+}
+
+.classic-trail-quad--top {
+  top: 18.4cqh;
+}
+
+.classic-trail-quad--bottom {
+  bottom: 15.2cqh;
+}
+
+.classic-trail-quad--left,
+.classic-trail-quad--right {
+  top: 22cqh;
+  bottom: 18.4cqh;
+  width: 1px;
+}
+
+.classic-trail-quad--left {
+  left: 6.2cqw;
+}
+
+.classic-trail-quad--right {
+  right: 6.2cqw;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--title {
+  color: var(--label-text-color, #26313B) !important;
+  letter-spacing: 0.04em !important;
+  line-height: 0.96 !important;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #EEEEEA) 84%, transparent);
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-location-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, currentColor 58%, transparent) !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer {
+  background:
+    repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent) 0 1px, transparent 1px 6.4cqw),
+    var(--label-bg-color, #EEEEEA) !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--brand {
+  opacity: 0.42;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] {
+  background:
+    linear-gradient(color-mix(in srgb, #243021 18%, transparent) 0 0) 0 0 / 100% 1px no-repeat,
+    linear-gradient(color-mix(in srgb, #243021 18%, transparent) 0 0) 0 100% / 100% 1px no-repeat,
+    var(--label-bg-color, #f0ecde) !important;
+  gap: 0 !important;
+  color: #243021 !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: calc(4.25cqh + var(--print-bleed, 0px)) calc(6.25cqw + var(--print-bleed, 0px)) 0 !important;
+  border: 1.5px solid #243021 !important;
+  background-color: var(--label-bg-color, #f0ecde) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] [data-testid="poster-map"]::before {
+  content: "";
+  position: absolute;
+  inset: -0.42cqh -0.42cqw;
+  z-index: 22;
+  pointer-events: none;
+  background:
+    linear-gradient(#243021 0 0) left top / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) left top / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) right top / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) right top / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) left bottom / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) left bottom / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) right bottom / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) right bottom / 0.32cqw 3.6cqh no-repeat;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label {
+  position: absolute;
+  z-index: 26;
+  color: color-mix(in srgb, #243021 72%, transparent);
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 1.28cqh;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  pointer-events: auto;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label--coord {
+  top: 2.15cqh;
+  left: 2.35cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label--scale {
+  right: 2.5cqw;
+  bottom: 2.05cqh;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-ticks {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick {
+  position: absolute;
+  max-width: 24cqw;
+  color: color-mix(in srgb, #243021 76%, transparent);
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 0.72cqh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick::before {
+  content: "";
+  position: absolute;
+  width: 2.1cqw;
+  height: 1.55cqh;
+  border-color: #243021;
+  opacity: 0.82;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--nw {
+  top: 0.82cqh;
+  left: 0.9cqw;
+  padding-left: 2.75cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--nw::before {
+  left: 0;
+  top: -0.18cqh;
+  border-top: 0.24cqh solid;
+  border-left: 0.24cqw solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--ne {
+  top: 0.82cqh;
+  right: 0.9cqw;
+  padding-right: 2.75cqw;
+  text-align: right;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--ne::before {
+  right: 0;
+  top: -0.18cqh;
+  border-top: 0.24cqh solid;
+  border-right: 0.24cqw solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--se {
+  right: 0.9cqw;
+  bottom: 0.82cqh;
+  padding-right: 2.75cqw;
+  text-align: right;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--se::before {
+  right: 0;
+  bottom: -0.18cqh;
+  border-right: 0.24cqw solid;
+  border-bottom: 0.24cqh solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--sw {
+  left: 0.9cqw;
+  bottom: 0.82cqh;
+  padding-left: 2.75cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--sw::before {
+  left: 0;
+  bottom: -0.18cqh;
+  border-left: 0.24cqw solid;
+  border-bottom: 0.24cqh solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header {
+  order: 1 !important;
+  flex: 0 0 12.6cqh !important;
+  min-height: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header::before,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header::after {
+  content: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-kicker,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-meta-line,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--title {
+  color: #243021 !important;
+  font-family: "Libre Baskerville", Georgia, serif !important;
+  font-size: min(var(--trail-title-size, 5.35cqh), 5.35cqh) !important;
+  font-weight: 800 !important;
+  line-height: 0.92 !important;
+  letter-spacing: 0.01em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #f0ecde) 72%, transparent);
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-location-line,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, #617349 88%, #243021) !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.15cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.23em !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer {
+  order: 2 !important;
+  flex: 0 0 calc(5.05cqh + var(--print-bleed, 0px)) !important;
+  min-height: 0 !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) calc(2.8cqh + var(--print-bleed, 0px)) !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::before,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::after {
+  content: "";
+  position: absolute;
+  bottom: calc(2.1cqh + var(--print-bleed, 0px));
+  width: 3.8cqw;
+  height: 2.4cqh;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::before {
+  left: calc(6.25cqw + var(--print-bleed, 0px));
+  border-left: 0.32cqw solid #243021;
+  border-bottom: 0.32cqh solid #243021;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::after {
+  right: calc(6.25cqw + var(--print-bleed, 0px));
+  border-right: 0.32cqw solid #243021;
+  border-bottom: 0.32cqh solid #243021;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer-rule,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-footer-note,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-stats,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-date,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-coords,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] {
+  background: var(--label-bg-color, #eeeeea) !important;
+  gap: 0 !important;
+  color: #26313b !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: calc(4.25cqh + var(--print-bleed, 0px)) calc(6.25cqw + var(--print-bleed, 0px)) 0 !important;
+  border: 1.5px solid #26313b !important;
+  background-color: var(--label-bg-color, #eeeeea) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header {
+  order: 1 !important;
+  flex: 0 0 12.6cqh !important;
+  min-height: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header::before,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header::after,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-kicker,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-meta-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-rule {
+  display: none !important;
+  content: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--title {
+  color: #26313b !important;
+  font-family: "Libre Baskerville", Georgia, serif !important;
+  font-size: min(var(--trail-title-size, 4.9cqh), 4.9cqh) !important;
+  font-weight: 800 !important;
+  line-height: 0.92 !important;
+  letter-spacing: 0.015em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-location-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, #5f6e7e 88%, #26313b) !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.12cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer {
+  order: 2 !important;
+  flex: 0 0 calc(5.05cqh + var(--print-bleed, 0px)) !important;
+  min-height: 0 !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) calc(2.8cqh + var(--print-bleed, 0px)) !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer-rule,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-footer-note,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-stats,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-date,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-coords,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--travel-banner .poster-header {
+  flex: 0 0 20.8% !important;
+  min-height: 0 !important;
+  justify-content: center !important;
+  gap: 1.1cqh !important;
+  background: var(--composition-paper, var(--label-bg-color, #f4ead3)) !important;
+  border-top: 0.55cqh solid var(--label-text-color, currentColor);
+}
+
+.poster-composition--travel-banner .poster-header::before {
+  content: "VISIT";
+  display: block;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 1.75cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--route-color, currentColor) 62%, #d75c2b);
+  opacity: 0.9;
+  text-align: center;
+}
+
+.poster-composition--travel-banner .composition-kicker {
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.75cqh !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.42em !important;
+  text-transform: uppercase !important;
+  color: var(--route-color, currentColor) !important;
+  opacity: 0.88 !important;
+  text-align: center !important;
+}
+
+.poster-composition--travel-banner .poster-trail-name {
+  font-size: min(max(var(--trail-title-size, 9.4cqh), 9.4cqh), 10.5cqh) !important;
+  line-height: 0.82 !important;
+  letter-spacing: 0.01em !important;
+  text-transform: uppercase !important;
+  color: var(--route-color, currentColor) !important;
+}
+
+.poster-composition--travel-banner .poster-location-line {
+  margin-top: 0.15cqh !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.55cqh !important;
+  letter-spacing: 0.26em !important;
+  text-transform: uppercase !important;
+  color: color-mix(in srgb, var(--route-color, currentColor) 62%, var(--label-text-color, currentColor)) !important;
+  opacity: 0.72 !important;
+}
+
+.poster-composition--travel-banner .poster-footer,
+.poster-composition--travel-banner .poster-stats,
+.poster-composition--travel-banner .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid .poster-header,
+.poster-composition--blueprint-strava .poster-header {
+  border-top: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+}
+
+.poster-composition--blueprint-grid .poster-trail-name {
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava .poster-trail-name {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  letter-spacing: 0.045em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .chrome-grid-block--title {
+  font-family: "Big Shoulders Display", "IBM Plex Sans", sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.035em !important;
+  line-height: 0.86 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name {
+  font-size: min(var(--trail-title-size, 5.2cqh), 5.2cqh) !important;
+}
+
+.composition-electric-trace {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.78;
+  mix-blend-mode: screen;
+}
+
+.electric-trace-line {
+  position: absolute;
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--water-color, #22e3ff), var(--route-color, #ff2e88), transparent);
+  box-shadow: 0 0 0.9cqh color-mix(in srgb, var(--water-color, #22e3ff) 52%, transparent);
+}
+
+.electric-trace-line--a {
+  top: 18%;
+  left: -14%;
+  width: 52%;
+  transform: rotate(-18deg);
+}
+
+.electric-trace-line--b {
+  top: 62%;
+  right: -10%;
+  width: 48%;
+  transform: rotate(14deg);
+}
+
+.electric-trace-line--c {
+  bottom: 16%;
+  left: 18%;
+  width: 28%;
+  transform: rotate(9deg);
+  opacity: 0.56;
+}
+
+.composition-electric-chip {
+  position: absolute;
+  z-index: 9;
+  right: 2.3cqw;
+  top: 2.1cqh;
+  display: grid;
+  gap: 0.15cqh;
+  min-width: 12cqw;
+  padding: 0.58cqh 0.74cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #edf8ff);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68cqh;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--water-color, #22e3ff) 28%, transparent) 0 1px, transparent 1px) 0 0 / 2.4cqw 100%,
+    color-mix(in srgb, var(--background-color, #060814) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--water-color, #22e3ff) 48%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, #ff2e88) 18%, transparent),
+    0 0 1.6cqh color-mix(in srgb, var(--water-color, #22e3ff) 20%, transparent);
+}
+
+.composition-electric-chip b {
+  color: var(--route-color, #ff2e88);
+  font-size: 0.86cqh;
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--blueprint-grid [data-testid="poster-map"] {
+  margin: 0 4.8cqw !important;
+  border: 1px solid color-mix(in srgb, currentColor 46%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent),
+    0 0 0 0.7cqw color-mix(in srgb, currentColor 5%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] [data-testid="poster-map"] {
+  margin: calc(7.6cqh + var(--print-bleed, 0px)) 8.8cqw 0 !important;
+  border-color: color-mix(in srgb, currentColor 58%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent),
+    inset 0 0 4cqh color-mix(in srgb, var(--water-color, #071b32) 32%, transparent),
+    0 0 0 0.7cqw color-mix(in srgb, currentColor 6%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 72%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.25cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline {
+  left: 8.8cqw;
+  right: 8.8cqw;
+  top: 5.2cqh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure {
+  left: 8.8cqw;
+  top: 9.1cqh;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-sheet-neatline {
+  position: absolute;
+  inset: 3.7cqh 3.9cqw 3.8cqh;
+  z-index: 17;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #dceeff) 58%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, #dceeff) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, #dceeff) 22%, transparent);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-header,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 10%, transparent) 0 1px, transparent 1px) 0 0 / 7.2cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 10%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.35cqh,
+    var(--label-bg-color, #0b2948) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-header {
+  flex: 0 0 16.5% !important;
+  height: 16.5% !important;
+  padding-top: 2cqh !important;
+  padding-left: calc(8.8cqw + var(--print-bleed, 0px)) !important;
+  padding-right: calc(4.2cqw + var(--print-bleed, 0px)) !important;
+  padding-bottom: 1.4cqh !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer {
+  flex: 0 0 8.5% !important;
+  height: 8.5% !important;
+  padding-top: 0.8cqh !important;
+  padding-left: calc(9.4cqw + var(--print-bleed, 0px)) !important;
+  padding-right: calc(3.8cqw + var(--print-bleed, 0px)) !important;
+  padding-bottom: calc(1.25cqh + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer-rule {
+  height: 1.5px !important;
+  background: color-mix(in srgb, var(--label-text-color, #dceeff) 74%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-trail-name,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--title {
+  color: var(--label-text-color, #dceeff) !important;
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  font-weight: 760 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-trail-name {
+  font-size: min(8.1cqh, 11.2cqw) !important;
+  letter-spacing: 0.015em !important;
+  transform: translateY(-1.45cqh);
+  white-space: nowrap !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-location-line,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--subtitle,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-location-line {
+  font-size: 2.25cqh !important;
+  transform: translateY(-1.55cqh);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 2.2cqw !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-block {
+  flex: 0 1 auto !important;
+  min-width: max-content !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-divider {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-block:last-child {
+  text-align: right !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, #ffd45a);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--coords {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.44cqh !important;
+  font-weight: 520 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat::first-line,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--slot-date::first-line {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 76%, transparent) !important;
+  font-size: 1em !important;
+  font-weight: 520 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1 !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--slot-date {
+  text-align: right !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--brand {
+  opacity: 0.50;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] [data-testid="poster-map"] {
+  margin: 0 4.2cqw !important;
+  border: 1px solid color-mix(in srgb, currentColor 56%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent),
+    inset 0 0 3.5cqh color-mix(in srgb, var(--water-color, #b7c9cc) 22%, transparent),
+    0 0 0 0.6cqw color-mix(in srgb, currentColor 4%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-header {
+  border-top: 1px solid color-mix(in srgb, currentColor 38%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.8cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 9%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.6cqh,
+    var(--label-bg-color, #EEF0ED) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-trail-name,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  font-weight: 760 !important;
+  letter-spacing: 0.18em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--brand {
+  opacity: 0.42;
+}
+
+.poster-composition--journal-spread [data-testid="poster-map"] {
+  margin: 0 calc(27cqw + var(--print-bleed, 0px)) 0 calc(6.4cqw + var(--print-bleed, 0px)) !important;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent) !important;
+  overflow: visible !important;
+  box-shadow:
+    0 0 0 0.9cqw color-mix(in srgb, var(--composition-paper, #e8ded0) 52%, transparent),
+    0 1.1cqh 2.6cqh rgba(45, 36, 25, 0.14) !important;
+  transform: rotate(-0.45deg);
+  transform-origin: center;
+}
+
+.composition-journal-notes {
+  position: absolute;
+  z-index: 8;
+  top: calc(19.4cqh + var(--print-bleed, 0px));
+  right: calc(6.2cqw + var(--print-bleed, 0px));
+  width: 19cqw;
+  height: 24cqh;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #362616) 78%, transparent);
+  font-family: "Source Serif 4", "Cormorant Garamond", serif;
+  font-size: 1.18cqh;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.journal-note-heading {
+  display: block;
+  margin-bottom: 1.2cqh;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.9cqh;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.journal-note-rule {
+  display: block;
+  height: 4.2cqh;
+  border-top: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 38%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 28%, transparent) 0 0.5cqw, transparent 0.5cqw) 0 1.4cqh / 4.4cqw 1px no-repeat;
+  opacity: 0.88;
+}
+
+.journal-note-rule--short {
+  width: 72%;
+}
+
+.composition-journal-route-sketch {
+  position: absolute;
+  z-index: 8;
+  right: calc(6.2cqw + var(--print-bleed, 0px));
+  bottom: calc(15.2cqh + var(--print-bleed, 0px));
+  width: 18.2cqw;
+  min-height: 10.8cqh;
+  padding: 1.25cqh 1.45cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #362616);
+  font-family: "Source Serif 4", "Cormorant Garamond", serif;
+  font-size: 1.16cqh;
+  line-height: 1.32;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #fff 38%, transparent), transparent 34%),
+    color-mix(in srgb, var(--composition-paper, #e8ded0) 82%, #cdbb91 18%);
+  border: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 24%, transparent);
+  box-shadow: 0 0.45cqh 1cqh rgba(45, 36, 25, 0.1);
+  transform: rotate(1.2deg);
+}
+
+.composition-journal-route-sketch span {
+  display: block;
+}
+
+.journal-specimen-tag {
+  margin-bottom: 0.75cqh;
+  font-size: 0.92cqh;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--label-text-color, #362616) 72%, transparent);
+}
+
+.journal-specimen-line {
+  width: 100%;
+  height: 1.1cqh;
+  margin: 0.1cqh 0 0.9cqh;
+  border-top: 0.24cqh solid var(--route-color, #6a4a2a);
+  border-bottom: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 26%, transparent);
+}
+
+.composition-journal-tape {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.journal-tape-strip {
+  position: absolute;
+  display: block;
+  width: 13cqw;
+  height: 2.2cqh;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, #fff 34%, transparent), transparent 22% 78%, color-mix(in srgb, #6a4a2a 12%, transparent)),
+    color-mix(in srgb, #d6c39a 64%, var(--composition-paper, #e8ded0) 36%);
+  opacity: 0.76;
+  mix-blend-mode: multiply;
+  box-shadow: 0 0.25cqh 0.8cqh rgba(45, 36, 25, 0.12);
+}
+
+.journal-tape-strip--top {
+  top: -1.45cqh;
+  left: 7cqw;
+  transform: rotate(-5deg);
+}
+
+.journal-tape-strip--bottom {
+  right: 5cqw;
+  bottom: -1.25cqh;
+  transform: rotate(4deg);
+}
+
+.poster-composition--journal-spread .poster-header {
+  padding-right: calc(27cqw + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--journal-spread .poster-trail-name {
+  font-family: "Cormorant Garamond", "Source Serif 4", serif !important;
+  font-size: min(var(--trail-title-size, 4.9cqh), 5.8cqh) !important;
+  font-style: italic !important;
+  letter-spacing: 0 !important;
+}
+
+.poster-composition--botanical-plate [data-testid="poster-map"] {
+  margin: 0 7.4cqw !important;
+  border: 1px solid color-mix(in srgb, currentColor 34%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 0.7cqw color-mix(in srgb, var(--composition-paper, white) 72%, transparent),
+    inset 0 0 3.4cqh color-mix(in srgb, var(--route-color, #31512b) 8%, transparent) !important;
+}
+
+.composition-botanical-frame {
+  position: absolute;
+  z-index: 8;
+  inset: 1.65cqh 2.15cqw;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 44%, transparent);
+  box-shadow:
+    inset 0 0 0 0.32cqw color-mix(in srgb, var(--composition-paper, #eef0e6) 78%, transparent),
+    inset 0 0 0 0.38cqw color-mix(in srgb, var(--route-color, #3f5a32) 14%, transparent);
+}
+
+.botanical-corner {
+  position: absolute;
+  width: 5.4cqw;
+  height: 5.4cqw;
+  border-color: color-mix(in srgb, var(--route-color, #3f5a32) 54%, transparent);
+  opacity: 0.86;
+}
+
+.botanical-corner--tl {
+  top: 0.8cqh;
+  left: 0.8cqw;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.botanical-corner--tr {
+  top: 0.8cqh;
+  right: 0.8cqw;
+  border-top: 1px solid;
+  border-right: 1px solid;
+}
+
+.botanical-corner--br {
+  right: 0.8cqw;
+  bottom: 0.8cqh;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+}
+
+.botanical-corner--bl {
+  bottom: 0.8cqh;
+  left: 0.8cqw;
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+}
+
+.composition-botanical-caption {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 2.55cqh;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.7cqw;
+  align-items: baseline;
+  max-width: 62cqw;
+  padding: 0.72cqh 1.15cqw;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #23311f) 84%, transparent);
+  font-family: "Source Serif 4", "Cormorant Garamond", serif;
+  font-size: 1.08cqh;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--composition-paper, #eef0e6) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 24%, transparent);
+}
+
+.botanical-caption-label {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.35cqh;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.poster-composition--botanical-plate .poster-header {
+  align-items: center !important;
+  text-align: center !important;
+  padding-top: 3.1cqh !important;
+  background:
+    linear-gradient(90deg, transparent 0 12%, color-mix(in srgb, currentColor 12%, transparent) 12% calc(12% + 1px), transparent calc(12% + 1px)),
+    linear-gradient(90deg, transparent 0 88%, color-mix(in srgb, currentColor 12%, transparent) 88% calc(88% + 1px), transparent calc(88% + 1px)),
+    var(--label-bg-color, #f0e7d4) !important;
+}
+
+.poster-composition--botanical-plate .poster-trail-name,
+.poster-composition--botanical-plate .chrome-grid-block--title {
+  font-family: "Cormorant Garamond", "Libre Baskerville", serif !important;
+  font-size: min(var(--trail-title-size, 5cqh), 5.55cqh) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.015em !important;
+  line-height: 0.94 !important;
+  text-transform: none !important;
+  text-align: center !important;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #f0e7d4) 82%, transparent);
+}
+
+.poster-composition--botanical-plate .poster-location-line,
+.poster-composition--botanical-plate .chrome-grid-block--subtitle,
+.poster-composition--botanical-plate .chrome-grid-block--occasion {
+  color: color-mix(in srgb, currentColor 62%, transparent) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  letter-spacing: 0.18em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--botanical-plate .poster-footer {
+  opacity: 0.68;
+  min-height: 8.8cqh !important;
+  padding: 0.8cqh calc(5cqw + var(--print-bleed, 0px)) calc(1.15cqh + var(--print-bleed, 0px)) !important;
+  background:
+    repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 6%, transparent) 0 1px, transparent 1px 9.4cqw),
+    var(--label-bg-color, #f0e7d4) !important;
+}
+
+.poster-composition--botanical-plate .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  transform: translateY(-0.25cqh);
+}
+
+.poster-composition--botanical-plate .poster-stats {
+  transform: scale(0.82) !important;
+  transform-origin: left center !important;
+}
+
+.poster-composition--botanical-plate .poster-mark {
+  opacity: 0.34 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] [data-testid="poster-map"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--composition-paper, #F8F3EA) 62%, transparent),
+    inset 0 0 4.4cqh color-mix(in srgb, var(--water-color, #D8DEE0) 14%, transparent);
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-header {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent) 0 1px, transparent 1px) 6.8cqw 0 / 9.2cqw 100%,
+    var(--label-bg-color, #F8F3EA) !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-trail-name,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--title {
+  font-size: min(var(--trail-title-size, 5.5cqh), 6.1cqh) !important;
+  line-height: 0.94 !important;
+  max-width: 84cqw !important;
+  text-wrap: balance;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-location-line,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--subtitle,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--occasion {
+  letter-spacing: 0.16em !important;
+  opacity: 0.52 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer {
+  background:
+    linear-gradient(90deg, transparent 0 58%, color-mix(in srgb, currentColor 10%, transparent) 58% calc(58% + 1px), transparent calc(58% + 1px)),
+    var(--label-bg-color, #F8F3EA) !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--brand {
+  opacity: 0.36;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] [data-testid="poster-map"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-trail-name {
+  font-family: "Newsreader", "Libre Baskerville", serif !important;
+  font-size: min(var(--trail-title-size, 5.5cqh), 6.4cqh) !important;
+}
+
+.composition-relief-bands {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.42;
+}
+
+.relief-band {
+  stroke: none;
+}
+
+.relief-band--low {
+  fill: color-mix(in srgb, var(--water-color, #b8c7a3) 32%, transparent);
+}
+
+.relief-band--mid {
+  fill: color-mix(in srgb, var(--contour-color, #cabfa8) 36%, transparent);
+}
+
+.relief-band--high {
+  fill: color-mix(in srgb, var(--route-color, #b4502a) 18%, transparent);
+}
+
+.composition-relief-legend {
+  position: absolute;
+  z-index: 9;
+  right: 2.2cqw;
+  bottom: 2.2cqh;
+  display: flex;
+  gap: 0.45cqw;
+  align-items: center;
+  padding: 0.42cqh 0.6cqw;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--composition-paper, #efe9dd) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #2a2620) 16%, transparent);
+}
+
+.relief-legend-swatch {
+  display: block;
+  width: 1.45cqw;
+  height: 0.68cqh;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #2a2620) 12%, transparent);
+}
+
+.relief-legend-swatch--low {
+  background: color-mix(in srgb, var(--water-color, #b8c7a3) 56%, transparent);
+}
+
+.relief-legend-swatch--mid {
+  background: color-mix(in srgb, var(--contour-color, #cabfa8) 64%, transparent);
+}
+
+.relief-legend-swatch--high {
+  background: color-mix(in srgb, var(--route-color, #b4502a) 34%, transparent);
+}
+
+.composition-relief-stamp {
+  position: absolute;
+  z-index: 9;
+  left: 2.2cqw;
+  top: 2.1cqh;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #2a2620) 54%, transparent);
+  font-family: "Source Sans 3", "Inter", sans-serif;
+  font-size: 0.78cqh;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
 .poster-composition--riso-stack .poster-header::before {
   content: "";
   position: absolute;
-  top: 3cqh;
-  right: 7cqw;
-  width: 7cqw;
-  height: 7cqw;
-  background: var(--water-color, currentColor);
-  opacity: 0.85;
+  display: none;
+}
+
+.poster-composition--riso-stack {
+  background: var(--composition-paper, #f4f0e3) !important;
+}
+
+.poster-composition--riso-stack .composition-paper-texture {
+  opacity: 0.32;
+}
+
+.poster-composition--riso-stack [data-testid="poster-map"] {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  height: 72% !important;
+  flex: 0 0 72% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: var(--land-color, #f4f0e3) !important;
+}
+
+.poster-composition--riso-stack .maplibregl-canvas {
+  filter: contrast(1.04) saturate(1.08);
+}
+
+.poster-composition--riso-stack .poster-header {
+  position: absolute !important;
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  bottom: calc(13.4cqh + var(--print-bleed, 0px));
+  z-index: 18 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--route-color, #ff4f7b) !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  gap: 0 !important;
+  pointer-events: auto;
+  overflow: visible !important;
+  outline: none !important;
+}
+
+.poster-composition--riso-stack .poster-footer {
+  outline: none !important;
+}
+
+.poster-composition--riso-stack .composition-kicker,
+.poster-composition--riso-stack .poster-location-line,
+.poster-composition--riso-stack .composition-meta-line,
+.poster-composition--riso-stack .poster-rule,
+.poster-composition--riso-stack .composition-footer-note,
+.poster-composition--riso-stack .poster-stats,
+.poster-composition--riso-stack .poster-occasion,
+.poster-composition--riso-stack .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .poster-trail-name {
+  display: block !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-caption {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-meta {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-trail-name {
+  position: relative;
+  width: 100% !important;
+  max-width: 100% !important;
+  color: var(--route-color, #ff4f7b) !important;
+  font-size: min(max(var(--trail-title-size, 12.7cqh), 12.7cqh), 13.1cqh) !important;
+  line-height: 0.78 !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  text-wrap: balance !important;
+  hyphens: none !important;
+  text-shadow: none !important;
   mix-blend-mode: multiply;
+}
+
+.poster-composition--riso-stack .poster-trail-name::before {
+  content: attr(data-riso-title);
+  position: absolute;
+  left: 1.05cqw;
+  top: 0.65cqh;
+  color: var(--water-color, #2f5fd0);
+  opacity: 0.74;
+  pointer-events: none;
+}
+
+.poster-composition--riso-stack .poster-footer {
+  position: absolute !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px));
+  right: calc(6.8cqw + var(--print-bleed, 0px));
+  bottom: calc(4.1cqh + var(--print-bleed, 0px));
+  z-index: 18 !important;
+  height: 5.8cqh !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--label-text-color, #16243f) !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 4cqw !important;
+  border: 0 !important;
+}
+
+.poster-composition--riso-stack .poster-footer-rule {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .composition-riso-caption {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 58%;
+  font-family: "Work Sans", sans-serif;
+  color: var(--label-text-color, #16243f);
+}
+
+.poster-composition--riso-stack .composition-riso-caption strong {
+  font-size: 2.05cqh;
+  line-height: 1.1;
+  font-weight: 760;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poster-composition--riso-stack .composition-riso-caption span {
+  margin-top: 0.65cqh;
+  font-size: 1.62cqh;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 70%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poster-composition--riso-stack .composition-riso-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.85cqh;
+  min-width: 22cqw;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.35cqh;
+  line-height: 1;
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 74%, transparent);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.poster-composition--riso-stack .composition-riso-meta span:first-child {
+  font-family: "Work Sans", sans-serif;
+  font-size: 1.25cqh;
+  letter-spacing: 0.27em;
+  text-transform: uppercase;
+  color: var(--water-color, #2f5fd0);
+}
+
+.poster-composition--riso-stack .absolute.inset-0.w-full.h-full.pointer-events-none {
+  mix-blend-mode: multiply !important;
 }
 
 .poster-composition--botanical-plate .poster-header::before,
@@ -8675,6 +11545,619 @@ onUnmounted(() => {
 
 .poster-composition--botanical-plate .poster-header::after {
   right: 7cqw;
+}
+
+.poster-composition--place-frame [data-testid="poster-map"],
+.poster-composition--sea-chart [data-testid="poster-map"],
+.poster-composition--art-wash [data-testid="poster-map"],
+.poster-composition--transit-diagram [data-testid="poster-map"] {
+  flex: 1 1 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--place-frame .poster-footer,
+.poster-composition--sea-chart .poster-footer,
+.poster-composition--art-wash .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--place-frame .poster-header,
+.poster-composition--sea-chart .poster-header,
+.poster-composition--art-wash .poster-header {
+  position: absolute !important;
+  z-index: 18 !important;
+  color: var(--composition-ink, currentColor) !important;
+}
+
+.poster-composition--place-frame .poster-header {
+  left: 18cqw;
+  right: 18cqw;
+  bottom: calc(8.2cqh + var(--print-bleed, 0px));
+  align-items: center !important;
+  padding: 2.35cqh 3.4cqw !important;
+  background: var(--composition-paper, white) !important;
+  border: 3px double color-mix(in srgb, currentColor 72%, transparent);
+  box-shadow:
+    inset 0 0 0 0.75cqw color-mix(in srgb, var(--composition-paper, white) 88%, currentColor 12%),
+    0 1.5cqh 4.5cqh rgba(0, 0, 0, 0.12);
+}
+
+.poster-composition--place-frame.poster-has-route .poster-header {
+  left: calc(7.2cqw + var(--print-bleed, 0px));
+  right: auto;
+  bottom: calc(6.8cqh + var(--print-bleed, 0px));
+  width: min(58cqw, 38cqh);
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 1.75cqh 3.1cqw 1.85cqh !important;
+  border-width: 2px;
+  border-style: double;
+  box-shadow:
+    inset 0 0 0 0.44cqw color-mix(in srgb, var(--composition-paper, white) 86%, currentColor 14%),
+    inset 0 0 0 0.52cqw color-mix(in srgb, currentColor 12%, transparent),
+    0 1cqh 2.8cqh rgba(32, 24, 16, 0.14);
+}
+
+.poster-composition--place-frame .poster-header::before,
+.poster-composition--place-frame .poster-header::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 8.5cqw;
+  height: 4.6cqh;
+  pointer-events: none;
+  opacity: 0.36;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+.poster-composition--place-frame .poster-header::before {
+  left: 1.5cqw;
+  border-left: 1px solid currentColor;
+  border-radius: 100% 0 0 100%;
+  transform: translateY(-50%);
+}
+
+.poster-composition--place-frame .poster-header::after {
+  right: 1.5cqw;
+  border-right: 1px solid currentColor;
+  border-radius: 0 100% 100% 0;
+  transform: translateY(-50%);
+}
+
+.poster-composition--place-frame.poster-has-route .poster-header::before,
+.poster-composition--place-frame.poster-has-route .poster-header::after {
+  width: 5.2cqw;
+  height: 3.2cqh;
+  opacity: 0.28;
+}
+
+.poster-composition--place-frame .composition-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2cqw;
+  color: var(--route-color, currentColor) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--place-frame.poster-has-route .composition-kicker {
+  justify-content: flex-start;
+  gap: 0.8cqw;
+  max-width: 100%;
+  font-size: 0.68cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.19em !important;
+  white-space: nowrap;
+}
+
+.poster-composition--place-frame .composition-kicker::before,
+.poster-composition--place-frame .composition-kicker::after {
+  content: "";
+  width: 3.6cqw;
+  height: 1px;
+  background: currentColor;
+}
+
+.poster-composition--place-frame .poster-trail-name {
+  font-size: min(var(--trail-title-size, 4.7cqh), 5.8cqh) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.035em !important;
+  line-height: 0.94 !important;
+  max-width: 78% !important;
+}
+
+.poster-composition--place-frame.poster-has-route .poster-trail-name {
+  max-width: 100% !important;
+  font-size: min(var(--trail-title-size, 3.3cqh), 3.35cqh) !important;
+  line-height: 0.9 !important;
+  text-align: left !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+  text-wrap: balance;
+}
+
+.poster-composition--place-frame .composition-meta-line {
+  margin-top: 0.8cqh;
+  padding-top: 1.1cqh;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.66 !important;
+}
+
+.poster-composition--place-frame.poster-has-route .composition-meta-line {
+  margin-top: 0.85cqh;
+  padding-top: 0.85cqh;
+  font-size: 0.68cqh !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0.11em !important;
+  text-align: left !important;
+  white-space: normal !important;
+}
+
+.poster-composition--sea-chart .poster-header {
+  left: calc(6.5cqw + var(--print-bleed, 0px));
+  right: auto;
+  bottom: calc(5.9cqh + var(--print-bleed, 0px));
+  width: min(72cqw, 44cqh);
+  align-items: flex-start !important;
+  padding: 1.15cqh 2cqw 1.35cqh !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent), transparent 32%),
+    color-mix(in srgb, var(--composition-paper, white) 86%, transparent) !important;
+  border: 1px solid color-mix(in srgb, currentColor 34%, transparent);
+  box-shadow:
+    0 0 0 0.25cqw color-mix(in srgb, var(--composition-paper, white) 48%, transparent),
+    0 0.85cqh 2.3cqh rgba(29, 42, 54, 0.08);
+}
+
+.poster-composition--sea-chart .poster-header::before,
+.poster-composition--sea-chart .poster-header::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.poster-composition--sea-chart .poster-header::before {
+  inset: 0.52cqh 0.72cqw;
+  border: 1px solid color-mix(in srgb, currentColor 17%, transparent);
+}
+
+.poster-composition--sea-chart .poster-header::after {
+  top: 0.55cqh;
+  bottom: 0.55cqh;
+  right: 29%;
+  width: 1px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.poster-composition--sea-chart .composition-kicker {
+  color: var(--route-color, currentColor) !important;
+  opacity: 1 !important;
+  letter-spacing: 0.16em !important;
+  font-size: 0.72cqh !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-weight: 700 !important;
+  padding-right: 30% !important;
+}
+
+.poster-composition--sea-chart .poster-trail-name {
+  margin-top: 0.36cqh !important;
+  font-size: min(var(--trail-title-size, 3.65cqh), 3.65cqh) !important;
+  line-height: 0.94 !important;
+  max-width: 43cqw !important;
+}
+
+.poster-composition--sea-chart .poster-location-line {
+  margin-top: 0.6cqh !important;
+  padding-top: 0.58cqh !important;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  letter-spacing: 0.06em !important;
+  text-align: left !important;
+  opacity: 0.72 !important;
+  max-width: 42cqw !important;
+}
+
+.poster-composition--sea-chart .composition-meta-line {
+  position: absolute;
+  right: 1.2cqw;
+  top: 1.25cqh;
+  bottom: auto;
+  width: 16.5cqw !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 0.58cqh !important;
+  line-height: 1.42 !important;
+  text-align: right !important;
+  white-space: normal !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.76 !important;
+}
+
+.poster-composition--art-wash .poster-header {
+  left: 50%;
+  right: auto;
+  bottom: calc(7cqh + var(--print-bleed, 0px));
+  width: min(72cqw, 34cqh);
+  transform: translateX(-50%);
+  align-items: center !important;
+  padding: 1.55cqh 3.5cqw !important;
+  background: var(--composition-paper, white) !important;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 1cqh 3.8cqh rgba(0, 0, 0, 0.08);
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-header {
+  box-shadow: 0 0.8cqh 3cqh rgba(0, 0, 0, 0.08);
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header {
+  left: calc(6.9cqw + var(--print-bleed, 0px));
+  right: auto;
+  bottom: calc(7.4cqh + var(--print-bleed, 0px));
+  width: min(55cqw, 33cqh);
+  transform: none;
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 1.05cqh 2.1cqw 1.1cqh !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::before,
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::before {
+  z-index: -1;
+  inset: 0.35cqh 8.5cqw 0.1cqh -0.75cqw;
+  opacity: 0.68;
+  background:
+    radial-gradient(ellipse at 22% 45%, color-mix(in srgb, #f8eedb 94%, transparent), transparent 70%),
+    radial-gradient(ellipse at 82% 62%, color-mix(in srgb, #d8b77f 22%, transparent), transparent 60%),
+    repeating-linear-gradient(101deg, color-mix(in srgb, #946b3b 7%, transparent) 0 0.08cqw, transparent 0.08cqw 0.72cqw);
+  filter: blur(0.14cqw);
+  clip-path: polygon(0 12%, 18% 2%, 56% 7%, 93% 0, 100% 28%, 92% 87%, 58% 94%, 24% 88%, 2% 100%);
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::after {
+  left: 1.7cqw;
+  right: 5.6cqw;
+  bottom: 0.65cqh;
+  height: 0.22cqh;
+  opacity: 0.62;
+  background: linear-gradient(90deg, var(--route-color, #c2683f), color-mix(in srgb, var(--route-color, #c2683f) 8%, transparent));
+  filter: blur(0.04cqw);
+  transform: rotate(-1.4deg);
+}
+
+.poster-composition--art-wash .poster-trail-name {
+  font-size: min(var(--trail-title-size, 4cqh), 4cqh) !important;
+  line-height: 0.96 !important;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-trail-name {
+  font-family: "Cormorant Garamond", "Newsreader", serif !important;
+  font-size: min(var(--trail-title-size, 5.15cqh), 5.45cqh) !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  line-height: 0.9 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  max-width: 100% !important;
+  text-shadow:
+    0.08cqw 0.06cqh 0 color-mix(in srgb, var(--composition-paper, #f6f1e8) 84%, transparent),
+    -0.06cqw 0 0 color-mix(in srgb, var(--composition-paper, #f6f1e8) 70%, transparent);
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-location-line {
+  margin-top: 0.7cqh !important;
+  max-width: 48cqw !important;
+  text-align: left !important;
+  letter-spacing: 0.08em !important;
+  opacity: 0.66 !important;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .composition-kicker {
+  top: -50.5cqh;
+  left: 0.6cqw;
+  transform: none;
+  color: color-mix(in srgb, currentColor 76%, transparent) !important;
+  text-align: left;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 0.72cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.24em !important;
+}
+
+.poster-composition--art-wash .composition-kicker {
+  position: absolute;
+  top: -55cqh;
+  left: 50%;
+  width: max-content;
+  transform: translateX(-50%);
+  font-size: 0.82cqh !important;
+  letter-spacing: 0.2em !important;
+  opacity: 0.58 !important;
+}
+
+.poster-composition--transit-diagram [data-testid="poster-map"] {
+  flex: 0 0 75% !important;
+  height: 75% !important;
+}
+
+.poster-composition--transit-diagram .poster-header {
+  flex: 0 0 17% !important;
+  position: relative;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding-top: 1.25cqh !important;
+  padding-bottom: 1.2cqh !important;
+  background: var(--composition-paper, #f7f5f0) !important;
+}
+
+.poster-composition--transit-diagram .poster-header::before {
+  content: "T1";
+  position: absolute;
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  top: calc(1.4cqh + var(--print-bleed, 0px));
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  width: 5.2cqw;
+  min-width: 2.7cqh;
+  height: 2.7cqh;
+  color: var(--composition-paper, #f7f5f0);
+  background: var(--route-color, #7a1fa2);
+  border-radius: 999px;
+  font-family: "IBM Plex Sans", "Inter", sans-serif;
+  font-size: 1.05cqh;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 0.42cqh var(--composition-paper, #f7f5f0);
+}
+
+.poster-composition--transit-diagram .poster-header::after {
+  content: "";
+  position: absolute;
+  left: calc(5.6cqw + var(--print-bleed, 0px));
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  bottom: 0;
+  z-index: 1;
+  height: 0.35cqh;
+  background:
+    linear-gradient(90deg, var(--route-color, #7a1fa2) 0 68%, var(--contour-major-color, #1f8a5b) 68% 100%);
+}
+
+.poster-composition--transit-diagram .poster-footer {
+  flex: 0 0 8% !important;
+}
+
+.poster-composition--transit-diagram .poster-trail-name {
+  max-width: calc(100% - 9cqw);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  font-size: min(var(--trail-title-size, 3.35cqh), 3.35cqh) !important;
+  line-height: 0.9 !important;
+  letter-spacing: 0 !important;
+}
+
+.poster-composition--transit-diagram .chrome-grid-block--title {
+  max-height: none !important;
+  max-width: calc(100% - 8cqw) !important;
+  overflow: visible !important;
+  font-size: min(var(--trail-title-size, 3.15cqh), 3.15cqh) !important;
+  line-height: 0.96 !important;
+  letter-spacing: 0 !important;
+  text-wrap: balance;
+}
+
+.poster-composition--transit-diagram .poster-location-line {
+  margin-top: 0.5cqh !important;
+  opacity: 0.72 !important;
+  text-align: left !important;
+  letter-spacing: 0.02em !important;
+}
+
+.poster-composition--transit-diagram .composition-kicker {
+  position: absolute;
+  top: calc(2.4cqh + var(--print-bleed, 0px));
+  left: calc(6.8cqw + var(--print-bleed, 0px));
+  width: auto !important;
+  color: color-mix(in srgb, currentColor 62%, transparent) !important;
+  opacity: 1 !important;
+  z-index: 20;
+}
+
+.poster-composition--transit-diagram .composition-meta-line {
+  margin-top: 0.85cqh;
+  padding-top: 0.75cqh;
+  border-top: 2px solid currentColor;
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.08em !important;
+  opacity: 0.74 !important;
+}
+
+.composition-brutalist-baseline-grid,
+.composition-brutalist-registration-marks {
+  position: absolute;
+  inset: calc(2.4cqh + var(--print-bleed, 0px)) calc(3.4cqw + var(--print-bleed, 0px));
+  z-index: 4;
+  pointer-events: none;
+}
+
+.composition-brutalist-baseline-grid {
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  background-image:
+    linear-gradient(color-mix(in srgb, currentColor 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, currentColor 45%, transparent) 1px, transparent 1px);
+  background-size: 100% 4.8cqh, 8.5cqw 100%;
+}
+
+.composition-brutalist-registration-marks {
+  opacity: 0.38;
+  background:
+    linear-gradient(currentColor 0 0) left top / 5.2cqw 1px no-repeat,
+    linear-gradient(currentColor 0 0) left top / 1px 5.2cqw no-repeat,
+    linear-gradient(currentColor 0 0) right top / 5.2cqw 1px no-repeat,
+    linear-gradient(currentColor 0 0) right top / 1px 5.2cqw no-repeat,
+    linear-gradient(currentColor 0 0) left bottom / 5.2cqw 1px no-repeat,
+    linear-gradient(currentColor 0 0) left bottom / 1px 5.2cqw no-repeat,
+    linear-gradient(currentColor 0 0) right bottom / 5.2cqw 1px no-repeat,
+    linear-gradient(currentColor 0 0) right bottom / 1px 5.2cqw no-repeat;
+}
+
+.poster-composition--brutalist-slab .poster-header {
+  border-top: 0 !important;
+  background: var(--composition-paper, #e4e0d7) !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+  justify-content: flex-end !important;
+  align-items: flex-start !important;
+  gap: 0.65cqh !important;
+}
+
+.poster-composition--brutalist-slab .poster-header::before,
+.poster-composition--brutalist-slab .poster-header::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.poster-composition--brutalist-slab .poster-header::before {
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  top: calc(7.9cqh + var(--print-bleed, 0px));
+  height: 0.28cqh;
+  background: currentColor;
+}
+
+.poster-composition--brutalist-slab .composition-kicker,
+.poster-composition--brutalist-slab .composition-meta-line,
+.poster-composition--brutalist-slab .poster-location-line {
+  position: absolute;
+  top: calc(5.25cqh + var(--print-bleed, 0px));
+  z-index: 1;
+  margin: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #0a0a0a) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.25cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.20em !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--brutalist-slab .composition-kicker {
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  width: auto !important;
+}
+
+.poster-composition--brutalist-slab .poster-location-line {
+  left: 50%;
+  width: auto !important;
+  max-width: 36cqw !important;
+  transform: translateX(-50%);
+  text-align: center !important;
+}
+
+.poster-composition--brutalist-slab .composition-meta-line {
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  width: auto !important;
+  text-align: right !important;
+}
+
+.poster-composition--brutalist-slab .poster-trail-name {
+  margin: 5.6cqh 0 0 !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+  font-size: min(max(var(--trail-title-size, 12.4cqh), 12.4cqh), 14.4cqh) !important;
+  line-height: 0.78 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--brutalist-slab [data-testid="poster-map"] {
+  flex: 0 0 58.5% !important;
+  height: 58.5% !important;
+  background: var(--land-color, #d7d3ca) !important;
+  box-sizing: border-box !important;
+}
+
+.poster-composition--brutalist-slab [data-testid="poster-map"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 13;
+  pointer-events: none;
+  background: rgba(215, 211, 202, 0.42);
+  mix-blend-mode: multiply;
+  opacity: 1;
+}
+
+.poster-composition--brutalist-slab .maplibregl-canvas {
+  filter: brightness(0.93) contrast(0.96) sepia(0.16) saturate(0.62);
+}
+
+.poster-composition--brutalist-slab .poster-footer {
+  flex: 0 0 15.5% !important;
+  height: 15.5% !important;
+  min-height: 15.5% !important;
+  background: var(--composition-paper, #e4e0d7) !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+}
+
+.poster-composition--brutalist-slab .poster-footer-rule {
+  opacity: 1 !important;
+  height: 0.24cqh !important;
+  background: currentColor !important;
+}
+
+.poster-composition--brutalist-slab .composition-footer-note {
+  left: var(--composition-rule-left);
+  right: auto;
+  top: 3.1cqh;
+  width: 48cqw;
+  color: var(--label-text-color, #0a0a0a) !important;
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.66cqh !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--brutalist-slab .poster-footer.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--brutalist-slab .poster-footer .poster-stats,
+.poster-composition--brutalist-slab .poster-footer .poster-mark {
+  display: none !important;
+}
+
+.composition-brutalist-distance {
+  position: absolute;
+  right: var(--composition-rule-right);
+  bottom: calc(3.2cqh + var(--print-bleed, 0px));
+  color: var(--route-color, #ff3b00) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 2.2cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
 }
 
 /* Editable text: subtle hover indicator */
@@ -8709,6 +12192,23 @@ onUnmounted(() => {
 .poster-header.is-chrome-grid-mode > :not(.chrome-grid-band),
 .poster-footer.is-chrome-grid-mode > :not(.chrome-grid-band) {
   display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .poster-trail-name {
+  display: block !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-caption {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-meta {
+  display: flex !important;
 }
 
 .chrome-grid-band {
@@ -8822,6 +12322,15 @@ onUnmounted(() => {
 
 .chrome-grid-block--title {
   max-width: 100%;
+  max-height: none;
+  overflow: visible;
+  text-wrap: balance;
+}
+
+.chrome-grid-block--subtitle,
+.chrome-grid-block--occasion,
+.chrome-grid-block--eyebrow {
+  text-wrap: balance;
 }
 
 .chrome-grid-block--stat,
@@ -8862,7 +12371,14 @@ onUnmounted(() => {
 .poster-composition--editorial-tall .chrome-grid-block--stat,
 .poster-composition--journal-spread .chrome-grid-block--stat,
 .poster-composition--botanical-plate .chrome-grid-block--stat {
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--brand,
+.poster-composition--journal-spread .chrome-grid-block--brand,
+.poster-composition--botanical-plate .chrome-grid-block--brand {
+  letter-spacing: 0.18em;
+  opacity: 0.46;
 }
 
 .poster-composition--travel-banner .chrome-grid-block--stat::first-line,
@@ -8874,6 +12390,11 @@ onUnmounted(() => {
 .poster-composition--travel-banner .chrome-grid-block--slot-date,
 .poster-composition--darksky-stars .chrome-grid-block--slot-date {
   letter-spacing: 0.08em;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--brand,
+.poster-composition--darksky-stars .chrome-grid-block--brand {
+  opacity: 0.5;
 }
 
 .poster-composition--blueprint-grid .chrome-grid-block--stat::first-line,
@@ -8889,7 +12410,14 @@ onUnmounted(() => {
 .poster-composition--blueprint-grid .chrome-grid-block--coords,
 .poster-composition--blueprint-strava .chrome-grid-block--coords,
 .poster-composition--splits-grid .chrome-grid-block--coords {
-  letter-spacing: 0.16em;
+  letter-spacing: 0.13em;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--brand,
+.poster-composition--blueprint-strava .chrome-grid-block--brand,
+.poster-composition--splits-grid .chrome-grid-block--brand {
+  letter-spacing: 0.2em;
+  opacity: 0.56;
 }
 
 .poster-composition--bib-numerals .chrome-grid-block--stat::first-line,
@@ -8903,6 +12431,12 @@ onUnmounted(() => {
 .poster-composition--brutalist-slab .chrome-grid-block--slot-date::first-line,
 .poster-composition--modernist-block .chrome-grid-block--slot-date::first-line {
   font-size: 1.66em;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--brand,
+.poster-composition--brutalist-slab .chrome-grid-block--brand,
+.poster-composition--modernist-block .chrome-grid-block--brand {
+  opacity: 0.72;
 }
 
 .chrome-grid-spacer {
@@ -9051,14 +12585,27 @@ onUnmounted(() => {
 
 .chrome-cell-add-col {
   position: absolute;
-  right: -68px;
+  right: -28px;
   top: 50%;
-  z-index: 24;
-  width: 52px;
+  z-index: 26;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
   height: 24px;
-  padding: 0 8px;
+  min-height: 24px;
+  padding: 0;
   transform: translateY(-50%) scale(0.92);
-  font-size: 10px;
+  font-size: 12px;
+}
+
+.chrome-cell-add-col--after-resize {
+  right: -56px;
+}
+
+.chrome-cell-add-col-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .chrome-cell-resize-col {
@@ -9130,21 +12677,23 @@ onUnmounted(() => {
 
 .chrome-row-add-row {
   position: absolute;
-  left: 50%;
-  bottom: -28px;
-  z-index: 22;
-  width: 52px;
-  min-width: 52px;
-  height: 18px;
-  min-height: 18px;
-  padding: 0 8px;
-  transform: translate(-50%, 3px);
+  left: min(calc(50% + 48px), calc(100% - 18px));
+  bottom: 0;
+  z-index: 25;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  transform: translate(-50%, 50%) scale(0.92);
   border: 1px solid rgba(42, 91, 204, 0.5);
   border-radius: 999px;
   background: #FFFFFF;
   box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
   color: #2A5BCC;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   overflow: visible;
 }
@@ -9154,7 +12703,12 @@ onUnmounted(() => {
 .chrome-grid-row.is-resizing-row > .chrome-row-add-row {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, 0);
+  transform: translate(-50%, 50%) scale(1);
+}
+
+.chrome-row-add-row-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .chrome-row-resize-row {

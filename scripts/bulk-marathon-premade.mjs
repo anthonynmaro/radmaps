@@ -226,9 +226,9 @@ const THEMES = {
 
 const POSTER_RECIPES = [
   { id: 'editorial',  theme: 'editorial-minimal', preset: 'contour-art',  composition: 'editorial-tall', label: 'Editorial' },
-  { id: 'usgs',       theme: 'usgs-vintage',      preset: 'natural-topo', composition: 'park-quad',       label: 'USGS Vintage' },
+  { id: 'usgs',       theme: 'usgs-vintage',      preset: 'natural-topo', composition: 'park-quad',       label: 'USGS Heritage' },
   { id: 'blueprint',  theme: 'blueprint',         preset: 'route-only',   composition: 'blueprint-grid',  label: 'Blueprint' },
-  { id: 'splits',     theme: 'splits-stats',      preset: 'road-network', composition: 'splits-grid',     label: 'Splits' },
+  { id: 'splits',     theme: 'splits-stats',      preset: 'road-network', composition: 'splits-grid',     label: 'Trail Profile' },
   { id: 'bib',        theme: 'marathon-bib',      preset: 'road-network', composition: 'bib-numerals',    label: 'Marathon Bib' },
   { id: 'brutalist',  theme: 'brutalist',         preset: 'route-only',   composition: 'brutalist-slab',  label: 'Brutalist' },
 ]

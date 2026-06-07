@@ -39,6 +39,7 @@ Point the Nuxt app at the proof renderer:
 ```bash
 BROWSERLESS_ENDPOINT=https://<ProofRendererUrl>
 BROWSERLESS_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
+BROWSERLESS_TIMEOUT_MS=120000
 ```
 
 The App Runner proof renderer only accepts screenshot URLs from `APP_URL` by
@@ -50,3 +51,24 @@ fulfillment.
 
 If Docker Desktop is running locally, `scripts/aws-render-worker-build-push.sh`
 can build and push from this machine instead of CodeBuild.
+
+Production Vercel should have:
+
+```bash
+BROWSERLESS_ENDPOINT=https://<ProofRendererUrl>
+BROWSERLESS_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
+BROWSERLESS_TIMEOUT_MS=120000
+RENDER_TICKET_SECRET=<same ticket secret synced to AWS Secrets Manager>
+```
+
+After deploy, verify:
+
+```bash
+curl https://<ProofRendererUrl>/health
+curl 'https://radmaps.studio/api/render/payload'
+```
+
+The payload route should return `400` with `Render ticket required`; that proves
+the live render payload route is reachable while still protected by signed
+tickets. For a full smoke, sign a short-lived render ticket and call the App
+Runner `/screenshot` endpoint against `https://radmaps.studio/render/...`.

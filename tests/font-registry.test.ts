@@ -3,12 +3,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { FONT_REGISTRY, generateFontFaceCss, listAllFontFiles } from '../utils/render/fontRegistry'
 import { REFINED_THEMES } from '../utils/themes/refined'
+import { THEME_SEMANTIC_AUDIT_CONTRACTS } from '../utils/themes/semanticAuditContract'
 
 describe('font registry', () => {
   it('registers every refined theme headline and body font', () => {
     for (const theme of REFINED_THEMES) {
-      expect(FONT_REGISTRY[theme.font_family], theme.font_family).toBeTruthy()
-      expect(FONT_REGISTRY[theme.body_font_family], theme.body_font_family).toBeTruthy()
+      expect(theme.font_family, theme.id).toBeTruthy()
+      expect(theme.body_font_family, theme.id).toBeTruthy()
+      if (theme.font_family) expect(FONT_REGISTRY[theme.font_family], theme.font_family).toBeTruthy()
+      if (theme.body_font_family) expect(FONT_REGISTRY[theme.body_font_family], theme.body_font_family).toBeTruthy()
     }
   })
 
@@ -27,10 +30,35 @@ describe('font registry', () => {
     expect(listAllFontFiles().length).toBeGreaterThan(0)
   })
 
+  it('emits every semantic parity font in the self-hosted Browserless CSS bundle', () => {
+    const css = generateFontFaceCss({ fontsUrlBase: '/fonts' })
+    const contractFonts = new Set(THEME_SEMANTIC_AUDIT_CONTRACTS.flatMap(contract => [
+      contract.typography.titleFont,
+      contract.typography.bodyFont,
+    ]))
+
+    for (const font of contractFonts) {
+      expect(FONT_REGISTRY[font as keyof typeof FONT_REGISTRY], font).toBeTruthy()
+      expect(css, font).toContain(`font-family: '${font}'`)
+    }
+  })
+
   it('publishes the font directory at the same URL used by font-face CSS', () => {
     const nuxtConfig = readFileSync(resolve(process.cwd(), 'nuxt.config.ts'), 'utf8')
 
     expect(nuxtConfig).toContain("new URL('./fonts'")
     expect(nuxtConfig).toContain("baseURL: '/fonts'")
+    expect(nuxtConfig).not.toContain('fonts.googleapis.com')
+    expect(nuxtConfig).not.toContain('fonts.gstatic.com')
+    expect(nuxtConfig).not.toContain('https://fonts.')
+  })
+
+  it('has every registered print font file available locally', () => {
+    for (const filePath of listAllFontFiles()) {
+      const absolutePath = resolve(process.cwd(), filePath)
+      const bytes = readFileSync(absolutePath)
+
+      expect(bytes.byteLength, filePath).toBeGreaterThan(1024)
+    }
   })
 })
