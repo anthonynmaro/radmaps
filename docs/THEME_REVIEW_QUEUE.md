@@ -14,7 +14,7 @@ Codex never marks a theme `approved`.
 | `risograph` | `ready-for-review` | 100.0% (`103/103`) | `docs/theme_audit_output/poster-themes/print/risograph.png` | Riso contour plate, overprint route, paper grain, and title offset are visible; watch low chrome smoke against the large target PNG. |
 | `brutalist` | `ready-for-review` | 100.0% (`96/96`) | `docs/theme_audit_output/poster-themes/print/brutalist.png` | Slab grid, registration marks, framed map, and orange route are present; watch low map smoke because dynamic Boston geometry diverges strongly from target. |
 | `editorial-minimal` | `ready-for-review` | 100.0% (`92/92`) | `docs/theme_audit_output/poster-themes/print/editorial-minimal.png` | Editorial-tall palette, typography, and gallery route tokens pass; watch lower map smoke from fixture terrain differences. |
-| `contour-wash` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `contour-wash` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/contour-wash.png` | Full-bleed wash field, centered caption, and echo route treatment pass; watch lower map smoke from dynamic contour geometry. |
 | `bold-modern` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `blackline` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `blueprint` | `unchanged` | n/a | n/a | Existing manifest review state left untouched per guardrail. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 8
+- `ready-for-review`: 9
 - `blocked`: 0
-- `unchanged`: 19
+- `unchanged`: 18

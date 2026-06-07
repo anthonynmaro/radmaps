@@ -578,12 +578,12 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'contour-wash') {
-    const paper = hexToRgb('#ECEAE6')
+    const field = hexToRgb('#9AA7A2')
     const washRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 35 && r < 75 && g > 40 && g < 80 && b > 40 && b < 85,
     )
     groups.palette.push(
-      semanticCheck('Contour Wash poster dominant color is soft paper', colorDistance(fullAverage, paper) < 42, `${formatRgb(fullAverage)} vs #ECEAE6`),
+      semanticCheck('Contour Wash poster dominant color is soft contour field', colorDistance(fullAverage, field) < 42, `${formatRgb(fullAverage)} vs #9AA7A2`),
     )
     groups.routeStyling.push(
       semanticCheck('Contour Wash visible charcoal route pixels', washRoutePixels > 120, `${washRoutePixels} pixels`),

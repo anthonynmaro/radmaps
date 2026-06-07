@@ -65,6 +65,12 @@ reference screenshot or spec contract.
   capture reported `92.6%` pixel, `75.0%` map, `92.6%` chrome, and `100.0%`
   semantic (`92/92`). Review queue status is `ready-for-review`; lower map smoke
   is noted for visual review.
+- `contour-wash`: ready for Claude/human review. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/contour-wash.png`; capture
+  reported `89.1%` pixel, `92.5%` map, `100.0%` chrome, and `100.0%` semantic
+  (`99/99`). Review queue status is `ready-for-review`. The image treatment
+  check was corrected to assert the full-bleed contour field color instead of
+  paper dominance.
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
