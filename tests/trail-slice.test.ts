@@ -85,6 +85,21 @@ describe('buildElevationProfile', () => {
     expect(fullRelief?.strokePath).toContain('1000,8')
     expect(compressed?.strokePath).toContain('1000,54')
   })
+
+  it('can derive a synthetic profile from sparse route geometry when explicitly allowed', () => {
+    const geojson = lineRoute([
+      [-89, 40],
+      [-88.998, 40.002],
+      [-88.996, 39.998],
+      [-88.994, 40.003],
+    ])
+
+    expect(buildElevationProfile(geojson)).toBeNull()
+
+    const fallback = buildElevationProfile(geojson, 20, 0.65, true)
+    expect(fallback?.synthetic).toBe(true)
+    expect(fallback?.strokePath).toContain('1000')
+  })
 })
 
 describe('trail segment geometry', () => {

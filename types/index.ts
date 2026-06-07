@@ -63,6 +63,8 @@ export type ColorTheme =
   | 'splits-stats' | 'marathon-bib' | 'botanical' | 'contour-wash'
   | 'classic-trail' | 'ranch-ochre' | 'blackline' | 'copper-night'
   | 'moonstone' | 'night-ride' | 'daybreak-trace' | 'electric-atlas'
+  | 'cartouche-place' | 'sea-chart' | 'relief-shaded' | 'transit-diagram'
+  | 'plein-air'
 
 export type CompositionId =
   | 'editorial-tall'
@@ -78,6 +80,10 @@ export type CompositionId =
   | 'darksky-stars'
   | 'botanical-plate'
   | 'brutalist-slab'
+  | 'art-wash'
+  | 'place-frame'
+  | 'sea-chart'
+  | 'transit-diagram'
 export type PrintSize = '8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'
 export type BaseTileStyle =
   | 'carto-light'
@@ -661,6 +667,22 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
 
 // ─── Themes ──────────────────────────────────────────────────────────────────
 
+export type ThemeEditableField =
+  | 'trail_name'
+  | 'location_text'
+  | 'occasion_text'
+  | 'route_color'
+  | 'colorway'
+  | 'show_roads'
+  | 'show_place_labels'
+  | 'show_poi_labels'
+  | 'show_contours'
+  | 'show_hillshade'
+  | 'show_elevation_profile'
+  | 'trail_segments'
+  | 'map_camera'
+  | 'print_size'
+
 export interface ThemeDefinition {
   id: ColorTheme
   label: string
@@ -684,6 +706,9 @@ export interface ThemeDefinition {
   show_grid?: boolean
   legacy?: boolean
   migration_target?: ColorTheme
+  review_decision?: 'keep' | 'revise' | 'merge' | 'new'
+  colorway_of?: ColorTheme
+  editable_fields?: ThemeEditableField[]
   map_defaults?: Partial<StyleConfig>
 }
 

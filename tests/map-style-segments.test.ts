@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
 import { buildMapStyle, effectiveSegmentDotRadius, shouldRenderPrimaryRoute } from '../utils/mapStyle'
+import { shouldExpectPrimaryRouteContent } from '../utils/render/routeReadiness'
 import { ALL_STYLE_PRESETS } from '../utils/styleLayerGraph'
 
 function layerById(style: object, id: string): { filter?: unknown; layout?: Record<string, unknown>; paint?: Record<string, unknown> } | undefined {
@@ -95,6 +96,38 @@ describe('trail segment styling', () => {
     expect(layerById(style, 'route-line')).toBeDefined()
     expect(layerById(style, 'route-line-casing')).toBeDefined()
     expect(layerById(style, 'trail-seg-line-segment-a')).toBeDefined()
+  })
+
+  it('does not require primary route content for place-only render readiness', () => {
+    const config: StyleConfig = {
+      ...DEFAULT_STYLE_CONFIG,
+      show_primary_route: true,
+    }
+    const emptyGeojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [],
+    }
+    const pointGeojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: [-99.1332, 19.4326] },
+      }],
+    }
+    const routeGeojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: [[-99.14, 19.42], [-99.12, 19.44]] },
+      }],
+    }
+
+    expect(shouldRenderPrimaryRoute(config)).toBe(true)
+    expect(shouldExpectPrimaryRouteContent(config, emptyGeojson)).toBe(false)
+    expect(shouldExpectPrimaryRouteContent(config, pointGeojson)).toBe(false)
+    expect(shouldExpectPrimaryRouteContent(config, routeGeojson)).toBe(true)
   })
 
   it('omits the primary route underneath visible trail segments across every preset', () => {
