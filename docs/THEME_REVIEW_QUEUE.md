@@ -24,7 +24,7 @@ Codex never marks a theme `approved`.
 | `splits-stats` | `ready-for-review` | 100.0% (`104/104`) | `docs/theme_audit_output/poster-themes/print/splits-stats.png` | Full-width dark map, elevation profile band, stats footer, and orange performance route layers pass; watch chrome smoke for data-band balance. |
 | `night-ride` | `ready-for-review` | 100.0% (`97/97`) | `docs/theme_audit_output/poster-themes/print/night-ride.png` | Cyan night profile colorway, dark topo field, profile band, and performance route layers pass; map smoke is zero due to reference/live terrain mismatch. |
 | `dark-sky` | `ready-for-review` | 100.0% (`100/100`) | `docs/theme_audit_output/poster-themes/print/dark-sky.png` | Star field, ridge motif, dark relief tokens, and gold route treatment pass; watch atmosphere against target. |
-| `copper-night` | `unchanged` | n/a | n/a | Awaiting queue pass. |
+| `copper-night` | `ready-for-review` | 100.0% (`99/99`) | `docs/theme_audit_output/poster-themes/print/copper-night.png` | Copper dark-sky colorway, ridge/star motif, and warm route tokens pass; watch lower map smoke against target. |
 | `marathon-bib` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `botanical` | `unchanged` | n/a | n/a | Awaiting queue pass. |
 | `relief-shaded` | `unchanged` | n/a | n/a | Awaiting queue pass. |
@@ -36,6 +36,6 @@ Codex never marks a theme `approved`.
 
 ## Summary
 
-- `ready-for-review`: 18
+- `ready-for-review`: 19
 - `blocked`: 0
-- `unchanged`: 9
+- `unchanged`: 8
