@@ -81,6 +81,10 @@ reference screenshot or spec contract.
   `89.5%` pixel, `16.0%` map, `90.1%` chrome, and `100.0%` semantic (`101/101`).
   Review queue status is `ready-for-review`; very low map smoke is noted for
   visual review.
+- `blueprint`: overnight queue status is `ready-for-review` without changing
+  the existing manifest review state. The live render was written to
+  `docs/theme_audit_output/poster-themes/print/blueprint.png`; capture reported
+  `89.9%` pixel, `93.8%` map, `86.7%` chrome, and `100.0%` semantic (`105/105`).
 - `usgs-vintage`: strengthened semantic checks now pass (`115/115`) after
   increasing the quad neatline to a real 2px print stroke. Latest parity
   reported `95.0%` pixel, `98.2%` map, `91.3%` chrome, and `100.0%` semantic.
