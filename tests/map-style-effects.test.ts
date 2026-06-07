@@ -729,14 +729,14 @@ describe('RadMaps Atlas style integration', () => {
 
     expect(sourceById(style, 'mapbox-dem')).toBeUndefined()
     expect(layerById(style, 'hillshade')).toBeUndefined()
-    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#0C142B')
-    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#0C142B')
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#101A38')
+    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#101A38')
     expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-color']).toBe('#0B1020')
-    expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-opacity']).toBe(0)
+    expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-opacity']).toBe(0.16)
     expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#071024')
-    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-opacity']).toBe(0.22)
+    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-opacity']).toBe(0.72)
     expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-color']).toBe('#18294C')
-    expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-opacity']).toBe(0.20)
+    expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-opacity']).toBe(0.48)
     expect(layerById(style, 'radmaps-night-relief-place-labels')).toBeUndefined()
   })
 
@@ -2249,27 +2249,27 @@ describe('RadMaps Atlas style integration', () => {
         background: '#070C1E',
         text: '#E7ECFB',
         route: '#E8C66A',
-        routeWidth: 3.25,
+        routeWidth: 4.05,
         grain: 0.22,
-        land: '#0C142B',
-        landOpacity: 1,
+        land: '#101A38',
+        landOpacity: 0.94,
         park: '#0B1020',
-        parkOpacity: 0,
+        parkOpacity: 0.16,
         water: '#071024',
-        waterOpacity: 0.22,
+        waterOpacity: 0.72,
         waterway: '#18294C',
-        waterwayOpacity: 0.20,
+        waterwayOpacity: 0.48,
         minorContour: '#22325D',
         majorContour: '#50689C',
-        minorOpacity: 0.16,
-        majorOpacity: 0.26,
+        minorOpacity: 0.30,
+        majorOpacity: 0.42,
       },
       {
         id: 'copper-night',
         background: '#100B08',
         text: '#F0D9BF',
         route: '#F0B15F',
-        routeWidth: 3.15,
+        routeWidth: 3.85,
         grain: 0.24,
         land: '#15100C',
         landOpacity: 0.95,
@@ -2281,8 +2281,8 @@ describe('RadMaps Atlas style integration', () => {
         waterwayOpacity: 0.36,
         minorContour: '#493021',
         majorContour: '#9C6741',
-        minorOpacity: 0.30,
-        majorOpacity: 0.40,
+        minorOpacity: 0.34,
+        majorOpacity: 0.48,
       },
     ] as const
 
@@ -2306,6 +2306,7 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.show_poi_labels).toBe(false)
       expect(config.show_hillshade).toBe(false)
       expect(config.show_grid).toBe(false)
+      expect(config.contour_detail).toBe(4)
       expect(config.show_start_pin).toBe(false)
       expect(config.show_finish_pin).toBe(false)
       expect(config.tile_effect).toBe('layer-color')

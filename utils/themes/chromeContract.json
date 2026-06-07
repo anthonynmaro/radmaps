@@ -156,18 +156,20 @@
   {
     "themeId": "dark-sky",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "hidden" },
-    "requiredTestIds": ["composition-star-field", "composition-darksky-ridge"],
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-star-field", "composition-star-constellation", "composition-darksky-ridge", "composition-footer-note"],
     "requiredSelectors": [".darksky-ridge-line"],
-    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-constellation", "route-line-darksky-star-crosses"]
+    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-constellation", "route-line-darksky-star-crosses"],
+    "forbiddenSelectors": [".poster-composition--darksky-stars .poster-stats"]
   },
   {
     "themeId": "copper-night",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
-    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "hidden" },
-    "requiredTestIds": ["composition-star-field", "composition-darksky-ridge"],
+    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "compact" },
+    "requiredTestIds": ["composition-star-field", "composition-star-constellation", "composition-darksky-ridge", "composition-footer-note"],
     "requiredSelectors": [".darksky-ridge-line"],
-    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-star-crosses"]
+    "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-star-crosses"],
+    "forbiddenSelectors": [".poster-composition--darksky-stars .poster-stats"]
   },
   {
     "themeId": "brutalist",

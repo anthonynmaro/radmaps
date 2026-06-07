@@ -476,7 +476,7 @@ const sampleRegions: Record<string, {
   },
   whitney: {
     title: 'Mount Whitney',
-    location: 'Sierra Nevada, California · California',
+    location: 'Sierra Nevada, California',
     bbox: [-118.37, 36.51, -118.17, 36.69],
     route: [
       [-118.333, 36.592],

@@ -1904,15 +1904,16 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           paper: '#070C1E',
           text: '#E7ECFB',
           route: '#E8C66A',
-          land: '#0C142B',
+          land: '#101A38',
           water: '#071024',
           waterway: '#18294C',
           minorContour: '#22325D',
           majorContour: '#50689C',
           grainMin: 0.20,
           grainMax: 0.24,
-          routeWidthMin: 3.1,
-          routeWidthMax: 3.5,
+          routeWidthMin: 3.9,
+          routeWidthMax: 4.2,
+          contourDetailMin: 4,
         }
       : {
           paper: '#100B08',
@@ -1925,8 +1926,9 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
           majorContour: '#9C6741',
           grainMin: 0.22,
           grainMax: 0.26,
-          routeWidthMin: 3.0,
-          routeWidthMax: 3.4,
+          routeWidthMin: 3.7,
+          routeWidthMax: 4.0,
+          contourDetailMin: 4,
         }
     groups.typography.push(
       semanticCheck('Dark Sky family title uses Cormorant Garamond', snapshot.title.fontFamily.includes('Cormorant Garamond'), snapshot.title.fontFamily),
@@ -1935,9 +1937,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     )
     groups.layout.push(
       semanticCheck('Dark Sky family uses star-horizon composition', style.composition === 'darksky-stars', String(style.composition ?? '')),
-      ['dark-sky', 'copper-night'].includes(entry.themeId)
-        ? semanticCheck('Dark Sky family hides generic metadata footer', footerVisible === false, `${footerVisible}`)
-        : semanticCheck('Dark Sky colorway compact metadata footer remains present', footerVisible === true, `${footerVisible}`),
+      semanticCheck('Dark Sky family keeps quiet custom footer band', footerVisible === true && (snapshot.contractPresence?.testIdCounts?.['composition-footer-note'] ?? 0) > 0, JSON.stringify({ footerVisible, testIds: snapshot.contractPresence?.testIdCounts ?? {} })),
     )
     groups.palette.push(
       semanticCheck('Dark Sky family night background', String(style.background_color).toUpperCase() === expected.paper, `${style.background_color ?? ''} vs ${expected.paper}`),
@@ -1949,9 +1949,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.mapLayers.push(
       semanticCheck('Dark Sky family uses owned night relief map', style.preset === 'radmaps-night-relief', String(style.preset ?? '')),
       semanticCheck('Dark Sky family contours enabled', style.show_contours === true, String(style.show_contours)),
-      ...(['dark-sky', 'copper-night'].includes(entry.themeId)
-        ? [semanticCheck('Dark Sky contours are sparse for starfield treatment', Number(style.contour_detail ?? 0) <= 1, String(style.contour_detail ?? ''))]
-        : []),
+      semanticCheck('Dark Sky contours are visible for starfield treatment', Number(style.contour_detail ?? 0) >= expected.contourDetailMin, String(style.contour_detail ?? '')),
       semanticCheck('Dark Sky family roads and map labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Dark Sky family hillshade disabled for flat nocturne relief', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Dark Sky family layer-color tile effect configured', style.tile_effect === 'layer-color', String(style.tile_effect ?? '')),
@@ -1968,6 +1966,7 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
     groups.motifs.push(
       semanticCheck('Dark Sky family poster grid disabled', style.show_grid === false, String(style.show_grid)),
       semanticCheck('Dark Sky family star field present', (snapshot.contractPresence?.testIdCounts?.['composition-star-field'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
+      semanticCheck('Dark Sky family constellation overlay present', (snapshot.contractPresence?.testIdCounts?.['composition-star-constellation'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Dark Sky family ridge horizon present', (snapshot.contractPresence?.testIdCounts?.['composition-darksky-ridge'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
       semanticCheck('Dark Sky family layered ridge lines present', (snapshot.contractPresence?.selectorCounts?.['.darksky-ridge-line'] ?? 0) >= 2, JSON.stringify(snapshot.contractPresence?.selectorCounts ?? {})),
     )

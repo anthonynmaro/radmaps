@@ -351,8 +351,8 @@ describe('refined theme Phase 0 scaffolding', () => {
     ])
     const renderedFooterOverrides = new Map<ColorTheme, 'standard' | 'compact' | 'data' | 'bib' | 'hidden'>([
       ['editorial-minimal', 'hidden'],
-      ['dark-sky', 'hidden'],
-      ['copper-night', 'hidden'],
+      ['dark-sky', 'compact'],
+      ['copper-night', 'compact'],
     ])
     const renderedTitleCaseOverrides = new Map<ColorTheme, 'uppercase' | 'none'>([
       ['usgs-vintage', 'uppercase'],
@@ -467,11 +467,15 @@ describe('refined theme Phase 0 scaffolding', () => {
     ]))
     expect(getThemeChromeContract('dark-sky')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-star-field',
+      'composition-star-constellation',
       'composition-darksky-ridge',
+      'composition-footer-note',
     ]))
     expect(getThemeChromeContract('copper-night')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-star-field',
+      'composition-star-constellation',
       'composition-darksky-ridge',
+      'composition-footer-note',
     ]))
     expect(getThemeChromeContract('electric-atlas')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-map-grid-overlay',

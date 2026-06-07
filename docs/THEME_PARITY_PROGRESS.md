@@ -120,11 +120,11 @@ reference screenshot or spec contract.
   reference/live terrain mismatch after visual sanity check.
 - `dark-sky`: Claude feedback remediation is ready for review. The live render
   was regenerated at `docs/theme_audit_output/poster-themes/print/dark-sky.png`;
-  capture reported `89.7%` pixel, `93.6%` map, `100.0%` chrome, and `100.0%`
-  semantic (`103/103`). The render now uses a large top Cormorant sky title,
-  denser visible stars, a hidden generic footer, sparse nocturne contours, and
-  the gold constellation route treatment. Review queue status remains
-  `ready-for-review`.
+  capture reported `94.2%` pixel, `96.3%` map, `97.3%` chrome, and `100.0%`
+  semantic (`107/107`). The regression is addressed with a visible starfield and
+  constellation overlay, restored gold eyebrow, stronger nocturne contours,
+  lowered gold route treatment, and quiet custom footer while keeping the
+  generic stats/logo band removed.
 - `copper-night`: Claude feedback remediation is ready for review after porting
   the dark-sky composition treatment. The live render was regenerated at
   `docs/theme_audit_output/poster-themes/print/copper-night.png`; capture

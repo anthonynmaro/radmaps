@@ -141,12 +141,14 @@ const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
   'blueprint-grid',
   'blueprint-strava',
   'brutalist-slab',
+  'darksky-stars',
   'modernist-block',
   'splits-grid',
 ])
 
 const FOOTER_NOTE_COMPOSITIONS = new Set<CompositionId>([
   'brutalist-slab',
+  'darksky-stars',
 ])
 
 const OCCASION_COMPOSITIONS = new Set<CompositionId>([

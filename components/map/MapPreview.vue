@@ -451,6 +451,26 @@
       />
       <svg
         v-if="composition.id === 'darksky-stars'"
+        class="composition-star-constellation"
+        viewBox="0 0 100 26"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        data-testid="composition-star-constellation"
+      >
+        <path class="star-constellation-line" d="M6 13 L24 10 L48 16 L72 11 L91 15" />
+        <path class="star-constellation-line star-constellation-line--secondary" d="M24 10 L39 5 L72 11 L84 4" />
+        <g class="star-constellation-points">
+          <circle cx="6" cy="13" r="1.35" />
+          <circle cx="24" cy="10" r="0.78" />
+          <circle cx="39" cy="5" r="0.54" />
+          <circle cx="48" cy="16" r="1.05" />
+          <circle cx="72" cy="11" r="1.22" />
+          <circle cx="84" cy="4" r="0.62" />
+          <circle cx="91" cy="15" r="1.05" />
+        </g>
+      </svg>
+      <svg
+        v-if="composition.id === 'darksky-stars'"
         class="composition-darksky-ridge"
         viewBox="0 0 100 36"
         preserveAspectRatio="none"
@@ -1686,7 +1706,7 @@
         />
 
         <!-- Stat blocks (left) -->
-        <div v-if="!showTechnicalDataFooter" class="poster-stats" :style="posterStatsStyle">
+        <div v-if="!showTechnicalDataFooter && !hideGenericFooterStats" class="poster-stats" :style="posterStatsStyle">
           <div
             v-if="showDistanceSlot"
             class="stat-block editable-text"
@@ -1808,7 +1828,7 @@
         >{{ occasionText }}</p>
 
         <!-- RadMaps mark (right) -->
-        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible && !showTechnicalDataFooter" class="poster-mark">
+        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible && !showTechnicalDataFooter && !hideGenericFooterStats" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
@@ -4596,6 +4616,7 @@ const showTechnicalDataFooter = computed(() =>
   composition.value.id === 'blueprint-strava' ||
   composition.value.id === 'splits-grid',
 )
+const hideGenericFooterStats = computed(() => composition.value.id === 'darksky-stars')
 const technicalDataFooterItems = computed(() => [
   { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
   { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
@@ -4691,9 +4712,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'darksky-stars':
       return {
-        kicker: 'Dark · sky · reserve',
-        meta: 'New moon route plate',
-        footerNote: 'Zodiacal light · clear sky window',
+        kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
+        footerNote: `${location}\n${distance} · ${date}`,
       }
     case 'botanical-plate':
       return {
@@ -9241,6 +9261,7 @@ onUnmounted(() => {
 .composition-paper-texture,
 .composition-grid-overlay,
 .composition-star-field,
+.composition-star-constellation,
 .composition-side-rail {
   position: absolute;
   inset: 0;
@@ -9420,6 +9441,11 @@ onUnmounted(() => {
   height: 100% !important;
 }
 
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) [data-testid="poster-map"] .maplibregl-canvas-container {
+  transform: translateY(12.5cqh) scale(1.16);
+  transform-origin: 50% 52%;
+}
+
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
   position: absolute !important;
   inset: calc(6.4cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
@@ -9470,37 +9496,100 @@ onUnmounted(() => {
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer {
+  display: flex !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 72%, transparent) !important;
+  pointer-events: none;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer .poster-stats,
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer .poster-mark {
   display: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-footer-note {
+  top: auto;
+  bottom: calc(2.6cqh + var(--print-bleed, 0px));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  white-space: pre-line;
+  text-align: left !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.18cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.45 !important;
+  opacity: 0.78 !important;
+  text-transform: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-footer-note::first-line {
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 76%, transparent);
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-field {
   inset: 0;
   opacity: 1;
-  color: var(--label-text-color, #e7ecfb);
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 82%, transparent);
+  filter: drop-shadow(0 0 0.35cqh color-mix(in srgb, currentColor 38%, transparent));
   background-image:
-    radial-gradient(circle at 4% 28%, currentColor 0 0.085cqw, transparent 0.13cqw),
-    radial-gradient(circle at 6% 7%, currentColor 0 0.052cqw, transparent 0.1cqw),
-    radial-gradient(circle at 9% 52%, currentColor 0 0.055cqw, transparent 0.1cqw),
-    radial-gradient(circle at 15% 8%, currentColor 0 0.052cqw, transparent 0.1cqw),
-    radial-gradient(circle at 18% 62%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 22% 24%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 28% 41%, currentColor 0 0.045cqw, transparent 0.09cqw),
-    radial-gradient(circle at 31% 15%, currentColor 0 0.085cqw, transparent 0.13cqw),
-    radial-gradient(circle at 35% 17%, currentColor 0 0.052cqw, transparent 0.09cqw),
-    radial-gradient(circle at 43% 31%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 49% 7%, currentColor 0 0.045cqw, transparent 0.09cqw),
-    radial-gradient(circle at 52% 56%, currentColor 0 0.06cqw, transparent 0.1cqw),
-    radial-gradient(circle at 55% 44%, currentColor 0 0.06cqw, transparent 0.1cqw),
-    radial-gradient(circle at 62% 22%, currentColor 0 0.052cqw, transparent 0.1cqw),
-    radial-gradient(circle at 66% 7%, currentColor 0 0.07cqw, transparent 0.12cqw),
-    radial-gradient(circle at 69% 37%, currentColor 0 0.09cqw, transparent 0.14cqw),
-    radial-gradient(circle at 75% 12%, currentColor 0 0.055cqw, transparent 0.1cqw),
-    radial-gradient(circle at 78% 52%, currentColor 0 0.052cqw, transparent 0.1cqw),
-    radial-gradient(circle at 82% 29%, currentColor 0 0.075cqw, transparent 0.12cqw),
-    radial-gradient(circle at 91% 18%, currentColor 0 0.052cqw, transparent 0.1cqw),
-    radial-gradient(circle at 93% 67%, currentColor 0 0.08cqw, transparent 0.13cqw),
-    radial-gradient(circle at 96% 44%, currentColor 0 0.06cqw, transparent 0.1cqw),
-    radial-gradient(circle at 51% 39%, var(--route-color, #e8c66a) 0 0.075cqw, transparent 0.12cqw);
+    radial-gradient(circle at 4% 28%, currentColor 0 0.12cqw, transparent 0.17cqw),
+    radial-gradient(circle at 6% 7%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 7% 78%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 12% 55%, var(--route-color, #e8c66a) 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 15% 8%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 18% 62%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 22% 24%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 26% 42%, currentColor 0 0.065cqw, transparent 0.11cqw),
+    radial-gradient(circle at 31% 15%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 35% 17%, currentColor 0 0.075cqw, transparent 0.12cqw),
+    radial-gradient(circle at 38% 37%, var(--route-color, #e8c66a) 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 43% 31%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 49% 7%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 50% 62%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 55% 44%, currentColor 0 0.09cqw, transparent 0.14cqw),
+    radial-gradient(circle at 59% 72%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 62% 22%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 66% 7%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 69% 37%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 72% 52%, var(--route-color, #e8c66a) 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 75% 12%, currentColor 0 0.085cqw, transparent 0.13cqw),
+    radial-gradient(circle at 78% 52%, currentColor 0 0.075cqw, transparent 0.12cqw),
+    radial-gradient(circle at 82% 29%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 86% 72%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 91% 18%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 93% 67%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 96% 44%, currentColor 0 0.09cqw, transparent 0.14cqw);
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-constellation {
+  z-index: 13;
+  top: calc(6.4cqh + var(--print-bleed, 0px));
+  right: calc(10cqw + var(--print-bleed, 0px));
+  bottom: auto;
+  left: calc(20cqw + var(--print-bleed, 0px));
+  height: 15.5cqh;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 76%, transparent);
+  opacity: 0.9;
+}
+
+.star-constellation-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.22;
+  opacity: 0.62;
+  vector-effect: non-scaling-stroke;
+}
+
+.star-constellation-line--secondary {
+  opacity: 0.36;
+}
+
+.star-constellation-points {
+  fill: currentColor;
+  filter: drop-shadow(0 0 0.28cqh color-mix(in srgb, currentColor 52%, transparent));
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-darksky-ridge {
