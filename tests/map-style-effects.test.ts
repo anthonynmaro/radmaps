@@ -2537,7 +2537,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.94)
   })
 
-  it('renders Modernist routes as GPX-source print trap linework', () => {
+  it('renders Modernist routes as clean GPX-source graphic linework', () => {
     const theme = getThemeDefinition('bold-modern')
     expect(theme).toBeTruthy()
 
@@ -2545,31 +2545,16 @@ describe('RadMaps Atlas style integration', () => {
     const style = buildMapStyle(config, 'mapbox-test-token')
 
     expect(config.route_width).toBeGreaterThan(4)
-    expect(config.route_color).toBe('#E2483D')
+    expect(config.route_color).toBe('#D04D40')
     expect(config.route_opacity).toBe(0.9)
-    expect(layerById(style, 'route-line-modernist-trap')?.source).toBe('route')
-    expect(layerById(style, 'route-line-modernist-knockout')?.source).toBe('route')
-    expect(layerById(style, 'route-line-modernist-register')?.source).toBe('route')
-    expect(layerById(style, 'route-line-modernist-trap')?.paint?.['line-color']).toBe('#E2483D')
-    expect(layerById(style, 'route-line-modernist-trap')?.paint?.['line-width']).toBe(9.600000000000001)
-    expect(layerById(style, 'route-line-modernist-trap')?.paint?.['line-opacity']).toBeCloseTo(0.1536)
-    expect(layerById(style, 'route-line-modernist-trap')?.paint?.['line-blur']).toBe(0.45)
-    expect(layerById(style, 'route-line-modernist-trap')?.paint?.['line-translate']).toEqual([2.2, 2.2])
-    expect(layerById(style, 'route-line-modernist-knockout')?.paint?.['line-color']).toBe('#FFFFFF')
-    expect(layerById(style, 'route-line-modernist-knockout')?.paint?.['line-width']).toBe(6.300000000000001)
-    expect(layerById(style, 'route-line-modernist-knockout')?.paint?.['line-opacity']).toBeCloseTo(0.8832)
-    expect(layerById(style, 'route-line-modernist-register')?.type).toBe('symbol')
-    expect(layerById(style, 'route-line-modernist-register')?.layout?.['symbol-placement']).toBe('line')
-    expect(layerById(style, 'route-line-modernist-register')?.layout?.['symbol-spacing']).toBe(96)
-    expect(layerById(style, 'route-line-modernist-register')?.layout?.['text-field']).toBe('■')
-    expect(layerById(style, 'route-line-modernist-register')?.layout?.['text-size']).toBe(9)
-    expect(layerById(style, 'route-line-modernist-register')?.paint?.['text-color']).toBe('#E2483D')
-    expect(layerById(style, 'route-line-modernist-register')?.paint?.['text-opacity']).toBeCloseTo(0.5952)
-    expect(layerById(style, 'route-line-modernist-register')?.paint?.['text-halo-color']).toBe('#FFFFFF')
-    expect(layerById(style, 'route-line-modernist-register')?.paint?.['text-halo-width']).toBe(1.15)
-    expect(layerIndex(style, 'route-line-modernist-trap')).toBeLessThan(layerIndex(style, 'route-line-modernist-knockout'))
-    expect(layerIndex(style, 'route-line-modernist-knockout')).toBeLessThan(layerIndex(style, 'route-line-casing'))
-    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'route-line-modernist-register'))
+    expect(layerById(style, 'route-line-modernist-trap')).toBeUndefined()
+    expect(layerById(style, 'route-line-modernist-knockout')).toBeUndefined()
+    expect(layerById(style, 'route-line-modernist-register')).toBeUndefined()
+    expect(layerById(style, 'route-line')?.source).toBe('route')
+    expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#D04D40')
+    expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(4.2)
+    expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.96)
+    expect(layerIndex(style, 'route-line-casing')).toBeLessThan(layerIndex(style, 'route-line'))
   })
 
   it('renders Blackline routes as a clean GPX-source mono Modernist colorway', () => {
@@ -2605,10 +2590,10 @@ describe('RadMaps Atlas style integration', () => {
       {
         id: 'bold-modern',
         body: 'DM Sans',
-        route: '#E2483D',
+        route: '#D04D40',
         width: 4.2,
-        pin: '#E2483D',
-        land: '#F2E8DA',
+        pin: '#D04D40',
+        land: '#E5C3BB',
         minorContour: '#D6D0C7',
         majorContour: '#191614',
         minorOpacity: 0.22,

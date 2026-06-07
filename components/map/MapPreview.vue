@@ -7720,10 +7720,11 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const usgs = isUsgsHeritageTheme.value
   const editorial = props.styleConfig.color_theme === 'editorial-minimal'
   const relief = props.styleConfig.color_theme === 'relief-shaded'
+  const modernist = props.styleConfig.color_theme === 'bold-modern'
   const bib = composition.value.id === 'bib-numerals'
   const botanical = composition.value.id === 'botanical-plate'
-  const markerSize = relief ? size * 1.18 : editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : bib || botanical ? size * 1.08 : size
-  const radius = editorial || (usgs && kind === 'start') || ((bib || botanical || relief) && kind === 'finish') ? '0' : '50%'
+  const markerSize = relief ? size * 1.18 : editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : modernist ? size * 1.04 : bib || botanical ? size * 1.08 : size
+  const radius = editorial || modernist || (usgs && kind === 'start') || ((bib || botanical || relief) && kind === 'finish') ? '0' : '50%'
   el.dataset.testid = `pin-marker-${kind}`
   el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
@@ -7732,6 +7733,7 @@ function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
     editorial
       ? 'box-shadow:0 0 0 2px #F8F3EA'
       : relief ? 'box-shadow:0 0 0 3px #F5EFE2'
+      : modernist ? 'box-shadow:0 0 0 2px #FFFFFB'
       : usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')

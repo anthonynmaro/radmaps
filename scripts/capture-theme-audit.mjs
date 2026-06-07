@@ -1757,10 +1757,10 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Modernist generic footer hidden; metadata lives in titleblock', footerVisible === false, `${footerVisible}`),
     )
     groups.palette.push(
-      semanticCheck('Modernist warm poster background', String(style.background_color).toUpperCase() === '#F2E8DA', String(style.background_color ?? '')),
-      semanticCheck('Modernist accent slab is red', String(style.label_bg_color).toUpperCase() === '#E2483D', String(style.label_bg_color ?? '')),
-      semanticCheck('Modernist title text is black', String(style.label_text_color).toUpperCase() === '#15130F', String(style.label_text_color ?? '')),
-      semanticCheck('Modernist route is red', String(style.route_color).toUpperCase() === '#E2483D', String(style.route_color ?? '')),
+      semanticCheck('Modernist warm poster background matches sampled target', String(style.background_color).toUpperCase() === '#E5C3BB', String(style.background_color ?? '')),
+      semanticCheck('Modernist accent slab is sampled red', String(style.label_bg_color).toUpperCase() === '#D04D40', String(style.label_bg_color ?? '')),
+      semanticCheck('Modernist title text is sampled black', String(style.label_text_color).toUpperCase() === '#060500', String(style.label_text_color ?? '')),
+      semanticCheck('Modernist route is sampled red', String(style.route_color).toUpperCase() === '#D04D40', String(style.route_color ?? '')),
     )
     groups.mapLayers.push(
       semanticCheck('Modernist uses owned toner map', style.preset === 'radmaps-toner-light', String(style.preset ?? '')),
@@ -1784,7 +1784,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Modernist route is heavy graphic line', Number(style.route_width ?? 0) >= 3.9 && Number(style.route_width ?? 0) <= 4.7, String(style.route_width ?? '')),
       semanticCheck('Modernist route opacity is print-strong', Number(style.route_opacity ?? 0) >= 0.88, String(style.route_opacity ?? '')),
       semanticCheck('Modernist endpoint markers enabled', style.show_start_pin === true && style.show_finish_pin === true, `${style.show_start_pin}/${style.show_finish_pin}`),
-      semanticCheck('Modernist print trap route layers present', ['route-line-modernist-trap', 'route-line-modernist-knockout', 'route-line-modernist-register'].every(layerId => snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
+      semanticCheck('Modernist route uses clean base stroke', snapshot.routeLayerIds.includes('route-line') && ['route-line-modernist-trap', 'route-line-modernist-knockout', 'route-line-modernist-register'].every(layerId => !snapshot.routeLayerIds.includes(layerId)), snapshot.routeLayerIds.join(', ')),
+      semanticCheck('Modernist square endpoint markers render', (snapshot.contractPresence?.testIdCounts?.['pin-marker-start'] ?? 0) > 0 && (snapshot.contractPresence?.testIdCounts?.['pin-marker-finish'] ?? 0) > 0, JSON.stringify(snapshot.contractPresence?.testIdCounts ?? {})),
     )
     groups.motifs.push(
       semanticCheck('Modernist poster grid disabled', style.show_grid === false, String(style.show_grid)),

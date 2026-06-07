@@ -76,9 +76,10 @@ reference screenshot or spec contract.
   paper dominance.
 - `bold-modern`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/bold-modern.png`; capture
-  reported `85.2%` pixel, `47.5%` map, `86.9%` chrome, and `100.0%` semantic
-  (`97/97`). Review queue status is `ready-for-review`; low map smoke is noted
-  for visual review.
+  reported `23.9%` pixel, `47.6%` map, `24.1%` chrome, and `100.0%` semantic
+  (`103/103`). Claude feedback is addressed with sampled rose paper/red accent
+  tokens, a clean red GPX stroke, square endpoint markers, and no trap/register
+  hatch layers.
 - `blackline`: ready for Claude/human review. The live render was written to
   `docs/theme_audit_output/poster-themes/print/blackline.png`; capture reported
   `89.5%` pixel, `16.0%` map, `90.1%` chrome, and `100.0%` semantic (`101/101`).

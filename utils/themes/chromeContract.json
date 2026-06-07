@@ -109,9 +109,9 @@
     "themeId": "bold-modern",
     "typography": { "titleFont": "Big Shoulders Display", "titleCase": "uppercase" },
     "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
-    "requiredTestIds": ["composition-modernist-accent"],
+    "requiredTestIds": ["composition-modernist-accent", "pin-marker-start", "pin-marker-finish"],
     "forbiddenTestIds": ["composition-side-rail", "composition-modernist-bleed"],
-    "requiredRouteLayers": ["route-line-modernist-trap", "route-line-modernist-register"]
+    "forbiddenRouteLayers": ["route-line-modernist-trap", "route-line-modernist-knockout", "route-line-modernist-register"]
   },
   {
     "themeId": "blackline",

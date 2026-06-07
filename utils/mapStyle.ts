@@ -962,7 +962,6 @@ function routeLayers(config: StyleConfig) {
   const isClassicTrailRoute = config.color_theme === 'classic-trail'
   const isUsgsVintageRoute = config.color_theme === 'usgs-vintage'
   const isBotanicalRoute = config.color_theme === 'botanical'
-  const isModernistRoute = config.color_theme === 'bold-modern'
   const isBlacklineRoute = config.color_theme === 'blackline'
   const isBrutalistRoute = config.color_theme === 'brutalist'
   const isElectricRoute = config.color_theme === 'electric-atlas'
@@ -1799,59 +1798,8 @@ function routeLayers(config: StyleConfig) {
         }, SYMBOL_SCALE_PROPERTIES),
       ]
     : []
-  const modernistPrintLayers = isModernistRoute
-    ? [
-        withScaleMetadata({
-          id: 'route-line-modernist-trap',
-          type: 'line',
-          source: 'route',
-          layout: routeLayout,
-          paint: {
-            'line-color': config.label_bg_color ?? '#191614',
-            'line-width': config.route_width + 5.4,
-            'line-opacity': Math.min(config.route_opacity * 0.16, 0.16),
-            'line-blur': 0.45,
-            'line-translate': [2.2, 2.2],
-          },
-        }, ROUTE_SCALE_PROPERTIES),
-        withScaleMetadata({
-          id: 'route-line-modernist-knockout',
-          type: 'line',
-          source: 'route',
-          layout: routeLayout,
-          paint: {
-            'line-color': config.background_color ?? '#F2E8DA',
-            'line-width': config.route_width + 2.1,
-            'line-opacity': Math.min(config.route_opacity * 0.92, 0.92),
-          },
-        }, ROUTE_SCALE_PROPERTIES),
-      ]
-    : []
-  const modernistRegisterMarks = isModernistRoute
-    ? [
-        withScaleMetadata({
-          id: 'route-line-modernist-register',
-          type: 'symbol',
-          source: 'route',
-          layout: {
-            'symbol-placement': 'line',
-            'symbol-spacing': 96,
-            'text-field': '■',
-            'text-font': ['Noto Sans Regular'],
-            'text-size': 9,
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'text-keep-upright': false,
-          },
-          paint: {
-            'text-color': config.label_bg_color ?? '#191614',
-            'text-opacity': Math.min(config.route_opacity * 0.62, 0.62),
-            'text-halo-color': config.background_color ?? '#F2E8DA',
-            'text-halo-width': 1.15,
-          },
-        }, SYMBOL_SCALE_PROPERTIES),
-      ]
-    : []
+  const modernistPrintLayers: object[] = []
+  const modernistRegisterMarks: object[] = []
   const blacklineProofLayers = isBlacklineRoute
     ? [
         withScaleMetadata({

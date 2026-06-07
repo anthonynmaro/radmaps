@@ -458,6 +458,8 @@ describe('refined theme Phase 0 scaffolding', () => {
     ]))
     expect(getThemeChromeContract('bold-modern')?.requiredTestIds).toEqual(expect.arrayContaining([
       'composition-modernist-accent',
+      'pin-marker-start',
+      'pin-marker-finish',
     ]))
     expect(getThemeChromeContract('bold-modern')?.forbiddenTestIds).toEqual(expect.arrayContaining([
       'composition-side-rail',

@@ -241,13 +241,19 @@ test.describe('style browser visual harness', () => {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-modernist-trap')
+    })).toContain('route-line')
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-modernist-register')
+    })).not.toContain('route-line-modernist-trap')
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+    })).not.toContain('route-line-modernist-register')
 
     await page.goto('/style-browser-fixture?composition=modernist-block&theme=blackline')
     await expect.poll(async () => page.evaluate(() => {
