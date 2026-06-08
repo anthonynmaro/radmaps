@@ -1,25 +1,22 @@
 # Poster Content And Template Editor
 
-RadMaps now has a dev-gated poster content/template editor path that keeps
-`MapPreview.vue` as the only render truth. The goal is a constrained, polished
-poster editor: users can change header/footer content and template structure,
-while the route map remains the locked center band and the existing right style
-panel remains focused on map, route, trail, theme, terrain, and print controls.
+RadMaps now has a dev-gated guided poster editor path that keeps
+`MapPreview.vue` as the only render truth. The Tier 1 goal is constrained:
+users can edit allowlisted text slots, colorway, map framing, and small layer
+controls while theme-owned layout structure remains locked.
 
 ## Current Entry Points
 
 - Integrated style surface:
-  `/style-browser-fixture?surface=1&posterEditor=1&surfaceTemplateEditor=1`
+  `/style-browser-fixture?surface=1&posterEditor=1`
 - Standalone template fixture:
-  `/style-browser-fixture?puckSpike=1`
-- Puck reference fixture:
-  `/style-browser-fixture?puckReference=1`
-- Native structured reference fixture:
-  `/style-browser-fixture?layoutSpike=1`
+  `/style-browser-fixture?templateEditor=1`
 
 Production rollout is gated by
 `FLAGS.POSTER_ELEMENTS_EDITOR` and `FLAGS.POSTER_TEMPLATE_EDITOR`. The dev
 fixture query params exist only for local/Playwright review.
+
+The old `puckSpike`, `puckReference`, and `layoutSpike` routes are retired.
 
 ## Architecture
 
@@ -271,10 +268,9 @@ Resolved during implementation:
    footer/header chrome, and 24x36 print pixel output before promoting the
    editor path.
 
-6. Decide what to retire.
-   Once the fixed-template editor is validated, retire or quarantine
-   `layoutSpike=1`, `puckSpike=1`, and any old chrome-grid UI that no longer
-   informs the production path.
+6. Keep Tier 2 separate.
+   Insert/remove overlays, free-anchor drag/snap, and region resizing are Tier 2
+   work. Do not reintroduce the retired spike routes as a shortcut.
 
 8. Treat landscape aspect support as a separate product project.
    Do not mix 3:2 landscape into this rollout. It requires explicit aspect

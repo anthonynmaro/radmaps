@@ -416,15 +416,15 @@
             </div>
 
             <TextRow
-              v-if="activePosterElement.kind === 'free-text'"
+              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'theme-text'"
               label="Text"
-              :value="(local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.content ?? ''"
+              :value="activePosterElement.kind === 'theme-text' ? activePosterSlotText() : (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.content ?? ''"
               placeholder="Your text"
               @change="patchPosterElement(activePosterElement.id, { content: $event })"
             />
 
             <ColorRow
-              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'icon'"
+              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'theme-text' || activePosterElement.kind === 'icon'"
               label="Color"
               :value="activePosterElement.color ?? local.label_text_color"
               @change="patchPosterElement(activePosterElement!.id, { color: $event })"
@@ -443,6 +443,16 @@
             </template>
 
             <SliderRow
+              v-if="activePosterElement.kind === 'theme-text'"
+              label="Size"
+              :value="activePosterSlotSizePt()"
+              :min="6"
+              :max="180"
+              :step="1"
+              :display="(v: number) => Math.round(v) + 'pt'"
+              @change="patchPosterElement(activePosterElement!.id, { font_size_pt: $event })"
+            />
+            <SliderRow
               v-if="activePosterElement.kind === 'image' || activePosterElement.kind === 'logo' || activePosterElement.kind === 'icon'"
               label="Size"
               :value="activePosterElement.width ?? 10"
@@ -452,9 +462,9 @@
               :display="(v: number) => Math.round(v) + '%'"
               @change="resizeSelectedElement($event)"
             />
-            <SliderRow label="Rotation" :value="activePosterElement.rotation ?? 0" :min="-180" :max="180" :step="1"
+            <SliderRow v-if="activePosterElement.kind !== 'theme-text'" label="Rotation" :value="activePosterElement.rotation ?? 0" :min="-180" :max="180" :step="1"
               :display="(v: number) => Math.round(v) + '°'" @change="patchPosterElement(activePosterElement!.id, { rotation: $event })" />
-            <SliderRow label="Opacity" :value="(activePosterElement.id.startsWith('text:') ? (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.opacity : activePosterElement.id.startsWith('icon:') ? (local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.opacity : (local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.opacity) ?? 1" :min="0.1" :max="1" :step="0.05"
+            <SliderRow label="Opacity" :value="(activePosterElement.id.startsWith('slot:') ? (local.poster_text_overrides?.[slotFromPosterElementId(activePosterElement.id) ?? 'trail_name']?.opacity ?? 1) : activePosterElement.id.startsWith('text:') ? (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.opacity : activePosterElement.id.startsWith('icon:') ? (local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.opacity : (local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.opacity) ?? 1" :min="0.1" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="patchPosterElement(activePosterElement!.id, { opacity: $event })" />
 
             <ToggleRow
@@ -464,7 +474,7 @@
               @change="patchPosterElement(activePosterElement!.id, { allow_bleed: $event })"
             />
 
-            <div class="grid grid-cols-2 gap-1.5">
+            <div v-if="activePosterElement.kind !== 'theme-text'" class="grid grid-cols-2 gap-1.5">
               <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(-1)">Send back</button>
               <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(1)">Bring front</button>
             </div>
@@ -1663,7 +1673,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind, PosterIconId } from '~/types'
+import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind, PosterIconId, PosterTextSlot } from '~/types'
 import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
@@ -1674,6 +1684,7 @@ import { getThemeDefinition } from '~/utils/themes/refined'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
 import { POSTER_ICONS } from '~/utils/posterIcons'
 import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 import {
   CLASSIC_THEME_OPTIONS,
   QUICK_THEME_OPTION_GROUPS,
@@ -2091,11 +2102,12 @@ const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asse
 const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
 const posterEditorMode = computed(() => props.posterEditorMode ?? 'layout')
 const posterEditorElements = computed(() =>
-  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true }).slice().reverse(),
+  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true, editableTextSlots: posterEditorAllowlist.value.textSlots }).slice().reverse(),
 )
 const activePosterElement = computed(() =>
   posterEditorElements.value.find(element => element.id === props.selectedPosterElementId) ?? null,
 )
+const posterEditorAllowlist = computed(() => posterEditorAllowlistForStyle(local as StyleConfig))
 
 const textOverlayCardKey = computed(() =>
   props.activeTextTarget?.type === 'text-overlay'
@@ -2147,6 +2159,33 @@ function setPosterEditorMode(mode: PosterEditorMode) {
 
 function patchPosterElement(id: string, patch: PosterEditorElementPatch) {
   emit('poster-element-patch', { id, patch })
+}
+
+function slotFromPosterElementId(id?: string | null): PosterTextSlot | null {
+  if (!id?.startsWith('slot:')) return null
+  const slot = id.slice('slot:'.length) as PosterTextSlot
+  return posterEditorAllowlist.value.textSlots?.includes(slot) === false ? null : slot
+}
+
+function posterSlotPanelText(slot: PosterTextSlot) {
+  const override = local.poster_text_overrides?.[slot]?.text
+  if (override != null) return override
+  if (slot === 'trail_name') return local.trail_name ?? ''
+  if (slot === 'location_text') return local.location_text ?? ''
+  if (slot === 'occasion_text') return local.occasion_text ?? ''
+  if (slot === 'start_pin_label') return local.start_pin_label ?? 'Start'
+  if (slot === 'finish_pin_label') return local.finish_pin_label ?? 'Finish'
+  return ''
+}
+
+function activePosterSlotText() {
+  const slot = slotFromPosterElementId(activePosterElement.value?.id)
+  return slot ? posterSlotPanelText(slot) : ''
+}
+
+function activePosterSlotSizePt() {
+  const slot = slotFromPosterElementId(activePosterElement.value?.id)
+  return slot ? (local.poster_text_overrides?.[slot]?.font_size_pt ?? 48) : 48
 }
 
 function selectPosterElement(id: string | null) {

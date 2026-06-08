@@ -9,6 +9,7 @@ import {
   patchPosterEditorElement,
   removePosterEditorElement,
 } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 
 function config(patch: Partial<StyleConfig> = {}): StyleConfig {
   return {
@@ -97,6 +98,33 @@ describe('poster editor elements adapter', () => {
     })
   })
 
+  it('exposes refined theme text slots as bounded Tier 1 slot elements', () => {
+    const style = config({
+      color_theme: 'sea-chart',
+      composition: 'sea-chart',
+      trail_name: 'H&H Connector Ridge Traverse',
+      location_text: 'Bentonville, Arkansas',
+    })
+    const allowlist = posterEditorAllowlistForStyle(style)
+    const elements = getPosterEditorElements(style, undefined, { editableTextSlots: allowlist.textSlots })
+
+    expect(allowlist.textSlots).toContain('trail_name')
+    expect(allowlist.textSlots).toContain('distance')
+    expect(allowlist.textSlots).not.toContain('composition_meta')
+    expect(elements.find(element => element.id === 'slot:trail_name')).toMatchObject({
+      kind: 'theme-text',
+      locked: false,
+      canTransform: true,
+      canEditContent: true,
+      slot: 'trail_name',
+    })
+    expect(elements.find(element => element.slot === 'composition_meta')).toMatchObject({
+      locked: true,
+      canTransform: false,
+      canEditContent: false,
+    })
+  })
+
   it('patches unified layer changes back into the existing StyleConfig fields', () => {
     const style = config({
       text_overlays: [textOverlay],
@@ -165,6 +193,25 @@ describe('poster editor elements adapter', () => {
       opacity: 1,
       locked: true,
     })
+  })
+
+  it('patches Tier 1 slot edits through poster_text_overrides only', () => {
+    const style = config({ color_theme: 'editorial-minimal' })
+    const next = patchPosterEditorElement(style, 'slot:trail_name', {
+      content: 'Manual trail title',
+      color: '#aa0033',
+      font_size_pt: 72,
+      opacity: 0.55,
+    })
+
+    expect(next.poster_text_overrides?.trail_name).toEqual({
+      text: 'Manual trail title',
+      color: '#aa0033',
+      font_size_pt: 72,
+      opacity: 0.55,
+    })
+    expect(next.poster_layout).toBeUndefined()
+    expect(next.text_overlays).toEqual(style.text_overlays)
   })
 
   it('adds, duplicates, removes, and normalizes V2 fields without rewriting legacy maps', () => {

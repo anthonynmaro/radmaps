@@ -1921,174 +1921,6 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-grid-overlay')).toBeVisible()
   })
 
-  test('layout spike supports Framer/Puck-style structured poster editing on desktop', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop layout-spike coverage')
-
-    await page.goto('/style-browser-fixture?layoutSpike=1&width=1180&height=820')
-    await expect(page.getByTestId('layout-spike')).toBeVisible()
-    await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__))).toBe(true)
-    await expect(page.getByTestId('layout-spike-left-rail')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-left-drawer')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-right-panel')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-mobile-bar')).toBeHidden()
-    await expect(page.getByTestId('poster-canvas')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-library-notes')).toContainText('Puck')
-    await expect(page.getByTestId('layout-spike-library-notes')).toContainText('Native Vue')
-
-    await page.getByTestId('layout-spike-add-text').click()
-    await expect(page.getByTestId('layout-spike-placement-layer')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-place-header')).toContainText('Add text to header')
-    await page.getByTestId('layout-spike-place-header').click()
-    const editableText = page.locator('[data-testid="layout-spike-block"].is-selected [data-testid^="layout-spike-text-"]')
-    await expect(editableText).toBeVisible()
-    await expect(page.getByTestId('layout-spike-selected-card')).toBeVisible()
-    await expect(page.getByTestId('layout-spike-selected-delete')).toBeVisible()
-    const boxBeforeTextEdit = await editableText.boundingBox()
-    await editableText.click()
-    const boxAfterFocus = await editableText.boundingBox()
-    expect(boxBeforeTextEdit).toBeTruthy()
-    expect(boxAfterFocus).toBeTruthy()
-    expect(Math.abs(boxAfterFocus!.y - boxBeforeTextEdit!.y)).toBeLessThan(2)
-    await editableText.fill('Inline trail note')
-    await expect(editableText).toContainText('Inline trail note')
-
-    const rowsBeforeSpacer = await page.getByTestId('layout-spike-row').count()
-    await page.getByTestId('layout-spike-add-spacer').click()
-    await expect(page.getByTestId('layout-spike-row')).toHaveCount(rowsBeforeSpacer + 1)
-    const selectedSpacerBlock = page.locator('[data-testid="layout-spike-block"].is-selected')
-    await expect(selectedSpacerBlock).toHaveClass(/layout-spike-block--spacer/)
-    const spacerRow = selectedSpacerBlock.locator('xpath=ancestor::*[@data-testid="layout-spike-row"][1]')
-    const spacerHeightBefore = await spacerRow.evaluate(row => (row as HTMLElement).getBoundingClientRect().height)
-    const spacerDraftHeightBefore = await page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const selected = document.querySelector<HTMLElement>('[data-testid="layout-spike-block"].is-selected')
-      const row = selected?.closest<HTMLElement>('[data-testid="layout-spike-row"]')
-      const rowId = row?.dataset.rowId
-      return spike?.getDraft()?.bands.header.rows.find((candidate: any) => candidate.id === rowId)?.heightFr ?? 0
-    })
-    const spacerGrip = spacerRow.getByTestId('layout-spike-row-resize')
-    const spacerGripBox = await spacerGrip.boundingBox()
-    expect(spacerGripBox).toBeTruthy()
-    await page.mouse.move(spacerGripBox!.x + spacerGripBox!.width / 2, spacerGripBox!.y + spacerGripBox!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(spacerGripBox!.x + spacerGripBox!.width / 2, spacerGripBox!.y + spacerGripBox!.height / 2 + 34, { steps: 4 })
-    await page.mouse.up()
-    await expect.poll(() => page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const selected = document.querySelector<HTMLElement>('[data-testid="layout-spike-block"].is-selected')
-      const row = selected?.closest<HTMLElement>('[data-testid="layout-spike-row"]')
-      const rowId = row?.dataset.rowId
-      return spike?.getDraft()?.bands.header.rows.find((candidate: any) => candidate.id === rowId)?.heightFr ?? 0
-    })).toBeGreaterThan(spacerDraftHeightBefore)
-    await expect.poll(() => spacerRow.evaluate(row => (row as HTMLElement).getBoundingClientRect().height)).toBeGreaterThanOrEqual(spacerHeightBefore)
-
-    await page.getByTestId('layout-spike-add-row').click()
-    await page.evaluate(() => {
-      const blocks = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="layout-spike-block"]'))
-      const source = document.querySelector<HTMLElement>('[data-testid="layout-spike-block"].is-selected')
-      const target = blocks.find(block => block !== source && !block.classList.contains('layout-spike-block--spacer'))
-      const drop = target?.querySelector<HTMLElement>('[data-testid="layout-spike-drop-beside"]')
-      if (!source || !target || !drop) throw new Error('Missing drag targets')
-      const data = new DataTransfer()
-      data.setData('text/plain', source.dataset.blockId ?? '')
-      drop.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data }))
-      drop.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }))
-    })
-    await expect.poll(() => page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const draft = spike?.getDraft()
-      return draft?.bands.header.rows.some((row: any) => row.cells.length > 1) ?? false
-    })).toBe(true)
-
-    const firstColumnGrip = page.getByTestId('layout-spike-column-resize').first()
-    const columnBefore = await page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const row = spike?.getDraft()?.bands.header.rows.find((candidate: any) => candidate.cells.length > 1)
-      return row?.cells[0]?.widthFr ?? 0
-    })
-    const columnGripBox = await firstColumnGrip.boundingBox()
-    expect(columnGripBox).toBeTruthy()
-    await page.mouse.move(columnGripBox!.x + columnGripBox!.width / 2, columnGripBox!.y + columnGripBox!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(columnGripBox!.x + columnGripBox!.width / 2 + 42, columnGripBox!.y + columnGripBox!.height / 2, { steps: 4 })
-    await page.mouse.up()
-    await expect.poll(() => page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const row = spike?.getDraft()?.bands.header.rows.find((candidate: any) => candidate.cells.length > 1)
-      return row?.cells[0]?.widthFr ?? 0
-    })).toBeGreaterThan(columnBefore)
-
-    await page.getByTestId('layout-spike-add-row').click()
-    await page.locator('[data-testid="layout-spike-block"].is-selected [data-testid^="layout-spike-text-"]').fill('Reorder block')
-    await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="layout-spike-row"]'))
-      const source = document.querySelector<HTMLElement>('[data-testid="layout-spike-block"].is-selected')
-      const drop = rows[0]?.querySelector<HTMLElement>('[data-testid="layout-spike-drop-below"]')
-      if (!source || !drop) throw new Error('Missing reorder targets')
-      const data = new DataTransfer()
-      data.setData('text/plain', source.dataset.blockId ?? '')
-      drop.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data }))
-      drop.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }))
-    })
-    await expect.poll(() => page.evaluate(() => {
-      const spike = (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__
-      const rows = spike?.getDraft()?.bands.header.rows ?? []
-      return rows.findIndex((row: any) => row.cells.some((cell: any) => cell.blocks.some((block: any) => block.text === 'Reorder block')))
-    })).toBeGreaterThan(0)
-
-    const blockCountBeforeDuplicate = await page.getByTestId('layout-spike-block').count()
-    await page.getByTestId('layout-spike-block').last().click()
-    await expect(page.getByTestId('layout-spike-context-toolbar')).toBeVisible()
-    const toolbarIntersectsSelection = await page.evaluate(() => {
-      const toolbar = document.querySelector<HTMLElement>('[data-testid="layout-spike-context-toolbar"]')
-      const selected = document.querySelector<HTMLElement>('[data-testid="layout-spike-block"].is-selected')
-      if (!toolbar || !selected) return true
-      const a = toolbar.getBoundingClientRect()
-      const b = selected.getBoundingClientRect()
-      return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-    })
-    expect(toolbarIntersectsSelection).toBe(false)
-    await page.getByTestId('layout-spike-duplicate-block').click()
-    await expect(page.getByTestId('layout-spike-block')).toHaveCount(blockCountBeforeDuplicate + 1)
-    await page.getByTestId('layout-spike-delete-block').click()
-    await expect(page.getByTestId('layout-spike-block')).toHaveCount(blockCountBeforeDuplicate)
-
-    const layoutBeforeRouteChange = await page.evaluate(() => JSON.stringify((window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__?.getPosterLayout()))
-    await page.getByTestId('layout-spike-route-color').locator('button').nth(1).click()
-    await expect.poll(() => page.evaluate(() => (window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__?.getStyle()?.route_color)).toBe('#2D6A4F')
-    const layoutAfterRouteChange = await page.evaluate(() => JSON.stringify((window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__?.getPosterLayout()))
-    expect(layoutAfterRouteChange).toBe(layoutBeforeRouteChange)
-  })
-
-  test('layout spike switches to bottom sheets on mobile', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile', 'mobile layout-spike coverage')
-
-    await page.goto('/style-browser-fixture?layoutSpike=1&width=390&height=680')
-    await expect(page.getByTestId('layout-spike')).toBeVisible()
-    await expect.poll(() => page.evaluate(() => Boolean((window as any).__RADMAPS_POSTER_LAYOUT_SPIKE__))).toBe(true)
-    await expect(page.getByTestId('layout-spike-left-rail')).toBeHidden()
-    await expect(page.getByTestId('layout-spike-left-drawer')).toBeHidden()
-    await expect(page.getByTestId('layout-spike-right-panel')).toBeHidden()
-    await expect(page.getByTestId('layout-spike-mobile-bar')).toBeVisible()
-
-    await page.getByTestId('layout-spike-mobile-insert').click()
-    await expect(page.getByTestId('layout-spike-mobile-sheet')).toBeVisible()
-    await page.getByTestId('layout-spike-mobile-add-text').click()
-    const mobileText = page.locator('[data-testid^="layout-spike-text-"]').last()
-    await expect(mobileText).toBeVisible()
-    await mobileText.fill('Mobile inline note')
-    await expect(mobileText).toContainText('Mobile inline note')
-    await mobileText.evaluate(element => (element as HTMLElement).blur())
-
-    await page.getByTestId('layout-spike-mobile-selected').dispatchEvent('click')
-    await expect(page.getByTestId('layout-spike-mobile-duplicate')).toBeVisible()
-    const mobileCountBeforeDuplicate = await page.getByTestId('layout-spike-block').count()
-    await page.getByTestId('layout-spike-mobile-duplicate').click()
-    await expect(page.getByTestId('layout-spike-block')).toHaveCount(mobileCountBeforeDuplicate + 1)
-    await page.getByTestId('layout-spike-mobile-delete').click()
-    await expect(page.getByTestId('layout-spike-block')).toHaveCount(mobileCountBeforeDuplicate)
-  })
-
   test('fixed poster template editor keeps the map locked and edits chrome bands', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop fixed-template editor coverage')
 
@@ -2486,25 +2318,6 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('fixed-template-poster')).not.toContainText('Complete trail network')
   })
 
-  test('Puck poster spike renders a structured builder reference on desktop', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop Puck reference coverage')
-
-    await page.goto('/style-browser-fixture?puckReference=1&width=1180&height=820')
-    await expect(page.locator('[data-testid="puck-poster-spike"]')).toBeVisible()
-    await expect(page.locator('[data-testid="radmaps-puck-root"]')).toBeVisible()
-    await expect(page.locator('[data-testid="radmaps-puck-map-band"]')).toContainText('MapPreview.vue stays render truth')
-    await expect.poll(() => page.locator('[data-testid="radmaps-puck-text-block"]').count()).toBeGreaterThan(0)
-    await expect(page.locator('body')).not.toContainText('[object Object]')
-
-    const exported = await page.locator('[data-testid="puck-poster-spike-json"]').textContent()
-    expect(exported).toBeTruthy()
-    const document = JSON.parse(exported!)
-    expect(document.source).toBe('puck-spike')
-    expect(document.bands.map.renderer).toBe('MapPreview.vue')
-    expect(document.bands.header.rows.length).toBeGreaterThan(0)
-    expect(document.bands.footer.rows.length).toBeGreaterThan(0)
-  })
-
   test('editor surface can mount the fixed template editor behind the template gate', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop fixed-template surface coverage')
 
@@ -2543,15 +2356,15 @@ test.describe('style browser visual harness', () => {
     await expect(stylePanel).toContainText('Classic / provider maps')
     await expect(stylePanel).toContainText('Viewpoint')
     await stylePanel.getByRole('button', { name: 'Style', exact: true }).click()
-    await expect(stylePanel).toContainText('Colors')
-    await expect(stylePanel).toContainText('Grid')
-    await expect(stylePanel).toContainText('Typography')
+    await expect(stylePanel).not.toContainText('Colors')
+    await expect(stylePanel).not.toContainText('Grid')
+    await expect(stylePanel).not.toContainText('Typography')
     await stylePanel.getByRole('button', { name: 'Text', exact: true }).click()
-    await expect(stylePanel).toContainText('Global typography')
+    await expect(stylePanel).not.toContainText('Global typography')
     await expect(stylePanel).toContainText('Stats & labels')
   })
 
-  test('poster editor v2 defaults to chrome layout editing in the editor surface', async ({ page }, testInfo) => {
+  test('poster editor v2 defaults to guided slot editing in the editor surface', async ({ page }, testInfo) => {
     await page.goto('/style-browser-fixture?surface=1&posterEditor=1&width=1180&height=820')
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
     if (testInfo.project.name === 'mobile') {
@@ -2560,7 +2373,7 @@ test.describe('style browser visual harness', () => {
       await expect(page.getByTestId('chrome-structure-popover')).toHaveCount(0)
       return
     }
-    await expect(page.getByTestId('chrome-editor-app-bar')).toBeVisible()
+    await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
     await expect(page.getByTestId('chrome-structure-popover')).toHaveCount(0)
     await expect(page.getByTestId('poster-editor-guides')).toHaveCount(0)
@@ -2586,6 +2399,12 @@ test.describe('style browser visual harness', () => {
     expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight + 2)
     await page.getByText('Design', { exact: true }).click()
     await expect(page.getByRole('button', { name: 'Layout' })).toHaveCSS('background-color', 'rgb(220, 235, 226)')
+    const titleSlot = page.locator('[data-poster-element-id="slot:trail_name"]').first()
+    await expect(titleSlot).toBeVisible()
+    await titleSlot.click()
+    await expect(page.locator('.poster-element-moveable .moveable-control')).not.toHaveCount(0)
+    await expect(page.getByTestId('chrome-editor-add-block')).toHaveCount(0)
+    await expect(page.getByTestId('chrome-cell-resize-column')).toHaveCount(0)
     await page.getByTestId('poster-tool-text').click()
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
     const freeTextElement = page.locator('[data-poster-element-id^="text:"]')
@@ -2625,6 +2444,7 @@ test.describe('style browser visual harness', () => {
   })
 
   test('poster editor v2 layout builder manages chrome grid content and spacing', async ({ page }, testInfo) => {
+    test.skip(true, 'retired grid-builder coverage; W3 is guided slot editing')
     test.skip(testInfo.project.name !== 'chromium', 'desktop layout-builder coverage')
     await page.goto('/style-browser-fixture?surface=1&posterEditor=1&width=1180&height=820')
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
@@ -2782,6 +2602,7 @@ test.describe('style browser visual harness', () => {
   })
 
   test('poster editor v2 focuses chrome text without resizing the grid', async ({ page }, testInfo) => {
+    test.skip(true, 'retired grid-builder coverage; W3 is guided slot editing')
     test.skip(testInfo.project.name !== 'chromium', 'desktop chrome focus stability coverage')
     await page.goto('/style-browser-fixture?surface=1&posterEditor=1&width=1180&height=680')
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')

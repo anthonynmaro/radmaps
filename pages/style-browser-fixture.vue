@@ -8,22 +8,8 @@
         @design-myself="themePickerClosed = true"
       />
     </div>
-    <div v-else-if="templateEditorFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
+    <div v-else-if="templateEditorFixture" class="mx-auto bg-stone-100" :style="templateEditorFrameStyle">
       <FixedPosterTemplateEditor
-        v-model="styleConfig"
-        :map="sampleMap"
-      />
-    </div>
-    <div v-else-if="puckReferenceFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
-      <ClientOnly>
-        <PuckPosterSpike
-          v-model="styleConfig"
-          :map="sampleMap"
-        />
-      </ClientOnly>
-    </div>
-    <div v-else-if="layoutSpikeFixture" class="mx-auto bg-stone-100" :style="layoutSpikeFrameStyle">
-      <PosterLayoutSpike
         v-model="styleConfig"
         :map="sampleMap"
       />
@@ -45,6 +31,8 @@
         :poster-editor-mode="posterEditorMode"
         :poster-guides-visible="posterGuidesVisible"
         :selected-poster-element-id="selectedPosterElementId"
+        :editable-text-slots="posterEditableTextSlots"
+        :guided-poster-editor="posterElementsEditor"
         :render-mode="renderMode"
         :print-context="printContext"
         @overlay-updated="onOverlayUpdated"
@@ -63,14 +51,13 @@
 import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
 import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
-import PosterLayoutSpike from '~/components/map/PosterLayoutSpike.vue'
-import PuckPosterSpike from '~/components/map/PuckPosterSpike.client.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { patchPosterEditorElement, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 
 definePageMeta({ layout: false })
 
@@ -79,18 +66,13 @@ if (!import.meta.dev) {
 }
 
 const route = useRoute()
-const layoutSpikeFixture = route.query.layoutSpike === 'true' || route.query.layoutSpike === '1'
 const templateEditorFixture = route.query.templateEditor === 'true'
   || route.query.templateEditor === '1'
-  || route.query.puckSpike === 'true'
-  || route.query.puckSpike === '1'
-const puckReferenceFixture = route.query.puckReference === 'true' || route.query.puckReference === '1'
-const builderReferenceFixture = layoutSpikeFixture || puckReferenceFixture
 const composition = typeof route.query.composition === 'string'
-  ? (builderReferenceFixture ? 'editorial-tall' : route.query.composition)
+  ? route.query.composition
   : 'editorial-tall'
 const themeId = typeof route.query.theme === 'string'
-  ? (builderReferenceFixture ? 'editorial-minimal' : route.query.theme)
+  ? route.query.theme
   : 'editorial-minimal'
 const preset = typeof route.query.preset === 'string'
   ? route.query.preset as StyleConfig['preset']
@@ -356,6 +338,9 @@ const styleConfig = ref<StyleConfig>({
       }
     : {}),
 })
+const posterEditableTextSlots = computed(() =>
+  posterElementsEditor ? posterEditorAllowlistForStyle(styleConfig.value).textSlots : null,
+)
 const selectedPosterElementId = ref<string | null>(
   typeof route.query.selectedPosterElement === 'string' ? route.query.selectedPosterElement : null,
 )
@@ -482,7 +467,7 @@ const editorSurfaceFrameStyle = computed(() => ({
   overflow: 'hidden',
 }))
 
-const layoutSpikeFrameStyle = computed(() => ({
+const templateEditorFrameStyle = computed(() => ({
   width: `${Number.isFinite(width) ? width : 1180}px`,
   height: `${Number.isFinite(height) ? height : 820}px`,
   maxWidth: '100%',

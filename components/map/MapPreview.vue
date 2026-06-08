@@ -5,7 +5,7 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay')"
+      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
@@ -113,7 +113,7 @@
     </div>
 
     <div
-      v-if="chromeLayoutBuilderVisible"
+      v-if="chromeStructureEditing && chromeLayoutBuilderVisible"
       class="chrome-editor-app-bar"
       data-testid="chrome-editor-app-bar"
       @pointerdown.stop
@@ -132,7 +132,7 @@
     </div>
 
     <div
-      v-if="chromeLayoutBuilderVisible && chromeAddPanelOpen"
+      v-if="chromeStructureEditing && chromeLayoutBuilderVisible && chromeAddPanelOpen"
       class="chrome-add-block-panel"
       data-testid="chrome-add-block-panel"
       @pointerdown.stop
@@ -232,14 +232,14 @@
             <button :class="{ active: activeChromeValign === 'bottom' }" title="Align bottom" @click="setChromeValign('bottom')">Bottom</button>
           </div>
 
-          <div class="chrome-layout-builder-group">
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-group">
             <button :disabled="!activeChromeBlock" data-testid="chrome-builder-duplicate" @click="duplicateChromeBlock">Duplicate</button>
             <button :disabled="!activeChromeBlock" data-testid="chrome-builder-clear" @click="deleteChromeBlock">Clear</button>
             <button :disabled="selectedChromeTarget?.type !== 'cell'" data-testid="chrome-builder-remove" @click="removeSelectedCell">Remove</button>
             <button data-testid="chrome-builder-reset" @click="resetChromeSection(activeChromeBand)">Reset</button>
           </div>
 
-          <div class="chrome-layout-builder-spacing">
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-spacing">
             <span>Cell padding</span>
             <div
               v-for="side in chromePaddingSides"
@@ -265,7 +265,7 @@
             </div>
           </div>
 
-          <div class="chrome-layout-builder-spacing">
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-spacing">
             <span>Section padding</span>
             <div
               v-for="side in chromePaddingSides"
@@ -323,7 +323,7 @@
           <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
         </label>
       </div>
-      <div class="chrome-mobile-actions">
+      <div v-if="chromeStructureEditing" class="chrome-mobile-actions">
         <button @click="addColumnForSelection">+ Column</button>
         <button @click="addRowForSelection">+ Row</button>
         <button @click="deleteChromeBlock">Clear</button>
@@ -338,10 +338,10 @@
         v-if="posterElementsEditing && posterMoveableTarget && selectedPosterElementCanTransform"
         class-name="poster-element-moveable"
         :target="posterMoveableTarget"
-        :draggable="true"
+        :draggable="selectedPosterElementDraggable"
         :drag-area="true"
         :resizable="selectedPosterElementResizable"
-        :rotatable="true"
+        :rotatable="selectedPosterElementRotatable"
         :snappable="true"
         :snap-container="posterCanvasEl"
         :vertical-guidelines="posterVerticalGuidelines"
@@ -581,15 +581,16 @@
       <div
         v-if="compositionDecor.sideRailLabel && !sideRailInsideMap && chromeSlotVisible('composition_side_rail')"
         class="composition-side-rail-label"
-        :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+        :class="{ 'editable-text': slotEditable('composition_side_rail'), 'is-selected-text': isSlotActive('composition_side_rail') }"
         :style="compositionSideRailLabelStyle"
-        :contenteditable="editable ? 'true' : 'false'"
+        :contenteditable="slotEditable('composition_side_rail') ? 'true' : 'false'"
         :suppressContentEditableWarning="true"
         role="textbox"
         aria-label="Side rail label"
         enterkeyhint="done"
         spellcheck="true"
         data-testid="composition-side-rail-label"
+        :data-poster-element-id="slotEditorElementId('composition_side_rail')"
         data-text-fit="slot"
         data-text-fit-slot="composition_side_rail"
         @focus="onSlotFocus($event, 'composition_side_rail')"
@@ -727,7 +728,7 @@
               @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
             >
               <button
-                v-if="chromeDirectEditing && (chromeCellSelected('header', row.id, cell.id) || isChromeSpacerCell(cell))"
+                v-if="chromeStructureEditing && (chromeCellSelected('header', row.id, cell.id) || isChromeSpacerCell(cell))"
                 class="chrome-cell-trash"
                 :class="{ 'is-passive': !chromeCellSelected('header', row.id, cell.id) }"
                 :data-testid="chromeCellSelected('header', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
@@ -765,6 +766,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -774,13 +776,13 @@
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else-if="chromeDirectEditing"
+                v-else-if="chromeStructureEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('header', row.id, cell.id)"
               >+</button>
               <button
-                v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
+                v-if="chromeStructureEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
                 :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
                 data-testid="chrome-cell-add-column"
@@ -792,7 +794,7 @@
                 <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
               </button>
               <button
-                v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
+                v-if="chromeStructureEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
                 data-testid="chrome-cell-resize-column"
                 title="Drag to resize column"
@@ -801,7 +803,7 @@
               />
             </div>
             <button
-              v-if="chromeDirectEditing"
+              v-if="chromeStructureEditing"
               class="chrome-row-add-row"
               data-testid="chrome-row-add-row"
               title="Add row below"
@@ -812,7 +814,7 @@
               <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
             </button>
             <button
-              v-if="chromeDirectEditing && canResizeChromeRowEdge('header', row, 'top')"
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('header', row, 'top')"
               class="chrome-row-resize-row chrome-row-resize-row--top"
               data-testid="chrome-row-resize-row"
               data-edge="top"
@@ -822,7 +824,7 @@
               @click.stop
             />
             <button
-              v-if="chromeDirectEditing && canResizeChromeRowEdge('header', row, 'bottom')"
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('header', row, 'bottom')"
               class="chrome-row-resize-row chrome-row-resize-row--bottom"
               data-testid="chrome-row-resize-row"
               data-edge="bottom"
@@ -832,7 +834,7 @@
               @click.stop
             />
           </div>
-          <button v-if="chromeDirectEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
+          <button v-if="chromeStructureEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
         </div>
         <div
           v-if="composition.id === 'botanical-plate'"
@@ -845,15 +847,16 @@
         <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
           class="composition-kicker"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_kicker') }"
+          :class="{ 'editable-text': slotEditable('composition_kicker'), 'is-selected-text': isSlotActive('composition_kicker') }"
           :style="compositionKickerStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_kicker') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition kicker"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-kicker"
+          :data-poster-element-id="slotEditorElementId('composition_kicker')"
           data-text-fit="slot"
           data-text-fit-slot="composition_kicker"
           @focus="onSlotFocus($event, 'composition_kicker')"
@@ -877,12 +880,13 @@
         <h1
           v-else-if="editable && chromeSlotVisible('trail_name')"
           class="poster-trail-name editable-text"
-          :class="{ 'is-selected-text': isSlotActive('trail_name') }"
+          :class="{ 'is-selected-text': isSlotActive('trail_name'), 'editable-text': slotEditable('trail_name') }"
           :style="trailNameStyle"
+          :data-poster-element-id="slotEditorElementId('trail_name')"
           data-text-fit="slot"
           data-text-fit-slot="trail_name"
           :data-riso-title="trailName"
-          contenteditable="true"
+          :contenteditable="slotEditable('trail_name') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Trail name"
@@ -905,11 +909,12 @@
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
-          :class="{ 'is-selected-text': isSlotActive('location_text') }"
+          :class="{ 'is-selected-text': isSlotActive('location_text'), 'editable-text': slotEditable('location_text') }"
           :style="locationLineStyle"
+          :data-poster-element-id="slotEditorElementId('location_text')"
           data-text-fit="slot"
           data-text-fit-slot="location_text"
-          contenteditable="true"
+          :contenteditable="slotEditable('location_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Location"
@@ -924,15 +929,16 @@
         <div
           v-if="compositionDecor.meta && chromeSlotVisible('composition_meta')"
           class="composition-meta-line"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_meta') }"
+          :class="{ 'editable-text': slotEditable('composition_meta'), 'is-selected-text': isSlotActive('composition_meta') }"
           :style="compositionMetaStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_meta') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition metadata"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-meta-line"
+          :data-poster-element-id="slotEditorElementId('composition_meta')"
           data-text-fit="slot"
           data-text-fit-slot="composition_meta"
           @focus="onSlotFocus($event, 'composition_meta')"
@@ -1233,14 +1239,15 @@
         <div
           v-if="isUsgsHeritageTheme && compositionDecor.kicker"
           class="usgs-heritage-map-label usgs-heritage-map-label--coord"
-          :class="{ 'editable-text': editable || chromeDirectEditing, 'is-selected-text': isSlotActive('composition_kicker') }"
-          :contenteditable="(editable || chromeDirectEditing) ? 'true' : 'false'"
+          :class="{ 'editable-text': slotEditable('composition_kicker'), 'is-selected-text': isSlotActive('composition_kicker') }"
+          :contenteditable="slotEditable('composition_kicker') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Map coordinate label"
           enterkeyhint="done"
           spellcheck="false"
           data-testid="usgs-heritage-coordinate"
+          :data-poster-element-id="slotEditorElementId('composition_kicker')"
           @pointerdown.stop
           @focus="onSlotFocus($event, 'composition_kicker')"
           @blur="onSlotBlur($event, 'composition_kicker')"
@@ -1250,14 +1257,15 @@
         <div
           v-if="isUsgsHeritageTheme && compositionDecor.meta"
           class="usgs-heritage-map-label usgs-heritage-map-label--scale"
-          :class="{ 'editable-text': editable || chromeDirectEditing, 'is-selected-text': isSlotActive('composition_meta') }"
-          :contenteditable="(editable || chromeDirectEditing) ? 'true' : 'false'"
+          :class="{ 'editable-text': slotEditable('composition_meta'), 'is-selected-text': isSlotActive('composition_meta') }"
+          :contenteditable="slotEditable('composition_meta') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Map scale label"
           enterkeyhint="done"
           spellcheck="false"
           data-testid="usgs-heritage-scale"
+          :data-poster-element-id="slotEditorElementId('composition_meta')"
           @pointerdown.stop
           @focus="onSlotFocus($event, 'composition_meta')"
           @blur="onSlotBlur($event, 'composition_meta')"
@@ -1623,7 +1631,7 @@
               @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
             >
               <button
-                v-if="chromeDirectEditing && (chromeCellSelected('footer', row.id, cell.id) || isChromeSpacerCell(cell))"
+                v-if="chromeStructureEditing && (chromeCellSelected('footer', row.id, cell.id) || isChromeSpacerCell(cell))"
                 class="chrome-cell-trash"
                 :class="{ 'is-passive': !chromeCellSelected('footer', row.id, cell.id) }"
                 :data-testid="chromeCellSelected('footer', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
@@ -1661,6 +1669,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -1670,13 +1679,13 @@
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else-if="chromeDirectEditing"
+                v-else-if="chromeStructureEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('footer', row.id, cell.id)"
               >+</button>
               <button
-                v-if="chromeDirectEditing && canInsertColumnAfter(row, cell)"
+                v-if="chromeStructureEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
                 :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
                 data-testid="chrome-cell-add-column"
@@ -1688,7 +1697,7 @@
                 <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
               </button>
               <button
-                v-if="chromeDirectEditing && canResizeChromeCell(row, cell)"
+                v-if="chromeStructureEditing && canResizeChromeCell(row, cell)"
                 class="chrome-cell-resize-col"
                 data-testid="chrome-cell-resize-column"
                 title="Drag to resize column"
@@ -1697,7 +1706,7 @@
               />
             </div>
             <button
-              v-if="chromeDirectEditing"
+              v-if="chromeStructureEditing"
               class="chrome-row-add-row"
               data-testid="chrome-row-add-row"
               title="Add row below"
@@ -1708,7 +1717,7 @@
               <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
             </button>
             <button
-              v-if="chromeDirectEditing && canResizeChromeRowEdge('footer', row, 'top')"
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('footer', row, 'top')"
               class="chrome-row-resize-row chrome-row-resize-row--top"
               data-testid="chrome-row-resize-row"
               data-edge="top"
@@ -1718,7 +1727,7 @@
               @click.stop
             />
             <button
-              v-if="chromeDirectEditing && canResizeChromeRowEdge('footer', row, 'bottom')"
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('footer', row, 'bottom')"
               class="chrome-row-resize-row chrome-row-resize-row--bottom"
               data-testid="chrome-row-resize-row"
               data-edge="bottom"
@@ -1728,21 +1737,22 @@
               @click.stop
             />
           </div>
-          <button v-if="chromeDirectEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
+          <button v-if="chromeStructureEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
         </div>
         <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
           v-if="compositionDecor.footerNote && chromeSlotVisible('composition_footer')"
           class="composition-footer-note"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_footer') }"
+          :class="{ 'editable-text': slotEditable('composition_footer'), 'is-selected-text': isSlotActive('composition_footer') }"
           :style="compositionFooterNoteStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_footer') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition footer note"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-footer-note"
+          :data-poster-element-id="slotEditorElementId('composition_footer')"
           data-text-fit="slot"
           data-text-fit-slot="composition_footer"
           @focus="onSlotFocus($event, 'composition_footer')"
@@ -1754,13 +1764,14 @@
           v-if="composition.id === 'brutalist-slab' && chromeSlotVisible('distance')"
           class="composition-brutalist-distance editable-text"
           :class="{ 'is-selected-text': isSlotActive('distance') }"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('distance') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Distance"
           enterkeyhint="done"
           spellcheck="false"
           data-testid="composition-brutalist-distance"
+          :data-poster-element-id="slotEditorElementId('distance')"
           data-text-fit="slot"
           data-text-fit-slot="distance"
           @focus="onSlotFocus($event, 'distance')"
@@ -1834,13 +1845,14 @@
             v-if="showDistanceSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('distance') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('distance') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Distance"
             enterkeyhint="done"
             spellcheck="true"
             data-text-fit="slot"
+            :data-poster-element-id="slotEditorElementId('distance')"
             data-text-fit-slot="distance"
             @focus="onSlotFocus($event, 'distance')"
             @blur="onSlotBlur($event, 'distance')"
@@ -1865,13 +1877,14 @@
             v-if="showElevationGainSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('elevation_gain') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('elevation_gain') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Elevation gain"
             enterkeyhint="done"
             spellcheck="true"
             data-text-fit="slot"
+            :data-poster-element-id="slotEditorElementId('elevation_gain')"
             data-text-fit-slot="elevation_gain"
             @focus="onSlotFocus($event, 'elevation_gain')"
             @blur="onSlotBlur($event, 'elevation_gain')"
@@ -1892,13 +1905,14 @@
             v-if="showDateSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('date') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('date') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Date"
             enterkeyhint="done"
             spellcheck="true"
             data-text-fit="slot"
+            :data-poster-element-id="slotEditorElementId('date')"
             data-text-fit-slot="date"
             @focus="onSlotFocus($event, 'date')"
             @blur="onSlotBlur($event, 'date')"
@@ -1914,13 +1928,14 @@
             v-if="showCoordinatesSlot"
             class="stat-block stat-block--coords editable-text"
             :class="{ 'is-selected-text': isSlotActive('coordinates') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('coordinates') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Coordinates"
             enterkeyhint="done"
             spellcheck="true"
             data-text-fit="slot"
+            :data-poster-element-id="slotEditorElementId('coordinates')"
             data-text-fit-slot="coordinates"
             @focus="onSlotFocus($event, 'coordinates')"
             @blur="onSlotBlur($event, 'coordinates')"
@@ -1948,7 +1963,7 @@
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
-          contenteditable="true"
+          :contenteditable="slotEditable('occasion_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Occasion"
@@ -1956,6 +1971,7 @@
           spellcheck="true"
           data-text-fit="slot"
           data-text-fit-slot="occasion_text"
+          :data-poster-element-id="slotEditorElementId('occasion_text')"
           @focus="onSlotFocus($event, 'occasion_text')"
           @blur="onSlotBlur($event, 'occasion_text')"
           @click="onSlotClick($event, 'occasion_text')"
@@ -2209,6 +2225,8 @@ const props = defineProps<{
   posterEditorMode?: PosterEditorMode
   posterGuidesVisible?: boolean
   selectedPosterElementId?: string | null
+  editableTextSlots?: readonly PosterTextSlot[] | null
+  guidedPosterEditor?: boolean
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   /** When true, the map enters paint-select mode for route deletion */
@@ -2503,6 +2521,7 @@ const activeChromeBlockId = ref<string | null>(null)
 const posterMoveableTarget = ref<HTMLElement | null>(null)
 const moveableResizePreview = ref<{ id: string; width: number; height: number } | null>(null)
 const moveableTextResizePreview = ref<{ id: string; font_size: number } | null>(null)
+const moveableSlotResizePreview = ref<{ slot: PosterTextSlot; font_size_pt: number } | null>(null)
 const hoveredChromeBand = ref<ChromeBandId | null>(null)
 const chromeMobile = ref(false)
 const chromePaddingPanelOpen = ref(false)
@@ -2571,6 +2590,12 @@ const chromeGridRendering = computed(() =>
 const chromeDirectEditing = computed(() =>
   chromeGridRendering.value && props.chromePreview !== true,
 )
+const guidedPosterEditor = computed(() =>
+  Boolean(props.guidedPosterEditor && posterElementsEditing.value),
+)
+const chromeStructureEditing = computed(() =>
+  chromeDirectEditing.value && !guidedPosterEditor.value,
+)
 const chromeInternalShellVisible = computed(() =>
   chromeDirectEditing.value && props.chromeExternalShell !== true,
 )
@@ -2584,7 +2609,7 @@ const chromeLayoutBuilderVisible = computed(() =>
   chromeInternalShellVisible.value && !chromeMobile.value,
 )
 const chromeContextToolbarVisible = computed(() =>
-  chromeLayoutBuilderVisible.value && selectedChromeTarget.value != null,
+  chromeLayoutBuilderVisible.value && selectedChromeTarget.value != null && (!guidedPosterEditor.value || activeChromeBlock.value != null),
 )
 const chromeToolbarFloatingStyle = ref<Record<string, string>>({
   position: 'fixed',
@@ -2649,6 +2674,10 @@ onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown)
   scheduleTextFit()
+  nextTick(() => {
+    syncPosterMoveableTarget()
+    requestAnimationFrame(syncPosterMoveableTarget)
+  })
 })
 
 onUnmounted(() => {
@@ -3050,6 +3079,7 @@ function chromeBlockOpacity(block: ChromeBlock) {
 }
 
 function chromeBlockEditable(block: ChromeBlock) {
+  if (block.slot && !slotEditable(block.slot)) return false
   return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image' && !isChromeSpacerBlock(block)
 }
 
@@ -3357,6 +3387,13 @@ function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
   const cell = findChromeCell(band, rowId, cellId)
   activeChromeBlockId.value = cell?.block?.id ?? null
   if (cell?.block && !cell.block.empty && !isChromeSpacerBlock(cell.block)) rememberChromeTextStyle(cell.block, cell)
+  if (posterElementsEditing.value && cell?.block?.slot && slotEditable(cell.block.slot)) {
+    emit('poster-element-selected', `slot:${cell.block.slot}`)
+    activeTextTarget.value = { type: 'slot', slot: cell.block.slot }
+    const selector = `[data-chrome-block-id="${globalThis.CSS?.escape?.(cell.block.id) ?? cell.block.id.replace(/"/g, '\\"')}"]`
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(selector)
+    if (el) activeTextAnchor.value = el.getBoundingClientRect()
+  }
   chromePaddingPanelOpen.value = false
   emitChromeSelectionChanged(selectedChromeTarget.value)
 }
@@ -4030,6 +4067,15 @@ function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
   activeTextAnchor.value = el.getBoundingClientRect()
 }
 
+function slotEditable(slot: PosterTextSlot) {
+  if (!props.editable) return false
+  return !props.editableTextSlots || props.editableTextSlots.includes(slot)
+}
+
+function slotEditorElementId(slot: PosterTextSlot) {
+  return posterElementsEditing.value && slotEditable(slot) ? `slot:${slot}` : undefined
+}
+
 function isSlotActive(slot: PosterTextSlot) {
   return activeTextTarget.value?.type === 'slot' && activeTextTarget.value.slot === slot
 }
@@ -4072,6 +4118,7 @@ function defaultSlotText(slot: PosterTextSlot) {
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
   const el = e.currentTarget as HTMLElement
   selectTextTarget({ type: 'slot', slot }, el)
+  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -4083,6 +4130,7 @@ function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
 
 function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
   selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
+  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -4184,6 +4232,7 @@ type PosterSelectableElement =
   | { type: 'text'; id: string; item: TextOverlay }
   | { type: 'asset'; id: string; item: MapAsset }
   | { type: 'icon'; id: string; item: IconOverlay }
+  | { type: 'slot'; id: string; slot: PosterTextSlot }
 
 function selectedPosterElement(): PosterSelectableElement | null {
   const id = props.selectedPosterElementId
@@ -4203,17 +4252,30 @@ function selectedPosterElement(): PosterSelectableElement | null {
     const item = props.styleConfig.icon_overlays?.find(icon => icon.id === rawId)
     return item ? { type: 'icon', id, item } : null
   }
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    return slotEditable(slot) ? { type: 'slot', id, slot } : null
+  }
   return null
 }
 
 const selectedPosterElementCanTransform = computed(() => {
   const selected = selectedPosterElement()
   if (!selected) return false
+  if (selected.type === 'slot') return true
   if (selected.type === 'text') return selected.item.locked !== true
   if (selected.type === 'asset') return selected.item.locked !== true
   return selected.item.locked !== true
 })
 const selectedPosterElementResizable = computed(() => selectedPosterElementCanTransform.value)
+const selectedPosterElementDraggable = computed(() => {
+  const selected = selectedPosterElement()
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+})
+const selectedPosterElementRotatable = computed(() => {
+  const selected = selectedPosterElement()
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+})
 const selectedPosterElementKeepRatio = computed(() => {
   const selected = selectedPosterElement()
   return selected?.type === 'asset' || selected?.type === 'icon'
@@ -4269,6 +4331,7 @@ function syncPosterMoveableTarget() {
     posterMoveableTarget.value = null
     moveableResizePreview.value = null
     moveableTextResizePreview.value = null
+    moveableSlotResizePreview.value = null
     return
   }
   const selectorId = props.selectedPosterElementId.replace(/"/g, '\\"')
@@ -4446,6 +4509,7 @@ function onPosterMoveableDragEnd(event: unknown) {
 function onPosterMoveableResizeStart() {
   moveableResizePreview.value = null
   moveableTextResizePreview.value = null
+  moveableSlotResizePreview.value = null
 }
 
 function onPosterMoveableResize(event: unknown) {
@@ -4461,6 +4525,15 @@ function onPosterMoveableResize(event: unknown) {
   if (!target || !id || !container) return
   const rect = container.getBoundingClientRect()
   if (!rect.width || !rect.height) return
+
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    const nextSizeCqh = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 0.35, 12)
+    const fontSizePt = clampTextSizePt(cqhToPt(nextSizeCqh))
+    moveableSlotResizePreview.value = { slot, font_size_pt: fontSizePt }
+    target.style.fontSize = `${nextSizeCqh}cqh`
+    return
+  }
 
   const dx = payload.drag?.delta?.[0] ?? payload.drag?.beforeDelta?.[0] ?? 0
   const dy = payload.drag?.delta?.[1] ?? payload.drag?.beforeDelta?.[1] ?? 0
@@ -4486,6 +4559,15 @@ function onPosterMoveableResizeEnd(event: unknown) {
   if (!id || !payload.target) {
     moveableResizePreview.value = null
     moveableTextResizePreview.value = null
+    moveableSlotResizePreview.value = null
+    return
+  }
+
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    const preview = moveableSlotResizePreview.value
+    if (preview?.slot === slot) emit('poster-text-override', { slot, patch: { font_size_pt: preview.font_size_pt } })
+    moveableSlotResizePreview.value = null
     return
   }
 
@@ -4507,6 +4589,7 @@ function onPosterMoveableResizeEnd(event: unknown) {
   }
   moveableResizePreview.value = null
   moveableTextResizePreview.value = null
+  moveableSlotResizePreview.value = null
 }
 
 function moveableRotation(event: unknown): number {

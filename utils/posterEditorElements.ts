@@ -51,6 +51,7 @@ export type PosterEditorElementPatch = Partial<{
   width: number
   height: number
   font_size: number
+  font_size_pt: number
   rotation: number
   zIndex: number
   color: string
@@ -70,14 +71,34 @@ function makeId(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.round(Math.random() * 1_000_000)}`}`
 }
 
-function elementId(prefix: 'text' | 'asset' | 'icon', id: string) {
+const POSTER_TEXT_SLOTS = new Set<PosterTextSlot>([
+  'trail_name',
+  'occasion_text',
+  'location_text',
+  'distance',
+  'elevation_gain',
+  'date',
+  'coordinates',
+  'start_pin_label',
+  'finish_pin_label',
+  'composition_kicker',
+  'composition_meta',
+  'composition_footer',
+  'composition_side_rail',
+])
+
+function elementId(prefix: 'text' | 'asset' | 'icon' | 'slot', id: string) {
   return `${prefix}:${id}`
 }
 
-function splitElementId(id: string): { prefix: 'text' | 'asset' | 'icon'; rawId: string } | null {
+function splitElementId(id: string): { prefix: 'text' | 'asset' | 'icon'; rawId: string } | { prefix: 'slot'; rawId: PosterTextSlot } | null {
   const [prefix, ...parts] = id.split(':')
   if ((prefix === 'text' || prefix === 'asset' || prefix === 'icon') && parts.length) {
     return { prefix, rawId: parts.join(':') }
+  }
+  if (prefix === 'slot' && parts.length) {
+    const slot = parts.join(':') as PosterTextSlot
+    return POSTER_TEXT_SLOTS.has(slot) ? { prefix, rawId: slot } : null
   }
   return null
 }
@@ -207,10 +228,11 @@ export function createIconOverlay(config: StyleConfig, icon: PosterIconId = 'mou
 export function getPosterEditorElements(
   config: StyleConfig,
   stats?: RouteStats,
-  opts: { includeHidden?: boolean } = {},
+  opts: { includeHidden?: boolean; editableTextSlots?: readonly PosterTextSlot[] | null } = {},
 ): PosterEditorElement[] {
   const layout = effectivePosterLayout(config, stats)
   const themeElements: PosterEditorElement[] = []
+  const slotEditable = (slot: PosterTextSlot) => !opts.editableTextSlots || opts.editableTextSlots.includes(slot)
 
   for (const [bandId, band] of Object.entries(layout.bands) as Array<[ChromeBandId, typeof layout.bands[ChromeBandId]]>) {
     for (const row of band.rows) {
@@ -218,16 +240,17 @@ export function getPosterEditorElements(
         const block = cell.block
         if (!block || block.empty || block.deleted || block.removed) continue
         if (block.kind === 'spacer') continue
+        const editableSlot = block.slot ? slotEditable(block.slot) : false
         themeElements.push({
-          id: `theme:${bandId}:${row.id}:${cell.id}:${block.id}`,
+          id: editableSlot && block.slot ? elementId('slot', block.slot) : `theme:${bandId}:${row.id}:${cell.id}:${block.id}`,
           rawId: block.id,
           kind: 'theme-text',
           label: block.label ?? (block.slot ? CHROME_BLOCK_KIND_LABELS[block.kind] : block.text ?? CHROME_BLOCK_KIND_LABELS[block.kind]),
           source: 'theme',
-          locked: true,
+          locked: !editableSlot,
           hidden: false,
-          canTransform: false,
-          canEditContent: block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image',
+          canTransform: editableSlot,
+          canEditContent: editableSlot && block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image',
           canDelete: false,
           zIndex: 10,
           slot: block.slot,
@@ -277,6 +300,25 @@ export function getPosterEditorElements(
 export function patchPosterEditorElement(config: StyleConfig, id: string, patch: PosterEditorElementPatch): StyleConfig {
   const parsed = splitElementId(id)
   if (!parsed) return config
+
+  if (parsed.prefix === 'slot') {
+    const current = config.poster_text_overrides ?? {}
+    const existing = current[parsed.rawId] ?? {}
+    const next = {
+      ...existing,
+      ...(patch.content != null ? { text: patch.content } : {}),
+      ...(patch.color != null ? { color: patch.color } : {}),
+      ...(patch.opacity != null ? { opacity: clampOpacity(patch.opacity) } : {}),
+      ...(patch.font_size_pt != null ? { font_size_pt: Math.min(240, Math.max(6, patch.font_size_pt)) } : {}),
+    }
+    return {
+      ...config,
+      poster_text_overrides: {
+        ...current,
+        [parsed.rawId]: next,
+      },
+    }
+  }
 
   if (parsed.prefix === 'text') {
     return {

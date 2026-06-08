@@ -118,6 +118,8 @@
             :poster-editor-mode="posterEditorMode"
             :poster-guides-visible="posterGuidesVisible"
             :selected-poster-element-id="selectedPosterElementId"
+            :editable-text-slots="posterEditableTextSlots"
+            :guided-poster-editor="posterElementsEditor"
             class="w-full h-full"
             @update:trail-name="setStyle({ trail_name: $event })"
             @update:occasion-text="setStyle({ occasion_text: $event })"
@@ -259,6 +261,7 @@ import {
   removePosterEditorElement,
   type PosterEditorElementPatch,
 } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 import {
   buildElevationProfile,
   detectDisconnectedRanges,
@@ -366,6 +369,9 @@ const posterElementsEditor = computed(() => {
   const queryEnabled = queryValue === '1' || queryValue === 'true'
   return posterElementsEditorFlag.value || (import.meta.dev && queryEnabled)
 })
+const posterEditableTextSlots = computed(() =>
+  posterElementsEditor.value ? posterEditorAllowlistForStyle(styleConfig.value).textSlots : null,
+)
 const fixedTemplateEditorActive = computed(() => {
   const queryValue = route.query.surfaceTemplateEditor ?? route.query.templateEditor
   const queryEnabled = queryValue === '1' || queryValue === 'true'
