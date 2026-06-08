@@ -310,12 +310,78 @@ export interface ChromeBand {
   rows: ChromeGridRow[]
 }
 
+// ─── Poster Anchor Layout ────────────────────────────────────────────────────
+
+export type AnchorTarget = 'poster' | 'map' | ChromeBandId | { elementId: string }
+export type AnchorEdge = 'top' | 'bottom' | 'left' | 'right' | 'center' | 'fill'
+export type AnchorLengthUnit = 'cqw' | 'cqh' | 'px' | '%' | 'fr'
+export type AnchorVariableToken = 'print-bleed'
+export type AnchorDecorationToken =
+  | 'cartouche-titleblock'
+  | 'sea-chart-titleblock'
+  | 'art-wash-titleblock'
+
+export type AnchorLength =
+  | { kind: 'unit'; value: number; unit: AnchorLengthUnit }
+  | { kind: 'var'; token: AnchorVariableToken; fallback?: Extract<AnchorLength, { kind: 'unit' }> }
+  | { kind: 'calc'; terms: Array<{ op: '+' | '-'; value: AnchorLength }> }
+  | { kind: 'min' | 'max'; values: AnchorLength[] }
+
+export type AnchorTransform =
+  | { kind: 'translateX' | 'translateY'; value: AnchorLength }
+  | { kind: 'translate'; x: AnchorLength; y: AnchorLength }
+  | { kind: 'rotate'; deg: number }
+
+export interface AnchorBox {
+  left?: AnchorLength
+  right?: AnchorLength
+  top?: AnchorLength
+  bottom?: AnchorLength
+  width?: AnchorLength
+  height?: AnchorLength
+  maxWidth?: AnchorLength
+  maxHeight?: AnchorLength
+  padding?: [AnchorLength, AnchorLength, AnchorLength, AnchorLength]
+  transform?: AnchorTransform[]
+  decorations?: AnchorDecorationToken[]
+}
+
+export interface AnchorFitConfig {
+  targetSizeCqh?: number
+  minScale?: number
+  maxLines?: number
+  overflow?: 'clip' | 'clamp'
+}
+
+export interface AnchorFrame {
+  id: string
+  anchorTo: AnchorTarget
+  edge: AnchorEdge
+  displacesMap: boolean
+  offset?: { x?: AnchorLength; y?: AnchorLength }
+  size?: { width?: AnchorLength; height?: AnchorLength }
+  z?: number
+  slot?: PosterTextSlot
+  fit?: AnchorFitConfig
+  rows?: ChromeGridRow[]
+  userPinned?: boolean
+  box?: AnchorBox
+  deleted?: boolean
+}
+
+export type PartialAnchorFrame = Partial<Omit<AnchorFrame, 'id' | 'rows'>> & {
+  id: string
+  rows?: ChromeGridRow[]
+}
+
 export interface PosterLayout {
   bands: Record<ChromeBandId, ChromeBand>
+  anchors?: AnchorFrame[]
 }
 
 export interface PartialPosterLayout {
   bands?: Partial<Record<ChromeBandId, Partial<ChromeBand>>>
+  anchors?: PartialAnchorFrame[]
 }
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────

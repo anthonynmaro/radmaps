@@ -1,4 +1,7 @@
 import type {
+  AnchorFrame,
+  AnchorLength,
+  AnchorLengthUnit,
   ChromeBand,
   ChromeBandId,
   ChromeBlock,
@@ -6,6 +9,7 @@ import type {
   ChromeGridCell,
   ChromeGridRow,
   PartialPosterLayout,
+  PartialAnchorFrame,
   PosterLayout,
   PosterTextSlot,
   RouteStats,
@@ -13,6 +17,7 @@ import type {
 } from '~/types'
 
 export const CHROME_BANDS: ChromeBandId[] = ['header', 'footer', 'railLeft', 'railRight']
+export const CHROME_BAND_HEIGHT_BOUNDS = { min: 8, max: 34 } as const
 
 export const CHROME_BLOCK_KIND_LABELS: Record<ChromeBlock['kind'], string> = {
   title: 'Title',
@@ -91,6 +96,38 @@ function row(id: string, cells: ChromeGridCell[], patch: Partial<ChromeGridRow> 
 
 function band(patch: Omit<ChromeBand, 'rows'> & { rows: ChromeGridRow[] }): ChromeBand {
   return patch
+}
+
+type AnchorUnitLength = Extract<AnchorLength, { kind: 'unit' }>
+
+function unit(value: number, unitValue: AnchorLengthUnit): AnchorUnitLength {
+  return { kind: 'unit', value, unit: unitValue }
+}
+
+function printBleed(): AnchorLength {
+  return { kind: 'var', token: 'print-bleed', fallback: unit(0, 'px') }
+}
+
+function plusPrintBleed(value: number, unitValue: AnchorLengthUnit): AnchorLength {
+  return {
+    kind: 'calc',
+    terms: [
+      { op: '+', value: unit(value, unitValue) },
+      { op: '+', value: printBleed() },
+    ],
+  }
+}
+
+function minLength(a: AnchorLength, b: AnchorLength): AnchorLength {
+  return { kind: 'min', values: [a, b] }
+}
+
+function boxPadding(top: number, right: number, bottom: number, left: number): [AnchorLength, AnchorLength, AnchorLength, AnchorLength] {
+  return [unit(top, 'cqh'), unit(right, 'cqw'), unit(bottom, 'cqh'), unit(left, 'cqw')]
+}
+
+export function clampChromeBandHeight(height: number) {
+  return Math.round(Math.min(CHROME_BAND_HEIGHT_BOUNDS.max, Math.max(CHROME_BAND_HEIGHT_BOUNDS.min, height)) * 10) / 10
 }
 
 type ChromeLayoutRecipe = {
@@ -368,7 +405,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
     footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.58 }), footerCellPatch('brand', composition)))
   }
 
-  return {
+  const layout: PosterLayout = {
     bands: {
       header: band({ height: recipe.headerHeight, rows: headerRows }),
       footer: band({ height: recipe.footerHeight, rows: [
@@ -386,6 +423,78 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
       }),
     },
   }
+  return {
+    ...layout,
+    anchors: [
+      ...bandsToAnchorFrames(layout),
+      ...overMapTitleblockAnchorFrames(styleConfig),
+    ],
+  }
+}
+
+function overMapTitleblockAnchorFrames(styleConfig: StyleConfig): AnchorFrame[] {
+  switch (styleConfig.composition) {
+    case 'place-frame':
+      return [{
+        id: 'free-place-frame-titleblock',
+        anchorTo: 'map',
+        edge: 'center',
+        displacesMap: false,
+        z: 18,
+        box: {
+          left: unit(13.5, 'cqw'),
+          right: unit(13.5, 'cqw'),
+          top: unit(50, '%'),
+          padding: boxPadding(2.65, 3.8, 2.65, 3.8),
+          transform: [{ kind: 'translateY', value: unit(-50, '%') }],
+          decorations: ['cartouche-titleblock'],
+        },
+      }]
+    case 'sea-chart':
+      return [{
+        id: 'free-sea-chart-titleblock',
+        anchorTo: 'map',
+        edge: 'bottom',
+        displacesMap: false,
+        z: 18,
+        box: {
+          left: plusPrintBleed(5.2, 'cqw'),
+          bottom: plusPrintBleed(4, 'cqh'),
+          width: minLength(unit(82, 'cqw'), unit(54, 'cqh')),
+          padding: boxPadding(0, 0, 0, 0),
+          decorations: ['sea-chart-titleblock'],
+        },
+      }]
+    case 'art-wash': {
+      const pleinAir = styleConfig.color_theme === 'plein-air'
+      const contourWash = styleConfig.color_theme === 'contour-wash'
+      return [{
+        id: 'free-art-wash-titleblock',
+        anchorTo: 'map',
+        edge: 'bottom',
+        displacesMap: false,
+        z: 18,
+        box: pleinAir
+          ? {
+              left: plusPrintBleed(6.9, 'cqw'),
+              bottom: plusPrintBleed(7.4, 'cqh'),
+              width: minLength(unit(55, 'cqw'), unit(33, 'cqh')),
+              padding: boxPadding(1.05, 2.1, 1.1, 2.1),
+              decorations: ['art-wash-titleblock'],
+            }
+          : {
+              left: unit(50, '%'),
+              bottom: plusPrintBleed(contourWash ? 6.9 : 7, 'cqh'),
+              width: minLength(unit(72, 'cqw'), unit(34, 'cqh')),
+              padding: contourWash ? boxPadding(0.65, 2.2, 0.85, 2.2) : boxPadding(1.55, 3.5, 1.55, 3.5),
+              transform: [{ kind: 'translateX', value: unit(-50, '%') }],
+              decorations: ['art-wash-titleblock'],
+            },
+      }]
+    }
+    default:
+      return []
+  }
 }
 
 function cloneBand(bandValue: ChromeBand): ChromeBand {
@@ -400,6 +509,59 @@ function cloneBand(bandValue: ChromeBand): ChromeBand {
       })),
     })),
   }
+}
+
+function cloneAnchor(anchor: AnchorFrame): AnchorFrame {
+  return {
+    ...anchor,
+    offset: anchor.offset ? { ...anchor.offset } : undefined,
+    size: anchor.size ? { ...anchor.size } : undefined,
+    fit: anchor.fit ? { ...anchor.fit } : undefined,
+    rows: anchor.rows?.map(rowValue => ({
+      ...rowValue,
+      cells: rowValue.cells.map(cellValue => ({
+        ...cellValue,
+        block: cellValue.block ? { ...cellValue.block } : undefined,
+      })),
+    })),
+    box: anchor.box
+      ? {
+          ...anchor.box,
+          padding: anchor.box.padding ? [...anchor.box.padding] as typeof anchor.box.padding : undefined,
+          transform: anchor.box.transform?.map(transform => ({ ...transform })),
+          decorations: anchor.box.decorations ? [...anchor.box.decorations] : undefined,
+        }
+      : undefined,
+  }
+}
+
+function mergeAnchors(defaultAnchors: AnchorFrame[] = [], editedAnchors?: PartialAnchorFrame[]) {
+  if (!editedAnchors) return defaultAnchors.map(cloneAnchor)
+  const byId = new Map<string, AnchorFrame>(defaultAnchors.map(anchor => [
+    anchor.id,
+    cloneAnchor(anchor),
+  ]))
+  const order = defaultAnchors.map(anchor => anchor.id)
+
+  for (const edit of editedAnchors) {
+    const existing = byId.get(edit.id)
+    const next = {
+      ...(existing ?? {}),
+      ...edit,
+      offset: edit.offset === undefined ? existing?.offset : { ...(existing?.offset ?? {}), ...edit.offset },
+      size: edit.size === undefined ? existing?.size : { ...(existing?.size ?? {}), ...edit.size },
+      fit: edit.fit === undefined ? existing?.fit : { ...(existing?.fit ?? {}), ...edit.fit },
+      box: edit.box === undefined ? existing?.box : { ...(existing?.box ?? {}), ...edit.box },
+      rows: edit.rows === undefined ? existing?.rows : mergeRows(existing?.rows ?? [], edit.rows),
+    } as AnchorFrame
+    byId.set(edit.id, next)
+    if (!order.includes(edit.id)) order.push(edit.id)
+  }
+
+  return order
+    .map(id => byId.get(id))
+    .filter((anchor): anchor is AnchorFrame => Boolean(anchor && !anchor.deleted))
+    .map(cloneAnchor)
 }
 
 function mergeCells(defaultCells: ChromeGridCell[], editedCells?: ChromeGridCell[]) {
@@ -453,13 +615,21 @@ function mergeRows(defaultRows: ChromeGridRow[], editedRows?: ChromeGridRow[]) {
 }
 
 export function mergePosterLayout(defaultLayout: PosterLayout, sparse?: PartialPosterLayout): PosterLayout {
-  if (!sparse) return {
-    bands: {
+  const defaultFreeAnchors = (defaultLayout.anchors ?? []).filter(anchor => !anchor.id.startsWith('band-'))
+  if (!sparse) {
+    const bands = {
       header: cloneBand(defaultLayout.bands.header),
       footer: cloneBand(defaultLayout.bands.footer),
       railLeft: cloneBand(defaultLayout.bands.railLeft),
       railRight: cloneBand(defaultLayout.bands.railRight),
-    },
+    }
+    return {
+      bands,
+      anchors: mergeAnchors([
+        ...bandsToAnchorFrames({ bands }),
+        ...defaultFreeAnchors,
+      ]),
+    }
   }
 
   const bands = {} as PosterLayout['bands']
@@ -469,11 +639,23 @@ export function mergePosterLayout(defaultLayout: PosterLayout, sparse?: PartialP
     bands[bandId] = {
       ...cloneBand(defaults),
       ...edits,
+      height: edits?.height == null ? defaults.height : clampChromeBandHeight(edits.height),
       padding: edits?.padding ? [...edits.padding] as [number, number, number, number] : defaults.padding,
       rows: mergeRows(defaults.rows, edits?.rows),
     }
   }
-  return { bands }
+  return {
+    bands: {
+      header: cloneBand(bands.header),
+      footer: cloneBand(bands.footer),
+      railLeft: cloneBand(bands.railLeft),
+      railRight: cloneBand(bands.railRight),
+    },
+    anchors: mergeAnchors([
+      ...bandsToAnchorFrames({ bands }),
+      ...defaultFreeAnchors,
+    ], sparse.anchors),
+  }
 }
 
 export function effectivePosterLayout(styleConfig: StyleConfig, stats?: RouteStats): PosterLayout {
@@ -491,9 +673,49 @@ export function patchPosterLayout(
     bands[bandId] = {
       ...(bands[bandId] ?? {}),
       ...bandPatch,
+      height: bandPatch.height == null ? bands[bandId]?.height : clampChromeBandHeight(bandPatch.height),
     }
   }
-  return {
-    bands,
+
+  const anchorsById = new Map<string, NonNullable<PartialPosterLayout['anchors']>[number]>()
+  for (const anchor of current?.anchors ?? []) anchorsById.set(anchor.id, { ...anchor })
+  for (const anchor of patch.anchors ?? []) {
+    anchorsById.set(anchor.id, {
+      ...(anchorsById.get(anchor.id) ?? {}),
+      ...anchor,
+    })
   }
+
+  return {
+    ...(Object.keys(bands).length ? { bands } : {}),
+    ...(anchorsById.size ? { anchors: Array.from(anchorsById.values()) } : {}),
+  }
+}
+
+function bandAnchorEdge(bandId: ChromeBandId) {
+  if (bandId === 'footer') return 'bottom'
+  if (bandId === 'railLeft') return 'left'
+  if (bandId === 'railRight') return 'right'
+  return 'top'
+}
+
+function bandAnchorSize(bandId: ChromeBandId, bandValue: ChromeBand): AnchorFrame['size'] | undefined {
+  if (bandId === 'railLeft' || bandId === 'railRight') {
+    return bandValue.width != null ? { width: unit(bandValue.width, '%') } : undefined
+  }
+  return bandValue.height != null ? { height: unit(bandValue.height, '%') } : undefined
+}
+
+export function bandsToAnchorFrames(layout: Pick<PosterLayout, 'bands'>): AnchorFrame[] {
+  return CHROME_BANDS.map((bandId) => {
+    const bandValue = layout.bands[bandId]
+    return {
+      id: `band-${bandId}`,
+      anchorTo: 'poster',
+      edge: bandAnchorEdge(bandId),
+      displacesMap: true,
+      size: bandAnchorSize(bandId, bandValue),
+      rows: cloneBand(bandValue).rows,
+    }
+  })
 }
