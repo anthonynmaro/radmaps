@@ -1256,6 +1256,66 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
   })
 
+  test('keeps the map rect stable for content and free-anchor edits', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop anchor layout contract coverage')
+
+    await page.goto('/style-browser-fixture?editable=1&chrome=1&width=720&height=1080')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => Boolean((window as any).__RADMAPS_STYLE_FIXTURE__))).toBe(true)
+
+    const mapRect = async () => page.getByTestId('poster-map').evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      return {
+        top: Math.round(rect.top * 10) / 10,
+        left: Math.round(rect.left * 10) / 10,
+        width: Math.round(rect.width * 10) / 10,
+        height: Math.round(rect.height * 10) / 10,
+      }
+    })
+    const initial = await mapRect()
+
+    await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const current = fixture.getStyle()
+      fixture.setStyle({
+        poster_text_overrides: {
+          ...(current.poster_text_overrides ?? {}),
+          trail_name: { ...(current.poster_text_overrides?.trail_name ?? {}), text: 'AN INTENTIONALLY LONG SEA CHART ROUTE NAME' },
+        },
+      })
+    })
+    await page.waitForTimeout(200)
+    expect(await mapRect()).toEqual(initial)
+
+    await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const current = fixture.getStyle()
+      fixture.setStyle({
+        poster_layout: {
+          ...(current.poster_layout ?? {}),
+          anchors: [
+            ...((current.poster_layout?.anchors ?? []).filter((anchor: any) => anchor.id !== 'free-floating-contract-anchor')),
+            {
+              id: 'free-floating-contract-anchor',
+              anchorTo: 'map',
+              edge: 'bottom',
+              displacesMap: false,
+              z: 18,
+              box: {
+                bottom: { kind: 'unit', value: 8, unit: 'cqh' },
+                width: { kind: 'unit', value: 60, unit: 'cqw' },
+              },
+            },
+          ],
+        },
+      })
+    })
+    await page.waitForTimeout(200)
+    expect(await mapRect()).toEqual(initial)
+
+    await expect.poll(mapRect).toEqual(initial)
+  })
+
   test('wires chrome grid edits through the map editor surface', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop editor-surface chrome coverage')
 

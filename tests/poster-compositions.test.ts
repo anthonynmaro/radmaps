@@ -11,6 +11,7 @@ import {
 } from '~/utils/posterCompositions'
 import { getPosterTypography } from '~/utils/posterData'
 import { defaultPosterLayout } from '~/utils/posterLayout'
+import { POSTER_TEXT_SLOT_ANCHOR_OCCURRENCES } from '~/utils/posterSlotAnchors'
 import { DEFAULT_STYLE_CONFIG } from '../types'
 
 describe('poster composition registry', () => {
@@ -119,5 +120,41 @@ describe('poster composition registry', () => {
     expect(rule).toContain('font-style: italic !important;')
     expect(rule).toContain('text-align: left !important;')
     expect(rule).toContain('text-shadow:')
+  })
+
+  it('classifies every poster text slot occurrence by anchor location', () => {
+    const slots = new Set(POSTER_TEXT_SLOT_ANCHOR_OCCURRENCES.map(occurrence => occurrence.slot))
+    expect(slots).toEqual(new Set([
+      'trail_name',
+      'occasion_text',
+      'location_text',
+      'distance',
+      'elevation_gain',
+      'date',
+      'coordinates',
+      'start_pin_label',
+      'finish_pin_label',
+      'composition_kicker',
+      'composition_meta',
+      'composition_footer',
+      'composition_side_rail',
+    ]))
+  })
+
+  it('records free and map-level exceptions needed by the anchor model', () => {
+    const freeTitleblocks = POSTER_TEXT_SLOT_ANCHOR_OCCURRENCES
+      .filter(occurrence => occurrence.location === 'free-over-map-titleblock')
+      .map(occurrence => occurrence.id)
+
+    expect(freeTitleblocks).toContain('free-place-frame-titleblock')
+    expect(freeTitleblocks).toContain('free-sea-chart-titleblock')
+    expect(freeTitleblocks).toContain('free-art-wash-titleblock')
+    expect(POSTER_TEXT_SLOT_ANCHOR_OCCURRENCES).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'usgs-map-coordinate', slot: 'composition_kicker', anchorType: 'map' }),
+      expect.objectContaining({ id: 'usgs-map-scale', slot: 'composition_meta', anchorType: 'map' }),
+      expect.objectContaining({ id: 'composition-side-rail', slot: 'composition_side_rail', anchorType: 'map' }),
+      expect.objectContaining({ id: 'start-pin-label', slot: 'start_pin_label', location: 'map-pin-label' }),
+      expect.objectContaining({ id: 'finish-pin-label', slot: 'finish_pin_label', location: 'map-pin-label' }),
+    ]))
   })
 })
