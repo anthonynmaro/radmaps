@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const compositions = [
   ['editorial-tall', 'editorial-minimal'],
@@ -38,6 +38,13 @@ const finalPrintForbiddenSelectors = [
   '[data-testid="chrome-context-toolbar-handle"]',
   '[data-testid="composition-blueprint-drafting"]',
 ]
+
+async function waitForTextFitSettled(page: Page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const win = window as unknown as { __RADMAPS_TEXT_FIT_SETTLED?: boolean }
+    return win.__RADMAPS_TEXT_FIT_SETTLED === true
+  }), { timeout: 20_000 }).toBe(true)
+}
 
 const specThemeRecipes = [
   ['editorial-minimal', 'editorial-tall'],
@@ -1314,6 +1321,187 @@ test.describe('style browser visual harness', () => {
     expect(await mapRect()).toEqual(initial)
 
     await expect.poll(mapRect).toEqual(initial)
+  })
+
+  test('fits the H&H Connector title inside its over-map titleblock', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop text-fit proof coverage')
+
+    await page.goto('/style-browser-fixture?composition=sea-chart&theme=sea-chart&width=720&height=1080&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await waitForTextFitSettled(page)
+
+    const fit = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+      const title = document.querySelector<HTMLElement>('.poster-trail-name')
+      const headerBox = header?.getBoundingClientRect()
+      const titleBox = title?.getBoundingClientRect()
+      const scale = Number.parseFloat(title?.style.getPropertyValue('--radmaps-text-fit-scale') || '1')
+      return {
+        status: title?.dataset.textFitStatus,
+        scale,
+        insideHeader: Boolean(headerBox && titleBox
+          && titleBox.left >= headerBox.left - 1
+          && titleBox.right <= headerBox.right + 1
+          && titleBox.top >= headerBox.top - 1
+          && titleBox.bottom <= headerBox.bottom + 1),
+        text: title?.textContent?.trim(),
+      }
+    })
+
+    expect(fit.text).toBe('H&H CONNECTOR')
+    expect(['fit', 'clipped']).toContain(fit.status)
+    expect(fit.scale).toBeLessThanOrEqual(1)
+    expect(fit.insideHeader).toBe(true)
+  })
+
+  test('clips at the fit floor without moving the map', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop text-fit clipping coverage')
+
+    const longTitle = 'H&H CONNECTOR RIDGE TRAVERSE WITH AN IMPOSSIBLY LONG CEREMONIAL ROUTE NAME FOR PRINT PROOFING'
+    await page.goto(`/style-browser-fixture?composition=sea-chart&theme=sea-chart&width=720&height=1080&title=${encodeURIComponent(longTitle)}`, { waitUntil: 'domcontentloaded' })
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await waitForTextFitSettled(page)
+    const initialMap = await page.getByTestId('poster-map').boundingBox()
+
+    const fit = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
+      const title = document.querySelector<HTMLElement>('.poster-trail-name')
+      return {
+        status: title?.dataset.textFitStatus,
+        scale: Number.parseFloat(title?.style.getPropertyValue('--radmaps-text-fit-scale') || '1'),
+        titleEscapesHeader: Boolean(header && title && (
+          title.getBoundingClientRect().bottom > header.getBoundingClientRect().bottom + 1 ||
+          title.getBoundingClientRect().right > header.getBoundingClientRect().right + 1
+        )),
+      }
+    })
+
+    expect(['fit', 'clipped']).toContain(fit.status)
+    expect(fit.scale).toBeLessThanOrEqual(1)
+    expect(fit.titleEscapesHeader).toBe(false)
+
+    await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const current = fixture.getStyle()
+      fixture.setStyle({
+        poster_text_overrides: {
+          ...(current.poster_text_overrides ?? {}),
+          trail_name: {
+            ...(current.poster_text_overrides?.trail_name ?? {}),
+            text: `${current.poster_text_overrides?.trail_name?.text ?? ''} EXTENDED AGAIN`,
+          },
+        },
+      })
+    })
+    await waitForTextFitSettled(page)
+    const afterMap = await page.getByTestId('poster-map').boundingBox()
+    expect(afterMap).toEqual(initialMap)
+  })
+
+  test('keeps map geometry stable for long titles across refined themes', async ({ context }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop all-theme text-fit geometry coverage')
+    test.setTimeout(180_000)
+    const longTitle = 'H&H CONNECTOR RIDGE TRAVERSE WITH AN INTENTIONALLY LONG ROUTE NAME'
+
+    for (const [theme, composition] of specThemeRecipes) {
+      const page = await context.newPage()
+      await page.goto(`/style-browser-fixture?theme=${theme}&composition=${composition}&width=360&height=540`, { waitUntil: 'domcontentloaded' })
+      await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 20_000 })
+      await waitForTextFitSettled(page)
+      const before = await page.getByTestId('poster-map').evaluate(el => {
+        const rect = el.getBoundingClientRect()
+        return {
+          x: Math.round(rect.x * 10) / 10,
+          y: Math.round(rect.y * 10) / 10,
+          width: Math.round(rect.width * 10) / 10,
+          height: Math.round(rect.height * 10) / 10,
+        }
+      })
+
+      await page.evaluate((text) => {
+        const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+        const current = fixture.getStyle()
+        fixture.setStyle({
+          poster_text_overrides: {
+            ...(current.poster_text_overrides ?? {}),
+            trail_name: {
+              ...(current.poster_text_overrides?.trail_name ?? {}),
+              text,
+            },
+          },
+        })
+      }, longTitle)
+      await waitForTextFitSettled(page)
+      const after = await page.getByTestId('poster-map').evaluate(el => {
+        const rect = el.getBoundingClientRect()
+        return {
+          x: Math.round(rect.x * 10) / 10,
+          y: Math.round(rect.y * 10) / 10,
+          width: Math.round(rect.width * 10) / 10,
+          height: Math.round(rect.height * 10) / 10,
+        }
+      })
+      expect(after, `${theme}/${composition}`).toEqual(before)
+      await page.close()
+    }
+  })
+
+  test('honors manual font size instead of auto-fitting', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop manual text-fit coverage')
+
+    await page.goto('/style-browser-fixture?editable=1&chrome=1&width=720&height=1080&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => Boolean((window as any).__RADMAPS_STYLE_FIXTURE__))).toBe(true)
+    await page.evaluate(() => {
+      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
+      const current = fixture.getStyle()
+      fixture.setStyle({
+        poster_text_overrides: {
+          ...(current.poster_text_overrides ?? {}),
+          trail_name: {
+            ...(current.poster_text_overrides?.trail_name ?? {}),
+            font_size_pt: 120,
+          },
+        },
+      })
+    })
+    await waitForTextFitSettled(page)
+
+    await expect.poll(async () => page.evaluate(() => {
+      const title = document.querySelector<HTMLElement>('.chrome-grid-block[data-chrome-slot="trail_name"]')
+      const status = (window as any).__RADMAPS_TEXT_FIT_STATUS
+      return {
+        elementStatus: title?.dataset.textFitStatus,
+        manualCount: status?.manual ?? 0,
+        scale: title?.style.getPropertyValue('--radmaps-text-fit-scale'),
+      }
+    })).toMatchObject({
+      elementStatus: 'manual',
+      scale: '1',
+    })
+  })
+
+  test('waits for text fit before final print readiness', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop print readiness coverage')
+
+    await page.goto('/style-browser-fixture?print=final&printScale=20&composition=sea-chart&theme=sea-chart&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RENDER_READY?: boolean
+        __RADMAPS_RENDER_STATUS?: { textFitSettled?: boolean }
+        __RADMAPS_TEXT_FIT_SETTLED?: boolean
+      }
+      return {
+        ready: win.__RENDER_READY === true,
+        textFitSettled: win.__RADMAPS_TEXT_FIT_SETTLED === true,
+        renderTextFitSettled: win.__RADMAPS_RENDER_STATUS?.textFitSettled === true,
+      }
+    }), { timeout: 30_000 }).toMatchObject({
+      ready: true,
+      textFitSettled: true,
+      renderTextFitSettled: true,
+    })
   })
 
   test('wires chrome grid edits through the map editor surface', async ({ page }, testInfo) => {
