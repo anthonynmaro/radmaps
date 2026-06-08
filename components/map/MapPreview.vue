@@ -219,44 +219,8 @@
         @click.stop="openChromeSection('railLeft')"
       >LEFT RAIL</button>
 
-      <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
-      <div
-        v-if="editable && mapReady"
-        class="poster-controls"
-        :class="{ 'map-hovered': mapHovered }"
-      >
-        <!-- Undo / redo pill -->
-        <div class="control-pill">
-          <button
-            class="control-btn"
-            :disabled="segmentDrawMode ? !canUndoSegmentDrawPoint : !canUndo"
-            title="Undo (⌘Z)"
-            @click="requestUndo"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.061.025z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-          <span class="control-divider"/>
-          <button
-            class="control-btn"
-            :disabled="segmentDrawMode ? true : !canRedo"
-            title="Redo (⌘⇧Z)"
-            @click="emit('redo')"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M12.207 2.232a.75.75 0 00.025 1.06l4.146 3.958H6.375a5.375 5.375 0 000 10.75H9.25a.75.75 0 000-1.5H6.375a3.875 3.875 0 010-7.75h10.003l-4.146 3.957a.75.75 0 001.036 1.085l5.5-5.25a.75.75 0 000-1.085l-5.5-5.25a.75.75 0 00-1.061.025z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-        </div>
-
-        <FreezeControl
-          :frozen="styleConfig.map_frozen ?? false"
-          :map-hovered="mapHovered"
-          @freeze="freezeView"
-          @unfreeze="unfreezeView"
-        />
-      </div>
+      <!-- Undo/redo and the view lock now live in the editor panel (panel header +
+           Map → Viewpoint) so the poster preview stays free of overlay chrome. -->
 
       <!-- ── Logo: header-right position ──────────────────────────────────── -->
       <img
@@ -5303,6 +5267,10 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
         ? { ...cameraBeforeReload, pitch: effectivePitch(newConfig), bearing: effectiveBearing(newConfig) }
         : null
       mapReady.value = false
+      // Yield one frame before the synchronous style rebuild so the editor panel
+      // (e.g. the newly selected theme/preset highlight) repaints immediately
+      // instead of being blocked behind buildScaledMapStyle + setStyle.
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
       if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
       mapInstance.setStyle(newStyle)
@@ -7885,13 +7853,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  opacity: 0.55;
+  opacity: 0.9;
   transition: opacity 0.2s ease;
   pointer-events: auto;
 }
-.poster-controls.map-hovered {
-  opacity: 0.9;
-}
+.poster-controls.map-hovered,
 .poster-controls:hover {
   opacity: 1;
 }
