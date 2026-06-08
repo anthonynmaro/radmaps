@@ -10997,7 +10997,9 @@ onUnmounted(() => {
 }
 
 .sea-chart-rose {
+  color: var(--route-color, #a6245d);
   opacity: 0.96;
+  filter: drop-shadow(0 0 0.18cqh color-mix(in srgb, currentColor 20%, transparent));
 }
 
 .sea-chart-rose circle {
