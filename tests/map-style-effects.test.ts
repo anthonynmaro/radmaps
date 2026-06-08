@@ -1686,12 +1686,17 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.route_color).toBe('#151412')
     expect(config.route_opacity).toBe(0.98)
     expect(layerById(style, 'route-line-contour-wash-field')?.source).toBe('route')
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.source).toBe('route')
     expect(layerById(style, 'route-line-contour-wash-echo-low')?.source).toBe('route')
     expect(layerById(style, 'route-line-contour-wash-echo-high')?.source).toBe('route')
     expect(layerById(style, 'route-line-contour-wash-field')?.paint?.['line-color']).toBe('#F2F3EF')
     expect(layerById(style, 'route-line-contour-wash-field')?.paint?.['line-width']).toBe(14)
     expect(layerById(style, 'route-line-contour-wash-field')?.paint?.['line-opacity']).toBeCloseTo(0.294)
     expect(layerById(style, 'route-line-contour-wash-field')?.paint?.['line-blur']).toBe(4.2)
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-color']).toBe('#151412')
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-width']).toBeCloseTo(1.5)
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-opacity']).toBeCloseTo(0.4508)
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-translate']).toEqual([1.6, -1.3])
     expect(layerById(style, 'route-line-contour-wash-echo-low')?.paint?.['line-color']).toBe('#C7C3BB')
     expect(layerById(style, 'route-line-contour-wash-echo-low')?.paint?.['line-width']).toBe(4.8500000000000005)
     expect(layerById(style, 'route-line-contour-wash-echo-low')?.paint?.['line-opacity']).toBeCloseTo(0.5096)
@@ -1704,7 +1709,8 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'route-line-contour-wash-echo-high')?.paint?.['line-dasharray']).toEqual([2.2, 3.6])
     expect(layerIndex(style, 'route-line-contour-wash-field')).toBeLessThan(layerIndex(style, 'route-line-casing'))
     expect(layerIndex(style, 'route-line-casing')).toBeLessThan(layerIndex(style, 'route-line'))
-    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'route-line-contour-wash-echo-low'))
+    expect(layerIndex(style, 'route-line')).toBeLessThan(layerIndex(style, 'route-line-contour-wash-dark-echo'))
+    expect(layerIndex(style, 'route-line-contour-wash-dark-echo')).toBeLessThan(layerIndex(style, 'route-line-contour-wash-echo-low'))
     expect(layerIndex(style, 'route-line-contour-wash-echo-low')).toBeLessThan(layerIndex(style, 'route-line-contour-wash-echo-high'))
   })
 
@@ -1747,17 +1753,19 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'contours-ghost-texture')?.paint?.['line-opacity']).toBe(0.08)
     expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#C7C3BB')
     expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.48, 14, 0.48 * 0.9,
+      'interpolate', ['linear'], ['zoom'], 5, 0.36, 14, 0.36 * 0.9,
     ])
     expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 1.32 * 0.8, 14, 1.32,
+      'interpolate', ['linear'], ['zoom'], 5, 0.54 * 0.8, 14, 0.54,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#7A756E')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.60)
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.48)
     expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.92 * 1.5, 14, 0.92 * 2.5,
+      'interpolate', ['linear'], ['zoom'], 5, 0.76 * 1.5, 14, 0.76 * 2.5,
     ])
     expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#151412')
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-color']).toBe('#151412')
+    expect(layerById(style, 'route-line-contour-wash-dark-echo')?.paint?.['line-width']).toBeCloseTo(1.5)
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(5.2)
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.98)
   })

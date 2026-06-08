@@ -4923,6 +4923,9 @@ const botanicalPlateLatitude = computed(() => {
   const suffix = lat >= 0 ? 'N' : 'S'
   return `${Math.abs(lat).toFixed(4)}°${suffix}`
 })
+const contourWashEyebrow = computed(() => {
+  return `ITALIA · ${botanicalPlateLatitude.value || '46.6186°N'}`
+})
 
 const hasRenderableRoute = computed(() => {
   const hasVisibleSegments = (props.styleConfig.trail_segments ?? []).some(segment => segment.visible)
@@ -5147,6 +5150,11 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         footerNote: `${occasionText.value || trailName.value}\n${locationText.value}`,
       }
     case 'art-wash':
+      if (props.styleConfig.color_theme === 'contour-wash') {
+        return {
+          kicker: contourWashEyebrow.value,
+        }
+      }
       return {
         kicker: `${location} · ${coords.value?.lat ?? ''}`.trim(),
       }
@@ -13273,6 +13281,7 @@ onUnmounted(() => {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
+  overflow: visible !important;
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] .poster-header::after {
@@ -13285,6 +13294,17 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--label-text-color, #151412) 28%, transparent);
 }
 
+.poster-composition--art-wash[data-theme="contour-wash"] .composition-kicker {
+  top: -72cqh;
+  z-index: 22;
+  color: color-mix(in srgb, var(--label-text-color, #151412) 74%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 0.88cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.24em !important;
+  opacity: 0.82 !important;
+}
+
 .poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"] {
   background: #ebe9e6 !important;
 }
@@ -13295,13 +13315,13 @@ onUnmounted(() => {
   inset: 0;
   z-index: 12;
   pointer-events: none;
-  opacity: 0.28;
+  opacity: 0.22;
   mix-blend-mode: multiply;
   background:
-    radial-gradient(ellipse at 18% 22%, transparent 0 12%, rgba(21, 20, 18, 0.18) 12.18% 12.32%, transparent 12.6% 18%, rgba(21, 20, 18, 0.12) 18.18% 18.3%, transparent 18.6%),
-    radial-gradient(ellipse at 72% 18%, transparent 0 10%, rgba(21, 20, 18, 0.16) 10.18% 10.32%, transparent 10.6% 16%, rgba(21, 20, 18, 0.10) 16.18% 16.3%, transparent 16.6%),
-    radial-gradient(ellipse at 42% 58%, transparent 0 14%, rgba(21, 20, 18, 0.16) 14.18% 14.32%, transparent 14.6% 21%, rgba(21, 20, 18, 0.10) 21.18% 21.3%, transparent 21.6%),
-    radial-gradient(ellipse at 82% 76%, transparent 0 12%, rgba(21, 20, 18, 0.14) 12.18% 12.32%, transparent 12.6% 18%, rgba(21, 20, 18, 0.09) 18.18% 18.3%, transparent 18.6%);
+    radial-gradient(ellipse at 18% 20%, transparent 0 10.4%, rgba(21, 20, 18, 0.20) 10.48% 10.58%, transparent 10.68% 13.2%, rgba(21, 20, 18, 0.16) 13.28% 13.38%, transparent 13.48% 16%, rgba(21, 20, 18, 0.12) 16.08% 16.18%, transparent 16.28%),
+    radial-gradient(ellipse at 72% 18%, transparent 0 8.6%, rgba(21, 20, 18, 0.18) 8.68% 8.78%, transparent 8.88% 11.4%, rgba(21, 20, 18, 0.13) 11.48% 11.58%, transparent 11.68% 14.6%, rgba(21, 20, 18, 0.10) 14.68% 14.78%, transparent 14.88%),
+    radial-gradient(ellipse at 42% 58%, transparent 0 12.1%, rgba(21, 20, 18, 0.18) 12.18% 12.28%, transparent 12.38% 15.4%, rgba(21, 20, 18, 0.14) 15.48% 15.58%, transparent 15.68% 18.7%, rgba(21, 20, 18, 0.10) 18.78% 18.88%, transparent 18.98%),
+    radial-gradient(ellipse at 82% 76%, transparent 0 10.2%, rgba(21, 20, 18, 0.16) 10.28% 10.38%, transparent 10.48% 13.2%, rgba(21, 20, 18, 0.12) 13.28% 13.38%, transparent 13.48% 16%, rgba(21, 20, 18, 0.09) 16.08% 16.18%, transparent 16.28%);
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::after {
@@ -13310,12 +13330,12 @@ onUnmounted(() => {
   inset: 0;
   z-index: 11;
   pointer-events: none;
-  background: rgba(235, 233, 230, 0.78);
+  background: rgba(235, 233, 230, 0.62);
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] .maplibregl-canvas {
-  filter: grayscale(1) brightness(2.28) contrast(0.34) saturate(0.02);
-  opacity: 0.62;
+  filter: grayscale(1) brightness(2.15) contrast(0.42) saturate(0.02);
+  opacity: 0.72;
 }
 
 .poster-composition--art-wash[data-theme="plein-air"] .poster-header {

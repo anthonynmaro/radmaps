@@ -20,7 +20,15 @@ const compositions = [
   ['transit-diagram', 'transit-diagram'],
 ] as const
 
-const headerDecorCompositions = new Set(['blueprint-grid', 'blueprint-strava', 'splits-grid'])
+const headerDecorCompositions = new Set([
+  'blueprint-grid',
+  'blueprint-strava',
+  'splits-grid',
+  'darksky-stars',
+  'art-wash',
+  'place-frame',
+  'sea-chart',
+])
 const hiddenFooterCompositions = new Set(['art-wash', 'place-frame', 'sea-chart'])
 
 const finalPrintForbiddenSelectors = [

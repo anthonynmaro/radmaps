@@ -1163,6 +1163,18 @@ function routeLayers(config: StyleConfig) {
   const contourStudyMarks = isContourWashRoute
     ? [
         withScaleMetadata({
+          id: 'route-line-contour-wash-dark-echo',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#151412',
+            'line-width': Math.max(1, config.route_width - 3.7),
+            'line-opacity': Math.min(config.route_opacity * 0.46, 0.46),
+            'line-translate': [1.6, -1.3],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
           id: 'route-line-contour-wash-echo-low',
           type: 'line',
           source: 'route',

@@ -356,7 +356,11 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   const headerRows: ChromeGridRow[] = [
     spacerRow('header-spacer-top', 'Top spacer', recipe.headerTopFr),
   ]
-  if ((compositionUsesHeaderDecor(composition) || styleConfig.color_theme === 'relief-shaded') && !isUsgsHeritage) {
+  const usesHeaderDecor = compositionUsesHeaderDecor(composition) ||
+    styleConfig.color_theme === 'relief-shaded' ||
+    styleConfig.color_theme === 'contour-wash'
+
+  if (usesHeaderDecor && !isUsgsHeritage) {
     headerRows.push(row('header-meta', [
       cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: recipe.kickerScale })),
       cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: recipe.metaScale })),
