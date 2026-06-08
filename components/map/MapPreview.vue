@@ -10060,7 +10060,7 @@ onUnmounted(() => {
 .poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field {
   z-index: 13;
   inset: 0 0 30% 0;
-  color: var(--label-text-color, #f0d9bf);
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 78%, var(--label-text-color, #f0d9bf) 22%);
   filter: drop-shadow(0 0 0.5cqh color-mix(in srgb, currentColor 52%, transparent));
   mix-blend-mode: normal;
   background-image:
@@ -10126,7 +10126,7 @@ onUnmounted(() => {
   content: "";
   position: absolute;
   inset: 0;
-  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 90%, var(--route-color, #f0b15f) 10%);
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 68%, var(--label-text-color, #f0d9bf) 32%);
   background-image:
     radial-gradient(circle at 21% 23%, currentColor 0 0.12cqw, transparent 0.18cqw),
     radial-gradient(circle at 68% 37%, currentColor 0 0.085cqw, transparent 0.14cqw),
@@ -10141,12 +10141,12 @@ onUnmounted(() => {
     1.4cqw 7.8cqh;
   background-repeat: repeat;
   background-size:
-    13cqw 11cqh,
-    17cqw 14cqh,
-    19cqw 16cqh,
-    23cqw 19cqh,
-    11cqw 13cqh;
-  opacity: 0.88;
+    4cqw 4cqh,
+    5cqw 5cqh,
+    6cqw 6cqh,
+    7cqw 7cqh,
+    4cqw 5cqh;
+  opacity: 1;
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-constellation {
@@ -10187,7 +10187,7 @@ onUnmounted(() => {
   left: calc(26cqw + var(--print-bleed, 0px));
   width: 56cqw;
   height: 36cqh;
-  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 88%, transparent);
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 76%, var(--label-text-color, #f0d9bf) 24%);
   opacity: 0.98;
 }
 
