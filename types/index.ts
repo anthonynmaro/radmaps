@@ -283,6 +283,7 @@ export interface ChromeBlock {
   bold?: boolean
   italic?: boolean
   underline?: boolean
+  fit?: AnchorFitConfig
 }
 
 export interface ChromeGridCell {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type AnchorLength, type PartialPosterLayout, type RouteStats, type StyleConfig } from '../types'
-import { bandsToAnchorFrames, clampChromeBandHeight, defaultPosterLayout, effectivePosterLayout, mergePosterLayout, patchPosterLayout } from '../utils/posterLayout'
+import { CHROME_BLOCK_FIT_DEFAULTS, bandsToAnchorFrames, clampChromeBandHeight, defaultPosterLayout, effectivePosterLayout, mergePosterLayout, patchPosterLayout } from '../utils/posterLayout'
+import { textFitFloorCqh } from '../utils/textFit'
 
 const stats: RouteStats = {
   distance_km: 10,
@@ -264,6 +265,17 @@ describe('poster layout merge', () => {
     expect(clampChromeBandHeight(19.94)).toBe(19.9)
     expect(clampChromeBandHeight(19.95)).toBe(20)
     expect(clampChromeBandHeight(52)).toBe(34)
+  })
+
+  it('defines bounded text-fit floors for every chrome block kind', () => {
+    for (const [kind, fit] of Object.entries(CHROME_BLOCK_FIT_DEFAULTS)) {
+      expect(fit.minScale, kind).toBeGreaterThanOrEqual(0.1)
+      expect(fit.minScale, kind).toBeLessThanOrEqual(1)
+      expect(textFitFloorCqh({ targetSizeCqh: 4, minScale: fit.minScale })).toBeLessThanOrEqual(4)
+    }
+    expect(CHROME_BLOCK_FIT_DEFAULTS.title).toMatchObject({ maxLines: 3, overflow: 'clip' })
+    expect(CHROME_BLOCK_FIT_DEFAULTS.subtitle).toMatchObject({ maxLines: 1, overflow: 'clamp' })
+    expect(CHROME_BLOCK_FIT_DEFAULTS.stat.minScale).toBeGreaterThan(CHROME_BLOCK_FIT_DEFAULTS.title.minScale)
   })
 
   it('merges additive free anchors without replacing legacy band layout', () => {

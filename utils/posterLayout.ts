@@ -35,6 +35,26 @@ export const CHROME_BLOCK_KIND_LABELS: Record<ChromeBlock['kind'], string> = {
   text: 'Text',
 }
 
+export const CHROME_BLOCK_FIT_DEFAULTS: Record<ChromeBlock['kind'], Required<Pick<NonNullable<ChromeBlock['fit']>, 'minScale' | 'overflow'>> & Pick<NonNullable<ChromeBlock['fit']>, 'maxLines'>> = {
+  title: { minScale: 0.42, maxLines: 3, overflow: 'clip' },
+  subtitle: { minScale: 0.66, maxLines: 1, overflow: 'clamp' },
+  eyebrow: { minScale: 0.64, maxLines: 1, overflow: 'clamp' },
+  occasion: { minScale: 0.64, maxLines: 1, overflow: 'clamp' },
+  coords: { minScale: 0.72, maxLines: 2, overflow: 'clip' },
+  stat: { minScale: 0.76, maxLines: 2, overflow: 'clip' },
+  note: { minScale: 0.66, maxLines: 2, overflow: 'clip' },
+  brand: { minScale: 0.7, maxLines: 1, overflow: 'clamp' },
+  vlabel: { minScale: 0.7, maxLines: 1, overflow: 'clamp' },
+  logo: { minScale: 1, overflow: 'clip' },
+  image: { minScale: 1, overflow: 'clip' },
+  spacer: { minScale: 1, overflow: 'clip' },
+  text: { minScale: 0.62, maxLines: 2, overflow: 'clip' },
+}
+
+export function chromeBlockFitDefaults(kind: ChromeBlock['kind']): NonNullable<ChromeBlock['fit']> {
+  return { ...CHROME_BLOCK_FIT_DEFAULTS[kind] }
+}
+
 function hasVisibleText(value?: string) {
   return Boolean(value?.trim())
 }
@@ -45,6 +65,9 @@ function block(
   slot: PosterTextSlot | undefined,
   patch: Partial<ChromeBlock> = {},
 ): ChromeBlock {
+  const fit = patch.fit === undefined
+    ? chromeBlockFitDefaults(kind)
+    : { ...chromeBlockFitDefaults(kind), ...patch.fit }
   return {
     id,
     kind,
@@ -53,6 +76,7 @@ function block(
     align: 'left',
     valign: 'center',
     ...patch,
+    fit,
   }
 }
 
