@@ -2130,7 +2130,7 @@ import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, con
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
@@ -2138,7 +2138,7 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
@@ -2593,6 +2593,11 @@ const chromeMobileDrawerOpen = computed(() =>
 )
 
 const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
+const posterAnchorFrames = computed<AnchorFrame[]>(() =>
+  posterLayout.value.anchors?.length
+    ? posterLayout.value.anchors
+    : bandsToAnchorFrames(posterLayout.value),
+)
 let cleanupChromeToolbarFloating: (() => void) | null = null
 let cleanupChromeStructureFloating: (() => void) | null = null
 let cleanupChromeLayoutBuilderFloating: (() => void) | null = null
@@ -2620,8 +2625,12 @@ onUnmounted(() => {
   teardownChromeRowResize()
 })
 
+function bandAnchorFrame(band: ChromeBandId): AnchorFrame | null {
+  return posterAnchorFrames.value.find(anchor => anchor.id === `band-${band}` && anchor.displacesMap) ?? null
+}
+
 function chromeRowsFor(band: ChromeBandId) {
-  return posterLayout.value.bands[band].rows.filter(row => !row.deleted)
+  return (bandAnchorFrame(band)?.rows ?? posterLayout.value.bands[band].rows).filter(row => !row.deleted)
 }
 
 function chromeCellsFor(row: ChromeGridRow) {
@@ -3220,7 +3229,7 @@ function onChromeBandResizeMove(e: PointerEvent) {
   const rawHeight = resize.band === 'header'
     ? resize.startHeight + deltaPct
     : resize.startHeight - deltaPct
-  const height = Math.round(Math.min(34, Math.max(8, rawHeight)) * 10) / 10
+  const height = clampChromeBandHeight(rawHeight)
   updatePosterLayout({
     bands: {
       [resize.band]: {
@@ -3385,7 +3394,7 @@ function onChromeRowResizeMove(e: PointerEvent) {
   }
 
   const deltaPx = (currentFr - resize.startFr) * resize.frUnitPx
-  const height = Math.round(Math.min(40, Math.max(6, resize.startBandHeight + (deltaPx / resize.posterHeight) * 100)) * 10) / 10
+  const height = clampChromeBandHeight(resize.startBandHeight + (deltaPx / resize.posterHeight) * 100)
   updateChromeBand(resize.band, { rows, height })
 }
 
@@ -5109,7 +5118,11 @@ const headerBandStyle = computed(() => ({
   zIndex: chromeBandElevated('header') ? 60 : 3,
   boxSizing: 'border-box' as const,
   minHeight: '0',
-  flex: composition.value.id === 'transit-diagram' ? '0 0 17%' : undefined,
+  flex: composition.value.id === 'transit-diagram'
+    ? '0 0 17%'
+    : props.styleConfig.poster_layout?.bands?.header?.height != null
+      ? `0 0 ${posterLayout.value.bands.header.height}%`
+      : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '17%'
     : props.styleConfig.poster_layout?.bands?.header?.height != null
@@ -5298,6 +5311,8 @@ const footerBandStyle = computed(() => ({
     ? '0 0 0'
     : composition.value.id === 'transit-diagram'
       ? '0 0 8%'
+      : props.styleConfig.poster_layout?.bands?.footer?.height != null
+        ? `0 0 ${posterLayout.value.bands.footer.height}%`
       : undefined,
   height: composition.value.footerVariant === 'hidden'
     ? '0'
