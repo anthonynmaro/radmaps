@@ -590,6 +590,8 @@
         enterkeyhint="done"
         spellcheck="true"
         data-testid="composition-side-rail-label"
+        data-text-fit="slot"
+        data-text-fit-slot="composition_side_rail"
         @focus="onSlotFocus($event, 'composition_side_rail')"
         @blur="onSlotBlur($event, 'composition_side_rail')"
         @click="onSlotClick($event, 'composition_side_rail')"
@@ -763,6 +765,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
@@ -851,6 +854,8 @@
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-kicker"
+          data-text-fit="slot"
+          data-text-fit-slot="composition_kicker"
           @focus="onSlotFocus($event, 'composition_kicker')"
           @blur="onSlotBlur($event, 'composition_kicker')"
           @click="onSlotClick($event, 'composition_kicker')"
@@ -865,6 +870,8 @@
           v-if="!editable && styleConfig.labels?.show_title !== false && chromeSlotVisible('trail_name')"
           class="poster-trail-name"
           :style="trailNameStyle"
+          data-text-fit="slot"
+          data-text-fit-slot="trail_name"
           :data-riso-title="trailName"
         >{{ trailName }}</h1>
         <h1
@@ -872,6 +879,8 @@
           class="poster-trail-name editable-text"
           :class="{ 'is-selected-text': isSlotActive('trail_name') }"
           :style="trailNameStyle"
+          data-text-fit="slot"
+          data-text-fit-slot="trail_name"
           :data-riso-title="trailName"
           contenteditable="true"
           :suppressContentEditableWarning="true"
@@ -890,12 +899,16 @@
           v-if="locationLine && !editable && chromeSlotVisible('location_text')"
           class="poster-location-line"
           :style="locationLineStyle"
+          data-text-fit="slot"
+          data-text-fit-slot="location_text"
         >{{ locationLine }}</p>
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
           :class="{ 'is-selected-text': isSlotActive('location_text') }"
           :style="locationLineStyle"
+          data-text-fit="slot"
+          data-text-fit-slot="location_text"
           contenteditable="true"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -920,6 +933,8 @@
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-meta-line"
+          data-text-fit="slot"
+          data-text-fit-slot="composition_meta"
           @focus="onSlotFocus($event, 'composition_meta')"
           @blur="onSlotBlur($event, 'composition_meta')"
           @click="onSlotClick($event, 'composition_meta')"
@@ -984,6 +999,8 @@
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-side-rail-label"
+          data-text-fit="slot"
+          data-text-fit-slot="composition_side_rail"
           @focus="onSlotFocus($event, 'composition_side_rail')"
           @blur="onSlotBlur($event, 'composition_side_rail')"
           @click="onSlotClick($event, 'composition_side_rail')"
@@ -1644,6 +1661,7 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
@@ -1725,6 +1743,8 @@
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-footer-note"
+          data-text-fit="slot"
+          data-text-fit-slot="composition_footer"
           @focus="onSlotFocus($event, 'composition_footer')"
           @blur="onSlotBlur($event, 'composition_footer')"
           @click="onSlotClick($event, 'composition_footer')"
@@ -1741,6 +1761,8 @@
           enterkeyhint="done"
           spellcheck="false"
           data-testid="composition-brutalist-distance"
+          data-text-fit="slot"
+          data-text-fit-slot="distance"
           @focus="onSlotFocus($event, 'distance')"
           @blur="onSlotBlur($event, 'distance')"
           @click="onSlotClick($event, 'distance')"
@@ -1818,6 +1840,8 @@
             aria-label="Distance"
             enterkeyhint="done"
             spellcheck="true"
+            data-text-fit="slot"
+            data-text-fit-slot="distance"
             @focus="onSlotFocus($event, 'distance')"
             @blur="onSlotBlur($event, 'distance')"
             @click="onSlotClick($event, 'distance')"
@@ -1847,6 +1871,8 @@
             aria-label="Elevation gain"
             enterkeyhint="done"
             spellcheck="true"
+            data-text-fit="slot"
+            data-text-fit-slot="elevation_gain"
             @focus="onSlotFocus($event, 'elevation_gain')"
             @blur="onSlotBlur($event, 'elevation_gain')"
             @click="onSlotClick($event, 'elevation_gain')"
@@ -1872,6 +1898,8 @@
             aria-label="Date"
             enterkeyhint="done"
             spellcheck="true"
+            data-text-fit="slot"
+            data-text-fit-slot="date"
             @focus="onSlotFocus($event, 'date')"
             @blur="onSlotBlur($event, 'date')"
             @click="onSlotClick($event, 'date')"
@@ -1892,6 +1920,8 @@
             aria-label="Coordinates"
             enterkeyhint="done"
             spellcheck="true"
+            data-text-fit="slot"
+            data-text-fit-slot="coordinates"
             @focus="onSlotFocus($event, 'coordinates')"
             @blur="onSlotBlur($event, 'coordinates')"
             @click="onSlotClick($event, 'coordinates')"
@@ -1910,6 +1940,8 @@
           v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
+          data-text-fit="slot"
+          data-text-fit-slot="occasion_text"
         >{{ occasionText }}</p>
         <p
           v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
@@ -1922,6 +1954,8 @@
           aria-label="Occasion"
           enterkeyhint="done"
           spellcheck="true"
+          data-text-fit="slot"
+          data-text-fit-slot="occasion_text"
           @focus="onSlotFocus($event, 'occasion_text')"
           @blur="onSlotBlur($event, 'occasion_text')"
           @click="onSlotClick($event, 'occasion_text')"
@@ -2130,7 +2164,8 @@ import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, con
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, chromeBlockFitDefaults, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { fitTextToBox, normalizeTextFitOptions, type TextFitOptions } from '~/utils/textFit'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
@@ -2138,7 +2173,7 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFitConfig, AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
@@ -2252,6 +2287,7 @@ const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
 const chromeLayoutBuilderEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
+const textFitSettled = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
 const posterElementsEditing = computed(() => props.editable === true && props.posterElementsEditing === true && props.renderMode !== 'print')
@@ -2612,9 +2648,11 @@ onMounted(() => {
   window.addEventListener('resize', syncChromeViewportMode)
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown)
+  scheduleTextFit()
 })
 
 onUnmounted(() => {
+  cancelAnimationFrame(textFitFrame)
   window.removeEventListener('resize', syncChromeViewportMode)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
@@ -2667,6 +2705,15 @@ function chromeBlocksFor(band: ChromeBandId) {
 function chromeBlockForSlot(slot: PosterTextSlot): ChromeBlock | null {
   for (const band of CHROME_BANDS) {
     const found = chromeBlocksFor(band).find(block => block.slot === slot && !block.empty && !block.removed)
+    if (found) return found
+  }
+  return null
+}
+
+function chromeBlockForId(id: string | undefined): ChromeBlock | null {
+  if (!id) return null
+  for (const band of CHROME_BANDS) {
+    const found = chromeBlocksFor(band).find(block => block.id === id && !block.empty && !block.removed)
     if (found) return found
   }
   return null
@@ -2872,7 +2919,7 @@ function chromeCellStyle(cell: ChromeGridCell) {
     alignItems: cell.valign === 'bottom' ? 'end' : cell.valign === 'top' ? 'start' : 'center',
     textAlign: align,
     boxSizing: 'border-box',
-    overflow: 'visible',
+    overflow: 'hidden',
   }
   if (cell.padding) style.padding = `${cell.padding[0]}cqh ${cell.padding[1]}cqw ${cell.padding[2]}cqh ${cell.padding[3]}cqw`
   return style
@@ -2892,7 +2939,7 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const style: Record<string, string> = {
     width: '100%',
     fontFamily: chromeBlockFontFamily(block, override),
-    fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
+    fontSize: `var(--radmaps-text-fit-size, ${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockTargetFontSize(block)}cqh)`,
     lineHeight: chromeBlockLineHeight(block),
     letterSpacing: chromeBlockLetterSpacing(block),
     textTransform: chromeBlockTextTransform(block),
@@ -2918,27 +2965,14 @@ function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride)
   return typography.value.subFont
 }
 
-function chromeBlockFontSize(block: ChromeBlock) {
+function chromeBlockTargetFontSize(block: ChromeBlock) {
   if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
   const scale = block.scale ?? 1
-  if (block.kind === 'title') return typography.value.titleSize * scale * chromeTitleFitScale(block)
+  if (block.kind === 'title') return typography.value.titleSize * scale
   if (block.kind === 'stat') return 0.72 * scale
   if (block.kind === 'coords') return 0.72 * scale
   if (block.kind === 'brand') return 0.48 * scale
   return 0.9 * scale
-}
-
-function chromeTitleFitScale(block: ChromeBlock) {
-  const text = chromeBlockText(block)
-  const compactPlate = composition.value.id === 'place-frame' && hasRenderableRoute.value
-  if (compactPlate) return lengthFitScale(text, 18, 76, 0.34)
-  if (composition.value.id === 'editorial-tall') return lengthFitScale(text, 20, 82, 0.32)
-  if (composition.value.id === 'travel-banner') return lengthFitScale(text, 20, 82, 0.34)
-  if (composition.value.id === 'transit-diagram') return lengthFitScale(text, 22, 82, 0.44)
-  if (composition.value.id === 'blueprint-strava' || composition.value.id === 'splits-grid') {
-    return lengthFitScale(text, 22, 84, 0.46)
-  }
-  return lengthFitScale(text, 24, 82, 0.48)
 }
 
 function chromeBlockLineHeight(block: ChromeBlock) {
@@ -3028,6 +3062,186 @@ function chromeBlockText(block: ChromeBlock) {
   if (block.text != null) return block.text
   if (block.slot) return chromeSlotText(block)
   return 'Your text'
+}
+
+function titleFitMinScale() {
+  const compactPlate = composition.value.id === 'place-frame' && hasRenderableRoute.value
+  if (compactPlate) return 0.34
+  if (composition.value.id === 'editorial-tall') return 0.32
+  if (composition.value.id === 'travel-banner') return 0.34
+  if (composition.value.id === 'transit-diagram') return 0.44
+  if (composition.value.id === 'blueprint-strava' || composition.value.id === 'splits-grid') return 0.46
+  return 0.42
+}
+
+function fitConfigForChromeBlock(block: ChromeBlock): AnchorFitConfig {
+  const defaults = chromeBlockFitDefaults(block.kind)
+  const fit = { ...defaults, ...(block.fit ?? {}) }
+  if (block.kind === 'title') fit.minScale = block.fit?.minScale ?? titleFitMinScale()
+  return fit
+}
+
+function fitKindForSlot(slot: PosterTextSlot): ChromeBlock['kind'] {
+  if (slot === 'trail_name') return 'title'
+  if (slot === 'location_text') return 'subtitle'
+  if (slot === 'occasion_text') return 'occasion'
+  if (slot === 'composition_kicker') return 'eyebrow'
+  if (slot === 'composition_meta' || slot === 'coordinates') return 'coords'
+  if (slot === 'composition_footer') return 'note'
+  if (slot === 'composition_side_rail') return 'vlabel'
+  if (slot === 'distance' || slot === 'elevation_gain' || slot === 'date') return 'stat'
+  return 'text'
+}
+
+function fitConfigForSlot(slot: PosterTextSlot): AnchorFitConfig {
+  const kind = fitKindForSlot(slot)
+  const fit = chromeBlockForSlot(slot)?.fit ?? chromeBlockFitDefaults(kind)
+  const next = { ...chromeBlockFitDefaults(kind), ...fit }
+  if (slot === 'trail_name') next.minScale = fit.minScale ?? titleFitMinScale()
+  return next
+}
+
+function textFitTargetForSlot(slot: PosterTextSlot) {
+  return effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot))
+}
+
+function textFitOptionsForElement(el: HTMLElement): TextFitOptions | null {
+  if (el.dataset.textFit === 'chrome-block') {
+    const block = chromeBlockForId(el.dataset.chromeBlockId)
+    if (!block) return null
+    const fit = fitConfigForChromeBlock(block)
+    return normalizeTextFitOptions({
+      targetSizeCqh: fit.targetSizeCqh ?? chromeBlockTargetFontSize(block),
+      minScale: fit.minScale ?? 0.5,
+      maxLines: fit.maxLines,
+      overflow: fit.overflow,
+    })
+  }
+
+  const slot = el.dataset.textFitSlot as PosterTextSlot | undefined
+  if (!slot) return null
+  const fit = fitConfigForSlot(slot)
+  return normalizeTextFitOptions({
+    targetSizeCqh: fit.targetSizeCqh ?? textFitTargetForSlot(slot),
+    minScale: fit.minScale ?? 0.5,
+    maxLines: fit.maxLines,
+    overflow: fit.overflow,
+  })
+}
+
+function manualTextFitSizeCqh(el: HTMLElement): number | null {
+  if (el.dataset.textFit === 'chrome-block') {
+    const block = chromeBlockForId(el.dataset.chromeBlockId)
+    if (!block) return null
+    if (block.slot && slotOverride(block.slot).font_size_pt != null) return ptToCqh(slotOverride(block.slot).font_size_pt!)
+    if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
+    return null
+  }
+
+  const slot = el.dataset.textFitSlot as PosterTextSlot | undefined
+  if (!slot) return null
+  const overrideSize = slotOverride(slot).font_size_pt
+  return overrideSize != null ? ptToCqh(overrideSize) : null
+}
+
+function textFitBoxForElement(el: HTMLElement): HTMLElement {
+  if (el.dataset.textFit === 'chrome-block') {
+    return el.closest<HTMLElement>('.chrome-grid-cell') ?? el
+  }
+  if (el.classList.contains('poster-trail-name') || el.classList.contains('poster-location-line') || el.classList.contains('composition-kicker') || el.classList.contains('composition-meta-line')) {
+    return el.closest<HTMLElement>('.poster-header') ?? el
+  }
+  if (el.classList.contains('composition-footer-note') || el.classList.contains('poster-occasion') || el.classList.contains('stat-block')) {
+    return el.closest<HTMLElement>('.poster-footer') ?? el
+  }
+  return el
+}
+
+function applyManualTextFit(el: HTMLElement, sizeCqh: number) {
+  el.style.setProperty('--radmaps-text-fit-size-cqh', String(Number(sizeCqh.toFixed(4))))
+  el.style.setProperty('--radmaps-text-fit-size', `${Number(sizeCqh.toFixed(4))}cqh`)
+  el.style.setProperty('--radmaps-text-fit-scale', '1')
+  el.style.setProperty('font-size', `${Number(sizeCqh.toFixed(4))}cqh`, 'important')
+  el.style.overflow = 'hidden'
+  el.dataset.textFitStatus = 'manual'
+}
+
+let textFitFrame = 0
+let textFitRunId = 0
+let textFitRunning = false
+let textFitRerunRequested = false
+
+function publishTextFitStatus(status: { settled: boolean; count: number; clipped: number; manual: number; runId: number }) {
+  if (typeof window === 'undefined') return
+  ;(window as unknown as {
+    __RADMAPS_TEXT_FIT_STATUS?: typeof status
+    __RADMAPS_TEXT_FIT_SETTLED?: boolean
+  }).__RADMAPS_TEXT_FIT_STATUS = status
+  ;(window as unknown as { __RADMAPS_TEXT_FIT_SETTLED?: boolean }).__RADMAPS_TEXT_FIT_SETTLED = status.settled
+}
+
+async function runTextFitNow() {
+  if (typeof window === 'undefined') return
+  const root = posterCanvasEl.value
+  if (!root) return
+
+  if (textFitRunning) {
+    textFitRerunRequested = true
+    return
+  }
+
+  textFitRunning = true
+  try {
+    do {
+      textFitRerunRequested = false
+      const runId = ++textFitRunId
+      textFitSettled.value = false
+      publishTextFitStatus({ settled: false, count: 0, clipped: 0, manual: 0, runId })
+      await nextTick()
+
+      const elements = Array.from(root.querySelectorAll<HTMLElement>('[data-text-fit]'))
+        .filter(el => el.offsetParent !== null && el.textContent?.trim())
+      let clipped = 0
+      let manual = 0
+
+      for (const el of elements) {
+        const manualSize = manualTextFitSizeCqh(el)
+        if (manualSize != null) {
+          manual += 1
+          applyManualTextFit(el, manualSize)
+          continue
+        }
+        const options = textFitOptionsForElement(el)
+        if (!options) continue
+        const result = await fitTextToBox(el, textFitBoxForElement(el), options)
+        if (result.clipped) clipped += 1
+      }
+
+      textFitSettled.value = true
+      publishTextFitStatus({ settled: true, count: elements.length, clipped, manual, runId })
+      document.dispatchEvent(new CustomEvent('radmaps-text-fit-settled', { detail: { count: elements.length, clipped, manual, runId } }))
+    } while (textFitRerunRequested)
+  } finally {
+    textFitRunning = false
+    if (textFitRerunRequested) {
+      textFitRerunRequested = false
+      scheduleTextFit()
+    }
+  }
+}
+
+function scheduleTextFit() {
+  if (typeof window === 'undefined') return
+  textFitSettled.value = false
+  publishTextFitStatus({ settled: false, count: 0, clipped: 0, manual: 0, runId: textFitRunId })
+  cancelAnimationFrame(textFitFrame)
+  textFitFrame = requestAnimationFrame(() => {
+    void runTextFitNow()
+  })
+}
+
+async function waitForTextFitSettled() {
+  if (!textFitSettled.value) await runTextFitNow()
 }
 
 function chromeSlotText(block: ChromeBlock) {
@@ -3450,7 +3664,7 @@ function rememberChromeTextStyle(block: ChromeBlock, cell: ChromeGridCell) {
   const fontWeight = Number.parseInt(String(chromeBlockWeight(block)), 10)
   lastChromeTextStyle.value = {
     font_family: override.font_family ?? defaultChromeFontFamily(block),
-    font_size_pt: override.font_size_pt ?? block.font_size_pt ?? cqhToPt(chromeBlockFontSize(block)),
+    font_size_pt: override.font_size_pt ?? block.font_size_pt ?? cqhToPt(chromeBlockTargetFontSize(block)),
     align: override.align ?? cell.align ?? block.align ?? 'left',
     valign: cell.valign ?? block.valign ?? 'center',
     color: override.color ?? block.color ?? fg.value,
@@ -5120,30 +5334,15 @@ const headerBandStyle = computed(() => ({
   minHeight: '0',
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 17%'
-    : props.styleConfig.poster_layout?.bands?.header?.height != null
+    : posterLayout.value.bands.header.height != null
       ? `0 0 ${posterLayout.value.bands.header.height}%`
       : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '17%'
-    : props.styleConfig.poster_layout?.bands?.header?.height != null
+    : posterLayout.value.bands.header.height != null
     ? `${posterLayout.value.bands.header.height}%`
     : undefined,
 }))
-
-function lengthFitScale(text: string, softLimit: number, hardLimit: number, minScale: number): number {
-  const length = text.trim().length
-  if (length <= softLimit) return 1
-  if (length >= hardLimit) return minScale
-  const t = (length - softLimit) / (hardLimit - softLimit)
-  return 1 - ((1 - minScale) * t)
-}
-
-const trailNameAutoScale = computed(() => {
-  if (composition.value.id === 'riso-stack') return lengthFitScale(trailName.value, 18, 86, 0.55)
-  return lengthFitScale(trailName.value, 28, 58, 0.76)
-})
-const locationLineAutoScale = computed(() => lengthFitScale(locationLine.value, 30, 64, 0.82))
-const occasionAutoScale = computed(() => lengthFitScale(occasionText.value, 20, 42, 0.78))
 
 const trailNameStyle = computed(() => ({
   fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
@@ -5151,8 +5350,8 @@ const trailNameStyle = computed(() => ({
   fontStyle: effectiveSlotItalic('trail_name'),
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize, trailNameAutoScale.value)}cqh`,
-  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize, trailNameAutoScale.value)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh)`,
+  '--trail-title-size': `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh)`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
   opacity: String(effectiveSlotOpacity('trail_name', 1)),
@@ -5173,7 +5372,7 @@ const locationLineStyle = computed(() => ({
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize, locationLineAutoScale.value)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh)`,
   color: effectiveSlotColor('location_text', fg.value),
   opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
@@ -5193,7 +5392,7 @@ const compositionKickerStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_kicker', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_kicker', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_kicker'),
-  fontSize: `${effectiveSlotFontSizeCqh('composition_kicker', 0.88)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_kicker', 0.88)}cqh)`,
   letterSpacing: composition.value.id === 'editorial-tall' || composition.value.id === 'botanical-plate'
     ? '0.08em'
     : '0.24em',
@@ -5211,7 +5410,7 @@ const compositionMetaStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_meta', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_meta', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_meta'),
-  fontSize: `${effectiveSlotFontSizeCqh('composition_meta', 0.72)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_meta', 0.72)}cqh)`,
   letterSpacing: '0.18em',
   color: effectiveSlotColor('composition_meta', fg.value),
   backgroundColor: slotOverride('composition_meta').bg_color ?? 'transparent',
@@ -5227,7 +5426,7 @@ const compositionFooterNoteStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_footer', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_footer', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_footer'),
-  fontSize: `${effectiveSlotFontSizeCqh('composition_footer', 0.62)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_footer', 0.62)}cqh)`,
   color: effectiveSlotColor('composition_footer', fg.value),
   backgroundColor: slotOverride('composition_footer').bg_color ?? 'transparent',
   opacity: String(effectiveSlotOpacity('composition_footer', 0.36)),
@@ -5239,7 +5438,7 @@ const compositionSideRailLabelStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_side_rail', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_side_rail', '700'),
   fontStyle: effectiveSlotItalic('composition_side_rail'),
-  fontSize: `${effectiveSlotFontSizeCqh('composition_side_rail', 0.82)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_side_rail', 0.82)}cqh)`,
   color: effectiveSlotColor('composition_side_rail', fg.value),
   backgroundColor: slotOverride('composition_side_rail').bg_color ?? 'transparent',
   opacity: String(effectiveSlotOpacity('composition_side_rail', 0.32)),
@@ -5311,14 +5510,14 @@ const footerBandStyle = computed(() => ({
     ? '0 0 0'
     : composition.value.id === 'transit-diagram'
       ? '0 0 8%'
-      : props.styleConfig.poster_layout?.bands?.footer?.height != null
+      : posterLayout.value.bands.footer.height != null
         ? `0 0 ${posterLayout.value.bands.footer.height}%`
       : undefined,
   height: composition.value.footerVariant === 'hidden'
     ? '0'
     : composition.value.id === 'transit-diagram'
       ? '8%'
-      : props.styleConfig.poster_layout?.bands?.footer?.height != null
+      : posterLayout.value.bands.footer.height != null
     ? `${posterLayout.value.bands.footer.height}%`
     : undefined,
 }))
@@ -5387,7 +5586,7 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${effectiveSlotFontSizeCqh(slot, 2.6)}cqh`,
+  fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 2.6)}cqh * var(--radmaps-text-fit-scale, 1))`,
   letterSpacing: '0',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
@@ -5402,7 +5601,7 @@ function statUnitStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, '400'),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${Math.max(0.32, effectiveSlotFontSizeCqh(slot, 2.6) * 0.31)}cqh`,
+  fontSize: `calc(${Math.max(0.32, effectiveSlotFontSizeCqh(slot, 2.6) * 0.31)}cqh * var(--radmaps-text-fit-scale, 1))`,
   letterSpacing: '0.18em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor(slot, fg.value),
@@ -5418,7 +5617,7 @@ function coordStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `${effectiveSlotFontSizeCqh(slot, 1.2)}cqh`,
+  fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.2)}cqh * var(--radmaps-text-fit-scale, 1))`,
   letterSpacing: '0.04em',
   lineHeight: '1.45',
   color: effectiveSlotColor(slot, fg.value),
@@ -5432,7 +5631,7 @@ function coordStyleFor(slot: PosterTextSlot) {
 function statCustomTextStyle(slot: PosterTextSlot) {
   return {
     ...statNumberStyleFor(slot),
-    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.6)}cqh`,
+    fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.6)}cqh * var(--radmaps-text-fit-scale, 1))`,
     whiteSpace: 'pre-line' as const,
     textAlign: effectiveSlotAlign(slot),
   }
@@ -5443,7 +5642,7 @@ function blueprintTitleblockStatStyle(slot: PosterTextSlot) {
     fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
     fontWeight: effectiveSlotWeight(slot, '520'),
     fontStyle: effectiveSlotItalic(slot),
-    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.34)}cqh`,
+    fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.34)}cqh * var(--radmaps-text-fit-scale, 1))`,
     letterSpacing: '0.14em',
     lineHeight: '1',
     color: effectiveSlotColor(slot, fg.value),
@@ -5522,7 +5721,7 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95, occasionAutoScale.value)}cqh`,
+  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh)`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
@@ -5778,11 +5977,13 @@ function markPrintRenderReady() {
     if (!timedOut && !printableMapComplete(status)) return
     cleanup()
     try {
+      await waitForTextFitSettled()
       await waitForPrintableAssets()
       renderReady.value = true
-      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = status
+      const readyStatus = { ...status, textFitSettled: textFitSettled.value }
+      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof readyStatus; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = readyStatus
       ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
-      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: status }))
+      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: readyStatus }))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       ;(window as unknown as { __RADMAPS_RENDER_STATUS?: { ready: false; error: string }; __RENDER_ERROR?: string }).__RADMAPS_RENDER_STATUS = { ready: false, error: message }
@@ -7461,6 +7662,7 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
+    scheduleTextFit()
     if (queuedStyleConfig || styleConfigSignature(props.styleConfig) !== mountedStyleSignature) {
       queuedStyleConfig = null
       void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
@@ -7490,7 +7692,10 @@ onMounted(async () => {
 
   resizeObserver = new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame)
-    resizeFrame = requestAnimationFrame(syncCameraToFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      syncCameraToFrame()
+      scheduleTextFit()
+    })
   })
   resizeObserver.observe(mapContainer.value)
 })
@@ -8237,6 +8442,7 @@ watch(
   () => props.styleConfig,
   (newConfig, oldConfig) => {
     void applyStyleConfigUpdate(newConfig, oldConfig)
+    scheduleTextFit()
   },
   { deep: true },
 )
@@ -9427,6 +9633,11 @@ onUnmounted(() => {
 .poster-canvas {
   container-type: size;
   color: var(--composition-ink, currentColor);
+}
+
+.poster-header,
+.poster-footer {
+  overflow: hidden;
 }
 
 .radmaps-print-root {
@@ -12830,6 +13041,8 @@ onUnmounted(() => {
   position: absolute !important;
   z-index: 18 !important;
   color: var(--composition-ink, currentColor) !important;
+  max-height: 28cqh;
+  overflow: hidden !important;
 }
 
 .poster-composition--place-frame .poster-header {
@@ -12980,6 +13193,7 @@ onUnmounted(() => {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
+  max-height: 22cqh;
 }
 
 .poster-composition--sea-chart .poster-header::before,
@@ -13050,6 +13264,7 @@ onUnmounted(() => {
   background: var(--composition-paper, white) !important;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   box-shadow: 0 1cqh 3.8cqh rgba(0, 0, 0, 0.08);
+  max-height: 20cqh;
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] .poster-header {
@@ -13630,8 +13845,8 @@ onUnmounted(() => {
 
 .chrome-grid-block--title {
   max-width: 100%;
-  max-height: none;
-  overflow: visible;
+  max-height: 100%;
+  overflow: hidden;
   text-wrap: balance;
 }
 
