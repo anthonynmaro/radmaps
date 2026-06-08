@@ -2021,17 +2021,17 @@
           v-for="asset in visibleImageAssets"
           :key="asset.id"
           :data-asset-id="asset.id"
-          :data-poster-element-id="`asset:${asset.id}`"
+          :data-poster-element-id="guidedPosterEditor ? undefined : `asset:${asset.id}`"
           class="image-asset"
           :class="{
-            'is-editable': editable,
-            'is-selected': editable && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
-            'is-dragging': editable && draggingAssetId === asset.id,
+            'is-editable': editable && !guidedPosterEditor,
+            'is-selected': editable && !guidedPosterEditor && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
+            'is-dragging': editable && !guidedPosterEditor && draggingAssetId === asset.id,
             'is-poster-v2': posterElementsEditing,
           }"
           :style="imageAssetStyle(asset)"
-          :tabindex="editable ? 0 : undefined"
-          @click.stop="editable ? onAssetClick(asset.id, $event) : undefined"
+          :tabindex="editable && !guidedPosterEditor ? 0 : undefined"
+          @click.stop="editable && !guidedPosterEditor ? onAssetClick(asset.id, $event) : undefined"
         >
           <img :src="asset.render_url" alt="" draggable="false" />
           <template v-if="editable && !posterElementsEditing">
@@ -2077,16 +2077,16 @@
           v-for="icon in visibleIconOverlays"
           :key="icon.id"
           :data-icon-id="icon.id"
-          :data-poster-element-id="`icon:${icon.id}`"
+          :data-poster-element-id="guidedPosterEditor ? undefined : `icon:${icon.id}`"
           class="icon-overlay"
           :class="{
-            'is-editable': editable,
-            'is-selected': editable && selectedPosterElementId === `icon:${icon.id}`,
+            'is-editable': editable && !guidedPosterEditor,
+            'is-selected': editable && !guidedPosterEditor && selectedPosterElementId === `icon:${icon.id}`,
             'is-poster-v2': posterElementsEditing,
           }"
           :style="iconOverlayStyle(icon)"
-          :tabindex="editable ? 0 : undefined"
-          @click.stop="editable ? onIconClick(icon.id) : undefined"
+          :tabindex="editable && !guidedPosterEditor ? 0 : undefined"
+          @click.stop="editable && !guidedPosterEditor ? onIconClick(icon.id) : undefined"
         >
           <svg :viewBox="getPosterIcon(icon.icon).viewBox" aria-hidden="true" focusable="false">
             <path
@@ -2110,15 +2110,15 @@
           v-for="overlay in visibleTextOverlays"
           :key="overlay.id"
           :data-overlay-id="overlay.id"
-          :data-poster-element-id="`text:${overlay.id}`"
+          :data-poster-element-id="guidedPosterEditor ? undefined : `text:${overlay.id}`"
           class="text-overlay"
-          :class="{ 'is-editable': editable, 'is-selected': editable && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
+          :class="{ 'is-editable': editable && !guidedPosterEditor, 'is-selected': editable && !guidedPosterEditor && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
           :style="overlayStyle(overlay)"
-          @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
+          @click.stop="editable && !guidedPosterEditor ? onOverlayClick(overlay.id) : undefined"
         >
           <span
             class="overlay-content editable-text"
-            contenteditable="true"
+            :contenteditable="editable && !guidedPosterEditor ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Text overlay"
@@ -4147,6 +4147,7 @@ function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
 }
 
 function onOverlayTextFocus(e: FocusEvent, id: string) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
@@ -4154,6 +4155,7 @@ function onOverlayTextFocus(e: FocusEvent, id: string) {
 }
 
 function onOverlayTextPointerDown(e: PointerEvent, id: string) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
@@ -4161,6 +4163,7 @@ function onOverlayTextPointerDown(e: PointerEvent, id: string) {
 }
 
 function onOverlayTextClick(e: MouseEvent, id: string) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
@@ -4168,6 +4171,7 @@ function onOverlayTextClick(e: MouseEvent, id: string) {
 }
 
 function onOverlayTextBlur(e: FocusEvent, id: string) {
+  if (guidedPosterEditor.value) return
   emit('overlay-updated', { id, patch: { content: (e.currentTarget as HTMLElement).innerText.trim() } })
 }
 
@@ -4237,6 +4241,7 @@ type PosterSelectableElement =
 function selectedPosterElement(): PosterSelectableElement | null {
   const id = props.selectedPosterElementId
   if (!id) return null
+  if (guidedPosterEditor.value && !id.startsWith('slot:')) return null
   if (id.startsWith('text:')) {
     const rawId = id.slice('text:'.length)
     const item = props.styleConfig.text_overlays?.find(overlay => overlay.id === rawId)
@@ -4347,6 +4352,7 @@ function scheduleDeselect() {
 }
 
 function onOverlayClick(id: string) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectedAssetId.value = null
@@ -4363,6 +4369,7 @@ function onOverlayDelete(id: string) {
 }
 
 function onAssetClick(id: string, event?: MouseEvent) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true })
   selectedAssetId.value = id
@@ -4664,6 +4671,7 @@ function onAssetDelete(id: string) {
 }
 
 function onIconClick(id: string) {
+  if (guidedPosterEditor.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedAssetId.value = null
   selectedOverlayId.value = null

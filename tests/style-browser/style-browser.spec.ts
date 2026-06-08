@@ -1898,19 +1898,21 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('composition-map-grid-overlay')).toBeVisible()
   })
 
-  test('poster editor v2 shows selectable text, image, icon layers with guides', async ({ page }) => {
+  test('poster editor v2 shows guided slot layers with guides', async ({ page }) => {
     const consoleErrors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
 
-    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&overlay=1&asset=1&icon=1&posterEditor=1&posterMode=select&guides=1&selectedPosterElement=text:fixture-overlay-label')
+    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&overlay=1&asset=1&icon=1&posterEditor=1&posterMode=select&guides=1&selectedPosterElement=slot:trail_name')
     await expect(page.getByTestId('poster-canvas')).toBeVisible()
     await expect(page.getByTestId('poster-editor-guides')).toBeVisible()
-    await expect(page.locator('[data-poster-element-id="text:fixture-overlay-label"]')).toHaveClass(/is-selected/)
-    await expect(page.locator('[data-poster-element-id^="asset:"]')).toHaveCount(1)
-    await expect(page.locator('[data-poster-element-id^="icon:"]')).toHaveCount(1)
-    await expect(page.locator('.poster-element-moveable .moveable-control')).toHaveCount(9)
+    const titleSlot = page.locator('[data-poster-element-id="slot:trail_name"]').first()
+    await expect(titleSlot).toBeVisible()
+    await expect(page.locator('[data-poster-element-id^="text:"]')).toHaveCount(0)
+    await expect(page.locator('[data-poster-element-id^="asset:"]')).toHaveCount(0)
+    await expect(page.locator('[data-poster-element-id^="icon:"]')).toHaveCount(0)
+    await expect(page.locator('.poster-element-moveable .moveable-control')).toHaveCount(8)
     await expect.poll(() => consoleErrors.filter(error => !error.includes('Failed to load resource')).join('\n')).toBe('')
   })
 
@@ -2365,7 +2367,7 @@ test.describe('style browser visual harness', () => {
   })
 
   test('poster editor v2 defaults to guided slot editing in the editor surface', async ({ page }, testInfo) => {
-    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&width=1180&height=820')
+    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&overlay=1&asset=1&icon=1&width=1180&height=820')
     await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
     if (testInfo.project.name === 'mobile') {
       await expect(page.getByTestId('chrome-editor-app-bar')).toHaveCount(0)
@@ -2402,29 +2404,23 @@ test.describe('style browser visual harness', () => {
     const titleSlot = page.locator('[data-poster-element-id="slot:trail_name"]').first()
     await expect(titleSlot).toBeVisible()
     await titleSlot.click()
-    await expect(page.locator('.poster-element-moveable .moveable-control')).not.toHaveCount(0)
+    await expect(page.locator('.poster-element-moveable .moveable-control')).toHaveCount(8)
     await expect(page.getByTestId('chrome-editor-add-block')).toHaveCount(0)
     await expect(page.getByTestId('chrome-cell-resize-column')).toHaveCount(0)
-    await page.getByTestId('poster-tool-text').click()
-    await expect(page.getByTestId('map-editor-surface')).toHaveAttribute('data-chrome-editing', 'true')
-    const freeTextElement = page.locator('[data-poster-element-id^="text:"]')
-    await expect(freeTextElement).toHaveCount(1)
-    await expect(page.locator('.poster-element-moveable .moveable-control')).toHaveCount(9)
-
-    const beforeDragStyle = await freeTextElement.evaluate(el => `${(el as HTMLElement).style.left}|${(el as HTMLElement).style.top}`)
-    const box = await freeTextElement.boundingBox()
-    expect(box).toBeTruthy()
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box!.x + box!.width / 2 + 48, box!.y + box!.height / 2 + 32, { steps: 6 })
-    await page.mouse.up()
-    await expect.poll(() => freeTextElement.evaluate(el => `${(el as HTMLElement).style.left}|${(el as HTMLElement).style.top}`)).not.toBe(beforeDragStyle)
+    await expect(page.locator('[data-poster-element-id^="text:"]')).toHaveCount(0)
+    await expect(page.locator('[data-poster-element-id^="asset:"]')).toHaveCount(0)
+    await expect(page.locator('[data-poster-element-id^="icon:"]')).toHaveCount(0)
+    await expect(page.getByTestId('poster-tool-text')).toHaveCount(0)
+    await expect(page.getByTestId('poster-tool-image')).toHaveCount(0)
+    await expect(page.getByTestId('poster-tool-icon')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Upload logo' })).toHaveCount(0)
+    await expect(page.getByText('Icons', { exact: true })).toHaveCount(0)
   })
 
   test('style panel exposes text overlay customization controls', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop text overlay editor coverage')
 
-    await page.goto('/style-browser-fixture?surface=1&posterEditor=1&overlay=1&width=1180&height=820')
+    await page.goto('/style-browser-fixture?surface=1&overlay=1&width=1180&height=820')
     const stylePanel = page.getByTestId('style-panel')
     await expect(stylePanel).toBeVisible()
     await stylePanel.getByRole('button', { name: 'Text', exact: true }).click()

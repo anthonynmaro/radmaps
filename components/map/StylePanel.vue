@@ -315,14 +315,7 @@
         <V4Card title="Poster tools" hint="Canvas-first text, images, icons, and guides" :default-open="true">
           <div class="grid grid-cols-3 gap-1.5">
             <button
-              v-for="mode in ([
-                { id: 'layout', label: 'Layout' },
-                { id: 'select', label: 'Select' },
-                { id: 'text', label: 'Text' },
-                { id: 'image', label: 'Image' },
-                { id: 'icon', label: 'Icon' },
-                { id: 'guides', label: 'Guides' },
-              ] as const)"
+              v-for="mode in posterToolModes"
               :key="mode.id"
               :data-testid="`poster-tool-${mode.id}`"
               class="rounded-lg border px-1.5 py-2 text-[10px] font-semibold transition-colors"
@@ -336,9 +329,10 @@
               "
             >{{ mode.label }}</button>
           </div>
-          <input ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
-          <input ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
+          <input v-if="!guidedPosterEditor" ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
+          <input v-if="!guidedPosterEditor" ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
           <button
+            v-if="!guidedPosterEditor"
             class="mt-2 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
             @click="designLogoInputRef?.click()"
           >Upload logo</button>
@@ -364,7 +358,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
+        <V4Card v-if="!guidedPosterEditor" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
           <div class="grid grid-cols-3 gap-1.5">
             <button
               v-for="icon in POSTER_ICONS"
@@ -1486,7 +1480,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
+        <V4Card v-if="!guidedPosterEditor" title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
           <div
             class="cursor-pointer"
             style="padding: 18px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
@@ -1525,7 +1519,7 @@
           <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
-        <V4Card title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
+        <V4Card v-if="!guidedPosterEditor" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
             <div
               v-for="overlay in (local.text_overlays ?? [])"
@@ -2101,8 +2095,28 @@ const activeAssetId = computed(() =>
 const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asset.kind === 'logo') ?? null)
 const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
 const posterEditorMode = computed(() => props.posterEditorMode ?? 'layout')
+const guidedPosterEditor = computed(() => props.posterElementsAvailable === true)
+const posterToolModes = computed(() =>
+  guidedPosterEditor.value
+    ? [
+        { id: 'layout' as const, label: 'Layout' },
+        { id: 'select' as const, label: 'Select' },
+        { id: 'guides' as const, label: 'Guides' },
+      ]
+    : [
+        { id: 'layout' as const, label: 'Layout' },
+        { id: 'select' as const, label: 'Select' },
+        { id: 'text' as const, label: 'Text' },
+        { id: 'image' as const, label: 'Image' },
+        { id: 'icon' as const, label: 'Icon' },
+        { id: 'guides' as const, label: 'Guides' },
+      ],
+)
 const posterEditorElements = computed(() =>
-  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true, editableTextSlots: posterEditorAllowlist.value.textSlots }).slice().reverse(),
+  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true, editableTextSlots: posterEditorAllowlist.value.textSlots })
+    .filter(element => !guidedPosterEditor.value || element.source === 'theme' || element.source === 'system')
+    .slice()
+    .reverse(),
 )
 const activePosterElement = computed(() =>
   posterEditorElements.value.find(element => element.id === props.selectedPosterElementId) ?? null,
