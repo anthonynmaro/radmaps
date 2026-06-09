@@ -114,7 +114,7 @@
     },
     "contours": {
       "enabled": false,
-      "note": "North America launch uses browser/Browserless-generated contours from DEM. Do not precompute continental high-detail terrain by default."
+      "note": "North America launch uses runtime contours from DEM. Do not precompute continental high-detail terrain by default."
     }
   },
   "patagonia-andes": {
@@ -152,7 +152,7 @@
     },
     "contours": {
       "enabled": false,
-      "note": "Patagonia launch uses browser/Browserless-generated contours first; cache terrain only if render reliability or paid-order demand justifies it."
+      "note": "Patagonia launch uses runtime contours first; cache terrain only if AWS renderer reliability or paid-order demand justifies it."
     }
   },
   "northern-spain-camino": {
@@ -190,7 +190,7 @@
     },
     "contours": {
       "enabled": false,
-      "note": "Use runtime contours first. Add a Spain/Pyrenees terrain cache only after Browserless timing data proves it is useful."
+      "note": "Use runtime contours first. Add a Spain/Pyrenees terrain cache only after AWS renderer timing data proves it is useful."
     }
   },
   "honshu-japan": {
@@ -303,6 +303,341 @@
     "contours": {
       "enabled": false,
       "note": "Use runtime contours first; cache Queenstown/Rotorua/Great Walks terrain only after demand or reliability data appears."
+    }
+  },
+  "western-alps-dolomites": {
+    "id": "western-alps-dolomites",
+    "label": "Western Alps / Dolomites base atlas",
+    "coverage": "western-alps-dolomites",
+    "bbox": [5.5, 43.5, 14.5, 47.8],
+    "scratchGb": 120,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/europe/alps-latest.osm.pbf",
+      "note": "Uses the Alps extract instead of the full Europe extract so Chamonix, Zermatt, Innsbruck, Dolomites, Finale Ligure, and Lake Garda stay inside the cost gate."
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx32g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-western-alps-dolomites-base",
+      "localPath": "atlas/build/western-alps-dolomites/output/radmaps-base-western-alps-dolomites.pmtiles",
+      "objectPath": "atlas/v1/base/western-alps-dolomites/{date}/radmaps-base-western-alps-dolomites.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first; add cached alpine terrain only after 24x36 AWS renderer QA proves a need."
+    }
+  },
+  "atlantic-islands-portugal": {
+    "id": "atlantic-islands-portugal",
+    "label": "Madeira / Azores base atlas",
+    "coverage": "atlantic-islands",
+    "bbox": [-31.5, 32.0, -12.0, 40.5],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/europe/portugal-latest.osm.pbf",
+      "note": "Bbox filters the Portugal extract down to Madeira and Azores vacation/outdoor hotspots."
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-atlantic-islands-portugal-base",
+      "localPath": "atlas/build/atlantic-islands-portugal/output/radmaps-base-atlantic-islands-portugal.pmtiles",
+      "objectPath": "atlas/v1/base/atlantic-islands-portugal/{date}/radmaps-base-atlantic-islands-portugal.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first for island terrain."
+    }
+  },
+  "atlantic-islands-canaries": {
+    "id": "atlantic-islands-canaries",
+    "label": "Canary Islands base atlas",
+    "coverage": "atlantic-islands",
+    "bbox": [-18.5, 27.4, -13.0, 29.7],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/africa/canary-islands-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-atlantic-islands-canaries-base",
+      "localPath": "atlas/build/atlantic-islands-canaries/output/radmaps-base-atlantic-islands-canaries.pmtiles",
+      "objectPath": "atlas/v1/base/atlantic-islands-canaries/{date}/radmaps-base-atlantic-islands-canaries.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first for island terrain."
+    }
+  },
+  "andes-peru": {
+    "id": "andes-peru",
+    "label": "Peru Andes base atlas",
+    "coverage": "andes-peru-ecuador",
+    "bbox": [-81.5, -18.5, -68.5, -3.0],
+    "scratchGb": 80,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/south-america/peru-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx24g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-andes-peru-base",
+      "localPath": "atlas/build/andes-peru/output/radmaps-base-andes-peru.pmtiles",
+      "objectPath": "atlas/v1/base/andes-peru/{date}/radmaps-base-andes-peru.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first; validate 24x36 DEM/contour legibility before cached terrain."
+    }
+  },
+  "andes-ecuador": {
+    "id": "andes-ecuador",
+    "label": "Ecuador Andes base atlas",
+    "coverage": "andes-peru-ecuador",
+    "bbox": [-81.5, -5.2, -75.0, 1.5],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/south-america/ecuador-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-andes-ecuador-base",
+      "localPath": "atlas/build/andes-ecuador/output/radmaps-base-andes-ecuador.pmtiles",
+      "objectPath": "atlas/v1/base/andes-ecuador/{date}/radmaps-base-andes-ecuador.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first; validate volcano/highland print QA before cached terrain."
+    }
+  },
+  "nepal-himalaya": {
+    "id": "nepal-himalaya",
+    "label": "Nepal Himalaya base atlas",
+    "coverage": "nepal-himalaya",
+    "bbox": [80.0, 26.0, 89.5, 31.0],
+    "scratchGb": 80,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/asia/nepal-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx24g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-nepal-himalaya-base",
+      "localPath": "atlas/build/nepal-himalaya/output/radmaps-base-nepal-himalaya.pmtiles",
+      "objectPath": "atlas/v1/base/nepal-himalaya/{date}/radmaps-base-nepal-himalaya.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Runtime contours require explicit 24x36 DEM QA before production promotion."
+    }
+  },
+  "iceland-adventure": {
+    "id": "iceland-adventure",
+    "label": "Iceland adventure base atlas",
+    "coverage": "iceland-scotland",
+    "bbox": [-25.0, 63.0, -13.0, 66.8],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/europe/iceland-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-iceland-adventure-base",
+      "localPath": "atlas/build/iceland-adventure/output/radmaps-base-iceland-adventure.pmtiles",
+      "objectPath": "atlas/v1/base/iceland-adventure/{date}/radmaps-base-iceland-adventure.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first for Laugavegur/Ring Road print QA."
+    }
+  },
+  "scotland-adventure": {
+    "id": "scotland-adventure",
+    "label": "Scotland adventure base atlas",
+    "coverage": "iceland-scotland",
+    "bbox": [-8.8, 54.5, -0.5, 61.2],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/europe/great-britain/scotland-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-scotland-adventure-base",
+      "localPath": "atlas/build/scotland-adventure/output/radmaps-base-scotland-adventure.pmtiles",
+      "objectPath": "atlas/v1/base/scotland-adventure/{date}/radmaps-base-scotland-adventure.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first for West Highland Way/Skye/Cairngorms print QA."
+    }
+  },
+  "costa-rica-central-america": {
+    "id": "costa-rica-central-america",
+    "label": "Costa Rica vacation trails base atlas",
+    "coverage": "costa-rica-central-america",
+    "bbox": [-86.5, 7.5, -82.0, 11.5],
+    "scratchGb": 60,
+    "source": {
+      "provider": "Geofabrik",
+      "license": "OpenStreetMap ODbL 1.0",
+      "url": "https://download.geofabrik.de/central-america/costa-rica-latest.osm.pbf"
+    },
+    "planetiler": {
+      "enabled": true,
+      "image": "ghcr.io/onthegomap/planetiler:latest",
+      "javaToolOptions": "-Xmx16g",
+      "extraArgs": ["--download", "--force"]
+    },
+    "base": {
+      "id": "radmaps-costa-rica-central-america-base",
+      "localPath": "atlas/build/costa-rica-central-america/output/radmaps-base-costa-rica-central-america.pmtiles",
+      "objectPath": "atlas/v1/base/costa-rica-central-america/{date}/radmaps-base-costa-rica-central-america.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "layers": ["landcover", "landuse", "park", "water", "waterway", "building", "transportation", "transportation_name", "place", "poi"],
+      "sourceLicenses": [
+        {
+          "name": "OpenStreetMap contributors",
+          "license": "ODbL 1.0",
+          "url": "https://www.openstreetmap.org/copyright"
+        }
+      ]
+    },
+    "contours": {
+      "enabled": false,
+      "note": "Use runtime contours first for Arenal/Monteverde/Nicoya/Osa fixtures."
     }
   }
 }

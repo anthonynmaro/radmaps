@@ -12,7 +12,7 @@ const kind = args.kind || 'base'
 const publicBaseUrl = (args.publicBaseUrl || '').replace(/\/$/, '')
 
 if (!args.source) throw new Error('Missing --source manifest path')
-if (!['base', 'contours', 'hillshade', 'publicLands', 'poi'].includes(kind)) throw new Error(`Unsupported artifact kind: ${kind}`)
+if (!['base', 'contours', 'hillshade', 'publicLands', 'poi', 'outdoorRoutes'].includes(kind)) throw new Error(`Unsupported artifact kind: ${kind}`)
 
 const source = JSON.parse(readFileSync(sourcePath, 'utf8'))
 const target = JSON.parse(readFileSync(targetPath, 'utf8'))
