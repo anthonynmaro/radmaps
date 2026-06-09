@@ -94,8 +94,8 @@ RadMaps processes:
 ### 7. Render Worker Security
 - [ ] Render worker URL is not exposed to clients
 - [ ] Worker secret is verified on incoming requests
-- [ ] Browserless render URLs use short-lived signed tickets
-- [ ] No user-controlled URLs are passed to Browserless navigation
+- [ ] AWS renderer URLs use short-lived signed tickets
+- [ ] No user-controlled URLs are passed to AWS renderer navigation
 
 ## Output
 

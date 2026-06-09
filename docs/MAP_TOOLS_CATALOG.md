@@ -162,6 +162,10 @@ Why this is attractive:
   Mount Fuji/Japan, and Patagonia Andes are live low-cost global proof packs.
   The matrix enforces a `$200` total build budget, dry-run cost logging,
   z16 `poi`/`outdoorRoutes` overlays, and 24x36 print QA before rollout.
+  Overlay target bboxes live in `atlas/overlay-targets.json` and build through
+  `npm run atlas:build-overlays` / the `Atlas Overlay Build` GitHub workflow,
+  with Overture Places and OSM relation extraction kept separate from base
+  `transportation` trail geometry.
   Larger hotspots such as Alps/Dolomites and Himalaya stay deferred until
   source-size, demand, DEM quality, and budget gates clear.
 

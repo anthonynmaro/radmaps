@@ -130,10 +130,16 @@ builds.
     magic bytes.
   - each new `/tiles/production/{artifactId}/8/{x}/{y}.mvt` probe returned
     HTTP `200` with the matching `X-RadMaps-Atlas-Artifact` response header.
-- Remaining work is z16 `poi` overlays from Overture Places, z16
-  `outdoorRoutes` overlays from named OSM hiking/bicycle/MTB relations, and
-  AWS-rendered `24x36` print QA for every new global-hotspot fixture before
-  broad customer marketing.
+- Remaining work is publishing z16 `poi` overlays from Overture Places and
+  z16 `outdoorRoutes` overlays from named OSM hiking/bicycle/MTB relations
+  across every hotspot target, then completing AWS-rendered `24x36` print QA
+  for every new global-hotspot fixture before broad customer marketing.
+- Overlay execution now has a dedicated builder:
+  `npm run atlas:build-overlays -- --target <target|all> --kind <all|poi|outdoorRoutes>`.
+  It reads `atlas/overlay-targets.json`, enforces the shared `$200` coverage
+  budget gate, filters Overture Places for print-useful POIs, extracts named
+  OSM outdoor route relations through Overpass, validates PMTiles metadata, and
+  writes mergeable manifests.
 - The wider `honshu-japan` staging build failed in workflow run `26488700331`
   after `13m16s` with Docker/Planetiler exit `137` during archive generation,
   consistent with an `ubuntu-latest` runner memory kill. No partial artifact was

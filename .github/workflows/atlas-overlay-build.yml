@@ -1,0 +1,154 @@
+name: Atlas Overlay Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Overlay target from atlas/overlay-targets.json
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - western-alps-dolomites
+          - atlantic-islands-portugal
+          - atlantic-islands-canaries
+          - andes-peru
+          - andes-ecuador
+          - nepal-himalaya
+          - iceland-adventure
+          - scotland-adventure
+          - costa-rica-central-america
+      kind:
+        description: Overlay kind
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - poi
+          - outdoorRoutes
+      environment:
+        description: Atlas manifest target
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      atlas_version:
+        description: Optional atlas version override
+        required: false
+        default: ''
+      dry_run:
+        description: Print planned work without network/build/upload
+        required: true
+        default: true
+        type: boolean
+      estimated_cost_usd:
+        description: Required for non-dry-run builds; must fit the $200 coverage budget gate
+        required: false
+        default: '0'
+      publish:
+        description: Upload PMTiles and publish the environment manifest
+        required: true
+        default: false
+        type: boolean
+      bbox_limit:
+        description: Optional hotspot bbox limit for smoke tests
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  atlas-overlay-build:
+    name: Build overlays ${{ inputs.target }} -> ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 720
+    env:
+      ATLAS_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'radmaps-atlas-prod' || 'radmaps-atlas-staging' }}
+      ATLAS_PUBLIC_BASE_URL: ${{ inputs.environment == 'production' && secrets.ATLAS_PROD_PUBLIC_BASE_URL || secrets.ATLAS_STAGING_PUBLIC_BASE_URL }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_SESSION_TOKEN: ${{ secrets.R2_SESSION_TOKEN }}
+      OVERTUREMAPS_BIN: overturemaps
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install system geospatial tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates \
+            gdal-bin \
+            python3-gdal \
+            build-essential \
+            git \
+            libsqlite3-dev \
+            zlib1g-dev
+          ogr2ogr --version
+          ogrinfo --format PMTiles
+
+      - name: Install Tippecanoe
+        run: |
+          if ! sudo apt-get install -y --no-install-recommends tippecanoe; then
+            git clone --depth 1 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+            make -C /tmp/tippecanoe -j"$(nproc)"
+            sudo make -C /tmp/tippecanoe install
+          fi
+          tippecanoe --version
+
+      - name: Install pmtiles CLI
+        run: |
+          PMTILES_VERSION=1.30.3
+          curl --fail --location --output /tmp/go-pmtiles.tar.gz \
+            "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf /tmp/go-pmtiles.tar.gz -C /tmp
+          sudo install /tmp/pmtiles /usr/local/bin/pmtiles
+          pmtiles version
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install --upgrade pip
+          python -m pip install overturemaps==1.0.0
+          overturemaps download --help
+
+      - name: Atlas overlay build
+        run: |
+          ARGS=(
+            --target "${{ inputs.target }}"
+            --kind "${{ inputs.kind }}"
+            --environment "${{ inputs.environment }}"
+          )
+          if [ -n "${{ inputs.atlas_version }}" ]; then
+            ARGS+=(--version "${{ inputs.atlas_version }}")
+          fi
+          if [ -n "${{ inputs.bbox_limit }}" ]; then
+            ARGS+=(--bbox-limit "${{ inputs.bbox_limit }}")
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          else
+            ARGS+=(--estimated-cost-usd "${{ inputs.estimated_cost_usd }}")
+          fi
+          if [ "${{ inputs.publish }}" = "true" ]; then
+            ARGS+=(--upload --publish)
+          fi
+          npm run atlas:build-overlays -- "${ARGS[@]}"

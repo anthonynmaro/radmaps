@@ -167,7 +167,8 @@ upload times.
 
 Run policy for new coverage targets:
 
-- Start with `workflow_dispatch` or `npm run atlas:pipeline -- --dry-run`.
+- Start base builds with `workflow_dispatch` or
+  `npm run atlas:pipeline -- --dry-run`.
 - Keep `dry_run=true` until source size, runner shape, and scratch storage are
   reviewed.
 - For any non-dry-run heavyweight build stage, pass `--estimated-cost-usd`.
@@ -185,17 +186,48 @@ Overlay build contract:
   `transportation` source layer.
 - Overture Places enrichment is written as a separate PMTiles overlay under the
   existing manifest key `poi`, with source layer `poi`, bbox-filtered to the
-  target hotspot mesh and built to z16.
+  target hotspot mesh and built to z8-16.
 - Named outdoor route enrichment is written under the manifest key
   `outdoorRoutes`, with source layer `outdoor_route`, extracted only from OSM
   relations where `route=hiking`, `route=bicycle`, or `route=mtb`, and built to
-  z16.
+  z8-16. Dense relation packs are capped and geometry-thinned because detailed
+  path geometry already comes from the base `transportation` layer; the overlay
+  exists to add semantic named routes and route labels.
 - Overlay object paths stay immutable, for example
   `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
   `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`.
-- Every overlay run starts with `npm run atlas:pipeline -- --dry-run` or the
-  equivalent overlay dry-run, records estimated cost before a real build, and
-  updates `atlas/coverage-targets.json` actual cost fields after completion.
+- Overlay hotspot definitions live in `atlas/overlay-targets.json`.
+- Every overlay run starts with the overlay dry-run, records estimated cost
+  before a real build, and updates `atlas/coverage-targets.json` actual cost
+  fields after completion:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target costa-rica-central-america \
+  --kind all \
+  --environment staging \
+  --dry-run \
+  --estimated-cost-usd 2
+```
+
+- A real local/control-plane smoke build can omit upload/publish while still
+  exercising Overture, Overpass, GDAL PMTiles generation, checksum capture, and
+  manifest output:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target costa-rica-central-america \
+  --kind all \
+  --environment staging \
+  --bbox-limit 1 \
+  --estimated-cost-usd 2
+```
+
+- Publish through the `Atlas Overlay Build` GitHub workflow or pass
+  `--upload --publish` only when R2 credentials are present.
+- POI overlays use GDAL's PMTiles writer directly. `outdoorRoutes` overlays use
+  Tippecanoe MBTiles output followed by `pmtiles convert` because GDAL's native
+  vector tile writers are slower on dense relation line geometry.
 - Promote overlays by merging the generated artifact into the existing manifest
   with `npm run atlas:merge-manifest-artifact`; never replace the full manifest
   with a single overlay build output.
@@ -222,6 +254,14 @@ As of 2026-06-09:
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
+- Overlay builder status: `scripts/atlas-build-overlays.mjs` is implemented
+  and locally validated. The 2026-06-09 all-target staging build generated
+  `18` z8-16 PMTiles artifacts across `poi` and `outdoorRoutes`:
+  `36,471,783` bytes of Overture Places overlays plus `19,172,846` bytes of
+  named OSM hiking/bicycle/MTB route overlays, `55,644,629` bytes total. These
+  were local no-upload validation artifacts; staging/production overlay
+  promotion still requires the GitHub workflow/R2 publish step plus 24x36
+  AWS-rendered print QA.
 
 North America build details:
 

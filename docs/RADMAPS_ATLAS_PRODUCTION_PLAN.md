@@ -941,7 +941,9 @@ The next phase should turn the staging atlas into a sellable production path.
    - Automate AWS build -> S3 handoff -> R2 transfer -> manifest merge ->
      manifest publish with cost logging.
    - Add public lands, Overture Places `poi`, and OSM `outdoorRoutes` overlay
-     artifacts.
+     artifacts. Overture/OSM hotspot overlays are generated with
+     `npm run atlas:build-overlays`, which keeps `poi` under the existing
+     manifest key and uses `outdoorRoutes` only for named route relations.
    - Build a global base archive when the North America QA/promotion path is
      proven. Keep global high-detail contour PMTiles deferred unless render
      reliability or paid demand requires a cache.

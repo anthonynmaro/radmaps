@@ -60,7 +60,32 @@ PMTiles should use immutable paths such as
 `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
 `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`,
 with z16 max zoom, source date, bytes, checksum, cost, and print QA status
-recorded before promotion.
+recorded before promotion. Build overlays as z8-16 archives: the style only
+uses route overlays from z8 and POI labels from z12, so lower zoom archive
+tiles are unnecessary. Dense `outdoorRoutes` packs are capped and
+geometry-thinned so they do not duplicate the full base trail/path network.
+
+Overlay build execution:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target <target|all> \
+  --kind <all|poi|outdoorRoutes> \
+  --environment staging \
+  --estimated-cost-usd <usd>
+```
+
+Use `--dry-run` before real network/build work. Use `--upload --publish` only
+from an environment with R2 credentials. The 2026-06-09 all-target staging
+overlay build locally validated `18` z8-16 PMTiles artifacts totaling
+`55,644,629` bytes. Those artifacts were local no-upload validation outputs;
+publish through the GitHub workflow/R2 path and complete 24x36 AWS-rendered
+print QA before treating overlays as promoted customer coverage.
+
+Implementation note: POI overlays are written with GDAL's PMTiles driver.
+`outdoorRoutes` overlays are written as MBTiles with Tippecanoe first and
+converted with the Protomaps `pmtiles` CLI, which is materially faster for
+line-heavy relation overlays.
 
 Current production tile service code:
 - Preferred edge: `workers/atlas-tiles`

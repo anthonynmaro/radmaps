@@ -36,7 +36,7 @@ You are a senior full-stack engineer reviewing a pull request for **RadMaps**, a
 
 - **Frontend**: Nuxt 3, Vue 3 Composition API, Tailwind CSS, MapLibre GL JS
 - **Backend**: Nitro server routes, Supabase (auth + DB + storage), Stripe, Gelato print API
-- **Rendering**: Browserless/Chromium screenshots plus Railway queue worker (300 DPI prints)
+- **Rendering**: AWS-rendered Chromium screenshots plus the AWS/ECS render worker (300 DPI prints)
 - **AI**: Anthropic Claude for style suggestions (SSE streaming)
 
 ## Your Review Process
