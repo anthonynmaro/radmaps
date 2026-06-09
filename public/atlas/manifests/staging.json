@@ -1,8 +1,8 @@
 {
-  "atlasVersion": "2026.05.27-patagonia-andes.1",
+  "atlasVersion": "2026.06.09-global-hotspots.1",
   "schemaVersion": "radmaps-atlas-v1",
-  "coverage": "north-america",
-  "label": "RadMaps staging atlas: US + North America base",
+  "coverage": "global-hotspot-staging",
+  "label": "RadMaps staging atlas: global hotspot coverage",
   "createdAt": "2026-05-17T07:43:42.639Z",
   "storage": {
     "provider": "cloudflare-r2",
@@ -222,6 +222,330 @@
           }
         ],
         "createdAt": "2026-05-27T04:14:43.073Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-andes-ecuador-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles",
+        "objectPath": "atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -81.5,
+          -5.2,
+          -75,
+          1.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 141561515,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:22:02.929Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-andes-peru-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles",
+        "objectPath": "atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -81.5,
+          -18.5,
+          -68.5,
+          -3
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 356714058,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:24:58.481Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-atlantic-islands-canaries-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles",
+        "objectPath": "atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -18.5,
+          27.4,
+          -13,
+          29.7
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 44801019,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:19:58.995Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-atlantic-islands-portugal-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles",
+        "objectPath": "atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -31.5,
+          32,
+          -12,
+          40.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 25126505,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:17:53.767Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-costa-rica-central-america-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles",
+        "objectPath": "atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -86.5,
+          7.5,
+          -82,
+          11.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 57846574,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:33:41.038Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-iceland-adventure-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles",
+        "objectPath": "atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -25,
+          63,
+          -13,
+          66.8
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 165636294,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:30:26.654Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-nepal-himalaya-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles",
+        "objectPath": "atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          80,
+          26,
+          89.5,
+          31
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 323016649,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:28:30.122Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-scotland-adventure-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles",
+        "objectPath": "atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -8.8,
+          54.5,
+          -0.5,
+          61.2
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 302811086,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:40:43.900Z",
+        "status": "staging"
+      },
+      {
+        "id": "radmaps-western-alps-dolomites-base",
+        "kind": "base",
+        "url": "https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles",
+        "objectPath": "atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          5.5,
+          43.5,
+          14.5,
+          47.8
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 1201969253,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:15:34.794Z",
         "status": "staging"
       }
     ],
@@ -4853,5 +5177,5 @@
       "url": "https://radmaps.studio"
     }
   ],
-  "updatedAt": "2026-05-27T04:14:43.112Z"
+  "updatedAt": "2026-06-09T12:44:59.328Z"
 }
