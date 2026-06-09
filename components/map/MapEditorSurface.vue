@@ -79,16 +79,48 @@
       </div>
     </main>
 
+    <!-- Drag-to-resize divider (desktop only) -->
+    <div
+      v-if="!panelCollapsed"
+      class="editor-resizer hidden md:flex shrink-0 items-center justify-center cursor-col-resize group"
+      :class="{ 'is-resizing': isResizing }"
+      title="Drag to resize · double-click to reset"
+      @pointerdown="startResize"
+      @dblclick="resetPanelWidth"
+    >
+      <span class="editor-resizer-grip" />
+    </div>
+
+    <!-- Reopen tab when panel is collapsed (desktop only) -->
+    <button
+      v-if="panelCollapsed"
+      type="button"
+      class="hidden md:flex absolute top-4 right-4 z-30 items-center gap-1.5 rounded-full bg-white/90 backdrop-blur border border-stone-200 shadow-sm px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-white transition-colors cursor-pointer"
+      title="Show editor panel"
+      @click="panelCollapsed = false"
+    >
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+        <path d="M12 5l-5 5 5 5"/>
+      </svg>
+      Edit
+    </button>
+
     <aside
-      class="shrink-0 overflow-hidden flex flex-col bg-white transition-all duration-300 ease-out"
+      class="editor-aside shrink-0 overflow-hidden flex flex-col bg-white transition-all duration-300 ease-out"
       :class="[
-        'md:relative md:inset-auto md:w-[320px] md:h-auto md:border-l md:border-stone-200 md:rounded-none md:shadow-none',
+        'md:relative md:inset-auto md:h-auto md:rounded-none md:shadow-none',
+        !panelCollapsed ? 'md:border-l md:border-stone-200' : '',
         'fixed inset-x-0 bottom-0 z-30 md:static',
         sheetState === 'full' ? 'h-[85vh]' :
         sheetState === 'half' ? 'h-[45vh]' :
         'h-16',
       ]"
-      style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
+      :style="{
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        '--panel-w': panelWidth + 'px',
+        '--panel-mr': panelCollapsed ? `-${panelWidth}px` : '0px',
+        transition: isResizing ? 'none' : undefined,
+      }"
     >
       <MapStylePanel
         v-if="map"
@@ -110,6 +142,11 @@
         :track-upload-available="trackUploadAvailable"
         :track-upload-loading="trackUploadLoading"
         :track-upload-error="trackUploadError"
+        :can-undo="canUndo"
+        :can-redo="canRedo"
+        @undo="undo"
+        @redo="redo"
+        @collapse="panelCollapsed = true"
         @reset="resetStyle"
         @logo-upload="emit('logo-upload', $event)"
         @image-upload="emit('image-upload', $event)"
@@ -218,6 +255,53 @@ const route = useRoute()
 const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
+
+// ── Desktop panel sizing & collapse (browser-local, persisted) ──────────────────
+const PANEL_MIN_W = 280
+const PANEL_MAX_W = 560
+const PANEL_DEFAULT_W = 320
+const PANEL_WIDTH_KEY = 'radmaps:panelWidth'
+const PANEL_COLLAPSED_KEY = 'radmaps:panelCollapsed'
+const panelWidth = ref(PANEL_DEFAULT_W)
+const panelCollapsed = ref(false)
+const isResizing = ref(false)
+
+function clampPanelWidth(w: number) {
+  return Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, Math.round(w)))
+}
+
+function startResize(e: PointerEvent) {
+  e.preventDefault()
+  isResizing.value = true
+  window.addEventListener('pointermove', onResize)
+  window.addEventListener('pointerup', stopResize)
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+}
+
+function onResize(e: PointerEvent) {
+  // Panel is docked on the right edge, so width grows as the pointer moves left.
+  panelWidth.value = clampPanelWidth(window.innerWidth - e.clientX)
+}
+
+function stopResize() {
+  isResizing.value = false
+  window.removeEventListener('pointermove', onResize)
+  window.removeEventListener('pointerup', stopResize)
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+  try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth.value)) } catch { /* ignore */ }
+}
+
+function resetPanelWidth() {
+  panelWidth.value = PANEL_DEFAULT_W
+  try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth.value)) } catch { /* ignore */ }
+}
+
+watch(panelCollapsed, (collapsed) => {
+  try { localStorage.setItem(PANEL_COLLAPSED_KEY, collapsed ? '1' : '0') } catch { /* ignore */ }
+})
+
 const plotMode = ref<{ segId: string; field: 'start' | 'end' } | null>(null)
 const segmentDrawMode = ref<SegmentDrawMode | null>(null)
 const segmentEditMode = ref<SegmentEditMode | null>(null)
@@ -256,10 +340,17 @@ onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'
   document.addEventListener('keydown', onKeyDown)
   seedHistory(props.modelValue)
+  try {
+    const savedWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY))
+    if (Number.isFinite(savedWidth) && savedWidth > 0) panelWidth.value = clampPanelWidth(savedWidth)
+    panelCollapsed.value = localStorage.getItem(PANEL_COLLAPSED_KEY) === '1'
+  } catch { /* ignore */ }
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('pointermove', onResize)
+  window.removeEventListener('pointerup', stopResize)
   if (historyTimer) clearTimeout(historyTimer)
   if (trackWarningTimer) clearTimeout(trackWarningTimer)
 })
@@ -733,3 +824,38 @@ function onViewChanged(payload: { map_zoom: number; map_center: [number, number]
   setStyle(payload)
 }
 </script>
+
+<style scoped>
+/* Desktop: panel width is driven by the resizable --panel-w variable.
+   On mobile the panel is a full-width bottom sheet, so width stays untouched. */
+@media (min-width: 768px) {
+  .editor-aside {
+    /* Width stays constant so the panel contents never reflow. Collapsing slides
+       the panel off the right edge via negative margin (clipped by the row's
+       overflow-hidden); the map area grows to fill the reclaimed space. */
+    width: var(--panel-w, 320px);
+    margin-right: var(--panel-mr, 0px);
+  }
+}
+
+.editor-resizer {
+  width: 8px;
+  margin: 0 -3px;
+  background: transparent;
+  position: relative;
+  z-index: 25;
+  touch-action: none;
+}
+.editor-resizer-grip {
+  width: 2px;
+  height: 36px;
+  border-radius: 999px;
+  background: #E7E5E4;
+  transition: background 0.15s, height 0.15s;
+}
+.editor-resizer:hover .editor-resizer-grip,
+.editor-resizer.is-resizing .editor-resizer-grip {
+  background: #2D6A4F;
+  height: 56px;
+}
+</style>
