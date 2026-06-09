@@ -398,12 +398,6 @@
       />
       <div
         v-if="composition.id === 'brutalist-slab'"
-        class="composition-brutalist-baseline-grid"
-        data-testid="composition-brutalist-baseline-grid"
-        aria-hidden="true"
-      />
-      <div
-        v-if="composition.id === 'brutalist-slab'"
         class="composition-brutalist-registration-marks"
         data-testid="composition-brutalist-registration-marks"
         aria-hidden="true"
@@ -591,8 +585,6 @@
         spellcheck="true"
         data-testid="composition-side-rail-label"
         :data-poster-element-id="slotEditorElementId('composition_side_rail')"
-        data-text-fit="slot"
-        data-text-fit-slot="composition_side_rail"
         @focus="onSlotFocus($event, 'composition_side_rail')"
         @blur="onSlotBlur($event, 'composition_side_rail')"
         @click="onSlotClick($event, 'composition_side_rail')"
@@ -767,7 +759,6 @@
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
-                data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
@@ -857,8 +848,6 @@
           spellcheck="true"
           data-testid="composition-kicker"
           :data-poster-element-id="slotEditorElementId('composition_kicker')"
-          data-text-fit="slot"
-          data-text-fit-slot="composition_kicker"
           @focus="onSlotFocus($event, 'composition_kicker')"
           @blur="onSlotBlur($event, 'composition_kicker')"
           @click="onSlotClick($event, 'composition_kicker')"
@@ -873,8 +862,6 @@
           v-if="!editable && styleConfig.labels?.show_title !== false && chromeSlotVisible('trail_name')"
           class="poster-trail-name"
           :style="trailNameStyle"
-          data-text-fit="slot"
-          data-text-fit-slot="trail_name"
           :data-riso-title="trailName"
         >{{ trailName }}</h1>
         <h1
@@ -883,8 +870,6 @@
           :class="{ 'is-selected-text': isSlotActive('trail_name'), 'editable-text': slotEditable('trail_name') }"
           :style="trailNameStyle"
           :data-poster-element-id="slotEditorElementId('trail_name')"
-          data-text-fit="slot"
-          data-text-fit-slot="trail_name"
           :data-riso-title="trailName"
           :contenteditable="slotEditable('trail_name') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
@@ -903,8 +888,6 @@
           v-if="locationLine && !editable && chromeSlotVisible('location_text')"
           class="poster-location-line"
           :style="locationLineStyle"
-          data-text-fit="slot"
-          data-text-fit-slot="location_text"
         >{{ locationLine }}</p>
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
@@ -912,8 +895,6 @@
           :class="{ 'is-selected-text': isSlotActive('location_text'), 'editable-text': slotEditable('location_text') }"
           :style="locationLineStyle"
           :data-poster-element-id="slotEditorElementId('location_text')"
-          data-text-fit="slot"
-          data-text-fit-slot="location_text"
           :contenteditable="slotEditable('location_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -939,8 +920,6 @@
           spellcheck="true"
           data-testid="composition-meta-line"
           :data-poster-element-id="slotEditorElementId('composition_meta')"
-          data-text-fit="slot"
-          data-text-fit-slot="composition_meta"
           @focus="onSlotFocus($event, 'composition_meta')"
           @blur="onSlotBlur($event, 'composition_meta')"
           @click="onSlotClick($event, 'composition_meta')"
@@ -1005,8 +984,6 @@
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-side-rail-label"
-          data-text-fit="slot"
-          data-text-fit-slot="composition_side_rail"
           @focus="onSlotFocus($event, 'composition_side_rail')"
           @blur="onSlotBlur($event, 'composition_side_rail')"
           @click="onSlotClick($event, 'composition_side_rail')"
@@ -1101,16 +1078,15 @@
           v-if="showPlateFrameOverlay"
           class="composition-plate-frame"
           data-testid="composition-plate-frame"
+        />
+        <div
+          v-if="showCartoucheHills"
+          class="composition-cartouche-hills"
+          data-testid="composition-cartouche-hills"
+          aria-hidden="true"
         >
-          <template v-if="composition.id === 'place-frame'">
-            <span class="cartouche-corner cartouche-corner--tl" aria-hidden="true" />
-            <span class="cartouche-corner cartouche-corner--tr" aria-hidden="true" />
-            <span class="cartouche-corner cartouche-corner--br" aria-hidden="true" />
-            <span class="cartouche-corner cartouche-corner--bl" aria-hidden="true" />
-            <span class="cartouche-seal" data-testid="composition-cartouche-seal" aria-hidden="true">
-              <i />
-            </span>
-          </template>
+          <span class="composition-cartouche-hill composition-cartouche-hill--left" />
+          <span class="composition-cartouche-hill composition-cartouche-hill--right" />
         </div>
         <svg
           v-if="composition.id === 'travel-banner'"
@@ -1272,6 +1248,22 @@
           @click="onSlotClick($event, 'composition_meta')"
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.meta }}</div>
+        <div
+          v-if="isClassicTrailTheme && compositionDecor.kicker"
+          class="classic-trail-map-label classic-trail-map-label--coord"
+          data-testid="classic-trail-coordinate"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.kicker }}
+        </div>
+        <div
+          v-if="isClassicTrailTheme && compositionDecor.meta"
+          class="classic-trail-map-label classic-trail-map-label--scale"
+          data-testid="classic-trail-scale"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.meta }}
+        </div>
         <div
           v-if="isUsgsHeritageTheme && usgsCoordinateTicks.length"
           class="usgs-coordinate-ticks"
@@ -1670,7 +1662,6 @@
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
-                data-text-fit="chrome-block"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
@@ -1753,8 +1744,6 @@
           spellcheck="true"
           data-testid="composition-footer-note"
           :data-poster-element-id="slotEditorElementId('composition_footer')"
-          data-text-fit="slot"
-          data-text-fit-slot="composition_footer"
           @focus="onSlotFocus($event, 'composition_footer')"
           @blur="onSlotBlur($event, 'composition_footer')"
           @click="onSlotClick($event, 'composition_footer')"
@@ -1772,8 +1761,6 @@
           spellcheck="false"
           data-testid="composition-brutalist-distance"
           :data-poster-element-id="slotEditorElementId('distance')"
-          data-text-fit="slot"
-          data-text-fit-slot="distance"
           @focus="onSlotFocus($event, 'distance')"
           @blur="onSlotBlur($event, 'distance')"
           @click="onSlotClick($event, 'distance')"
@@ -1851,9 +1838,7 @@
             aria-label="Distance"
             enterkeyhint="done"
             spellcheck="true"
-            data-text-fit="slot"
             :data-poster-element-id="slotEditorElementId('distance')"
-            data-text-fit-slot="distance"
             @focus="onSlotFocus($event, 'distance')"
             @blur="onSlotBlur($event, 'distance')"
             @click="onSlotClick($event, 'distance')"
@@ -1883,9 +1868,7 @@
             aria-label="Elevation gain"
             enterkeyhint="done"
             spellcheck="true"
-            data-text-fit="slot"
             :data-poster-element-id="slotEditorElementId('elevation_gain')"
-            data-text-fit-slot="elevation_gain"
             @focus="onSlotFocus($event, 'elevation_gain')"
             @blur="onSlotBlur($event, 'elevation_gain')"
             @click="onSlotClick($event, 'elevation_gain')"
@@ -1911,9 +1894,7 @@
             aria-label="Date"
             enterkeyhint="done"
             spellcheck="true"
-            data-text-fit="slot"
             :data-poster-element-id="slotEditorElementId('date')"
-            data-text-fit-slot="date"
             @focus="onSlotFocus($event, 'date')"
             @blur="onSlotBlur($event, 'date')"
             @click="onSlotClick($event, 'date')"
@@ -1934,9 +1915,7 @@
             aria-label="Coordinates"
             enterkeyhint="done"
             spellcheck="true"
-            data-text-fit="slot"
             :data-poster-element-id="slotEditorElementId('coordinates')"
-            data-text-fit-slot="coordinates"
             @focus="onSlotFocus($event, 'coordinates')"
             @blur="onSlotBlur($event, 'coordinates')"
             @click="onSlotClick($event, 'coordinates')"
@@ -1955,8 +1934,6 @@
           v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
-          data-text-fit="slot"
-          data-text-fit-slot="occasion_text"
         >{{ occasionText }}</p>
         <p
           v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
@@ -1969,8 +1946,6 @@
           aria-label="Occasion"
           enterkeyhint="done"
           spellcheck="true"
-          data-text-fit="slot"
-          data-text-fit-slot="occasion_text"
           :data-poster-element-id="slotEditorElementId('occasion_text')"
           @focus="onSlotFocus($event, 'occasion_text')"
           @blur="onSlotBlur($event, 'occasion_text')"
@@ -2176,12 +2151,11 @@ import { autoUpdate, computePosition, flip, offset, shift, type Placement } from
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
+import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineOpacityExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveAdaptiveContourOverzoom, resolveAdaptiveContourStyleConfig, resolveAdaptiveContourThresholds, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, chromeBlockFitDefaults, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
-import { fitTextToBox, normalizeTextFitOptions, type TextFitOptions } from '~/utils/textFit'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
@@ -2189,7 +2163,7 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFitConfig, AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
@@ -2218,6 +2192,7 @@ const props = defineProps<{
   map: TrailMap
   styleConfig: StyleConfig
   editable?: boolean
+  mapInteractive?: boolean
   renderMode?: 'editor' | 'print'
   printContext?: PrintContext
   chromeEditing?: boolean
@@ -2308,10 +2283,10 @@ const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
 const chromeLayoutBuilderEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
-const textFitSettled = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
 const posterElementsEditing = computed(() => props.editable === true && props.posterElementsEditing === true && props.renderMode !== 'print')
+const mapViewerInteractive = computed(() => props.editable !== false || props.mapInteractive === true)
 
 const BRUSH_PREVIEW_SOURCE_ID = 'route-delete-brush-preview'
 const BRUSH_PREVIEW_CASING_LAYER_ID = 'route-delete-brush-preview-casing'
@@ -2342,6 +2317,7 @@ const brushCursorStyle = computed(() => {
   }
 })
 let mapInstance: maplibregl.Map | null = null
+const devCameraHandleId = Symbol('radmaps-map-camera')
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
@@ -2507,11 +2483,11 @@ async function ensureContourProtocol() {
 
 function getContourTileUrl(cfg: StyleConfig): string | undefined {
   if (!styleUsesContours(cfg) || !mlDemSource) return undefined
-  const detail = Math.round(cfg.contour_detail ?? 3)
-  const thresholds = CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
-  // overzoom: 2 — fetch DEM tiles 2 zoom levels higher than the map zoom,
-  // giving accurate contours even when the poster is zoomed out to fit a long route.
-  return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 2 })
+  const thresholds = resolveAdaptiveContourThresholds(cfg, props.map.stats)
+  return mlDemSource.contourProtocolUrl({
+    thresholds,
+    overzoom: resolveAdaptiveContourOverzoom(cfg),
+  })
 }
 
 type ActiveTextTarget =
@@ -2682,7 +2658,6 @@ onMounted(() => {
   window.addEventListener('resize', syncChromeViewportMode)
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown)
-  scheduleTextFit()
   nextTick(() => {
     syncPosterMoveableTarget()
     requestAnimationFrame(syncPosterMoveableTarget)
@@ -2690,7 +2665,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  cancelAnimationFrame(textFitFrame)
   window.removeEventListener('resize', syncChromeViewportMode)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
@@ -2977,7 +2951,7 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const style: Record<string, string> = {
     width: '100%',
     fontFamily: chromeBlockFontFamily(block, override),
-    fontSize: `var(--radmaps-text-fit-size, ${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockTargetFontSize(block)}cqh)`,
+    fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
     lineHeight: chromeBlockLineHeight(block),
     letterSpacing: chromeBlockLetterSpacing(block),
     textTransform: chromeBlockTextTransform(block),
@@ -3003,7 +2977,7 @@ function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride)
   return typography.value.subFont
 }
 
-function chromeBlockTargetFontSize(block: ChromeBlock) {
+function chromeBlockFontSize(block: ChromeBlock) {
   if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
   const scale = block.scale ?? 1
   if (block.kind === 'title') return typography.value.titleSize * scale
@@ -3101,186 +3075,6 @@ function chromeBlockText(block: ChromeBlock) {
   if (block.text != null) return block.text
   if (block.slot) return chromeSlotText(block)
   return 'Your text'
-}
-
-function titleFitMinScale() {
-  const compactPlate = composition.value.id === 'place-frame' && hasRenderableRoute.value
-  if (compactPlate) return 0.34
-  if (composition.value.id === 'editorial-tall') return 0.32
-  if (composition.value.id === 'travel-banner') return 0.34
-  if (composition.value.id === 'transit-diagram') return 0.44
-  if (composition.value.id === 'blueprint-strava' || composition.value.id === 'splits-grid') return 0.46
-  return 0.42
-}
-
-function fitConfigForChromeBlock(block: ChromeBlock): AnchorFitConfig {
-  const defaults = chromeBlockFitDefaults(block.kind)
-  const fit = { ...defaults, ...(block.fit ?? {}) }
-  if (block.kind === 'title') fit.minScale = block.fit?.minScale ?? titleFitMinScale()
-  return fit
-}
-
-function fitKindForSlot(slot: PosterTextSlot): ChromeBlock['kind'] {
-  if (slot === 'trail_name') return 'title'
-  if (slot === 'location_text') return 'subtitle'
-  if (slot === 'occasion_text') return 'occasion'
-  if (slot === 'composition_kicker') return 'eyebrow'
-  if (slot === 'composition_meta' || slot === 'coordinates') return 'coords'
-  if (slot === 'composition_footer') return 'note'
-  if (slot === 'composition_side_rail') return 'vlabel'
-  if (slot === 'distance' || slot === 'elevation_gain' || slot === 'date') return 'stat'
-  return 'text'
-}
-
-function fitConfigForSlot(slot: PosterTextSlot): AnchorFitConfig {
-  const kind = fitKindForSlot(slot)
-  const fit = chromeBlockForSlot(slot)?.fit ?? chromeBlockFitDefaults(kind)
-  const next = { ...chromeBlockFitDefaults(kind), ...fit }
-  if (slot === 'trail_name') next.minScale = fit.minScale ?? titleFitMinScale()
-  return next
-}
-
-function textFitTargetForSlot(slot: PosterTextSlot) {
-  return effectiveSlotFontSizeCqh(slot, slotBaseFontSizeCqh(slot))
-}
-
-function textFitOptionsForElement(el: HTMLElement): TextFitOptions | null {
-  if (el.dataset.textFit === 'chrome-block') {
-    const block = chromeBlockForId(el.dataset.chromeBlockId)
-    if (!block) return null
-    const fit = fitConfigForChromeBlock(block)
-    return normalizeTextFitOptions({
-      targetSizeCqh: fit.targetSizeCqh ?? chromeBlockTargetFontSize(block),
-      minScale: fit.minScale ?? 0.5,
-      maxLines: fit.maxLines,
-      overflow: fit.overflow,
-    })
-  }
-
-  const slot = el.dataset.textFitSlot as PosterTextSlot | undefined
-  if (!slot) return null
-  const fit = fitConfigForSlot(slot)
-  return normalizeTextFitOptions({
-    targetSizeCqh: fit.targetSizeCqh ?? textFitTargetForSlot(slot),
-    minScale: fit.minScale ?? 0.5,
-    maxLines: fit.maxLines,
-    overflow: fit.overflow,
-  })
-}
-
-function manualTextFitSizeCqh(el: HTMLElement): number | null {
-  if (el.dataset.textFit === 'chrome-block') {
-    const block = chromeBlockForId(el.dataset.chromeBlockId)
-    if (!block) return null
-    if (block.slot && slotOverride(block.slot).font_size_pt != null) return ptToCqh(slotOverride(block.slot).font_size_pt!)
-    if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
-    return null
-  }
-
-  const slot = el.dataset.textFitSlot as PosterTextSlot | undefined
-  if (!slot) return null
-  const overrideSize = slotOverride(slot).font_size_pt
-  return overrideSize != null ? ptToCqh(overrideSize) : null
-}
-
-function textFitBoxForElement(el: HTMLElement): HTMLElement {
-  if (el.dataset.textFit === 'chrome-block') {
-    return el.closest<HTMLElement>('.chrome-grid-cell') ?? el
-  }
-  if (el.classList.contains('poster-trail-name') || el.classList.contains('poster-location-line') || el.classList.contains('composition-kicker') || el.classList.contains('composition-meta-line')) {
-    return el.closest<HTMLElement>('.poster-header') ?? el
-  }
-  if (el.classList.contains('composition-footer-note') || el.classList.contains('poster-occasion') || el.classList.contains('stat-block')) {
-    return el.closest<HTMLElement>('.poster-footer') ?? el
-  }
-  return el
-}
-
-function applyManualTextFit(el: HTMLElement, sizeCqh: number) {
-  el.style.setProperty('--radmaps-text-fit-size-cqh', String(Number(sizeCqh.toFixed(4))))
-  el.style.setProperty('--radmaps-text-fit-size', `${Number(sizeCqh.toFixed(4))}cqh`)
-  el.style.setProperty('--radmaps-text-fit-scale', '1')
-  el.style.setProperty('font-size', `${Number(sizeCqh.toFixed(4))}cqh`, 'important')
-  el.style.overflow = 'hidden'
-  el.dataset.textFitStatus = 'manual'
-}
-
-let textFitFrame = 0
-let textFitRunId = 0
-let textFitRunning = false
-let textFitRerunRequested = false
-
-function publishTextFitStatus(status: { settled: boolean; count: number; clipped: number; manual: number; runId: number }) {
-  if (typeof window === 'undefined') return
-  ;(window as unknown as {
-    __RADMAPS_TEXT_FIT_STATUS?: typeof status
-    __RADMAPS_TEXT_FIT_SETTLED?: boolean
-  }).__RADMAPS_TEXT_FIT_STATUS = status
-  ;(window as unknown as { __RADMAPS_TEXT_FIT_SETTLED?: boolean }).__RADMAPS_TEXT_FIT_SETTLED = status.settled
-}
-
-async function runTextFitNow() {
-  if (typeof window === 'undefined') return
-  const root = posterCanvasEl.value
-  if (!root) return
-
-  if (textFitRunning) {
-    textFitRerunRequested = true
-    return
-  }
-
-  textFitRunning = true
-  try {
-    do {
-      textFitRerunRequested = false
-      const runId = ++textFitRunId
-      textFitSettled.value = false
-      publishTextFitStatus({ settled: false, count: 0, clipped: 0, manual: 0, runId })
-      await nextTick()
-
-      const elements = Array.from(root.querySelectorAll<HTMLElement>('[data-text-fit]'))
-        .filter(el => el.offsetParent !== null && el.textContent?.trim())
-      let clipped = 0
-      let manual = 0
-
-      for (const el of elements) {
-        const manualSize = manualTextFitSizeCqh(el)
-        if (manualSize != null) {
-          manual += 1
-          applyManualTextFit(el, manualSize)
-          continue
-        }
-        const options = textFitOptionsForElement(el)
-        if (!options) continue
-        const result = await fitTextToBox(el, textFitBoxForElement(el), options)
-        if (result.clipped) clipped += 1
-      }
-
-      textFitSettled.value = true
-      publishTextFitStatus({ settled: true, count: elements.length, clipped, manual, runId })
-      document.dispatchEvent(new CustomEvent('radmaps-text-fit-settled', { detail: { count: elements.length, clipped, manual, runId } }))
-    } while (textFitRerunRequested)
-  } finally {
-    textFitRunning = false
-    if (textFitRerunRequested) {
-      textFitRerunRequested = false
-      scheduleTextFit()
-    }
-  }
-}
-
-function scheduleTextFit() {
-  if (typeof window === 'undefined') return
-  textFitSettled.value = false
-  publishTextFitStatus({ settled: false, count: 0, clipped: 0, manual: 0, runId: textFitRunId })
-  cancelAnimationFrame(textFitFrame)
-  textFitFrame = requestAnimationFrame(() => {
-    void runTextFitNow()
-  })
-}
-
-async function waitForTextFitSettled() {
-  if (!textFitSettled.value) await runTextFitNow()
 }
 
 function chromeSlotText(block: ChromeBlock) {
@@ -3710,7 +3504,7 @@ function rememberChromeTextStyle(block: ChromeBlock, cell: ChromeGridCell) {
   const fontWeight = Number.parseInt(String(chromeBlockWeight(block)), 10)
   lastChromeTextStyle.value = {
     font_family: override.font_family ?? defaultChromeFontFamily(block),
-    font_size_pt: override.font_size_pt ?? block.font_size_pt ?? cqhToPt(chromeBlockTargetFontSize(block)),
+    font_size_pt: override.font_size_pt ?? block.font_size_pt ?? cqhToPt(chromeBlockFontSize(block)),
     align: override.align ?? cell.align ?? block.align ?? 'left',
     valign: cell.valign ?? block.valign ?? 'center',
     color: override.color ?? block.color ?? fg.value,
@@ -4857,6 +4651,7 @@ const layout = computed(() => getPosterLayout(props.styleConfig))
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
 const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
 const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
+const showCartoucheHills = computed(() => composition.value.id === 'place-frame')
 
 interface CompositionDecor {
   kicker?: string
@@ -4892,10 +4687,10 @@ const risoCaptionText = computed(() => {
   const occasion = occasionText.value.trim()
   return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
 })
-const risoLocationText = computed(() => locationText.value)
+const risoLocationText = computed(() => locationText.value.trim() || 'Route study')
 const risoMetaLabel = computed(() => {
   const text = risoLocationText.value.trim()
-  if (!text) return compositionDecor.value.kicker
+  if (!text || text.toLowerCase() === 'route study') return 'ROUTE'
   const parts = text.split(',').map(part => part.trim()).filter(Boolean)
   return (parts[parts.length - 1] || text).toUpperCase()
 })
@@ -5132,6 +4927,7 @@ const showMoonstoneTechnicalFooter = computed(() =>
 const hideGenericFooterStats = computed(() =>
   composition.value.id === 'darksky-stars' ||
   composition.value.id === 'botanical-plate' ||
+  props.styleConfig.color_theme === 'editorial-minimal' ||
   showBibDataFooter.value ||
   showMoonstoneTechnicalFooter.value,
 )
@@ -5160,6 +4956,7 @@ const finishPinLabel = computed(() =>
     : textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'),
 )
 const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
+const isClassicTrailTheme = computed(() => props.styleConfig.color_theme === 'classic-trail')
 const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
 const isBlueprintDraftingTheme = computed(() =>
   (composition.value.id === 'blueprint-grid' &&
@@ -5188,15 +4985,20 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         }
       }
       return {
-        kicker: 'No. 01 — A field record',
-        meta: `${location} · ${date}`,
-        footerNote: 'Drawn from route telemetry and terrain data',
+        kicker: 'WASHINGTON',
+        meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
       }
     case 'park-quad':
       if (isUsgsHeritageTheme.value) {
         return {
           kicker: coords.value?.lat ?? '36.5785°N',
           meta: 'SCALE 1:24 000',
+        }
+      }
+      if (isClassicTrailTheme.value) {
+        return {
+          kicker: coords.value?.lat ?? '56°07\'N',
+          meta: 'SCALE 1:24,000',
         }
       }
       return {
@@ -5463,8 +5265,8 @@ const trailNameStyle = computed(() => ({
   fontStyle: effectiveSlotItalic('trail_name'),
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh)`,
-  '--trail-title-size': `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
+  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
   opacity: String(effectiveSlotOpacity('trail_name', 1)),
@@ -5485,7 +5287,7 @@ const locationLineStyle = computed(() => ({
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
   opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
@@ -5505,7 +5307,7 @@ const compositionKickerStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_kicker', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_kicker', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_kicker'),
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_kicker', 0.88)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('composition_kicker', 0.88)}cqh`,
   letterSpacing: composition.value.id === 'editorial-tall' || composition.value.id === 'botanical-plate'
     ? '0.08em'
     : '0.24em',
@@ -5523,7 +5325,7 @@ const compositionMetaStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_meta', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_meta', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_meta'),
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_meta', 0.72)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('composition_meta', 0.72)}cqh`,
   letterSpacing: '0.18em',
   color: effectiveSlotColor('composition_meta', fg.value),
   backgroundColor: slotOverride('composition_meta').bg_color ?? 'transparent',
@@ -5539,7 +5341,7 @@ const compositionFooterNoteStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_footer', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_footer', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('composition_footer'),
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_footer', 0.62)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('composition_footer', 0.62)}cqh`,
   color: effectiveSlotColor('composition_footer', fg.value),
   backgroundColor: slotOverride('composition_footer').bg_color ?? 'transparent',
   opacity: String(effectiveSlotOpacity('composition_footer', 0.36)),
@@ -5551,7 +5353,7 @@ const compositionSideRailLabelStyle = computed(() => ({
   fontFamily: effectiveSlotFont('composition_side_rail', typography.value.subFont),
   fontWeight: effectiveSlotWeight('composition_side_rail', '700'),
   fontStyle: effectiveSlotItalic('composition_side_rail'),
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('composition_side_rail', 0.82)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('composition_side_rail', 0.82)}cqh`,
   color: effectiveSlotColor('composition_side_rail', fg.value),
   backgroundColor: slotOverride('composition_side_rail').bg_color ?? 'transparent',
   opacity: String(effectiveSlotOpacity('composition_side_rail', 0.32)),
@@ -5699,7 +5501,7 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 2.6)}cqh * var(--radmaps-text-fit-scale, 1))`,
+  fontSize: `${effectiveSlotFontSizeCqh(slot, 2.6)}cqh`,
   letterSpacing: '0',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
@@ -5714,7 +5516,7 @@ function statUnitStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, '400'),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `calc(${Math.max(0.32, effectiveSlotFontSizeCqh(slot, 2.6) * 0.31)}cqh * var(--radmaps-text-fit-scale, 1))`,
+  fontSize: `${Math.max(0.32, effectiveSlotFontSizeCqh(slot, 2.6) * 0.31)}cqh`,
   letterSpacing: '0.18em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor(slot, fg.value),
@@ -5730,7 +5532,7 @@ function coordStyleFor(slot: PosterTextSlot) {
   fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
-  fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.2)}cqh * var(--radmaps-text-fit-scale, 1))`,
+  fontSize: `${effectiveSlotFontSizeCqh(slot, 1.2)}cqh`,
   letterSpacing: '0.04em',
   lineHeight: '1.45',
   color: effectiveSlotColor(slot, fg.value),
@@ -5744,7 +5546,7 @@ function coordStyleFor(slot: PosterTextSlot) {
 function statCustomTextStyle(slot: PosterTextSlot) {
   return {
     ...statNumberStyleFor(slot),
-    fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.6)}cqh * var(--radmaps-text-fit-scale, 1))`,
+    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.6)}cqh`,
     whiteSpace: 'pre-line' as const,
     textAlign: effectiveSlotAlign(slot),
   }
@@ -5755,7 +5557,7 @@ function blueprintTitleblockStatStyle(slot: PosterTextSlot) {
     fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
     fontWeight: effectiveSlotWeight(slot, '520'),
     fontStyle: effectiveSlotItalic(slot),
-    fontSize: `calc(${effectiveSlotFontSizeCqh(slot, 1.34)}cqh * var(--radmaps-text-fit-scale, 1))`,
+    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.34)}cqh`,
     letterSpacing: '0.14em',
     lineHeight: '1',
     color: effectiveSlotColor(slot, fg.value),
@@ -5834,7 +5636,7 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `var(--radmaps-text-fit-size, ${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh)`,
+  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
@@ -5913,12 +5715,17 @@ function currentVisualScale(): number {
   })
 }
 
+function contourAdaptedStyleConfig(styleConfig: StyleConfig): StyleConfig {
+  return resolveAdaptiveContourStyleConfig(styleConfig, props.map.stats)
+}
+
 function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecification {
+  const contourStyleConfig = contourAdaptedStyleConfig(styleConfig)
   const style = buildMapStyle(
-    styleConfig,
+    contourStyleConfig,
     config.public.mapboxToken,
     config.public.maptilerToken,
-    getContourTileUrl(styleConfig),
+    getContourTileUrl(contourStyleConfig),
     config.public.stadiaToken,
   ) as maplibregl.StyleSpecification
   const zoomCompensatedStyle = applyViewportZoomCompensationToStyle(style, printZoomCompensationDelta())
@@ -6019,11 +5826,7 @@ function sourceLoaded(instance: maplibregl.Map, sourceId: string) {
 
 function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
   const contoursExpected = styleUsesContours(props.styleConfig)
-  const contourSourceId = instance.getSource('contours')
-    ? 'contours'
-    : instance.getSource('mapbox-terrain-v2')
-      ? 'mapbox-terrain-v2'
-      : null
+  const contourSourceId = instance.getSource('contours') ? 'contours' : null
   const demExpected = props.styleConfig.show_hillshade === true || props.styleConfig.map_3d === true
   const tilesLoaded = typeof instance.areTilesLoaded === 'function' ? instance.areTilesLoaded() : instance.loaded()
   const visibleSegmentCount = (props.styleConfig.trail_segments ?? []).filter(segment => segment.visible).length
@@ -6087,10 +5890,13 @@ function markPrintRenderReady() {
   const complete = async (timedOut = false) => {
     if (renderReady.value) return
     const status = printableMapStatus(instance, timedOut)
-    if (!timedOut && !printableMapComplete(status)) return
+    const statusComplete = printableMapComplete(status)
+    if (!timedOut && !statusComplete) return
+    const finalStatus = timedOut && statusComplete
+      ? printableMapStatus(instance, false)
+      : status
     cleanup()
     try {
-      await waitForTextFitSettled()
       await waitForPrintableAssets()
       const printGuardErrors = isPrintRender.value
         ? computePosterPrintGuardViolations(props.styleConfig).filter(violation => violation.severity === 'error')
@@ -6099,10 +5905,9 @@ function markPrintRenderReady() {
         throw new Error(`Poster print guards failed: ${printGuardErrors.map(violation => violation.message).join(' ')}`)
       }
       renderReady.value = true
-      const readyStatus = { ...status, textFitSettled: textFitSettled.value }
-      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof readyStatus; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = readyStatus
+      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof finalStatus; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = finalStatus
       ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
-      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: readyStatus }))
+      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: finalStatus }))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       ;(window as unknown as { __RADMAPS_RENDER_STATUS?: { ready: false; error: string }; __RENDER_ERROR?: string }).__RADMAPS_RENDER_STATUS = { ready: false, error: message }
@@ -7669,20 +7474,39 @@ function restoreCameraAfterStyleReload(camera: MapCameraSnapshot | null) {
 
 function publishDevCameraHandle() {
   if (!import.meta.dev || typeof window === 'undefined') return
-  ;(window as unknown as {
+  const priority = props.mapInteractive === true ? 2 : props.editable !== false ? 1 : 0
+  const devWindow = window as unknown as {
     __RADMAPS_MAP_CAMERA__?: {
       get: () => MapCameraSnapshot | null
       jumpTo: (camera: Partial<MapCameraSnapshot>) => void
       getLayerIds: () => string[]
       hasImage: (id: string) => boolean
       getPaintProperty: (layerId: string, property: string) => unknown
+      getInteractionState: () => {
+        dragPan: boolean
+        scrollZoom: boolean
+        doubleClickZoom: boolean
+        touchZoomRotate: boolean
+      }
     }
-  }).__RADMAPS_MAP_CAMERA__ = {
+    __RADMAPS_MAP_CAMERA_OWNER__?: symbol
+    __RADMAPS_MAP_CAMERA_PRIORITY__?: number
+  }
+  if ((devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__ ?? -1) > priority) return
+  devWindow.__RADMAPS_MAP_CAMERA_OWNER__ = devCameraHandleId
+  devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__ = priority
+  devWindow.__RADMAPS_MAP_CAMERA__ = {
     get: snapshotCurrentCamera,
     jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
     getLayerIds: () => mapInstance?.getStyle?.()?.layers?.map(layer => layer.id) ?? [],
     hasImage: (id) => mapInstance?.hasImage(id) ?? false,
     getPaintProperty: (layerId, property) => mapInstance?.getPaintProperty(layerId, property) ?? null,
+    getInteractionState: () => ({
+      dragPan: mapInstance?.dragPan.isEnabled() ?? false,
+      scrollZoom: mapInstance?.scrollZoom.isEnabled() ?? false,
+      doubleClickZoom: mapInstance?.doubleClickZoom.isEnabled() ?? false,
+      touchZoomRotate: mapInstance?.touchZoomRotate.isEnabled() ?? false,
+    }),
   }
 }
 
@@ -7716,7 +7540,7 @@ onMounted(async () => {
     pitch: effectivePitch(),
     bearing: effectiveBearing(),
     attributionControl: false,
-    interactive: props.editable !== false && !(props.styleConfig.map_frozen),
+    interactive: mapViewerInteractive.value && (props.mapInteractive === true || !(props.styleConfig.map_frozen)),
   })
   mapInstance.on('styleimagemissing', onStyleImageMissing)
   mapInstance.on('styledata', () => {
@@ -7783,7 +7607,6 @@ onMounted(async () => {
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
-    scheduleTextFit()
     if (queuedStyleConfig || styleConfigSignature(props.styleConfig) !== mountedStyleSignature) {
       queuedStyleConfig = null
       void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
@@ -7800,7 +7623,7 @@ onMounted(async () => {
     // Reconcile freeze state on initial load — the map_frozen watcher returns
     // early before mapReady, so a frozen view saved in the DB would otherwise
     // load with gestures still enabled.
-    if (props.styleConfig.map_frozen) disableAllMapGestures()
+    if (props.styleConfig.map_frozen && !canEnableMapGestures()) disableAllMapGestures()
   })
 
   mapInstance.on('zoom', () => {
@@ -7815,7 +7638,6 @@ onMounted(async () => {
     cancelAnimationFrame(resizeFrame)
     resizeFrame = requestAnimationFrame(() => {
       syncCameraToFrame()
-      scheduleTextFit()
     })
   })
   resizeObserver.observe(mapContainer.value)
@@ -8195,18 +8017,19 @@ function applyWaterPaint(config: StyleConfig) {
 }
 
 function applyContourPaint(config: StyleConfig) {
-  const contourOpacity = config.contour_opacity ?? 0.65
-  const minorColor = config.contour_color ?? config.label_text_color ?? '#64748B'
-  const majorColor = config.contour_major_color ?? minorColor
+  const contourConfig = contourAdaptedStyleConfig(config)
+  const contourOpacity = contourConfig.contour_opacity ?? 0.65
+  const minorColor = contourConfig.contour_color ?? contourConfig.label_text_color ?? '#64748B'
+  const majorColor = contourConfig.contour_major_color ?? minorColor
   setLayerPaint('contours-minor', 'line-color', minorColor)
-  setLayerPaint('contours-minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 5, contourOpacity, 14, contourOpacity * 0.9])
+  setLayerPaint('contours-minor', 'line-opacity', contourMinorLineOpacityExpression(contourOpacity))
   setLayerPaint('contours-mid', 'line-color', minorColor)
   setLayerPaint('contours-mid', 'line-opacity', contourOpacity)
   setLayerPaint('contours-major', 'line-color', majorColor)
   setLayerPaint('contours-major', 'line-opacity', contourOpacity)
   setLayerPaint('contours-labels', 'text-color', majorColor)
   setLayerPaint('contours-labels', 'text-opacity', contourOpacity)
-  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(config))
+  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(contourConfig))
 }
 
 function applyHillshadePaint(config: StyleConfig) {
@@ -8494,17 +8317,19 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
       applyContourPaint(newConfig)
     }
     if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
+      const contourConfig = contourAdaptedStyleConfig(newConfig)
       if (mapInstance.getLayer('contours-minor'))
         mapInstance.setPaintProperty('contours-minor', 'line-width',
-          contourMinorLineWidthExpression(newConfig))
+          contourMinorLineWidthExpression(contourConfig))
       if (mapInstance.getLayer('contours-mid'))
         mapInstance.setPaintProperty('contours-mid', 'line-width',
-          contourMidLineWidthExpression(newConfig))
+          contourMidLineWidthExpression(contourConfig))
     }
     if (newConfig.contour_major_width !== oldConfig?.contour_major_width) {
+      const contourConfig = contourAdaptedStyleConfig(newConfig)
       if (mapInstance.getLayer('contours-major'))
         mapInstance.setPaintProperty('contours-major', 'line-width',
-          contourMajorLineWidthExpression(newConfig))
+          contourMajorLineWidthExpression(contourConfig))
     }
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
@@ -8563,7 +8388,6 @@ watch(
   () => props.styleConfig,
   (newConfig, oldConfig) => {
     void applyStyleConfigUpdate(newConfig, oldConfig)
-    scheduleTextFit()
   },
   { deep: true },
 )
@@ -9530,7 +9354,7 @@ watch(
 // to explicitly reposition it here.
 
 function canEnableMapGestures() {
-  return !props.styleConfig.map_frozen
+  return mapViewerInteractive.value && (props.mapInteractive === true || !props.styleConfig.map_frozen)
 }
 
 function disableAllMapGestures() {
@@ -9566,7 +9390,11 @@ watch(
   (frozen) => {
     if (!mapInstance || !mapReady.value) return
     if (frozen) {
-      disableAllMapGestures()
+      if (canEnableMapGestures()) {
+        enableAllMapGestures()
+      } else {
+        disableAllMapGestures()
+      }
       if (canUseSavedCamera()) {
         mapInstance.jumpTo({
           zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
@@ -9740,12 +9568,19 @@ onUnmounted(() => {
   mapInstance?.remove()
   mapInstance = null
   if (import.meta.dev && typeof window !== 'undefined') {
-    delete (window as unknown as {
+    const devWindow = window as unknown as {
       __RADMAPS_MAP_CAMERA__?: {
         get: () => MapCameraSnapshot | null
         jumpTo: (camera: Partial<MapCameraSnapshot>) => void
       }
-    }).__RADMAPS_MAP_CAMERA__
+      __RADMAPS_MAP_CAMERA_OWNER__?: symbol
+      __RADMAPS_MAP_CAMERA_PRIORITY__?: number
+    }
+    if (devWindow.__RADMAPS_MAP_CAMERA_OWNER__ === devCameraHandleId) {
+      delete devWindow.__RADMAPS_MAP_CAMERA__
+      delete devWindow.__RADMAPS_MAP_CAMERA_OWNER__
+      delete devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__
+    }
   }
 })
 </script>
@@ -9847,123 +9682,25 @@ onUnmounted(() => {
 }
 
 .composition-plate-frame {
-  inset: 3.5cqh 3.8cqw;
-  border: 3px double currentColor;
-  opacity: 0.46;
+  inset: 4.4cqh 4.8cqw;
+  border: 2px solid currentColor;
+  opacity: 0.42;
   z-index: 10;
-  box-shadow:
-    inset 0 0 0 0.48cqw color-mix(in srgb, var(--composition-paper, white) 62%, transparent),
-    inset 0 0 0 0.58cqw color-mix(in srgb, currentColor 16%, transparent);
+  box-shadow: none;
 }
 
 .poster-composition--place-frame .composition-plate-frame {
-  opacity: 0.82;
-  background:
-    radial-gradient(ellipse at 18% 30%, transparent 0 19%, color-mix(in srgb, currentColor 14%, transparent) 19.4% 19.75%, transparent 20.2%),
-    radial-gradient(ellipse at 76% 66%, transparent 0 24%, color-mix(in srgb, currentColor 12%, transparent) 24.3% 24.62%, transparent 25.1%),
-    linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, currentColor 12%, transparent) 8% 8.18%, transparent 8.18% 91.8%, color-mix(in srgb, currentColor 12%, transparent) 91.8% 92%, transparent 92%),
-    linear-gradient(0deg, transparent 0 7.2%, color-mix(in srgb, currentColor 11%, transparent) 7.2% 7.36%, transparent 7.36% 92.6%, color-mix(in srgb, currentColor 11%, transparent) 92.6% 92.76%, transparent 92.76%);
-  border-color: color-mix(in srgb, currentColor 82%, transparent);
-  box-shadow:
-    inset 0 0 0 0.48cqw color-mix(in srgb, var(--composition-paper, white) 58%, transparent),
-    inset 0 0 0 0.66cqw color-mix(in srgb, currentColor 22%, transparent);
+  opacity: 0.58;
+  border-color: color-mix(in srgb, currentColor 58%, transparent);
 }
 
-.cartouche-corner,
-.cartouche-seal {
-  position: absolute;
-  pointer-events: none;
-}
-
-.cartouche-corner {
-  width: 7.8cqw;
-  height: 5.4cqh;
-  opacity: 0.68;
-  border-color: currentColor;
-  color: currentColor;
-}
-
-.cartouche-corner::before,
-.cartouche-corner::after {
-  content: "";
-  position: absolute;
-  border-color: currentColor;
-}
-
-.cartouche-corner::before {
-  inset: 0.2cqh 0.2cqw;
-  border-top: 1px solid;
-  border-left: 1px solid;
-  border-radius: 100% 0 0 0;
-}
-
-.cartouche-corner::after {
-  width: 4.4cqw;
-  height: 3.1cqh;
-  border-top: 1px solid;
-  border-left: 1px solid;
-  border-radius: 100% 0 0 0;
-  opacity: 0.54;
-}
-
-.cartouche-corner--tl {
-  left: 1.5cqw;
-  top: 1.3cqh;
-}
-
-.cartouche-corner--tr {
-  right: 1.5cqw;
-  top: 1.3cqh;
-  transform: scaleX(-1);
-}
-
-.cartouche-corner--br {
-  right: 1.5cqw;
-  bottom: 1.3cqh;
-  transform: scale(-1);
-}
-
-.cartouche-corner--bl {
-  left: 1.5cqw;
-  bottom: 1.3cqh;
-  transform: scaleY(-1);
-}
-
-.cartouche-corner--tl::after,
-.cartouche-corner--tr::after {
-  left: 1.1cqw;
-  top: 1cqh;
-}
-
-.cartouche-corner--br::after,
-.cartouche-corner--bl::after {
-  left: 1.1cqw;
-  top: 1cqh;
-}
-
-.cartouche-seal {
-  right: 4.4cqw;
-  bottom: 5.6cqh;
-  width: 5.8cqw;
-  aspect-ratio: 1;
-  border-radius: 44% 52% 48% 50%;
-  background:
-    radial-gradient(circle at 36% 30%, color-mix(in srgb, #fff1d7 45%, transparent), transparent 34%),
-    radial-gradient(circle at 52% 54%, color-mix(in srgb, var(--route-color, #9a3b27) 88%, #562415), color-mix(in srgb, var(--route-color, #9a3b27) 72%, #2b1d14));
-  box-shadow:
-    0 0.45cqh 1.2cqh rgba(44, 29, 18, 0.16),
-    inset -0.35cqw -0.25cqh 0.7cqw rgba(40, 18, 10, 0.26),
-    inset 0.26cqw 0.18cqh 0.5cqw rgba(255, 232, 198, 0.22);
-  opacity: 0.78;
-  transform: rotate(-7deg);
-}
-
-.cartouche-seal i {
-  position: absolute;
-  inset: 24%;
-  display: block;
-  border: 1px solid color-mix(in srgb, #fff0d4 58%, transparent);
-  border-radius: 999px;
+.poster-composition--place-frame .composition-grid-overlay--map {
+  inset: -11cqh -10cqw;
+  opacity: 0.28 !important;
+  transform: rotate(14deg);
+  transform-origin: center;
+  background-size: 10cqw 10cqh !important;
+  mix-blend-mode: multiply;
 }
 
 .composition-star-field {
@@ -10015,6 +9752,11 @@ onUnmounted(() => {
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
+  inset: calc(7.8cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
+  overflow: visible !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
   position: absolute !important;
   inset: calc(6.4cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
   z-index: 14 !important;
@@ -10049,6 +9791,22 @@ onUnmounted(() => {
     0 0 0.25cqh var(--background-color, #070c1e) !important;
 }
 
+.poster-composition--darksky-stars[data-theme="copper-night"] .poster-trail-name {
+  width: 74cqw !important;
+  max-width: 74cqw !important;
+  font-size: 8.9cqh !important;
+  line-height: 0.92 !important;
+  margin-top: 3.7cqh !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-kicker,
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-location-line {
+  display: block !important;
+  min-height: 1.45cqh;
+  line-height: 1.2 !important;
+}
+
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-location-line {
   order: 2;
   color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 72%, var(--contour-major-color, #50689c) 28%) !important;
@@ -10057,6 +9815,11 @@ onUnmounted(() => {
   margin-top: 2.2cqh !important;
   opacity: 0.72 !important;
   text-transform: none !important;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .poster-location-line {
+  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 82%, var(--route-color, #f0b15f) 18%) !important;
+  opacity: 0.88 !important;
 }
 
 .poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-meta-line {
@@ -10232,11 +9995,11 @@ onUnmounted(() => {
     radial-gradient(circle at 84% 57%, currentColor 0 0.10cqw, transparent 0.17cqw),
     radial-gradient(circle at 90% 25%, currentColor 0 0.12cqw, transparent 0.19cqw),
     radial-gradient(circle at 96% 41%, currentColor 0 0.09cqw, transparent 0.15cqw);
-  opacity: 0.95;
+  opacity: 0.72;
 }
 
 .poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field::after {
-  content: "";
+  content: none;
   position: absolute;
   inset: 0;
   color: color-mix(in srgb, var(--route-color, #f0b15f) 68%, var(--label-text-color, #f0d9bf) 32%);
@@ -10470,6 +10233,7 @@ onUnmounted(() => {
 .poster-composition--modernist-block .composition-kicker {
   position: relative;
   z-index: 1;
+  order: 1;
   margin: 0;
   color: color-mix(in srgb, var(--label-text-color, #15130f) 56%, transparent) !important;
   font-family: var(--composition-body-font, inherit) !important;
@@ -10482,10 +10246,10 @@ onUnmounted(() => {
 .poster-composition--modernist-block .poster-rule {
   position: relative;
   z-index: 1;
-  order: 5;
+  order: 3;
   width: 100%;
   height: 0.18cqh !important;
-  margin: 1.7cqh 0 1.3cqh !important;
+  margin: 1.35cqh 0 1.05cqh !important;
   background: var(--label-text-color, #15130f) !important;
   opacity: 0.92 !important;
 }
@@ -10493,6 +10257,7 @@ onUnmounted(() => {
 .poster-composition--modernist-block .poster-trail-name {
   position: relative;
   z-index: 1;
+  order: 2;
   margin: 0;
   max-width: 100%;
   color: var(--label-text-color, #15130f) !important;
@@ -10507,6 +10272,7 @@ onUnmounted(() => {
 .poster-composition--modernist-block .poster-location-line {
   position: relative;
   z-index: 1;
+  order: 4;
   max-width: 57%;
   margin: 0;
   color: color-mix(in srgb, var(--label-text-color, #15130f) 62%, transparent) !important;
@@ -10567,7 +10333,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--modernist-block[data-theme="blackline"] .poster-header {
-  background: #b9b9b6 !important;
+  background: #f7f7f4 !important;
   color: #000 !important;
 }
 
@@ -10582,20 +10348,13 @@ onUnmounted(() => {
   color: #000 !important;
 }
 
+.poster-composition--modernist-block[data-theme="blackline"] .poster-trail-name {
+  font-size: min(max(var(--trail-title-size, 12.2cqh), 12.2cqh), 13.2cqh) !important;
+  line-height: 0.82 !important;
+}
+
 .poster-composition--modernist-block[data-theme="blackline"] [data-testid="poster-map"]::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 12;
-  pointer-events: none;
-  opacity: 0.38;
-  mix-blend-mode: multiply;
-  background:
-    radial-gradient(ellipse at 13% 18%, transparent 0 9%, rgba(0, 0, 0, 0.42) 9.25% 9.55%, transparent 9.9% 14%, rgba(0, 0, 0, 0.24) 14.25% 14.48%, transparent 14.9%),
-    radial-gradient(ellipse at 76% 22%, transparent 0 7%, rgba(0, 0, 0, 0.36) 7.2% 7.5%, transparent 7.9% 12%, rgba(0, 0, 0, 0.22) 12.2% 12.45%, transparent 12.9%),
-    radial-gradient(ellipse at 38% 67%, transparent 0 10%, rgba(0, 0, 0, 0.34) 10.25% 10.52%, transparent 10.9% 16%, rgba(0, 0, 0, 0.20) 16.25% 16.5%, transparent 16.9%),
-    radial-gradient(ellipse at 88% 78%, transparent 0 8%, rgba(0, 0, 0, 0.38) 8.25% 8.55%, transparent 8.9% 13%, rgba(0, 0, 0, 0.22) 13.25% 13.5%, transparent 13.9%),
-    repeating-linear-gradient(0deg, transparent 0 4.2cqh, rgba(0, 0, 0, 0.12) 4.2cqh calc(4.2cqh + 1px), transparent calc(4.2cqh + 1px) 8.4cqh);
+  display: none !important;
 }
 
 .poster-composition--splits-grid .poster-footer-rule,
@@ -11506,6 +11265,29 @@ onUnmounted(() => {
   text-transform: uppercase !important;
 }
 
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label {
+  position: absolute;
+  z-index: 22;
+  color: color-mix(in srgb, #26313b 68%, transparent);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 0.92cqh;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label--coord {
+  top: calc(2.1cqh + var(--print-bleed, 0px));
+  left: calc(6.25cqw + var(--print-bleed, 0px));
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label--scale {
+  right: calc(6.25cqw + var(--print-bleed, 0px));
+  bottom: calc(17.8cqh + var(--print-bleed, 0px));
+}
+
 .poster-composition--park-quad[data-theme="classic-trail"] .poster-footer {
   background:
     repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent) 0 1px, transparent 1px 6.4cqw),
@@ -11822,6 +11604,7 @@ onUnmounted(() => {
 .poster-composition--park-quad[data-theme="classic-trail"] .poster-footer-rule,
 .poster-composition--park-quad[data-theme="classic-trail"] .composition-footer-note,
 .poster-composition--park-quad[data-theme="classic-trail"] .poster-stats,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-mark,
 .poster-composition--park-quad[data-theme="classic-trail"] .poster-date,
 .poster-composition--park-quad[data-theme="classic-trail"] .poster-coords,
 .poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-band--footer {
@@ -12722,9 +12505,22 @@ onUnmounted(() => {
   background: var(--label-bg-color, #F8F3EA) !important;
 }
 
-.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-kicker,
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-rule {
   display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-kicker {
+  position: absolute !important;
+  top: 3.2cqh !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  color: var(--route-color, #9A3B27) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.32cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-trail-name,
@@ -12743,13 +12539,54 @@ onUnmounted(() => {
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-meta-line {
-  margin-top: 0.25cqh !important;
-  letter-spacing: 0.12em !important;
-  opacity: 0.46 !important;
+  position: absolute !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: 34cqw !important;
+  margin-top: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #171410) 58%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.28cqh !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 22 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer > :not(.poster-occasion) {
   display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-occasion,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--occasion {
+  position: absolute !important;
+  left: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 42cqw !important;
+  color: color-mix(in srgb, var(--label-text-color, #171410) 62%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 1.65cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
 }
 
 .poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--stat::first-line {
@@ -12962,7 +12799,7 @@ onUnmounted(() => {
   margin: 0 !important;
   border: 0 !important;
   box-shadow: none !important;
-  background: var(--land-color, #f4f0e3) !important;
+  background: var(--composition-paper, #eae6db) !important;
 }
 
 .poster-composition--riso-stack .maplibregl-canvas {
@@ -13025,9 +12862,10 @@ onUnmounted(() => {
   width: 100% !important;
   max-width: 100% !important;
   color: var(--route-color, #ff4f7b) !important;
-  font-size: min(max(var(--trail-title-size, 12.7cqh), 12.7cqh), 13.1cqh) !important;
-  line-height: 0.78 !important;
+  font-size: min(var(--trail-title-size, 12.7cqh), 13.1cqh) !important;
+  line-height: 0.94 !important;
   letter-spacing: 0 !important;
+  overflow: visible !important;
   white-space: normal !important;
   overflow-wrap: normal !important;
   text-wrap: balance !important;
@@ -13040,7 +12878,7 @@ onUnmounted(() => {
   content: attr(data-riso-title);
   position: absolute;
   left: 1.05cqw;
-  top: 0.65cqh;
+  top: 0.48cqh;
   color: var(--water-color, #2f5fd0);
   opacity: 0.74;
   pointer-events: none;
@@ -13050,9 +12888,9 @@ onUnmounted(() => {
   position: absolute !important;
   left: calc(6.8cqw + var(--print-bleed, 0px));
   right: calc(6.8cqw + var(--print-bleed, 0px));
-  bottom: calc(4.1cqh + var(--print-bleed, 0px));
+  bottom: calc(4.3cqh + var(--print-bleed, 0px));
   z-index: 18 !important;
-  height: 5.8cqh !important;
+  height: 7.2cqh !important;
   min-height: 0 !important;
   padding: 0 !important;
   background: transparent !important;
@@ -13078,19 +12916,19 @@ onUnmounted(() => {
 }
 
 .poster-composition--riso-stack .composition-riso-caption strong {
-  font-size: 2.05cqh;
+  font-size: 1.98cqh;
   line-height: 1.1;
-  font-weight: 760;
+  font-weight: 780;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .poster-composition--riso-stack .composition-riso-caption span {
-  margin-top: 0.65cqh;
-  font-size: 1.62cqh;
+  margin-top: 0.56cqh;
+  font-size: 1.54cqh;
   line-height: 1.15;
-  color: color-mix(in srgb, var(--label-text-color, #16243f) 70%, transparent);
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 78%, transparent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -13100,19 +12938,19 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.85cqh;
+  gap: 0.72cqh;
   min-width: 22cqw;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 1.35cqh;
+  font-size: 1.28cqh;
   line-height: 1;
-  color: color-mix(in srgb, var(--label-text-color, #16243f) 74%, transparent);
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 78%, transparent);
   text-align: right;
   white-space: nowrap;
 }
 
 .poster-composition--riso-stack .composition-riso-meta span:first-child {
   font-family: "Work Sans", sans-serif;
-  font-size: 1.25cqh;
+  font-size: 1.34cqh;
   letter-spacing: 0.27em;
   text-transform: uppercase;
   color: var(--water-color, #2f5fd0);
@@ -13169,71 +13007,75 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame .poster-header {
-  left: 13.5cqw;
-  right: 13.5cqw;
-  top: 50%;
+  left: 19cqw;
+  right: 19cqw;
+  top: 72%;
   bottom: auto;
   align-items: center !important;
-  padding: 2.65cqh 3.8cqw !important;
+  padding: 2.75cqh 4.2cqw 2.95cqh !important;
   background: color-mix(in srgb, var(--composition-paper, white) 92%, #fffdf2 8%) !important;
-  border: 3px double color-mix(in srgb, currentColor 84%, transparent);
-  box-shadow:
-    inset 0 0 0 0.75cqw color-mix(in srgb, var(--composition-paper, white) 84%, currentColor 16%),
-    inset 0 0 0 0.92cqw color-mix(in srgb, currentColor 12%, transparent),
-    0 1.4cqh 3.2cqh rgba(15, 18, 26, 0.08);
+  border: 2px solid color-mix(in srgb, currentColor 88%, transparent);
+  box-shadow: 0 1.4cqh 3.2cqh rgba(15, 18, 26, 0.08);
   transform: translateY(-50%);
+  height: 39.2cqh !important;
+  min-height: 39.2cqh !important;
+  max-height: 39.2cqh !important;
 }
 
 .poster-composition--place-frame.poster-has-route .poster-header {
-  left: calc(7.2cqw + var(--print-bleed, 0px));
-  right: auto;
+  left: calc(18cqw + var(--print-bleed, 0px));
+  right: calc(18cqw + var(--print-bleed, 0px));
   top: auto;
-  bottom: calc(6.8cqh + var(--print-bleed, 0px));
-  width: min(58cqw, 38cqh);
-  align-items: flex-start !important;
-  text-align: left !important;
-  padding: 1.75cqh 3.1cqw 1.85cqh !important;
+  bottom: calc(7.8cqh + var(--print-bleed, 0px));
+  width: auto;
+  align-items: center !important;
+  text-align: center !important;
+  padding: 2.35cqh 3.3cqw 2.55cqh !important;
   border-width: 2px;
-  border-style: double;
-  box-shadow:
-    inset 0 0 0 0.44cqw color-mix(in srgb, var(--composition-paper, white) 86%, currentColor 14%),
-    inset 0 0 0 0.52cqw color-mix(in srgb, currentColor 12%, transparent),
-    0 1cqh 2.8cqh rgba(32, 24, 16, 0.14);
+  border-style: solid;
+  box-shadow: 0 1cqh 2.8cqh rgba(32, 24, 16, 0.12);
   transform: none;
+  max-height: 34cqh;
 }
 
 .poster-composition--place-frame .poster-header::before,
 .poster-composition--place-frame .poster-header::after {
-  content: "";
+  content: none !important;
+}
+
+.poster-composition--place-frame .composition-cartouche-hills {
   position: absolute;
-  top: 50%;
-  width: 8.5cqw;
-  height: 4.6cqh;
+  inset: auto 0 calc(-1.2cqh + var(--print-bleed, 0px));
+  height: 30cqh;
+  z-index: 17;
   pointer-events: none;
-  opacity: 0.36;
-  border-top: 1px solid currentColor;
-  border-bottom: 1px solid currentColor;
+  overflow: hidden;
+  mix-blend-mode: multiply;
 }
 
-.poster-composition--place-frame .poster-header::before {
-  left: 1.5cqw;
-  border-left: 1px solid currentColor;
-  border-radius: 100% 0 0 100%;
-  transform: translateY(-50%);
+.poster-composition--place-frame .composition-cartouche-hill {
+  position: absolute;
+  bottom: -5.8cqh;
+  display: block;
+  background: color-mix(in srgb, var(--label-text-color, #0f121a) 36%, var(--water-color, #9fb7aa) 64%);
+  opacity: 0.24;
+  filter: blur(0.08cqh);
 }
 
-.poster-composition--place-frame .poster-header::after {
-  right: 1.5cqw;
-  border-right: 1px solid currentColor;
-  border-radius: 0 100% 100% 0;
-  transform: translateY(-50%);
+.poster-composition--place-frame .composition-cartouche-hill--left {
+  left: -6cqw;
+  width: 48cqw;
+  height: 22cqh;
+  border-radius: 62% 38% 0 0 / 70% 82% 0 0;
+  transform: rotate(-5deg);
 }
 
-.poster-composition--place-frame.poster-has-route .poster-header::before,
-.poster-composition--place-frame.poster-has-route .poster-header::after {
-  width: 5.2cqw;
-  height: 3.2cqh;
-  opacity: 0.28;
+.poster-composition--place-frame .composition-cartouche-hill--right {
+  right: -4cqw;
+  width: 62cqw;
+  height: 28cqh;
+  border-radius: 44% 56% 0 0 / 78% 64% 0 0;
+  transform: rotate(-7deg);
 }
 
 .poster-composition--place-frame .composition-kicker {
@@ -13246,10 +13088,10 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame.poster-has-route .composition-kicker {
-  justify-content: flex-start;
-  gap: 0.8cqw;
+  justify-content: center;
+  gap: 0.9cqw;
   max-width: 100%;
-  font-size: 0.68cqh !important;
+  font-size: 0.8cqh !important;
   font-weight: 700 !important;
   letter-spacing: 0.19em !important;
   white-space: nowrap;
@@ -13264,22 +13106,40 @@ onUnmounted(() => {
 }
 
 .poster-composition--place-frame .poster-trail-name {
-  font-size: min(var(--trail-title-size, 4.9cqh), 6.1cqh) !important;
+  font-size: min(var(--trail-title-size, 6.45cqh), 6.55cqh) !important;
   text-transform: uppercase !important;
   letter-spacing: 0.035em !important;
   line-height: 0.94 !important;
-  max-width: 84% !important;
+  max-width: 88% !important;
+  min-height: 10.6cqh;
+  overflow: visible !important;
+}
+
+.poster-composition--place-frame .chrome-grid-block--title {
+  justify-self: center !important;
+  max-width: 88% !important;
+}
+
+.poster-composition--place-frame .poster-location-line,
+.poster-composition--place-frame .chrome-grid-block--subtitle {
+  text-transform: none !important;
 }
 
 .poster-composition--place-frame.poster-has-route .poster-trail-name {
   max-width: 100% !important;
-  font-size: min(var(--trail-title-size, 3.3cqh), 3.35cqh) !important;
-  line-height: 0.9 !important;
-  text-align: left !important;
+  font-size: min(var(--trail-title-size, 4.25cqh), 4.55cqh) !important;
+  line-height: 0.92 !important;
+  text-align: center !important;
   overflow-wrap: normal !important;
   word-break: normal !important;
   hyphens: none !important;
   text-wrap: balance;
+}
+
+.poster-composition--place-frame.poster-has-route .chrome-grid-block--title {
+  min-height: 8.4cqh;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .poster-composition--place-frame .composition-meta-line {
@@ -13299,10 +13159,10 @@ onUnmounted(() => {
 .poster-composition--place-frame.poster-has-route .composition-meta-line {
   margin-top: 0.85cqh;
   padding-top: 0.85cqh;
-  font-size: 0.68cqh !important;
+  font-size: 0.78cqh !important;
   line-height: 1.25 !important;
   letter-spacing: 0.11em !important;
-  text-align: left !important;
+  text-align: center !important;
   white-space: normal !important;
 }
 
@@ -13392,10 +13252,11 @@ onUnmounted(() => {
 
 .poster-composition--art-wash[data-theme="contour-wash"] .poster-header {
   bottom: calc(6.9cqh + var(--print-bleed, 0px));
-  padding: 0.65cqh 2.2cqw 0.85cqh !important;
-  background: transparent !important;
+  width: 52cqw;
+  padding: 2.05cqh 4.4cqw 2.25cqh !important;
+  background: var(--composition-paper, #ebe9e6) !important;
   border: 0 !important;
-  box-shadow: none !important;
+  box-shadow: 0 1.8cqh 3.8cqh rgba(21, 20, 18, 0.05) !important;
   overflow: visible !important;
 }
 
@@ -13425,32 +13286,28 @@ onUnmounted(() => {
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 12;
-  pointer-events: none;
-  opacity: 0.22;
-  mix-blend-mode: multiply;
-  background:
-    radial-gradient(ellipse at 18% 20%, transparent 0 10.4%, rgba(21, 20, 18, 0.20) 10.48% 10.58%, transparent 10.68% 13.2%, rgba(21, 20, 18, 0.16) 13.28% 13.38%, transparent 13.48% 16%, rgba(21, 20, 18, 0.12) 16.08% 16.18%, transparent 16.28%),
-    radial-gradient(ellipse at 72% 18%, transparent 0 8.6%, rgba(21, 20, 18, 0.18) 8.68% 8.78%, transparent 8.88% 11.4%, rgba(21, 20, 18, 0.13) 11.48% 11.58%, transparent 11.68% 14.6%, rgba(21, 20, 18, 0.10) 14.68% 14.78%, transparent 14.88%),
-    radial-gradient(ellipse at 42% 58%, transparent 0 12.1%, rgba(21, 20, 18, 0.18) 12.18% 12.28%, transparent 12.38% 15.4%, rgba(21, 20, 18, 0.14) 15.48% 15.58%, transparent 15.68% 18.7%, rgba(21, 20, 18, 0.10) 18.78% 18.88%, transparent 18.98%),
-    radial-gradient(ellipse at 82% 76%, transparent 0 10.2%, rgba(21, 20, 18, 0.16) 10.28% 10.38%, transparent 10.48% 13.2%, rgba(21, 20, 18, 0.12) 13.28% 13.38%, transparent 13.48% 16%, rgba(21, 20, 18, 0.09) 16.08% 16.18%, transparent 16.28%);
+  content: none !important;
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 11;
-  pointer-events: none;
-  background: rgba(235, 233, 230, 0.62);
+  content: none !important;
 }
 
 .poster-composition--art-wash[data-theme="contour-wash"] .maplibregl-canvas {
-  filter: grayscale(1) brightness(2.15) contrast(0.42) saturate(0.02);
-  opacity: 0.72;
+  filter: none !important;
+  opacity: 1;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-trail-name {
+  font-size: min(var(--trail-title-size, 5.05cqh), 5.05cqh) !important;
+  font-weight: 600 !important;
+  line-height: 0.96 !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-location-line {
+  margin-top: 1.05cqh !important;
+  letter-spacing: 0.18em !important;
+  opacity: 0.62 !important;
 }
 
 .poster-composition--art-wash[data-theme="plein-air"] .poster-header {
@@ -13737,10 +13594,10 @@ onUnmounted(() => {
 }
 
 .poster-composition--brutalist-slab .poster-trail-name {
-  margin: 5.4cqh 0 0 !important;
+  margin: 8.2cqh 0 0 !important;
   color: var(--label-text-color, #0a0a0a) !important;
-  font-size: min(max(var(--trail-title-size, 22cqh), 22cqh), 24cqh) !important;
-  line-height: 0.7 !important;
+  font-size: min(max(var(--trail-title-size, 12.8cqh), 12.8cqh), 13.6cqh) !important;
+  line-height: 0.82 !important;
   letter-spacing: 0 !important;
   text-transform: uppercase !important;
 }
@@ -13758,7 +13615,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 13;
   pointer-events: none;
-  background: rgba(230, 227, 221, 0.16);
+  background: rgba(230, 227, 221, 0.42);
   mix-blend-mode: multiply;
   opacity: 1;
 }
@@ -13777,7 +13634,7 @@ onUnmounted(() => {
 
 .poster-composition--brutalist-slab .poster-footer-rule {
   opacity: 1 !important;
-  height: 0.24cqh !important;
+  height: 1px !important;
   background: currentColor !important;
 }
 

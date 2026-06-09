@@ -53,7 +53,7 @@ import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
 import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
-import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type RouteStats, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
 import { getPrintFraming } from '~/utils/print/printFraming'
@@ -495,11 +495,13 @@ const sampleRegions: Record<string, {
   location: string
   bbox: [number, number, number, number]
   route: number[][]
+  stats?: Partial<RouteStats>
 }> = {
   chicago: {
     title: 'Kickapoo Endurance Race',
     location: 'Chicago, Illinois',
     bbox: [-87.75, 41.83, -87.58, 41.92],
+    stats: { distance_km: 30.7, elevation_gain_m: 96, elevation_loss_m: 92, min_elevation_m: 176, max_elevation_m: 226 },
     route: [
       [-87.733, 41.905],
       [-87.71, 41.91],
@@ -516,6 +518,7 @@ const sampleRegions: Record<string, {
     title: 'Mount Whitney',
     location: 'Sierra Nevada, California',
     bbox: [-118.37, 36.51, -118.17, 36.69],
+    stats: { distance_km: 34.6, elevation_gain_m: 1910, elevation_loss_m: 1910, min_elevation_m: 2550, max_elevation_m: 4418 },
     route: [
       [-118.333, 36.592],
       [-118.315, 36.602],
@@ -534,6 +537,7 @@ const sampleRegions: Record<string, {
     title: 'Wonderland',
     location: 'Mount Rainier, Washington',
     bbox: [-121.95, 46.72, -121.58, 46.98],
+    stats: { distance_km: 149.7, elevation_gain_m: 4331, elevation_loss_m: 4331, min_elevation_m: 730, max_elevation_m: 2085 },
     route: [
       [-121.840, 46.802],
       [-121.805, 46.828],
@@ -550,6 +554,7 @@ const sampleRegions: Record<string, {
     title: 'Wonderland',
     location: 'Mount Rainier, Washington',
     bbox: [-121.95, 46.72, -121.58, 46.98],
+    stats: { distance_km: 149.7, elevation_gain_m: 4331, elevation_loss_m: 4331, min_elevation_m: 730, max_elevation_m: 2085 },
     route: [
       [-121.840, 46.875],
       [-121.780, 46.902],
@@ -564,6 +569,7 @@ const sampleRegions: Record<string, {
     title: 'Mount Whitney',
     location: 'Sierra Nevada, California',
     bbox: [-118.34, 36.475, -118.215, 36.635],
+    stats: { distance_km: 35.4, elevation_gain_m: 1910, elevation_loss_m: 1910, min_elevation_m: 2550, max_elevation_m: 4418 },
     route: [
       [-118.350, 36.540],
       [-118.338, 36.548],
@@ -586,6 +592,7 @@ const sampleRegions: Record<string, {
     title: 'Tre Cime',
     location: 'Dolomiti, Italia',
     bbox: [12.18, 46.54, 12.42, 46.72],
+    stats: { distance_km: 10.5, elevation_gain_m: 740, elevation_loss_m: 740, min_elevation_m: 1960, max_elevation_m: 2455 },
     route: [
       [12.217, 46.6186],
       [12.234, 46.642],
@@ -604,6 +611,7 @@ const sampleRegions: Record<string, {
     title: 'Tre Cime',
     location: 'Dolomiti, Italia',
     bbox: [12.18, 46.54, 12.42, 46.72],
+    stats: { distance_km: 10.5, elevation_gain_m: 740, elevation_loss_m: 740, min_elevation_m: 1960, max_elevation_m: 2455 },
     route: [
       [12.213, 46.582],
       [12.226, 46.588],
@@ -629,6 +637,7 @@ const sampleRegions: Record<string, {
     title: 'Moab',
     location: 'Sand Flats, Utah',
     bbox: [-109.65, 38.49, -109.42, 38.66],
+    stats: { distance_km: 24.2, elevation_gain_m: 530, elevation_loss_m: 530, min_elevation_m: 1220, max_elevation_m: 1635 },
     route: [
       [-109.604, 38.548],
       [-109.575, 38.568],
@@ -644,6 +653,7 @@ const sampleRegions: Record<string, {
     title: 'Napa Valley',
     location: 'Calistoga · Napa · California',
     bbox: [-122.68, 38.42, -122.34, 38.78],
+    stats: { distance_km: 35.6, elevation_gain_m: 320, elevation_loss_m: 315, min_elevation_m: 35, max_elevation_m: 235 },
     route: [
       [-122.618, 38.718],
       [-122.570, 38.684],
@@ -657,6 +667,7 @@ const sampleRegions: Record<string, {
     title: 'Boston',
     location: 'Boston, Massachusetts',
     bbox: [-71.18, 42.27, -70.98, 42.40],
+    stats: { distance_km: 42.1648, elevation_gain_m: 247.8, elevation_loss_m: 357, min_elevation_m: 0, max_elevation_m: 150 },
     route: [
       [-71.147, 42.3601],
       [-71.124, 42.372],
@@ -671,6 +682,7 @@ const sampleRegions: Record<string, {
     title: 'The Cobbler',
     location: 'Argyll, Scotland',
     bbox: [-4.86, 56.15, -4.70, 56.29],
+    stats: { distance_km: 12.4, elevation_gain_m: 950, elevation_loss_m: 950, min_elevation_m: 20, max_elevation_m: 884 },
     route: [
       [-4.815, 56.182],
       [-4.792, 56.197],
@@ -684,6 +696,7 @@ const sampleRegions: Record<string, {
     title: 'Centro Histórico',
     location: 'Mexico City, Mexico',
     bbox: [-99.158, 19.420, -99.115, 19.452],
+    stats: { distance_km: 7.2, elevation_gain_m: 54, elevation_loss_m: 48, min_elevation_m: 2230, max_elevation_m: 2260 },
     route: [
       [-99.151, 19.432],
       [-99.144, 19.438],
@@ -745,6 +758,7 @@ const sampleRegions: Record<string, {
     title: 'Mount Fuji Ascent',
     location: 'Fuji-Hakone, Japan',
     bbox: [138.62, 35.28, 138.84, 35.46],
+    stats: { distance_km: 12.8, elevation_gain_m: 1460, elevation_loss_m: 320, min_elevation_m: 720, max_elevation_m: 3776 },
     route: [
       [138.731, 35.365],
       [138.727, 35.377],
@@ -770,7 +784,32 @@ const sampleRegions: Record<string, {
 
 const sampleRegion = sampleRegions[region] ?? sampleRegions.chicago
 const routeRegion = sampleRegions[routeShape] ?? sampleRegion
-const sampleMapBbox = routeRegion.bbox ?? sampleRegion.bbox
+function bboxFromRoute(route: number[][]): [number, number, number, number] | null {
+  const points = route.filter(point =>
+    typeof point[0] === 'number' &&
+    Number.isFinite(point[0]) &&
+    typeof point[1] === 'number' &&
+    Number.isFinite(point[1]),
+  )
+  if (!points.length) return null
+
+  let minLng = points[0][0]
+  let minLat = points[0][1]
+  let maxLng = points[0][0]
+  let maxLat = points[0][1]
+  for (const [lng, lat] of points) {
+    minLng = Math.min(minLng, lng)
+    minLat = Math.min(minLat, lat)
+    maxLng = Math.max(maxLng, lng)
+    maxLat = Math.max(maxLat, lat)
+  }
+
+  return [minLng, minLat, maxLng, maxLat]
+}
+
+const sampleRoute = withRoute ? routeRegion.route : []
+const sampleMapBbox = bboxFromRoute(sampleRoute) ?? routeRegion.bbox ?? sampleRegion.bbox
+const sampleStats = routeRegion.stats ?? sampleRegion.stats ?? sampleRegions.chicago.stats ?? {}
 if (region !== 'chicago') {
   styleConfig.value = {
     ...styleConfig.value,
@@ -779,13 +818,8 @@ if (region !== 'chicago') {
     occasion_text: fixtureOccasionText ?? '',
   }
 }
-const sampleRoute = withRoute ? routeRegion.route : []
 const sampleRouteWithElevation = withElevationData
-  ? densifyRoute(sampleRoute).map(([lng, lat], index) => [
-      lng,
-      lat,
-      180 + Math.round(Math.sin(index * 0.9) * 42 + index * 18),
-    ])
+  ? withFixtureElevation(densifyRoute(sampleRoute), sampleStats)
   : sampleRoute
 
 const sampleMap: TrailMap = {
@@ -807,13 +841,13 @@ const sampleMap: TrailMap = {
   stats: {
     distance_km: typeof fixtureDistanceKm === 'number' && Number.isFinite(fixtureDistanceKm)
       ? fixtureDistanceKm
-      : 30.7,
+      : sampleStats.distance_km ?? 30.7,
     elevation_gain_m: typeof fixtureGainM === 'number' && Number.isFinite(fixtureGainM)
       ? fixtureGainM
-      : 1320,
-    elevation_loss_m: 1280,
-    min_elevation_m: 180,
-    max_elevation_m: 390,
+      : sampleStats.elevation_gain_m ?? 1320,
+    elevation_loss_m: sampleStats.elevation_loss_m ?? sampleStats.elevation_gain_m ?? 1280,
+    min_elevation_m: sampleStats.min_elevation_m ?? 180,
+    max_elevation_m: sampleStats.max_elevation_m ?? 390,
     duration_seconds: typeof fixtureDurationSeconds === 'number' && Number.isFinite(fixtureDurationSeconds)
       ? fixtureDurationSeconds
       : 14_832,
@@ -833,12 +867,49 @@ function densifyRoute(route: number[][]): number[][] {
     const next = route[index + 1]
     out.push(current)
     if (next) {
-      out.push([
-        (current[0] + next[0]) / 2,
-        (current[1] + next[1]) / 2,
-      ])
+      for (let step = 1; step < 8; step += 1) {
+        const t = step / 8
+        out.push([
+          current[0] + ((next[0] - current[0]) * t),
+          current[1] + ((next[1] - current[1]) * t),
+        ])
+      }
     }
   }
   return out
+}
+
+function withFixtureElevation(route: number[][], stats: Partial<RouteStats>): number[][] {
+  const minElevation = stats.min_elevation_m ?? 120
+  const maxElevation = stats.max_elevation_m ?? minElevation + 420
+  const range = Math.max(80, maxElevation - minElevation)
+  const count = Math.max(1, route.length - 1)
+  return route.map(([lng, lat], index) => {
+    const t = index / count
+    if (styleConfig.value.color_theme === 'splits-stats') {
+      const jag =
+        (Math.sin(Math.PI * 13.5 * t) * 0.018) +
+        (Math.sin((Math.PI * 29 * t) + 0.8) * 0.012) +
+        (((index % 3) - 1) * 0.008)
+      const normalized = Math.min(0.56, Math.max(0.18, 0.26 + (0.18 * t) + jag))
+      return [
+        lng,
+        lat,
+        Math.round(minElevation + (range * normalized)),
+      ]
+    }
+    const wave =
+      0.48 +
+      (Math.sin((Math.PI * 2.1 * t) - 0.7) * 0.24) +
+      (Math.sin((Math.PI * 6.4 * t) + 0.35) * 0.14) +
+      (Math.sin((Math.PI * 15.5 * t) - 0.2) * 0.045)
+    const taper = 0.1 * Math.sin(Math.PI * t)
+    const normalized = Math.min(0.98, Math.max(0.04, wave + taper))
+    return [
+      lng,
+      lat,
+      Math.round(minElevation + (range * normalized)),
+    ]
+  })
 }
 </script>
