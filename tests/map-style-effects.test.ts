@@ -95,10 +95,13 @@ describe('adaptive contour detail', () => {
     })
   })
 
-  it('does not let theme-specific contour styling override low-relief density', () => {
+  it('does not let ordinary theme-specific contour styling override low-relief density', () => {
     for (const color_theme of ['brutalist', 'botanical', 'midcentury-travel', 'copper-night', 'ranch-ochre'] as const) {
       expect(resolveAdaptiveContourDetail({ color_theme, contour_detail: 0 }, lowReliefStats), color_theme).toBe(5)
     }
+  })
+
+  it('keeps explicitly sparse low-relief data-art themes at their designed contour detail', () => {
     expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(1)
     expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(1)
     expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(1)
@@ -112,6 +115,28 @@ describe('adaptive contour detail', () => {
       10: [2, 10],
       14: [2, 10],
     })
+  })
+
+  it('backs off travel-poster contour density for moderate elevation-change map views', () => {
+    const dolomitesStats = {
+      distance_km: 10.5,
+      elevation_gain_m: 740,
+      elevation_loss_m: 740,
+      min_elevation_m: 1960,
+      max_elevation_m: 2455,
+    }
+    const moabStats = {
+      distance_km: 24.2,
+      elevation_gain_m: 530,
+      elevation_loss_m: 530,
+      min_elevation_m: 1220,
+      max_elevation_m: 1635,
+    }
+
+    expect(resolveAdaptiveContourDetail({ color_theme: 'midcentury-travel', contour_detail: 0 }, dolomitesStats)).toBe(1)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'midcentury-travel', contour_detail: 0 }, dolomitesStats)).toBe(CONTOUR_THRESHOLDS[1])
+    expect(resolveAdaptiveContourDetail({ color_theme: 'ranch-ochre', contour_detail: 1 }, moabStats)).toBe(1)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'ranch-ochre', contour_detail: 1 }, moabStats)).toBe(CONTOUR_THRESHOLDS[1])
   })
 
   it('uses near-max Brutalist intervals so flat city maps still show index contours', () => {
@@ -194,7 +219,7 @@ describe('adaptive contour detail', () => {
   })
 
   it('smooths DEM contours for line-art themes that otherwise render coastline fragments', () => {
-    for (const color_theme of ['classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern'] as const) {
+    for (const color_theme of ['classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'midcentury-travel', 'ranch-ochre'] as const) {
       expect(resolveAdaptiveContourOverzoom({ color_theme }), color_theme).toBe(2)
     }
     expect(resolveAdaptiveContourOverzoom({ color_theme: 'brutalist' })).toBe(0)
@@ -210,10 +235,10 @@ describe('adaptive contour detail', () => {
     }
     expect(resolveAdaptiveContourReliefProfile(moderateMountainStats)).toMatchObject({
       band: 'high',
-      detail: 3,
+      detail: 1,
       reliefM: 495,
     })
-    expect(resolveAdaptiveContourDetail({ contour_detail: 5 }, moderateMountainStats)).toBe(3)
+    expect(resolveAdaptiveContourDetail({ contour_detail: 5 }, moderateMountainStats)).toBe(1)
 
     const steepStats = {
       distance_km: 18,
@@ -224,11 +249,11 @@ describe('adaptive contour detail', () => {
     }
     expect(resolveAdaptiveContourReliefProfile(steepStats)).toMatchObject({
       band: 'high',
-      detail: 2,
+      detail: 1,
       reliefM: 1120,
     })
-    expect(resolveAdaptiveContourDetail({ contour_detail: 5 }, steepStats)).toBe(2)
-    expect(resolveAdaptiveContourThresholds({ contour_detail: 5 }, steepStats)).toBe(CONTOUR_THRESHOLDS[2])
+    expect(resolveAdaptiveContourDetail({ contour_detail: 5 }, steepStats)).toBe(1)
+    expect(resolveAdaptiveContourThresholds({ contour_detail: 5 }, steepStats)).toBe(CONTOUR_THRESHOLDS[1])
     const extremeRainierStats = {
       distance_km: 149.7,
       elevation_gain_m: 4331,

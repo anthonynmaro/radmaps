@@ -267,6 +267,8 @@ const SMOOTH_CONTOUR_THEME_IDS = new Set([
   'contour-wash',
   'daybreak-trace',
   'editorial-minimal',
+  'midcentury-travel',
+  'ranch-ochre',
 ])
 
 const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
@@ -301,20 +303,19 @@ function finiteOrNull(value: unknown): number | null {
 function detailForReliefMeters(reliefM: number | null): number | null {
   if (reliefM == null) return null
   if (reliefM <= 250) return 5
-  if (reliefM <= 500) return 4
-  if (reliefM <= 850) return 3
-  if (reliefM <= 1200) return 2
-  if (reliefM <= 1300) return 1
+  if (reliefM <= 350) return 4
+  if (reliefM <= 700) return 1
+  if (reliefM <= 1200) return 1
   return 0
 }
 
 function detailForGainPerKm(gainPerKm: number | null): number | null {
   if (gainPerKm == null) return null
   if (gainPerKm <= 35) return 5
-  if (gainPerKm <= 65) return 4
-  if (gainPerKm <= 105) return 3
-  if (gainPerKm <= 155) return 2
-  if (gainPerKm <= 225) return 1
+  if (gainPerKm <= 55) return 4
+  if (gainPerKm <= 85) return 3
+  if (gainPerKm <= 140) return 2
+  if (gainPerKm <= 210) return 1
   return 0
 }
 
@@ -322,7 +323,7 @@ function bandForContourDetail(detail: number | null): AdaptiveContourReliefBand 
   if (detail == null) return 'unknown'
   if (detail === 5) return 'low'
   if (detail === 4) return 'moderate'
-  if (detail >= 2) return 'high'
+  if (detail >= 1) return 'high'
   return 'extreme'
 }
 

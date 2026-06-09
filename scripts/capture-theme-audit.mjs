@@ -41,6 +41,7 @@ const ADAPTIVE_CONTOUR_PAINT_THEMES = new Set([
   'field-journal',
   'midcentury-travel',
   'moonstone',
+  'night-ride',
   'plein-air',
   'ranch-ochre',
   'relief-shaded',
