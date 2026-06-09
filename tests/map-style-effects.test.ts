@@ -100,6 +100,8 @@ describe('adaptive contour detail', () => {
       expect(resolveAdaptiveContourDetail({ color_theme, contour_detail: 0 }, lowReliefStats), color_theme).toBe(5)
     }
     expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(1)
+    expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(1)
+    expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(1)
   })
 
   it('uses dense printable contour intervals across poster zooms for low-relief routes', () => {
@@ -2297,6 +2299,7 @@ describe('RadMaps Atlas style integration', () => {
         waterwayOpacity: 0.32,
         minorContour: '#3A6A5E',
         majorContour: '#91BFAE',
+        baseLayers: false,
         minorOpacity: 0.34,
         majorOpacity: 0.48,
       },
@@ -2319,6 +2322,7 @@ describe('RadMaps Atlas style integration', () => {
         waterwayOpacity: 0.34,
         minorContour: '#4A49A2',
         majorContour: '#7772EA',
+        baseLayers: true,
         minorOpacity: 0.44,
         majorOpacity: 0.62,
       },
@@ -2353,14 +2357,24 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.route_width).toBe(expected.routeWidth)
       expect(config.route_opacity).toBe(expected.routeOpacity)
       expect(layerById(style, 'background')?.paint?.['background-color']).toBe(expected.land)
-      expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-color']).toBe(expected.land)
-      expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-opacity']).toBe(expected.landOpacity)
-      expect(layerById(style, 'radmaps-alidade-dark-park')?.paint?.['fill-color']).toBe(expected.park)
-      expect(layerById(style, 'radmaps-alidade-dark-park')?.paint?.['fill-opacity']).toBe(expected.parkOpacity)
-      expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-color']).toBe(expected.water)
-      expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-opacity']).toBe(expected.waterOpacity)
-      expect(layerById(style, 'radmaps-alidade-dark-waterway')?.paint?.['line-color']).toBe(expected.waterway)
-      expect(layerById(style, 'radmaps-alidade-dark-waterway')?.paint?.['line-opacity']).toBe(expected.waterwayOpacity)
+      if (expected.baseLayers) {
+        expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-color']).toBe(expected.land)
+        expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-opacity']).toBe(expected.landOpacity)
+        expect(layerById(style, 'radmaps-alidade-dark-park')?.paint?.['fill-color']).toBe(expected.park)
+        expect(layerById(style, 'radmaps-alidade-dark-park')?.paint?.['fill-opacity']).toBe(expected.parkOpacity)
+        expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-color']).toBe(expected.water)
+        expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-opacity']).toBe(expected.waterOpacity)
+        expect(layerById(style, 'radmaps-alidade-dark-waterway')?.paint?.['line-color']).toBe(expected.waterway)
+        expect(layerById(style, 'radmaps-alidade-dark-waterway')?.paint?.['line-opacity']).toBe(expected.waterwayOpacity)
+      } else {
+        expect(config.atlas_layers).toMatchObject({ landcover: false, park: false, water: false, waterway: false, outdoorRoute: false })
+        expect(layerById(style, 'radmaps-alidade-dark-landcover')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-park')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-water')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-waterway')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-outdoor-routes')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-outdoor-route-labels')).toBeUndefined()
+      }
       expect(layerById(style, 'radmaps-alidade-dark-roads-major')).toBeUndefined()
       expect(layerById(style, 'radmaps-alidade-dark-roads-minor')).toBeUndefined()
       expect(layerById(style, 'radmaps-alidade-dark-trails')).toBeUndefined()
@@ -2434,6 +2448,8 @@ describe('RadMaps Atlas style integration', () => {
         water: '#0E1720',
         minorContour: '#30343A',
         majorContour: '#6A6E73',
+        contourDetail: 1,
+        baseLayers: false,
         minorOpacity: 0.24,
         majorOpacity: 0.28,
       },
@@ -2450,6 +2466,8 @@ describe('RadMaps Atlas style integration', () => {
         water: '#0B1A23',
         minorContour: '#222F34',
         majorContour: '#52666A',
+        contourDetail: 5,
+        baseLayers: true,
         minorOpacity: 0.32,
         majorOpacity: 0.48,
       },
@@ -2482,9 +2500,20 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.route_opacity).toBe(0.94)
       expect(config.show_start_pin).toBe(false)
       expect(config.show_finish_pin).toBe(false)
+      expect(config.contour_detail).toBe(expected.contourDetail)
       expect(layerById(style, 'background')?.paint?.['background-color']).toBe(expected.land)
-      expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-color']).toBe(expected.land)
-      expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-color']).toBe(expected.water)
+      if (expected.baseLayers) {
+        expect(layerById(style, 'radmaps-alidade-dark-landcover')?.paint?.['fill-color']).toBe(expected.land)
+        expect(layerById(style, 'radmaps-alidade-dark-water')?.paint?.['fill-color']).toBe(expected.water)
+      } else {
+        expect(config.atlas_layers).toMatchObject({ landcover: false, water: false, waterway: false, park: false, outdoorRoute: false })
+        expect(layerById(style, 'radmaps-alidade-dark-landcover')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-water')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-waterway')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-park')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-outdoor-routes')).toBeUndefined()
+        expect(layerById(style, 'radmaps-alidade-dark-outdoor-route-labels')).toBeUndefined()
+      }
       expect(layerById(style, 'radmaps-alidade-dark-roads-major')).toBeUndefined()
       expect(layerById(style, 'radmaps-alidade-dark-roads-minor')).toBeUndefined()
       expect(layerById(style, 'radmaps-alidade-dark-place-labels')).toBeUndefined()

@@ -276,7 +276,9 @@ const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
 ])
 
 const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
+  'blueprint-strava',
   'daybreak-trace',
+  'splits-stats',
 ])
 
 const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
@@ -405,10 +407,6 @@ export function resolveAdaptiveContourThresholds(
   return LOW_RELIEF_CONTOUR_THRESHOLDS
 }
 
-function hasUsableContourStats(stats: Partial<RouteStats> | null | undefined): boolean {
-  return resolveAdaptiveContourReliefProfile(stats).band !== 'unknown'
-}
-
 function scaleNumber(value: number | undefined, factor: number, max: number): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return value
   return Math.min(value * factor, max)
@@ -431,9 +429,10 @@ export function resolveAdaptiveContourStyleConfig(
   if (!styleGraphUsesContours(config)) return config
 
   const adaptiveDetail = resolveAdaptiveContourDetail(config, stats)
-  const hasStats = hasUsableContourStats(stats)
+  const reliefProfile = resolveAdaptiveContourReliefProfile(stats)
+  const hasStats = reliefProfile.band !== 'unknown'
   const isLowRelief = adaptiveDetail === 5 && hasStats
-  const highReliefProfile = adaptiveDetail <= 3
+  const highReliefProfile = adaptiveDetail <= 3 && reliefProfile.band !== 'low'
     ? config.color_theme === 'bold-modern'
       ? ({
           0: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
