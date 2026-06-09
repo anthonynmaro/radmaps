@@ -14,7 +14,17 @@ type CoverageTarget = {
   activities: string[]
   anchorPremades: string[]
   maxNewBuildCostUsd: number
+  estimatedNextBuildCostUsd: number
   terrainStrategy: string
+  artifactKinds: string[]
+  sourceStrategy: string
+  maxOverlayZoom: number
+  printQaRequired: boolean
+  qaFixtures: Array<{
+    label: string
+    activity: string
+    printSize: string
+  }>
 }
 
 const repoRoot = resolve(__dirname, '..')
@@ -23,6 +33,9 @@ const coverageTargets = JSON.parse(
 ) as {
   schemaVersion: string
   costGuardrails: {
+    totalBuildBudgetUsd: number
+    actualCoverageBuildCostUsd: number
+    remainingCoverageBuildBudgetUsd: number
     awsExperimentBudgetUsdPerMonth: number
     manualApprovalRequiredFor: string[]
   }
@@ -33,8 +46,13 @@ const premadeSlugs = new Set(PREMADE_MAPS.map(map => map.slug))
 
 describe('atlas coverage target matrix', () => {
   it('keeps coverage targets unique and ordered', () => {
-    expect(coverageTargets.schemaVersion).toBe('radmaps-atlas-coverage-targets-v1')
-    expect(coverageTargets.costGuardrails.awsExperimentBudgetUsdPerMonth).toBeLessThanOrEqual(300)
+    expect(coverageTargets.schemaVersion).toBe('radmaps-atlas-coverage-targets-v2')
+    expect(coverageTargets.costGuardrails.totalBuildBudgetUsd).toBe(200)
+    expect(coverageTargets.costGuardrails.awsExperimentBudgetUsdPerMonth).toBeLessThanOrEqual(200)
+    expect(coverageTargets.costGuardrails.actualCoverageBuildCostUsd).toBeGreaterThanOrEqual(0)
+    expect(coverageTargets.costGuardrails.remainingCoverageBuildBudgetUsd).toBe(
+      coverageTargets.costGuardrails.totalBuildBudgetUsd - coverageTargets.costGuardrails.actualCoverageBuildCostUsd,
+    )
     expect(coverageTargets.costGuardrails.manualApprovalRequiredFor.join(' ')).toContain('20 GB')
 
     const ids = coverageTargets.targets.map(target => target.id)
@@ -46,9 +64,15 @@ describe('atlas coverage target matrix', () => {
 
   it('points runnable targets at declared atlas build regions', () => {
     for (const target of coverageTargets.targets) {
-      if (target.status === 'build-candidate' || target.status === 'qa-ready' || target.status === 'staging-live') {
-        expect(target.atlasRegion, target.id).toBeTruthy()
-        expect(atlasRegions[target.atlasRegion!], target.id).toBeTruthy()
+      const isRunnable = target.status.startsWith('build-candidate') || target.status === 'qa-ready' || target.status === 'staging-live'
+
+      if (isRunnable && target.atlasRegion) {
+        expect(atlasRegions[target.atlasRegion], target.id).toBeTruthy()
+      } else if (isRunnable) {
+        const splitRegions = Object.values(atlasRegions)
+          .filter((region: any) => region.coverage === target.id || region.id === target.id)
+
+        expect(splitRegions.length, target.id).toBeGreaterThan(0)
       }
 
       if (target.status.startsWith('deferred')) {
@@ -69,6 +93,13 @@ describe('atlas coverage target matrix', () => {
       expect(minLat, target.id).toBeLessThan(maxLat)
       expect(target.activities.length, target.id).toBeGreaterThan(0)
       expect(target.terrainStrategy, target.id).toContain('runtime')
+      expect(target.artifactKinds, target.id).toContain('base')
+      expect(target.artifactKinds, target.id).toContain('poi')
+      expect(target.artifactKinds, target.id).toContain('outdoorRoutes')
+      expect(target.sourceStrategy.length, target.id).toBeGreaterThan(20)
+      expect(target.maxOverlayZoom, target.id).toBe(16)
+      expect(target.printQaRequired, target.id).toBe(true)
+      expect(target.qaFixtures.some(fixture => fixture.printSize === '24x36'), target.id).toBe(true)
 
       for (const slug of target.anchorPremades) {
         expect(premadeSlugs.has(slug), `${target.id} references ${slug}`).toBe(true)
@@ -77,13 +108,26 @@ describe('atlas coverage target matrix', () => {
   })
 
   it('keeps first-wave global builds under the small-pack cost cap', () => {
-    const firstWave = coverageTargets.targets.filter(target => target.status === 'build-candidate')
+    const firstWave = coverageTargets.targets.filter(target => target.status.startsWith('build-candidate'))
 
-    expect(firstWave.map(target => target.id)).toEqual([])
+    expect(firstWave.map(target => target.id)).toEqual([
+      'western-alps-dolomites',
+      'atlantic-islands',
+      'andes-peru-ecuador',
+      'nepal-himalaya',
+      'iceland-scotland',
+      'costa-rica-central-america',
+    ])
 
     for (const target of firstWave) {
-      expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(25)
+      expect(target.estimatedNextBuildCostUsd, target.id).toBeLessThanOrEqual(target.maxNewBuildCostUsd)
     }
+
+    const firstWaveEstimatedUsd = firstWave.reduce((sum, target) => sum + target.estimatedNextBuildCostUsd, 0)
+    expect(firstWaveEstimatedUsd).toBe(130)
+    expect(firstWaveEstimatedUsd + coverageTargets.costGuardrails.actualCoverageBuildCostUsd).toBeLessThanOrEqual(
+      coverageTargets.costGuardrails.totalBuildBudgetUsd,
+    )
 
     expect(coverageTargets.targets.find(target => target.id === 'new-zealand-outdoor')?.status).toBe('staging-live')
     expect(coverageTargets.targets.find(target => target.id === 'northern-spain-camino')?.status).toBe('staging-live')
