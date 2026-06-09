@@ -101,11 +101,13 @@ describe('adaptive contour detail', () => {
     }
   })
 
-  it('lets Daybreak use capped denser low-relief contours while data-art themes stay sparse', () => {
+  it('lets Daybreak and dark data themes use capped denser low-relief contours', () => {
     expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(3)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace thresholds').toBe(CONTOUR_THRESHOLDS[3])
-    expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(1)
-    expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(1)
+    expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(3)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava thresholds').toBe(CONTOUR_THRESHOLDS[3])
+    expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(3)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats thresholds').toBe(CONTOUR_THRESHOLDS[3])
   })
 
   it('uses dense printable contour intervals across poster zooms for low-relief routes', () => {
@@ -2328,6 +2330,7 @@ describe('RadMaps Atlas style integration', () => {
         baseLayers: false,
         minorOpacity: 0.34,
         majorOpacity: 0.48,
+        suppressSeaLevelContours: true,
       },
       {
         id: 'electric-atlas',
@@ -2351,6 +2354,7 @@ describe('RadMaps Atlas style integration', () => {
         baseLayers: true,
         minorOpacity: 0.44,
         majorOpacity: 0.62,
+        suppressSeaLevelContours: false,
       },
     ] as const
 
@@ -2410,6 +2414,13 @@ describe('RadMaps Atlas style integration', () => {
       expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual(contourMinorLineOpacityExpression(expected.minorOpacity))
       expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe(expected.majorContour)
       expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(expected.majorOpacity)
+      if (expected.suppressSeaLevelContours) {
+        expect(layerById(style, 'contours-minor')?.filter).toEqual(['all', ['>', ['get', 'ele'], 0], ['!=', ['get', 'level'], 1]])
+        expect(layerById(style, 'contours-major')?.filter).toEqual(['all', ['>', ['get', 'ele'], 0], ['==', ['get', 'level'], 1]])
+      } else {
+        expect(layerById(style, 'contours-minor')?.filter).toEqual(['!=', ['get', 'level'], 1])
+        expect(layerById(style, 'contours-major')?.filter).toEqual(['==', ['get', 'level'], 1])
+      }
       expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe(expected.route)
       expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(expected.routeWidth)
       expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(expected.routeOpacity)
@@ -2478,6 +2489,7 @@ describe('RadMaps Atlas style integration', () => {
         baseLayers: false,
         minorOpacity: 0.24,
         majorOpacity: 0.28,
+        suppressSeaLevelContours: true,
       },
       {
         id: 'night-ride',
@@ -2496,6 +2508,7 @@ describe('RadMaps Atlas style integration', () => {
         baseLayers: true,
         minorOpacity: 0.32,
         majorOpacity: 0.48,
+        suppressSeaLevelContours: false,
       },
     ] as const
 
@@ -2548,6 +2561,13 @@ describe('RadMaps Atlas style integration', () => {
       expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual(contourMinorLineOpacityExpression(expected.minorOpacity))
       expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe(expected.majorContour)
       expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(expected.majorOpacity)
+      if (expected.suppressSeaLevelContours) {
+        expect(layerById(style, 'contours-minor')?.filter).toEqual(['all', ['>', ['get', 'ele'], 0], ['!=', ['get', 'level'], 1]])
+        expect(layerById(style, 'contours-major')?.filter).toEqual(['all', ['>', ['get', 'ele'], 0], ['==', ['get', 'level'], 1]])
+      } else {
+        expect(layerById(style, 'contours-minor')?.filter).toEqual(['!=', ['get', 'level'], 1])
+        expect(layerById(style, 'contours-major')?.filter).toEqual(['==', ['get', 'level'], 1])
+      }
       expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe(expected.route)
       expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(expected.routeWidth)
       expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.94)

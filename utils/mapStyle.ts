@@ -277,9 +277,7 @@ const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
   'moonstone',
 ])
 
-const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
-  'blueprint-strava',
-  'splits-stats',
+const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set<string>([
 ])
 
 const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
@@ -291,8 +289,23 @@ const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
 ])
 
 const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
+  ['blueprint-strava', 3],
   ['daybreak-trace', 3],
+  ['splits-stats', 3],
 ])
+
+const SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS = new Set([
+  'blueprint-strava',
+  'splits-stats',
+])
+
+function contourFeatureFilter(
+  config: Partial<Pick<StyleConfig, 'color_theme'>>,
+  levelFilter: unknown[],
+): unknown[] {
+  if (!SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS.has(config.color_theme ?? '')) return levelFilter
+  return ['all', ['>', ['get', 'ele'], 0], levelFilter]
+}
 
 function clampContourDetail(detail: number): number {
   if (!Number.isFinite(detail)) return 3
@@ -857,7 +870,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'line',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['!=', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.contour_color,
@@ -870,7 +883,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'line',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['==', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.contour_major_color,
@@ -886,7 +899,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'symbol',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['==', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
         layout: {
           'symbol-placement': 'line',
           'symbol-spacing': 500,
@@ -2313,7 +2326,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['!=', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2330,7 +2343,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['!=', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2344,7 +2357,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2358,7 +2371,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_major_color,
@@ -2375,7 +2388,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'symbol',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: {
         'symbol-placement': 'line',
         'symbol-spacing': 500,
@@ -2871,7 +2884,7 @@ function buildContourArtStyle(
               type: 'line',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['!=', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['!=', ['get', 'level'], 1]),
               layout: { 'line-join': 'round', 'line-cap': 'round' },
               paint: {
                 'line-color': artConfig.contour_color,
@@ -2884,7 +2897,7 @@ function buildContourArtStyle(
               type: 'line',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['==', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['==', ['get', 'level'], 1]),
               layout: { 'line-join': 'round', 'line-cap': 'round' },
               paint: {
                 'line-color': artConfig.contour_major_color,
@@ -2897,7 +2910,7 @@ function buildContourArtStyle(
               type: 'symbol',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['==', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['==', ['get', 'level'], 1]),
               layout: {
                 'symbol-placement': 'line',
                 'symbol-spacing': 500,
