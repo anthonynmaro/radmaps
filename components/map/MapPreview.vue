@@ -10797,29 +10797,29 @@ onUnmounted(() => {
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun {
-  height: 72%;
-  opacity: 0.92;
+  height: 70%;
+  opacity: 0.68;
   color: var(--contour-major-color, #be624a);
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__disk {
-  fill: color-mix(in srgb, #d98270 30%, transparent);
+  fill: color-mix(in srgb, #d98270 22%, transparent);
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc {
-  fill: color-mix(in srgb, #be624a 26%, transparent);
+  fill: color-mix(in srgb, #be624a 20%, transparent);
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--wide {
-  opacity: 0.44;
+  opacity: 0.40;
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--mid {
-  opacity: 0.38;
+  opacity: 0.34;
 }
 
 .poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--inner {
-  opacity: 0.34;
+  opacity: 0.30;
 }
 
 .composition-sea-chart-art {

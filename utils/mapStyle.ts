@@ -265,6 +265,7 @@ const SMOOTH_CONTOUR_THEME_IDS = new Set([
   'bold-modern',
   'classic-trail',
   'contour-wash',
+  'daybreak-trace',
   'editorial-minimal',
 ])
 
@@ -272,6 +273,10 @@ const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
   'botanical',
   'brutalist',
   'moonstone',
+])
+
+const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
+  'daybreak-trace',
 ])
 
 const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
@@ -365,6 +370,13 @@ export function resolveAdaptiveContourDetail(
   const themeMinimumDetail = THEME_MIN_CONTOUR_DETAIL.get(config.color_theme ?? '')
   if (themeMinimumDetail != null) {
     adaptiveDetail = Math.max(adaptiveDetail, themeMinimumDetail)
+  }
+  if (
+    adaptiveDetail === 5 &&
+    fallback < adaptiveDetail &&
+    AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS.has(config.color_theme ?? '')
+  ) {
+    return fallback
   }
   if (
     adaptiveDetail !== 5 &&
@@ -477,6 +489,8 @@ export function resolveAdaptiveContourStyleConfig(
   if (isLowRelief) {
     const lowReliefOpacityFloor = config.color_theme === 'brutalist'
       ? { contour: 0.52, minor: 0.68, major: 0.58 }
+      : config.color_theme === 'daybreak-trace'
+        ? { contour: 0.12, minor: 0.06, major: 0.22 }
       : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
         ? { contour: 0.14, minor: 0.055, major: 0.28 }
         : { contour: 0.34, minor: 0.24, major: 0.42 }

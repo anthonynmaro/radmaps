@@ -96,9 +96,10 @@ describe('adaptive contour detail', () => {
   })
 
   it('does not let theme-specific contour styling override low-relief density', () => {
-    for (const color_theme of ['brutalist', 'botanical', 'midcentury-travel', 'copper-night', 'daybreak-trace', 'ranch-ochre'] as const) {
+    for (const color_theme of ['brutalist', 'botanical', 'midcentury-travel', 'copper-night', 'ranch-ochre'] as const) {
       expect(resolveAdaptiveContourDetail({ color_theme, contour_detail: 0 }, lowReliefStats), color_theme).toBe(5)
     }
+    expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(1)
   })
 
   it('uses dense printable contour intervals across poster zooms for low-relief routes', () => {
@@ -141,26 +142,26 @@ describe('adaptive contour detail', () => {
     expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.42)
   })
 
-  it('keeps low-relief travel-poster contours behind the authored tonal bands', () => {
+  it('keeps Daybreak low-relief contours at the authored sparse travel-poster detail', () => {
     const adapted = resolveAdaptiveContourStyleConfig({
       ...DEFAULT_STYLE_CONFIG,
       preset: 'radmaps-simple-contour',
       color_theme: 'daybreak-trace',
       show_contours: true,
-      contour_detail: 0,
-      contour_opacity: 0.08,
+      contour_detail: 1,
+      contour_opacity: 0.16,
       atlas_layer_settings: {
         contour: {
-          minor_opacity: 0.045,
-          major_opacity: 0.20,
+          minor_opacity: 0.10,
+          major_opacity: 0.64,
         },
       },
     } as StyleConfig, lowReliefStats)
 
-    expect(adapted.contour_detail).toBe(5)
-    expect(adapted.contour_opacity).toBe(0.14)
-    expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.055)
-    expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.28)
+    expect(adapted.contour_detail).toBe(1)
+    expect(adapted.contour_opacity).toBe(0.16)
+    expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.10)
+    expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.64)
   })
 
   it('raises Brutalist low-relief contour opacity enough to keep the concrete map readable', () => {
@@ -2150,10 +2151,10 @@ describe('RadMaps Atlas style integration', () => {
         minorContour: '#E19A82',
         majorContour: '#BE624A',
         contourDetail: 1,
-        minorWidth: 0.68,
-        majorWidth: 1.34,
-        minorOpacity: 0.045,
-        majorOpacity: 0.28,
+        minorWidth: 0.34,
+        majorWidth: 0.72,
+        minorOpacity: 0.10,
+        majorOpacity: 0.64,
       },
     ] as const
 
