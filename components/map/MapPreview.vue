@@ -2021,17 +2021,17 @@
           v-for="asset in visibleImageAssets"
           :key="asset.id"
           :data-asset-id="asset.id"
-          :data-poster-element-id="guidedPosterEditor ? undefined : `asset:${asset.id}`"
+          :data-poster-element-id="freeOverlayEditorBlocked ? undefined : `asset:${asset.id}`"
           class="image-asset"
           :class="{
-            'is-editable': editable && !guidedPosterEditor,
-            'is-selected': editable && !guidedPosterEditor && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
-            'is-dragging': editable && !guidedPosterEditor && draggingAssetId === asset.id,
+            'is-editable': editable && !freeOverlayEditorBlocked,
+            'is-selected': editable && !freeOverlayEditorBlocked && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
+            'is-dragging': editable && !freeOverlayEditorBlocked && draggingAssetId === asset.id,
             'is-poster-v2': posterElementsEditing,
           }"
           :style="imageAssetStyle(asset)"
-          :tabindex="editable && !guidedPosterEditor ? 0 : undefined"
-          @click.stop="editable && !guidedPosterEditor ? onAssetClick(asset.id, $event) : undefined"
+          :tabindex="editable && !freeOverlayEditorBlocked ? 0 : undefined"
+          @click.stop="editable && !freeOverlayEditorBlocked ? onAssetClick(asset.id, $event) : undefined"
         >
           <img :src="asset.render_url" alt="" draggable="false" />
           <template v-if="editable && !posterElementsEditing">
@@ -2110,15 +2110,15 @@
           v-for="overlay in visibleTextOverlays"
           :key="overlay.id"
           :data-overlay-id="overlay.id"
-          :data-poster-element-id="guidedPosterEditor ? undefined : `text:${overlay.id}`"
+          :data-poster-element-id="freeOverlayEditorBlocked ? undefined : `text:${overlay.id}`"
           class="text-overlay"
-          :class="{ 'is-editable': editable && !guidedPosterEditor, 'is-selected': editable && !guidedPosterEditor && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
+          :class="{ 'is-editable': editable && !freeOverlayEditorBlocked, 'is-selected': editable && !freeOverlayEditorBlocked && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
           :style="overlayStyle(overlay)"
-          @click.stop="editable && !guidedPosterEditor ? onOverlayClick(overlay.id) : undefined"
+          @click.stop="editable && !freeOverlayEditorBlocked ? onOverlayClick(overlay.id) : undefined"
         >
           <span
             class="overlay-content editable-text"
-            :contenteditable="editable && !guidedPosterEditor ? 'true' : 'false'"
+            :contenteditable="editable && !freeOverlayEditorBlocked ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Text overlay"
@@ -2192,6 +2192,8 @@ import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING
 import type { AnchorFitConfig, AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
+import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
+import { resolveFreeOverlayBox } from '~/utils/posterEditorElements'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -2227,6 +2229,7 @@ const props = defineProps<{
   selectedPosterElementId?: string | null
   editableTextSlots?: readonly PosterTextSlot[] | null
   guidedPosterEditor?: boolean
+  posterTier2Editor?: boolean
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   /** When true, the map enters paint-select mode for route deletion */
@@ -2592,6 +2595,12 @@ const chromeDirectEditing = computed(() =>
 )
 const guidedPosterEditor = computed(() =>
   Boolean(props.guidedPosterEditor && posterElementsEditing.value),
+)
+const tier2PosterEditor = computed(() =>
+  Boolean(props.posterTier2Editor && posterElementsEditing.value),
+)
+const freeOverlayEditorBlocked = computed(() =>
+  guidedPosterEditor.value && !tier2PosterEditor.value,
 )
 const chromeStructureEditing = computed(() =>
   chromeDirectEditing.value && !guidedPosterEditor.value,
@@ -4138,31 +4147,34 @@ function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
 }
 
 function onOverlayTextFocus(e: FocusEvent, id: string) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextPointerDown(e: PointerEvent, id: string) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextClick(e: MouseEvent, id: string) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextBlur(e: FocusEvent, id: string) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   emit('overlay-updated', { id, patch: { content: (e.currentTarget as HTMLElement).innerText.trim() } })
 }
 
@@ -4232,7 +4244,9 @@ type PosterSelectableElement =
 function selectedPosterElement(): PosterSelectableElement | null {
   const id = props.selectedPosterElementId
   if (!id) return null
-  if (guidedPosterEditor.value && !id.startsWith('slot:')) return null
+  if (guidedPosterEditor.value && !id.startsWith('slot:')) {
+    if (!tier2PosterEditor.value || (!id.startsWith('text:') && !id.startsWith('asset:'))) return null
+  }
   if (id.startsWith('text:')) {
     const rawId = id.slice('text:'.length)
     const item = props.styleConfig.text_overlays?.find(overlay => overlay.id === rawId)
@@ -4319,6 +4333,15 @@ function posterGuidePixels(axis: 'x' | 'y') {
     guides.push(axis === 'x' ? map.left - canvas.left : map.top - canvas.top)
     guides.push(axis === 'x' ? map.right - canvas.left : map.bottom - canvas.top)
   }
+  if (tier2PosterEditor.value && posterCanvasEl.value) {
+    posterCanvasEl.value.querySelectorAll<HTMLElement>('[data-poster-element-id]').forEach((element) => {
+      if (element === posterMoveableTarget.value) return
+      const rect = element.getBoundingClientRect()
+      const start = axis === 'x' ? rect.left - canvas.left : rect.top - canvas.top
+      const end = axis === 'x' ? rect.right - canvas.left : rect.bottom - canvas.top
+      guides.push(start, (start + end) / 2, end)
+    })
+  }
   return guides.map(value => Math.round(value)).filter(value => Number.isFinite(value))
 }
 
@@ -4343,7 +4366,7 @@ function scheduleDeselect() {
 }
 
 function onOverlayClick(id: string) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectedAssetId.value = null
@@ -4360,7 +4383,7 @@ function onOverlayDelete(id: string) {
 }
 
 function onAssetClick(id: string, event?: MouseEvent) {
-  if (guidedPosterEditor.value) return
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true })
   selectedAssetId.value = id
@@ -6069,6 +6092,12 @@ function markPrintRenderReady() {
     try {
       await waitForTextFitSettled()
       await waitForPrintableAssets()
+      const printGuardErrors = isPrintRender.value
+        ? computePosterPrintGuardViolations(props.styleConfig).filter(violation => violation.severity === 'error')
+        : []
+      if (printGuardErrors.length) {
+        throw new Error(`Poster print guards failed: ${printGuardErrors.map(violation => violation.message).join(' ')}`)
+      }
       renderReady.value = true
       const readyStatus = { ...status, textFitSettled: textFitSettled.value }
       ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof readyStatus; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = readyStatus
@@ -6133,6 +6162,7 @@ const logoFooterStyle = computed(() => ({
 // ── Text overlay styles ────────────────────────────────────────────────────────
 
 function overlayStyle(o: TextOverlay): Record<string, string> {
+  const anchorBox = resolveFreeOverlayBox(props.styleConfig, `text:${o.id}`)
   const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
   const fontSize = moveableTextResizePreview.value?.id === o.id
     ? moveableTextResizePreview.value.font_size
@@ -6140,8 +6170,8 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
   const rotation = o.rotation ?? 0
   return {
     position: 'absolute',
-    left: `${o.x}%`,
-    top: `${o.y}%`,
+    left: `${anchorBox.x ?? o.x}%`,
+    top: `${anchorBox.y ?? o.y}%`,
     fontFamily: toFontStack(o.font_family),
     fontSize: `${fontSize}cqh`,
     color: o.color,
@@ -6156,7 +6186,7 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
-    zIndex: String(o.z_index ?? 30),
+    zIndex: String(anchorBox.zIndex ?? o.z_index ?? 30),
     // Halo: skip when bg_color is set (the pill background already provides contrast)
     ...(!o.bg_color ? { textShadow: getTextHalo() } : {}),
     ...(o.bg_color ? {
@@ -6168,22 +6198,23 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
 }
 
 function imageAssetStyle(asset: MapAsset): Record<string, string> {
+  const anchorBox = resolveFreeOverlayBox(props.styleConfig, `asset:${asset.id}`)
   const preview = moveableResizePreview.value?.id === `asset:${asset.id}`
     ? moveableResizePreview.value
     : assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
   return {
     position: 'absolute',
-    left: `${asset.x}%`,
-    top: `${asset.y}%`,
-    width: `${preview?.width ?? asset.width}%`,
-    height: `${preview?.height ?? asset.height}%`,
+    left: `${anchorBox.x ?? asset.x}%`,
+    top: `${anchorBox.y ?? asset.y}%`,
+    width: `${preview?.width ?? anchorBox.width ?? asset.width}%`,
+    height: `${preview?.height ?? anchorBox.height ?? asset.height}%`,
     opacity: String(asset.opacity),
     transform: `rotate(${asset.rotation}deg)`,
     transformOrigin: 'center center',
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
-    zIndex: String(asset.z_index),
+    zIndex: String(anchorBox.zIndex ?? asset.z_index),
   }
 }
 

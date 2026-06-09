@@ -1912,8 +1912,61 @@ test.describe('style browser visual harness', () => {
     await expect(page.locator('[data-poster-element-id^="text:"]')).toHaveCount(0)
     await expect(page.locator('[data-poster-element-id^="asset:"]')).toHaveCount(0)
     await expect(page.locator('[data-poster-element-id^="icon:"]')).toHaveCount(0)
-    await expect(page.locator('.poster-element-moveable .moveable-control')).toHaveCount(8)
+    await expect(titleSlot).toHaveAttribute('data-poster-element-id', 'slot:trail_name')
     await expect.poll(() => consoleErrors.filter(error => !error.includes('Failed to load resource')).join('\n')).toBe('')
+  })
+
+  test('poster tier 2 exposes free text and image anchors without moving the map', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'desktop moveable coverage')
+
+    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&editable=1&overlay=1&asset=1&icon=1&posterEditor=1&posterTier2=1&posterMode=select&guides=1&selectedPosterElement=text:fixture-overlay-label')
+    await expect(page.getByTestId('poster-canvas')).toBeVisible()
+    const textOverlay = page.locator('[data-poster-element-id="text:fixture-overlay-label"]')
+    const assetOverlay = page.locator('[data-poster-element-id="asset:fixture-logo-asset"]')
+    await expect(textOverlay).toBeVisible()
+    await expect(assetOverlay).toBeVisible()
+    await expect(page.locator('[data-poster-element-id^="icon:"]')).toHaveCount(0)
+
+    const beforeMap = await page.getByTestId('poster-map').boundingBox()
+    expect(beforeMap).toBeTruthy()
+    await expect.poll(() => page.evaluate(() => Boolean((window as unknown as { __RADMAPS_STYLE_FIXTURE__?: unknown }).__RADMAPS_STYLE_FIXTURE__))).toBe(true)
+    await page.evaluate(() => {
+      (window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__?: {
+          patchPosterElement: (id: string, patch: { x: number; y: number; zIndex: number }) => void
+        }
+      }).__RADMAPS_STYLE_FIXTURE__?.patchPosterElement('text:fixture-overlay-label', { x: 22, y: 54, zIndex: 62 })
+    })
+
+    await expect.poll(() => page.evaluate(() => {
+      const style = (window as unknown as { __RADMAPS_STYLE_FIXTURE__?: { getStyle: () => any } }).__RADMAPS_STYLE_FIXTURE__?.getStyle()
+      const anchor = style?.poster_layout?.anchors?.find((item: any) => item.id === 'free-text:fixture-overlay-label')
+      return {
+        left: anchor?.box?.left?.value,
+        top: anchor?.box?.top?.value,
+        displacesMap: anchor?.displacesMap,
+      }
+    })).toMatchObject({
+      left: 22,
+      top: 54,
+      displacesMap: false,
+    })
+    await expect.poll(() => textOverlay.evaluate(element => ({
+      left: element.style.left,
+      top: element.style.top,
+    }))).toEqual({ left: '22%', top: '54%' })
+
+    const afterMap = await page.getByTestId('poster-map').boundingBox()
+    expect(afterMap).toBeTruthy()
+    expect(afterMap!.x).toBeCloseTo(beforeMap!.x, 0)
+    expect(afterMap!.y).toBeCloseTo(beforeMap!.y, 0)
+    expect(afterMap!.width).toBeCloseTo(beforeMap!.width, 0)
+    expect(afterMap!.height).toBeCloseTo(beforeMap!.height, 0)
+  })
+
+  test('poster tier 2 print guards reject unsafe overlay fixtures', async ({ page }) => {
+    await page.goto('/style-browser-fixture?composition=editorial-tall&theme=editorial-minimal&overlay=1&unsafeOverlay=1&posterEditor=1&posterTier2=1&print=final&printScale=20')
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __RENDER_ERROR?: string }).__RENDER_ERROR ?? '')).toContain('Poster print guards failed')
   })
 
   test('poster editor guides are non-printing while printed grid remains printable', async ({ page }) => {
@@ -2416,6 +2469,7 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
     await expect(page.getByTestId('chrome-structure-popover')).toHaveCount(0)
     await expect(page.getByTestId('poster-editor-guides')).toHaveCount(0)
+    await expect(page.getByTestId('poster-canvas')).toBeVisible()
     const metrics = await page.evaluate(() => {
       const frame = document.querySelector<HTMLElement>('.mx-auto.bg-stone-100')
       const surface = document.querySelector<HTMLElement>('[data-testid="map-editor-surface"]')

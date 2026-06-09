@@ -42,6 +42,7 @@
           :segment-edit-disabled="segmentEditDisabled"
           :active-text-target="activeTextTarget"
           :poster-elements-available="posterElementsEditor"
+          :poster-tier2-available="posterTier2Editor"
           :poster-editor-mode="posterEditorMode"
           :selected-poster-element-id="selectedPosterElementId"
           :poster-guides-visible="posterGuidesVisible"
@@ -115,6 +116,7 @@
             :can-redo="canRedo"
             :chrome-editing="chromeDirectEdit"
             :poster-elements-editing="posterElementsEditor"
+            :poster-tier2-editor="posterTier2Editor"
             :poster-editor-mode="posterEditorMode"
             :poster-guides-visible="posterGuidesVisible"
             :selected-poster-element-id="selectedPosterElementId"
@@ -193,6 +195,7 @@
         :segment-edit-disabled="segmentEditDisabled"
         :active-text-target="activeTextTarget"
         :poster-elements-available="posterElementsEditor"
+        :poster-tier2-available="posterTier2Editor"
         :poster-editor-mode="posterEditorMode"
         :selected-poster-element-id="selectedPosterElementId"
         :poster-guides-visible="posterGuidesVisible"
@@ -259,6 +262,7 @@ import {
   duplicatePosterEditorElement,
   patchPosterEditorElement,
   removePosterEditorElement,
+  syncPosterOverlayAnchors,
   type PosterEditorElementPatch,
 } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
@@ -364,10 +368,16 @@ const hasElevationData = computed(() => {
 const chromeDirectEditFlag = useFeatureFlag(FLAGS.CHROME_DIRECT_EDIT)
 const posterElementsEditorFlag = useFeatureFlag(FLAGS.POSTER_ELEMENTS_EDITOR)
 const posterTemplateEditorFlag = useFeatureFlag(FLAGS.POSTER_TEMPLATE_EDITOR)
+const posterTier2EditorFlag = useFeatureFlag(FLAGS.POSTER_TIER2_EDITOR)
 const posterElementsEditor = computed(() => {
   const queryValue = route.query.posterEditor
   const queryEnabled = queryValue === '1' || queryValue === 'true'
   return posterElementsEditorFlag.value || (import.meta.dev && queryEnabled)
+})
+const posterTier2Editor = computed(() => {
+  const queryValue = route.query.posterTier2 ?? route.query.tier2Editor
+  const queryEnabled = queryValue === '1' || queryValue === 'true'
+  return posterElementsEditor.value && (posterTier2EditorFlag.value || (import.meta.dev && queryEnabled))
 })
 const posterEditableTextSlots = computed(() =>
   posterElementsEditor.value ? posterEditorAllowlistForStyle(styleConfig.value).textSlots : null,
@@ -419,6 +429,15 @@ watch(posterElementsEditor, (enabled) => {
     posterEditorMode.value = 'layout'
   }
 })
+
+watch(
+  () => [posterTier2Editor.value, props.modelValue.image_overlays?.length ?? 0, props.modelValue.text_overlays?.length ?? 0],
+  () => {
+    if (!posterTier2Editor.value) return
+    const next = syncPosterOverlayAnchors(styleConfig.value)
+    if (JSON.stringify(next.poster_layout) !== JSON.stringify(styleConfig.value.poster_layout)) styleConfig.value = next
+  },
+)
 
 watch(() => route.query.posterMode, (mode) => {
   posterEditorMode.value = parsePosterEditorMode(mode)

@@ -312,7 +312,7 @@
 
       <!-- ─── DESIGN TAB ────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'design'">
-        <V4Card title="Poster tools" hint="Canvas-first text, images, icons, and guides" :default-open="true">
+        <V4Card title="Poster tools" hint="Canvas-first text, images, logos, and guides" :default-open="true">
           <div class="grid grid-cols-3 gap-1.5">
             <button
               v-for="mode in posterToolModes"
@@ -329,10 +329,10 @@
               "
             >{{ mode.label }}</button>
           </div>
-          <input v-if="!guidedPosterEditor" ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
-          <input v-if="!guidedPosterEditor" ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
+          <input v-if="freeOverlayToolsAvailable" ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
+          <input v-if="freeOverlayToolsAvailable" ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
           <button
-            v-if="!guidedPosterEditor"
+            v-if="freeOverlayToolsAvailable"
             class="mt-2 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
             @click="designLogoInputRef?.click()"
           >Upload logo</button>
@@ -407,6 +407,17 @@
             <div v-if="activePosterElement.canDelete" class="grid grid-cols-2 gap-1.5">
               <SegmentButton :label="activePosterElement.locked ? 'Unlock' : 'Lock'" :active="activePosterElement.locked" @click="patchPosterElement(activePosterElement.id, { locked: !activePosterElement.locked })" />
               <SegmentButton :label="activePosterElement.hidden ? 'Show' : 'Hide'" :active="activePosterElement.hidden" @click="patchPosterElement(activePosterElement.id, { hidden: !activePosterElement.hidden })" />
+            </div>
+
+            <div v-if="activePosterPrintGuardViolations.length" class="space-y-1.5">
+              <div
+                v-for="violation in activePosterPrintGuardViolations"
+                :key="`${violation.code}-${violation.elementId}`"
+                class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-semibold leading-snug text-amber-900"
+                data-testid="poster-print-guard-warning"
+              >
+                {{ violation.message }}
+              </div>
             </div>
 
             <TextRow
@@ -1480,7 +1491,7 @@
           </div>
         </V4Card>
 
-        <V4Card v-if="!guidedPosterEditor" title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
+        <V4Card v-if="freeOverlayToolsAvailable" title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
           <div
             class="cursor-pointer"
             style="padding: 18px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
@@ -1519,7 +1530,7 @@
           <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
-        <V4Card v-if="!guidedPosterEditor" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
+        <V4Card v-if="freeOverlayToolsAvailable" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
             <div
               v-for="overlay in (local.text_overlays ?? [])"
@@ -1679,6 +1690,7 @@ import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplicatio
 import { POSTER_ICONS } from '~/utils/posterIcons'
 import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
+import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
 import {
   CLASSIC_THEME_OPTIONS,
   QUICK_THEME_OPTION_GROUPS,
@@ -1733,6 +1745,8 @@ const props = defineProps<{
   activeTextTarget?: ActiveTextTarget | null
   /** Enables the V2 poster elements editor tab and controls */
   posterElementsAvailable?: boolean
+  /** Enables W4-min free text/image overlay tools */
+  posterTier2Available?: boolean
   /** Current V2 poster editor tool mode */
   posterEditorMode?: PosterEditorMode
   /** Currently selected normalized poster element id */
@@ -2096,11 +2110,18 @@ const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asse
 const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
 const posterEditorMode = computed(() => props.posterEditorMode ?? 'layout')
 const guidedPosterEditor = computed(() => props.posterElementsAvailable === true)
+const freeOverlayToolsAvailable = computed(() => !guidedPosterEditor.value || props.posterTier2Available === true)
 const posterToolModes = computed(() =>
   guidedPosterEditor.value
     ? [
         { id: 'layout' as const, label: 'Layout' },
         { id: 'select' as const, label: 'Select' },
+        ...(props.posterTier2Available === true
+          ? [
+              { id: 'text' as const, label: 'Text' },
+              { id: 'image' as const, label: 'Image' },
+            ]
+          : []),
         { id: 'guides' as const, label: 'Guides' },
       ]
     : [
@@ -2114,13 +2135,18 @@ const posterToolModes = computed(() =>
 )
 const posterEditorElements = computed(() =>
   getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true, editableTextSlots: posterEditorAllowlist.value.textSlots })
-    .filter(element => !guidedPosterEditor.value || element.source === 'theme' || element.source === 'system')
+    .filter(element => !guidedPosterEditor.value || element.source === 'theme' || element.source === 'system' || (props.posterTier2Available === true && (element.kind === 'free-text' || element.kind === 'image' || element.kind === 'logo')))
     .slice()
     .reverse(),
 )
 const activePosterElement = computed(() =>
   posterEditorElements.value.find(element => element.id === props.selectedPosterElementId) ?? null,
 )
+const activePosterPrintGuardViolations = computed(() => {
+  const id = activePosterElement.value?.id
+  if (!id) return []
+  return computePosterPrintGuardViolations(local as StyleConfig).filter(violation => violation.elementId === id)
+})
 const posterEditorAllowlist = computed(() => posterEditorAllowlistForStyle(local as StyleConfig))
 
 const textOverlayCardKey = computed(() =>

@@ -1,5 +1,8 @@
 import {
   DEFAULT_STYLE_CONFIG,
+  type AnchorBox,
+  type AnchorFrame,
+  type AnchorLength,
   type ChromeBandId,
   type IconOverlay,
   type MapAsset,
@@ -113,6 +116,134 @@ function clampOpacity(value: number) {
   return Number(Math.min(1, Math.max(0.1, value)).toFixed(2))
 }
 
+function percentUnit(value: number): Extract<AnchorLength, { kind: 'unit' }> {
+  return { kind: 'unit', value: clampPercent(value, -100, 100), unit: '%' }
+}
+
+function percentFromLength(length: AnchorLength | undefined): number | undefined {
+  return length?.kind === 'unit' && length.unit === '%' ? length.value : undefined
+}
+
+export function freeTextAnchorId(id: string) {
+  return `free-text:${id}`
+}
+
+export function freeAssetAnchorId(id: string) {
+  return `free-asset:${id}`
+}
+
+function freeAnchorIdForElement(prefix: 'text' | 'asset', id: string) {
+  return prefix === 'text' ? freeTextAnchorId(id) : freeAssetAnchorId(id)
+}
+
+function isFreeOverlayAnchorId(id: string) {
+  return id.startsWith('free-text:') || id.startsWith('free-asset:')
+}
+
+function freeTextAnchor(overlay: TextOverlay): AnchorFrame {
+  return {
+    id: freeTextAnchorId(overlay.id),
+    anchorTo: 'poster',
+    edge: 'top',
+    displacesMap: false,
+    z: overlay.z_index ?? 30,
+    userPinned: true,
+    box: {
+      left: percentUnit(overlay.x),
+      top: percentUnit(overlay.y),
+    },
+  }
+}
+
+function freeAssetAnchor(asset: MapAsset): AnchorFrame {
+  return {
+    id: freeAssetAnchorId(asset.id),
+    anchorTo: 'poster',
+    edge: 'top',
+    displacesMap: false,
+    z: asset.z_index,
+    userPinned: true,
+    box: {
+      left: percentUnit(asset.x),
+      top: percentUnit(asset.y),
+      width: percentUnit(asset.width),
+      height: percentUnit(asset.height),
+    },
+  }
+}
+
+function freeOverlayAnchors(config: StyleConfig): AnchorFrame[] {
+  return [
+    ...(config.image_overlays ?? []).map(freeAssetAnchor),
+    ...(config.text_overlays ?? []).map(freeTextAnchor),
+  ]
+}
+
+export function resolveFreeOverlayBox(
+  config: StyleConfig,
+  elementId: string,
+): { x?: number; y?: number; width?: number; height?: number; zIndex?: number } {
+  const parsed = splitElementId(elementId)
+  if (!parsed || (parsed.prefix !== 'text' && parsed.prefix !== 'asset')) return {}
+  const anchorId = freeAnchorIdForElement(parsed.prefix, parsed.rawId)
+  const anchor = config.poster_layout?.anchors?.find(item => item.id === anchorId && item.deleted !== true)
+  const box = anchor?.box
+  return {
+    x: percentFromLength(box?.left),
+    y: percentFromLength(box?.top),
+    width: percentFromLength(box?.width),
+    height: percentFromLength(box?.height),
+    zIndex: anchor?.z,
+  }
+}
+
+function mergeFreeAnchorBox(existing: AnchorBox | undefined, next: AnchorBox | undefined): AnchorBox | undefined {
+  if (!existing) return next
+  if (!next) return existing
+  return { ...existing, ...next }
+}
+
+export function syncPosterOverlayAnchors(config: StyleConfig): StyleConfig {
+  const nextFreeAnchors = freeOverlayAnchors(config)
+  const liveFreeAnchorIds = new Set(nextFreeAnchors.map(anchor => anchor.id))
+  const existingById = new Map((config.poster_layout?.anchors ?? []).map(anchor => [anchor.id, anchor]))
+  const retained = (config.poster_layout?.anchors ?? [])
+    .filter(anchor => !isFreeOverlayAnchorId(anchor.id) || liveFreeAnchorIds.has(anchor.id))
+    .filter(anchor => !liveFreeAnchorIds.has(anchor.id))
+  const mergedFree = nextFreeAnchors.map(anchor => {
+    const existing = existingById.get(anchor.id)
+    return {
+      ...existing,
+      ...anchor,
+      box: mergeFreeAnchorBox(existing?.box, anchor.box),
+      deleted: false,
+    }
+  })
+  const posterLayout = {
+    ...(config.poster_layout ?? {}),
+    anchors: [...retained, ...mergedFree],
+  }
+  return {
+    ...config,
+    poster_layout: posterLayout.anchors.length || posterLayout.bands ? posterLayout : undefined,
+  }
+}
+
+function removeFreeOverlayAnchor(config: StyleConfig, elementId: string): StyleConfig {
+  const parsed = splitElementId(elementId)
+  if (!parsed || (parsed.prefix !== 'text' && parsed.prefix !== 'asset')) return config
+  const anchorId = freeAnchorIdForElement(parsed.prefix, parsed.rawId)
+  const anchors = (config.poster_layout?.anchors ?? []).filter(anchor => anchor.id !== anchorId)
+  const posterLayout = {
+    ...(config.poster_layout ?? {}),
+    anchors,
+  }
+  return {
+    ...config,
+    poster_layout: anchors.length || posterLayout.bands ? posterLayout : undefined,
+  }
+}
+
 function nextZIndex(config: StyleConfig, base = 30) {
   const values = [
     ...(config.text_overlays ?? []).map(item => item.z_index ?? 30),
@@ -122,7 +253,8 @@ function nextZIndex(config: StyleConfig, base = 30) {
   return Math.max(base, ...values) + 1
 }
 
-function textElement(overlay: TextOverlay): PosterEditorElement {
+function textElement(overlay: TextOverlay, config: StyleConfig): PosterEditorElement {
+  const anchorBox = resolveFreeOverlayBox(config, elementId('text', overlay.id))
   return {
     id: elementId('text', overlay.id),
     rawId: overlay.id,
@@ -134,8 +266,8 @@ function textElement(overlay: TextOverlay): PosterEditorElement {
     canTransform: overlay.locked !== true,
     canEditContent: true,
     canDelete: true,
-    x: overlay.x,
-    y: overlay.y,
+    x: anchorBox.x ?? overlay.x,
+    y: anchorBox.y ?? overlay.y,
     width: undefined,
     height: undefined,
     rotation: overlay.rotation ?? 0,
@@ -144,7 +276,8 @@ function textElement(overlay: TextOverlay): PosterEditorElement {
   }
 }
 
-function assetElement(asset: MapAsset): PosterEditorElement {
+function assetElement(asset: MapAsset, config: StyleConfig): PosterEditorElement {
+  const anchorBox = resolveFreeOverlayBox(config, elementId('asset', asset.id))
   return {
     id: elementId('asset', asset.id),
     rawId: asset.id,
@@ -156,10 +289,10 @@ function assetElement(asset: MapAsset): PosterEditorElement {
     canTransform: asset.locked !== true,
     canEditContent: false,
     canDelete: true,
-    x: asset.x,
-    y: asset.y,
-    width: asset.width,
-    height: asset.height,
+    x: anchorBox.x ?? asset.x,
+    y: anchorBox.y ?? asset.y,
+    width: anchorBox.width ?? asset.width,
+    height: anchorBox.height ?? asset.height,
     rotation: asset.rotation,
     zIndex: asset.z_index,
   }
@@ -291,8 +424,8 @@ export function getPosterEditorElements(
   return [
     ...systemElements,
     ...themeElements,
-    ...(config.image_overlays ?? []).filter(item => opts.includeHidden || !item.hidden).map(assetElement),
-    ...(config.text_overlays ?? []).filter(item => opts.includeHidden || !item.hidden).map(textElement),
+    ...(config.image_overlays ?? []).filter(item => opts.includeHidden || !item.hidden).map(item => assetElement(item, config)),
+    ...(config.text_overlays ?? []).filter(item => opts.includeHidden || !item.hidden).map(item => textElement(item, config)),
     ...(config.icon_overlays ?? []).filter(item => opts.includeHidden || !item.hidden).map(iconElement),
   ].sort((a, b) => a.zIndex - b.zIndex || a.label.localeCompare(b.label))
 }
@@ -321,7 +454,7 @@ export function patchPosterEditorElement(config: StyleConfig, id: string, patch:
   }
 
   if (parsed.prefix === 'text') {
-    return {
+    return syncPosterOverlayAnchors({
       ...config,
       text_overlays: (config.text_overlays ?? []).map(item => item.id === parsed.rawId
         ? {
@@ -339,11 +472,11 @@ export function patchPosterEditorElement(config: StyleConfig, id: string, patch:
             ...(patch.content != null ? { content: patch.content } : {}),
           }
         : item),
-    }
+    })
   }
 
   if (parsed.prefix === 'asset') {
-    return {
+    return syncPosterOverlayAnchors({
       ...config,
       image_overlays: (config.image_overlays ?? []).map(item => item.id === parsed.rawId
         ? {
@@ -360,7 +493,7 @@ export function patchPosterEditorElement(config: StyleConfig, id: string, patch:
             ...(patch.allow_bleed != null ? { allow_bleed: patch.allow_bleed } : {}),
           }
         : item),
-    }
+    })
   }
 
   return {
@@ -389,10 +522,10 @@ export function addPosterEditorText(config: StyleConfig, patch: Partial<TextOver
   const overlay = createTextOverlay(config, patch)
   return {
     id: elementId('text', overlay.id),
-    config: {
+    config: syncPosterOverlayAnchors({
       ...config,
       text_overlays: [...(config.text_overlays ?? []), overlay],
-    },
+    }),
   }
 }
 
@@ -410,8 +543,8 @@ export function addPosterEditorIcon(config: StyleConfig, icon: PosterIconId = 'm
 export function removePosterEditorElement(config: StyleConfig, id: string): StyleConfig {
   const parsed = splitElementId(id)
   if (!parsed) return config
-  if (parsed.prefix === 'text') return { ...config, text_overlays: (config.text_overlays ?? []).filter(item => item.id !== parsed.rawId) }
-  if (parsed.prefix === 'asset') return { ...config, image_overlays: (config.image_overlays ?? []).filter(item => item.id !== parsed.rawId) }
+  if (parsed.prefix === 'text') return removeFreeOverlayAnchor({ ...config, text_overlays: (config.text_overlays ?? []).filter(item => item.id !== parsed.rawId) }, id)
+  if (parsed.prefix === 'asset') return removeFreeOverlayAnchor({ ...config, image_overlays: (config.image_overlays ?? []).filter(item => item.id !== parsed.rawId) }, id)
   return { ...config, icon_overlays: (config.icon_overlays ?? []).filter(item => item.id !== parsed.rawId) }
 }
 
@@ -430,7 +563,7 @@ export function duplicatePosterEditorElement(config: StyleConfig, id: string): {
       y: clampPercent(existing.y + 4),
       z_index: nextZIndex(config, existing.z_index ?? 30),
     })
-    return { id: elementId('text', copy.id), config: { ...config, text_overlays: [...(config.text_overlays ?? []), copy] } }
+    return { id: elementId('text', copy.id), config: syncPosterOverlayAnchors({ ...config, text_overlays: [...(config.text_overlays ?? []), copy] }) }
   }
 
   if (parsed.prefix === 'asset') {
@@ -443,7 +576,7 @@ export function duplicatePosterEditorElement(config: StyleConfig, id: string): {
       y: clampPercent(existing.y + 4, existing.allow_bleed ? -existing.height : 0, 100),
       z_index: nextZIndex(config, existing.z_index),
     }
-    return { id: elementId('asset', copy.id), config: { ...config, image_overlays: [...(config.image_overlays ?? []), copy] } }
+    return { id: elementId('asset', copy.id), config: syncPosterOverlayAnchors({ ...config, image_overlays: [...(config.image_overlays ?? []), copy] }) }
   }
 
   const existing = config.icon_overlays?.find(item => item.id === parsed.rawId)

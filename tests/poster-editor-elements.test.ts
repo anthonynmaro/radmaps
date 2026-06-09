@@ -4,12 +4,17 @@ import {
   addPosterEditorIcon,
   addPosterEditorText,
   duplicatePosterEditorElement,
+  freeAssetAnchorId,
+  freeTextAnchorId,
   getPosterEditorElements,
   normalizePosterEditorConfig,
   patchPosterEditorElement,
   removePosterEditorElement,
+  resolveFreeOverlayBox,
+  syncPosterOverlayAnchors,
 } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
+import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
 
 function config(patch: Partial<StyleConfig> = {}): StyleConfig {
   return {
@@ -236,6 +241,12 @@ describe('poster editor elements adapter', () => {
       y: 50,
       constrain_to_safe_area: true,
     })
+    expect(withText.config.poster_layout?.anchors?.[0]).toMatchObject({
+      id: freeTextAnchorId(withText.config.text_overlays![0].id),
+      anchorTo: 'poster',
+      displacesMap: false,
+      userPinned: true,
+    })
 
     const withIcon = addPosterEditorIcon(withText.config, 'trailhead')
     expect(withIcon.id).toMatch(/^icon:/)
@@ -250,5 +261,84 @@ describe('poster editor elements adapter', () => {
 
     const removed = removePosterEditorElement(duplicated.config, duplicated.id!)
     expect(removed.icon_overlays).toHaveLength(1)
+  })
+
+  it('keeps text and image overlay position in free AnchorFrames for Tier 2 edits', () => {
+    const style = syncPosterOverlayAnchors(config({
+      text_overlays: [textOverlay],
+      image_overlays: [imageAsset],
+    }))
+
+    expect(resolveFreeOverlayBox(style, 'text:text-1')).toMatchObject({ x: 40, y: 30, zIndex: 30 })
+    expect(resolveFreeOverlayBox(style, 'asset:asset-1')).toMatchObject({ x: 10, y: 12, width: 20, height: 12, zIndex: 35 })
+
+    const movedText = patchPosterEditorElement(style, 'text:text-1', { x: 58, y: 18, zIndex: 44 })
+    expect(movedText.text_overlays?.[0]).toMatchObject({ x: 58, y: 18, z_index: 44 })
+    expect(resolveFreeOverlayBox(movedText, 'text:text-1')).toMatchObject({ x: 58, y: 18, zIndex: 44 })
+
+    const resizedAsset = patchPosterEditorElement(style, 'asset:asset-1', { x: 22, y: 24, width: 30, height: 18, zIndex: 50 })
+    expect(resizedAsset.image_overlays?.[0]).toMatchObject({ x: 22, y: 24, width: 30, height: 18, z_index: 50 })
+    expect(resolveFreeOverlayBox(resizedAsset, 'asset:asset-1')).toMatchObject({ x: 22, y: 24, width: 30, height: 18, zIndex: 50 })
+
+    const elements = getPosterEditorElements(resizedAsset)
+    expect(elements.find(element => element.id === 'asset:asset-1')).toMatchObject({ x: 22, y: 24, width: 30, height: 18 })
+  })
+
+  it('warns and blocks print-unsafe free overlays', () => {
+    const unsafe = syncPosterOverlayAnchors(config({
+      print_size: '24x36',
+      label_bg_color: '#FFFFFF',
+      text_overlays: [{
+        ...textOverlay,
+        x: 2,
+        y: 2,
+        font_size: 0.1,
+        color: '#FFFFFF',
+        bg_color: '#FFFFFF',
+      }],
+      image_overlays: [{
+        ...imageAsset,
+        x: 1,
+        y: 1,
+        width: 80,
+        height: 60,
+        width_px: 800,
+        height_px: 600,
+      }],
+    }))
+
+    expect(computePosterPrintGuardViolations(unsafe).map(violation => violation.code)).toEqual(expect.arrayContaining([
+      'text-min-font',
+      'text-contrast',
+      'text-safe-area',
+      'image-min-dpi',
+      'image-safe-area',
+    ]))
+
+    const safe = syncPosterOverlayAnchors(config({
+      print_size: '24x36',
+      text_overlays: [{
+        ...textOverlay,
+        x: 50,
+        y: 50,
+        font_size: 1,
+        color: '#FFFFFF',
+        bg_color: '#111111',
+      }],
+      image_overlays: [{
+        ...imageAsset,
+        x: 20,
+        y: 30,
+        width: 10,
+        height: 8,
+        width_px: 1200,
+        height_px: 1200,
+      }],
+    }))
+    expect(computePosterPrintGuardViolations(safe)).toEqual([])
+    expect(safe.poster_layout?.anchors?.map(anchor => anchor.id)).toEqual(expect.arrayContaining([
+      freeTextAnchorId('text-1'),
+      freeAssetAnchorId('asset-1'),
+    ]))
   })
 })
