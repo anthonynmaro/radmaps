@@ -655,12 +655,12 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'night-ride') {
-    const ink = hexToRgb('#080B0E')
+    const ink = hexToRgb('#101621')
     const cyanRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 20 && r < 85 && g > 165 && g < 230 && b > 165 && b < 235,
     )
     groups.palette.push(
-      semanticCheck('Night Ride poster dominant color is night ink', colorDistance(fullAverage, ink) < 44, `${formatRgb(fullAverage)} vs #080B0E`),
+      semanticCheck('Night Ride poster dominant color is night navy', colorDistance(fullAverage, ink) < 44, `${formatRgb(fullAverage)} vs #101621`),
     )
     groups.routeStyling.push(
       semanticCheck('Night Ride visible cyan route pixels', cyanRoutePixels > 120, `${cyanRoutePixels} pixels`),
@@ -2265,8 +2265,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Night Ride rendered title is bottom slab', titlePositionFromSnapshot(snapshot) === 'bottom', JSON.stringify({ title: snapshot.title.rect, map: snapshot.map.rect })),
     )
     groups.palette.push(
-      semanticCheck('Night Ride dark background', String(style.background_color).toUpperCase() === '#080B0E', String(style.background_color ?? '')),
-      semanticCheck('Night Ride label background matches night ink', String(style.label_bg_color).toUpperCase() === '#080B0E', String(style.label_bg_color ?? '')),
+      semanticCheck('Night Ride dark navy background', String(style.background_color).toUpperCase() === '#101621', String(style.background_color ?? '')),
+      semanticCheck('Night Ride label background matches night navy', String(style.label_bg_color).toUpperCase() === '#101621', String(style.label_bg_color ?? '')),
       semanticCheck('Night Ride text is pale cyan', String(style.label_text_color).toUpperCase() === '#DFF9FF', String(style.label_text_color ?? '')),
       semanticCheck('Night Ride route is cyan', String(style.route_color).toUpperCase() === '#28D6D6', String(style.route_color ?? '')),
       semanticCheck('Night Ride grain configured', Number(style.tile_grain ?? 0) >= 0.08 && Number(style.tile_grain ?? 0) <= 0.12, String(style.tile_grain ?? '')),
@@ -2277,8 +2277,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Night Ride roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
       semanticCheck('Night Ride hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Night Ride elevation profile enabled', style.show_elevation_profile === true, String(style.show_elevation_profile)),
-      semanticCheck('Night Ride dark land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#101417', JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Night Ride water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#0B1A23' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#18313A', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
+      semanticCheck('Night Ride dark land token configured', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#121823', JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Night Ride water token configured', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#0D1B27' && String(atlasLayerSettings.waterway?.color ?? '').toUpperCase() === '#203445', JSON.stringify({ water: atlasLayerSettings.water ?? {}, waterway: atlasLayerSettings.waterway ?? {} })),
       semanticCheck('Night Ride contour tokens configured', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#222F34' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#52666A', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
