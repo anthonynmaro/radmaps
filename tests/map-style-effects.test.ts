@@ -247,6 +247,13 @@ describe('adaptive contour detail', () => {
       min_elevation_m: 1220,
       max_elevation_m: 1635,
     })).toBe(0)
+    expect(resolveAdaptiveContourDetail({ color_theme: 'botanical', contour_detail: 0 }, {
+      distance_km: 10.5,
+      elevation_gain_m: 740,
+      elevation_loss_m: 740,
+      min_elevation_m: 1960,
+      max_elevation_m: 2455,
+    })).toBe(0)
   })
 
   it('reduces high-relief contour opacity and width with the sparse interval profile', () => {

@@ -257,6 +257,7 @@ const SMOOTH_CONTOUR_THEME_IDS = new Set([
 ])
 
 const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
+  'botanical',
   'brutalist',
   'moonstone',
 ])
