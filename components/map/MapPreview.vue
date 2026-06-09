@@ -10659,6 +10659,12 @@ onUnmounted(() => {
     inset 0 0 4.2cqh color-mix(in srgb, var(--route-color, #ff5a36) 8%, transparent) !important;
 }
 
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="poster-map"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
 .poster-composition--splits-grid[data-theme="splits-stats"] .poster-header,
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-header {
   background: transparent !important;
@@ -10695,6 +10701,45 @@ onUnmounted(() => {
 .poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--stat::first-line,
 .poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--stat::first-line {
   color: var(--route-color, currentColor);
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="elevation-profile-band"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-profile-labels {
+  inset: 0.65cqh 6.8cqw 0.8cqh;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-footer {
+  background: transparent !important;
+  padding: 1.2cqh calc(6.8cqw + var(--print-bleed, 0px)) calc(4.1cqh + var(--print-bleed, 0px)) !important;
+  align-items: flex-end !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-footer {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 2.3cqw;
+  align-items: end;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item {
+  padding-left: 1.9cqw;
+  border-left-color: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item span {
+  margin-bottom: 1.45cqh;
+  font-size: 1.16cqh;
+  letter-spacing: 0.23em;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item strong {
+  font-size: clamp(1.9cqh, 2.16cqh, 2.36cqh);
+  font-weight: 800;
 }
 
 .composition-profile-labels {

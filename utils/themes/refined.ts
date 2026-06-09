@@ -1250,7 +1250,7 @@ const REFINED_THEME_RECIPES = [
       show_grid: false,
       show_elevation_profile: true,
       elevation_profile_position: 'separate-band',
-      elevation_profile_height: 10,
+      elevation_profile_height: 14,
       elevation_profile_relief: 0.78,
       atlas_layer_settings: {
         landcover: { color: '#121823', opacity: 0.96 },

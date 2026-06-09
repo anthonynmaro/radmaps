@@ -2499,7 +2499,7 @@ describe('RadMaps Atlas style integration', () => {
         grain: 0.1,
         grid: false,
         gridOpacity: 0.2,
-        profileHeight: 10,
+        profileHeight: 14,
         land: '#121823',
         water: '#0D1B27',
         minorContour: '#222F34',
