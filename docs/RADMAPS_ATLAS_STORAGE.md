@@ -76,11 +76,11 @@ npm run atlas:build-overlays -- \
 ```
 
 Use `--dry-run` before real network/build work. Use `--upload --publish` only
-from an environment with R2 credentials. The 2026-06-09 all-target staging
-overlay build locally validated `18` z8-16 PMTiles artifacts totaling
-`55,644,629` bytes. Those artifacts were local no-upload validation outputs;
-publish through the GitHub workflow/R2 path and complete 24x36 AWS-rendered
-print QA before treating overlays as promoted customer coverage.
+from an environment with R2 credentials. The 2026-06-09 all-target overlay
+build published `18` z8-16 PMTiles artifacts totaling `55,644,584` bytes to
+staging, then server-side copied them into production R2. Complete 24x36
+AWS-rendered print QA before using overlay coverage in broad customer
+marketing.
 
 Implementation note: POI overlays are written with GDAL's PMTiles driver.
 `outdoorRoutes` overlays are written as MBTiles with Tippecanoe first and
@@ -142,11 +142,13 @@ Current production manifest:
 `atlas/v1/manifests/production.json`
 
 Current production manifest version:
-`2026.06.09-global-hotspots-production.1`
+`2026.06.09-global-hotspots-production.2`
 
 Current production manifest counts:
 - `16` base artifacts
 - `1` contour artifact
+- `9` POI overlay artifacts
+- `9` outdoor route overlay artifacts
 
 Global-hotspot promotion verification on 2026-06-09:
 - GitHub Actions workflow run `27209290643` copied approved staging PMTiles
@@ -158,6 +160,12 @@ Global-hotspot promotion verification on 2026-06-09:
 - Each new production tile probe returned HTTP `200` through
   `/tiles/production/{artifactId}/8/{x}/{y}.mvt` with a matching
   `X-RadMaps-Atlas-Artifact` header.
+- Overlay promotion verification on 2026-06-09 copied `9` `poi` and `9`
+  `outdoorRoutes` PMTiles into production R2 and published
+  `2026.06.09-global-hotspots-production.2`.
+- Non-empty production overlay probes returned `200` through both
+  `https://tiles.radmaps.studio/tiles/production/...` and the live app proxy
+  `https://radmaps.studio/api/atlas/tiles/...`.
 
 Current staging terrain coverage:
 

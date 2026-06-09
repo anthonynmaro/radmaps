@@ -247,21 +247,23 @@ As of 2026-06-09:
 - Production R2 now has the Driftless lab pack plus approved U.S., North
   America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan,
   Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador
-  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts. The
-  active production manifest is `2026.06.09-global-hotspots-production.1` with
-  `16` base artifacts and `1` contour artifact. The global-hotspot production
-  promotion completed in workflow run `27209290643`.
+  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts, plus
+  production z16 `poi` and `outdoorRoutes` overlays for the nine global hotspot
+  packs. The active production manifest is
+  `2026.06.09-global-hotspots-production.2` with `16` base artifacts, `1`
+  contour artifact, `9` POI artifacts, and `9` outdoor route artifacts. The
+  global-hotspot base production promotion completed in workflow run
+  `27209290643`; overlay promotion used server-side R2 copy on 2026-06-09.
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
 - Overlay builder status: `scripts/atlas-build-overlays.mjs` is implemented
-  and locally validated. The 2026-06-09 all-target staging build generated
+  and production-promoted. The 2026-06-09 all-target staging build generated
   `18` z8-16 PMTiles artifacts across `poi` and `outdoorRoutes`:
-  `36,471,783` bytes of Overture Places overlays plus `19,172,846` bytes of
-  named OSM hiking/bicycle/MTB route overlays, `55,644,629` bytes total. These
-  were local no-upload validation artifacts; staging/production overlay
-  promotion still requires the GitHub workflow/R2 publish step plus 24x36
-  AWS-rendered print QA.
+  `36,471,780` bytes of Overture Places overlays plus `19,172,804` bytes of
+  named OSM hiking/bicycle/MTB route overlays, `55,644,584` bytes total. The
+  promotion dry run estimated less than `$0.01` of R2 copy/manifest work.
+  Remaining overlay rollout gate is 24x36 AWS-rendered print QA.
 
 North America build details:
 
@@ -369,11 +371,13 @@ Current production manifest details:
 | Field | Value |
 |---|---|
 | URL | `https://tiles.radmaps.studio/manifests/production.json` |
-| Atlas version | `2026.06.09-global-hotspots-production.1` |
+| Atlas version | `2026.06.09-global-hotspots-production.2` |
 | Base artifacts | `16` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`, `radmaps-western-alps-dolomites-base`, `radmaps-atlantic-islands-portugal-base`, `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`, `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`, `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, `radmaps-costa-rica-central-america-base`) |
 | Contour artifacts | `1` |
+| POI artifacts | `9` (`radmaps-western-alps-dolomites-poi`, `radmaps-atlantic-islands-portugal-poi`, `radmaps-atlantic-islands-canaries-poi`, `radmaps-andes-peru-poi`, `radmaps-andes-ecuador-poi`, `radmaps-nepal-himalaya-poi`, `radmaps-iceland-adventure-poi`, `radmaps-scotland-adventure-poi`, `radmaps-costa-rica-central-america-poi`) |
+| Outdoor route artifacts | `9` (`radmaps-western-alps-dolomites-outdoor-routes`, `radmaps-atlantic-islands-portugal-outdoor-routes`, `radmaps-atlantic-islands-canaries-outdoor-routes`, `radmaps-andes-peru-outdoor-routes`, `radmaps-andes-ecuador-outdoor-routes`, `radmaps-nepal-himalaya-outdoor-routes`, `radmaps-iceland-adventure-outdoor-routes`, `radmaps-scotland-adventure-outdoor-routes`, `radmaps-costa-rica-central-america-outdoor-routes`) |
 | Promotion workflow run | `27209290643` |
-| Verification | Production manifest returned `200`; all nine new PMTiles returned HTTP `206` with `PMTiles` magic bytes; `/tiles/production/{artifactId}/8/{x}/{y}.mvt` returned `200` with matching `X-RadMaps-Atlas-Artifact` headers for all nine new artifacts. |
+| Verification | Production manifest returned `200`; all nine new base PMTiles and all 18 overlay PMTiles returned HTTP `206` with `PMTiles` magic bytes; non-empty `poi` and `outdoorRoutes` tile probes returned `200` through both `tiles.radmaps.studio` and the live RadMaps app proxy. |
 
 What remains for the New Zealand proof pack:
 

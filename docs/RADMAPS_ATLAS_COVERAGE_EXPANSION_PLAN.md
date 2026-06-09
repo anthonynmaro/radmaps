@@ -12,11 +12,12 @@ builds.
   Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and
   Costa Rica proof-pack base PMTiles.
 - The active staging manifest is `2026.06.09-global-hotspots.1`.
-- Production is now promoted to `2026.06.09-global-hotspots-production.1` with
+- Production is now promoted to `2026.06.09-global-hotspots-production.2` with
   the Driftless lab pack plus approved U.S., North America, New Zealand,
   Northern Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western
   Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya,
-  Iceland, Scotland, and Costa Rica base artifacts.
+  Iceland, Scotland, and Costa Rica base artifacts, plus z16 `poi` and
+  `outdoorRoutes` overlays for the nine global hotspot packs.
 - High-detail terrain remains generated at render time through
   `maplibre-contour` in the editor and AWS renderer; precomputed contour PMTiles
   are retained for QA/cache experiments only.
@@ -130,10 +131,11 @@ builds.
     magic bytes.
   - each new `/tiles/production/{artifactId}/8/{x}/{y}.mvt` probe returned
     HTTP `200` with the matching `X-RadMaps-Atlas-Artifact` response header.
-- Remaining work is publishing z16 `poi` overlays from Overture Places and
-  z16 `outdoorRoutes` overlays from named OSM hiking/bicycle/MTB relations
-  across every hotspot target, then completing AWS-rendered `24x36` print QA
-  for every new global-hotspot fixture before broad customer marketing.
+- Z16 `poi` overlays from Overture Places and z16 `outdoorRoutes` overlays
+  from named OSM hiking/bicycle/MTB relations were promoted to production on
+  2026-06-09 as `2026.06.09-global-hotspots-production.2`. Remaining work is
+  completing AWS-rendered `24x36` print QA for every new global-hotspot fixture
+  before broad customer marketing.
 - Overlay execution now has a dedicated builder:
   `npm run atlas:build-overlays -- --target <target|all> --kind <all|poi|outdoorRoutes>`.
   It reads `atlas/overlay-targets.json`, enforces the shared `$200` coverage

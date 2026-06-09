@@ -54,10 +54,11 @@ Completed:
 - The staging manifest is now `2026.06.09-global-hotspots.1` with `15` base
   artifacts and `177` contour artifacts.
 - The production manifest is now
-  `2026.06.09-global-hotspots-production.1` with `16` base artifacts and `1`
-  contour artifact after GitHub Actions workflow run `27209290643` copied
-  approved staging PMTiles into `radmaps-atlas-prod` and published the
-  manifest.
+  `2026.06.09-global-hotspots-production.2` with `16` base artifacts, `1`
+  contour artifact, `9` POI overlay artifacts, and `9` outdoor route overlay
+  artifacts after GitHub Actions workflow run `27209290643` copied approved
+  staging base PMTiles and the 2026-06-09 overlay promotion copied z16 overlays
+  into `radmaps-atlas-prod` and published the manifest.
 - Production tile checks through `tiles.radmaps.studio` pass for U.S., Banff,
   Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia
   Andes, Western Alps/Dolomites, Madeira/Azores, Canary Islands, Peru Andes,
@@ -101,8 +102,10 @@ Not done yet:
 - AWS renderer print QA across large sizes and house styles is still required
   before broad customer marketing, with `24x36` fixtures required for each new
   global-hotspot region.
-- Public lands, Overture Places `poi` overlays, and destination-specific
-  `outdoorRoutes` packs are not complete.
+- Public lands are not complete. Overture Places `poi` overlays and
+  destination-specific `outdoorRoutes` packs are production-promoted for the
+  nine global hotspot packs but still require 24x36 AWS-rendered print QA
+  before broad customer marketing.
 - Build/transfer/manifest publication is documented and scripted in pieces,
   but should be automated into one budget-guarded workflow.
 
