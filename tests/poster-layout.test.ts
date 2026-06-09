@@ -170,6 +170,32 @@ describe('poster layout merge', () => {
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(false)
   })
 
+  it('reflows footer metrics after a structural cell tombstone', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const defaultPrimary = defaults.bands.footer.rows.find(row => row.id === 'footer-primary')
+    const defaultCells = defaultPrimary?.cells ?? []
+    expect(defaultCells.length).toBeGreaterThan(2)
+
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              cells: [{ id: 'ft-date', deleted: true }],
+            }],
+          },
+        },
+      },
+    }, stats)
+    const primary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+
+    expect(primary?.cells.map(cell => cell.id)).not.toContain('ft-date')
+    expect(primary?.cells.length).toBe(defaultCells.length - 1)
+    expect(primary?.cells.some(cell => cell.block?.slot === 'date')).toBe(false)
+  })
+
   it('honors tombstones for deleted default rows', () => {
     const layout = effectivePosterLayout({
       ...baseConfig,
@@ -187,6 +213,52 @@ describe('poster layout merge', () => {
     }, stats)
     expect(layout.bands.header.rows.some(row => row.id === 'header-subtitle')).toBe(false)
     expect(blocksFor(layout, 'header').some(block => block?.slot === 'location_text')).toBe(false)
+  })
+
+  it('collapses the whole footer metrics row while preserving the footer band height', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              deleted: true,
+              cells: [
+                { id: 'ft-distance', deleted: true },
+                { id: 'ft-gain', deleted: true },
+                { id: 'ft-date', deleted: true },
+                { id: 'ft-coords', deleted: true },
+                { id: 'ft-brand', deleted: true },
+              ],
+            }],
+          },
+        },
+      },
+    }, stats)
+
+    expect(layout.bands.footer.height).toBe(defaults.bands.footer.height)
+    expect(layout.bands.footer.rows.some(row => row.id === 'footer-primary')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.kind === 'stat')).toBe(false)
+  })
+
+  it('restores a tombstoned theme cell when the sparse tombstone is cleared', () => {
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              cells: [{ id: 'ft-date', deleted: false }],
+            }],
+          },
+        },
+      },
+    }, stats)
+
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(true)
   })
 
   it('does not create a gain stat when the route has no elevation data', () => {

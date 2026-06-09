@@ -3868,7 +3868,6 @@ function deleteCellContent(band: ChromeBandId, rowId: string, cellId: string) {
 
 function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
   const currentRows = sparseBandRows(band)
-  const visibleRows = currentRows.filter(row => !row.deleted)
   let nextSelection: ChromeSelection | null = { type: 'row', band, rowId }
 
   const rows = currentRows.map((row) => {
@@ -3882,19 +3881,11 @@ function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
       }
     }
 
-    if (visibleRows.length > 1) {
-      nextSelection = { type: 'band', band }
-      return {
-        ...row,
-        deleted: true,
-        cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
-      }
-    }
-
-    nextSelection = { type: 'cell', band, rowId, cellId }
+    nextSelection = { type: 'band', band }
     return {
       ...row,
-      cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: false, block: undefined } : cell),
+      deleted: true,
+      cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
     }
   })
   updateChromeRows(band, rows)
@@ -13823,6 +13814,8 @@ onUnmounted(() => {
 .poster-header.is-chrome-grid-mode,
 .poster-footer.is-chrome-grid-mode {
   display: block !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .poster-header.is-chrome-grid-mode > :not(.chrome-grid-band),
@@ -14403,6 +14396,7 @@ onUnmounted(() => {
 .chrome-grid-row.has-selected-cell > .chrome-row-resize-row,
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .chrome-grid-row:hover > .chrome-row-resize-row--top,
@@ -14417,12 +14411,6 @@ onUnmounted(() => {
 .chrome-grid-row.has-selected-cell > .chrome-row-resize-row--bottom,
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row--bottom {
   transform: translate(-50%, 50%) scale(1);
-}
-
-.chrome-grid-row.is-selected:hover > .chrome-row-resize-row,
-.chrome-grid-row.has-selected-cell:hover > .chrome-row-resize-row,
-.chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
-  pointer-events: auto;
 }
 
 .chrome-grid-row.is-resizing-row > .chrome-row-resize-row::before {

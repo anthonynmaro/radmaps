@@ -191,6 +191,19 @@
             </template>
           </div>
         </div>
+        <div v-if="removedChromeItems.length" class="fixed-template-restore-list" data-testid="template-restore-list">
+          <p class="fixed-template-label">Removed</p>
+          <button
+            v-for="item in removedChromeItems"
+            :key="item.id"
+            class="fixed-template-restore-item"
+            data-testid="template-restore-item"
+            @click="restoreChromeItem(item)"
+          >
+            <UIcon name="i-heroicons-arrow-path" class="fixed-template-control-icon" />
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
       </section>
     </aside>
 
@@ -493,6 +506,42 @@ const previewStyleConfig = computed<StyleConfig>(() => ({
   map_frozen: true,
   poster_layout: mergeLayoutIntoCurrent(previewLayout.value),
 }))
+
+type RemovedChromeItem = {
+  id: string
+  label: string
+  band: PosterLayoutDraftBandId
+  rowId: string
+  cellId?: string
+}
+
+const removedChromeItems = computed<RemovedChromeItem[]>(() => {
+  const items: RemovedChromeItem[] = []
+  for (const band of ['header', 'footer'] as const) {
+    for (const row of props.modelValue.poster_layout?.bands?.[band]?.rows ?? []) {
+      if (row.deleted) {
+        items.push({
+          id: `${band}:${row.id}`,
+          label: chromeRowRestoreLabel(band, row.id),
+          band,
+          rowId: row.id,
+        })
+        continue
+      }
+      for (const cell of row.cells ?? []) {
+        if (!cell.deleted) continue
+        items.push({
+          id: `${band}:${row.id}:${cell.id}`,
+          label: chromeCellRestoreLabel(cell.id),
+          band,
+          rowId: row.id,
+          cellId: cell.id,
+        })
+      }
+    }
+  }
+  return items
+})
 
 function emitLayout(extraBands: PartialPosterLayout['bands'] = {}) {
   const layout = draftToPosterLayout(draft.value)
@@ -840,7 +889,7 @@ function deleteSelectedRow() {
   const next = clonePosterLayoutDraft(draft.value)
   const rows = next.bands[selectedBandId.value].rows
   const index = rows.findIndex(row => row.id === selectedRowId.value)
-  if (index < 0 || rows.length <= 1) return
+  if (index < 0) return
   rows.splice(index, 1)
   setDraft(next)
   selectedRowId.value = rows[Math.min(index, rows.length - 1)]?.id ?? null
@@ -905,6 +954,83 @@ function setSelectedBlockScalePercent(value: number) {
 function setSelectedBlockFont(value: string) {
   if (!fontOptions.includes(value as FontFamily)) return
   patchSelectedBlock({ font_family: value as FontFamily })
+}
+
+function restoreChromeItem(item: RemovedChromeItem) {
+  const nextLayout = restoreSparseChromeTombstone(props.modelValue.poster_layout, item)
+  const nextStyle = {
+    ...props.modelValue,
+    poster_layout: nextLayout,
+  }
+  draft.value = posterLayoutToDraft(nextStyle, props.map.stats)
+  emit('update:modelValue', nextStyle)
+  selectedBandId.value = item.band
+  selectedRowId.value = item.rowId
+  selectedCellId.value = item.cellId ?? null
+  selectedBlockId.value = null
+  leftMode.value = 'layers'
+}
+
+function restoreSparseChromeTombstone(layout: PartialPosterLayout | undefined, item: RemovedChromeItem): PartialPosterLayout | undefined {
+  if (!layout?.bands?.[item.band]?.rows) return layout
+  const next = cloneSparsePosterLayout(layout)
+  const row = next.bands?.[item.band]?.rows?.find(candidate => candidate.id === item.rowId)
+  if (!row) return next
+
+  if (item.cellId) {
+    row.deleted = false
+    const cell = row.cells?.find(candidate => candidate.id === item.cellId)
+    if (cell) cell.deleted = false
+    return next
+  }
+
+  row.deleted = false
+  row.cells = row.cells?.map(cell => ({ ...cell, deleted: false })) ?? []
+  return next
+}
+
+function cloneSparsePosterLayout(layout: PartialPosterLayout): PartialPosterLayout {
+  const bands: PartialPosterLayout['bands'] = {}
+  for (const band of Object.keys(layout.bands ?? {}) as ChromeBandId[]) {
+    const source = layout.bands?.[band]
+    if (!source) continue
+    bands[band] = {
+      ...source,
+      padding: source.padding ? [...source.padding] as [number, number, number, number] : undefined,
+      rows: source.rows?.map(cloneChromeDraftRow),
+    }
+  }
+  return {
+    ...layout,
+    bands,
+    anchors: layout.anchors?.map(anchor => ({ ...anchor })),
+  }
+}
+
+function chromeRowRestoreLabel(band: PosterLayoutDraftBandId, rowId: string) {
+  if (rowId === 'footer-primary') return 'Footer metrics'
+  if (rowId === 'header-title') return 'Title row'
+  if (rowId === 'header-subtitle') return 'Subtitle row'
+  if (rowId.includes('spacer-top')) return `${band === 'header' ? 'Header' : 'Footer'} top spacer`
+  if (rowId.includes('spacer-bottom')) return `${band === 'header' ? 'Header' : 'Footer'} bottom spacer`
+  return `${band === 'header' ? 'Header' : 'Footer'} row`
+}
+
+function chromeCellRestoreLabel(cellId: string) {
+  const labels: Record<string, string> = {
+    'hdr-kicker': 'Eyebrow',
+    'hdr-meta': 'Header meta',
+    'hdr-title': 'Title',
+    'hdr-location': 'Location',
+    'hdr-occasion': 'Description',
+    'ft-distance': 'Distance',
+    'ft-gain': 'Elevation gain',
+    'ft-date': 'Date',
+    'ft-coords': 'Coordinates',
+    'ft-brand': 'Branding',
+    'ft-note': 'Footer note',
+  }
+  return labels[cellId] ?? 'Removed cell'
 }
 
 function rowSpacingLabel(value: number) {
@@ -1288,6 +1414,28 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   text-transform: uppercase;
 }
 
+.fixed-template-restore-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(42, 37, 31, 0.1);
+}
+
+.fixed-template-restore-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 7px;
+  border: 1px solid rgba(40, 120, 90, 0.24);
+  border-radius: 7px;
+  background: #f5fbf6;
+  color: #225f49;
+  text-align: left;
+}
+
 .fixed-template-main {
   display: grid;
   grid-template-rows: 54px minmax(0, 1fr);
@@ -1383,6 +1531,18 @@ function blocksForRow(row: PosterLayoutDraftRow) {
   outline-offset: -1px;
 }
 
+.fixed-template-map-preview .chrome-grid-band,
+.fixed-template-map-preview .chrome-grid-row,
+.fixed-template-map-preview .chrome-grid-cell {
+  overflow: visible !important;
+}
+
+.fixed-template-map-preview .poster-canvas .poster-header.is-chrome-grid-mode,
+.fixed-template-map-preview .poster-canvas .poster-footer.is-chrome-grid-mode {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .fixed-template-map-preview [data-testid="poster-map"] {
   position: relative;
   z-index: 1;
@@ -1435,6 +1595,16 @@ function blocksForRow(row: PosterLayoutDraftRow) {
 .fixed-template-map-preview .chrome-row-add-row,
 .fixed-template-map-preview .chrome-row-resize-row {
   z-index: 90;
+}
+
+.fixed-template-map-preview .chrome-grid-cell.is-selected > .chrome-cell-trash,
+.fixed-template-map-preview .chrome-grid-cell.is-selected > .chrome-cell-trash.is-passive,
+.fixed-template-map-preview .chrome-grid-cell.is-selected > .chrome-cell-add-col,
+.fixed-template-map-preview .chrome-grid-cell.is-selected > .chrome-cell-resize-col {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: none !important;
+  z-index: 120;
 }
 
 .fixed-template-map-preview .chrome-grid-block {
