@@ -11767,19 +11767,27 @@ onUnmounted(() => {
 
 .poster-composition--blueprint-strava .poster-trail-name {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
-  font-size: clamp(6.4cqh, var(--trail-title-size, 8.4cqh), 8.9cqh) !important;
-  font-weight: 900 !important;
-  line-height: 0.86 !important;
+  font-size: clamp(7.65cqh, var(--trail-title-size, 8.8cqh), 9.3cqh) !important;
+  font-weight: 920 !important;
+  line-height: 0.82 !important;
   letter-spacing: 0.035em !important;
   text-transform: uppercase !important;
 }
 
 .poster-composition--blueprint-strava .poster-header {
+  z-index: 5 !important;
   border-top: 0 !important;
-  background: transparent !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px) !important;
+  background-size: 8cqw 8cqh !important;
+  background-position: 0 0 !important;
   box-shadow: none !important;
   align-items: flex-start !important;
-  gap: 0.62cqh !important;
+  gap: 0.52cqh !important;
+  padding-top: 0.72cqh !important;
+  padding-bottom: 0.82cqh !important;
 }
 
 .poster-composition--blueprint-strava .poster-location-line {
@@ -11793,8 +11801,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--blueprint-strava .poster-rule {
-  margin-bottom: 1.35cqh !important;
-  opacity: 0.42 !important;
+  display: none !important;
 }
 
 .poster-composition--blueprint-strava [data-testid="poster-map"] {
@@ -11843,7 +11850,13 @@ onUnmounted(() => {
 }
 
 .poster-composition--blueprint-strava .poster-footer {
-  background: transparent !important;
+  z-index: 5 !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px) !important;
+  background-size: 8cqw 8cqh !important;
+  background-position: 0 0 !important;
   box-shadow: none !important;
 }
 
