@@ -477,7 +477,9 @@ export function resolveAdaptiveContourStyleConfig(
   if (isLowRelief) {
     const lowReliefOpacityFloor = config.color_theme === 'brutalist'
       ? { contour: 0.52, minor: 0.68, major: 0.58 }
-      : { contour: 0.34, minor: 0.24, major: 0.42 }
+      : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
+        ? { contour: 0.14, minor: 0.055, major: 0.28 }
+        : { contour: 0.34, minor: 0.24, major: 0.42 }
     next.contour_opacity = Math.max(next.contour_opacity ?? 0, lowReliefOpacityFloor.contour)
 
     const contourSettings = next.atlas_layer_settings?.contour

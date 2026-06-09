@@ -1294,7 +1294,7 @@ const REFINED_THEME_RECIPES = [
       atlas_layer_settings: {
         landcover: { color: '#F4D8CF', opacity: 0, texture: 'none' },
         water: { fill_color: '#F4D8CF', fill_opacity: 0, waterway_color: '#E19A82', waterway_opacity: 0 },
-        contour: { minor_color: '#E19A82', major_color: '#BE624A', minor_opacity: 0.22, major_opacity: 0.58, minor_width: 0.68, major_width: 1.34 },
+        contour: { minor_color: '#E19A82', major_color: '#BE624A', minor_opacity: 0.045, major_opacity: 0.28, minor_width: 0.34, major_width: 0.82 },
       },
     }),
   },
