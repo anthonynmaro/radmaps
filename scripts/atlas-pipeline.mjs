@@ -7,7 +7,7 @@
  * with enough scratch disk. Artifacts are uploaded to Cloudflare R2.
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -179,10 +179,31 @@ function downloadSource() {
   }
   const target = sourcePbfPath()
   if (existsSync(target) && statSync(target).size > 0) {
+    if (looksLikeHtml(target)) {
+      console.warn(`Existing source looks like HTML, deleting and redownloading: ${target}`)
+      unlinkSync(target)
+    } else {
+      console.log(`Using existing source: ${target}`)
+      return
+    }
+  }
+  if (existsSync(target) && statSync(target).size > 0) {
     console.log(`Using existing source: ${target}`)
     return
   }
   run('curl', ['--fail', '--location', '--continue-at', '-', '--output', target, region.source.url], { heavy: true })
+}
+
+function looksLikeHtml(file) {
+  const fd = openSync(file, 'r')
+  try {
+    const buffer = Buffer.alloc(256)
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0)
+    const prefix = buffer.subarray(0, bytesRead).toString('utf8').trimStart().toLowerCase()
+    return prefix.startsWith('<!doctype html') || prefix.startsWith('<html')
+  } finally {
+    closeSync(fd)
+  }
 }
 
 function buildBase() {
