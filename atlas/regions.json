@@ -575,7 +575,7 @@
     "source": {
       "provider": "Geofabrik",
       "license": "OpenStreetMap ODbL 1.0",
-      "url": "https://download.geofabrik.de/europe/great-britain/scotland-latest.osm.pbf"
+      "url": "https://download.geofabrik.de/europe/united-kingdom/scotland-latest.osm.pbf"
     },
     "planetiler": {
       "enabled": true,
