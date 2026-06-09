@@ -1180,13 +1180,13 @@
             <circle class="transit-station transit-station--terminal" cx="30" cy="43" r="1.9" />
             <text x="33" y="43.8">START</text>
             <circle class="transit-station" cx="39" cy="43" r="1.55" />
-            <text x="41.6" y="41.4">RIDGE</text>
+            <text x="41.6" y="40.4">RIDGE</text>
             <circle class="transit-station transit-station--secondary" cx="46" cy="52" r="1.55" />
             <text x="48.6" y="52.8">OVERLOOK</text>
             <circle class="transit-station" cx="46" cy="59" r="1.55" />
             <text x="48.6" y="60">CELLAR</text>
             <circle class="transit-station transit-station--secondary" cx="55" cy="77" r="1.55" />
-            <text x="57.6" y="77.8">VINEYARD</text>
+            <text x="52.4" y="75.9" text-anchor="end">VINEYARD</text>
             <circle class="transit-station transit-station--terminal" cx="64" cy="77" r="1.9" />
             <text x="66.8" y="77.8">FINISH</text>
           </g>
