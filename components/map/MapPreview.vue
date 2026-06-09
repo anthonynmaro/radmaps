@@ -11643,7 +11643,19 @@ onUnmounted(() => {
   justify-content: center !important;
   gap: 1.1cqh !important;
   background: var(--composition-paper, var(--label-bg-color, #f4ead3)) !important;
-  border-top: 0.55cqh solid var(--label-text-color, currentColor);
+  border-top: 0.55cqh solid var(--route-color, currentColor);
+}
+
+.poster-composition--travel-banner[data-theme="midcentury-travel"] .poster-header {
+  background: #F3EAD6 !important;
+}
+
+.poster-composition--travel-banner[data-theme="ranch-ochre"] .poster-header {
+  background: #EDE2C6 !important;
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .poster-header {
+  background: #F5E8E0 !important;
 }
 
 .poster-composition--travel-banner .poster-header::before {
@@ -11678,16 +11690,18 @@ onUnmounted(() => {
   letter-spacing: 0.01em !important;
   text-transform: uppercase !important;
   color: var(--route-color, currentColor) !important;
+  text-shadow: none !important;
 }
 
 .poster-composition--travel-banner .poster-location-line {
-  margin-top: 0.15cqh !important;
+  margin-top: 0.38cqh !important;
   font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
   font-size: 1.55cqh !important;
   letter-spacing: 0.26em !important;
   text-transform: uppercase !important;
   color: color-mix(in srgb, var(--route-color, currentColor) 62%, var(--label-text-color, currentColor)) !important;
   opacity: 0.72 !important;
+  text-shadow: none !important;
 }
 
 .poster-composition--travel-banner .poster-footer,
