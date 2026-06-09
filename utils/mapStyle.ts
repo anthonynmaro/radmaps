@@ -279,7 +279,6 @@ const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
 
 const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
   'blueprint-strava',
-  'daybreak-trace',
   'splits-stats',
 ])
 
@@ -289,6 +288,10 @@ const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
   ['contour-wash', 2],
   ['editorial-minimal', 2],
   ['usgs-vintage', 2],
+])
+
+const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
+  ['daybreak-trace', 3],
 ])
 
 function clampContourDetail(detail: number): number {
@@ -373,6 +376,10 @@ export function resolveAdaptiveContourDetail(
   const themeMinimumDetail = THEME_MIN_CONTOUR_DETAIL.get(config.color_theme ?? '')
   if (themeMinimumDetail != null) {
     adaptiveDetail = Math.max(adaptiveDetail, themeMinimumDetail)
+  }
+  const themeMaximumDetail = THEME_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
+  if (themeMaximumDetail != null) {
+    adaptiveDetail = Math.min(adaptiveDetail, themeMaximumDetail)
   }
   if (
     adaptiveDetail === 5 &&

@@ -101,8 +101,9 @@ describe('adaptive contour detail', () => {
     }
   })
 
-  it('keeps explicitly sparse low-relief data-art themes at their designed contour detail', () => {
-    expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(1)
+  it('lets Daybreak use capped denser low-relief contours while data-art themes stay sparse', () => {
+    expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(3)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace thresholds').toBe(CONTOUR_THRESHOLDS[3])
     expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(1)
     expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(1)
   })
@@ -169,7 +170,7 @@ describe('adaptive contour detail', () => {
     expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.42)
   })
 
-  it('keeps Daybreak low-relief contours at the authored sparse travel-poster detail', () => {
+  it('caps Daybreak low-relief contours at a readable dense travel-poster detail', () => {
     const adapted = resolveAdaptiveContourStyleConfig({
       ...DEFAULT_STYLE_CONFIG,
       preset: 'radmaps-simple-contour',
@@ -185,7 +186,7 @@ describe('adaptive contour detail', () => {
       },
     } as StyleConfig, lowReliefStats)
 
-    expect(adapted.contour_detail).toBe(1)
+    expect(adapted.contour_detail).toBe(3)
     expect(adapted.contour_opacity).toBe(0.16)
     expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.10)
     expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.64)
