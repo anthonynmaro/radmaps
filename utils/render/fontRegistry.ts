@@ -41,6 +41,77 @@ export interface FontDef {
 const FONTS_ROOT = 'fonts'
 
 export const FONT_REGISTRY = {
+  // ── Print workhorses — calm, legible, broad weight ranges ────────────────
+  'Source Sans 3': {
+    family: 'Source Sans 3',
+    fallback: 'sans-serif',
+    files: [
+      { weight: 300, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+      { weight: 400, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+      { weight: 700, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+      { weight: 800, path: `${FONTS_ROOT}/Source_Sans_3.ttf` },
+    ],
+  },
+  'Source Serif 4': {
+    family: 'Source Serif 4',
+    fallback: 'serif',
+    files: [
+      { weight: 300, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+      { weight: 400, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+      { weight: 700, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+      { weight: 800, path: `${FONTS_ROOT}/Source_Serif_4.ttf` },
+    ],
+  },
+  'IBM Plex Sans': {
+    family: 'IBM Plex Sans',
+    fallback: 'sans-serif',
+    files: [
+      { weight: 300, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+      { weight: 400, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+      { weight: 700, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+      { weight: 800, path: `${FONTS_ROOT}/IBM_Plex_Sans.ttf` },
+    ],
+  },
+  'IBM Plex Mono': {
+    family: 'IBM Plex Mono',
+    fallback: 'monospace',
+    files: [
+      { weight: 400, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/IBM_Plex_Mono.ttf` },
+    ],
+  },
+  'Atkinson Hyperlegible Next': {
+    family: 'Atkinson Hyperlegible Next',
+    fallback: 'sans-serif',
+    files: [
+      { weight: 300, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+      { weight: 400, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+      { weight: 700, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+      { weight: 800, path: `${FONTS_ROOT}/Atkinson_Hyperlegible_Next.ttf` },
+    ],
+  },
+  'Newsreader': {
+    family: 'Newsreader',
+    fallback: 'serif',
+    files: [
+      { weight: 300, path: `${FONTS_ROOT}/Newsreader.ttf` },
+      { weight: 400, path: `${FONTS_ROOT}/Newsreader.ttf` },
+      { weight: 500, path: `${FONTS_ROOT}/Newsreader.ttf` },
+      { weight: 600, path: `${FONTS_ROOT}/Newsreader.ttf` },
+      { weight: 700, path: `${FONTS_ROOT}/Newsreader.ttf` },
+      { weight: 800, path: `${FONTS_ROOT}/Newsreader.ttf` },
+    ],
+  },
+
   // ── Editorial — condensed, impactful, poster-native ──────────────────────
   'Big Shoulders Display': {
     family: 'Big Shoulders Display',

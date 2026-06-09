@@ -30,6 +30,13 @@ export type StylePreset =
 export type LabelPosition = 'bottom' | 'top' | 'overlay'
 export type BorderStyle = 'thin' | 'thick' | 'none'
 export type FontFamily =
+  // Print workhorses — calm, legible, broad weight ranges
+  | 'Source Sans 3'
+  | 'Source Serif 4'
+  | 'IBM Plex Sans'
+  | 'IBM Plex Mono'
+  | 'Atkinson Hyperlegible Next'
+  | 'Newsreader'
   // Editorial — condensed, impactful, poster-native
   | 'Big Shoulders Display'
   | 'Fjalla One'
@@ -57,6 +64,8 @@ export type ColorTheme =
   | 'splits-stats' | 'marathon-bib' | 'botanical' | 'contour-wash'
   | 'classic-trail' | 'ranch-ochre' | 'blackline' | 'copper-night'
   | 'moonstone' | 'night-ride' | 'daybreak-trace' | 'electric-atlas'
+  | 'cartouche-place' | 'sea-chart' | 'relief-shaded' | 'transit-diagram'
+  | 'plein-air'
 
 export type CompositionId =
   | 'editorial-tall'
@@ -72,6 +81,10 @@ export type CompositionId =
   | 'darksky-stars'
   | 'botanical-plate'
   | 'brutalist-slab'
+  | 'art-wash'
+  | 'place-frame'
+  | 'sea-chart'
+  | 'transit-diagram'
 export type PrintSize = '8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'
 export type BaseTileStyle =
   | 'carto-light'
@@ -88,11 +101,13 @@ export type AtlasLayerId =
   | 'park'
   | 'landcover'
   | 'transportation'
+  | 'outdoorRoute'
   | 'building'
   | 'poi'
   | 'place'
 
 export type AtlasLayerVisibility = Partial<Record<AtlasLayerId, boolean>>
+export type AtlasOutdoorRouteActivity = 'hiking' | 'cycling' | 'mountain-biking' | 'bikepacking'
 
 export interface AtlasLayerSettings {
   contour?: {
@@ -132,6 +147,16 @@ export interface AtlasLayerSettings {
     density?: 'sparse' | 'balanced' | 'detailed'
     categories?: string[]
     icon_opacity?: number
+    labels?: boolean
+    label_color?: string
+    label_opacity?: number
+  }
+  outdoorRoute?: {
+    density?: 'sparse' | 'balanced' | 'detailed'
+    activities?: AtlasOutdoorRouteActivity[]
+    color?: string
+    opacity?: number
+    width?: number
     labels?: boolean
     label_color?: string
     label_opacity?: number
@@ -242,6 +267,7 @@ export type ChromeBlockKind =
   | 'vlabel'
   | 'logo'
   | 'image'
+  | 'spacer'
   | 'text'
 export type ChromeBlockAlign = 'left' | 'center' | 'right'
 export type ChromeBlockValign = 'top' | 'center' | 'bottom'
@@ -296,12 +322,78 @@ export interface ChromeBand {
   rows: ChromeGridRow[]
 }
 
+// ─── Poster Anchor Layout ────────────────────────────────────────────────────
+
+export type AnchorTarget = 'poster' | 'map' | ChromeBandId | { elementId: string }
+export type AnchorEdge = 'top' | 'bottom' | 'left' | 'right' | 'center' | 'fill'
+export type AnchorLengthUnit = 'cqw' | 'cqh' | 'px' | '%' | 'fr'
+export type AnchorVariableToken = 'print-bleed'
+export type AnchorDecorationToken =
+  | 'cartouche-titleblock'
+  | 'sea-chart-titleblock'
+  | 'art-wash-titleblock'
+
+export type AnchorLength =
+  | { kind: 'unit'; value: number; unit: AnchorLengthUnit }
+  | { kind: 'var'; token: AnchorVariableToken; fallback?: Extract<AnchorLength, { kind: 'unit' }> }
+  | { kind: 'calc'; terms: Array<{ op: '+' | '-'; value: AnchorLength }> }
+  | { kind: 'min' | 'max'; values: AnchorLength[] }
+
+export type AnchorTransform =
+  | { kind: 'translateX' | 'translateY'; value: AnchorLength }
+  | { kind: 'translate'; x: AnchorLength; y: AnchorLength }
+  | { kind: 'rotate'; deg: number }
+
+export interface AnchorBox {
+  left?: AnchorLength
+  right?: AnchorLength
+  top?: AnchorLength
+  bottom?: AnchorLength
+  width?: AnchorLength
+  height?: AnchorLength
+  maxWidth?: AnchorLength
+  maxHeight?: AnchorLength
+  padding?: [AnchorLength, AnchorLength, AnchorLength, AnchorLength]
+  transform?: AnchorTransform[]
+  decorations?: AnchorDecorationToken[]
+}
+
+export interface AnchorFitConfig {
+  targetSizeCqh?: number
+  minScale?: number
+  maxLines?: number
+  overflow?: 'clip' | 'clamp'
+}
+
+export interface AnchorFrame {
+  id: string
+  anchorTo: AnchorTarget
+  edge: AnchorEdge
+  displacesMap: boolean
+  offset?: { x?: AnchorLength; y?: AnchorLength }
+  size?: { width?: AnchorLength; height?: AnchorLength }
+  z?: number
+  slot?: PosterTextSlot
+  fit?: AnchorFitConfig
+  rows?: ChromeGridRow[]
+  userPinned?: boolean
+  box?: AnchorBox
+  deleted?: boolean
+}
+
+export type PartialAnchorFrame = Partial<Omit<AnchorFrame, 'id' | 'rows'>> & {
+  id: string
+  rows?: ChromeGridRow[]
+}
+
 export interface PosterLayout {
   bands: Record<ChromeBandId, ChromeBand>
+  anchors?: AnchorFrame[]
 }
 
 export interface PartialPosterLayout {
   bands?: Partial<Record<ChromeBandId, Partial<ChromeBand>>>
+  anchors?: PartialAnchorFrame[]
 }
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────
@@ -321,6 +413,11 @@ export interface TextOverlay {
   bold: boolean
   italic?: boolean
   bg_color?: string               // optional frosted pill background
+  rotation?: number
+  z_index?: number
+  locked?: boolean
+  hidden?: boolean
+  constrain_to_safe_area?: boolean
 }
 
 // ─── Uploaded Image Assets ──────────────────────────────────────────────────
@@ -345,6 +442,35 @@ export interface MapAsset {
   opacity: number                 // 0–1
   z_index: number
   quality_status: MapAssetQualityStatus
+  locked?: boolean
+  hidden?: boolean
+  allow_bleed?: boolean
+}
+
+// ─── Icon Overlays ───────────────────────────────────────────────────────────
+
+export type PosterIconId =
+  | 'trailhead'
+  | 'mountain'
+  | 'compass'
+  | 'star'
+  | 'camp'
+  | 'water'
+
+export interface IconOverlay {
+  id: string
+  icon: PosterIconId
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  opacity: number
+  rotation: number
+  z_index: number
+  locked?: boolean
+  hidden?: boolean
+  constrain_to_safe_area?: boolean
 }
 
 // ─── Trail Segments ───────────────────────────────────────────────────────────
@@ -431,11 +557,14 @@ export interface StyleConfig {
   composition?: CompositionId
   audience?: string
   dark?: boolean
+  composition_footer_distance_unit?: 'mi' | 'km'
+  composition_footer_date_format?: 'day-month-year' | 'month-year'
   show_grid?: boolean
   grid_scope?: 'poster' | 'map'
   grid_color?: string
   grid_opacity?: number
   grid_weight?: number
+  grid_spacing?: number
   // Poster text
   trail_name: string        // overrides map.title in the poster label band
   occasion_text: string     // e.g. "Anthony's 40th", "Summit Ridge 2024"
@@ -482,6 +611,8 @@ export interface StyleConfig {
   text_overlays?: TextOverlay[]
   // Uploaded image/logo overlays (floating poster-level images)
   image_overlays?: MapAsset[]
+  // Local SVG icon overlays (floating poster-level vectors)
+  icon_overlays?: IconOverlay[]
   // Trail segments (named slices of the primary route)
   trail_segments?: TrailSegment[]
   // Undefined defaults to false when visible named trail segments exist, true otherwise.
@@ -554,8 +685,8 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   hillshade_highlight: 0.3,
   water_color: '#B8D8E8',
   land_color: '#EDE8DF',
-  font_family: 'Big Shoulders Display',
-  body_font_family: 'DM Sans',
+  font_family: 'Source Sans 3',
+  body_font_family: 'Source Sans 3',
   title_size: 48,
   subtitle_size: 24,
   labels: {
@@ -582,6 +713,7 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   grid_scope: 'poster',
   grid_opacity: 0.2,
   grid_weight: 1,
+  grid_spacing: 8,
   tile_effect: 'none',
   tile_duotone_strength: 0.9,
   tile_posterize_levels: 4,
@@ -609,11 +741,28 @@ export const DEFAULT_STYLE_CONFIG: StyleConfig = {
   logo_size: 8,
   text_overlays: [],
   image_overlays: [],
+  icon_overlays: [],
   trail_segments: [],
   trail_legend: { show: true, position: 'bottom-left' },
 }
 
 // ─── Themes ──────────────────────────────────────────────────────────────────
+
+export type ThemeEditableField =
+  | 'trail_name'
+  | 'location_text'
+  | 'occasion_text'
+  | 'route_color'
+  | 'colorway'
+  | 'show_roads'
+  | 'show_place_labels'
+  | 'show_poi_labels'
+  | 'show_contours'
+  | 'show_hillshade'
+  | 'show_elevation_profile'
+  | 'trail_segments'
+  | 'map_camera'
+  | 'print_size'
 
 export interface ThemeDefinition {
   id: ColorTheme
@@ -638,6 +787,9 @@ export interface ThemeDefinition {
   show_grid?: boolean
   legacy?: boolean
   migration_target?: ColorTheme
+  review_decision?: 'keep' | 'revise' | 'merge' | 'new'
+  colorway_of?: ColorTheme
+  editable_fields?: ThemeEditableField[]
   map_defaults?: Partial<StyleConfig>
 }
 

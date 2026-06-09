@@ -25,15 +25,15 @@ export function atlasCoverageStatus(coverage: AtlasCoverageInput): AtlasCoverage
 export function atlasCoverageLabel(coverage: AtlasCoverageInput) {
   const status = atlasCoverageStatus(coverage)
   if (status === 'terrain') {
-    return `full base + browser contours (${coverage.terrainArtifacts.length} cached shard${coverage.terrainArtifacts.length === 1 ? '' : 's'} available)`
+    return `full base + runtime contours (${coverage.terrainArtifacts.length} cached shard${coverage.terrainArtifacts.length === 1 ? '' : 's'} available)`
   }
-  if (status === 'base') return 'full base + browser contours (no cached shard)'
+  if (status === 'base') return 'full base + runtime contours (no cached shard)'
   return 'missing atlas coverage'
 }
 
 export function atlasCoverageWarning(coverage: AtlasCoverageInput) {
   return atlasCoverageStatus(coverage) === 'base'
-    ? 'No cached contour artifact intersects this route. The preview uses browser-generated DEM contours instead of PMTiles terrain.'
+    ? 'No cached contour artifact intersects this route. The preview uses runtime DEM contours instead of PMTiles terrain.'
     : ''
 }
 

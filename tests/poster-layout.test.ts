@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type RouteStats, type StyleConfig } from '../types'
-import { defaultPosterLayout, effectivePosterLayout, mergePosterLayout, patchPosterLayout } from '../utils/posterLayout'
+import { DEFAULT_STYLE_CONFIG, type AnchorLength, type PartialPosterLayout, type RouteStats, type StyleConfig } from '../types'
+import { bandsToAnchorFrames, clampChromeBandHeight, defaultPosterLayout, effectivePosterLayout, mergePosterLayout, patchPosterLayout } from '../utils/posterLayout'
 
 const stats: RouteStats = {
   distance_km: 10,
@@ -28,15 +28,111 @@ function blocksFor(layout: ReturnType<typeof defaultPosterLayout>, band: 'header
   return layout.bands[band].rows.flatMap(row => row.cells.map(cell => cell.block).filter(Boolean))
 }
 
+type AnchorUnit = Extract<AnchorLength, { kind: 'unit' }>
+
+function anchorUnit(value: number, unit: AnchorUnit['unit']): AnchorUnit {
+  return { kind: 'unit', value, unit }
+}
+
 describe('poster layout merge', () => {
-  it('hydrates legacy chrome slots into default header, footer, and rails', () => {
+  it('hydrates legacy chrome slots into default header and footer while keeping rail bands available', () => {
     const layout = defaultPosterLayout(baseConfig, stats)
     expect(blocksFor(layout, 'header').some(block => block?.slot === 'trail_name')).toBe(true)
     expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(false)
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(true)
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(true)
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
-    expect(blocksFor(layout, 'railLeft').some(block => block?.slot === 'composition_side_rail')).toBe(true)
+    expect(layout.bands.railLeft.rows).toEqual([])
+    expect(layout.bands.railRight.rows).toEqual([])
+  })
+
+  it('represents intentional vertical whitespace as spacer rows', () => {
+    const layout = defaultPosterLayout(baseConfig, stats)
+    expect(layout.bands.header.rows[0]?.id).toBe('header-spacer-top')
+    expect(layout.bands.header.rows.at(-1)?.id).toBe('header-spacer-bottom')
+    expect(layout.bands.header.rows[0]?.cells[0]?.block?.kind).toBe('spacer')
+    expect(layout.bands.footer.rows[0]?.id).toBe('footer-spacer-top')
+    expect(layout.bands.footer.rows.at(-1)?.id).toBe('footer-spacer-bottom')
+    expect(layout.bands.footer.rows.at(-1)?.cells[0]?.block?.kind).toBe('spacer')
+  })
+
+  it('keeps editorial starter top whitespace compact', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'editorial-tall',
+    }, stats)
+    const topSpacer = layout.bands.header.rows.find(row => row.id === 'header-spacer-top')
+    const titleRow = layout.bands.header.rows.find(row => row.id === 'header-title')
+
+    expect(layout.bands.header.height).toBeLessThanOrEqual(23)
+    expect(topSpacer?.fr).toBeLessThanOrEqual(0.4)
+    expect(titleRow?.fr).toBeGreaterThan(2)
+  })
+
+  it('omits decorative footer notes from default compositions', () => {
+    const editorial = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'editorial-tall',
+    }, stats)
+    const performance = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+    }, stats)
+
+    expect(blocksFor(editorial, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
+    expect(blocksFor(performance, 'footer').some(block => block?.slot === 'composition_footer')).toBe(false)
+  })
+
+  it('designs fixed-template footer stats as a weighted information strip', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'midcentury-travel',
+      composition: 'travel-banner',
+      show_branding: true,
+      labels: {
+        ...baseConfig.labels,
+        show_date: true,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_location: true,
+      },
+    }, stats)
+    const footerPrimary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+    expect(footerPrimary).toBeTruthy()
+
+    const cells = footerPrimary!.cells
+    const distance = cells.find(cell => cell.id === 'ft-distance')
+    const gain = cells.find(cell => cell.id === 'ft-gain')
+    const date = cells.find(cell => cell.id === 'ft-date')
+    const coords = cells.find(cell => cell.id === 'ft-coords')
+    const brand = cells.find(cell => cell.id === 'ft-brand')
+
+    expect(cells.map(cell => cell.id)).toEqual(['ft-distance', 'ft-gain', 'ft-date', 'ft-coords', 'ft-brand'])
+    expect(new Set(cells.map(cell => cell.fr)).size).toBeGreaterThan(1)
+    expect(distance?.block?.kind).toBe('stat')
+    expect(gain?.block?.kind).toBe('stat')
+    expect(date?.block?.kind).toBe('stat')
+    expect(coords?.block?.kind).toBe('coords')
+    expect(brand?.block?.kind).toBe('brand')
+    expect(coords?.fr).toBeGreaterThan(distance?.fr ?? 0)
+    expect(brand?.fr).toBeLessThan(date?.fr ?? 0)
+    expect(distance?.block?.scale).toBeGreaterThan(date?.block?.scale ?? 0)
+    expect(coords?.block?.scale).toBeLessThan(distance?.block?.scale ?? 0)
+  })
+
+  it('keeps default occasion text only on roomier compositions', () => {
+    const roomierCompositions = ['editorial-tall', 'journal-spread'] as const
+    const denseCompositions = ['blueprint-grid', 'blueprint-strava', 'splits-grid', 'bib-numerals', 'brutalist-slab'] as const
+
+    for (const composition of roomierCompositions) {
+      const layout = defaultPosterLayout({ ...baseConfig, composition }, stats)
+      expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(true)
+    }
+
+    for (const composition of denseCompositions) {
+      const layout = defaultPosterLayout({ ...baseConfig, composition }, stats)
+      expect(blocksFor(layout, 'header').some(block => block?.slot === 'occasion_text')).toBe(false)
+    }
   })
 
   it('applies sparse row and cell edits by id without replacing the whole default layout', () => {
@@ -53,7 +149,7 @@ describe('poster layout merge', () => {
     })
     const title = blocksFor(merged, 'header').find(block => block?.id === 'hdr-title-block')
     expect(title?.scale).toBe(1.25)
-    expect(blocksFor(merged, 'header').some(block => block?.id === 'hdr-kicker-block')).toBe(true)
+    expect(blocksFor(merged, 'header').some(block => block?.slot === 'location_text')).toBe(true)
   })
 
   it('honors tombstones for deleted cells', () => {
@@ -73,6 +169,32 @@ describe('poster layout merge', () => {
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(false)
   })
 
+  it('reflows footer metrics after a structural cell tombstone', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const defaultPrimary = defaults.bands.footer.rows.find(row => row.id === 'footer-primary')
+    const defaultCells = defaultPrimary?.cells ?? []
+    expect(defaultCells.length).toBeGreaterThan(2)
+
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              cells: [{ id: 'ft-date', deleted: true }],
+            }],
+          },
+        },
+      },
+    }, stats)
+    const primary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+
+    expect(primary?.cells.map(cell => cell.id)).not.toContain('ft-date')
+    expect(primary?.cells.length).toBe(defaultCells.length - 1)
+    expect(primary?.cells.some(cell => cell.block?.slot === 'date')).toBe(false)
+  })
+
   it('honors tombstones for deleted default rows', () => {
     const layout = effectivePosterLayout({
       ...baseConfig,
@@ -90,6 +212,52 @@ describe('poster layout merge', () => {
     }, stats)
     expect(layout.bands.header.rows.some(row => row.id === 'header-subtitle')).toBe(false)
     expect(blocksFor(layout, 'header').some(block => block?.slot === 'location_text')).toBe(false)
+  })
+
+  it('collapses the whole footer metrics row while preserving the footer band height', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              deleted: true,
+              cells: [
+                { id: 'ft-distance', deleted: true },
+                { id: 'ft-gain', deleted: true },
+                { id: 'ft-date', deleted: true },
+                { id: 'ft-coords', deleted: true },
+                { id: 'ft-brand', deleted: true },
+              ],
+            }],
+          },
+        },
+      },
+    }, stats)
+
+    expect(layout.bands.footer.height).toBe(defaults.bands.footer.height)
+    expect(layout.bands.footer.rows.some(row => row.id === 'footer-primary')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.kind === 'stat')).toBe(false)
+  })
+
+  it('restores a tombstoned theme cell when the sparse tombstone is cleared', () => {
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      poster_layout: {
+        bands: {
+          footer: {
+            rows: [{
+              id: 'footer-primary',
+              cells: [{ id: 'ft-date', deleted: false }],
+            }],
+          },
+        },
+      },
+    }, stats)
+
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(true)
   })
 
   it('does not create a gain stat when the route has no elevation data', () => {
@@ -126,5 +294,228 @@ describe('poster layout merge', () => {
     const next = patchPosterLayout(current, { bands: { header: { height: 24 } } })
     expect(next.bands?.header?.rows?.[0]?.id).toBe('custom-row')
     expect(next.bands?.header?.height).toBe(24)
+  })
+
+  it('derives displacing band anchors from the current chrome bands', () => {
+    const layout = defaultPosterLayout(baseConfig, stats)
+    const anchors = bandsToAnchorFrames(layout)
+
+    expect(anchors.map(anchor => anchor.id)).toEqual(['band-header', 'band-footer', 'band-railLeft', 'band-railRight'])
+    expect(anchors.find(anchor => anchor.id === 'band-header')).toMatchObject({
+      anchorTo: 'poster',
+      edge: 'top',
+      displacesMap: true,
+      size: { height: { kind: 'unit', value: layout.bands.header.height, unit: '%' } },
+    })
+    expect(anchors.find(anchor => anchor.id === 'band-footer')).toMatchObject({
+      anchorTo: 'poster',
+      edge: 'bottom',
+      displacesMap: true,
+      size: { height: { kind: 'unit', value: layout.bands.footer.height, unit: '%' } },
+    })
+    expect(anchors.find(anchor => anchor.id === 'band-header')?.rows).toEqual(layout.bands.header.rows)
+    expect(anchors.find(anchor => anchor.id === 'band-header')?.rows).not.toBe(layout.bands.header.rows)
+  })
+
+  it('keeps band anchors synced with sparse band-height edits', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const merged = mergePosterLayout(defaults, {
+      bands: {
+        header: { height: 52 },
+      },
+    })
+
+    expect(merged.bands.header.height).toBe(34)
+    expect(merged.anchors?.find(anchor => anchor.id === 'band-header')?.size).toEqual({
+      height: { kind: 'unit', value: 34, unit: '%' },
+    })
+  })
+
+  it('clamps deliberate band-height edits before they can move the map too far', () => {
+    expect(clampChromeBandHeight(2)).toBe(8)
+    expect(clampChromeBandHeight(19.94)).toBe(19.9)
+    expect(clampChromeBandHeight(19.95)).toBe(20)
+    expect(clampChromeBandHeight(52)).toBe(34)
+  })
+
+  it('merges additive free anchors without replacing legacy band layout', () => {
+    const defaults = defaultPosterLayout(baseConfig, stats)
+    const titleblockBox = {
+      left: {
+        kind: 'calc',
+        terms: [
+          { op: '+', value: anchorUnit(5.2, 'cqw') },
+          { op: '+', value: { kind: 'var', token: 'print-bleed', fallback: anchorUnit(0, 'px') } },
+        ],
+      },
+      width: {
+        kind: 'min',
+        values: [anchorUnit(82, 'cqw'), anchorUnit(54, 'cqh')],
+      },
+      padding: [anchorUnit(0, 'cqh'), anchorUnit(0, 'cqw'), anchorUnit(0, 'cqh'), anchorUnit(0, 'cqw')],
+      transform: [{ kind: 'translateX', value: anchorUnit(-50, '%') }],
+      decorations: ['sea-chart-titleblock'],
+    } satisfies NonNullable<NonNullable<PartialPosterLayout['anchors']>[number]['box']>
+
+    const merged = mergePosterLayout(defaults, {
+      anchors: [{
+        id: 'free-sea-chart-titleblock',
+        anchorTo: 'map',
+        edge: 'bottom',
+        displacesMap: false,
+        z: 18,
+        box: titleblockBox,
+      }],
+    })
+
+    expect(merged.bands.header.rows.some(row => row.id === 'header-title')).toBe(true)
+    expect(merged.anchors?.some(anchor => anchor.id === 'band-header')).toBe(true)
+    expect(merged.anchors?.find(anchor => anchor.id === 'free-sea-chart-titleblock')).toMatchObject({
+      anchorTo: 'map',
+      edge: 'bottom',
+      displacesMap: false,
+      z: 18,
+      box: titleblockBox,
+    })
+  })
+
+  it('patches sparse anchors by id while preserving existing band patches', () => {
+    const current: PartialPosterLayout = {
+      bands: {
+        header: { height: 21 },
+      },
+      anchors: [{
+        id: 'free-art-wash-titleblock',
+        anchorTo: 'map',
+        edge: 'bottom',
+        displacesMap: false,
+        z: 18,
+      }],
+    }
+    const next = patchPosterLayout(current, {
+      bands: {
+        header: { height: 52 },
+      },
+      anchors: [{
+        id: 'free-art-wash-titleblock',
+        userPinned: true,
+        box: { decorations: ['art-wash-titleblock'] },
+      }],
+    })
+
+    expect(next.bands?.header?.height).toBe(34)
+    expect(next.anchors).toEqual([{
+      id: 'free-art-wash-titleblock',
+      anchorTo: 'map',
+      edge: 'bottom',
+      displacesMap: false,
+      z: 18,
+      userPinned: true,
+      box: { decorations: ['art-wash-titleblock'] },
+    }])
+  })
+
+  it('models over-map titleblocks as non-displacing free anchors', () => {
+    const cartouche = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'cartouche-place',
+      composition: 'place-frame',
+    }, stats)
+    const seaChart = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'sea-chart',
+      composition: 'sea-chart',
+    }, stats)
+    const contourWash = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'contour-wash',
+      composition: 'art-wash',
+    }, stats)
+    const pleinAir = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'plein-air',
+      composition: 'art-wash',
+    }, stats)
+
+    expect(cartouche.anchors?.find(anchor => anchor.id === 'free-place-frame-titleblock')).toMatchObject({
+      anchorTo: 'map',
+      edge: 'center',
+      displacesMap: false,
+      z: 18,
+      box: {
+        left: anchorUnit(13.5, 'cqw'),
+        right: anchorUnit(13.5, 'cqw'),
+        top: anchorUnit(72, '%'),
+        transform: [{ kind: 'translateY', value: anchorUnit(-50, '%') }],
+        decorations: ['cartouche-titleblock'],
+      },
+    })
+    expect(seaChart.anchors?.find(anchor => anchor.id === 'free-sea-chart-titleblock')).toMatchObject({
+      anchorTo: 'map',
+      edge: 'bottom',
+      displacesMap: false,
+      box: {
+        left: {
+          kind: 'calc',
+          terms: [
+            { op: '+', value: anchorUnit(5.2, 'cqw') },
+            { op: '+', value: { kind: 'var', token: 'print-bleed', fallback: anchorUnit(0, 'px') } },
+          ],
+        },
+        width: { kind: 'min', values: [anchorUnit(82, 'cqw'), anchorUnit(54, 'cqh')] },
+        decorations: ['sea-chart-titleblock'],
+      },
+    })
+    expect(contourWash.anchors?.find(anchor => anchor.id === 'free-art-wash-titleblock')).toMatchObject({
+      anchorTo: 'map',
+      edge: 'bottom',
+      displacesMap: false,
+      box: {
+        bottom: {
+          kind: 'calc',
+          terms: [
+            { op: '+', value: anchorUnit(6.9, 'cqh') },
+            { op: '+', value: { kind: 'var', token: 'print-bleed', fallback: anchorUnit(0, 'px') } },
+          ],
+        },
+        transform: [{ kind: 'translateX', value: anchorUnit(-50, '%') }],
+        decorations: ['art-wash-titleblock'],
+      },
+    })
+    const pleinAirAnchor = pleinAir.anchors?.find(anchor => anchor.id === 'free-art-wash-titleblock')
+    expect(pleinAirAnchor).toMatchObject({
+      box: {
+        left: {
+          kind: 'calc',
+          terms: [
+            { op: '+', value: anchorUnit(6.9, 'cqw') },
+            { op: '+', value: { kind: 'var', token: 'print-bleed', fallback: anchorUnit(0, 'px') } },
+          ],
+        },
+        width: { kind: 'min', values: [anchorUnit(55, 'cqw'), anchorUnit(33, 'cqh')] },
+        decorations: ['art-wash-titleblock'],
+      },
+    })
+    expect(pleinAirAnchor?.box?.transform).toBeUndefined()
+  })
+
+  it('preserves default free titleblock anchors when sparse band edits are merged', () => {
+    const defaults = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'sea-chart',
+      composition: 'sea-chart',
+    }, stats)
+    const merged = mergePosterLayout(defaults, {
+      bands: {
+        header: { height: 22 },
+      },
+    })
+
+    expect(merged.bands.header.height).toBe(22)
+    expect(merged.anchors?.find(anchor => anchor.id === 'free-sea-chart-titleblock')).toMatchObject({
+      anchorTo: 'map',
+      displacesMap: false,
+      box: { decorations: ['sea-chart-titleblock'] },
+    })
   })
 })

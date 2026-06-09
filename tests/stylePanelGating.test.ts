@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeSectionVisibility, type GatingInput } from '../utils/stylePanelGating'
+import type { ThemeEditableField } from '../types'
+import { REFINED_THEMES } from '../utils/themes/refined'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +28,16 @@ function compute(overrides: Partial<GatingInput>) {
   return computeSectionVisibility({ ...base, ...overrides })
 }
 
+const refinedDefaultEditable = [
+  'trail_name',
+  'location_text',
+  'occasion_text',
+  'route_color',
+  'colorway',
+  'map_camera',
+  'print_size',
+] as const satisfies readonly ThemeEditableField[]
+
 // ── Route sections ─────────────────────────────────────────────────────────────
 
 describe('routeLineQuick — Quick-tab route line card', () => {
@@ -35,6 +47,151 @@ describe('routeLineQuick — Quick-tab route line card', () => {
 
   it('hides when hasRoute is false', () => {
     expect(compute({ hasRoute: false }).routeLineQuick).toBe(false)
+  })
+})
+
+describe('refined theme editable allowlist', () => {
+  it('locks theme-owned styling controls while preserving route color edits', () => {
+    const s = compute({ editableFields: refinedDefaultEditable })
+
+    expect(s.routeLineQuick).toBe(true)
+    expect(s.routeColorControl).toBe(true)
+    expect(s.routeWidthControl).toBe(false)
+    expect(s.routeOpacityControl).toBe(false)
+    expect(s.routeAdvancedControls).toBe(false)
+    expect(s.gridControls).toBe(false)
+    expect(s.globalColorControls).toBe(false)
+    expect(s.typographyControls).toBe(false)
+    expect(s.frameControls).toBe(false)
+    expect(s.effectsCard).toBe(false)
+    expect(s.terrainCard).toBe(false)
+    expect(s.pinControls).toBe(false)
+    expect(s.trailSegmentsCard).toBe(false)
+    expect(s.trailLegendControls).toBe(false)
+  })
+
+  it('keeps legacy themes unrestricted when no editable allowlist exists', () => {
+    const s = compute({})
+
+    expect(s.routeLineQuick).toBe(true)
+    expect(s.routeColorControl).toBe(true)
+    expect(s.routeWidthControl).toBe(true)
+    expect(s.routeOpacityControl).toBe(true)
+    expect(s.routeAdvancedControls).toBe(true)
+    expect(s.gridControls).toBe(true)
+    expect(s.globalColorControls).toBe(true)
+    expect(s.typographyControls).toBe(true)
+    expect(s.frameControls).toBe(true)
+    expect(s.effectsCard).toBe(true)
+    expect(s.pinControls).toBe(true)
+    expect(s.trailSegmentsCard).toBe(true)
+  })
+
+  it('exposes map layer toggles only when a refined theme explicitly allows them', () => {
+    const roads = compute({
+      preset: 'native-toner',
+      showRoads: true,
+      editableFields: ['show_roads'],
+    })
+
+    expect(roads.mapDetailCard).toBe(true)
+    expect(roads.roadsToggle).toBe(true)
+    expect(roads.roadColorControl).toBe(false)
+    expect(roads.roadOpacityControl).toBe(false)
+    expect(roads.poiToggle).toBe(false)
+
+    const labels = compute({
+      preset: 'stadia-toner',
+      showRoads: false,
+      editableFields: ['show_place_labels'],
+    })
+
+    expect(labels.mapDetailCard).toBe(true)
+    expect(labels.placeLabelsToggle).toBe(true)
+    expect(labels.placeLabelDetails).toBe(false)
+  })
+
+  it('exposes elevation profile controls only when the refined theme allows the profile field', () => {
+    expect(compute({
+      hasElevationData: true,
+      showElevationProfile: true,
+      editableFields: refinedDefaultEditable,
+    }).elevationProfileToggle).toBe(false)
+
+    const allowed = compute({
+      hasElevationData: true,
+      showElevationProfile: true,
+      editableFields: [...refinedDefaultEditable, 'show_elevation_profile'],
+    })
+
+    expect(allowed.elevationProfileToggle).toBe(true)
+    expect(allowed.elevationProfileExpanded).toBe(true)
+  })
+
+  it('exposes trail segment controls only when the refined theme allows segment editing', () => {
+    const locked = compute({
+      hasRoute: true,
+      trailSegmentCount: 2,
+      editableFields: refinedDefaultEditable,
+    })
+
+    expect(locked.trailSegmentsCard).toBe(false)
+    expect(locked.trailLegendControls).toBe(false)
+
+    const allowed = compute({
+      hasRoute: true,
+      trailSegmentCount: 2,
+      editableFields: [...refinedDefaultEditable, 'trail_segments'],
+    })
+
+    expect(allowed.trailSegmentsCard).toBe(true)
+    expect(allowed.trailLegendControls).toBe(true)
+  })
+
+  it('keeps every refined theme recipe constrained to its editable allowlist', () => {
+    for (const theme of REFINED_THEMES) {
+      const s = compute({
+        preset: theme.map_defaults.preset ?? 'minimalist',
+        showContours: theme.map_defaults.show_contours ?? false,
+        showHillshade: theme.map_defaults.show_hillshade ?? false,
+        showRoads: theme.map_defaults.show_roads ?? false,
+        showElevationProfile: theme.map_defaults.show_elevation_profile ?? false,
+        showStartPin: theme.map_defaults.show_start_pin ?? false,
+        showFinishPin: theme.map_defaults.show_finish_pin ?? false,
+        hasElevationData: true,
+        editableFields: theme.editable_fields,
+      })
+
+      expect(s.routeColorControl, theme.id).toBe(true)
+      expect(s.routeWidthControl, theme.id).toBe(false)
+      expect(s.routeOpacityControl, theme.id).toBe(false)
+      expect(s.routeAdvancedControls, theme.id).toBe(false)
+      expect(s.pinControls, theme.id).toBe(false)
+      expect(s.gridControls, theme.id).toBe(false)
+      expect(s.globalColorControls, theme.id).toBe(false)
+      expect(s.typographyControls, theme.id).toBe(false)
+      expect(s.frameControls, theme.id).toBe(false)
+      expect(s.rasterEffectControls, theme.id).toBe(false)
+      expect(s.tonerVariantControls, theme.id).toBe(false)
+      expect(s.duotoneControls, theme.id).toBe(false)
+      expect(s.posterizeControls, theme.id).toBe(false)
+      expect(s.layerColorControls, theme.id).toBe(false)
+      expect(s.vignetteControls, theme.id).toBe(false)
+      expect(s.grainControl, theme.id).toBe(false)
+      expect(s.terrain3dControls, theme.id).toBe(false)
+      expect(s.contourStyleControls, theme.id).toBe(false)
+      expect(s.waterColorControl, theme.id).toBe(false)
+      expect(s.roadColorControl, theme.id).toBe(false)
+      expect(s.roadOpacityControl, theme.id).toBe(false)
+      expect(s.elevationProfileToggle, theme.id).toBe(theme.editable_fields.includes('show_elevation_profile'))
+      expect(s.trailSegmentsCard, theme.id).toBe(theme.editable_fields.includes('trail_segments'))
+      expect(s.trailLegendControls, theme.id).toBe(false)
+      expect(s.contourToggle, theme.id).toBe(theme.editable_fields.includes('show_contours'))
+      expect(s.hillshadeToggle, theme.id).toBe(theme.editable_fields.includes('show_hillshade'))
+      expect(s.roadsToggle, theme.id).toBe(theme.editable_fields.includes('show_roads'))
+      expect(s.placeLabelsToggle, theme.id).toBe(theme.editable_fields.includes('show_place_labels'))
+      expect(s.poiToggle, theme.id).toBe(theme.editable_fields.includes('show_poi_labels'))
+    }
   })
 })
 

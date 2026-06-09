@@ -8,7 +8,7 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 - **Vercel project:** https://vercel.com/anthonynmaros-projects/radmaps
 - **Vercel preview URL:** https://radmaps-9cip7xn4y-anthonynmaros-projects.vercel.app
 - **GitHub repo:** https://github.com/anthonynmaro/radmaps (`main` branch → auto-deploys to Vercel)
-- **Renderer:** Browserless/Chromium screenshots of the real Nuxt render pages; final jobs orchestrated by Railway `render-worker-v4/`
+- **Renderer:** AWS-rendered Chromium screenshots of the real Nuxt render pages; final jobs orchestrated by AWS/ECS `render-worker-v4/`
 - **Database:** Supabase (`jzwpiifddtgxbfmdfqco.supabase.co`)
 
 ## Tech stack
@@ -18,10 +18,10 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 - **MapLibre GL JS** — map rendering in browser
 - **CARTO tiles** (free, no auth) — base map tiles for minimalist preset
 - **Mapbox Terrain DEM v1** — hillshade raster-dem (requires `MAPBOX_TOKEN`)
-- **Mapbox Terrain v2** — vector contour lines (requires `MAPBOX_TOKEN`)
+- **maplibre-contour runtime contours** — editor/AWS renderer contour lines from Terrarium DEM
 - **Stripe** — payments (live keys in `.env`)
 - **Gelato** — print fulfillment API
-- **Browserless** — managed Chromium screenshot API for proof and final print renders
+- **AWS renderer** — App Runner proof renderer plus ECS/local-Chromium final print renderer
 
 ## Project structure
 ```
@@ -70,8 +70,8 @@ RadMaps converts GPX tracks and Strava activities into print-quality trail map p
 ├── data/
 │   └── premade-maps.ts      — static premade map catalog
 ├── types/index.ts           — all shared types (StyleConfig, TrailMap, Order, etc.)
-├── pages/render/            — Browserless-only render pages for proof/final screenshots
-├── render-worker-v4/        — Railway queue worker for final Browserless renders
+├── pages/render/            — AWS-renderer-only render pages for proof/final screenshots
+├── render-worker-v4/        — AWS/ECS queue worker for final Chromium renders
 ├── supabase/
 │   ├── schema.sql           — full DB schema
 │   └── migrations/          — incremental migrations
@@ -92,7 +92,7 @@ Key fields:
 - `color_theme`: one of 6 presets (chalk/topaz/dusk/obsidian/forest/midnight)
 - `print_size`: `'8x12' | '12x18' | '16x24' | '20x30' | '24x36' | '32x48'`
 - `font_family`: 10 Google Fonts options
-- `show_contours / show_hillshade / show_elevation_labels`: Mapbox terrain features
+- `show_contours / show_hillshade / show_elevation_labels`: terrain render features
 - `trail_name / occasion_text / location_text`: user-editable poster text
 - `label_text_color / label_bg_color`: poster band colors
 - `route_color / route_width / route_opacity`: GPX track styling
@@ -123,13 +123,13 @@ Canonical slot order:
 
 Map controls must be graph-gated. Do not show controls for baked-only or unsupported features, and do not expose destructive toggles for required features. Use `getVisibleStyleControls()`, `styleUsesField()`, `effectiveStyleConfig()`, and `getGraphFullReloadFields()` instead of hardcoded preset checks.
 
-### Screenshot render (Browserless + render-worker-v4)
+### Screenshot render (AWS renderer + render-worker-v4)
 The current renderer screenshots the real Nuxt/Vue/MapLibre poster in Chromium. `MapPreview.vue` is the only poster renderer.
 
 Proof path:
 1. `server/api/maps/[id]/render.post.ts` resolves proof framing with `getPrintFraming`.
 2. It signs a short-lived render ticket with `utils/render/renderTicket.ts`.
-3. Browserless screenshots `/render/map/[id]?ticket=...`.
+3. The AWS proof renderer screenshots `/render/map/[id]?ticket=...`.
 4. `/api/render/payload` validates the ticket and returns only the exact map payload the page may render.
 5. The proof image is validated, uploaded, and stored on the map row.
 
@@ -138,12 +138,12 @@ Final path:
 2. `server/utils/snapshot.ts` writes an immutable snapshot keyed by `stripe_session_id`.
 3. The Stripe webhook inserts a `print_render_jobs` row.
 4. `render-worker-v4/src/queue/processJob.ts` calls `renderFinalScreenshot.ts`.
-5. Browserless screenshots `/render/session/[stripeSessionId]?ticket=...`.
+5. The AWS final renderer screenshots `/render/session/[stripeSessionId]?ticket=...`.
 6. The worker validates, uploads, inserts `product_renders`, and submits to Gelato.
 
-`render-worker-v4` is not a separate poster renderer; it is the final print queue consumer/orchestrator. It still must run for paid custom orders because it bounds Browserless concurrency, writes final artifacts, and submits Gelato orders.
+`render-worker-v4` is not a separate poster renderer; it is the final print queue consumer/orchestrator. It still must run for paid custom orders because it bounds AWS renderer concurrency, writes final artifacts, and submits Gelato orders.
 
-Readiness is explicit. Browserless waits for `window.__RENDER_READY === true` and checks `window.__RADMAPS_RENDER_STATUS`; do not replace this with a fixed sleep or selector-only wait.
+Readiness is explicit. The AWS renderer waits for `window.__RENDER_READY === true` and checks `window.__RADMAPS_RENDER_STATUS`; do not replace this with a fixed sleep or selector-only wait.
 
 The human renderer guide is `docs/RENDERING.md`; update it whenever renderer behavior, product sizes, aspect ratios, or provider geometry changes. The cleanup/security review lives in `docs/ARCHITECTURE_SECURITY_REVIEW.md`; update it when removing renderer paths, changing queue boundaries, or accepting/defering renderer-adjacent security risks.
 
@@ -157,8 +157,8 @@ Update both files whenever you add, remove, rename, or materially change any map
 - Layer order follows the graph's canonical slots: `background → base → water-land-buildings → terrain → contours → editable-roads → labels-pois → route-casing → route → segments-handles`.
 - Viewport scaling is graph metadata-driven through `metadata.radmaps.scale`; do not reintroduce layer-ID regex scaling.
 - CARTO tiles used for minimalist preset (free, no auth required)
-- Mapbox DEM/terrain sources only included in style when their feature is enabled (avoid unnecessary TileJSON fetches and 401s)
-- `mapboxTerrainV2Source` has `minzoom: 9` — MapLibre uses those tiles underzoomed so contours appear at any zoom level
+- DEM sources are only included in style when hillshade or 3D terrain is enabled (avoid unnecessary TileJSON fetches and 401s)
+- Runtime contour sources are only included when `MapPreview.vue` provides a `maplibre-contour` protocol URL; `buildMapStyle()` intentionally does not fall back to Mapbox Terrain v2
 - Both style builders include `glyphs` URL (Mapbox fonts via token) so elevation labels work
 - Elevation label font: `['DIN Offc Pro Medium', 'Arial Unicode MS Regular']`
 
@@ -267,15 +267,40 @@ Flag behavior details:
 |---|---|
 | Stripe | `https://radmaps.studio/api/orders/webhook` |
 | Gelato | `https://radmaps.studio/api/gelato/webhook` |
-| Strava OAuth callback | `https://radmaps.studio/auth/strava-callback` |
+| Strava OAuth callback | `https://radmaps.studio/api/strava/callback` |
 | Supabase auth redirect | `https://radmaps.studio/auth/confirm` |
+
+## OAuth branding and callback domains
+Human runbook: `docs/AUTH_OAUTH_BRANDING.md`.
+
+Goal: Google and Strava auth screens should show RadMaps branding/domains, not
+`jzwpiifddtgxbfmdfqco.supabase.co` or localhost callback URLs. Target Supabase
+Auth custom domain is `auth.radmaps.studio`; target app origin is
+`https://radmaps.studio`.
+
+Important sequencing:
+- `radmaps.studio` currently uses Cloudflare nameservers (`gabe`/`lindsey`), so
+  Vercel DNS records are not authoritative for this domain. Add
+  `auth.radmaps.studio` CNAME/TXT records in Cloudflare unless nameservers have
+  intentionally been migrated after a full audit.
+- Do not activate the Supabase custom domain until Google OAuth allows both
+  `https://jzwpiifddtgxbfmdfqco.supabase.co/auth/v1/callback` and
+  `https://auth.radmaps.studio/auth/v1/callback`.
+- Do not change Vercel `SUPABASE_URL` to `https://auth.radmaps.studio` until
+  Supabase has verified and activated the custom domain.
+- Keep `/api/strava/connect` and `/api/strava/callback` in
+  `supabase.redirectOptions.exclude`; Strava OAuth is a sign-in path and must be
+  reachable without an existing Supabase session.
+- In Strava's API app, the authorization callback domain is `radmaps.studio`;
+  the concrete callback URL generated by the app is
+  `https://radmaps.studio/api/strava/callback`.
 
 ## Planned next work (Phase 2+)
 - **Pinia store** for editor state (`useEditorStore`): `styleConfig`, `textOverlays`, `activeOverlayId`, `isDirty`
 - **`text_overlays: TextOverlay[]`** in StyleConfig — draggable/resizable text elements using `interactjs`
 - **UTabs** top-level panel split: Map Style / Text / Export
 - **`@nuxtjs/google-fonts`** for self-hosted fonts (removes Google CDN dep from render worker)
-- **Rate limiting + queue tuning** for Browserless proof/final render concurrency
+- **Rate limiting + queue tuning** for AWS proof/final render concurrency
 - **Scout / `useStyleAgent`** enhancements beyond the current feature-flagged admin entry point
 
 ## Open Security & Reliability Issues
@@ -299,25 +324,25 @@ See `.env.example` for the full list with comments. Key ones:
 - `STRIPE_*` — payments (live keys)
 - `GELATO_API_KEY` — print fulfillment
 - `GELATO_ORDER_TYPE` — use `draft` for local/full E2E tests; use `order` only for intentional physical fulfillment
-- `BROWSERLESS_TOKEN` / `BROWSERLESS_ENDPOINT` / `BROWSERLESS_TIMEOUT_MS` — screenshot provider
+- `PROOF_RENDER_TOKEN` / `PROOF_RENDER_ENDPOINT` / `PROOF_RENDER_TIMEOUT_MS` — AWS proof screenshot endpoint settings
 - `RENDER_TICKET_SECRET` — short-lived signed render URL secret
 - `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
 - `ANTHROPIC_API_KEY` — AI styling agent
 
-For local full E2E, run the final queue from the repo root with `npm run print-worker:dev`. That launcher merges root `.env` with optional `render-worker-v4/.env` overrides so Browserless/Gelato/render-ticket secrets do not need to be duplicated locally. Standalone Railway worker deployments still need their own service env configured.
+For local full E2E, run the final queue from the repo root with `npm run print-worker:dev`. That launcher merges root `.env` with optional `render-worker-v4/.env` overrides so AWS renderer/Gelato/render-ticket secrets do not need to be duplicated locally. Standalone worker deployments still need their own service env configured.
 
 ## Known gotchas
 - MapLibre does NOT resolve `mapbox://` scheme URLs — always use explicit `https://api.mapbox.com/...` endpoints
-- Mapbox terrain-v2 vector tiles only have contour data from zoom 9+. Source `minzoom: 9` fixes this by causing MapLibre to underzoom those tiles
+- Runtime contours require `MapPreview.vue` to install the `maplibre-contour` protocol before calling `buildMapStyle()`; pure style generation without a contour protocol URL intentionally omits contour layers
 - `container-type: size` on the poster canvas is required for `cqh` units to work
 - `height: 100%` (not `max-height: 100%`) is needed on the poster canvas div so `aspect-ratio` has a concrete dimension to derive from
 - The editor aspect ratio is deliberately fixed to 2:3; do not reintroduce mixed-aspect product choices without rebuilding the editor aspect flow
 - Use `getPrintFraming(productUid, renderClass)` for every print/proof dimension; never hand-compute size tables in routes or workers
 - Signed render tickets protect server-only payloads; never put shared secrets directly in third-party screenshot URLs
-- Browserless render readiness must wait on `window.__RENDER_READY`, not a fixed delay
+- AWS renderer readiness must wait on `window.__RENDER_READY`, not a fixed delay
 - Supabase `serverSupabaseUser` vs `serverSupabaseClient` — always use these in server routes, never raw env vars
 - The style page uses `layout: false` (no default layout wrapper) so it can control its own full-height flex layout
 - **StyleConfig has 3 sources of truth** (DB, `useMap` composable, local ref in `style.vue`) until Pinia store is implemented — watcher debounce is 600ms in `useMap.ts`
-- **`render-worker-v4/` owns final queue orchestration** — it should call Browserless, validate, upload, insert `product_renders`, and submit to Gelato. State and remaining work are documented in `render-worker-v4/HANDOFF.md`.
+- **`render-worker-v4/` owns final queue orchestration** — it should call the AWS renderer, validate, upload, insert `product_renders`, and submit to Gelato. State and remaining work are documented in `render-worker-v4/HANDOFF.md`.
 - `useStyleAgent` is available through the feature-flagged Scout admin surface; keep server auth + feature flag checks together
 - `TextOverlay[]` type is defined in `types/index.ts` but the UI for creating/editing text overlays is not implemented

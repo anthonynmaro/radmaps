@@ -13,7 +13,7 @@
 //   3. Idempotency check: if product_renders has a valid row for this
 //      print_hash AND orders.gelato_order_id is set, jump to 'submitted'.
 //   4. Set status='validating', capture the dedicated Nuxt render page via
-//      Browserless/Chromium.
+//      the configured Chromium renderer.
 //   5. If response.status === 'invalid', throw ValidationFailedError.
 //   6. status='ready', orders.{print_file_url, fulfillment_status}.
 //   7. Submit to Gelato; on success status='submitted', orders.{gelato_order_id,
@@ -55,7 +55,7 @@ export interface ProcessJobResult {
   error?: string
 }
 
-// Browserless final render response.
+// Final render response.
 export interface RenderFinalSuccess {
   status: 'rendered'
   artifact_path: string
@@ -105,8 +105,8 @@ export interface ProcessJobDeps {
 // ─── Browser screenshot renderFinal default impl ────────────────────────────
 
 /**
- * Default renderFinal: capture the real Nuxt/MapPreview render page in
- * Browserless. Tests can still inject a fake renderFinal.
+ * Default renderFinal: capture the real Nuxt/MapPreview render page in the
+ * configured Chromium renderer. Tests can still inject a fake renderFinal.
  */
 function defaultRenderFinal(): ProcessJobDeps['renderFinal'] {
   return async ({ stripeSessionId, printHash }) => {

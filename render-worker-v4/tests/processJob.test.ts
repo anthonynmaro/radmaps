@@ -5,7 +5,7 @@
 // method routes by SQL substring to scripted responses. That's enough to
 // drive the lifecycle deterministically.
 //
-// Browserless final rendering and Gelato calls are dependency-injected via
+// Final rendering and Gelato calls are dependency-injected via
 // `processJob({ deps })` so neither is reached over the wire.
 
 import { describe, expect, it, beforeEach, vi } from 'vitest'

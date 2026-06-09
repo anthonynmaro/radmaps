@@ -33,8 +33,7 @@ const required = [
 ]
 const optional = [
   'PROOF_RENDER_TOKEN',
-  'BROWSERLESS_TOKEN',
-  'BROWSERLESS_ENDPOINT',
+  'PROOF_RENDER_ENDPOINT',
 ]
 const keys = [...required, ...optional]
 const values = {}
@@ -103,7 +102,7 @@ secret_arn="$(
 echo "Synced render worker secret: $secret_arn"
 
 proof_token="$(
-  node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(s.PROOF_RENDER_TOKEN || s.BROWSERLESS_TOKEN || '')" "$tmp_secret"
+  node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(s.PROOF_RENDER_TOKEN || '')" "$tmp_secret"
 )"
 
 if [[ -n "$proof_token" ]]; then
@@ -129,7 +128,7 @@ if [[ -n "$proof_token" ]]; then
   )"
   echo "Synced proof renderer token secret: $proof_token_secret_arn"
 else
-  echo "Missing PROOF_RENDER_TOKEN or BROWSERLESS_TOKEN. The AWS proof renderer requires a /screenshot token." >&2
+  echo "Missing PROOF_RENDER_TOKEN. The AWS proof renderer requires a /screenshot token." >&2
   echo "Generate one with: openssl rand -hex 32" >&2
   exit 1
 fi

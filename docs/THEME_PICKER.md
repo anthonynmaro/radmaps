@@ -20,9 +20,9 @@ Current entry points:
 - place maps
 - the Quick tab's `Browse themes` action
 
-The picker is gated by `FLAGS.THEME_PICKER_STEP`. In development, the query
-parameter can force the picker so local review does not require flag setup. In
-production, rollout should remain flag-controlled.
+The picker is always available. The query parameter opens it directly, and the
+Quick tab's `Browse themes` action reopens it after a user has entered the
+full editor.
 
 ## Components
 
@@ -39,7 +39,7 @@ theme arrays in components.
 
 Picker previews use the existing [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue)
 renderer. The picker does not introduce a second poster renderer and does not
-call Browserless proof rendering.
+call AWS renderer proof rendering.
 
 Preview configs are derived with `deriveThemePreviewConfig(baseConfig, theme,
 context)`. This helper deep-clones the base `StyleConfig`, applies the theme,
@@ -88,7 +88,7 @@ route posters so dense city maps do not overpower the poster chrome.
 
 Some theme defaults exist specifically to keep picker previews readable:
 
-- Blueprint and Blueprint Strava keep grids scoped to the map area by default.
+- Blueprint and Trail Blueprint keep grids scoped to the map area by default.
 - Refined contour defaults are intentionally lower contrast than the legacy
   editor defaults.
 - Mid-Century uses separate dark map-label ink for place and POI labels, rather

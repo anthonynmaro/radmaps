@@ -1,4 +1,4 @@
-import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_STYLE_CONFIG, DEFAULT_SEGMENT_CASING_WIDTH, type StyleConfig, type TonerVariant, type TrailSegment } from '~/types'
+import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_STYLE_CONFIG, DEFAULT_SEGMENT_CASING_WIDTH, type RouteStats, type StyleConfig, type TonerVariant, type TrailSegment } from '~/types'
 import {
   CIRCLE_SCALE_PROPERTIES,
   LINE_SCALE_PROPERTIES,
@@ -56,14 +56,12 @@ function applyGraphLayerMetadata<T extends object>(style: T, config: StyleConfig
  * Build a MapLibre GL Style JSON object from a StyleConfig.
  * Used in both the browser MapPreview and the server render worker.
  *
- * Contour strategy (two paths):
- *   Browser  → contourTileUrl is provided by MapPreview.vue (maplibre-contour protocol)
- *              Generates contours on-the-fly from free AWS terrarium DEM tiles.
- *              Supports configurable meter intervals via contour_detail.
- *   Print    → Browserless renders the same MapPreview path, so it should also
- *              provide contourTileUrl and use the browser-generated contours.
- *   Fallback → contourTileUrl is undefined; falls back to Mapbox terrain-v2
- *              vector tiles for legacy/non-browser style generation.
+ * Contour strategy:
+ *   Browser/print → contourTileUrl is provided by MapPreview.vue
+ *                   (maplibre-contour protocol), generating contours on the fly
+ *                   from Terrarium DEM tiles. This is the only product contour
+ *                   path; if no contourTileUrl is provided, contour sources and
+ *                   layers are intentionally omitted.
  *
  * Base tile options (base_tile_style):
  *   carto-light / carto-dark  — free CARTO raster tiles (no token)
@@ -106,6 +104,21 @@ export function buildMapStyle(
   } else {
     style = buildMinimalistStyle(effectiveConfig, mapboxToken, maptilerToken, contourTileUrl)
   }
+  const forcedBackgroundColor = effectiveConfig.color_theme === 'brutalist'
+    ? '#E6E3DD'
+    : effectiveConfig.color_theme === 'blackline'
+      ? '#F7F7F4'
+      : null
+  if (forcedBackgroundColor && Array.isArray((style as { layers?: unknown }).layers)) {
+    const backgroundLayer = ((style as { layers: Array<{ id?: string, paint?: Record<string, unknown> }> }).layers)
+      .find(layer => layer.id === 'background')
+    if (backgroundLayer) {
+      backgroundLayer.paint = {
+        ...(backgroundLayer.paint ?? {}),
+        'background-color': forcedBackgroundColor,
+      }
+    }
+  }
   return applyGraphLayerMetadata(style, effectiveConfig)
 }
 
@@ -128,11 +141,32 @@ function atlasNumberSetting(value: number | undefined, fallback: number, min = 0
   return Math.min(max, Math.max(min, value))
 }
 
+function atlasTileUrl(source: 'base' | 'poi' | 'outdoorRoutes') {
+  return sameOriginTileUrl(`/api/atlas/tiles/${source}/{z}/{x}/{y}.mvt?environment=production`)
+}
+
 function sameOriginTileUrl(path: string) {
   const origin = typeof globalThis !== 'undefined'
     ? (globalThis as { location?: { origin?: string } }).location?.origin
     : ''
   return origin ? `${origin}${path}` : path
+}
+
+function outdoorRouteFilter(settings: NonNullable<StyleConfig['atlas_layer_settings']>['outdoorRoute']) {
+  const activities = settings?.activities?.length
+    ? settings.activities
+    : ['hiking', 'cycling', 'mountain-biking', 'bikepacking']
+  const routeValues = Array.from(new Set(activities.flatMap((activity) => {
+    if (activity === 'mountain-biking') return ['mtb']
+    if (activity === 'bikepacking' || activity === 'cycling') return ['bicycle']
+    return ['hiking']
+  })))
+
+  return [
+    'any',
+    ['in', ['get', 'activity'], ['literal', activities]],
+    ['in', ['get', 'route'], ['literal', routeValues]],
+  ]
 }
 
 function watercolorTileUrl(config: StyleConfig) {
@@ -179,9 +213,9 @@ export function styleUsesContours(config: Pick<StyleConfig, 'preset' | 'show_con
 //
 // maplibre-contour's getOptionsForZoom picks the HIGHEST key ≤ current map
 // zoom. If no key qualifies, levels=[] and nothing is drawn. Start at zoom 1
-// as a universal fallback — the library fetches DEM tiles at zoom+overzoom
-// (overzooming from higher-res tiles) so contours are accurate even when the
-// map is zoomed out. Key 1 covers any poster zoom below the first named key.
+// as a universal fallback. maplibre-contour's `overzoom` option requests
+// lower-resolution parent DEM tiles, so RadMaps keeps it at 0 for contour
+// fidelity. Key 1 covers any poster zoom below the first named key.
 export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>> = {
   0: { 1: [1000, 5000], 7: [500, 2000], 8: [500, 2000], 9: [300, 1500], 10: [200, 1000], 11: [200, 1000], 12: [200, 1000], 13: [100, 500],  14: [50,  200] },
   1: { 1: [500,  2000], 7: [300, 1500], 8: [200, 1000], 9: [100, 500],  10: [100, 500],  11: [100, 500],  12: [100, 500],  13: [50,  200],  14: [20,  100] },
@@ -189,6 +223,280 @@ export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>
   3: { 1: [100,  500],  7: [100, 500],  8: [50,  250],  9: [30,  150],  10: [20,  100],  11: [20,  100],  12: [20,  100],  13: [10,  50],   14: [5,   20]  }, // default
   4: { 1: [50,   250],  7: [50,  250],  8: [30,  150],  9: [20,  100],  10: [10,  50],   11: [10,  50],   12: [10,  50],   13: [5,   20],   14: [5,   10]  },
   5: { 1: [20,   100],  7: [20,  100],  8: [10,  50],   9: [10,  50],   10: [5,   20],   11: [5,   20],   12: [5,   20],   13: [2,   10],   14: [2,   5]   },
+}
+
+export const LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
+  1: [20, 100],
+  7: [20, 100],
+  8: [20, 100],
+  9: [20, 100],
+  10: [20, 100],
+  11: [20, 100],
+  12: [20, 100],
+  13: [20, 100],
+  14: [20, 100],
+}
+
+export const CONTOUR_DEM_OVERZOOM = 0
+
+export type AdaptiveContourReliefBand = 'unknown' | 'low' | 'moderate' | 'high' | 'extreme'
+
+export interface AdaptiveContourReliefProfile {
+  band: AdaptiveContourReliefBand
+  detail: number | null
+  reliefM: number | null
+  gainPerKm: number | null
+  elevationChangeM: number | null
+}
+
+const SMOOTH_CONTOUR_THEME_IDS = new Set([
+  'bold-modern',
+  'classic-trail',
+  'contour-wash',
+  'editorial-minimal',
+])
+
+const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
+  'moonstone',
+])
+
+function clampContourDetail(detail: number): number {
+  if (!Number.isFinite(detail)) return 3
+  return Math.max(0, Math.min(5, Math.round(detail)))
+}
+
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function detailForReliefMeters(reliefM: number | null): number | null {
+  if (reliefM == null) return null
+  if (reliefM <= 250) return 5
+  if (reliefM <= 500) return 4
+  if (reliefM <= 850) return 3
+  if (reliefM <= 1200) return 2
+  if (reliefM <= 1300) return 1
+  return 0
+}
+
+function detailForGainPerKm(gainPerKm: number | null): number | null {
+  if (gainPerKm == null) return null
+  if (gainPerKm <= 35) return 5
+  if (gainPerKm <= 65) return 4
+  if (gainPerKm <= 105) return 3
+  if (gainPerKm <= 155) return 2
+  if (gainPerKm <= 225) return 1
+  return 0
+}
+
+function bandForContourDetail(detail: number | null): AdaptiveContourReliefBand {
+  if (detail == null) return 'unknown'
+  if (detail === 5) return 'low'
+  if (detail === 4) return 'moderate'
+  if (detail >= 2) return 'high'
+  return 'extreme'
+}
+
+export function resolveAdaptiveContourReliefProfile(
+  stats?: Partial<RouteStats> | null,
+): AdaptiveContourReliefProfile {
+  if (!stats) {
+    return { band: 'unknown', detail: null, reliefM: null, gainPerKm: null, elevationChangeM: null }
+  }
+
+  const minElevationM = finiteOrNull(stats.min_elevation_m)
+  const maxElevationM = finiteOrNull(stats.max_elevation_m)
+  const gainM = Math.max(finiteOrNull(stats.elevation_gain_m) ?? 0, finiteOrNull(stats.elevation_loss_m) ?? 0)
+  const distanceKm = finiteOrNull(stats.distance_km)
+  const reliefM = minElevationM != null && maxElevationM != null && maxElevationM > minElevationM
+    ? maxElevationM - minElevationM
+    : null
+  const gainPerKm = distanceKm != null && distanceKm > 0 && gainM > 0
+    ? gainM / distanceKm
+    : null
+  const elevationChangeM = reliefM ?? (gainM > 0 ? gainM : null)
+  const reliefDetail = detailForReliefMeters(reliefM)
+  const gainDetail = detailForGainPerKm(gainPerKm)
+
+  if (reliefDetail == null && gainDetail == null) {
+    return { band: 'unknown', detail: null, reliefM, gainPerKm, elevationChangeM }
+  }
+
+  const detail = Math.min(reliefDetail ?? 5, gainDetail ?? 5)
+  return {
+    band: bandForContourDetail(detail),
+    detail,
+    reliefM,
+    gainPerKm,
+    elevationChangeM,
+  }
+}
+
+export function resolveAdaptiveContourDetail(
+  config: Pick<StyleConfig, 'contour_detail'> & Partial<Pick<StyleConfig, 'color_theme'>>,
+  stats?: Partial<RouteStats> | null,
+): number {
+  const fallback = clampContourDetail(config.contour_detail ?? 3)
+  const profile = resolveAdaptiveContourReliefProfile(stats)
+  const adaptiveDetail = profile.detail
+  if (adaptiveDetail == null) return fallback
+  if (
+    adaptiveDetail !== 5 &&
+    adaptiveDetail > fallback &&
+    AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS.has(config.color_theme ?? '')
+  ) {
+    return fallback
+  }
+  return adaptiveDetail
+}
+
+export function resolveAdaptiveContourOverzoom(
+  config: Pick<StyleConfig, 'color_theme'>,
+): number {
+  return SMOOTH_CONTOUR_THEME_IDS.has(config.color_theme ?? '') ? 2 : CONTOUR_DEM_OVERZOOM
+}
+
+export function resolveAdaptiveContourThresholds(
+  config: Pick<StyleConfig, 'contour_detail'> & Partial<Pick<StyleConfig, 'color_theme'>>,
+  stats?: Partial<RouteStats> | null,
+): Record<number, [number, number]> {
+  const detail = resolveAdaptiveContourDetail(config, stats)
+  const profile = resolveAdaptiveContourReliefProfile(stats)
+  if (detail !== 5 || profile.band !== 'low') return CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
+  return LOW_RELIEF_CONTOUR_THRESHOLDS
+}
+
+function hasUsableContourStats(stats: Partial<RouteStats> | null | undefined): boolean {
+  return resolveAdaptiveContourReliefProfile(stats).band !== 'unknown'
+}
+
+function scaleNumber(value: number | undefined, factor: number, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value
+  return Math.min(value * factor, max)
+}
+
+function clampNumberMin(value: number | undefined, min: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value
+  return Math.max(value, min)
+}
+
+function clampNumberMax(value: number | undefined, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value
+  return Math.min(value, max)
+}
+
+export function resolveAdaptiveContourStyleConfig(
+  config: StyleConfig,
+  stats?: Partial<RouteStats> | null,
+): StyleConfig {
+  if (!styleGraphUsesContours(config)) return config
+
+  const adaptiveDetail = resolveAdaptiveContourDetail(config, stats)
+  const hasStats = hasUsableContourStats(stats)
+  const isLowRelief = adaptiveDetail === 5 && hasStats
+  const highReliefProfile = adaptiveDetail <= 3
+    ? config.color_theme === 'bold-modern'
+      ? ({
+          0: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
+          1: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.82, widthFactor: 1 },
+          2: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.86, widthFactor: 1 },
+          3: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.88, widthFactor: 1 },
+        } as const)[adaptiveDetail]
+      : config.color_theme === 'editorial-minimal'
+        ? ({
+            0: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.34, widthFactor: 0.9 },
+            1: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.36, widthFactor: 0.95 },
+            2: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.38, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.40, widthFactor: 1 },
+          } as const)[adaptiveDetail]
+      : config.color_theme === 'brutalist'
+        ? ({
+            0: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.22, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.24, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.26, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.28, widthFactor: 1 },
+          } as const)[adaptiveDetail]
+      : config.color_theme === 'botanical'
+        ? ({
+            0: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.72, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.76, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.80, widthFactor: 1 },
+          } as const)[adaptiveDetail]
+        : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
+          ? ({
+              0: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.62, widthFactor: 1 },
+              1: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.66, widthFactor: 1 },
+              2: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.68, widthFactor: 1 },
+              3: { opacityFactor: 1, minorMax: 0.30, majorMax: 0.70, widthFactor: 1 },
+            } as const)[adaptiveDetail]
+      : ({
+          0: { opacityFactor: 0.34, minorMax: 0.10, majorMax: 0.38, widthFactor: 0.54 },
+          1: { opacityFactor: 0.48, minorMax: 0.16, majorMax: 0.46, widthFactor: 0.68 },
+          2: { opacityFactor: 0.68, minorMax: 0.24, majorMax: 0.56, widthFactor: 0.82 },
+          3: { opacityFactor: 0.82, minorMax: 0.30, majorMax: 0.62, widthFactor: 0.90 },
+        } as const)[adaptiveDetail]
+    : null
+
+  if (adaptiveDetail === config.contour_detail && !isLowRelief && !highReliefProfile) {
+    return config
+  }
+
+  const next: StyleConfig = {
+    ...config,
+    contour_detail: adaptiveDetail,
+  }
+
+  if (isLowRelief) {
+    next.contour_opacity = Math.max(next.contour_opacity ?? 0, 0.34)
+
+    const contourSettings = next.atlas_layer_settings?.contour
+    if (contourSettings) {
+      next.atlas_layer_settings = {
+        ...next.atlas_layer_settings,
+        contour: {
+          ...contourSettings,
+          minor_opacity: Math.max(contourSettings.minor_opacity ?? next.contour_opacity, 0.24),
+          major_opacity: Math.max(contourSettings.major_opacity ?? contourSettings.index_opacity ?? next.contour_opacity, 0.42),
+          index_opacity: contourSettings.index_opacity == null
+            ? contourSettings.index_opacity
+            : Math.max(contourSettings.index_opacity, 0.42),
+        },
+      }
+    }
+  }
+
+  if (highReliefProfile) {
+    const adaptedOpacity = clampNumberMax(next.contour_opacity, highReliefProfile.minorMax)
+    const adaptedMinorWidth = scaleNumber(next.contour_minor_width, highReliefProfile.widthFactor, next.contour_minor_width ?? 1)
+    const adaptedMajorWidth = scaleNumber(next.contour_major_width, highReliefProfile.widthFactor, next.contour_major_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH)
+    if (adaptedOpacity != null) next.contour_opacity = adaptedOpacity
+    if (adaptedMinorWidth != null) next.contour_minor_width = adaptedMinorWidth
+    if (adaptedMajorWidth != null) next.contour_major_width = adaptedMajorWidth
+
+    const contourSettings = next.atlas_layer_settings?.contour
+    if (contourSettings) {
+      next.atlas_layer_settings = {
+        ...next.atlas_layer_settings,
+        contour: {
+          ...contourSettings,
+          minor_opacity: clampNumberMax(contourSettings.minor_opacity ?? next.contour_opacity, highReliefProfile.minorMax),
+          major_opacity: clampNumberMax(contourSettings.major_opacity ?? contourSettings.index_opacity ?? next.contour_opacity, highReliefProfile.majorMax),
+          index_opacity: contourSettings.index_opacity == null
+            ? contourSettings.index_opacity
+            : clampNumberMax(contourSettings.index_opacity, highReliefProfile.majorMax),
+          minor_width: scaleNumber(contourSettings.minor_width, highReliefProfile.widthFactor, contourSettings.minor_width ?? 1),
+          major_width: scaleNumber(contourSettings.major_width ?? contourSettings.index_width, highReliefProfile.widthFactor, contourSettings.major_width ?? contourSettings.index_width ?? DEFAULT_CONTOUR_MAJOR_WIDTH),
+          index_width: contourSettings.index_width == null
+            ? contourSettings.index_width
+            : scaleNumber(contourSettings.index_width, highReliefProfile.widthFactor, contourSettings.index_width),
+        },
+      }
+    }
+  }
+
+  next.contour_opacity = clampNumberMin(next.contour_opacity, 0) ?? next.contour_opacity
+  return next
 }
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -391,8 +699,9 @@ export function resolveTonerRouteStyle(config: Pick<StyleConfig, 'preset' | 'ton
 
   const palette = resolveTonerPalette(config)
   const fallbackRouteColor = palette.variant === 'dark' ? '#FF4A3D' : '#C1121F'
+  const usesDefaultRouteColor = routeColor === DEFAULT_STYLE_CONFIG.route_color
   return {
-    route_color: contrastRatio(routeColor, palette.background) < 4.5 ? fallbackRouteColor : routeColor,
+    route_color: (palette.variant === 'dark' && usesDefaultRouteColor) || contrastRatio(routeColor, palette.background) < 3 ? fallbackRouteColor : routeColor,
     route_width: routeWidth,
     route_opacity: Math.max(routeOpacity, 0.96),
   }
@@ -428,36 +737,24 @@ function mlContourSource(tileUrl: string) {
   }
 }
 
-// Fallback path (render worker): Mapbox terrain-v2 vector tiles.
-function terrainV2Source(token: string) {
-  return {
-    'mapbox-terrain-v2': {
-      type: 'vector' as const,
-      tiles: [`https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/{z}/{x}/{y}.vector.pbf?access_token=${token}`],
-      minzoom: 10,
-      maxzoom: 15,
-      attribution: '© Mapbox',
-    },
-  }
-}
-
-function contourSource(token: string, contourTileUrl?: string) {
-  return contourTileUrl ? mlContourSource(contourTileUrl) : terrainV2Source(token)
+function contourSource(_token: string, contourTileUrl?: string) {
+  return contourTileUrl ? mlContourSource(contourTileUrl) : {}
 }
 
 // ─── Hillshade layers ─────────────────────────────────────────────────────────
 
 function hillshadeLayers(config: StyleConfig) {
   if (!config.show_hillshade) return []
+  const isReliefTheme = config.color_theme === 'relief-shaded'
   return [
     {
       id: 'hillshade',
       type: 'hillshade' as const,
       source: 'mapbox-dem',
       paint: {
-        'hillshade-shadow-color': '#000000',
-        'hillshade-highlight-color': '#FFFFFF',
-        'hillshade-accent-color': '#000000',
+        'hillshade-shadow-color': isReliefTheme ? '#9B845F' : '#000000',
+        'hillshade-highlight-color': isReliefTheme ? '#FFF7DE' : '#FFFFFF',
+        'hillshade-accent-color': isReliefTheme ? '#D8C08C' : '#000000',
         'hillshade-illumination-direction': 335,
         'hillshade-exaggeration': config.hillshade_intensity,
       },
@@ -473,6 +770,10 @@ export function contourMinorLineWidthExpression(config: StyleConfig): unknown[] 
     return ['interpolate', ['linear'], ['zoom'], 5, 0.75 * weight, 14, 1.4 * weight]
   }
   return ['interpolate', ['linear'], ['zoom'], 5, 0.8 * weight, 14, 1.0 * weight]
+}
+
+export function contourMinorLineOpacityExpression(opacity: number): unknown[] {
+  return ['interpolate', ['linear'], ['zoom'], 5, opacity, 14, opacity * 0.9]
 }
 
 export function contourMidLineWidthExpression(config: StyleConfig): unknown[] {
@@ -504,10 +805,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.contour_color,
-          'line-opacity': ['interpolate', ['linear'], ['zoom'],
-            5, config.contour_opacity,
-            14, config.contour_opacity * 0.9,
-          ],
+          'line-opacity': contourMinorLineOpacityExpression(config.contour_opacity),
           'line-width': contourMinorLineWidthExpression(config),
         },
       },
@@ -560,88 +858,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
     return layers
   }
 
-  // ── terrain-v2 fallback (render worker) ─────────────────────────────────────
-  // Source layer: 'contour'  |  index: 5 = mid, 10 = major
-  const detail = Math.round(config.contour_detail ?? 2)
-
-  const layers: object[] = []
-
-  if (detail >= 2) {
-    layers.push({
-      id: 'contours-minor',
-      type: 'line',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': config.contour_color,
-        'line-opacity': ['interpolate', ['linear'], ['zoom'],
-          5, config.contour_opacity,
-          14, config.contour_opacity * 0.9,
-        ],
-        'line-width': contourMinorLineWidthExpression(config),
-      },
-    })
-  }
-
-  if (detail >= 1) {
-    layers.push({
-      id: 'contours-mid',
-      type: 'line',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      filter: ['==', ['get', 'index'], 5],
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': config.contour_color,
-        'line-opacity': config.contour_opacity,
-        'line-width': contourMidLineWidthExpression(config),
-      },
-    })
-  }
-
-  layers.push({
-    id: 'contours-major',
-    type: 'line',
-    source: 'mapbox-terrain-v2',
-    'source-layer': 'contour',
-    filter: ['==', ['get', 'index'], 10],
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-      'line-color': config.contour_major_color,
-      'line-opacity': config.contour_opacity,
-      'line-width': contourMajorLineWidthExpression(config),
-    },
-  })
-
-  if (config.show_elevation_labels) {
-    layers.push({
-      id: 'contours-labels',
-      type: 'symbol',
-      source: 'mapbox-terrain-v2',
-      'source-layer': 'contour',
-      filter: ['==', ['get', 'index'], 10],
-      layout: {
-        'symbol-placement': 'line',
-        'symbol-spacing': 500,
-        'text-field': ['concat', ['to-string', ['get', 'ele']], 'm'],
-        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 14, 13],
-        'text-letter-spacing': 0.06,
-        'text-padding': 4,
-        'text-pitch-alignment': 'viewport',
-        'text-rotation-alignment': 'viewport',
-      },
-      paint: {
-        'text-color': config.contour_major_color,
-        'text-halo-color': config.background_color,
-        'text-halo-width': 2,
-        'text-opacity': config.contour_opacity,
-      },
-    })
-  }
-
-  return layers
+  return []
 }
 
 // ─── Roads overlay ───────────────────────────────────────────────────────────
@@ -946,32 +1163,880 @@ function primaryRouteLabelCollisionLayer(config: StyleConfig): object[] {
 
 function routeLayers(config: StyleConfig) {
   const isWatercolorRoute = config.preset?.includes('watercolor') ?? false
-  const routeOpacity = isWatercolorRoute ? Math.min(config.route_opacity, 0.86) : config.route_opacity
+  const isEditorialRoute = config.color_theme === 'editorial-minimal'
+  const isSeaChartRoute = config.color_theme === 'sea-chart'
+  const isRisographRoute = config.color_theme === 'risograph'
+  const isReliefRoute = config.color_theme === 'relief-shaded'
+  const isJournalRoute = config.color_theme === 'field-journal'
+  const isPleinAirRoute = config.color_theme === 'plein-air'
+  const isBibRoute = config.color_theme === 'marathon-bib'
+  const isBlueprintRoute = config.color_theme === 'blueprint'
+  const isPerformanceRoute = config.color_theme === 'splits-stats' || config.color_theme === 'night-ride'
+  const isMoonstoneRoute = config.color_theme === 'moonstone'
+  const isClassicTrailRoute = config.color_theme === 'classic-trail'
+  const isUsgsVintageRoute = config.color_theme === 'usgs-vintage'
+  const isBotanicalRoute = config.color_theme === 'botanical'
+  const isBlacklineRoute = config.color_theme === 'blackline'
+  const isBrutalistRoute = config.color_theme === 'brutalist'
+  const isElectricRoute = config.color_theme === 'electric-atlas'
+  const isDarkSkyRoute = config.color_theme === 'dark-sky' || config.color_theme === 'copper-night'
+  const routeOpacity = isSeaChartRoute ? 0 : isWatercolorRoute ? Math.min(config.route_opacity, 0.86) : config.route_opacity
   const routeBlur = isWatercolorRoute ? 0.28 : 0
-  const routeWash = isWatercolorRoute
-    ? [withScaleMetadata({
-        id: 'route-line-wash',
+  const routeLayout = {
+    'line-join': 'round',
+    'line-cap': 'round',
+  } as const
+  if (isRisographRoute) {
+    return [
+      withScaleMetadata({
+        id: 'route-line-riso-blue',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': config.water_color ?? '#2f5fd0',
+          'line-width': Math.max(1.2, config.route_width - 0.4),
+          'line-opacity': Math.min(config.route_opacity * 0.9, 0.86),
+          'line-translate': [4.2, 3.4],
+        },
+      }, ROUTE_SCALE_PROPERTIES),
+      withScaleMetadata({
+        id: 'route-line-riso-pink-overprint',
         type: 'line',
         source: 'route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.route_color,
-          'line-width': config.route_width + (isWatercolorRoute ? 4.2 : DEFAULT_ROUTE_CASING_WIDTH + 1.4),
-          'line-opacity': Math.min(config.route_opacity * 0.24, 0.28),
-          'line-blur': 2.8,
+          'line-width': config.route_width + 1.6,
+          'line-opacity': Math.min(config.route_opacity * 0.32, 0.34),
+          'line-translate': [-1.4, -1],
+          'line-blur': 0.45,
         },
-      }, ROUTE_SCALE_PROPERTIES)]
+      }, ROUTE_SCALE_PROPERTIES),
+      withScaleMetadata({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': config.route_color,
+          'line-width': config.route_width,
+          'line-opacity': routeOpacity,
+        },
+      }, ROUTE_SCALE_PROPERTIES),
+    ]
+  }
+  const routeWash = isWatercolorRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-wash',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width + (isPleinAirRoute ? 8.4 : 4.2),
+            'line-opacity': Math.min(config.route_opacity * (isPleinAirRoute ? 0.38 : 0.24), isPleinAirRoute ? 0.40 : 0.28),
+            'line-blur': isPleinAirRoute ? 4.6 : 2.8,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
     : []
+  const editorialGalleryLayers = isEditorialRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-editorial-gallery-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#6F4A37',
+            'line-width': config.route_width + 5.2,
+            'line-opacity': Math.min(config.route_opacity * 0.10, 0.10),
+            'line-blur': 2.4,
+            'line-translate': [1.2, 1.4],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-editorial-paper-channel',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#F8F3EA',
+            'line-width': config.route_width + 2.2,
+            'line-opacity': Math.min(config.route_opacity * 0.58, 0.58),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const editorialGalleryMarks = isEditorialRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-editorial-ink-ridge',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#5E2C20',
+            'line-width': Math.max(1, config.route_width - 1.2),
+            'line-opacity': Math.min(config.route_opacity * 0.32, 0.32),
+            'line-translate': [-0.65, -0.45],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-editorial-collector-cuts',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#F8F3EA',
+            'line-width': 1.05,
+            'line-opacity': Math.min(config.route_opacity * 0.56, 0.56),
+            'line-dasharray': [0.3, 7.2],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const reliefShadow = isReliefRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-relief-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#F5EFE2',
+            'line-width': config.route_width + 3.4,
+            'line-opacity': Math.min(config.route_opacity * 0.92, 0.92),
+            'line-blur': 0.15,
+            'line-translate': [0, 0],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-relief-highlight',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#14110D',
+            'line-width': Math.max(1, config.route_width - 0.8),
+            'line-opacity': Math.min(config.route_opacity, 0.96),
+            'line-blur': 0,
+            'line-translate': [0, 0],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const journalInkLayers = isJournalRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-journal-wash',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#A17B4D',
+            'line-width': config.route_width + 4.1,
+            'line-opacity': Math.min(config.route_opacity * 0.28, 0.30),
+            'line-blur': 1.7,
+            'line-translate': [1.3, 1.1],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-journal-drybrush',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': Math.max(1, config.route_width - 0.25),
+            'line-opacity': Math.min(config.route_opacity * 0.78, 0.80),
+            'line-dasharray': [1.25, 0.52],
+            'line-translate': [-0.8, 0.7],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const contourStudyLayers: object[] = []
+  const contourStudyMarks: object[] = []
+  const seaChartCourseLayers = isSeaChartRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-sea-course-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#1D2A36',
+            'line-width': config.route_width + 3.2,
+            'line-opacity': Math.min(config.route_opacity * 0.22, 0.22),
+            'line-blur': 0.8,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-sea-course',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width,
+            'line-opacity': Math.min(config.route_opacity * 0.92, 0.92),
+            'line-dasharray': [1.2, 2.8],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const seaChartWaypointLayers = isSeaChartRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-sea-waypoints',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 44,
+            'text-field': '•',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 16,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.route_color,
+            'text-opacity': Math.min(config.route_opacity * 0.98, 0.98),
+            'text-halo-color': config.background_color ?? '#E4EDE7',
+            'text-halo-width': 1.2,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const electricAtlasLayers = isElectricRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-electric-glow-wide',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#0DE8FF',
+            'line-width': config.route_width + 10,
+            'line-opacity': Math.min(config.route_opacity * 0.18, 0.18),
+            'line-blur': 6,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-electric-glow-hot',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width + 4.6,
+            'line-opacity': Math.min(config.route_opacity * 0.36, 0.36),
+            'line-blur': 2.4,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-electric-offset',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#35F3FF',
+            'line-width': Math.max(1, config.route_width - 1.15),
+            'line-opacity': Math.min(config.route_opacity * 0.58, 0.58),
+            'line-translate': [1.7, 1.2],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const electricAtlasMarks = isElectricRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-electric-pulse',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#5FC3DD',
+            'line-width': 1.2,
+            'line-opacity': Math.min(config.route_opacity * 0.72, 0.72),
+            'line-dasharray': [0.5, 7.2],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const darkSkyRouteLayers = isDarkSkyRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-darksky-glow-wide',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width + 8,
+            'line-opacity': Math.min(config.route_opacity * 0.18, 0.18),
+            'line-blur': 5.2,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-darksky-glow-core',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width + 3.2,
+            'line-opacity': Math.min(config.route_opacity * 0.28, 0.28),
+            'line-blur': 1.8,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-darksky-offset-starpath',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#E7ECFB',
+            'line-width': Math.max(1, config.route_width - 1.25),
+            'line-opacity': Math.min(config.route_opacity * 0.34, 0.34),
+            'line-translate': [1.6, -1.3],
+            'line-dasharray': [0.55, 6.4],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const darkSkyRouteMarks = isDarkSkyRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-darksky-constellation',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 76,
+            'text-field': '•',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 20,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.label_text_color ?? '#E7ECFB',
+            'text-opacity': Math.min(config.route_opacity * 0.82, 0.82),
+            'text-halo-color': config.background_color ?? '#070C1E',
+            'text-halo-width': 1.1,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-darksky-star-crosses',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 142,
+            'text-field': '✦',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 9,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.route_color,
+            'text-opacity': Math.min(config.route_opacity * 0.52, 0.52),
+            'text-halo-color': config.background_color ?? '#070C1E',
+            'text-halo-width': 1.1,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const bibRaceLayers = isBibRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-bib-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#14264A',
+            'line-width': config.route_width + 3.8,
+            'line-opacity': Math.min(config.route_opacity * 0.13, 0.13),
+            'line-blur': 1.1,
+            'line-translate': [1.2, 1.2],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-bib-knockout',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#FBFAF4',
+            'line-width': config.route_width + 2.2,
+            'line-opacity': Math.min(config.route_opacity * 0.82, 0.82),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const bibMileLayers = isBibRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-bib-mile-dashes',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#0A0A0A',
+            'line-width': 1.35,
+            'line-opacity': Math.min(config.route_opacity * 0.56, 0.56),
+            'line-dasharray': [0.35, 8],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-bib-mile-ticks',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 82,
+            'text-field': '|',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 15,
+            'text-rotate': 90,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.label_text_color ?? '#0A0A0A',
+            'text-opacity': Math.min(config.route_opacity * 0.48, 0.48),
+            'text-halo-color': config.background_color ?? '#FBFAF4',
+            'text-halo-width': 1,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-bib-checkpoint-dots',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 168,
+            'text-field': '●',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 15,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.background_color ?? '#FBFAF4',
+            'text-opacity': Math.min(config.route_opacity * 0.95, 0.95),
+            'text-halo-color': config.route_color ?? '#E0322C',
+            'text-halo-width': 2.8,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const moonstoneEtchLayers = isMoonstoneRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-moonstone-engraved-channel',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#EEF0ED',
+            'line-width': config.route_width + 3.4,
+            'line-opacity': Math.min(config.route_opacity * 0.92, 0.92),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-moonstone-blueprint-offset',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.contour_major_color ?? '#687972',
+            'line-width': Math.max(1, config.route_width - 0.85),
+            'line-opacity': Math.min(config.route_opacity * 0.34, 0.34),
+            'line-translate': [1.4, -1.2],
+            'line-dasharray': [1.4, 0.5],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const blueprintDraftLayers = isBlueprintRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-blueprint-construction-glow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.contour_major_color ?? '#8AB7E3',
+            'line-width': config.route_width + 5.2,
+            'line-opacity': Math.min(config.route_opacity * 0.18, 0.18),
+            'line-blur': 1.35,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-blueprint-drafting-offset',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#DCEEFF',
+            'line-width': Math.max(1, config.route_width - 0.72),
+            'line-opacity': Math.min(config.route_opacity * 0.38, 0.38),
+            'line-translate': [1.2, -1.1],
+            'line-dasharray': [1.65, 0.55],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const blueprintDraftMarks = isBlueprintRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-blueprint-station-crosses',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 78,
+            'text-field': '+',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 10,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.label_text_color ?? '#DCEEFF',
+            'text-opacity': Math.min(config.route_opacity * 0.56, 0.56),
+            'text-halo-color': config.route_color ?? '#FFD45A',
+            'text-halo-width': 0.8,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const moonstoneSurveyMarks = isMoonstoneRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-moonstone-survey-ticks',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 72,
+            'text-field': '╋',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 10,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.contour_major_color ?? '#687972',
+            'text-opacity': Math.min(config.route_opacity * 0.48, 0.48),
+            'text-halo-color': config.background_color ?? '#EEF0ED',
+            'text-halo-width': 1.2,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const classicTrailLayers = isClassicTrailRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-classic-trail-paper-channel',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#EEEEEA',
+            'line-width': config.route_width + 2.4,
+            'line-opacity': Math.min(config.route_opacity * 0.82, 0.82),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-classic-trail-slate-offset',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.contour_major_color ?? '#5F6E7E',
+            'line-width': Math.max(1, config.route_width - 0.45),
+            'line-opacity': Math.min(config.route_opacity * 0.34, 0.34),
+            'line-translate': [1.1, 1],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const classicTrailMarks: object[] = []
+  const usgsVintageLayers = isUsgsVintageRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-usgs-paper-channel',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#F5EED8',
+            'line-width': config.route_width + 2.9,
+            'line-opacity': Math.min(config.route_opacity * 0.78, 0.78),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const usgsVintageMarks: object[] = []
+  const pleinAirBrushMarks = isPleinAirRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-plein-air-drybrush',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#7D3E28',
+            'line-width': Math.max(1, config.route_width - 0.55),
+            'line-opacity': Math.min(config.route_opacity * 0.34, 0.34),
+            'line-blur': 0.22,
+            'line-dasharray': [1.2, 0.55],
+            'line-translate': [-0.55, -0.35],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const botanicalSpecimenLayers = isBotanicalRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-botanical-pressed',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.water_color ?? '#A7BFA8',
+            'line-width': config.route_width + 6.6,
+            'line-opacity': Math.min(config.route_opacity * 0.12, 0.12),
+            'line-blur': 1.6,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-botanical-vein',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color ?? '#31512B',
+            'line-width': Math.max(1.6, config.route_width - 0.35),
+            'line-opacity': Math.min(config.route_opacity * 0.72, 0.72),
+            'line-translate': [-0.45, 0.35],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-botanical-stem-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': '#2D3F22',
+            'line-width': Math.max(1.1, config.route_width - 1.1),
+            'line-opacity': Math.min(config.route_opacity * 0.30, 0.30),
+            'line-translate': [0.8, 0.8],
+            'line-blur': 0.18,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const botanicalSpecimenMarks = isBotanicalRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-botanical-ink-vein',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color ?? '#31512B',
+            'line-width': 1.35,
+            'line-opacity': Math.min(config.route_opacity * 0.88, 0.88),
+            'line-translate': [-0.2, -0.2],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-botanical-leaf-cuts',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#EFE6D4',
+            'line-width': Math.max(1, config.route_width - 1.6),
+            'line-opacity': Math.min(config.route_opacity * 0.12, 0.12),
+            'line-dasharray': [0.22, 5.4],
+            'line-translate': [0.45, -0.35],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-botanical-specimen-dots',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 74,
+            'text-field': '·',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 31,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.route_color,
+            'text-opacity': Math.min(config.route_opacity * 0.32, 0.32),
+            'text-halo-color': config.background_color ?? '#EFE6D4',
+            'text-halo-width': 1,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const performanceTraceLayers = isPerformanceRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-performance-glow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.route_color,
+            'line-width': config.route_width + 5.4,
+            'line-opacity': Math.min(config.route_opacity * 0.20, 0.20),
+            'line-blur': 1.15,
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-performance-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#0B0D10',
+            'line-width': config.route_width + 2.2,
+            'line-opacity': Math.min(config.route_opacity * 0.78, 0.78),
+            'line-translate': [1.1, 1.1],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const performanceSplitMarks = isPerformanceRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-performance-split-cuts',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#0B0D10',
+            'line-width': Math.max(1, config.route_width - 1.25),
+            'line-opacity': Math.min(config.route_opacity * 0.64, 0.64),
+            'line-dasharray': [0.34, 4.8],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-performance-checkpoints',
+          type: 'symbol',
+          source: 'route',
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 84,
+            'text-field': '●',
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 9,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false,
+          },
+          paint: {
+            'text-color': config.route_color,
+            'text-opacity': Math.min(config.route_opacity * 0.72, 0.72),
+            'text-halo-color': config.background_color ?? '#0B0D10',
+            'text-halo-width': 1.15,
+          },
+        }, SYMBOL_SCALE_PROPERTIES),
+      ]
+    : []
+  const modernistPrintLayers: object[] = []
+  const modernistRegisterMarks: object[] = []
+  const blacklineProofLayers = isBlacklineRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-blackline-plate',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_bg_color ?? '#11100E',
+            'line-width': config.route_width + 2.6,
+            'line-opacity': Math.min(config.route_opacity * 0.16, 0.16),
+            'line-translate': [1.5, 1.5],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-blackline-knockout',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#F6F2EA',
+            'line-width': config.route_width + 1.6,
+            'line-opacity': Math.min(config.route_opacity * 0.86, 0.86),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const blacklineRegisterMarks: object[] = []
+  const brutalistProofLayers = isBrutalistRoute
+    ? [
+        withScaleMetadata({
+          id: 'route-line-brutalist-slab-shadow',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.label_text_color ?? '#0A0A0A',
+            'line-width': config.route_width + 5,
+            'line-opacity': Math.min(config.route_opacity * 0.13, 0.13),
+            'line-blur': 0.65,
+            'line-translate': [2.4, 2.4],
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+        withScaleMetadata({
+          id: 'route-line-brutalist-cement-cut',
+          type: 'line',
+          source: 'route',
+          layout: routeLayout,
+          paint: {
+            'line-color': config.background_color ?? '#E4E0D7',
+            'line-width': config.route_width + 2,
+            'line-opacity': Math.min(config.route_opacity * 0.80, 0.80),
+          },
+        }, ROUTE_SCALE_PROPERTIES),
+      ]
+    : []
+  const brutalistProofMarks: object[] = []
   const casing = withScaleMetadata({
     id: 'route-line-casing',
     type: 'line',
     source: 'route',
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': isWatercolorRoute ? '#f6eed8' : mapBackgroundColor(config),
-      'line-width': config.route_width + (isWatercolorRoute ? 3.5 : DEFAULT_ROUTE_CASING_WIDTH),
-      'line-opacity': isWatercolorRoute ? Math.min(config.route_opacity, 0.78) : config.route_opacity,
-      ...(isWatercolorRoute ? { 'line-blur': 0.65 } : {}),
+        'line-color': isPleinAirRoute ? '#F4E9D6' : isWatercolorRoute ? '#f6eed8' : mapBackgroundColor(config),
+        'line-width': config.route_width + (isWatercolorRoute ? 3.5 : DEFAULT_ROUTE_CASING_WIDTH),
+        'line-opacity': isSeaChartRoute ? 0 : isWatercolorRoute ? Math.min(config.route_opacity, isPleinAirRoute ? 0.58 : 0.78) : config.route_opacity,
+        ...(isWatercolorRoute ? { 'line-blur': isPleinAirRoute ? 1.05 : 0.65 } : {}),
     },
   }, ROUTE_SCALE_PROPERTIES)
 
@@ -979,6 +2044,7 @@ function routeLayers(config: StyleConfig) {
   if (useGradient) {
     return [
       ...routeWash,
+      ...seaChartCourseLayers,
       casing,
       withScaleMetadata({
         id: 'route-line',
@@ -992,17 +2058,35 @@ function routeLayers(config: StyleConfig) {
           ...(isWatercolorRoute ? { 'line-blur': routeBlur } : {}),
         },
       }, ROUTE_SCALE_PROPERTIES),
+      ...seaChartWaypointLayers,
     ]
   }
 
   return [
     ...routeWash,
+    ...editorialGalleryLayers,
+    ...reliefShadow,
+    ...journalInkLayers,
+    ...contourStudyLayers,
+    ...seaChartCourseLayers,
+    ...electricAtlasLayers,
+    ...darkSkyRouteLayers,
+    ...bibRaceLayers,
+    ...blueprintDraftLayers,
+    ...moonstoneEtchLayers,
+    ...classicTrailLayers,
+    ...usgsVintageLayers,
+    ...botanicalSpecimenLayers,
+    ...performanceTraceLayers,
+    ...modernistPrintLayers,
+    ...blacklineProofLayers,
+    ...brutalistProofLayers,
     casing,
     withScaleMetadata({
       id: 'route-line',
       type: 'line',
       source: 'route',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      layout: routeLayout,
       paint: {
         'line-color': config.route_color,
         'line-width': config.route_width,
@@ -1010,6 +2094,22 @@ function routeLayers(config: StyleConfig) {
         ...(isWatercolorRoute ? { 'line-blur': routeBlur } : {}),
       },
     }, ROUTE_SCALE_PROPERTIES),
+    ...seaChartWaypointLayers,
+    ...editorialGalleryMarks,
+    ...bibMileLayers,
+    ...blueprintDraftMarks,
+    ...moonstoneSurveyMarks,
+    ...classicTrailMarks,
+    ...usgsVintageMarks,
+    ...pleinAirBrushMarks,
+    ...botanicalSpecimenMarks,
+    ...performanceSplitMarks,
+    ...contourStudyMarks,
+    ...electricAtlasMarks,
+    ...darkSkyRouteMarks,
+    ...modernistRegisterMarks,
+    ...blacklineRegisterMarks,
+    ...brutalistProofMarks,
   ]
 }
 
@@ -1140,11 +2240,16 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
   watercolor: boolean
   night: boolean
   simple: boolean
+  ghostTexture?: boolean
 }): object[] {
   if (!config.show_contours) return []
-  if (!usingMlContour) return contourLayers(config, false)
+  if (!usingMlContour) return []
 
-  const ghostOpacity = options.simple ? 0 : options.watercolor ? 0.075 : options.night ? 0.12 : 0.08
+  const contourSettings = config.atlas_layer_settings?.contour
+  const minorOpacity = atlasNumberSetting(contourSettings?.minor_opacity, config.contour_opacity)
+  const majorOpacity = atlasNumberSetting(contourSettings?.major_opacity ?? contourSettings?.index_opacity, config.contour_opacity)
+  const midOpacity = Math.max(0, minorOpacity * 0.55)
+  const ghostOpacity = options.simple || options.ghostTexture === false ? 0 : options.watercolor ? 0.075 : options.night ? 0.12 : 0.08
   const layers: object[] = []
   if (ghostOpacity > 0) {
     layers.push(withScaleMetadata({
@@ -1173,7 +2278,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 5, config.contour_opacity, 14, config.contour_opacity * 0.9],
+        'line-opacity': contourMinorLineOpacityExpression(minorOpacity),
         'line-width': contourMinorLineWidthExpression(config),
         'line-blur': options.watercolor ? 0.25 : 0,
       },
@@ -1187,7 +2292,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
-        'line-opacity': Math.max(0, config.contour_opacity * 0.55),
+        'line-opacity': midOpacity,
         'line-width': contourMidLineWidthExpression(config),
         'line-blur': options.watercolor ? 0.2 : 0,
       },
@@ -1201,7 +2306,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_major_color,
-        'line-opacity': config.contour_opacity,
+        'line-opacity': majorOpacity,
         'line-width': contourMajorLineWidthExpression(config),
         'line-blur': options.watercolor ? 0.08 : 0,
       },
@@ -1288,6 +2393,7 @@ function buildRadMapsAtlasStyle(
   const showTrails = showTransportation && (atlasSettings.transportation?.show_trails ?? true)
   const showPlaces = atlasLayerEnabled(config, 'place', config.show_place_labels !== false) && config.show_place_labels !== false
   const showPois = atlasLayerEnabled(config, 'poi', config.show_poi_labels ?? true) && config.show_poi_labels !== false
+  const showOutdoorRoutes = atlasLayerEnabled(config, 'outdoorRoute')
   const atlasFillSmoothing = { 'fill-antialias': !tonerPalette }
   const waterEdgeLayerId = isWatercolor ? `${preset}-water-edge-bloom` : `${preset}-water-edge-soften`
   const waterEdgeOpacity = isWatercolor
@@ -1320,11 +2426,29 @@ function buildRadMapsAtlasStyle(
   const sources: Record<string, object> = {
     'radmaps-atlas-base': {
       type: 'vector' as const,
-      tiles: [sameOriginTileUrl('/api/atlas/tiles/base/{z}/{x}/{y}.mvt?environment=production')],
+      tiles: [atlasTileUrl('base')],
       minzoom: 0,
       maxzoom: 14,
       attribution: '© OpenStreetMap contributors © RadMaps Atlas',
     },
+    ...(showPois ? {
+      'radmaps-atlas-poi': {
+        type: 'vector' as const,
+        tiles: [atlasTileUrl('poi')],
+        minzoom: 0,
+        maxzoom: 16,
+        attribution: '© Overture Maps Foundation © OpenStreetMap contributors © RadMaps Atlas',
+      },
+    } : {}),
+    ...(showOutdoorRoutes ? {
+      'radmaps-atlas-outdoor-routes': {
+        type: 'vector' as const,
+        tiles: [atlasTileUrl('outdoorRoutes')],
+        minzoom: 0,
+        maxzoom: 16,
+        attribution: '© OpenStreetMap contributors © RadMaps Atlas',
+      },
+    } : {}),
     ...primaryRouteSource(config),
     ...trailSegmentSources(config.trail_segments),
     ...segmentHandleSource(),
@@ -1356,8 +2480,21 @@ function buildRadMapsAtlasStyle(
   const contourColor = explicitContourColor ?? atlasSettings.contour?.minor_color ?? (isContourWash ? undefined : config.contour_color) ?? (isDarkAtlas ? '#63a97c' : isContourWash ? '#75a8d2' : isWatercolor ? '#78996e' : '#8b875e')
   const contourMajorColor = explicitContourMajorColor ?? atlasSettings.contour?.major_color ?? atlasSettings.contour?.index_color ?? (isContourWash ? undefined : config.contour_major_color) ?? (isDarkAtlas ? '#8ed39f' : isContourWash ? '#4c7fa9' : isWatercolor ? '#6f885f' : '#68653f')
   const contourOpacity = atlasNumberSetting(explicitContourOpacity ?? atlasSettings.contour?.minor_opacity ?? config.contour_opacity, isContourWash ? 0.46 : isSimpleContour ? 0.75 : isWatercolor ? 0.22 : isDarkAtlas ? 0.46 : 0.34)
+  const atlasContourHasOpacitySplit = atlasSettings.contour?.major_opacity != null || atlasSettings.contour?.index_opacity != null
+  const contourLayerSettings = explicitContourOpacity == null || atlasContourHasOpacitySplit
+    ? atlasSettings
+    : {
+        ...atlasSettings,
+        contour: {
+          ...atlasSettings.contour,
+          minor_opacity: undefined,
+          major_opacity: undefined,
+          index_opacity: undefined,
+        },
+      }
   const contourConfig: StyleConfig = {
     ...config,
+    atlas_layer_settings: contourLayerSettings,
     show_contours: wantsContours,
     contour_color: contourColor,
     contour_major_color: contourMajorColor,
@@ -1368,10 +2505,22 @@ function buildRadMapsAtlasStyle(
     background_color: labelHalo,
   }
   const atlasContourLayers = wantsContours
-    ? buildAtlasContourLayers(contourConfig, usingMlContour, { watercolor: isWatercolor, night: isNight, simple: isSimpleContour })
+    ? buildAtlasContourLayers(contourConfig, usingMlContour, {
+        watercolor: isWatercolor,
+        night: isNight,
+        simple: isSimpleContour,
+        ghostTexture: !['blackline', 'bold-modern', 'brutalist', 'contour-wash', 'copper-night'].includes(config.color_theme ?? ''),
+      })
     : []
   const routeConfig = tonerPalette ? { ...config, ...resolveTonerRouteStyle(config), background_color: tonerPalette.background } : config
   const tonerPatternVariant = tonerPalette?.variant
+  const mapBackground = config.color_theme === 'brutalist'
+    ? '#E6E3DD'
+    : isWatercolorArtTile
+      ? '#eee5cd'
+      : tonerPalette
+        ? (atlasSettings.landcover?.color ?? tonerPalette.background)
+        : (isDarkAtlas ? atlasSettings.landcover?.color || land : land)
   const styleName = tonerPalette
     ? `RadMaps Toner ${tonerPalette.variant === 'dark' ? 'Dark' : 'Light'}`
     : `RadMaps Atlas ${preset}`
@@ -1385,7 +2534,7 @@ function buildRadMapsAtlasStyle(
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources,
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': isWatercolorArtTile ? '#eee5cd' : tonerPalette?.background ?? (isDarkAtlas ? atlasSettings.landcover?.color || land : isWatercolorPaper ? '#efe4cf' : land) } },
+      { id: 'background', type: 'background', paint: { 'background-color': mapBackground } },
       ...(isWatercolorArtTile ? [{ id: 'radmaps-watercolor-base', type: 'raster', source: 'radmaps-watercolor-base', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showLandcover ? [{ id: `${preset}-paper-wash`, type: 'fill', source: 'radmaps-atlas-base', 'source-layer': 'landcover', paint: { 'fill-color': isWatercolorPaper ? '#f7ecd6' : '#f6efd8', 'fill-opacity': isWatercolorClassic ? 0.22 : isPigmentWash ? 0.16 : isWatercolorPaper ? 0.28 : 0.12, 'fill-translate': isWatercolorPaper ? [2.2, -1.8] : [1.4, -1.2] } }] : []),
       ...(!isWatercolorArtTile && isWatercolor && showPois ? [withScaleMetadata({ id: `${preset}-pigment-granulation`, type: 'circle', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 8, paint: { 'circle-color': isWatercolorPaper ? '#a79068' : '#719471', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 0.35, 13, isWatercolorPaper ? 0.95 : 0.7, 16, isWatercolorPaper ? 1.35 : 1.0], 'circle-opacity': ['interpolate', ['linear'], ['zoom'], 8, isWatercolorPaper ? 0.10 : 0.055, 14, isWatercolorPaper ? 0.16 : 0.08], 'circle-blur': isWatercolorPaper ? 0.45 : 0.75 } }, ['circle-radius'])] : []),
@@ -1407,10 +2556,13 @@ function buildRadMapsAtlasStyle(
       ...(!isWatercolorArtTile && isWatercolor && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major-wash`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity * (isWatercolorPaper ? 0.28 : isBrushInk ? 0.44 : 0.38), 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 12, isWatercolorPaper ? 3.2 : 4.0, 16, isWatercolorPaper ? 5.4 : 6.4], 'line-blur': isWatercolorPaper ? 1.0 : isBrushInk ? 0.8 : 1.5 } }, LINE_SCALE_PROPERTIES)] : []),
       ...(!isWatercolorArtTile && showMajorRoads ? [withScaleMetadata({ id: `${preset}-roads-major`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], paint: { 'line-color': roadMajor, 'line-opacity': roadOpacity, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, tonerPalette ? 0.95 : 0.55, 12, atlasSettings.transportation?.major_width ?? (tonerPalette ? 3.3 : isWatercolor ? 2.0 : 2.0), 16, (atlasSettings.transportation?.major_width ?? (tonerPalette ? 6.6 : isWatercolor ? 4.0 : 4.2))], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.18 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
       ...(!isWatercolorArtTile && showTrails ? [withScaleMetadata({ id: `${preset}-roads-trails`, type: 'line', source: 'radmaps-atlas-base', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['path', 'track', 'trail', 'footway', 'cycleway', 'bridleway', 'pedestrian']]], paint: { 'line-color': trail, 'line-opacity': tonerPalette ? Math.min(roadOpacity, tonerPalette.trailOpacity) : isWatercolorClassic ? Math.min(roadOpacity, 0.28) : isPigmentWash ? Math.min(roadOpacity, 0.30) : isWatercolorPaper ? Math.min(roadOpacity, 0.24) : isWatercolor ? Math.min(roadOpacity, 0.42) : Math.min(roadOpacity, 0.65), 'line-width': ['interpolate', ['linear'], ['zoom'], 10, tonerPalette ? 0.45 : 0.35, 14, atlasSettings.transportation?.trail_width ?? (tonerPalette ? 1.5 : 1.2), 16, (atlasSettings.transportation?.trail_width ?? (tonerPalette ? 2.6 : 2.0))], 'line-dasharray': isBrushInk || isWatercolorPaper ? [1.7, 1.1] : [1.2, 1.6], ...(isWatercolor ? { 'line-blur': isWatercolorPaper ? 0.08 : isBrushInk ? 0.05 : 0.16 } : {}) } }, LINE_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showOutdoorRoutes ? [withScaleMetadata({ id: `${preset}-outdoor-routes`, type: 'line', source: 'radmaps-atlas-outdoor-routes', 'source-layer': 'outdoor_route', minzoom: 8, filter: outdoorRouteFilter(atlasSettings.outdoorRoute), layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': atlasSettings.outdoorRoute?.color || trail, 'line-opacity': atlasNumberSetting(atlasSettings.outdoorRoute?.opacity, isWatercolor ? 0.42 : 0.58), 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.45, 12, atlasSettings.outdoorRoute?.width ?? 1.2, 16, (atlasSettings.outdoorRoute?.width ?? 2.8)], 'line-dasharray': [2.2, 1.1] } }, LINE_SCALE_PROPERTIES)] : []),
       ...primaryRouteLayers(routeConfig, config),
       ...primaryRouteLabelCollisionLayer(config),
       ...(showPlaces ? [withScaleMetadata({ id: `${preset}-place-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'place', layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, atlasSettings.place?.font_size ?? 9, 12, (atlasSettings.place?.font_size ?? 15)], 'text-letter-spacing': 0.02, 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': isWatercolor ? 0.62 : 0.46, 'text-justify': 'auto' }, paint: { 'text-color': label, 'text-opacity': atlasNumberSetting(atlasSettings.place?.label_opacity ?? config.place_labels_opacity, isWatercolor ? 0.48 : 0.78), 'text-halo-color': atlasSettings.place?.halo_color || labelHalo, 'text-halo-width': isWatercolor ? 1.6 : 1.2 } }, SYMBOL_SCALE_PROPERTIES)] : []),
       ...(showPois ? [withScaleMetadata({ id: `${preset}-poi-labels`, type: 'symbol', source: 'radmaps-atlas-base', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 15, 11], 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': 0.72, 'text-justify': 'auto' }, paint: { 'text-color': poiLabel, 'text-opacity': atlasNumberSetting(atlasSettings.poi?.label_opacity ?? config.poi_labels_opacity, isWatercolor ? 0.34 : 0.62), 'text-halo-color': labelHalo, 'text-halo-width': 1.1 } }, SYMBOL_SCALE_PROPERTIES)] : []),
+      ...(showPois ? [withScaleMetadata({ id: `${preset}-poi-overlay-labels`, type: 'symbol', source: 'radmaps-atlas-poi', 'source-layer': 'poi', minzoom: 12, layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8.5, 15, 11.5, 16, 13], 'text-variable-anchor': ROUTE_AVOIDING_LABEL_ANCHORS, 'text-radial-offset': 0.86, 'text-justify': 'auto' }, paint: { 'text-color': poiLabel, 'text-opacity': atlasNumberSetting(atlasSettings.poi?.label_opacity ?? config.poi_labels_opacity, isWatercolor ? 0.38 : 0.66), 'text-halo-color': labelHalo, 'text-halo-width': 1.15 } }, SYMBOL_SCALE_PROPERTIES)] : []),
+      ...(!isWatercolorArtTile && showOutdoorRoutes && (atlasSettings.outdoorRoute?.labels ?? true) ? [withScaleMetadata({ id: `${preset}-outdoor-route-labels`, type: 'symbol', source: 'radmaps-atlas-outdoor-routes', 'source-layer': 'outdoor_route', minzoom: 10, filter: outdoorRouteFilter(atlasSettings.outdoorRoute), layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 8.5, 14, 11, 16, 13], 'text-letter-spacing': 0.02 }, paint: { 'text-color': atlasSettings.outdoorRoute?.label_color || atlasSettings.outdoorRoute?.color || trail, 'text-opacity': atlasNumberSetting(atlasSettings.outdoorRoute?.label_opacity, isWatercolor ? 0.44 : 0.68), 'text-halo-color': labelHalo, 'text-halo-width': 1.2 } }, SYMBOL_SCALE_PROPERTIES)] : []),
       ...trailSegmentLayers(config.trail_segments, config),
       ...segmentHandleLayers(config),
     ],

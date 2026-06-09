@@ -1,4 +1,4 @@
-# Render Worker v4 — Browserless Screenshot Handoff
+# Render Worker v4 — AWS renderer Screenshot Handoff
 
 **Project:** RadMaps `render-worker-v4`
 **Status date:** 2026-05-04
@@ -6,7 +6,7 @@
 
 This file describes the current queue worker after the renderer course
 correction: RadMaps captures the real Nuxt/Vue/MapLibre poster in Chromium
-through Browserless. The old Puppeteer worker and alternate native/SVG spike
+through AWS renderer. The old Puppeteer worker and alternate native/SVG spike
 have been removed.
 
 For the complete renderer and print-size guide, read
@@ -17,10 +17,10 @@ For the complete renderer and print-size guide, read
 ## TL;DR
 
 - `MapPreview.vue` is the only poster renderer.
-- Browserless screenshots `/render/map/[id]` for proofs and `/render/session/[stripeSessionId]` for final order renders.
+- AWS renderer screenshots `/render/map/[id]` for proofs and `/render/session/[stripeSessionId]` for final order renders.
 - Nuxt owns proof rendering; `render-worker-v4` owns final queued render orchestration.
-- The worker is not a separate poster renderer; it calls Browserless and handles queue/validation/upload/Gelato submission.
-- Final jobs remain queued in Postgres so Browserless concurrency is bounded.
+- The worker is not a separate poster renderer; it calls AWS renderer and handles queue/validation/upload/Gelato submission.
+- Final jobs remain queued in Postgres so AWS renderer concurrency is bounded.
 - Print geometry comes from `utils/print/printFraming.ts`; provider/product details come from `utils/print/providerProfile.ts`.
 - Sellable product sizes are locked to 2:3: `8x12`, `12x18`, `16x24`, `20x30`, `24x36`, `32x48`.
 - `24x36` final with 3 mm bleed renders to about `7271x10871` pixels.
@@ -58,7 +58,7 @@ Important app-side files:
 - `pages/render/session/[stripeSessionId].vue` — final render page.
 - `server/api/render/payload.get.ts` — validates signed ticket and returns server-approved render payload.
 - `server/api/maps/[id]/render.post.ts` — proof render API route.
-- `server/utils/screenshotService.ts` — Nuxt-side Browserless screenshot helper.
+- `server/utils/screenshotService.ts` — Nuxt-side AWS renderer screenshot helper.
 - `server/utils/snapshot.ts` — immutable checkout/order snapshot writer.
 - `utils/render/renderTicket.ts` — signed short-lived render tickets.
 - `utils/render/hash.ts` and `utils/render/hashVersion.ts` — render hash inputs and version pins.
@@ -70,10 +70,10 @@ Important worker-side files:
 
 - `render-worker-v4/src/queue/consumer.ts` — Postgres queue polling and job claiming.
 - `render-worker-v4/src/queue/processJob.ts` — per-job orchestration.
-- `render-worker-v4/src/queue/renderFinalScreenshot.ts` — final Browserless screenshot implementation.
+- `render-worker-v4/src/queue/renderFinalScreenshot.ts` — final AWS renderer screenshot implementation.
 - `render-worker-v4/src/queue/normalizeFinalScreenshot.ts` — DPR rounding crop back to exact provider pixels.
 - `render-worker-v4/src/queue/validateBrowserScreenshot.ts` — final artifact validation.
-- `render-worker-v4/src/browserless.ts` — worker-side Browserless client.
+- `render-worker-v4/src/AWS renderer.ts` — worker-side AWS renderer client.
 - `render-worker-v4/src/storage.ts` — Supabase Storage uploads.
 - `render-worker-v4/src/queue/gelato.ts` — Gelato submission.
 - `render-worker-v4/src/config.ts` — env parsing.
@@ -92,7 +92,7 @@ flowchart TD
   C --> D["render-worker-v4 consumer claims job"]
   D --> E["processJob loads snapshot"]
   E --> F["renderFinalScreenshot creates signed ticket"]
-  F --> G["Browserless screenshots /render/session/[stripeSessionId]"]
+  F --> G["AWS renderer screenshots /render/session/[stripeSessionId]"]
   G --> H["Normalize DPR crop to exact final pixels"]
   H --> I["Validate dimensions, file, color, readiness, route/map health"]
   I --> J["Upload artifact to Supabase Storage"]
@@ -108,7 +108,7 @@ authorized by that ticket.
 
 ## Readiness Contract
 
-Browserless must wait for app readiness:
+AWS renderer must wait for app readiness:
 
 ```js
 window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeContentPresent === true
@@ -176,10 +176,10 @@ Important behavior:
 
 Odd dimensions are expected. Example: `24x36` plus 3 mm bleed at 300 DPI is
 approximately `7271x10871`. Final renders use a half-size CSS viewport with
-`deviceScaleFactor: 2` to keep large Browserless captures under the current
+`deviceScaleFactor: 2` to keep large AWS renderer captures under the current
 60 second timeout cap. The worker then crops any one-pixel DPR rounding surplus
 from the right/bottom edge before validation and upload. Never validate or
-upload the raw Browserless buffer for final prints.
+upload the raw AWS renderer buffer for final prints.
 
 ---
 
@@ -194,9 +194,9 @@ DATABASE_URL=...
 GELATO_API_KEY=...
 GELATO_ORDER_TYPE=draft
 
-BROWSERLESS_TOKEN=...
-BROWSERLESS_ENDPOINT=https://production-sfo.browserless.io
-BROWSERLESS_TIMEOUT_MS=60000
+PROOF_RENDER_TOKEN=...
+PROOF_RENDER_ENDPOINT=https://<ProofRendererUrl>
+PROOF_RENDER_TIMEOUT_MS=60000
 RENDER_TICKET_SECRET=...
 APP_URL=https://radmaps.studio
 ```
@@ -220,7 +220,7 @@ appear in the dashboard without going into production until converted.
 openssl rand -hex 32
 ```
 
-For local Browserless testing, expose the Nuxt dev server with ngrok and point
+For local AWS renderer testing, expose the Nuxt dev server with ngrok and point
 `APP_URL`/`NUXT_PUBLIC_SITE_URL` at that public URL. If Vite blocks the ngrok
 hostname, add it to the Vite/Nuxt allowed-host configuration.
 
@@ -248,18 +248,18 @@ false positives that block healthy renders.
 
 ## Concurrency And Operations
 
-Browserless can scale, but final print screenshots are expensive. Keep final
-renders behind `print_render_jobs`; tune worker concurrency to the Browserless
+AWS renderer can scale, but final print screenshots are expensive. Keep final
+renders behind `print_render_jobs`; tune worker concurrency to the AWS renderer
 plan and observed render times.
 
 Operational rules:
 
 - do not render paid-order final artifacts directly inside a Vercel request,
 - proof renders need rate limiting before broad public launch,
-- queue workers should retry transient Browserless, tile, and upload failures,
+- queue workers should retry transient AWS renderer, tile, and upload failures,
 - jobs that exhaust retries should move to manual review,
 - stuck `rendering` jobs need stale-claim recovery,
-- monitor Browserless timeout rate, render duration, validation failure rate, and Gelato submission failures.
+- monitor AWS renderer timeout rate, render duration, validation failure rate, and Gelato submission failures.
 
 Hundreds of concurrent users are acceptable if the expensive screenshot stage is
 bounded. Hundreds of simultaneous final 24x36 screenshots should queue.
@@ -283,7 +283,7 @@ npm test
 npm run build
 ```
 
-Local Browserless smoke test shape:
+Local AWS renderer smoke test shape:
 
 1. Start Nuxt locally.
 2. Expose the Nuxt port through ngrok.
@@ -296,7 +296,7 @@ Full checkout E2E shape:
 
 1. Use Stripe `sk_test_...` and `pk_test_...` keys.
 2. Run `stripe listen --forward-to localhost:3001/api/orders/webhook` and copy the printed `whsec_...` into `.env`.
-3. Set `DATABASE_URL`, Browserless vars, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, and `GELATO_ORDER_TYPE=draft`.
+3. Set `DATABASE_URL`, AWS renderer vars, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, and `GELATO_ORDER_TYPE=draft`.
 4. Run `npm run e2e:readiness`.
 5. Run `npm run print-worker:dev`.
 6. Pay in Checkout with Stripe test card `4242 4242 4242 4242`.
@@ -338,7 +338,7 @@ Until then, keep sellable products at 2:3.
 
 - Physical sample prints are still required before relying on this for all production orders.
 - Proof rendering still needs abuse/rate limiting.
-- Browserless timeout behavior should be monitored under real load.
+- AWS renderer timeout behavior should be monitored under real load.
 - Logo and future uploaded image sources must remain whitelisted or copied into trusted storage.
 - Typecheck currently has broader repo issues outside this renderer handoff; keep renderer tests and builds green while those are cleaned up.
 
@@ -347,10 +347,10 @@ Until then, keep sellable products at 2:3.
 ## Current Status Card
 
 ```text
-Renderer architecture    : Browserless screenshot of real Nuxt poster
+Renderer architecture    : AWS renderer screenshot of real Nuxt poster
 Canonical poster source  : components/map/MapPreview.vue
-Proof path               : Nuxt API route -> Browserless -> Supabase Storage
-Final path               : print_render_jobs -> render-worker-v4 -> Browserless -> Gelato
+Proof path               : Nuxt API route -> AWS renderer -> Supabase Storage
+Final path               : print_render_jobs -> render-worker-v4 -> AWS renderer -> Gelato
 Aspect policy            : fixed 2:3 editor and products
 Default final size       : 24x36 at 300 DPI plus bleed
 Largest final size       : 32x48 at 200 DPI plus bleed

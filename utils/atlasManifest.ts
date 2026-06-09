@@ -7,12 +7,22 @@ export const ATLAS_LAYER_IDS = [
   'park',
   'landcover',
   'transportation',
+  'outdoorRoute',
   'building',
   'poi',
   'place',
 ] as const satisfies readonly AtlasLayerId[]
 
-export type AtlasArtifactKey = 'base' | 'contours' | 'hillshade' | 'publicLands' | 'poi'
+export const ATLAS_ARTIFACT_KEYS = [
+  'base',
+  'contours',
+  'hillshade',
+  'publicLands',
+  'poi',
+  'outdoorRoutes',
+] as const
+
+export type AtlasArtifactKey = typeof ATLAS_ARTIFACT_KEYS[number]
 
 export type AtlasSourceLicense = {
   name: string
@@ -33,6 +43,10 @@ export type AtlasManifestArtifact = {
   etag?: string
   checksum?: string
   sourceLicenses?: Array<string | AtlasSourceLicense>
+  sourceStrategy?: string
+  sourceDate?: string
+  generatedBy?: string
+  qaStatus?: 'pending' | 'validated' | 'print-approved'
   createdAt?: string
   status?: 'staging' | 'validated' | 'production' | 'deprecated'
   terrainRegion?: string
@@ -125,8 +139,7 @@ export function atlasManifestArtifacts(
 export function atlasAllManifestArtifacts(
   manifest: AtlasManifest | null | undefined,
 ): AtlasManifestArtifact[] {
-  return (['base', 'contours', 'hillshade', 'publicLands', 'poi'] as const)
-    .flatMap(key => atlasManifestArtifacts(manifest, key))
+  return ATLAS_ARTIFACT_KEYS.flatMap(key => atlasManifestArtifacts(manifest, key))
 }
 
 export function atlasArtifactIntersectsBbox(
@@ -181,6 +194,7 @@ export function findAtlasArtifact(
 
 function artifactDisplayName(kind: AtlasArtifactKey) {
   if (kind === 'publicLands') return 'public lands'
+  if (kind === 'outdoorRoutes') return 'outdoor routes'
   return kind
 }
 
@@ -199,7 +213,7 @@ export function resolveAtlasArtifacts(
     requiredKinds?: AtlasArtifactKey[]
   } = {},
 ): AtlasResolvedArtifacts {
-  const artifactsByKind = (['base', 'contours', 'hillshade', 'publicLands', 'poi'] as const)
+  const artifactsByKind = ATLAS_ARTIFACT_KEYS
     .reduce<Partial<Record<AtlasArtifactKey, AtlasManifestArtifact[]>>>((acc, key) => {
       const manifestHasEntry = Object.prototype.hasOwnProperty.call(manifest.artifacts || {}, key)
       const manifestArtifacts = atlasManifestArtifacts(manifest, key)

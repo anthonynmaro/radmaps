@@ -64,7 +64,10 @@ describe('atlas coverage target matrix', () => {
 
   it('points runnable targets at declared atlas build regions', () => {
     for (const target of coverageTargets.targets) {
-      const isRunnable = target.status.startsWith('build-candidate') || target.status === 'qa-ready' || target.status === 'staging-live'
+      const isRunnable = target.status.startsWith('build-candidate') ||
+        target.status.startsWith('production-live') ||
+        target.status === 'qa-ready' ||
+        target.status === 'staging-live'
 
       if (isRunnable && target.atlasRegion) {
         expect(atlasRegions[target.atlasRegion], target.id).toBeTruthy()
@@ -108,7 +111,9 @@ describe('atlas coverage target matrix', () => {
   })
 
   it('keeps first-wave global builds under the small-pack cost cap', () => {
-    const firstWave = coverageTargets.targets.filter(target => target.status.startsWith('build-candidate'))
+    const firstWave = coverageTargets.targets.filter(target =>
+      target.priority >= 6 && (target.status.startsWith('build-candidate') || target.status.startsWith('production-live')),
+    )
 
     expect(firstWave.map(target => target.id)).toEqual([
       'western-alps-dolomites',

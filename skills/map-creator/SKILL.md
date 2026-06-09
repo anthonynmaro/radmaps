@@ -22,7 +22,7 @@ The map creation pipeline has 4 stages:
 1. **Parse GPX** — Extract GeoJSON, bounding box, and route stats (distance, elevation, coordinates)
 2. **AI Style** — Claude generates 1-3 complete StyleConfig objects, each a unique poster design
 3. **Insert to DB** — Each styled map goes into `maps` + `premade_maps` tables in Supabase
-4. **Generate thumbnails** — Screenshot-based preview images via Browserless/Playwright
+4. **Generate thumbnails** — Screenshot-based preview images via AWS renderer/Playwright
 
 The core script is `scripts/create-premade-maps.mjs`. Read `references/theme-registry.md` for the full list of available themes, compositions, and their audiences.
 
@@ -138,7 +138,7 @@ To change which themes the AI considers, edit the theme registry reference. To c
 - **Double labels on CARTO maps** — The sanitizer should catch this. If not, check that `show_place_labels` and `show_poi_labels` are both `false` for carto-light/carto-dark tile styles.
 - **Missing composition** — Old maps without a `composition` field render through the `legacy-classic` layout. New maps should always have one.
 - **Theme not found** — Check that the theme ID is in `VALID_THEMES` in the script and in `types/index.ts` ColorTheme union. All 13 refined + 16 legacy themes are valid.
-- **Thumbnail generation fails** — Run `scripts/backfill-premade-thumbnails.mjs` separately. It needs either a Browserless URL or local Playwright.
+- **Thumbnail generation fails** — Run `scripts/backfill-premade-thumbnails.mjs` separately. It needs either a AWS renderer URL or local Playwright.
 
 ## File reference
 

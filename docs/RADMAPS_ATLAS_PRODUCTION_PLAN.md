@@ -18,8 +18,9 @@ usage accounting all share one contract.
 
 ## Current Status
 
-As of 2026-05-27, the owned atlas has crossed the first real coverage
-milestone and the approved base coverage has been promoted to production.
+As of 2026-06-09, the owned atlas has crossed the first global-hotspot
+coverage milestone and the approved base coverage has been promoted to
+production.
 
 Completed:
 
@@ -50,15 +51,24 @@ Completed:
   z0-14.
 - The Patagonia archive is `234,649,027` bytes and verified through
   `tiles.radmaps.studio` tile checks.
-- The staging manifest is now `2026.05.27-patagonia-andes.1` with `6` base
+- The staging manifest is now `2026.06.09-global-hotspots.1` with `15` base
   artifacts and `177` contour artifacts.
-- The production manifest is now `2026.05.27-approved-coverage.1` with `7`
-  base artifacts and `1` contour artifact after GitHub Actions workflow run
-  `26519815247` copied approved staging PMTiles into `radmaps-atlas-prod` and
-  published the manifest.
+- The production manifest is now
+  `2026.06.09-global-hotspots-production.1` with `16` base artifacts and `1`
+  contour artifact after GitHub Actions workflow run `27209290643` copied
+  approved staging PMTiles into `radmaps-atlas-prod` and published the
+  manifest.
 - Production tile checks through `tiles.radmaps.studio` pass for U.S., Banff,
-  Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia
-  Andes samples.
+  Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia
+  Andes, Western Alps/Dolomites, Madeira/Azores, Canary Islands, Peru Andes,
+  Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica samples.
+- New production global-hotspot base artifacts added on 2026-06-09:
+  `radmaps-western-alps-dolomites-base`,
+  `radmaps-atlantic-islands-portugal-base`,
+  `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`,
+  `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`,
+  `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, and
+  `radmaps-costa-rica-central-america-base`.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -67,12 +77,13 @@ Completed:
   manifests. The Vercel/Nuxt shim remains available as a fallback path.
 - The Worker is deployed and verified at
   `https://radmaps-atlas-tiles.radmaps-atlas.workers.dev`.
-- The production strategy for contours has pivoted to browser/Browserless
+- The production strategy for contours has pivoted to editor/AWS renderer
   `maplibre-contour` generation plus terrain illusion layers, avoiding
   expensive global high-detail contour PMTiles for now.
 - The customer editor now exposes the owned Atlas presets in the map picker and
   has an Atlas-only **Map Layers** panel for `contour`, `water`, `waterway`,
-  `park`, `landcover`, `transportation`, `building`, `place`, and `poi`.
+  `park`, `landcover`, `transportation`, `outdoorRoute`, `building`, `place`,
+  and `poi`.
   Local development always shows these controls; production customer access is
   gated by `radmaps_atlas_editor`.
 - Atlas layer visibility and v1 style settings now flow into `buildMapStyle()`,
@@ -86,10 +97,12 @@ Not done yet:
   may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,
   but `radmaps_atlas_editor` should remain disabled for broad customer traffic
-  until Browserless print QA and attribution checks pass.
-- Browserless print QA across large sizes and house styles is still required.
-- Public lands, richer recreation POIs, and destination-specific overlay packs
-  are not complete.
+  until AWS-rendered print QA and attribution checks pass.
+- AWS renderer print QA across large sizes and house styles is still required
+  before broad customer marketing, with `24x36` fixtures required for each new
+  global-hotspot region.
+- Public lands, Overture Places `poi` overlays, and destination-specific
+  `outdoorRoutes` packs are not complete.
 - Build/transfer/manifest publication is documented and scripted in pieces,
   but should be automated into one budget-guarded workflow.
 
@@ -111,7 +124,7 @@ Initial priority regions:
 
 The first U.S. release should include:
 - nationwide base map
-- browser/Browserless-generated high-detail contours using the current
+- editor/AWS-renderer high-detail contours using the current
   `maplibre-contour` fidelity path
 - optional prewarmed/cached contour artifacts for priority regions only when
   render reliability or volume justifies them
@@ -210,7 +223,7 @@ tiles.radmaps.studio/
         cache/...
         experiments/...
         # High-detail global contours are not a default production artifact.
-        # Browserless/editor contours are generated from DEM at render time.
+        # AWS/editor contours are generated from DEM at render time.
       overlays/
         public-lands/us/2026-05-15/radmaps-public-lands-us.pmtiles
         poi/us/2026-05-15/radmaps-poi-us.pmtiles
@@ -720,7 +733,7 @@ sources: {
 
 ## Rendering Pipeline
 
-The renderer remains `MapPreview.vue` plus Browserless screenshots. The atlas
+The renderer remains `MapPreview.vue` captured by the AWS renderer. The atlas
 system must not create a second poster renderer.
 
 Requirements:
@@ -745,7 +758,8 @@ Production build stages:
 2. Normalize to RadMaps schema.
 3. Build base PMTiles with Planetiler.
 4. Build contour PMTiles from DEMs.
-5. Build overlay PMTiles for public lands and POIs.
+5. Build overlay PMTiles for public lands, Overture Places `poi`, and OSM
+   `outdoorRoutes` relation packs.
 6. Validate PMTiles headers, bounds, metadata, layer names, and sample tiles.
 7. Render acceptance screenshots for each house style.
 8. Upload immutable artifacts.
@@ -853,7 +867,7 @@ This lets us answer:
 ### Milestone 6: U.S. Complete Build
 
 - Full U.S. base coverage.
-- Browser-rendered high-detail contours for editor, proof, and final renders.
+- Runtime high-detail contours for editor, proof, and final renders.
 - Optional cached terrain overlays only for priority areas that need reliability or speed.
 - Usage tracking.
 - Style editor controls available to customers behind a feature flag.
@@ -863,11 +877,16 @@ This lets us answer:
 - Expand base coverage first. North America staging base coverage is complete;
   the next base milestone is production promotion after QA, followed by small
   regional proof packs for premade and high-intent global destinations.
-- Use `atlas/coverage-targets.json` as the coverage queue and cost gate. The
+- Use `atlas/coverage-targets.json` v2 as the coverage queue and cost gate. The
   first non-North-America proof packs are `new-zealand-outdoor`,
   `northern-spain-camino`, `mount-fuji-japan`, and `patagonia-andes`; the
   wider Honshu/Japan target is blocked on runner size or regional splits.
-- Use browser-generated contours and terrain illusion layers globally where DEM coverage allows.
+- Keep total coverage build spend at or under `$200` until the budget is
+  explicitly raised; require dry-run cost logging and `--estimated-cost-usd`
+  before non-dry-run heavyweight build stages.
+- Use runtime contours and terrain illusion layers globally where DEM coverage allows.
+- Add z16 `poi` and `outdoorRoutes` hotspot overlays before any full-detail
+  planet build.
 - Promote popular or failure-prone regions into cached contour artifacts based on actual usage.
 - Do not start a full-globe base archive until the regional proof packs and
   manifest-promotion workflow are boring.
@@ -877,7 +896,7 @@ This lets us answer:
 Build the next slice around `radmaps-simple-contour`.
 
 That forces the system to solve the most important hard problem first:
-high-quality contour rendering in editor and Browserless without paying to
+high-quality contour rendering in editor and the AWS renderer without paying to
 precompute global terrain. The implementation benchmark is the existing
 `maplibre-contour` detail path, supplemented with hillshade, slope/wash,
 hachure, paper grain, and ghost-contour texture where styles need more terrain
@@ -901,7 +920,7 @@ The next phase should turn the staging atlas into a sellable production path.
    - For each house style, confirm base layers, labels, route order, water,
      roads/trails, parks, POIs, and runtime contours render together.
 3. **Print proofing**
-   - Render Browserless proofs/finals for `8x12`, `24x36`, and `32x48`.
+   - Render AWS proofs/finals for `8x12`, `24x36`, and `32x48`.
    - Measure render time with contours disabled, contour detail levels `0-5`,
      and terrain illusion layers enabled.
    - Fail render readiness if DEM/contour tiles are still pending.
@@ -915,13 +934,14 @@ The next phase should turn the staging atlas into a sellable production path.
    - Gate customer access with `radmaps_atlas_editor`.
 5. **Promotion**
    - Publish a production manifest only after Worker, Atlas Lab, editor,
-     Browserless, attribution, and analytics checks pass.
+     AWS renderer, attribution, and analytics checks pass.
    - Record the manifest version and artifact ids on proofs/finals/orders.
    - Keep the previous production manifest and PMTiles objects for rollback.
 6. **Scale**
    - Automate AWS build -> S3 handoff -> R2 transfer -> manifest merge ->
      manifest publish with cost logging.
-   - Add public lands and recreation POI overlay artifacts.
+   - Add public lands, Overture Places `poi`, and OSM `outdoorRoutes` overlay
+     artifacts.
    - Build a global base archive when the North America QA/promotion path is
      proven. Keep global high-detail contour PMTiles deferred unless render
      reliability or paid demand requires a cache.

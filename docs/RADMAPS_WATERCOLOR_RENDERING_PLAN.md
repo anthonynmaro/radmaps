@@ -446,7 +446,7 @@ Do not cache decoded canvases or ImageBitmaps.
 Performance gates:
 
 - server-rendered 24x36 proof settles watercolor tiles within 15 seconds
-- full Browserless proof/final render remains under the existing 60 second
+- full AWS renderer proof/final render remains under the existing 60 second
   timeout
 - dense Manhattan/Chicago tile benchmark recorded before production enablement
 
@@ -546,7 +546,7 @@ Evaluate:
 3. Test Mexico City in the editor.
 4. Add visual fixtures.
 5. Enable staff-only preview.
-6. Run Browserless proof tests.
+6. Run AWS renderer proof tests.
 7. Run physical QA.
 8. Promote `radmaps-watercolor` only after visual, print, and performance gates
    pass.

@@ -339,7 +339,6 @@ function optionalTerrainLayers(contours: LayerFeatureSupport, hillshade: LayerFe
   if (contours === 'editable-vector' || contours === 'required') {
     layers.push(
       { id: 'contours-minor', slot: 'contours', source: 'contours', consumes: contourFields, scale: LINE_SCALE_PROPERTIES },
-      { id: 'contours-mid', slot: 'contours', source: 'contours', consumes: contourFields, scale: LINE_SCALE_PROPERTIES },
       { id: 'contours-major', slot: 'contours', source: 'contours', consumes: contourFields, scale: LINE_SCALE_PROPERTIES },
       { id: 'contours-labels', slot: 'contours', source: 'contours', consumes: contourFields, scale: SYMBOL_SCALE_PROPERTIES },
     )
@@ -493,7 +492,7 @@ function atlasGraph(preset: StylePreset, options: {
       contours: options.contours ?? 'editable-vector',
       hillshade: options.hillshade ?? 'editable-vector',
     },
-    sources: ['radmaps-atlas-base', 'contours', 'mapbox-dem', 'route'],
+    sources: ['radmaps-atlas-base', 'radmaps-atlas-poi', 'radmaps-atlas-outdoor-routes', 'contours', 'mapbox-dem', 'route'],
     includeDefaultRoadLayers: false,
     requiredFields: options.requiredFields,
     controls: {
@@ -519,8 +518,14 @@ function atlasGraph(preset: StylePreset, options: {
       { id: `${preset}-roads-minor`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-roads-major`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-roads-trails`, slot: 'editable-roads', source: 'radmaps-atlas-base', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
+      { id: `${preset}-outdoor-routes`, slot: 'editable-roads', source: 'radmaps-atlas-outdoor-routes', consumes: layerFields, scale: LINE_SCALE_PROPERTIES },
       { id: `${preset}-place-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
       { id: `${preset}-poi-labels`, slot: 'labels-pois', source: 'radmaps-atlas-base', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
+      { id: `${preset}-poi-overlay-labels`, slot: 'labels-pois', source: 'radmaps-atlas-poi', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
+      { id: `${preset}-outdoor-route-labels`, slot: 'labels-pois', source: 'radmaps-atlas-outdoor-routes', consumes: layerFields, scale: SYMBOL_SCALE_PROPERTIES },
+      ...((options.contours ?? 'editable-vector') === 'unsupported'
+        ? []
+        : [{ id: 'contours-mid', slot: 'contours' as const, source: 'contours', consumes: contourFields, scale: LINE_SCALE_PROPERTIES }]),
     ],
   })
 }
@@ -559,17 +564,17 @@ const graphs: Record<StylePreset, LayerGraph> = {
   minimalist: makeGraph({
     preset: 'minimalist',
     features: { ...rasterPresetFeatures, roads: 'baked-raster', placeLabels: 'baked-raster', pois: 'baked-raster' },
-    sources: ['carto-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['carto-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   topographic: makeGraph({
     preset: 'topographic',
     features: rasterPresetFeatures,
-    sources: ['mapbox-outdoors-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['mapbox-outdoors-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'route-only': makeGraph({
     preset: 'route-only',
     features: vectorRouteFeatures,
-    sources: ['mapbox-streets', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['mapbox-streets', 'mapbox-dem', 'contours', 'route'],
   }),
   'road-network': makeGraph({
     preset: 'road-network',
@@ -604,7 +609,7 @@ const graphs: Record<StylePreset, LayerGraph> = {
       contours: 'required',
       hillshade: 'editable-vector',
     },
-    sources: ['mapbox-dem', 'mapbox-terrain-v2', 'mapbox-streets', 'route'],
+    sources: ['mapbox-dem', 'contours', 'mapbox-streets', 'route'],
     requiredFields: { show_contours: true },
     layers: [
       { id: 'contour-art-water', slot: 'water-land-buildings', source: 'mapbox-streets', consumes: ['water_color'] },
@@ -614,17 +619,17 @@ const graphs: Record<StylePreset, LayerGraph> = {
   'natural-topo': makeGraph({
     preset: 'natural-topo',
     features: rasterPresetFeatures,
-    sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['maptiler-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'stadia-watercolor': makeGraph({
     preset: 'stadia-watercolor',
     features: rasterPresetFeatures,
-    sources: ['stadia-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['stadia-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'stadia-toner': makeGraph({
     preset: 'stadia-toner',
     features: { ...rasterPresetFeatures, placeLabels: 'baked-raster' },
-    sources: ['stadia-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['stadia-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'native-toner': makeGraph({
     preset: 'native-toner',
@@ -653,17 +658,17 @@ const graphs: Record<StylePreset, LayerGraph> = {
   'native-watercolor': makeGraph({
     preset: 'native-watercolor',
     features: rasterPresetFeatures,
-    sources: ['carto-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['carto-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'alidade-smooth': makeGraph({
     preset: 'alidade-smooth',
     features: rasterPresetFeatures,
-    sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['maptiler-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'alidade-smooth-dark': makeGraph({
     preset: 'alidade-smooth-dark',
     features: rasterPresetFeatures,
-    sources: ['maptiler-raster', 'mapbox-dem', 'mapbox-terrain-v2', 'route'],
+    sources: ['maptiler-raster', 'mapbox-dem', 'contours', 'route'],
   }),
   'radmaps-minimalist': atlasGraph('radmaps-minimalist', { hillshade: 'unsupported' }),
   'radmaps-topographic': atlasGraph('radmaps-topographic'),

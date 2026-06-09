@@ -34,15 +34,19 @@ function getLocalTunnelUserAgent(url: string): string | undefined {
 
 export async function takeScreenshot(opts: ScreenshotOptions): Promise<ScreenshotResult> {
   const config = useRuntimeConfig()
-  const token = config.browserlessToken
+  const token = config.proofRendererToken
   if (!token) {
-    throw new Error('BROWSERLESS_TOKEN is not configured')
+    throw new Error('PROOF_RENDER_TOKEN is not configured')
   }
 
   const start = Date.now()
-  const configuredTimeout = Number(config.browserlessTimeoutMs)
+  const configuredTimeout = Number(config.proofRendererTimeoutMs)
   const timeoutMs = opts.timeoutMs ?? (Number.isFinite(configuredTimeout) ? configuredTimeout : 60_000)
-  const endpoint = (config.browserlessEndpoint || 'https://production-sfo.browserless.io').replace(/\/$/, '')
+  const configuredEndpoint = typeof config.proofRendererEndpoint === 'string' ? config.proofRendererEndpoint.trim() : ''
+  if (!configuredEndpoint) {
+    throw new Error('Proof screenshot endpoint is not configured')
+  }
+  const endpoint = configuredEndpoint.replace(/\/$/, '')
   const query = new URLSearchParams({
     token,
     timeout: String(timeoutMs),
@@ -79,7 +83,7 @@ export async function takeScreenshot(opts: ScreenshotOptions): Promise<Screensho
 
   if (!response.ok) {
     const body = await response.text()
-    throw new Error(`Browserless screenshot failed (${response.status}): ${body.slice(0, 1000)}`)
+    throw new Error(`AWS renderer screenshot failed (${response.status}): ${body.slice(0, 1000)}`)
   }
 
   return {

@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full flex flex-col bg-white overflow-hidden" style="border-radius: 18px 18px 0 0">
+  <div class="h-full flex flex-col bg-white overflow-hidden" style="border-radius: 18px 18px 0 0" data-testid="style-panel">
 
     <!-- Drag handle -->
     <button
@@ -53,10 +53,26 @@
               v-for="theme in THEME_OPTIONS"
               :key="theme.id"
               @click="applyTheme(theme)"
-              class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
+              class="relative flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
               style="border-radius: 10px; border: 2px solid; padding: 4px;"
               :style="{ borderColor: isRefinedThemeActive(theme) ? '#2D6A4F' : '#E7E5E4' }"
+              :data-theme-id="theme.id"
+              :data-theme-group-id="theme.colorway_of ?? theme.id"
+              :data-colorway-of="theme.colorway_of"
+              data-testid="quick-poster-theme"
             >
+              <span
+                v-if="showsRefinedBadge(theme)"
+                class="absolute z-10"
+                style="top: 6px; right: 6px; font-size: 7px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #24523B; background: rgba(240, 253, 244, 0.94); border: 1px solid rgba(45, 106, 79, 0.34); border-radius: 4px; padding: 2px 4px; line-height: 1;"
+                data-testid="refined-theme-badge"
+              >Refined</span>
+              <span
+                v-if="theme.colorway_of"
+                class="absolute z-10"
+                style="top: 24px; right: 6px; font-size: 7px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #44403C; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(68, 64, 60, 0.18); border-radius: 4px; padding: 2px 4px; line-height: 1;"
+                data-testid="theme-colorway-badge"
+              >Colorway</span>
               <!-- Mini poster thumbnail — layout mirrors actual theme -->
               <div
                 class="w-full overflow-hidden flex flex-col"
@@ -133,8 +149,49 @@
             </button>
           </div>
 
+          <!-- Owned/Beta map themes from the real editor map inventory -->
+          <div class="mt-3 pt-3 border-t border-[#F5F5F4]">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div>
+                <p class="text-[10px] font-semibold uppercase" style="letter-spacing: 0.14em; color: #78716C;">Beta owned map themes</p>
+                <p class="mt-0.5 text-[10px] leading-snug" style="color: #A8A29E;">Map-only styles from RadMaps-hosted Atlas tiles</p>
+              </div>
+              <span
+                class="shrink-0"
+                style="font-size: 7px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #9A6700; background: rgba(254, 243, 199, 0.92); border: 1px solid #FDE68A; border-radius: 4px; padding: 2px 5px; line-height: 1;"
+              >Beta</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="p in ATLAS_MAP_PRESETS"
+                :key="`quick-atlas-${p.id}`"
+                @click="applyMapPreset(p)"
+                class="flex flex-col items-center gap-1 bg-white cursor-pointer transition-all border-none p-0"
+                style="border-radius: 10px; border: 2px solid; padding: 4px;"
+                :style="{ borderColor: local.preset === p.id ? '#2D6A4F' : '#E7E5E4' }"
+                :title="p.title"
+                :data-preset-id="p.id"
+                data-testid="quick-owned-map-theme"
+              >
+                <div
+                  class="w-full overflow-hidden relative"
+                  style="aspect-ratio: 2/3; border-radius: 5px; background: #F7F4EF;"
+                >
+                  <svg :viewBox="p.viewBox" class="w-full h-full" preserveAspectRatio="xMidYMid slice" v-html="p.svg" />
+                  <span
+                    class="absolute bottom-1 left-1"
+                    style="font-size: 6px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #1F4D38; background: rgba(240, 247, 243, 0.92); border: 1px solid #C8E1D2; border-radius: 4px; padding: 1px 4px; line-height: 1;"
+                  >Map</span>
+                </div>
+                <span
+                  class="text-[10px] font-semibold leading-none truncate w-full text-center"
+                  :style="{ color: local.preset === p.id ? '#2D6A4F' : '#78716C' }"
+                >{{ p.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <button
-            v-if="showThemeBrowser"
             class="mt-3 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold transition-colors hover:border-[#2D6A4F] hover:text-[#1F4D38]"
             style="color: #57534E;"
             @click="emit('browse-themes')"
@@ -245,11 +302,188 @@
         </V4Card>
 
         <V4Card v-if="sections.routeLineQuick" title="Route line" :default-open="true">
-          <ColorRow label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
-          <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
+          <ColorRow v-if="sections.routeColorControl" label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
+          <SliderRow v-if="sections.routeWidthControl" label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
         </V4Card>
 
+      </template>
+
+      <!-- ─── DESIGN TAB ────────────────────────────────────────────────────── -->
+      <template v-else-if="activeTab === 'design'">
+        <V4Card title="Poster tools" hint="Canvas-first text, images, logos, and guides" :default-open="true">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="mode in posterToolModes"
+              :key="mode.id"
+              :data-testid="`poster-tool-${mode.id}`"
+              class="rounded-lg border px-1.5 py-2 text-[10px] font-semibold transition-colors"
+              :style="posterEditorMode === mode.id ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; background: white; color: #57534E;'"
+              @click="
+                mode.id === 'text'
+                  ? emit('poster-text-add')
+                  : mode.id === 'image'
+                    ? designImageInputRef?.click()
+                    : setPosterEditorMode(mode.id)
+              "
+            >{{ mode.label }}</button>
+          </div>
+          <input v-if="freeOverlayToolsAvailable" ref="designImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'image')" />
+          <input v-if="freeOverlayToolsAvailable" ref="designLogoInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handleDesignUpload($event, 'logo')" />
+          <button
+            v-if="freeOverlayToolsAvailable"
+            class="mt-2 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
+            @click="designLogoInputRef?.click()"
+          >Upload logo</button>
+        </V4Card>
+
+        <V4Card title="Guides" hint="Editing guides are never printed" :default-open="posterEditorMode === 'guides'">
+          <ToggleRow label="Editing guides" :value="posterGuidesVisible ?? false" @change="emit('poster-guides-visible-change', $event)" />
+          <div v-if="sections.gridControls" class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
+            <ToggleRow label="Printed grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
+            <template v-if="local.show_grid">
+              <div class="grid grid-cols-2 gap-1.5 my-3">
+                <SegmentButton label="Poster" :active="(local.grid_scope ?? 'poster') === 'poster'" @click="set('grid_scope', 'poster')" />
+                <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
+              </div>
+              <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
+              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
+                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
+              <SliderRow label="Opacity" :value="local.grid_opacity ?? 0.2" :min="0.05" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('grid_opacity', $event)" />
+              <SliderRow label="Weight" :value="local.grid_weight ?? 1" :min="0.5" :max="3" :step="0.25"
+                :display="(v: number) => v.toFixed(v % 1 === 0 ? 0 : 2) + 'px'" @change="set('grid_weight', $event)" />
+            </template>
+          </div>
+        </V4Card>
+
+        <V4Card v-if="!guidedPosterEditor" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="icon in POSTER_ICONS"
+              :key="icon.id"
+              class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-[10px] font-semibold text-[#57534E] transition-colors hover:border-[#2D6A4F]"
+              @click="emit('poster-icon-add', icon.id)"
+            >{{ icon.label }}</button>
+          </div>
+        </V4Card>
+
+        <V4Card title="Layers" hint="Theme chrome is locked by default" :default-open="true">
+          <div class="space-y-1.5">
+            <button
+              v-for="element in posterEditorElements"
+              :key="element.id"
+              class="w-full rounded-lg border px-2.5 py-2 text-left transition-colors"
+              :style="selectedPosterElementId === element.id ? 'border-color: #2D6A4F; background: #DCEBE2;' : 'border-color: #F5F5F4; background: white;'"
+              @click="selectPosterElement(element.id)"
+            >
+              <span class="flex items-center justify-between gap-2">
+                <span class="min-w-0 truncate text-xs font-semibold" style="color: #1C1917;">{{ element.label }}</span>
+                <span class="shrink-0 text-[9px] font-semibold uppercase" style="letter-spacing: 0.08em; color: #A8A29E;">{{ element.kind }}</span>
+              </span>
+              <span class="mt-0.5 flex items-center gap-1 text-[10px]" style="color: #A8A29E;">
+                <span>{{ element.source }}</span>
+                <span v-if="element.locked">locked</span>
+                <span v-if="element.hidden">hidden</span>
+              </span>
+            </button>
+          </div>
+        </V4Card>
+
+        <V4Card v-if="activePosterElement" title="Selection" :default-open="true">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate text-xs font-semibold" style="color: #1C1917;">{{ activePosterElement.label }}</p>
+                <p class="text-[10px]" style="color: #A8A29E;">{{ activePosterElement.kind }}</p>
+              </div>
+              <div v-if="activePosterElement.canDelete" class="flex shrink-0 gap-1">
+                <button class="rounded border border-[#E7E5E4] bg-white px-2 py-1 text-[10px] font-semibold text-[#57534E]" @click="emit('poster-element-duplicate', activePosterElement.id)">Duplicate</button>
+                <button class="rounded border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700" @click="emit('poster-element-remove', activePosterElement.id)">Delete</button>
+              </div>
+            </div>
+
+            <div v-if="activePosterElement.canDelete" class="grid grid-cols-2 gap-1.5">
+              <SegmentButton :label="activePosterElement.locked ? 'Unlock' : 'Lock'" :active="activePosterElement.locked" @click="patchPosterElement(activePosterElement.id, { locked: !activePosterElement.locked })" />
+              <SegmentButton :label="activePosterElement.hidden ? 'Show' : 'Hide'" :active="activePosterElement.hidden" @click="patchPosterElement(activePosterElement.id, { hidden: !activePosterElement.hidden })" />
+            </div>
+
+            <div v-if="activePosterPrintGuardViolations.length" class="space-y-1.5">
+              <div
+                v-for="violation in activePosterPrintGuardViolations"
+                :key="`${violation.code}-${violation.elementId}`"
+                class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-semibold leading-snug text-amber-900"
+                data-testid="poster-print-guard-warning"
+              >
+                {{ violation.message }}
+              </div>
+            </div>
+
+            <TextRow
+              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'theme-text'"
+              label="Text"
+              :value="activePosterElement.kind === 'theme-text' ? activePosterSlotText() : (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.content ?? ''"
+              placeholder="Your text"
+              @change="patchPosterElement(activePosterElement.id, { content: $event })"
+            />
+
+            <ColorRow
+              v-if="activePosterElement.kind === 'free-text' || activePosterElement.kind === 'theme-text' || activePosterElement.kind === 'icon'"
+              label="Color"
+              :value="activePosterElement.color ?? local.label_text_color"
+              @change="patchPosterElement(activePosterElement!.id, { color: $event })"
+            />
+
+            <template v-if="activePosterElement.kind === 'icon'">
+              <div class="grid grid-cols-3 gap-1">
+                <button
+                  v-for="icon in POSTER_ICONS"
+                  :key="`select-${icon.id}`"
+                  class="rounded border px-2 py-1.5 text-[10px] font-semibold"
+                  :style="(local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.icon === icon.id ? 'border-color: #2D6A4F; background: #DCEBE2; color: #1F4D38;' : 'border-color: #E7E5E4; background: white; color: #57534E;'"
+                  @click="patchPosterElement(activePosterElement.id, { icon: icon.id })"
+                >{{ icon.label }}</button>
+              </div>
+            </template>
+
+            <SliderRow
+              v-if="activePosterElement.kind === 'theme-text'"
+              label="Size"
+              :value="activePosterSlotSizePt()"
+              :min="6"
+              :max="180"
+              :step="1"
+              :display="(v: number) => Math.round(v) + 'pt'"
+              @change="patchPosterElement(activePosterElement!.id, { font_size_pt: $event })"
+            />
+            <SliderRow
+              v-if="activePosterElement.kind === 'image' || activePosterElement.kind === 'logo' || activePosterElement.kind === 'icon'"
+              label="Size"
+              :value="activePosterElement.width ?? 10"
+              :min="2"
+              :max="activePosterElement.kind === 'icon' ? 80 : 100"
+              :step="1"
+              :display="(v: number) => Math.round(v) + '%'"
+              @change="resizeSelectedElement($event)"
+            />
+            <SliderRow v-if="activePosterElement.kind !== 'theme-text'" label="Rotation" :value="activePosterElement.rotation ?? 0" :min="-180" :max="180" :step="1"
+              :display="(v: number) => Math.round(v) + '°'" @change="patchPosterElement(activePosterElement!.id, { rotation: $event })" />
+            <SliderRow label="Opacity" :value="(activePosterElement.id.startsWith('slot:') ? (local.poster_text_overrides?.[slotFromPosterElementId(activePosterElement.id) ?? 'trail_name']?.opacity ?? 1) : activePosterElement.id.startsWith('text:') ? (local.text_overlays ?? []).find(o => `text:${o.id}` === activePosterElement?.id)?.opacity : activePosterElement.id.startsWith('icon:') ? (local.icon_overlays ?? []).find(o => `icon:${o.id}` === activePosterElement?.id)?.opacity : (local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.opacity) ?? 1" :min="0.1" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="patchPosterElement(activePosterElement!.id, { opacity: $event })" />
+
+            <ToggleRow
+              v-if="activePosterElement.kind === 'image' || activePosterElement.kind === 'logo'"
+              label="Allow bleed"
+              :value="(local.image_overlays ?? []).find(o => `asset:${o.id}` === activePosterElement?.id)?.allow_bleed ?? false"
+              @change="patchPosterElement(activePosterElement!.id, { allow_bleed: $event })"
+            />
+
+            <div v-if="activePosterElement.kind !== 'theme-text'" class="grid grid-cols-2 gap-1.5">
+              <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(-1)">Send back</button>
+              <button class="rounded-lg border border-[#E7E5E4] bg-white px-2 py-2 text-xs font-semibold text-[#57534E]" @click="setSelectedElementZ(1)">Bring front</button>
+            </div>
+          </div>
+        </V4Card>
       </template>
 
       <!-- ─── MAP TAB ───────────────────────────────────────────────────────── -->
@@ -516,6 +750,17 @@
                 @change="setAtlasLayerSetting('transportation', { trail_width: $event })" />
             </template>
 
+            <template v-else-if="activeAtlasLayerId === 'outdoorRoute' && atlasLayerVisible('outdoorRoute')">
+              <ColorRow label="Route color" :value="atlasOutdoorRouteColor" @change="setAtlasLayerSetting('outdoorRoute', { color: $event })" />
+              <SliderRow label="Opacity" :value="atlasOutdoorRouteOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('outdoorRoute', { opacity: $event })" />
+              <SliderRow label="Width" :value="atlasOutdoorRouteWidth" :min="0.25" :max="5" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('outdoorRoute', { width: $event })" />
+              <ToggleRow label="Route labels" :value="atlasOutdoorRouteLabels" @change="setAtlasLayerSetting('outdoorRoute', { labels: $event })" />
+            </template>
+
             <template v-else-if="activeAtlasLayerId === 'building' && atlasLayerVisible('building')">
               <ColorRow label="Building fill" :value="atlasBuildingFillColor" @change="setAtlasLayerSetting('building', { fill_color: $event })" />
               <SliderRow label="Opacity" :value="atlasBuildingOpacity" :min="0" :max="1" :step="0.05"
@@ -593,14 +838,14 @@
         </V4Card>
 
         <V4Card v-if="sections.routeMapCard" title="Route" :default-open="false">
-          <ToggleRow label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
+          <ToggleRow v-if="sections.routeAdvancedControls" label="Elevation gradient" :value="(local.route_color_mode ?? 'solid') === 'gradient'"
             @change="setRouteLineStyle('route_color_mode', $event ? 'gradient' : 'solid')" />
-          <ColorRow label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
-          <SliderRow label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
+          <ColorRow v-if="sections.routeColorControl" label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
+          <SliderRow v-if="sections.routeWidthControl" label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
-          <SliderRow label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
+          <SliderRow v-if="sections.routeOpacityControl" label="Opacity" :value="local.route_opacity" :min="0.1" :max="1" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="setRouteLineStyle('route_opacity', $event)" />
-          <SliderRow label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="10" :step="1"
+          <SliderRow v-if="sections.routeAdvancedControls" label="Smooth" :value="local.route_smooth ?? 0" :min="0" :max="10" :step="1"
             :display="(v: number) => v === 0 ? 'Off' : v === 10 ? 'Max' : String(v)"
             @change="setRouteLineStyle('route_smooth', $event)" />
           <div class="pt-2 border-t border-[#F5F5F4] mt-1" />
@@ -680,25 +925,27 @@
               style="border:1px solid #E7E5E4;color:#78716C;background:white;"
             >↺ Restore all sections</button>
           </div>
-          <div class="pt-1 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Pins</p>
-          <div class="space-y-2">
-            <ToggleRow label="Show start" :value="local.show_start_pin ?? true" @change="set('show_start_pin', $event)" />
-            <ToggleRow label="Show finish" :value="local.show_finish_pin ?? true" @change="set('show_finish_pin', $event)" />
-          </div>
-          <template v-if="sections.pinControls">
-            <div class="flex items-center justify-between mt-2">
-              <span class="text-xs" style="color: #44403C;">Pin color</span>
-              <ColorSwatch :value="local.pin_color ?? contrastSafePinColor" @change="set('pin_color', $event)" />
+          <template v-if="sections.routeAdvancedControls">
+            <div class="pt-1 border-t border-[#F5F5F4] mt-1 mb-3" />
+            <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Pins</p>
+            <div class="space-y-2">
+              <ToggleRow label="Show start" :value="local.show_start_pin ?? true" @change="set('show_start_pin', $event)" />
+              <ToggleRow label="Show finish" :value="local.show_finish_pin ?? true" @change="set('show_finish_pin', $event)" />
             </div>
-            <SliderRow label="Pin opacity" :value="local.pin_opacity ?? 0.9" :min="0.1" :max="1" :step="0.05"
-              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('pin_opacity', $event)" />
+            <template v-if="sections.pinControls">
+              <div class="flex items-center justify-between mt-2">
+                <span class="text-xs" style="color: #44403C;">Pin color</span>
+                <ColorSwatch :value="local.pin_color ?? contrastSafePinColor" @change="set('pin_color', $event)" />
+              </div>
+              <SliderRow label="Pin opacity" :value="local.pin_opacity ?? 0.9" :min="0.1" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('pin_opacity', $event)" />
+            </template>
           </template>
         </V4Card>
 
-        <V4Card title="Terrain" :default-open="false">
-          <ToggleRow label="3D terrain" :value="local.map_3d ?? false" @change="set3DTerrain($event)" />
-          <template v-if="local.map_3d">
+        <V4Card v-if="sections.terrainCard" title="Terrain" :default-open="false">
+          <ToggleRow v-if="sections.terrain3dControls" label="3D terrain" :value="local.map_3d ?? false" @change="set3DTerrain($event)" />
+          <template v-if="sections.terrain3dControls && local.map_3d">
             <SliderRow label="Perspective" :value="local.map_pitch ?? 45" :min="0" :max="70" :step="1"
               :display="(v: number) => Math.round(v) + '°'" @change="set('map_pitch', $event)" />
             <SliderRow label="Rotation" :value="local.map_bearing ?? 0" :min="-180" :max="180" :step="1"
@@ -716,7 +963,7 @@
 
         <V4Card v-if="sections.contourToggle || sections.contourDetails || sections.elevationProfileToggle" title="Contour Lines" :default-open="false">
           <ToggleRow v-if="sections.contourToggle" label="Show contours" :value="local.show_contours" @change="setContours($event)" />
-          <template v-if="sections.contourDetails">
+          <template v-if="sections.contourDetails && sections.contourStyleControls">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs" style="color: #44403C;">Minor / Major color</span>
               <div class="flex gap-2">
@@ -740,18 +987,27 @@
             <ToggleRow label="Elevation profile" :value="local.show_elevation_profile ?? false" @change="set('show_elevation_profile', $event)" />
           </template>
           <template v-if="sections.elevationProfileExpanded">
+            <div class="mb-3">
+              <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Placement</p>
+              <div class="grid grid-cols-2 gap-1.5">
+                <SegmentButton label="Overlay" :active="elevationProfilePosition === 'map-overlay'" @click="set('elevation_profile_position', 'map-overlay')" />
+                <SegmentButton label="Below map" :active="elevationProfilePosition === 'separate-band'" @click="set('elevation_profile_position', 'separate-band')" />
+              </div>
+            </div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs" style="color: #44403C;">Profile color</span>
               <ColorSwatch :value="local.elevation_profile_color ?? local.route_color" @change="set('elevation_profile_color', $event)" />
             </div>
             <SliderRow label="Opacity" :value="local.elevation_profile_opacity ?? 0.65" :min="0.1" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('elevation_profile_opacity', $event)" />
-            <SliderRow label="Height" :value="local.elevation_profile_height ?? 22" :min="8" :max="40" :step="2"
-              :display="(v: number) => Math.round(v) + '%'" @change="set('elevation_profile_height', $event)" />
+            <SliderRow label="Height" :value="local.elevation_profile_height ?? elevationProfileHeightDefault" :min="elevationProfileHeightMin" :max="elevationProfileHeightMax" :step="1"
+              :display="(v: number) => elevationProfilePosition === 'separate-band' ? Math.round(v) + 'cqh' : Math.round(v) + '%'" @change="set('elevation_profile_height', $event)" />
+            <SliderRow label="Relief" :value="local.elevation_profile_relief ?? 0.65" :min="0.35" :max="1" :step="0.05"
+              :display="(v: number) => Math.round(v * 100) + '%'" @change="set('elevation_profile_relief', $event)" />
           </template>
         </V4Card>
 
-        <V4Card title="Effects" hint="Advanced — invert, duotone, posterize, grain" :default-open="false">
+        <V4Card v-if="sections.effectsCard" title="Effects" hint="Advanced — invert, duotone, posterize, grain" :default-open="false">
           <div v-if="sections.rasterEffectControls" class="mb-3">
             <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Tile effect</p>
             <div class="grid grid-cols-2 gap-1.5">
@@ -788,12 +1044,12 @@
               :display="(v: number) => Math.round(v) + '°'" @change="set('tile_hue_rotate', $event)" />
           </template>
           <div class="pt-2 border-t border-[#F5F5F4] mt-1 mb-3" />
-          <ToggleRow label="Vignette" :value="local.show_vignette ?? false" @change="set('show_vignette', $event)" />
+          <ToggleRow v-if="sections.vignetteControls" label="Vignette" :value="local.show_vignette ?? false" @change="set('show_vignette', $event)" />
           <template v-if="sections.vignetteIntensity">
             <SliderRow label="Intensity" :value="local.vignette_intensity ?? 0.45" :min="0.05" :max="1" :step="0.05"
               :display="(v: number) => Math.round(v * 100) + '%'" @change="set('vignette_intensity', $event)" />
           </template>
-          <SliderRow label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
+          <SliderRow v-if="sections.grainControl" label="Grain" :value="local.tile_grain ?? 0" :min="0" :max="0.5" :step="0.02"
             :display="(v: number) => v === 0 ? 'Off' : Math.round(v * 100) + '%'" @change="set('tile_grain', $event)" />
         </V4Card>
 
@@ -1045,13 +1301,13 @@
       <!-- ─── STYLE TAB ─────────────────────────────────────────────────────── -->
       <template v-else-if="activeTab === 'style'">
 
-        <V4Card title="Colors" hint="Auto-set by theme · override below" :default-open="true">
+        <V4Card v-if="sections.globalColorControls" title="Colors" hint="Auto-set by theme · override below" :default-open="true">
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
         </V4Card>
 
-        <V4Card title="Grid" hint="Optional poster or map overlay" :default-open="false">
+        <V4Card v-if="sections.gridControls" title="Grid" hint="Optional poster or map overlay" :default-open="false">
           <ToggleRow label="Show grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
           <template v-if="local.show_grid">
             <div class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
@@ -1083,7 +1339,7 @@
           </template>
         </V4Card>
 
-        <V4Card title="Typography" :default-open="false">
+        <V4Card v-if="sections.typographyControls" title="Typography" :default-open="false">
           <div class="flex items-center gap-2 mb-3 px-2.5 py-2 rounded-lg" style="background: #F5F5F4;">
             <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background: #2D6A4F;" />
             <p class="text-[10px] leading-snug" style="color: #57534E;">
@@ -1105,7 +1361,7 @@
           </template>
         </V4Card>
 
-        <V4Card title="Frame & padding" :default-open="false">
+        <V4Card v-if="sections.frameControls" title="Frame & padding" :default-open="false">
           <div class="mb-3">
             <p class="text-[10px] font-semibold uppercase mb-2" style="letter-spacing: 0.14em; color: #A8A29E;">Border</p>
             <div class="grid grid-cols-3 gap-1.5">
@@ -1179,7 +1435,7 @@
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('subtitle_scale', $event)" />
         </V4Card>
 
-        <V4Card title="Global typography" hint="Selected poster text edits inline" :default-open="true">
+        <V4Card v-if="sections.typographyControls" title="Global typography" hint="Selected poster text edits inline" :default-open="true">
           <ColorRow label="Text color" :value="local.label_text_color" @change="set('label_text_color', $event)" />
           <ColorRow label="Band background" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <div>
@@ -1245,7 +1501,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
+        <V4Card v-if="freeOverlayToolsAvailable" title="Images" :default-open="activeTextTarget?.type === 'image-overlay'">
           <div
             class="cursor-pointer"
             style="padding: 18px 0; text-align: center; border: 1.5px dashed #E7E5E4; border-radius: 8px;"
@@ -1284,7 +1540,7 @@
           <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
-        <V4Card title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
+        <V4Card v-if="freeOverlayToolsAvailable" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
             <div
               v-for="overlay in (local.text_overlays ?? [])"
@@ -1296,7 +1552,12 @@
               <div class="flex items-center gap-2 px-3 py-2.5" :style="activeOverlayId === overlay.id ? 'background: #DCEBE2;' : 'background: #FAFAF9;'">
                 <div class="w-3 h-3 rounded-full shrink-0" style="border: 1px solid white; box-shadow: 0 0 0 1px #E7E5E4;" :style="{ backgroundColor: overlay.color }" />
                 <span class="flex-1 text-xs truncate min-w-0" style="color: #1C1917;">{{ overlay.content || 'Empty text' }}</span>
-                <button class="transition-colors ml-1 shrink-0" style="color: #D6D3D1; background: none; border: none; cursor: pointer; padding: 0;" @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id">
+                <button
+                  class="transition-colors ml-1 shrink-0"
+                  style="color: #D6D3D1; background: none; border: none; cursor: pointer; padding: 0;"
+                  :data-testid="`text-overlay-toggle-${overlay.id}`"
+                  @click="expandedOverlayId = expandedOverlayId === overlay.id ? null : overlay.id"
+                >
                   <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                     <path v-if="expandedOverlayId === overlay.id" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
                     <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -1306,12 +1567,18 @@
                   <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
               </div>
-              <div v-if="false && expandedOverlayId === overlay.id" class="px-3 py-3 space-y-3" style="border-top: 1px solid #F5F5F4;">
+              <div
+                v-if="expandedOverlayId === overlay.id"
+                class="px-3 py-3 space-y-3"
+                style="border-top: 1px solid #F5F5F4;"
+                :data-testid="`text-overlay-editor-${overlay.id}`"
+              >
                 <div class="space-y-1">
                   <span class="text-xs" style="color: #44403C;">Content</span>
                   <textarea
                     :value="overlay.content"
                     rows="2"
+                    :data-testid="`text-overlay-content-${overlay.id}`"
                     class="w-full bg-white rounded-xl px-3 py-2.5 text-[16px] leading-snug placeholder-stone-400 focus:outline-none resize-none transition-colors"
                     style="border: 1px solid #E7E5E4; color: #1C1917;"
                     autocapitalize="sentences"
@@ -1396,6 +1663,7 @@
             <button
               class="w-full py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
               style="border: 2px dashed #E7E5E4; color: #A8A29E; background: transparent;"
+              data-testid="text-overlay-add"
               @click="addOverlay"
             >+ Add text</button>
           </div>
@@ -1420,7 +1688,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind } from '~/types'
+import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFamily, BorderStyle, BaseTileStyle, ThemeDefinition, TextOverlay, TrailSegment, StylePreset, RouteStats, MapAsset, MapAssetKind, PosterIconId, PosterTextSlot } from '~/types'
 import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
@@ -1429,12 +1697,17 @@ import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import { POSTER_ICONS } from '~/utils/posterIcons'
+import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
+import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
 import {
   CLASSIC_THEME_OPTIONS,
-  QUICK_THEME_OPTIONS as THEME_OPTIONS,
+  QUICK_THEME_OPTION_GROUPS,
   getThemeFontName,
   getThemeFontPreview,
   getThemeThumbnailProfile,
+  showsRefinedThemeBadge,
 } from '~/utils/themeOptions'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
@@ -1451,6 +1724,9 @@ type ActiveTextTarget =
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
 type ContourControlField = 'contour_color' | 'contour_major_color' | 'contour_opacity' | 'contour_minor_width' | 'contour_major_width'
+type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
+
+const THEME_OPTIONS = QUICK_THEME_OPTION_GROUPS.flatMap(group => [group.theme, ...group.colorways])
 
 const props = defineProps<{
   modelValue: StyleConfig
@@ -1477,6 +1753,16 @@ const props = defineProps<{
   segmentEditDisabled?: boolean
   /** Text element selected from the poster preview */
   activeTextTarget?: ActiveTextTarget | null
+  /** Enables the V2 poster elements editor tab and controls */
+  posterElementsAvailable?: boolean
+  /** Enables W4-min free text/image overlay tools */
+  posterTier2Available?: boolean
+  /** Current V2 poster editor tool mode */
+  posterEditorMode?: PosterEditorMode
+  /** Currently selected normalized poster element id */
+  selectedPosterElementId?: string | null
+  /** Whether non-printing V2 guides are visible on the poster */
+  posterGuidesVisible?: boolean
   /** Enable the staff-only Scout tab when the feature flag resolves true */
   scoutAvailable?: boolean
   /** Route stats passed to Scout for style context */
@@ -1505,6 +1791,7 @@ const sections = computed(() => computeSectionVisibility({
   showElevationProfile: local.show_elevation_profile ?? false,
   showStartPin: local.show_start_pin !== false,
   showFinishPin: local.show_finish_pin !== false,
+  editableFields: getThemeDefinition(local.color_theme ?? 'chalk')?.editable_fields,
 }))
 
 const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
@@ -1514,6 +1801,7 @@ const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
   park: true,
   landcover: true,
   transportation: true,
+  outdoorRoute: true,
   building: true,
   poi: true,
   place: true,
@@ -1546,6 +1834,7 @@ const ATLAS_LAYER_OPTIONS: Array<{ id: AtlasLayerId; label: string }> = [
   { id: 'park', label: 'Parks' },
   { id: 'landcover', label: 'Land' },
   { id: 'transportation', label: 'Roads' },
+  { id: 'outdoorRoute', label: 'Routes' },
   { id: 'building', label: 'Build' },
   { id: 'place', label: 'Places' },
   { id: 'poi', label: 'POIs' },
@@ -1605,6 +1894,10 @@ const atlasContourMajorColor = computed(() => atlasLayerSettings('contour').majo
 const atlasContourOpacity = computed(() => atlasLayerSettings('contour').minor_opacity ?? local.contour_opacity ?? 0.75)
 const atlasContourLabels = computed(() => atlasLayerSettings('contour').labels ?? local.show_elevation_labels)
 const isDarkAtlasPreset = computed(() => local.preset === 'radmaps-night-relief' || local.preset === 'radmaps-alidade-dark')
+const elevationProfilePosition = computed(() => local.elevation_profile_position ?? 'map-overlay')
+const elevationProfileHeightDefault = computed(() => elevationProfilePosition.value === 'separate-band' ? 12 : 22)
+const elevationProfileHeightMin = computed(() => elevationProfilePosition.value === 'separate-band' ? 6 : 8)
+const elevationProfileHeightMax = computed(() => elevationProfilePosition.value === 'separate-band' ? 24 : 40)
 const atlasWaterFillColor = computed(() => atlasLayerSettings('water').fill_color ?? (isDarkAtlasPreset.value ? '#040712' : local.water_color ?? '#79B7C8'))
 const atlasWaterOpacity = computed(() => atlasLayerSettings('water').fill_opacity ?? 0.76)
 const atlasWaterwayColor = computed(() => atlasLayerSettings('waterway').color ?? atlasLayerSettings('water').waterway_color ?? atlasWaterFillColor.value)
@@ -1624,6 +1917,10 @@ const atlasShowTrails = computed(() => atlasLayerSettings('transportation').show
 const atlasRoadMajorWidth = computed(() => atlasLayerSettings('transportation').major_width ?? 2)
 const atlasRoadMinorWidth = computed(() => atlasLayerSettings('transportation').minor_width ?? 0.9)
 const atlasTrailWidth = computed(() => atlasLayerSettings('transportation').trail_width ?? 1.2)
+const atlasOutdoorRouteColor = computed(() => atlasLayerSettings('outdoorRoute').color ?? atlasTrailColor.value)
+const atlasOutdoorRouteOpacity = computed(() => atlasLayerSettings('outdoorRoute').opacity ?? 0.58)
+const atlasOutdoorRouteWidth = computed(() => atlasLayerSettings('outdoorRoute').width ?? 1.2)
+const atlasOutdoorRouteLabels = computed(() => atlasLayerSettings('outdoorRoute').labels ?? true)
 const atlasBuildingFillColor = computed(() => atlasLayerSettings('building').fill_color ?? local.label_text_color ?? '#405340')
 const atlasBuildingOpacity = computed(() => atlasLayerSettings('building').opacity ?? 0.16)
 const atlasPlaceLabelColor = computed(() => atlasLayerSettings('place').label_color ?? local.place_labels_color ?? local.label_text_color)
@@ -1668,6 +1965,14 @@ const emit = defineEmits<{
   'track-upload': [file: File]
   /** User wants to reopen the first-run theme browser */
   'browse-themes': []
+  'poster-editor-mode-change': [mode: PosterEditorMode]
+  'poster-guides-visible-change': [value: boolean]
+  'poster-element-selected': [id: string | null]
+  'poster-element-patch': [payload: { id: string; patch: PosterEditorElementPatch }]
+  'poster-element-remove': [id: string]
+  'poster-element-duplicate': [id: string]
+  'poster-text-add': []
+  'poster-icon-add': [icon: PosterIconId]
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -1721,10 +2026,10 @@ watch(() => props.modelValue, (v) => {
 }, { deep: true })
 
 // ── Tab state ──────────────────────────────────────────────────────────────────
-type TabId = 'quick' | 'map' | 'style' | 'text' | 'scout'
+type TabId = 'quick' | 'design' | 'map' | 'style' | 'text' | 'scout'
 const activeTab = ref<TabId>('quick')
 
-const BASE_TABS: Array<{ id: TabId; label: string }> = [
+const CORE_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'quick', label: 'Quick' },
   { id: 'map',   label: 'Map' },
   { id: 'style', label: 'Style' },
@@ -1732,16 +2037,26 @@ const BASE_TABS: Array<{ id: TabId; label: string }> = [
 ]
 
 const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
-const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
-const showThemeBrowser = computed(() => import.meta.dev || themePickerEnabled.value)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
+const baseTabs = computed(() => props.posterElementsAvailable
+  ? [
+      { id: 'quick' as const, label: 'Quick' },
+      { id: 'design' as const, label: 'Design' },
+      ...CORE_TABS.slice(1),
+    ]
+  : CORE_TABS,
+)
 const visibleTabs = computed(() => showScoutTab.value
-  ? [...BASE_TABS, { id: 'scout' as const, label: 'Scout' }]
-  : BASE_TABS,
+  ? [...baseTabs.value, { id: 'scout' as const, label: 'Scout' }]
+  : baseTabs.value,
 )
 
 watch(showScoutTab, (visible) => {
   if (!visible && activeTab.value === 'scout') activeTab.value = 'quick'
+})
+
+watch(() => props.posterElementsAvailable, (available) => {
+  if (!available && activeTab.value === 'design') activeTab.value = 'quick'
 })
 
 const scoutRouteStats = computed<RouteStats>(() => props.routeStats ?? {
@@ -1807,6 +2122,46 @@ const activeAssetId = computed(() =>
 
 const logoAsset = computed(() => (local.image_overlays ?? []).find(asset => asset.kind === 'logo') ?? null)
 const logoPreviewUrl = computed(() => logoAsset.value?.render_url ?? local.logo_url ?? '')
+const posterEditorMode = computed(() => props.posterEditorMode ?? 'layout')
+const guidedPosterEditor = computed(() => props.posterElementsAvailable === true)
+const freeOverlayToolsAvailable = computed(() => !guidedPosterEditor.value || props.posterTier2Available === true)
+const posterToolModes = computed(() =>
+  guidedPosterEditor.value
+    ? [
+        { id: 'layout' as const, label: 'Layout' },
+        { id: 'select' as const, label: 'Select' },
+        ...(props.posterTier2Available === true
+          ? [
+              { id: 'text' as const, label: 'Text' },
+              { id: 'image' as const, label: 'Image' },
+            ]
+          : []),
+        { id: 'guides' as const, label: 'Guides' },
+      ]
+    : [
+        { id: 'layout' as const, label: 'Layout' },
+        { id: 'select' as const, label: 'Select' },
+        { id: 'text' as const, label: 'Text' },
+        { id: 'image' as const, label: 'Image' },
+        { id: 'icon' as const, label: 'Icon' },
+        { id: 'guides' as const, label: 'Guides' },
+      ],
+)
+const posterEditorElements = computed(() =>
+  getPosterEditorElements(local as StyleConfig, props.routeStats, { includeHidden: true, editableTextSlots: posterEditorAllowlist.value.textSlots })
+    .filter(element => !guidedPosterEditor.value || element.source === 'theme' || element.source === 'system' || (props.posterTier2Available === true && (element.kind === 'free-text' || element.kind === 'image' || element.kind === 'logo')))
+    .slice()
+    .reverse(),
+)
+const activePosterElement = computed(() =>
+  posterEditorElements.value.find(element => element.id === props.selectedPosterElementId) ?? null,
+)
+const activePosterPrintGuardViolations = computed(() => {
+  const id = activePosterElement.value?.id
+  if (!id) return []
+  return computePosterPrintGuardViolations(local as StyleConfig).filter(violation => violation.elementId === id)
+})
+const posterEditorAllowlist = computed(() => posterEditorAllowlistForStyle(local as StyleConfig))
 
 const textOverlayCardKey = computed(() =>
   props.activeTextTarget?.type === 'text-overlay'
@@ -1850,6 +2205,65 @@ function applySavedTheme(saved: SavedTheme) {
 function set<K extends keyof StyleConfig>(key: K, value: StyleConfig[K]) {
   (local as StyleConfig)[key] = value
   emit('update:modelValue', { ...local })
+}
+
+function setPosterEditorMode(mode: PosterEditorMode) {
+  emit('poster-editor-mode-change', mode)
+}
+
+function patchPosterElement(id: string, patch: PosterEditorElementPatch) {
+  emit('poster-element-patch', { id, patch })
+}
+
+function slotFromPosterElementId(id?: string | null): PosterTextSlot | null {
+  if (!id?.startsWith('slot:')) return null
+  const slot = id.slice('slot:'.length) as PosterTextSlot
+  return posterEditorAllowlist.value.textSlots?.includes(slot) === false ? null : slot
+}
+
+function posterSlotPanelText(slot: PosterTextSlot) {
+  const override = local.poster_text_overrides?.[slot]?.text
+  if (override != null) return override
+  if (slot === 'trail_name') return local.trail_name ?? ''
+  if (slot === 'location_text') return local.location_text ?? ''
+  if (slot === 'occasion_text') return local.occasion_text ?? ''
+  if (slot === 'start_pin_label') return local.start_pin_label ?? 'Start'
+  if (slot === 'finish_pin_label') return local.finish_pin_label ?? 'Finish'
+  return ''
+}
+
+function activePosterSlotText() {
+  const slot = slotFromPosterElementId(activePosterElement.value?.id)
+  return slot ? posterSlotPanelText(slot) : ''
+}
+
+function activePosterSlotSizePt() {
+  const slot = slotFromPosterElementId(activePosterElement.value?.id)
+  return slot ? (local.poster_text_overrides?.[slot]?.font_size_pt ?? 48) : 48
+}
+
+function selectPosterElement(id: string | null) {
+  emit('poster-element-selected', id)
+}
+
+function setSelectedElementZ(delta: number) {
+  const element = activePosterElement.value
+  if (!element) return
+  patchPosterElement(element.id, { zIndex: Math.max(1, element.zIndex + delta) })
+}
+
+function resizeSelectedElement(width: number) {
+  const element = activePosterElement.value
+  if (!element) return
+  const aspect = element.height && element.width ? element.height / element.width : 1
+  patchPosterElement(element.id, { width, height: Number(Math.max(2, width * aspect).toFixed(2)) })
+}
+
+function handleDesignUpload(e: Event, kind: MapAssetKind) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) emitImageUpload(file, kind)
+  input.value = ''
 }
 
 function updateAtlasContourSettings(patch: Partial<NonNullable<AtlasLayerSettings['contour']>>) {
@@ -2010,6 +2424,8 @@ function removeLogoAsset() {
 }
 
 const imageInputRef = ref<HTMLInputElement | null>(null)
+const designImageInputRef = ref<HTMLInputElement | null>(null)
+const designLogoInputRef = ref<HTMLInputElement | null>(null)
 const replaceLogoInputRef = ref<HTMLInputElement | null>(null)
 const replaceImageInputRef = ref<HTMLInputElement | null>(null)
 const pendingReplaceAsset = ref<{ id: string; kind: MapAssetKind } | null>(null)
@@ -2049,10 +2465,11 @@ function handlePendingAssetReplace(e: Event) {
 const SEGMENT_COLORS = ['#2D6A4F', '#3A7CA5', '#C1121F', '#E87722', '#F4B942', '#7B3F8D', '#4ECDC4', '#C8A97E', '#555555', '#FFFFFF']
 
 const PIN_FONTS: Array<{ id: FontFamily; label: string }> = [
+  { id: 'Source Sans 3',          label: 'Source Sans' },
+  { id: 'IBM Plex Sans',          label: 'IBM Plex' },
+  { id: 'Atkinson Hyperlegible Next', label: 'Atkinson' },
   { id: 'DM Sans',               label: 'DM Sans' },
   { id: 'Space Grotesk',         label: 'Space Grotesk' },
-  { id: 'Oswald',                label: 'Oswald' },
-  { id: 'Big Shoulders Display', label: 'Big Shoulders' },
 ]
 
 const SEGMENT_DISTANCE_STEP_MI = 0.05
@@ -2134,7 +2551,7 @@ function applyToAll(patch: Partial<TrailSegment>) {
 function applyTrailLabelTypographyAuto() {
   local.leader_label_auto_fit = true
   local.leader_label_scale = 1
-  local.leader_label_font_family = 'Big Shoulders Display'
+  local.leader_label_font_family = 'Atkinson Hyperlegible Next'
   emit('update:modelValue', { ...local })
 }
 
@@ -2197,9 +2614,14 @@ function applyTheme(theme: ThemeDefinition) {
 }
 
 function applyClassicTheme(theme: ThemeDefinition) {
-  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
-  local.composition = undefined
-  local.audience = undefined
+  const target = theme.migration_target ? getThemeDefinition(theme.migration_target) : undefined
+  if (target) {
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target))
+  } else {
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+    local.composition = undefined
+    local.audience = undefined
+  }
   emit('update:modelValue', { ...local })
 }
 
@@ -2207,8 +2629,12 @@ function isRefinedThemeActive(theme: ThemeDefinition) {
   return local.color_theme === theme.id && local.composition === theme.composition
 }
 
+function showsRefinedBadge(theme: ThemeDefinition) {
+  return showsRefinedThemeBadge(theme.id)
+}
+
 function isClassicThemeActive(theme: ThemeDefinition) {
-  return local.color_theme === theme.id && !local.composition
+  return (local.color_theme === theme.id && !local.composition) || (!!theme.migration_target && local.color_theme === theme.migration_target)
 }
 
 function selectFont(fontName: FontFamily) {
@@ -2218,8 +2644,9 @@ function selectFont(fontName: FontFamily) {
 }
 
 const fontGroups: Array<{ label: string; fonts: FontFamily[] }> = [
-  { label: 'EDITORIAL', fonts: ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue'] },
+  { label: 'PRINT', fonts: ['Source Sans 3', 'IBM Plex Sans', 'Atkinson Hyperlegible Next', 'Source Serif 4', 'Newsreader'] },
   { label: 'MODERN', fonts: ['DM Sans', 'Space Grotesk', 'Outfit', 'Work Sans'] },
+  { label: 'DISPLAY', fonts: ['Big Shoulders Display', 'Fjalla One', 'Oswald', 'Bebas Neue'] },
   { label: 'REFINED', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'DM Serif Display'] },
 ]
 
@@ -2428,22 +2855,32 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Atlas Minimal',
     title: 'Owned Atlas minimal — CARTO-like quiet context with editable vector layers',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#F5F2EC"/>
-      <rect x="0" y="21" width="48" height="11" fill="#D8E6ED" opacity="0.42"/>
-      <path d="M0 11 Q12 9 24 11 Q36 13 48 10" stroke="#CFC7B8" stroke-width="0.7" fill="none" opacity="0.58"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#D43F3A" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-minimal">
+      <rect width="48" height="32" fill="#F7F3EA"/>
+      <rect x="0" y="22" width="48" height="10" fill="#DCE8EC" opacity="0.34"/>
+      <path d="M0 10 Q13 8.8 24 10.2 Q36 11.8 48 9.7" stroke="#D7CEC0" stroke-width="0.45" fill="none" opacity="0.55"/>
+      <path d="M3 18 Q15 17 27 18.5 Q39 20 48 17.4" stroke="#E6DFD3" stroke-width="0.45" fill="none" opacity="0.70"/>
+      <path d="M7 24 Q18 18 30 20 Q38 22 44 16" stroke="#1C1917" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <circle cx="7" cy="24" r="1.15" fill="#1C1917"/>
+      <circle cx="44" cy="16" r="1.15" fill="#1C1917"/>
+    </g>`,
     defaults: {
-      show_contours: false,
+      show_contours: true,
       show_hillshade: false,
       show_roads: false,
       show_poi_labels: false,
-      route_color: '#D43F3A',
+      contour_detail: 5,
+      contour_opacity: 0.26,
+      contour_minor_width: 0.7,
+      route_color: '#1A1A1A',
+      route_width: 3.5,
       atlas_layer_settings: {
-        landcover: { color: '#F5F2EC', opacity: 0.44 },
-        park: { fill_color: '#E2E9D7', opacity: 0.22 },
-        water: { fill_color: '#B9D3DF', fill_opacity: 0.46 },
+        landcover: { color: '#FAF8F3', opacity: 0.96 },
+        park: { fill_color: '#E2E9D7', opacity: 0.14 },
+        water: { fill_color: '#B9D3DF', fill_opacity: 0.32 },
         waterway: { color: '#8DB2C4', opacity: 0.42, width: 0.85 },
         transportation: { opacity: 0.22, major_color: '#B8AEA0', minor_color: '#D2CAC0', trail_color: '#AEA895', show_major: false, show_minor: false, show_trails: false },
+        contour: { minor_color: '#E2DCCF', major_color: '#CFC7B6', minor_opacity: 0.30, major_opacity: 0.38, minor_width: 0.7, major_width: 0.55 },
         place: { label_color: '#5B554F', label_opacity: 0.54, font_size: 12, halo_color: '#F5F2EC' },
         poi: { label_opacity: 0.24 },
       },
@@ -2455,25 +2892,31 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Atlas Topo',
     title: 'Owned Atlas topographic — Mapbox Outdoors-like terrain, trails, and labels',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#E8DFCF"/>
-      <rect x="0" y="0" width="48" height="32" fill="#AFC982" opacity="0.28"/>
-      <ellipse cx="24" cy="18" rx="18" ry="10" stroke="#A78B5D" stroke-width="0.65" fill="none"/>
-      <ellipse cx="24" cy="18" rx="12" ry="7" stroke="#7E6841" stroke-width="0.75" fill="none"/>
-      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#2D86A1" stroke-width="1" fill="none"/>
-      <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#C44F24" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-topographic">
+      <rect width="48" height="32" fill="#E8DFCF"/>
+      <path d="M0 0 L48 0 L48 13 Q35 18 22 15 Q10 12 0 17 Z" fill="#B9C983" opacity="0.52"/>
+      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#2D86A1" stroke-width="1.1" fill="none"/>
+      <ellipse cx="24" cy="18" rx="20" ry="11" stroke="#C2A96D" stroke-width="0.55" fill="none"/>
+      <ellipse cx="24" cy="18" rx="15" ry="8.2" stroke="#A78B5D" stroke-width="0.62" fill="none"/>
+      <ellipse cx="24" cy="18" rx="9" ry="5.1" stroke="#7E6841" stroke-width="0.72" fill="none"/>
+      <path d="M5 7 Q16 4 27 7 Q38 10 47 6" stroke="#786B3A" stroke-width="0.55" fill="none" stroke-dasharray="2 1.2" opacity="0.8"/>
+      <path d="M8 10 Q18 4 28 8 Q38 12 44 6" stroke="#9A3B27" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
       show_contours: true,
-      show_hillshade: true,
+      show_hillshade: false,
       show_roads: true,
-      contour_detail: 4,
-      route_color: '#C44F24',
+      contour_detail: 5,
+      contour_opacity: 0.34,
+      route_color: '#9A3B27',
+      route_width: 3,
       atlas_layer_settings: {
-        landcover: { color: '#E7DFBF', opacity: 0.78 },
+        landcover: { color: '#F3EEDD', opacity: 0.88 },
         park: { fill_color: '#C9D29A', opacity: 0.52 },
         water: { fill_color: '#79B7C8', fill_opacity: 0.72 },
         waterway: { color: '#327F96', opacity: 0.78, width: 1.2 },
         transportation: { opacity: 0.78, major_color: '#BA6A42', minor_color: '#C99B73', trail_color: '#786B3A', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#8B875E', major_color: '#68653F', minor_opacity: 0.36, major_width: 0.7 },
+        contour: { minor_color: '#CDBD8C', major_color: '#8A6D3F', minor_opacity: 0.34, major_opacity: 0.50, major_width: 0.7 },
         place: { label_color: '#29362D', label_opacity: 0.72, font_size: 14 },
       },
     },
@@ -2484,24 +2927,29 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Atlas Natural',
     title: 'Owned Atlas natural terrain — MapTiler-like green topo without raster dependency',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#D3E0B0"/>
-      <rect x="0" y="18" width="48" height="14" fill="#A8C878" opacity="0.64"/>
-      <path d="M0 22 Q12 17 24 20 Q34 23 48 15" stroke="#297D98" stroke-width="1.2" fill="none"/>
-      <ellipse cx="24" cy="17" rx="18" ry="10" stroke="#6E7C4A" stroke-width="0.6" fill="none"/>
-      <path d="M6 20 Q16 16 26 18 Q36 20 44 16" stroke="#D94A32" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-natural">
+      <rect width="48" height="32" fill="#E7ECDC"/>
+      <path d="M0 0 H48 V16 Q40 13 31 15 Q21 18 12 15 Q5 13 0 15 Z" fill="#C8D59B" opacity="0.82"/>
+      <path d="M0 18 Q12 13 24 16 Q35 19 48 11" stroke="#66AFC4" stroke-width="2.2" fill="none" opacity="0.9"/>
+      <ellipse cx="16" cy="23" rx="16" ry="7" fill="#9DBE72" opacity="0.55"/>
+      <ellipse cx="29" cy="14" rx="16" ry="8" stroke="#5D7449" stroke-width="0.6" fill="none" opacity="0.75"/>
+      <path d="M5 9 Q16 12 27 10 Q38 8 46 12" stroke="#CBA26C" stroke-width="0.85" fill="none" opacity="0.72"/>
+      <path d="M6 21 Q17 16 27 18 Q37 20 44 15" stroke="#9A3B27" stroke-width="1.85" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
       show_contours: true,
       show_hillshade: true,
       show_roads: true,
       contour_detail: 4,
-      route_color: '#D94A32',
+      route_color: '#9A3B27',
+      route_width: 3,
       atlas_layer_settings: {
-        landcover: { color: '#D3E0B0', opacity: 0.86 },
+        landcover: { color: '#E7ECDC', opacity: 0.88 },
         park: { fill_color: '#9DBE72', opacity: 0.62 },
         water: { fill_color: '#66AFC4', fill_opacity: 0.72 },
         waterway: { color: '#297D98', opacity: 0.78, width: 1.2 },
         transportation: { opacity: 0.48, major_color: '#CBA26C', minor_color: '#B8AA88', trail_color: '#6D7C45', show_major: true, show_minor: true, show_trails: true },
-        contour: { minor_color: '#6E7C4A', major_color: '#536031', minor_opacity: 0.30, major_width: 0.65 },
+        contour: { minor_color: '#9FB286', major_color: '#5D7449', minor_opacity: 0.30, major_width: 0.65 },
         place: { label_color: '#2F4027', label_opacity: 0.64, font_size: 13 },
       },
     },
@@ -2512,20 +2960,26 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Toner Light',
     title: 'First-party light toner — monochrome linework with restrained dot texture',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#F7F6F1"/>
-      <rect x="0" y="0" width="48" height="32" fill="#D7DEE0" opacity="0.42"/>
-      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#17222A" stroke-width="1.25" fill="none" opacity="0.68"/>
-      <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#17222A" stroke-width="0.75" fill="none" opacity="0.45"/>
-      <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#17222A" stroke-width="0.95" fill="none" opacity="0.5"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#C1121F" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-toner-light">
+      <rect width="48" height="32" fill="#F7F6F1"/>
+      <path d="M-2 5 Q11 8 24 6 Q36 4 50 7" stroke="#111111" stroke-width="2.1" fill="none" opacity="0.85"/>
+      <path d="M-2 15 Q11 12 22 15 Q35 18 50 13" stroke="#111111" stroke-width="1.35" fill="none" opacity="0.68"/>
+      <path d="M7 -2 Q8 9 7 20 Q6 27 8 34" stroke="#111111" stroke-width="1.45" fill="none" opacity="0.62"/>
+      <path d="M28 -2 Q29 9 28 20 Q27 27 30 34" stroke="#111111" stroke-width="0.8" fill="none" opacity="0.42"/>
+      <circle cx="35" cy="8" r="0.65" fill="#111111" opacity="0.5"/>
+      <circle cx="39" cy="12" r="0.65" fill="#111111" opacity="0.45"/>
+      <circle cx="35" cy="16" r="0.65" fill="#111111" opacity="0.4"/>
+      <path d="M6 23 Q18 17 30 20 Q38 22 44 17" stroke="#C1121F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
-      show_contours: false,
+      show_contours: true,
       show_hillshade: false,
       show_roads: true,
       show_place_labels: true,
       show_poi_labels: false,
-      route_color: '#C1121F',
-      route_width: 4.5,
+      contour_detail: 5,
+      route_color: '#111111',
+      route_width: 3.6,
       route_opacity: 1,
       pin_font_family: 'Work Sans',
       pin_opacity: 1,
@@ -2547,24 +3001,27 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Toner Dark',
     title: 'First-party dark toner — high-contrast roads with restrained dot texture',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#050505"/>
-      <rect x="0" y="0" width="48" height="32" fill="#1F2933" opacity="0.52"/>
-      <circle cx="9" cy="7" r="0.7" fill="#808A93" opacity="0.5"/>
-      <circle cx="13" cy="11" r="0.7" fill="#808A93" opacity="0.5"/>
-      <circle cx="17" cy="7" r="0.7" fill="#808A93" opacity="0.5"/>
-      <circle cx="21" cy="11" r="0.7" fill="#808A93" opacity="0.5"/>
-      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#FFFFFF" stroke-width="1.25" fill="none" opacity="0.78"/>
-      <path d="M0 15 Q10 13 22 15 Q34 17 48 13" stroke="#5F6B75" stroke-width="0.85" fill="none" opacity="0.86"/>
-      <path d="M8 0 Q7 9 8 20 Q9 27 8 32" stroke="#5F6B75" stroke-width="0.95" fill="none" opacity="0.72"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FF4A3D" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-toner-dark">
+      <rect width="48" height="32" fill="#050505"/>
+      <rect width="48" height="32" fill="#1F2933" opacity="0.56"/>
+      <path d="M-2 5 Q11 8 24 6 Q36 4 50 7" stroke="#FFFFFF" stroke-width="2.1" fill="none" opacity="0.85"/>
+      <path d="M-2 15 Q11 12 22 15 Q35 18 50 13" stroke="#8B98A4" stroke-width="1.35" fill="none" opacity="0.88"/>
+      <path d="M7 -2 Q8 9 7 20 Q6 27 8 34" stroke="#8B98A4" stroke-width="1.45" fill="none" opacity="0.74"/>
+      <path d="M28 -2 Q29 9 28 20 Q27 27 30 34" stroke="#56636F" stroke-width="0.8" fill="none" opacity="0.7"/>
+      <circle cx="36" cy="7" r="0.65" fill="#D8DEE5" opacity="0.55"/>
+      <circle cx="40" cy="11" r="0.65" fill="#D8DEE5" opacity="0.44"/>
+      <circle cx="36" cy="15" r="0.65" fill="#D8DEE5" opacity="0.34"/>
+      <path d="M6 23 Q18 17 30 20 Q38 22 44 17" stroke="#FFD23F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
-      show_contours: false,
+      show_contours: true,
       show_hillshade: false,
       show_roads: true,
       show_place_labels: true,
       show_poi_labels: false,
-      route_color: '#FF4A3D',
-      route_width: 4.5,
+      contour_detail: 5,
+      route_color: '#FFD23F',
+      route_width: 3.4,
       route_opacity: 1,
       pin_font_family: 'Work Sans',
       pin_opacity: 1,
@@ -2586,12 +3043,16 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Contour Wash',
     title: 'Owned Atlas pale-blue contour wash — preserved as a non-watercolor quick-map style',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#D7E8F7"/>
-      <ellipse cx="24" cy="17" rx="22" ry="12" stroke="#75A8D2" stroke-width="0.55" fill="none" opacity="0.68"/>
-      <ellipse cx="24" cy="17" rx="17" ry="9" stroke="#75A8D2" stroke-width="0.55" fill="none" opacity="0.64"/>
-      <ellipse cx="24" cy="17" rx="11" ry="6" stroke="#4C7FA9" stroke-width="0.65" fill="none" opacity="0.72"/>
-      <path d="M0 24 Q13 20 26 22 Q36 24 48 18" stroke="#9FC5E6" stroke-width="1.1" fill="none" opacity="0.5"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9A5E57" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-contour-wash">
+      <rect width="48" height="32" fill="#D7E8F7"/>
+      <rect width="48" height="32" fill="#F1EDE4" opacity="0.42"/>
+      <path d="M0 24 Q13 20 26 22 Q36 24 48 18" stroke="#9FC5E6" stroke-width="2" fill="none" opacity="0.42"/>
+      <ellipse cx="24" cy="17" rx="23" ry="12.5" stroke="#8EB7D8" stroke-width="0.58" fill="none" opacity="0.76"/>
+      <ellipse cx="24" cy="17" rx="18" ry="9.8" stroke="#8EB7D8" stroke-width="0.58" fill="none" opacity="0.72"/>
+      <ellipse cx="24" cy="17" rx="13" ry="7" stroke="#6EA1C7" stroke-width="0.62" fill="none" opacity="0.72"/>
+      <ellipse cx="24" cy="17" rx="8" ry="4.2" stroke="#4C7FA9" stroke-width="0.72" fill="none" opacity="0.82"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#2B2A28" stroke-width="1.75" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
       show_contours: true,
       show_hillshade: false,
@@ -2599,17 +3060,20 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
       show_place_labels: false,
       show_poi_labels: false,
       contour_detail: 5,
-      route_color: '#9A5E57',
-      background_color: '#EDE4D7',
-      label_bg_color: '#EDE4D7',
-      label_text_color: '#2A180B',
+      contour_opacity: 0.42,
+      contour_minor_width: 1.5,
+      route_color: '#2B2A28',
+      route_width: 2.6,
+      background_color: '#ECEAE6',
+      label_bg_color: '#ECEAE6',
+      label_text_color: '#2B2A28',
       atlas_layer_settings: {
-        landcover: { color: '#D7E8F7', opacity: 0.94 },
+        landcover: { color: '#ECEAE6', opacity: 0.94 },
         park: { fill_color: '#CFE0EA', opacity: 0.26 },
         water: { fill_color: '#B7D8EF', fill_opacity: 0.34 },
         waterway: { color: '#75A8D2', opacity: 0.42, width: 0.9 },
         transportation: { opacity: 0.16, major_color: '#8AA6BD', minor_color: '#B5C8D6', trail_color: '#7D9AB3', show_major: false, show_minor: false, show_trails: false },
-        contour: { minor_color: '#75A8D2', major_color: '#4C7FA9', minor_opacity: 0.46, major_width: 0.55 },
+        contour: { minor_color: '#B7C0BD', major_color: '#8B9B96', minor_opacity: 0.55, major_width: 0.55 },
         place: { label_color: '#4F6D83', label_opacity: 0.20, font_size: 12, halo_color: '#D7E8F7' },
         poi: { label_opacity: 0.10 },
       },
@@ -2621,18 +3085,25 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Watercolor',
     title: 'First-party watercolor art tiles — painted paper, washes, roads, trails, water, parks, and sparse pigment artifacts',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#FFF3DF"/>
-      <ellipse cx="13" cy="14" rx="13" ry="9" fill="#A8C89A" opacity="0.46"/>
-      <ellipse cx="34" cy="19" rx="12" ry="8" fill="#DCA883" opacity="0.32"/>
-      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#2DAAC5" stroke-width="2.4" fill="none" opacity="0.82"/>
-      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#89584F" stroke-width="1.25" fill="none" stroke-dasharray="1.5 1.1" opacity="0.58"/>
-      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#9D3F32" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-watercolor">
+      <rect width="48" height="32" fill="#FFF3DF"/>
+      <ellipse cx="12" cy="13" rx="15" ry="10" fill="#98BF8A" opacity="0.44"/>
+      <ellipse cx="35" cy="20" rx="14" ry="9" fill="#DCA883" opacity="0.34"/>
+      <ellipse cx="26" cy="9" rx="11" ry="5" fill="#F1CB7B" opacity="0.23"/>
+      <path d="M0 23 Q13 18 26 20 Q36 22 48 16" stroke="#38B8D0" stroke-width="2.6" fill="none" opacity="0.78"/>
+      <path d="M7 12 Q18 8 29 12 Q38 15 45 10" stroke="#89584F" stroke-width="1.15" fill="none" stroke-dasharray="1.4 1.15" opacity="0.58"/>
+      <circle cx="38" cy="8" r="1.1" fill="#C2683F" opacity="0.34"/>
+      <circle cx="42" cy="12" r="0.8" fill="#2DAAC5" opacity="0.28"/>
+      <path d="M5 25 Q16 19 27 21 Q38 23 44 12" stroke="#C2683F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
-      show_contours: false,
+      show_contours: true,
       show_hillshade: false,
       show_roads: true,
-      contour_detail: 3,
-      route_color: '#9D3F32',
+      contour_detail: 5,
+      contour_opacity: 0.36,
+      route_color: '#C2683F',
+      route_width: 3.2,
       atlas_layer_settings: {
         landcover: { opacity: 1 },
         park: { fill_color: '#98BF8A', opacity: 0.42 },
@@ -2651,47 +3122,61 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
     label: 'Night Relief',
     title: 'Owned Atlas dark terrain — contours, hydro, and copper route contrast',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#081611"/>
-      <rect x="0" y="0" width="48" height="32" fill="#1E5D78" opacity="0.22"/>
-      <ellipse cx="24" cy="18" rx="20" ry="11" stroke="#39495C" stroke-width="0.7" fill="none"/>
-      <ellipse cx="24" cy="18" rx="13" ry="7" stroke="#6C86A4" stroke-width="0.85" fill="none"/>
-      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#58A4C5" stroke-width="1" fill="none" opacity="0.75"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#F08A46" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
-    defaults: { show_contours: true, show_hillshade: true, contour_detail: 4, route_color: '#F08A46', background_color: '#151A1D', label_bg_color: '#151A1D', label_text_color: '#F3E8D0' },
+    svg: `<g data-thumb-key="atlas-night-relief">
+      <rect width="48" height="32" fill="#081611"/>
+      <path d="M0 0 H48 V32 H0 Z" fill="#123456" opacity="0.46"/>
+      <path d="M0 30 Q10 20 21 22 Q31 24 48 12 V32 H0 Z" fill="#1C5E53" opacity="0.32"/>
+      <ellipse cx="24" cy="18" rx="21" ry="11.5" stroke="#39495C" stroke-width="0.7" fill="none"/>
+      <ellipse cx="24" cy="18" rx="15" ry="8" stroke="#6C86A4" stroke-width="0.78" fill="none"/>
+      <ellipse cx="24" cy="18" rx="8" ry="4.2" stroke="#B6C9D7" stroke-width="0.55" fill="none" opacity="0.62"/>
+      <path d="M0 24 Q12 19 24 21 Q34 24 48 15" stroke="#58A4C5" stroke-width="1.2" fill="none" opacity="0.75"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#E8C66A" stroke-width="2.1" fill="none" stroke-linecap="round"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#E8C66A" stroke-width="4.2" fill="none" stroke-linecap="round" opacity="0.16"/>
+    </g>`,
+    defaults: { show_contours: true, show_hillshade: true, contour_detail: 5, route_color: '#E8C66A', route_width: 3, background_color: '#0A1024', label_bg_color: '#0A1024', label_text_color: '#F3E8D0' },
     beta: true,
   },
   {
     id: 'radmaps-simple-contour',
-    label: 'Simple Contour',
+    label: 'Contours',
     title: 'Owned Atlas contour-first poster — sparse basemap, dense browser contours',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#FAF8F1"/>
-      <ellipse cx="24" cy="18" rx="22" ry="12" stroke="#B4A88E" stroke-width="0.55" fill="none"/>
-      <ellipse cx="24" cy="18" rx="17" ry="9" stroke="#B4A88E" stroke-width="0.55" fill="none"/>
-      <ellipse cx="24" cy="18" rx="12" ry="6.5" stroke="#7C6F56" stroke-width="0.8" fill="none"/>
-      <ellipse cx="24" cy="18" rx="7" ry="3.6" stroke="#7C6F56" stroke-width="0.9" fill="none"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#C24E2C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    defaults: { show_contours: true, show_hillshade: false, contour_detail: 5, route_color: '#C24E2C' },
+    svg: `<g data-thumb-key="atlas-simple-contour">
+      <rect width="48" height="32" fill="#FAF8F1"/>
+      <ellipse cx="24" cy="18" rx="23" ry="12.6" stroke="#B4A88E" stroke-width="0.48" fill="none"/>
+      <ellipse cx="24" cy="18" rx="19" ry="10.2" stroke="#B4A88E" stroke-width="0.48" fill="none"/>
+      <ellipse cx="24" cy="18" rx="15" ry="8" stroke="#A09478" stroke-width="0.52" fill="none"/>
+      <ellipse cx="24" cy="18" rx="11" ry="5.8" stroke="#7C6F56" stroke-width="0.66" fill="none"/>
+      <ellipse cx="24" cy="18" rx="7" ry="3.6" stroke="#7C6F56" stroke-width="0.86" fill="none"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#9A3B27" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+    </g>`,
+    defaults: { show_contours: true, show_hillshade: false, contour_detail: 5, route_color: '#9A3B27', route_width: 3.2 },
     beta: true,
   },
   {
     id: 'radmaps-alidade',
-    label: 'Atlas Alidade',
+    label: 'Alidade',
     title: 'Owned Atlas Alidade — clean modern cartography without MapTiler',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#F5F3EE"/>
-      <rect x="0" y="21" width="48" height="11" fill="#D0DDE8" opacity="0.70"/>
-      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#C8C0B8" stroke-width="0.8" fill="none" opacity="0.60"/>
-      <path d="M0 15 Q10 13 20 15 Q32 17 48 13" stroke="#C8C0B8" stroke-width="0.5" fill="none" opacity="0.40"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#E6463C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-alidade">
+      <rect width="48" height="32" fill="#F5F3EE"/>
+      <rect x="0" y="21" width="48" height="11" fill="#D0DDE8" opacity="0.76"/>
+      <path d="M0 7 L48 5" stroke="#B8B0A8" stroke-width="0.9" opacity="0.72"/>
+      <path d="M0 15 L48 13" stroke="#D2CBC2" stroke-width="0.7" opacity="0.72"/>
+      <path d="M10 0 L8 32" stroke="#B8B0A8" stroke-width="0.85" opacity="0.68"/>
+      <path d="M28 0 L29 32" stroke="#D2CBC2" stroke-width="0.62" opacity="0.62"/>
+      <path d="M0 25 L48 21" stroke="#A7BAC8" stroke-width="1" opacity="0.64"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#C2502F" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
       show_contours: false,
       show_hillshade: false,
       show_roads: true,
       show_poi_labels: false,
-      route_color: '#E6463C',
-      background_color: '#F5F3EE',
-      label_bg_color: '#F5F3EE',
+      route_color: '#C2502F',
+      route_width: 3,
+      background_color: '#DDE3EA',
+      label_bg_color: '#DDE3EA',
       label_text_color: '#1C1917',
       atlas_layer_settings: {
         landcover: { color: '#F5F3EE', opacity: 0.72 },
@@ -2707,23 +3192,29 @@ const ATLAS_MAP_PRESETS: MapPresetOption[] = [
   },
   {
     id: 'radmaps-alidade-dark',
-    label: 'Atlas Dark',
+    label: 'Dark Atlas',
     title: 'Owned Atlas dark Alidade — dataviz-style clean dark basemap',
     viewBox: '0 0 48 32',
-    svg: `<rect width="48" height="32" fill="#141414"/>
-      <rect x="0" y="20" width="48" height="12" fill="#0A1820" opacity="0.90"/>
-      <path d="M0 8 Q12 6 24 8 Q36 10 48 7" stroke="#484848" stroke-width="0.8" fill="none" opacity="0.70"/>
-      <path d="M0 15 Q10 13 20 15 Q32 17 48 13" stroke="#383838" stroke-width="0.5" fill="none" opacity="0.50"/>
-      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FB923C" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
+    svg: `<g data-thumb-key="atlas-alidade-dark">
+      <rect width="48" height="32" fill="#141414"/>
+      <rect x="0" y="20" width="48" height="12" fill="#0A2836" opacity="0.92"/>
+      <path d="M0 7 L48 5" stroke="#6B7280" stroke-width="0.9" opacity="0.72"/>
+      <path d="M0 15 L48 13" stroke="#383838" stroke-width="0.78" opacity="0.85"/>
+      <path d="M10 0 L8 32" stroke="#585858" stroke-width="0.85" opacity="0.74"/>
+      <path d="M28 0 L29 32" stroke="#383838" stroke-width="0.65" opacity="0.78"/>
+      <path d="M0 25 L48 21" stroke="#2C5E73" stroke-width="1" opacity="0.76"/>
+      <path d="M6 22 Q18 17 30 20 Q38 22 44 17" stroke="#FFD23F" stroke-width="1.95" fill="none" stroke-linecap="round"/>
+    </g>`,
     defaults: {
       show_contours: false,
       show_hillshade: false,
       show_roads: true,
       show_poi_labels: false,
-      route_color: '#FB923C',
-      background_color: '#141414',
-      label_bg_color: '#141414',
-      label_text_color: '#F0F0F0',
+      route_color: '#FFD23F',
+      route_width: 3,
+      background_color: '#0E3A63',
+      label_bg_color: '#0E3A63',
+      label_text_color: '#DCEEFF',
       atlas_layer_settings: {
         landcover: { color: '#141414', opacity: 0.86 },
         park: { fill_color: '#172A22', opacity: 0.30 },

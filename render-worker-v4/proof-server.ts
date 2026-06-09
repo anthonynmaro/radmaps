@@ -6,7 +6,7 @@ import { takeLocalChromiumScreenshot } from './src/localChromium.js'
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 const MAX_VIEWPORT_DIMENSION = 8_192
 
-interface BrowserlessScreenshotPayload {
+interface ProofScreenshotPayload {
   url?: unknown
   userAgent?: unknown
   options?: {
@@ -31,11 +31,11 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
 }
 
 function configuredToken(): string {
-  const raw = process.env.PROOF_RENDER_TOKEN || process.env.BROWSERLESS_TOKEN || ''
+  const raw = process.env.PROOF_RENDER_TOKEN || ''
   if (!raw.trim()) return ''
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    const token = parsed.PROOF_RENDER_TOKEN ?? parsed.BROWSERLESS_TOKEN
+    const token = parsed.PROOF_RENDER_TOKEN
     return typeof token === 'string' ? token : raw
   } catch {
     return raw
@@ -121,7 +121,7 @@ function requestedUserAgent(input: unknown): string | undefined {
   return undefined
 }
 
-function timeoutFrom(url: URL, payload: BrowserlessScreenshotPayload): number {
+function timeoutFrom(url: URL, payload: ProofScreenshotPayload): number {
   const queryTimeout = url.searchParams.get('timeout')
   const fromQuery = queryTimeout === null ? Number.NaN : Number(queryTimeout)
   const fromGoto = Number(payload.gotoOptions?.timeout)
@@ -155,7 +155,7 @@ const server = createServer(async (req, res) => {
 
   try {
     const body = await readBody(req)
-    const payload = JSON.parse(body.toString('utf8')) as BrowserlessScreenshotPayload
+    const payload = JSON.parse(body.toString('utf8')) as ProofScreenshotPayload
     if (typeof payload.url !== 'string' || !/^https?:\/\//i.test(payload.url)) {
       jsonResponse(res, 400, { error: 'invalid_url' })
       return

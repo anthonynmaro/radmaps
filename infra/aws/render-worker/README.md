@@ -1,8 +1,8 @@
 # RadMaps AWS Render Worker
 
 This stack runs `render-worker-v4` on ECS/Fargate with local Playwright Chromium
-instead of Browserless, and runs a small App Runner proof renderer with a
-Browserless-compatible `/screenshot` API. It keeps the same Nuxt render pages,
+for final renders, and runs a small App Runner proof renderer with a
+legacy-compatible `/screenshot` API. It keeps the same Nuxt render pages,
 same render tickets, same Supabase/Gelato queue flow, and the same
 `product_renders.render_backend = 'browser'` database value.
 
@@ -37,9 +37,9 @@ aws logs tail /radmaps/render-worker-v4 --follow --region "${AWS_REGION:-us-east
 Point the Nuxt app at the proof renderer:
 
 ```bash
-BROWSERLESS_ENDPOINT=https://<ProofRendererUrl>
-BROWSERLESS_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
-BROWSERLESS_TIMEOUT_MS=120000
+PROOF_RENDER_ENDPOINT=https://<ProofRendererUrl>
+PROOF_RENDER_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
+PROOF_RENDER_TIMEOUT_MS=120000
 ```
 
 The App Runner proof renderer only accepts screenshot URLs from `APP_URL` by
@@ -55,9 +55,9 @@ can build and push from this machine instead of CodeBuild.
 Production Vercel should have:
 
 ```bash
-BROWSERLESS_ENDPOINT=https://<ProofRendererUrl>
-BROWSERLESS_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
-BROWSERLESS_TIMEOUT_MS=120000
+PROOF_RENDER_ENDPOINT=https://<ProofRendererUrl>
+PROOF_RENDER_TOKEN=<same token synced by scripts/aws-render-worker-sync-secrets.sh>
+PROOF_RENDER_TIMEOUT_MS=120000
 RENDER_TICKET_SECRET=<same ticket secret synced to AWS Secrets Manager>
 ```
 

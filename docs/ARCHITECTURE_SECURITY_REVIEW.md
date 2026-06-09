@@ -1,7 +1,7 @@
 # Architecture And Security Review
 
 **Date:** 2026-06-02
-**Scope:** Browserless renderer, print queue, checkout/order flow, admin premade catalog, renderer-adjacent security.
+**Scope:** AWS renderer, print queue, checkout/order flow, admin premade catalog, renderer-adjacent security.
 
 ## Summary
 
@@ -18,8 +18,9 @@ proof render path, and publish only complete rows for checkout/customization.
 
 - Removed the legacy `render-worker/` Puppeteer renderer.
 - Removed the native/SVG spike code and stale native render tests.
-- Simplified `render-worker-v4/` to queue orchestration only: Browserless
-  capture, validation, Supabase upload, `product_renders`, and Gelato submit.
+- Simplified `render-worker-v4/` to queue orchestration only: configured
+  Chromium capture, validation, Supabase upload, `product_renders`, and Gelato
+  submit.
 - Removed legacy `RENDER_PIPELINE_V4_*` and `RENDER_WORKER_*` flags from the
   active app path and examples.
 - Routed Railway to `render-worker-v4/Dockerfile.queue`.
@@ -54,7 +55,7 @@ proof render path, and publish only complete rows for checkout/customization.
 flowchart TD
   A["Editor MapPreview.vue"] --> B["Order button saves style"]
   B --> C["Proof render API"]
-  C --> D["Browserless screenshot of /render/map/[id]"]
+  C --> D["AWS proof screenshot of /render/map/[id]"]
   D --> E["Proof URL on maps row"]
   B --> F["Stripe Checkout session"]
   N["Admin /admin/premade"] --> O["Draft from source map_id"]
@@ -63,8 +64,8 @@ flowchart TD
   P --> F
   F --> G["Immutable order_snapshots row"]
   G --> H["Stripe webhook queues print_render_jobs"]
-  H --> I["Railway render-worker-v4"]
-  I --> J["Browserless screenshot of /render/session/[stripeSessionId]"]
+  H --> I["AWS/ECS render-worker-v4"]
+  I --> J["AWS final screenshot of /render/session/[stripeSessionId]"]
   J --> K["Validate final artifact"]
   K --> L["Supabase Storage + product_renders"]
   L --> M["Gelato order"]
@@ -76,8 +77,8 @@ flowchart TD
   `utils/print/printFraming.ts` and `utils/print/providerProfile.ts`.
 - `MapPreview.vue` owns poster composition and readiness; do not duplicate
   title/footer/border layout in workers or API routes.
-- `utils/render/renderTicket.ts` is the boundary for third-party screenshot
-  URLs. Do not put shared secrets directly into Browserless URLs.
+- `utils/render/renderTicket.ts` is the boundary for renderer screenshot URLs.
+  Do not put shared secrets directly into screenshot URLs.
 - The queue worker should stay boring. It should not know how to draw a map; it
   only knows how to request, validate, upload, and submit an artifact.
 - `utils/premadeCatalog.ts` owns draft defaults, asset fallback order, and
@@ -112,9 +113,9 @@ flowchart TD
   succeeds and the worker fails before saving `gelato_order_id`, an operator
   may need to reconcile by `orderReferenceId` before retrying fulfillment.
 - **Render capacity:** `/api/maps/[id]/render` now has per-user rate limits, but
-  proof renders still run outside the final print queue. Keep monitoring
-  Browserless concurrency and cost as traffic grows.
-- **User image trust boundary:** Browserless can fetch any URL the render page
+  proof renders still run outside the final print queue. Keep monitoring AWS
+  renderer concurrency and cost as traffic grows.
+- **User image trust boundary:** The AWS renderer can fetch any URL the render page
   references. Uploaded logos and future image overlays should be copied to
   trusted storage or restricted to an allowlist before render.
 - **Legacy DB artifacts:** The `render_cache` table remains in historical
@@ -122,7 +123,7 @@ flowchart TD
   migration after confirming there are no production readers.
 - **Fulfillment observability:** Queue failures reach `manual_review`, but
   operator-facing alerting is still light. Add explicit alerts for repeated
-  Browserless failures, Gelato submission failures, and missing snapshots.
+  AWS renderer failures, Gelato submission failures, and missing snapshots.
 - **Physical print validation:** Browser screenshots look good locally, but
   production should still require sample prints for `16x24`, `24x36`, and
   `32x48` before raising traffic.
@@ -139,7 +140,7 @@ Use faux fulfillment until you intentionally submit a real order:
 - `GELATO_ORDER_TYPE=draft` must be set for the app and worker.
 - `NUXT_PUBLIC_SITE_URL` and worker `APP_URL` must point to the same public
   ngrok URL.
-- Browserless, Supabase, Render Ticket, Gelato, and Resend env vars must be
+- AWS renderer, Supabase, Render Ticket, Gelato, and Resend env vars must be
   present in the app and worker environments as documented in
   `docs/RENDERING.md`.
 

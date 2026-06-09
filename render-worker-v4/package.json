@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "RadMaps final print queue worker — Browserless screenshot orchestration, validation, Supabase upload, and Gelato submission.",
+  "description": "RadMaps final print queue worker — AWS Chromium screenshot orchestration, validation, Supabase upload, and Gelato submission.",
   "engines": {
     "node": ">=20 <25"
   },

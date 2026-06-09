@@ -3,6 +3,7 @@ import { PMTiles } from 'pmtiles'
 import vtpbf from 'vt-pbf'
 import type { AtlasArtifactKey, AtlasManifest, AtlasManifestArtifact } from '~/utils/atlasManifest'
 import {
+  ATLAS_ARTIFACT_KEYS,
   atlasArtifactIntersectsBbox,
   atlasManifestArtifacts,
   atlasTileToBbox,
@@ -37,6 +38,18 @@ const EMPTY_BASE_TILE = Buffer.from(vtpbf.fromGeojsonVt(Object.fromEntries([
 const EMPTY_TERRAIN_TILE = Buffer.from(vtpbf.fromGeojsonVt({
   contour: { features: [] },
 }))
+const EMPTY_POI_TILE = Buffer.from(vtpbf.fromGeojsonVt({
+  poi: { features: [] },
+}))
+const EMPTY_OUTDOOR_ROUTES_TILE = Buffer.from(vtpbf.fromGeojsonVt({
+  outdoor_route: { features: [] },
+}))
+
+type AtlasTileSource = 'base' | 'terrain' | 'poi' | 'outdoorRoutes'
+
+// The terrain source is retained for Admin Atlas Lab QA of cached contour
+// artifacts. Product MapPreview/proof/final renders use maplibre-contour at
+// runtime instead of this PMTiles path.
 
 const globalForAtlasTiles = globalThis as unknown as {
   __radmapsAtlasPmtilesCache?: Map<string, PMTiles>
@@ -107,13 +120,27 @@ async function loadAtlasManifest(environment: string) {
   return manifest
 }
 
-function artifactKindForSource(source: string): AtlasArtifactKey {
-  return source === 'terrain' ? 'contours' : 'base'
+function isAtlasTileSource(source: string): source is AtlasTileSource {
+  return source === 'base' || source === 'terrain' || source === 'poi' || source === 'outdoorRoutes'
+}
+
+function artifactKindForSource(source: AtlasTileSource): AtlasArtifactKey {
+  if (source === 'terrain') return 'contours'
+  if (source === 'poi') return 'poi'
+  if (source === 'outdoorRoutes') return 'outdoorRoutes'
+  return 'base'
+}
+
+function normalizedManifestArtifactKind(artifact: AtlasManifestArtifact): AtlasArtifactKey | 'other' {
+  if (artifact.kind === 'terrain') return 'contours'
+  return (ATLAS_ARTIFACT_KEYS as readonly string[]).includes(artifact.kind)
+    ? artifact.kind as AtlasArtifactKey
+    : 'other'
 }
 
 async function artifactFromQuery(
   event: Parameters<typeof getRouterParam>[0],
-  source: string,
+  source: AtlasTileSource,
   z: number,
   x: number,
   y: number,
@@ -129,6 +156,9 @@ async function artifactFromQuery(
     if (!artifact) {
       throw createError({ statusCode: 404, message: 'Atlas artifact not found' })
     }
+    if (normalizedManifestArtifactKind(artifact) !== artifactKindForSource(source)) {
+      throw createError({ statusCode: 400, message: 'Atlas artifact kind does not match requested source' })
+    }
     return artifact
   }
 
@@ -139,6 +169,22 @@ async function artifactFromQuery(
     throw createError({ statusCode: 404, message: 'Atlas tile outside available coverage' })
   }
   return artifact
+}
+
+function emptyTileForSource(source: AtlasTileSource) {
+  if (source === 'terrain') return EMPTY_TERRAIN_TILE
+  if (source === 'poi') return EMPTY_POI_TILE
+  if (source === 'outdoorRoutes') return EMPTY_OUTDOOR_ROUTES_TILE
+  return EMPTY_BASE_TILE
+}
+
+function emptyTileResponse(event: Parameters<typeof getRouterParam>[0], source: AtlasTileSource) {
+  const emptyTile = emptyTileForSource(source)
+  setHeader(event, 'Content-Type', 'application/x-protobuf')
+  setHeader(event, 'Content-Length', emptyTile.byteLength)
+  setHeader(event, 'Cache-Control', 'public, max-age=86400')
+  setHeader(event, 'X-RadMaps-Atlas-Delivery', 'empty')
+  return emptyTile
 }
 
 function validateArtifactTile(
@@ -233,7 +279,7 @@ function getPmtiles(url: string) {
 
 export default defineEventHandler(async (event) => {
   const [source, zPart, xPart, yPart] = tilePathParts(event)
-  if (source !== 'base' && source !== 'terrain') {
+  if (!isAtlasTileSource(source)) {
     throw createError({ statusCode: 404, message: 'Unknown atlas tile source' })
   }
 
@@ -250,6 +296,7 @@ export default defineEventHandler(async (event) => {
     if (artifact) {
       return hostedTileResponse(event, environment, artifact, z, x, y)
     }
+    if (source !== 'base') return emptyTileResponse(event, source)
   }
 
   const pmtiles = getPmtiles(requestedUrl || DEFAULT_BASE_URL)
@@ -259,11 +306,7 @@ export default defineEventHandler(async (event) => {
     // MapLibre treats 204/empty vector tile responses as console errors. Return
     // a valid empty MVT containing the expected source layers so sparse PMTiles
     // archives and overscanned map views stay quiet during local QA.
-    const emptyTile = source === 'terrain' ? EMPTY_TERRAIN_TILE : EMPTY_BASE_TILE
-    setHeader(event, 'Content-Type', 'application/x-protobuf')
-    setHeader(event, 'Content-Length', emptyTile.byteLength)
-    setHeader(event, 'Cache-Control', 'public, max-age=86400')
-    return emptyTile
+    return emptyTileResponse(event, source)
   }
 
   setHeader(event, 'Content-Type', 'application/x-protobuf')

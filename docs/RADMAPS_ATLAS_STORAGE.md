@@ -48,9 +48,19 @@ are retained for QA, history, and optional cached coverage experiments. They
 are no longer the default strategy for scaling high-detail terrain globally.
 
 Production direction: keep approved base archives in R2, but keep high-detail
-terrain browser-rendered through `maplibre-contour` in both editor and
-Browserless print renders. Only add/cache contour PMTiles for regions where
-usage, reliability, or render latency proves the extra compute is worth it.
+terrain generated through `maplibre-contour` in both editor and AWS renderer
+outputs. Only add/cache contour PMTiles for regions where usage, reliability,
+or render latency proves the extra compute is worth it.
+
+Overlay direction: `poi` remains the existing manifest key for additive
+Overture Places overlays. `outdoorRoutes` is the only new overlay artifact kind
+for named OSM `route=hiking`, `route=bicycle`, and `route=mtb` relations. Basic
+trail/path geometry stays in the base `transportation` source layer. Overlay
+PMTiles should use immutable paths such as
+`atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
+`atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`,
+with z16 max zoom, source date, bytes, checksum, cost, and print QA status
+recorded before promotion.
 
 Current production tile service code:
 - Preferred edge: `workers/atlas-tiles`
@@ -90,12 +100,39 @@ Current promoted production base archives:
 - `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
 - `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
 - `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+- `atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles`
+- `atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles`
+- `atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles`
+- `atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles`
+- `atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles`
+- `atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles`
+- `atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles`
+- `atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles`
+- `atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles`
 
 Current production contour archive:
 `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles`
 
 Current production manifest:
 `atlas/v1/manifests/production.json`
+
+Current production manifest version:
+`2026.06.09-global-hotspots-production.1`
+
+Current production manifest counts:
+- `16` base artifacts
+- `1` contour artifact
+
+Global-hotspot promotion verification on 2026-06-09:
+- GitHub Actions workflow run `27209290643` copied approved staging PMTiles
+  into `radmaps-atlas-prod` and published the production manifest pointer.
+- `https://tiles.radmaps.studio/manifests/production.json` returned `200`
+  with all nine new global-hotspot artifact ids.
+- Each new production PMTiles object returned HTTP `206 Partial Content` and
+  `PMTiles` magic bytes for `Range: bytes=0-15`.
+- Each new production tile probe returned HTTP `200` through
+  `/tiles/production/{artifactId}/8/{x}/{y}.mvt` with a matching
+  `X-RadMaps-Atlas-Artifact` header.
 
 Current staging terrain coverage:
 
@@ -351,7 +388,7 @@ are true:
   `tiles.radmaps.studio`.
 - Atlas Lab proves base coverage in U.S., Canada, Mexico, Alaska, and at least
   one coastal/ocean-heavy map.
-- Browserless proof and final renders complete for `8x12`, `24x36`, and
+- AWS renderer proof and final renders complete for `8x12`, `24x36`, and
   `32x48` using Atlas styles.
 - Route linework renders below labels and remains readable across house styles.
 - Runtime contours from `maplibre-contour` load before render readiness marks

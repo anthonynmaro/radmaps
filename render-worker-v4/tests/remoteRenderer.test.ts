@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-describe('takeBrowserlessScreenshot', () => {
+describe('takeRemoteRendererScreenshot', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
@@ -9,8 +9,8 @@ describe('takeBrowserlessScreenshot', () => {
 
   it('sends the ngrok bypass user agent as a string', async () => {
     vi.resetModules()
-    vi.stubEnv('BROWSERLESS_TOKEN', 'browserless-test-token')
-    vi.stubEnv('BROWSERLESS_ENDPOINT', 'https://browserless.example.test')
+    vi.stubEnv('PROOF_RENDER_TOKEN', 'aws-proof-test-token')
+    vi.stubEnv('PROOF_RENDER_ENDPOINT', 'https://proof-renderer.example.test')
     vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
     vi.stubEnv('SUPABASE_SERVICE_KEY', 'test-service-key')
     vi.stubEnv('RENDER_TICKET_SECRET', 'test-render-ticket-secret')
@@ -21,8 +21,8 @@ describe('takeBrowserlessScreenshot', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const { takeBrowserlessScreenshot } = await import('../src/browserless.js')
-    await takeBrowserlessScreenshot({
+    const { takeRemoteRendererScreenshot } = await import('../src/remoteRenderer.js')
+    await takeRemoteRendererScreenshot({
       url: 'https://example.ngrok-free.dev/render/session/cs_test',
       widthPx: 100,
       heightPx: 150,
@@ -40,11 +40,11 @@ describe('takeBrowserlessScreenshot', () => {
     expect(body.userAgent).toContain('Googlebot')
   })
 
-  it('uses the Browserless-compatible protocol for the AWS proof renderer', async () => {
+  it('uses the legacy-compatible protocol for the AWS proof renderer', async () => {
     vi.resetModules()
-    vi.stubEnv('BROWSERLESS_TOKEN', 'aws-proof-token')
-    vi.stubEnv('BROWSERLESS_ENDPOINT', 'https://zfwtsxbyy2.us-east-2.awsapprunner.com')
-    vi.stubEnv('BROWSERLESS_TIMEOUT_MS', '120000')
+    vi.stubEnv('PROOF_RENDER_TOKEN', 'aws-proof-token')
+    vi.stubEnv('PROOF_RENDER_ENDPOINT', 'https://zfwtsxbyy2.us-east-2.awsapprunner.com')
+    vi.stubEnv('PROOF_RENDER_TIMEOUT_MS', '120000')
     vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
     vi.stubEnv('SUPABASE_SERVICE_KEY', 'test-service-key')
     vi.stubEnv('RENDER_TICKET_SECRET', 'test-render-ticket-secret')
@@ -55,8 +55,8 @@ describe('takeBrowserlessScreenshot', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const { takeBrowserlessScreenshot } = await import('../src/browserless.js')
-    await takeBrowserlessScreenshot({
+    const { takeRemoteRendererScreenshot } = await import('../src/remoteRenderer.js')
+    await takeRemoteRendererScreenshot({
       url: 'https://radmaps.studio/render/map/map-id?ticket=test-ticket',
       widthPx: 1235,
       heightPx: 1835,

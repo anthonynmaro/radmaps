@@ -100,11 +100,52 @@ Current entries:
   `2026.05.27-new-zealand-outdoor.1` produced a validated `403,714,835` byte
   PMTiles archive and published it to R2 as artifact
   `radmaps-new-zealand-outdoor-base`.
+- `western-alps-dolomites`: global-hotspot proof pack for Chamonix, Zermatt,
+  Innsbruck, Dolomites, Finale Ligure, and Lake Garda. Staging build
+  `2026.06.09-western-alps-dolomites.1` produced a validated
+  `1,201,969,253` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-western-alps-dolomites-base`.
+- `atlantic-islands-portugal`: bounded Portugal extract for Madeira/Azores.
+  Staging build `2026.06.09-atlantic-islands-portugal.1` produced a validated
+  `25,126,505` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-atlantic-islands-portugal-base`.
+- `atlantic-islands-canaries`: Canary Islands proof pack. Staging build
+  `2026.06.09-atlantic-islands-canaries.1` produced a validated `44,801,019`
+  byte PMTiles archive and published it to R2 as artifact
+  `radmaps-atlantic-islands-canaries-base`.
+- `andes-peru`: Peru Andes proof pack for Salkantay, Sacred Valley, Cordillera
+  Blanca, and bikepacking/vacation fixtures. Staging build
+  `2026.06.09-andes-peru.1` produced a validated `356,714,058` byte PMTiles
+  archive and published it to R2 as artifact `radmaps-andes-peru-base`.
+- `andes-ecuador`: Ecuador Andes proof pack for Cotopaxi, Quilotoa, and
+  highland vacation fixtures. Staging build `2026.06.09-andes-ecuador.1`
+  produced a validated `141,561,515` byte PMTiles archive and published it to
+  R2 as artifact `radmaps-andes-ecuador-base`.
+- `nepal-himalaya`: Nepal Himalaya proof pack for Everest Base Camp,
+  Annapurna, Langtang, and Mustang fixtures. Staging build
+  `2026.06.09-nepal-himalaya.1` produced a validated `323,016,649` byte
+  PMTiles archive and published it to R2 as artifact
+  `radmaps-nepal-himalaya-base`.
+- `iceland-adventure`: Iceland proof pack for Laugavegur and Ring Road
+  fixtures. Staging build `2026.06.09-iceland-adventure.1` produced a
+  validated `165,636,294` byte PMTiles archive and published it to R2 as
+  artifact `radmaps-iceland-adventure-base`.
+- `scotland-adventure`: Scotland proof pack for West Highland Way, Skye, and
+  Cairngorms fixtures. The first run failed because the source URL returned
+  HTML; the corrected rerun `27206657696` used
+  `https://download.geofabrik.de/europe/united-kingdom/scotland-latest.osm.pbf`
+  and produced a validated `302,811,086` byte PMTiles archive as artifact
+  `radmaps-scotland-adventure-base`.
+- `costa-rica-central-america`: Costa Rica vacation-trail proof pack for
+  Arenal, Monteverde, Nicoya, Osa, and Rincon de la Vieja fixtures. Staging
+  build `2026.06.09-costa-rica-central-america.1` produced a validated
+  `57,846,574` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-costa-rica-central-america-base`.
 
-The broader product queue, including deferred Alps/Dolomites, Nepal, Peru,
-Iceland/Scotland, Madeira/Canaries, and Costa Rica targets, is tracked in
-`atlas/coverage-targets.json` so strategic demand does not automatically become
-a runnable build.
+The broader product queue is tracked in `atlas/coverage-targets.json`. Targets
+may be marked `production-live` for base coverage while Overture Places `poi`
+and OSM `outdoorRoutes` overlays remain separate, budget-gated follow-up
+artifacts.
 
 The full U.S. source is the Geofabrik United States OSM PBF:
 
@@ -129,26 +170,55 @@ Run policy for new coverage targets:
 - Start with `workflow_dispatch` or `npm run atlas:pipeline -- --dry-run`.
 - Keep `dry_run=true` until source size, runner shape, and scratch storage are
   reviewed.
+- For any non-dry-run heavyweight build stage, pass `--estimated-cost-usd`.
+  The pipeline checks this against `atlas/coverage-targets.json` v2 and blocks
+  runs that would exceed the `$200` total coverage-build ceiling.
 - Do not run any target marked `deferred-*` in `atlas/coverage-targets.json`
   until the cost/demand gate has been explicitly cleared.
-- Keep cached contours disabled for these new base packs unless Browserless
+- Keep cached contours disabled for these new base packs unless AWS renderer
   render metrics show runtime contours are unreliable or too slow.
+
+Overlay build contract:
+
+- `base` artifacts remain the Planetiler/OSM source for roads, water,
+  landcover, buildings, places, base POIs, and basic trail/path geometry in the
+  `transportation` source layer.
+- Overture Places enrichment is written as a separate PMTiles overlay under the
+  existing manifest key `poi`, with source layer `poi`, bbox-filtered to the
+  target hotspot mesh and built to z16.
+- Named outdoor route enrichment is written under the manifest key
+  `outdoorRoutes`, with source layer `outdoor_route`, extracted only from OSM
+  relations where `route=hiking`, `route=bicycle`, or `route=mtb`, and built to
+  z16.
+- Overlay object paths stay immutable, for example
+  `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
+  `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`.
+- Every overlay run starts with `npm run atlas:pipeline -- --dry-run` or the
+  equivalent overlay dry-run, records estimated cost before a real build, and
+  updates `atlas/coverage-targets.json` actual cost fields after completion.
+- Promote overlays by merging the generated artifact into the existing manifest
+  with `npm run atlas:merge-manifest-artifact`; never replace the full manifest
+  with a single overlay build output.
 
 ## Current Progress Snapshot
 
-As of 2026-05-27:
+As of 2026-06-09:
 
 - Staging R2 has full contiguous-U.S. base coverage, North America base
-  coverage, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
-  Patagonia Andes proof-pack base artifacts.
+  coverage, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan,
+  Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador
+  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica proof-pack base
+  artifacts.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
 - Production R2 now has the Driftless lab pack plus approved U.S., North
-  America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
-  Patagonia Andes base artifacts. The active production manifest is
-  `2026.05.27-approved-coverage.1` with `7` base artifacts and `1` contour
-  artifact. Promotion completed in workflow run `26519815247`.
+  America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan,
+  Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador
+  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts. The
+  active production manifest is `2026.06.09-global-hotspots-production.1` with
+  `16` base artifacts and `1` contour artifact. The global-hotspot production
+  promotion completed in workflow run `27209290643`.
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
@@ -259,10 +329,11 @@ Current production manifest details:
 | Field | Value |
 |---|---|
 | URL | `https://tiles.radmaps.studio/manifests/production.json` |
-| Atlas version | `2026.05.27-approved-coverage.1` |
-| Base artifacts | `7` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`) |
+| Atlas version | `2026.06.09-global-hotspots-production.1` |
+| Base artifacts | `16` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`, `radmaps-western-alps-dolomites-base`, `radmaps-atlantic-islands-portugal-base`, `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`, `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`, `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, `radmaps-costa-rica-central-america-base`) |
 | Contour artifacts | `1` |
-| Promotion workflow run | `26519815247` |
+| Promotion workflow run | `27209290643` |
+| Verification | Production manifest returned `200`; all nine new PMTiles returned HTTP `206` with `PMTiles` magic bytes; `/tiles/production/{artifactId}/8/{x}/{y}.mvt` returned `200` with matching `X-RadMaps-Atlas-Artifact` headers for all nine new artifacts. |
 
 What remains for the New Zealand proof pack:
 
@@ -440,7 +511,7 @@ Recommended cadence:
 
 - Base atlas: monthly while usage is early; tighten to weekly only if map
   freshness becomes product-critical.
-- Terrain/contours: browser-rendered in editor and Browserless by default.
+- Terrain/contours: runtime-generated in editor and AWS renderer by default.
   Precompute/cache only specific regions that are slow, failure-prone, or
   proven by search/render/order demand. Do not schedule global high-detail
   contour PMTiles as a routine build.
@@ -507,7 +578,7 @@ The owned atlas is useful but not production-complete. The remaining work is:
      Mexico, Alaska, and coastal edge cases.
    - Run house-style visual checks for Toner, Field Topo, Watercolor,
      Night Relief, and Simple Contour.
-   - Confirm Browserless proof/final renders match the editor at `8x12`,
+   - Confirm AWS renderer proof/final renders match the editor at `8x12`,
      `24x36`, and `32x48`.
 3. **Production editor integration**
    - Move Atlas styles from Atlas Lab into the shared style builder path.
@@ -522,11 +593,11 @@ The owned atlas is useful but not production-complete. The remaining work is:
 5. **Coverage expansion**
    - Keep building base coverage first: North America staging is complete;
      globe base is next when cost is acceptable.
-   - Keep high-detail contours browser-rendered through `maplibre-contour` for
-     editor and Browserless renders. Add cached contour PMTiles only where usage
+   - Keep high-detail contours runtime-generated through `maplibre-contour` for
+     editor and AWS renderer output. Add cached contour PMTiles only where usage
      or reliability proves the need.
-   - Add richer overlays for public lands, trail/recreation POIs, boundaries,
-     parks, and destination-specific upgrades.
+   - Add richer overlays for public lands, Overture Places `poi`, OSM
+     `outdoorRoutes`, boundaries, parks, and destination-specific upgrades.
 
 ## Contours
 

@@ -409,7 +409,7 @@ Resources:
               - Name: PROOF_RENDER_TIMEOUT_MS
                 Value: !Ref ProofRenderTimeoutMs
             RuntimeEnvironmentSecrets:
-              - Name: BROWSERLESS_TOKEN
+              - Name: PROOF_RENDER_TOKEN
                 Value: !Ref ProofTokenSecretArn
       InstanceConfiguration:
         Cpu: !Ref ProofServiceCpu

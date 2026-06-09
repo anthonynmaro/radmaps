@@ -80,5 +80,5 @@ Before publishing or promoting Atlas data:
   `npm run atlas:merge-manifest-artifact` instead of replacing the manifest and
   losing previously verified terrain or overlay artifacts.
 - Keep production promotion separate from staging publication until Worker,
-  Atlas Lab, editor, Browserless, attribution, analytics, and rollback checks
+  Atlas Lab, editor, AWS renderer, attribution, analytics, and rollback checks
   pass.

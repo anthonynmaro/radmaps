@@ -1,7 +1,7 @@
 # RadMaps final print queue worker and proof renderer
 # ─────────────────────────────────────────────────────────────────────────────
 # Default command runs the paid-order queue. AWS App Runner overrides the
-# command with `node dist/proof-server.js` for the Browserless-compatible proof
+# command with `node dist/proof-server.js` for the AWS proof renderer
 # screenshot endpoint.
 
 FROM mcr.microsoft.com/playwright:v1.60.0-noble AS base

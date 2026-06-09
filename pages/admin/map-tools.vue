@@ -137,7 +137,7 @@ const renderFlow = [
   { label: 'Intent', icon: 'i-heroicons-swatch', body: 'StyleConfig stores poster intent: preset, base tile style, overlays, route styling, and map controls.' },
   { label: 'Graph', icon: 'i-heroicons-share', body: 'styleLayerGraph gates which controls are supported, baked, required, ignored, or editable for the active preset.' },
   { label: 'Style', icon: 'i-heroicons-map', body: 'mapStyle.ts turns the effective config into MapLibre sources, layers, attribution, and update behavior.' },
-  { label: 'Render', icon: 'i-heroicons-camera', body: 'MapPreview.vue renders the editor, proof, checkout, public share, and final Browserless screenshots.' },
+  { label: 'Render', icon: 'i-heroicons-camera', body: 'MapPreview.vue renders the editor, proof, checkout, public share, and final AWS screenshots.' },
   { label: 'Account', icon: 'i-heroicons-chart-bar', body: 'Analytics should attribute every style and render event to provider, tile source, atlas version, and render class.' },
 ]
 

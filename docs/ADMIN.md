@@ -84,7 +84,7 @@ thumbnail URL, and render URL into an immutable draft. It also generates:
 
 If the source map has no preview asset, the draft is created with
 `needs_preview = true`. Use "Generate preview" or "Generate next 5 previews" to
-call the signed Browserless thumbnail path. Premade thumbnails render directly
+call the signed AWS renderer thumbnail path. Premade thumbnails render directly
 from the premade row at `720x1080`, update `preview_image_url`, and do not write
 to `render_url`. Publishing still requires a complete map payload, preview
 image, and print-ready render URL.

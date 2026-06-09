@@ -176,9 +176,9 @@ async function updateSourceMapThumbnail({ supabaseUrl, serviceKey, sourceMapId, 
   })
 }
 
-async function screenshot({ browserlessEndpoint, browserlessToken, browserlessTimeoutMs, url }) {
-  const endpoint = browserlessEndpoint.replace(/\/$/, '')
-  const query = new URLSearchParams({ token: browserlessToken, timeout: String(browserlessTimeoutMs) })
+async function screenshot({ proofRendererEndpoint, proofRendererToken, proofRendererTimeoutMs, url }) {
+  const endpoint = proofRendererEndpoint.replace(/\/$/, '')
+  const query = new URLSearchParams({ token: proofRendererToken, timeout: String(proofRendererTimeoutMs) })
   const res = await fetch(`${endpoint}/screenshot?${query.toString()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -198,17 +198,17 @@ async function screenshot({ browserlessEndpoint, browserlessToken, browserlessTi
       },
       gotoOptions: {
         waitUntil: 'load',
-        timeout: browserlessTimeoutMs,
+        timeout: proofRendererTimeoutMs,
       },
       waitForFunction: {
         fn: '() => window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true',
-        timeout: browserlessTimeoutMs,
+        timeout: proofRendererTimeoutMs,
       },
     }),
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Browserless screenshot failed (${res.status}): ${text.slice(0, 600)}`)
+    throw new Error(`Proof renderer screenshot failed (${res.status}): ${text.slice(0, 600)}`)
   }
   const buffer = Buffer.from(await res.arrayBuffer())
   if (buffer.length < 20_000 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
@@ -217,7 +217,7 @@ async function screenshot({ browserlessEndpoint, browserlessToken, browserlessTi
   return buffer
 }
 
-async function screenshotLocal({ browserlessTimeoutMs, url }) {
+async function screenshotLocal({ proofRendererTimeoutMs, url }) {
   const { chromium } = await import('playwright')
   const browser = await chromium.launch({ headless: true })
   try {
@@ -225,11 +225,11 @@ async function screenshotLocal({ browserlessTimeoutMs, url }) {
       viewport: { width: THUMB_WIDTH, height: THUMB_HEIGHT },
       deviceScaleFactor: 1,
     })
-    await page.goto(url, { waitUntil: 'load', timeout: browserlessTimeoutMs })
+    await page.goto(url, { waitUntil: 'load', timeout: proofRendererTimeoutMs })
     await page.waitForFunction(
       () => window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeLayerPresent === true,
       undefined,
-      { timeout: browserlessTimeoutMs },
+      { timeout: proofRendererTimeoutMs },
     )
     return await page.screenshot({
       type: 'jpeg',
@@ -300,14 +300,14 @@ async function main() {
     ...args,
     supabaseUrl: env.SUPABASE_URL || env.NUXT_PUBLIC_SUPABASE_URL,
     serviceKey: env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
-    browserlessToken: env.BROWSERLESS_TOKEN,
-    browserlessEndpoint: env.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io',
-    browserlessTimeoutMs: Number(env.BROWSERLESS_TIMEOUT_MS || 60_000),
+    proofRendererToken: env.PROOF_RENDER_TOKEN,
+    proofRendererEndpoint: env.PROOF_RENDER_ENDPOINT,
+    proofRendererTimeoutMs: Number(env.PROOF_RENDER_TIMEOUT_MS || 60_000),
     renderTicketSecret: env.RENDER_TICKET_SECRET || 'dev-render-ticket-secret',
     siteUrl: args.siteUrl || env.NUXT_PUBLIC_SITE_URL || env.APP_URL || 'http://localhost:3001',
   }
 
-  for (const key of ['supabaseUrl', 'serviceKey', 'browserlessToken', 'renderTicketSecret', 'siteUrl']) {
+  for (const key of ['supabaseUrl', 'serviceKey', 'proofRendererToken', 'proofRendererEndpoint', 'renderTicketSecret', 'siteUrl']) {
     if (!ctx[key]) throw new Error(`Missing ${key}`)
   }
 

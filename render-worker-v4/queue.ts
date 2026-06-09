@@ -1,7 +1,8 @@
 // render-worker-v4/queue.ts
 //
 // Print queue consumer entry point. It claims final-print jobs from Postgres,
-// calls Browserless, validates/uploads the artifact, and submits Gelato orders.
+// calls the configured renderer, validates/uploads the artifact, and submits
+// Gelato orders.
 //
 // Graceful shutdown:
 //   • SIGINT / SIGTERM → AbortController → consumer loop drains.

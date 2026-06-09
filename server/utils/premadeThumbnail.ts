@@ -83,7 +83,7 @@ export async function renderPremadeThumbnail(args: RenderPremadeThumbnailArgs): 
   const renderUrl = new URL(`/render/premade/${premadeId}`, siteUrl)
   renderUrl.searchParams.set('ticket', ticket)
 
-  console.info('[premade-thumbnail] Browserless screenshot starting', {
+  console.info('[premade-thumbnail] AWS renderer screenshot starting', {
     premadeId,
     widthPx: framing.fullWidthPx,
     heightPx: framing.fullHeightPx,
@@ -98,7 +98,7 @@ export async function renderPremadeThumbnail(args: RenderPremadeThumbnailArgs): 
     format: 'jpeg',
     quality: PREMADE_THUMBNAIL_QUALITY,
     waitForFunction: RENDER_READY_EXPRESSION,
-    timeoutMs: Math.min(Number(config.browserlessTimeoutMs) || 60_000, 60_000),
+    timeoutMs: Math.min(Number(config.proofRendererTimeoutMs) || 60_000, 60_000),
   })
 
   validateJpegBasics({

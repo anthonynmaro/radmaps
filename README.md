@@ -1,6 +1,6 @@
 # TrailMaps App
 
-Turn GPX tracks, Strava activities, and Trailforks routes into beautiful print-quality maps — powered by **Nuxt 3**, **Supabase**, **MapLibre GL JS**, **Browserless**, **Gelato Print API**, and **Claude AI**.
+Turn GPX tracks, Strava activities, and Trailforks routes into beautiful print-quality maps — powered by **Nuxt 3**, **Supabase**, **MapLibre GL JS**, **AWS Chromium rendering**, **Gelato Print API**, and **Claude AI**.
 
 ## Quick Start
 
@@ -55,8 +55,8 @@ trailmaps-app/
 │   ├── products.ts                 # 2:3 Gelato product catalogue + pricing
 │   ├── print/                      # Print framing, bleed, safe area, DPI profiles
 │   └── render/                     # Render tickets, hashes, shared render utilities
-├── pages/render/                   # Browserless-only render routes
-└── render-worker-v4/               # Railway queue worker for final print renders
+├── pages/render/                   # AWS renderer-only render routes
+└── render-worker-v4/               # AWS queue worker for final print renders
 ```
 
 ## Deployment
@@ -64,8 +64,8 @@ trailmaps-app/
 | Service | Platform | Notes |
 |---------|----------|-------|
 | **Nuxt App** | **Vercel** | `nitro.preset: 'vercel'` already configured. Auto-deploy from `main`. |
-| Browser Screenshot Service | Browserless | Chromium screenshots for proof and final print renders. |
-| Final Render Worker | Railway | Queue orchestrator that calls Browserless, validates, uploads, and submits to Gelato. |
+| Proof Screenshot Service | AWS App Runner | Chromium screenshots for proof, share, checkout, and thumbnail renders. |
+| Final Render Worker | AWS ECS/Fargate | Queue orchestrator that captures Chromium final renders, validates, uploads, and submits to Gelato. |
 | Database | Supabase | Free tier dev, Pro for production. |
 | File Storage | Supabase Storage | Private bucket for PDFs, public for thumbnails. |
 
@@ -83,7 +83,7 @@ trailmaps-app/
 
 ## Rendering
 
-RadMaps uses Browserless/Chromium to screenshot the real Nuxt poster render. [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the single source of truth for editor, proof, and final print output.
+RadMaps uses AWS-hosted Chromium to screenshot the real Nuxt poster render. [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the single source of truth for editor, proof, and final print output.
 
 The full operational guide is [docs/RENDERING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/RENDERING.md). The latest renderer cleanup and risk review is [docs/ARCHITECTURE_SECURITY_REVIEW.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/ARCHITECTURE_SECURITY_REVIEW.md). Read both before changing renderer code, product sizes, aspect ratio, print framing, or Gelato product UIDs.
 
@@ -160,11 +160,11 @@ See `.env.example` for the full list. Key vars:
 - `GELATO_ORDER_TYPE` — use `draft` for local/full E2E tests; use `order` only for intentional physical fulfillment
 - `GELATO_WEBHOOK_SECRET` — from Gelato Dashboard > Settings > Webhooks
 - `STRIPE_WEBHOOK_SECRET` — from Stripe Dashboard > Webhooks; Stripe's documented sandbox key prefixes are `sk_test_` and `pk_test_`
-- `BROWSERLESS_TOKEN` — Browserless API token
-- `BROWSERLESS_ENDPOINT` — e.g. `https://production-sfo.browserless.io`
-- `BROWSERLESS_TIMEOUT_MS` — currently `60000`
+- `PROOF_RENDER_TOKEN` — AWS proof renderer screenshot token
+- `PROOF_RENDER_ENDPOINT` — AWS proof renderer URL
+- `PROOF_RENDER_TIMEOUT_MS` — proof renderer request timeout
 - `RENDER_TICKET_SECRET` — long random secret for signed render URLs
-- `NUXT_PUBLIC_SITE_URL` — public URL Browserless can reach for render pages
+- `NUXT_PUBLIC_SITE_URL` — public URL the AWS renderer can reach for render pages
 - `DATABASE_URL` — Supabase pooler URL for the final print queue consumer
 - `ADMIN_SUPER_ADMIN_EMAILS` — comma-separated immutable super-admin emails; defaults to `anthonynmaro@gmail.com`
 - `ADMIN_BOOTSTRAP_EMAILS` — comma-separated first-admin bootstrap emails; defaults to the super-admin list
@@ -172,9 +172,9 @@ See `.env.example` for the full list. Key vars:
 For local full E2E, run the queue worker from the repo root with
 `npm run print-worker:dev`; it merges root `.env` with optional
 `render-worker-v4/.env` overrides. The worker is still required for final paid
-orders, but it calls Browserless rather than maintaining a separate renderer.
+orders, but it calls the AWS renderer rather than maintaining a separate poster renderer.
 
-To validate Browserless final rendering and Gelato draft submission without
+To validate AWS final rendering and Gelato draft submission without
 Stripe, run `npm run gelato:draft-bypass -- --map-id=<map-uuid>` with
 `GELATO_ORDER_TYPE=draft`. This creates synthetic order/snapshot/job rows and
 executes the same worker `processJob` path, but it does not validate Stripe
