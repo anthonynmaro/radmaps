@@ -237,6 +237,18 @@ export const LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
   14: [2, 10],
 }
 
+export const BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
+  1: [1, 5],
+  7: [1, 5],
+  8: [1, 5],
+  9: [1, 5],
+  10: [1, 5],
+  11: [1, 5],
+  12: [1, 5],
+  13: [1, 5],
+  14: [1, 5],
+}
+
 export const CONTOUR_DEM_OVERZOOM = 0
 
 export type AdaptiveContourReliefBand = 'unknown' | 'low' | 'moderate' | 'high' | 'extreme'
@@ -377,6 +389,7 @@ export function resolveAdaptiveContourThresholds(
   const detail = resolveAdaptiveContourDetail(config, stats)
   const profile = resolveAdaptiveContourReliefProfile(stats)
   if (detail !== 5 || profile.band !== 'low') return CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
+  if (config.color_theme === 'brutalist') return BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS
   return LOW_RELIEF_CONTOUR_THRESHOLDS
 }
 
@@ -463,7 +476,7 @@ export function resolveAdaptiveContourStyleConfig(
 
   if (isLowRelief) {
     const lowReliefOpacityFloor = config.color_theme === 'brutalist'
-      ? { contour: 0.42, minor: 0.46, major: 0.58 }
+      ? { contour: 0.52, minor: 0.68, major: 0.58 }
       : { contour: 0.34, minor: 0.24, major: 0.42 }
     next.contour_opacity = Math.max(next.contour_opacity ?? 0, lowReliefOpacityFloor.contour)
 

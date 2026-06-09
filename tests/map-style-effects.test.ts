@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
 import {
   buildMapStyle,
+  BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS,
   CONTOUR_DEM_OVERZOOM,
   CONTOUR_THRESHOLDS,
   LOW_RELIEF_CONTOUR_THRESHOLDS,
@@ -110,6 +111,15 @@ describe('adaptive contour detail', () => {
     })
   })
 
+  it('uses near-max Brutalist intervals so flat city maps still show index contours', () => {
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'brutalist', contour_detail: 0 }, lowReliefStats)).toEqual(BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'brutalist', contour_detail: 0 }, lowReliefStats)).toMatchObject({
+      1: [1, 5],
+      10: [1, 5],
+      14: [1, 5],
+    })
+  })
+
   it('increases low-relief contour visibility with the denser interval profile', () => {
     const adapted = resolveAdaptiveContourStyleConfig({
       ...DEFAULT_STYLE_CONFIG,
@@ -148,8 +158,8 @@ describe('adaptive contour detail', () => {
     } as StyleConfig, lowReliefStats)
 
     expect(adapted.contour_detail).toBe(5)
-    expect(adapted.contour_opacity).toBe(0.42)
-    expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.46)
+    expect(adapted.contour_opacity).toBe(0.52)
+    expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.68)
     expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.86)
   })
 
@@ -240,13 +250,13 @@ describe('adaptive contour detail', () => {
       min_elevation_m: 1960,
       max_elevation_m: 2455,
     })).toBe(1)
-    expect(resolveAdaptiveContourDetail({ color_theme: 'brutalist', contour_detail: 0 }, {
+    expect(resolveAdaptiveContourDetail({ color_theme: 'brutalist', contour_detail: 1 }, {
       distance_km: 24.2,
       elevation_gain_m: 530,
       elevation_loss_m: 530,
       min_elevation_m: 1220,
       max_elevation_m: 1635,
-    })).toBe(0)
+    })).toBe(1)
     expect(resolveAdaptiveContourDetail({ color_theme: 'botanical', contour_detail: 0 }, {
       distance_km: 10.5,
       elevation_gain_m: 740,
@@ -2964,10 +2974,11 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.route_color).toBe('#EA4B23')
     expect(config.route_width).toBe(5.2)
     expect(config.route_opacity).toBe(0.96)
-    expect(config.contour_detail).toBe(0)
+    expect(config.contour_detail).toBe(1)
+    expect(config.padding_factor).toBe(0.30)
     expect(config.contour_opacity).toBe(0.08)
     expect(config.contour_minor_width).toBe(0.26)
-    expect(config.contour_major_width).toBe(1.66)
+    expect(config.contour_major_width).toBe(1.08)
     expect(mapBackgroundColor(config)).toBe('#E6E3DD')
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#E6E3DD')
     expect(layerById(style, 'radmaps-toner-light-landcover')).toBeUndefined()
@@ -2986,7 +2997,7 @@ describe('RadMaps Atlas style integration', () => {
       'interpolate', ['linear'], ['zoom'], 5, 0.26 * 0.8, 14, 0.26,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#010202')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.86)
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.74)
     expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#EA4B23')
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(5.2)
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.96)
