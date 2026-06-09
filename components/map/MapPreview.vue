@@ -13720,14 +13720,14 @@ onUnmounted(() => {
 
 .poster-composition--brutalist-slab .poster-footer-rule {
   opacity: 1 !important;
-  height: 1px !important;
+  height: 0.28cqh !important;
   background: currentColor !important;
 }
 
 .poster-composition--brutalist-slab .composition-footer-note {
   left: var(--composition-rule-left);
   right: auto;
-  top: 3.1cqh;
+  top: 4.05cqh;
   width: 48cqw;
   color: var(--label-text-color, #0a0a0a) !important;
   font-family: "IBM Plex Sans", sans-serif !important;
@@ -13750,7 +13750,7 @@ onUnmounted(() => {
 .composition-brutalist-distance {
   position: absolute;
   right: var(--composition-rule-right);
-  bottom: calc(3.2cqh + var(--print-bleed, 0px));
+  bottom: calc(4.05cqh + var(--print-bleed, 0px));
   color: var(--route-color, #ff3b00) !important;
   font-family: "IBM Plex Mono", monospace !important;
   font-size: 2.2cqh !important;
