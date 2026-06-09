@@ -458,7 +458,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     ...THEME_TYPOGRAPHY.brutalist,
     titleFont: "'Bebas Neue', sans-serif",
     titleTracking: '0.045em',
-    titleSize: 6.2,
+    titleSize: 16.4,
     titleLineHeight: '0.88',
     subFont: "'IBM Plex Sans', sans-serif",
     subTracking: '0.14em',

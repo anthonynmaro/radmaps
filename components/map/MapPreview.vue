@@ -13596,10 +13596,11 @@ onUnmounted(() => {
 .poster-composition--brutalist-slab .poster-trail-name {
   margin: 8.2cqh 0 0 !important;
   color: var(--label-text-color, #0a0a0a) !important;
-  font-size: min(max(var(--trail-title-size, 12.8cqh), 12.8cqh), 13.6cqh) !important;
+  font-size: clamp(9.5cqh, var(--trail-title-size, 16.4cqh), 16.6cqh) !important;
   line-height: 0.82 !important;
   letter-spacing: 0 !important;
   text-transform: uppercase !important;
+  transform: translateY(2.8cqh);
 }
 
 .poster-composition--brutalist-slab [data-testid="poster-map"] {
