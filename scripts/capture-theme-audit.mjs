@@ -604,12 +604,12 @@ async function collectImageSemanticChecks(entry, printFile, geometry) {
   }
 
   if (entry.themeId === 'blueprint-strava') {
-    const ink = hexToRgb('#07120F')
+    const ink = hexToRgb('#162D2A')
     const greenRoutePixels = await countPixelsForRegion(printFile, mapRect, (r, g, b) =>
       r > 35 && r < 95 && g > 175 && g < 240 && b > 110 && b < 180,
     )
     groups.palette.push(
-      semanticCheck('Trail Blueprint poster dominant color is black-green ink', colorDistance(fullAverage, ink) < 44, `${formatRgb(fullAverage)} vs #07120F`),
+      semanticCheck('Trail Blueprint poster dominant color is dark teal-green ink', colorDistance(fullAverage, ink) < 44, `${formatRgb(fullAverage)} vs #162D2A`),
     )
     groups.routeStyling.push(
       semanticCheck('Trail Blueprint visible green route pixels', greenRoutePixels > 120, `${greenRoutePixels} pixels`),
@@ -1353,8 +1353,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Trail Blueprint map panel is dominant', mapHeightRatio >= 0.56 && mapHeightRatio < 0.88, mapHeightRatio.toFixed(3)),
     )
     groups.palette.push(
-      semanticCheck('Trail Blueprint dark ink background', String(style.background_color).toUpperCase() === '#07120F', String(style.background_color ?? '')),
-      semanticCheck('Trail Blueprint integrated title/footer ink matches background', String(style.label_bg_color).toUpperCase() === '#07120F', String(style.label_bg_color ?? '')),
+      semanticCheck('Trail Blueprint dark teal-green background', String(style.background_color).toUpperCase() === '#162D2A', String(style.background_color ?? '')),
+      semanticCheck('Trail Blueprint integrated title/footer ink matches background', String(style.label_bg_color).toUpperCase() === '#162D2A', String(style.label_bg_color ?? '')),
       semanticCheck('Trail Blueprint data text uses pale green', String(style.label_text_color).toUpperCase() === '#DDF7EC', String(style.label_text_color ?? '')),
       semanticCheck('Trail Blueprint route is green', String(style.route_color).toUpperCase() === '#3DDC97', String(style.route_color ?? '')),
     )
@@ -1363,8 +1363,8 @@ async function collectSemanticChecks(page, entry, geometry, editorGeometry = nul
       semanticCheck('Trail Blueprint restrained contours enabled', style.show_contours === true && Number(style.contour_detail ?? 0) >= 1 && Number(style.contour_detail ?? 0) <= 2, `${style.show_contours}/${style.contour_detail}`),
       semanticCheck('Trail Blueprint hillshade disabled', style.show_hillshade === false, String(style.show_hillshade)),
       semanticCheck('Trail Blueprint roads and labels hidden', style.show_roads === false && style.show_place_labels === false && style.show_poi_labels === false, `${style.show_roads}/${style.show_place_labels}/${style.show_poi_labels}`),
-      semanticCheck('Trail Blueprint landcover is dark green ink', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#0B1A15' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.9, JSON.stringify(atlasLayerSettings.landcover ?? {})),
-      semanticCheck('Trail Blueprint water is subdued dark ink', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#071B16' && Number(atlasLayerSettings.water?.fill_opacity ?? 0) <= 0.6, JSON.stringify(atlasLayerSettings.water ?? {})),
+      semanticCheck('Trail Blueprint landcover is dark teal-green ink', String(atlasLayerSettings.landcover?.color ?? '').toUpperCase() === '#162D2A' && Number(atlasLayerSettings.landcover?.opacity ?? 0) >= 0.9, JSON.stringify(atlasLayerSettings.landcover ?? {})),
+      semanticCheck('Trail Blueprint water is subdued dark teal ink', String(atlasLayerSettings.water?.fill_color ?? '').toUpperCase() === '#12312C' && Number(atlasLayerSettings.water?.fill_opacity ?? 0) <= 0.6, JSON.stringify(atlasLayerSettings.water ?? {})),
       semanticCheck('Trail Blueprint contours use green drafting ink', String(atlasLayerSettings.contour?.minor_color ?? '').toUpperCase() === '#3A6A5E' && String(atlasLayerSettings.contour?.major_color ?? '').toUpperCase() === '#91BFAE', JSON.stringify(atlasLayerSettings.contour ?? {})),
     )
     groups.routeStyling.push(
