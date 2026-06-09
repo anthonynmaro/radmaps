@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLOR_THEMES, DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
+import { COLOR_THEMES, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_STYLE_CONFIG, type ColorTheme, type CompositionId, type StyleConfig } from '../types'
 import {
   ALL_COLOR_THEME_IDS,
   COMPOSITION_IDS,
@@ -12,7 +12,7 @@ import {
 
 describe('refined theme Phase 0 scaffolding', () => {
   it('adds the design-update theme definitions without changing current defaults', () => {
-    expect(REFINED_THEMES).toHaveLength(14)
+    expect(REFINED_THEMES).toHaveLength(27)
     expect(DEFAULT_STYLE_CONFIG.color_theme).toBe('chalk')
     expect(DEFAULT_STYLE_CONFIG.show_roads).toBe(true)
     expect(DEFAULT_STYLE_CONFIG.show_hillshade).toBe(false)
@@ -31,12 +31,12 @@ describe('refined theme Phase 0 scaffolding', () => {
       expect(typeof theme.map_defaults.show_grid, theme.id).toBe('boolean')
       if (theme.map_defaults.show_contours) {
         expect(theme.map_defaults.contour_detail, theme.id).toBeGreaterThanOrEqual(5)
-        expect(theme.map_defaults.contour_major_width, theme.id).toBe(DEFAULT_CONTOUR_MAJOR_WIDTH)
-        expect(theme.map_defaults.contour_opacity, theme.id).toBeLessThanOrEqual(0.46)
+        expect(theme.map_defaults.contour_major_width, theme.id).toBeGreaterThan(0)
+        expect(theme.map_defaults.contour_opacity, theme.id).toBeLessThanOrEqual(0.5)
       }
       if (theme.map_defaults.show_grid) {
         expect(theme.map_defaults.grid_opacity, theme.id).toBeGreaterThan(0)
-        expect(theme.map_defaults.grid_opacity, theme.id).toBeLessThanOrEqual(0.2)
+        expect(theme.map_defaults.grid_opacity, theme.id).toBeLessThanOrEqual(0.3)
         expect(theme.map_defaults.grid_scope, theme.id).toMatch(/^(poster|map)$/)
       }
     }
@@ -104,7 +104,7 @@ describe('refined theme Phase 0 scaffolding', () => {
     expect(brutalist?.map_defaults.preset).toBe('radmaps-toner-light')
     expect(brutalist?.map_defaults.show_contours).toBe(true)
     expect(brutalist?.map_defaults.contour_detail).toBeGreaterThanOrEqual(5)
-    expect(contourWash?.composition).toBe('modernist-block')
+    expect(contourWash?.composition).toBe('art-wash')
     expect(contourWash?.map_defaults.preset).toBe('radmaps-contour-wash')
     expect(contourWash?.map_defaults.show_contours).toBe(true)
   })

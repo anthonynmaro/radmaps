@@ -280,7 +280,7 @@ function hasRenderableLine(geojson?: GeoJSON.FeatureCollection | null): boolean 
 }
 
 function mapRichPlaceConfig(config: StyleConfig): StyleConfig {
-  const showContours = config.show_contours !== false
+  const showContours = false
   const roadOpacity = config.dark ? 0.48 : 0.42
   const roadColor = config.contour_major_color ?? config.roads_color ?? (config.dark ? '#7CB0E8' : '#9A8062')
   const minorRoadColor = config.atlas_layer_settings?.transportation?.minor_color ?? config.contour_color ?? roadColor
@@ -298,6 +298,7 @@ function mapRichPlaceConfig(config: StyleConfig): StyleConfig {
     place_labels_scale: config.place_labels_scale ?? 'village',
     show_poi_labels: true,
     poi_labels_opacity: poiLabelOpacity,
+    show_contours: showContours,
     atlas_layers: {
       ...config.atlas_layers,
       contour: showContours,

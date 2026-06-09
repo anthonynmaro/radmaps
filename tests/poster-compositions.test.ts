@@ -45,16 +45,16 @@ describe('poster composition registry', () => {
     expect(posterCompositionClassName('legacy-classic')).toBe('poster-composition--legacy-classic')
   })
 
-  it('marks label-band title compositions so light text stays readable', () => {
-    expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('label')
-    expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('label')
+  it('records header background treatments for title compositions', () => {
+    expect(POSTER_COMPOSITIONS['modernist-block'].headerBackground).toBe('paper')
+    expect(POSTER_COMPOSITIONS['travel-banner'].headerBackground).toBe('paper')
     expect(POSTER_COMPOSITIONS['editorial-tall'].headerBackground).toBe('paper')
   })
 
   it('uses refined typography profiles instead of legacy theme aliases', () => {
-    expect(getPosterTypography({ color_theme: 'brutalist' }).titleTracking).toBe('0.02em')
-    expect(getPosterTypography({ color_theme: 'bold-modern' }).titleLineHeight).toBe('0.85')
+    expect(getPosterTypography({ color_theme: 'brutalist' }).titleTracking).toBe('0.045em')
+    expect(getPosterTypography({ color_theme: 'bold-modern' }).titleLineHeight).toBe('0.88')
     expect(getPosterTypography({ color_theme: 'field-journal' }).titleFont).toContain('Cormorant Garamond')
-    expect(getPosterTypography({ color_theme: 'blueprint' }).titleTracking).toBe('0.02em')
+    expect(getPosterTypography({ color_theme: 'blueprint' }).titleTracking).toBe('0.07em')
   })
 })

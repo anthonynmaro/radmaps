@@ -78,9 +78,11 @@ describe('theme options', () => {
       'splits-stats',
       'blueprint-strava',
       'marathon-bib',
+      'transit-diagram',
     ])
 
     expect(priorityThemeIdsForMap({ distance_km: 9, elevation_gain_m: 1400, elevation_loss_m: 0, max_elevation_m: 0, min_elevation_m: 0 })).toEqual([
+      'relief-shaded',
       'usgs-vintage',
       'field-journal',
       'contour-wash',
@@ -95,15 +97,15 @@ describe('theme options', () => {
 
   it('prioritizes place-readable themes for point maps', () => {
     expect(priorityThemeIdsForMap(PLACE_STATS, POINT_GEOJSON)).toEqual([
+      'cartouche-place',
       'editorial-minimal',
       'usgs-vintage',
-      'risograph',
     ])
 
     expect(orderedQuickThemeOptionsForRoute(PLACE_STATS, POINT_GEOJSON).slice(0, 3).map(theme => theme.id)).toEqual([
+      'cartouche-place',
       'editorial-minimal',
       'usgs-vintage',
-      'risograph',
     ])
   })
 

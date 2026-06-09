@@ -71,6 +71,9 @@ function mapDefaults(defaults: Partial<StyleConfig>): Partial<StyleConfig> {
     trail_label_style: undefined,
     ...contourDefaults,
     ...defaults,
+    ...(defaults.show_contours
+      ? { contour_detail: Math.max(5, Number(defaults.contour_detail ?? 5)) }
+      : {}),
     ...atlasStyleId,
   }
 }
@@ -224,8 +227,8 @@ const REFINED_THEME_RECIPES = [
       show_finish_pin: true,
       tile_effect: 'none',
       show_grid: false,
-      place_labels_color: '#31442D',
-      poi_labels_color: '#31442D',
+      place_labels_color: '#3A4A2A',
+      poi_labels_color: '#3A4A2A',
       atlas_layers: {
         contour: true,
         landcover: false,
@@ -242,8 +245,8 @@ const REFINED_THEME_RECIPES = [
         water: { fill_color: '#83A79D', fill_opacity: 0.30, waterway_color: '#6E9A94', waterway_opacity: 0.38 },
         waterway: { color: '#6E9A94', opacity: 0.38, width: 0.82 },
         contour: { minor_color: '#D8A85F', major_color: '#B06A2A', minor_opacity: 0.22, major_opacity: 0.58, minor_width: 0.68, major_width: 1.34 },
-        place: { label_color: '#31442D', halo_color: '#E6D2A2', halo_opacity: 0.78, label_opacity: 0.34 },
-        poi: { label_color: '#31442D', label_opacity: 0.16 },
+        place: { label_color: '#3A4A2A', halo_color: '#E6D2A2', halo_opacity: 0.78, label_opacity: 0.34 },
+        poi: { label_color: '#3A4A2A', label_opacity: 0.16 },
       },
     }),
   },
@@ -350,8 +353,8 @@ const REFINED_THEME_RECIPES = [
       route_smooth: 2,
       tile_effect: 'none',
       show_grid: true,
-      grid_scope: 'poster',
-      grid_opacity: 0.2,
+      grid_scope: 'map',
+      grid_opacity: 0.16,
       grid_weight: 1,
       grid_spacing: 5,
       atlas_layers: {
@@ -412,7 +415,7 @@ const REFINED_THEME_RECIPES = [
       tile_effect: 'none',
       show_grid: true,
       grid_scope: 'map',
-      grid_opacity: 0.14,
+      grid_opacity: 0.16,
       grid_weight: 1,
       grid_spacing: 8,
       atlas_layer_settings: {
@@ -828,8 +831,8 @@ const REFINED_THEME_RECIPES = [
         waterway: { color: '#A9B897', opacity: 0, width: 0.8 },
         transportation: { opacity: 0, show_major: false, show_minor: false, show_trails: false },
         contour: { minor_color: '#A8B995', major_color: '#536737', minor_opacity: 0.12, major_opacity: 0.72, minor_width: 0.62, major_width: 1.32 },
-        place: { label_color: '#253721', label_opacity: 0, halo_color: '#EEF1E8', halo_opacity: 0 },
-        poi: { label_color: '#253721', label_opacity: 0 },
+        place: { label_color: '#3A4A2A', label_opacity: 0, halo_color: '#EEF1E8', halo_opacity: 0 },
+        poi: { label_color: '#3A4A2A', label_opacity: 0 },
       },
     }),
   },

@@ -172,7 +172,7 @@ describe('contour style requirements', () => {
       preset: 'contour-art',
       water_color: '#0A2040',
       show_hillshade: true,
-    }, 'mapbox-test-token')
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
     const waterways = layerById(style, 'contour-art-waterways')
 
     expect(waterways?.['source-layer']).toBe('waterway')
@@ -342,7 +342,7 @@ describe('RadMaps Atlas style integration', () => {
       show_place_labels: false,
       contour_detail: 5,
       route_color: '#9A5E57',
-    }, 'mapbox-test-token')
+    }, 'mapbox-test-token', undefined, 'contour://dem/{z}/{x}/{y}')
 
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#d7e8f7')
     expect(layerById(style, 'radmaps-contour-wash-landcover')?.paint?.['fill-color']).toBe('#d7e8f7')
@@ -688,10 +688,10 @@ describe('RadMaps Atlas style integration', () => {
 
     expect(sourceById(style, 'mapbox-dem')).toBeUndefined()
     expect(layerById(style, 'hillshade')).toBeUndefined()
-    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#070A14')
-    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#070A14')
-    expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-color']).toBe('#0B1020')
-    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#040712')
+    expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#101A38')
+    expect(layerById(style, 'radmaps-night-relief-landcover')?.paint?.['fill-color']).toBe('#101A38')
+    expect(layerById(style, 'radmaps-night-relief-park')?.paint?.['fill-color']).toBe('#101A38')
+    expect(layerById(style, 'radmaps-night-relief-water')?.paint?.['fill-color']).toBe('#071024')
     expect(layerById(style, 'radmaps-night-relief-waterway')?.paint?.['line-color']).toBe('#18294C')
     expect(layerById(style, 'radmaps-night-relief-place-labels')).toBeUndefined()
   })
