@@ -56,6 +56,8 @@ export default defineNuxtConfig({
         '/returns',
         '/support',
         '/render/**',
+        '/api/strava/connect',
+        '/api/strava/callback',
         '/api/atlas/tiles/**',
         '/fonts/**',
         '/style-browser-fixture',

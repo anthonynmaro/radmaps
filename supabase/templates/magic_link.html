@@ -38,7 +38,7 @@
 
             <tr>
               <td align="center" style="padding:28px 32px 22px;">
-                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2d6a4f;color:#ffffff;text-decoration:none;font-size:15px;line-height:1;font-weight:700;padding:16px 24px;border-radius:999px;">
+                <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink" style="display:inline-block;background:#2d6a4f;color:#ffffff;text-decoration:none;font-size:15px;line-height:1;font-weight:700;padding:16px 24px;border-radius:999px;">
                   Sign in to RadMaps
                 </a>
               </td>
@@ -56,7 +56,7 @@
                         Having trouble with the button? Paste this link into your browser:
                       </p>
                       <p style="margin:8px 0 0;font-size:12px;line-height:1.5;color:#2d6a4f;word-break:break-all;">
-                        <a href="{{ .ConfirmationURL }}" style="color:#2d6a4f;text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                        <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink" style="color:#2d6a4f;text-decoration:underline;">{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink</a>
                       </p>
                     </td>
                   </tr>

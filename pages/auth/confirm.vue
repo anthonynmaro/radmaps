@@ -71,6 +71,8 @@
 </template>
 
 <script setup lang="ts">
+import type { EmailOtpType } from '@supabase/supabase-js'
+
 definePageMeta({
   layout: false
 })
@@ -92,6 +94,11 @@ function safeNextPath(value: string | null): string {
   if (!value) return '/'
   if (!value.startsWith('/') || value.startsWith('//')) return '/'
   return value
+}
+
+function safeEmailOtpType(value: string | null): EmailOtpType {
+  const allowedTypes = new Set<EmailOtpType>(['signup', 'magiclink', 'recovery', 'invite', 'email_change', 'email'])
+  return allowedTypes.has(value as EmailOtpType) ? value as EmailOtpType : 'magiclink'
 }
 
 onMounted(async () => {
@@ -119,6 +126,23 @@ onMounted(async () => {
 
     if (error) {
       console.error('Strava confirm setSession error:', error.message)
+      fail(error.message)
+      return
+    }
+
+    await router.push(nextPath)
+    return
+  }
+
+  const tokenHash = urlParams.get('token_hash')
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: safeEmailOtpType(urlParams.get('type')),
+    })
+
+    if (error) {
+      console.error('Confirm verifyOtp error:', error.message)
       fail(error.message)
       return
     }
