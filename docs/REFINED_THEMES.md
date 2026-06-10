@@ -104,7 +104,7 @@ passes cannot accidentally produce beautiful but unprintable chrome.
 Theme fonts are loaded from the typed self-hosted registry in
 [utils/render/fontRegistry.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/fontRegistry.ts).
 Nuxt injects `@font-face` rules for `/fonts/*.ttf`, served by the local font
-route, so editor previews and Browserless render pages use the same available
+route, so editor previews and AWS renderer render pages use the same available
 families and weights. Google Fonts is not a runtime source for refined theme
 typography.
 
@@ -126,7 +126,7 @@ frame treatment, footer/stat emphasis, star fields, paper texture, and side
 rails. Grid is a normal style option, not an implicit composition effect: themes
 may default it on, but users can target it to the whole poster or map only and
 adjust color, opacity, and weight. This keeps editor, proof, thumbnail, and final
-Browserless render parity intact.
+AWS renderer render parity intact.
 
 Refined contour themes should set `contour_detail: 5` in `map_defaults`. Low
 relief routes need denser contour intervals to read as intentional terrain art
@@ -142,7 +142,7 @@ labels disappear on the map.
 The design handoff suggested wrapping React components for v1. We intentionally
 did not add a React subtree because the production renderer screenshots the real
 Nuxt page. Keeping compositions in the existing Vue path avoids a second poster
-renderer and keeps Browserless readiness unchanged.
+renderer and keeps AWS renderer readiness unchanged.
 
 ## Fast Theme Picker
 

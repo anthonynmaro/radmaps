@@ -10,7 +10,7 @@
 //     retry vs manual_review.
 //
 // Keep the request body compact and explicit; the queue always submits the
-// final Browserless render URL, never a mutable proof thumbnail.
+// final AWS render URL, never a mutable proof thumbnail.
 
 export interface GelatoShippingAddress {
   name?: string

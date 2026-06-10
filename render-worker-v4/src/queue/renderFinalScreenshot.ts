@@ -1,7 +1,7 @@
 import { insertProductRender, loadOrderSnapshot, lookupProductRender } from '../cache.js'
 import { CONFIG } from '../config.js'
 import { createSignedStorageUrl, uploadBuffer } from '../storage.js'
-import { takeBrowserlessScreenshot } from '../browserless.js'
+import { takeRemoteRendererScreenshot } from '../remoteRenderer.js'
 import { takeLocalChromiumScreenshot } from '../localChromium.js'
 import type { BrowserScreenshotOptions } from '../screenshotProtocol.js'
 import type { RenderFinalResponse } from './processJob.js'
@@ -96,7 +96,7 @@ export async function renderFinalWithScreenshot(input: {
   } as const
   const screenshot = CONFIG.renderBackend === 'local-chromium'
     ? await takeLocalChromiumScreenshot(screenshotOptions)
-    : await takeBrowserlessScreenshot(screenshotOptions)
+    : await takeRemoteRendererScreenshot(screenshotOptions)
 
   const finalBuffer = await normalizeFinalScreenshot({
     buffer: screenshot.buffer,

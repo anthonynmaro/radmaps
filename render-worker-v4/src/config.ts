@@ -23,11 +23,11 @@ function int(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-export type RenderBackend = 'browserless' | 'local-chromium'
+export type RenderBackend = 'remote-renderer' | 'local-chromium'
 
 function renderBackend(): RenderBackend {
-  const value = optional('RENDER_BACKEND', 'browserless')
-  if (value === 'browserless' || value === 'local-chromium') {
+  const value = optional('RENDER_BACKEND', 'local-chromium')
+  if (value === 'remote-renderer' || value === 'local-chromium') {
     return value
   }
   throw new Error(`Invalid RENDER_BACKEND: ${value}`)
@@ -35,7 +35,7 @@ function renderBackend(): RenderBackend {
 
 export const VERSION = '0.1.0'
 
-const browserlessTimeoutMs = int('BROWSERLESS_TIMEOUT_MS', 60_000)
+const proofRendererTimeoutMs = int('PROOF_RENDER_TIMEOUT_MS', 60_000)
 
 export const CONFIG = {
   supabaseUrl: required('SUPABASE_URL'),
@@ -46,10 +46,10 @@ export const CONFIG = {
 
   appUrl: optional('APP_URL', 'https://radmaps.studio'),
   renderBackend: renderBackend(),
-  renderTimeoutMs: int('RENDER_TIMEOUT_MS', browserlessTimeoutMs),
-  browserlessToken: optional('BROWSERLESS_TOKEN'),
-  browserlessEndpoint: optional('BROWSERLESS_ENDPOINT', 'https://production-sfo.browserless.io'),
-  browserlessTimeoutMs,
+  renderTimeoutMs: int('RENDER_TIMEOUT_MS', proofRendererTimeoutMs),
+  proofRendererToken: optional('PROOF_RENDER_TOKEN'),
+  proofRendererEndpoint: optional('PROOF_RENDER_ENDPOINT'),
+  proofRendererTimeoutMs,
   renderTicketSecret: required('RENDER_TICKET_SECRET'),
 
   logLevel: optional('LOG_LEVEL', 'info'),

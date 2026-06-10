@@ -1082,7 +1082,7 @@ function renderErrorMessage(error: unknown): string {
   if (/timed out|timeout|408/i.test(message)) {
     return 'Render service timed out. Please try again in a moment.'
   }
-  if (/browserless|render service|BROWSERLESS/i.test(message)) {
+  if (/AWS renderer|render service|PROOF_RENDER/i.test(message)) {
     return 'Render service unavailable. Please try again in a moment.'
   }
   return message

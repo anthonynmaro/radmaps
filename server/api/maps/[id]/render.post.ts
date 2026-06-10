@@ -132,7 +132,7 @@ export async function renderMapProof(args: V4Args) {
 
   const screenshotWidthPx = renderViewport.viewportWidthPx
   const screenshotHeightPx = renderViewport.viewportHeightPx
-  const timeoutMs = config.browserlessTimeoutMs
+  const timeoutMs = config.proofRendererTimeoutMs
   const screenshotStartedAt = Date.now()
 
   console.info('[render:v4] proof screenshot starting', {

@@ -32,7 +32,7 @@ describe('font registry', () => {
     expect(listAllFontFiles().length).toBeGreaterThan(0)
   })
 
-  it('emits every semantic parity font in the self-hosted Browserless CSS bundle', () => {
+  it('emits every semantic parity font in the self-hosted AWS renderer CSS bundle', () => {
     const css = generateFontFaceCss({ fontsUrlBase: '/fonts' })
     const contractFonts = new Set(THEME_SEMANTIC_AUDIT_CONTRACTS.flatMap(contract => [
       contract.typography.titleFont,

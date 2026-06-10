@@ -14,7 +14,7 @@ export async function normalizeFinalScreenshot(input: {
   const height = metadata.height
 
   if (!width || !height) {
-    throw new Error('Browserless screenshot dimensions are unreadable')
+    throw new Error('Renderer screenshot dimensions are unreadable')
   }
 
   if (width === input.expectedWidth && height === input.expectedHeight) {
@@ -22,13 +22,13 @@ export async function normalizeFinalScreenshot(input: {
   }
 
   if (width < input.expectedWidth || height < input.expectedHeight) {
-    throw new Error(`Browserless screenshot is undersized: got ${width}x${height}, expected ${input.expectedWidth}x${input.expectedHeight}`)
+    throw new Error(`Renderer screenshot is undersized: got ${width}x${height}, expected ${input.expectedWidth}x${input.expectedHeight}`)
   }
 
   const oversizeX = width - input.expectedWidth
   const oversizeY = height - input.expectedHeight
   if (oversizeX > maxOversizePx || oversizeY > maxOversizePx) {
-    throw new Error(`Browserless screenshot oversize exceeds crop tolerance: got ${width}x${height}, expected ${input.expectedWidth}x${input.expectedHeight}`)
+    throw new Error(`Renderer screenshot oversize exceeds crop tolerance: got ${width}x${height}, expected ${input.expectedWidth}x${input.expectedHeight}`)
   }
 
   return sharp(input.buffer)

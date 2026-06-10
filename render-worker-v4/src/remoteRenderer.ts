@@ -5,19 +5,22 @@ import {
   type BrowserScreenshotResult,
 } from './screenshotProtocol.js'
 
-export type BrowserlessScreenshotOptions = BrowserScreenshotOptions
-export type BrowserlessScreenshotResult = BrowserScreenshotResult
+export type RemoteRendererScreenshotOptions = BrowserScreenshotOptions
+export type RemoteRendererScreenshotResult = BrowserScreenshotResult
 
-export async function takeBrowserlessScreenshot(opts: BrowserlessScreenshotOptions): Promise<BrowserlessScreenshotResult> {
-  if (!CONFIG.browserlessToken) {
-    throw new Error('BROWSERLESS_TOKEN is not configured')
+export async function takeRemoteRendererScreenshot(opts: RemoteRendererScreenshotOptions): Promise<RemoteRendererScreenshotResult> {
+  if (!CONFIG.proofRendererToken) {
+    throw new Error('PROOF_RENDER_TOKEN is not configured')
+  }
+  if (!CONFIG.proofRendererEndpoint) {
+    throw new Error('Proof screenshot endpoint is not configured')
   }
 
   const started = Date.now()
-  const timeoutMs = opts.timeoutMs ?? CONFIG.browserlessTimeoutMs
-  const endpoint = CONFIG.browserlessEndpoint.replace(/\/$/, '')
+  const timeoutMs = opts.timeoutMs ?? CONFIG.proofRendererTimeoutMs
+  const endpoint = CONFIG.proofRendererEndpoint.replace(/\/$/, '')
   const query = new URLSearchParams({
-    token: CONFIG.browserlessToken,
+    token: CONFIG.proofRendererToken,
     timeout: String(timeoutMs),
   })
   const res = await fetch(`${endpoint}/screenshot?${query.toString()}`, {
@@ -52,7 +55,7 @@ export async function takeBrowserlessScreenshot(opts: BrowserlessScreenshotOptio
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Browserless screenshot failed (${res.status}): ${body.slice(0, 1000)}`)
+    throw new Error(`Proof renderer screenshot failed (${res.status}): ${body.slice(0, 1000)}`)
   }
 
   return {

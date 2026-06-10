@@ -12,10 +12,10 @@ also read [docs/ARCHITECTURE_SECURITY_REVIEW.md](/Users/anthonymaro/Documents/ap
 RadMaps renders posters by screenshotting the real Nuxt/Vue/MapLibre poster in
 Chromium. Production proof, share, dashboard, checkout, and premade thumbnail
 renders use the AWS App Runner proof renderer, which exposes a
-Browserless-compatible screenshot HTTP API. Final order renders run Playwright
+legacy-compatible screenshot HTTP API. Final order renders run Playwright
 Chromium inside the AWS/ECS worker with `RENDER_BACKEND=local-chromium`.
-Browserless remains a protocol-compatible fallback, not the expected production
-renderer.
+The third-party screenshot service is an emergency fallback, not the expected
+production renderer.
 
 The key decision is that [MapPreview.vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/components/map/MapPreview.vue) is the only poster renderer. The editor and print render path must share the same Vue/MapLibre component instead of maintaining a separate SVG, Sharp, native, or worker-only poster template.
 
@@ -133,8 +133,8 @@ Proof renders:
 1. [server/api/maps/[id]/render.post.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/server/api/maps/[id]/render.post.ts) authenticates the user and computes proof framing.
 2. It creates a short-lived signed render ticket with [utils/render/renderTicket.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/renderTicket.ts).
 3. It asks the configured screenshot backend to capture `/render/map/[id]?ticket=...`.
-   In production this backend is the AWS App Runner proof renderer at
-   `BROWSERLESS_ENDPOINT`; Browserless is only a fallback.
+   In production this backend is the AWS App Runner proof renderer configured
+   by `PROOF_RENDER_ENDPOINT`.
 4. [pages/render/map/[id].vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/pages/render/map/[id].vue) loads only the server-approved payload from `/api/render/payload`.
 5. The JPEG is validated, uploaded to Supabase Storage, and the map row is updated with proof render metadata.
 6. The same proof URL is written to `proof_render_url`, `thumbnail_url`, and `render_url`. The proof render is the canonical user-facing thumbnail.
@@ -228,6 +228,11 @@ The screenshot backend must wait for the render page to be truly ready, not just
 - `printContext` supplies exact framing, render class, and device scale.
 - The component sets `window.__RENDER_READY === true` only after MapLibre, route data, style reloads, tiles, fonts, logos/images, overlays, and render diagnostics are ready.
 - `window.__RADMAPS_RENDER_STATUS.routeContentPresent` is true when the visible route content is renderable. This can be the primary `route-line`, the named trail segment layers, or both when `show_primary_route: true`.
+- When the active style uses contours, `MapPreview.vue` must install the
+  `maplibre-contour` protocol and provide the runtime `contours` source before
+  readiness can pass. Product renders do not fall back to Mapbox Terrain v2 or
+  cached contour PMTiles; missing contour runtime data should surface through
+  `window.__RADMAPS_RENDER_STATUS.contourSourceLoaded`.
 - For the `radmaps-watercolor` preset, the MapLibre tile set includes the server-rendered `/api/watercolor/tiles/base/{z}/{x}/{y}.png` art tiles. Any missing or failed watercolor tile must surface through render diagnostics; proof/final capture should hard-fail rather than screenshot a partially painted map.
 - The component also writes `window.__RADMAPS_RENDER_STATUS` so the caller can diagnose internal render failures.
 
@@ -301,9 +306,9 @@ Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
 Required for screenshot rendering:
 
 ```bash
-BROWSERLESS_TOKEN=...
-BROWSERLESS_ENDPOINT=https://zfwtsxbyy2.us-east-2.awsapprunner.com
-BROWSERLESS_TIMEOUT_MS=120000
+PROOF_RENDER_TOKEN=...
+PROOF_RENDER_ENDPOINT=https://zfwtsxbyy2.us-east-2.awsapprunner.com
+PROOF_RENDER_TIMEOUT_MS=120000
 PROOF_RENDER_ALLOWED_ORIGINS=https://radmaps.studio
 RENDER_BACKEND=local-chromium
 RENDER_TIMEOUT_MS=180000
@@ -319,7 +324,7 @@ tunnel:
 
 ```bash
 NUXT_PUBLIC_SITE_URL=http://127.0.0.1:3000
-BROWSERLESS_ENDPOINT=http://127.0.0.1:3007
+PROOF_RENDER_ENDPOINT=http://127.0.0.1:3007
 ```
 
 Then run Nuxt on `3000` and start the proof server with:
@@ -336,11 +341,11 @@ host. Prefer a bot User-Agent over `ngrok-skip-browser-warning` headers when
 testing Google fonts, because the ngrok header can trigger CORS preflight
 behavior.
 
-`BROWSERLESS_ENDPOINT` is kept as the app-facing screenshot endpoint name for
-compatibility, but production should point it at the AWS proof renderer unless
-we intentionally fall back to Browserless. For Browserless-backed renders, keep
-`BROWSERLESS_TIMEOUT_MS=60000` unless the provider plan/API limit changes. For
-AWS local-Chromium final renders, use `RENDER_TIMEOUT_MS` to control the
+`PROOF_RENDER_ENDPOINT` is the app-facing screenshot endpoint name for proof,
+share, dashboard thumbnail, checkout preview, and premade thumbnail captures.
+Production should point it at the AWS proof renderer. Use
+`PROOF_RENDER_TIMEOUT_MS` to control proof-renderer request timeouts. For AWS
+local-Chromium final renders, use `RENDER_TIMEOUT_MS` to control the
 Playwright navigation/readiness timeout. Large final renders must stay on the
 saved-editor-width DPR path and normalized screenshot output.
 
@@ -368,13 +373,13 @@ The AWS render infrastructure is defined in
 It provisions ECR, ECS/Fargate, CloudWatch logs, Secrets Manager wiring, and an
 optional CodeBuild image builder. It also provisions an App Runner proof
 renderer at the `ProofRendererUrl` stack output. The App Runner service exposes a
-Browserless-compatible `/screenshot?token=...` endpoint over HTTPS, so the Nuxt
+legacy-compatible `/screenshot?token=...` endpoint over HTTPS, so the Nuxt
 proof, share, checkout, dashboard thumbnail, and premade thumbnail flows can
-switch off Browserless by setting `BROWSERLESS_ENDPOINT` to that URL.
+use the AWS proof renderer by setting `PROOF_RENDER_ENDPOINT` to that URL.
 
 The ECS task runs the same `render-worker-v4` queue consumer with
-`RENDER_BACKEND=local-chromium`, so final orders no longer need Browserless
-units.
+`RENDER_BACKEND=local-chromium`, so final orders no longer need third-party
+screenshot units.
 
 Use:
 
@@ -410,11 +415,11 @@ Run the trial with test payments and Gelato draft orders:
 2. Run Nuxt locally on `3000`: `npm run dev -- --host 0.0.0.0 --port 3000`.
 3. For local proof screenshots, run the local proof server on `3007` and set
    `NUXT_PUBLIC_SITE_URL=http://127.0.0.1:3000` plus
-   `BROWSERLESS_ENDPOINT=http://127.0.0.1:3007`. If you intentionally test
-   through AWS App Runner or Browserless, set `NUXT_PUBLIC_SITE_URL` to a live
-   public tunnel URL instead.
+   `PROOF_RENDER_ENDPOINT=http://127.0.0.1:3007`. If you intentionally test
+   through AWS App Runner or a third-party fallback, set `NUXT_PUBLIC_SITE_URL`
+   to a live public tunnel URL instead.
 4. Run Stripe CLI locally: `stripe listen --forward-to localhost:3000/api/orders/webhook`, then copy the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET`.
-5. Set `RENDER_BACKEND=local-chromium`, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, `GELATO_ORDER_TYPE=draft`, and a Supabase pooler `DATABASE_URL`. `BROWSERLESS_TOKEN` is still required for the proof screenshot endpoint; the final worker only uses it when configured with `RENDER_BACKEND=browserless`.
+5. Set `RENDER_BACKEND=local-chromium`, `RENDER_TICKET_SECRET`, `GELATO_API_KEY`, `GELATO_ORDER_TYPE=draft`, and a Supabase pooler `DATABASE_URL`. `PROOF_RENDER_TOKEN` is required for the proof screenshot endpoint.
 6. Run `npm run e2e:readiness`.
 7. In a second terminal, run `npm run print-worker:dev`.
 8. Click through checkout and pay with Stripe test card `4242 4242 4242 4242`.
@@ -444,8 +449,8 @@ The script creates a synthetic checkout session, order snapshot, and
 function used by Railway. It still requires `GELATO_ORDER_TYPE=draft`,
 `DATABASE_URL`, `RENDER_TICKET_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
 `GELATO_API_KEY`, and an `APP_URL` or `NUXT_PUBLIC_SITE_URL` that the browser
-backend can reach. `BROWSERLESS_TOKEN` is required by remote proof screenshots
-and by final renders only when `RENDER_BACKEND=browserless`.
+backend can reach. `PROOF_RENDER_TOKEN` is required by remote proof screenshots
+and by final renders only when `RENDER_BACKEND=remote-renderer`.
 
 This bypass is for preflight only. It proves final browser rendering,
 Supabase Storage upload, `product_renders`, order status updates, and Gelato

@@ -96,12 +96,12 @@ async function probeScreenshotEndpoint(endpointUrl) {
 }
 
 const siteUrl = parseUrl(main.NUXT_PUBLIC_SITE_URL)
-const screenshotEndpoint = parseUrl(main.BROWSERLESS_ENDPOINT || 'https://production-sfo.browserless.io')
+const screenshotEndpoint = parseUrl(main.PROOF_RENDER_ENDPOINT)
 const siteUrlIsLocal = siteUrl ? isLocalHost(siteUrl.hostname) : false
 const screenshotEndpointIsLocal = screenshotEndpoint ? isLocalHost(screenshotEndpoint.hostname) : false
 const screenshotEndpointIsAws = Boolean(screenshotEndpoint?.hostname.endsWith('.awsapprunner.com'))
-const workerRenderBackend = effectiveWorker.RENDER_BACKEND || main.RENDER_BACKEND || 'browserless'
-const usesBrowserless = workerRenderBackend === 'browserless'
+const workerRenderBackend = effectiveWorker.RENDER_BACKEND || main.RENDER_BACKEND || 'local-chromium'
+const usesRemoteScreenshotBackend = workerRenderBackend === 'remote-renderer'
 
 check('main .env exists', existsSync('.env'), 'create .env from .env.example')
 check('worker .env exists', existsSync('render-worker-v4/.env'), 'optional locally; create render-worker-v4/.env only for worker-specific overrides', 'warn')
@@ -116,14 +116,14 @@ check('public site URL valid', !!siteUrl, 'set NUXT_PUBLIC_SITE_URL to a valid p
 check(
   'public site URL reachable by screenshot backend',
   !!siteUrl && (!siteUrlIsLocal || screenshotEndpointIsLocal),
-  'set NUXT_PUBLIC_SITE_URL to localhost only when BROWSERLESS_ENDPOINT is the local proof server; remote AWS/Browserless backends need a deployed URL or live tunnel',
+  'set NUXT_PUBLIC_SITE_URL to localhost only when PROOF_RENDER_ENDPOINT is the local proof server; remote AWS proof endpoints need a deployed URL or live tunnel',
 )
 
 check('Supabase URL present', present(main.SUPABASE_URL), 'set SUPABASE_URL')
 check('Supabase service key present', present(main.SUPABASE_SERVICE_KEY), 'set SUPABASE_SERVICE_KEY')
-check('render backend valid', ['browserless', 'local-chromium'].includes(workerRenderBackend), 'set RENDER_BACKEND=browserless or local-chromium')
-check('screenshot endpoint valid', !!screenshotEndpoint, 'set BROWSERLESS_ENDPOINT to Browserless or the AWS proof renderer URL')
-check('screenshot token present', present(main.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN; AWS proof renderer reuses this as its /screenshot token')
+check('render backend valid', ['remote-renderer', 'local-chromium'].includes(workerRenderBackend), 'set RENDER_BACKEND=local-chromium for AWS final renders, or remote-renderer for HTTP proof-style capture')
+check('screenshot endpoint valid', !!screenshotEndpoint, 'set PROOF_RENDER_ENDPOINT to the AWS proof renderer URL')
+check('screenshot token present', present(main.PROOF_RENDER_TOKEN), 'set PROOF_RENDER_TOKEN for the AWS proof renderer /screenshot token')
 check('Gelato API key present', present(main.GELATO_API_KEY), 'set GELATO_API_KEY; use a sandbox/no-payment account for safe test orders')
 check('Resend API key present', present(main.RESEND_API_KEY), 'set RESEND_API_KEY or expect confirmation email send to fail', 'warn')
 
@@ -131,7 +131,7 @@ check('worker DATABASE_URL present', present(effectiveWorker.DATABASE_URL), 'set
 for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'RENDER_TICKET_SECRET', 'GELATO_API_KEY']) {
   check(`worker ${key} effective`, present(effectiveWorker[key]), `set ${key} in .env or render-worker-v4/.env`)
 }
-check('worker BROWSERLESS_TOKEN effective', !usesBrowserless || present(effectiveWorker.BROWSERLESS_TOKEN), 'set BROWSERLESS_TOKEN in .env or render-worker-v4/.env, or use RENDER_BACKEND=local-chromium')
+check('worker PROOF_RENDER_TOKEN effective', !usesRemoteScreenshotBackend || present(effectiveWorker.PROOF_RENDER_TOKEN), 'set PROOF_RENDER_TOKEN in .env or render-worker-v4/.env, or use RENDER_BACKEND=local-chromium')
 check('worker APP_URL matches public site URL', present(effectiveWorker.APP_URL) && effectiveWorker.APP_URL === main.NUXT_PUBLIC_SITE_URL, 'set APP_URL or NUXT_PUBLIC_SITE_URL to the public URL the browser backend should load')
 
 if (siteUrl && (!siteUrlIsLocal || screenshotEndpointIsLocal)) {
