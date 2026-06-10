@@ -10695,7 +10695,7 @@ onUnmounted(() => {
 
 .poster-composition--splits-grid[data-theme="splits-stats"] .poster-rule,
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-rule {
-  opacity: 0.22 !important;
+  display: none !important;
 }
 
 .poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--stat::first-line,
@@ -10711,7 +10711,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-profile-labels {
-  inset: 0.65cqh 6.8cqw 0.8cqh;
+  inset: 0.65cqh 6.8cqw 2.2cqh;
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-footer {
@@ -10721,8 +10721,13 @@ onUnmounted(() => {
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
   border-top-style: solid !important;
-  border-top-color: color-mix(in srgb, currentColor 18%, transparent) !important;
+  border-top-color: color-mix(in srgb, currentColor 24%, transparent) !important;
+  opacity: 1 !important;
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-footer {
