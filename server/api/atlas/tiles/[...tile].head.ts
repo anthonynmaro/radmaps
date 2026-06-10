@@ -13,6 +13,7 @@ const PUBLIC_MANIFEST_URLS = {
   production: 'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/manifests/production.json',
 } as const
 const EMPTY_TILE_LENGTH_BY_SOURCE = {
+  base: 213,
   terrain: 16,
   poi: 12,
   outdoorRoutes: 22,
@@ -157,11 +158,17 @@ function validateArtifactTile(
   }
 }
 
-function emptyTileHeadResponse(event: Parameters<typeof getRouterParam>[0], source: AtlasTileSource) {
+function emptyTileHeadResponse(
+  event: Parameters<typeof getRouterParam>[0],
+  source: AtlasTileSource,
+  metadata: { environment?: string, artifactId?: string } = {},
+) {
   setResponseStatus(event, 200)
   setHeader(event, 'Content-Type', 'application/x-protobuf')
   setHeader(event, 'Content-Length', EMPTY_TILE_LENGTH_BY_SOURCE[source as keyof typeof EMPTY_TILE_LENGTH_BY_SOURCE] ?? 0)
   setHeader(event, 'Cache-Control', 'public, max-age=86400')
+  if (metadata.environment) setHeader(event, 'X-RadMaps-Atlas-Environment', metadata.environment)
+  if (metadata.artifactId) setHeader(event, 'X-RadMaps-Atlas-Artifact', metadata.artifactId)
   setHeader(event, 'X-RadMaps-Atlas-Delivery', 'empty')
   return ''
 }
@@ -169,6 +176,7 @@ function emptyTileHeadResponse(event: Parameters<typeof getRouterParam>[0], sour
 async function hostedTileHeadResponse(
   event: Parameters<typeof getRouterParam>[0],
   environment: string,
+  source: AtlasTileSource,
   artifact: AtlasManifestArtifact,
   z: number,
   x: number,
@@ -181,6 +189,9 @@ async function hostedTileHeadResponse(
   const tileBaseUrl = (configuredBaseUrl || DEFAULT_HOSTED_TILE_BASE_URL).replace(/\/$/, '')
   const tileUrl = `${tileBaseUrl}/tiles/${encodeURIComponent(environment)}/${encodeURIComponent(artifact.id)}/${z}/${x}/${y}.mvt`
   const response = await fetch(tileUrl, { method: 'HEAD' })
+  if (response.status === 204) {
+    return emptyTileHeadResponse(event, source, { environment, artifactId: artifact.id })
+  }
   if (!response.ok) {
     throw createError({
       statusCode: response.status === 404 ? 404 : 502,
@@ -215,5 +226,5 @@ export default defineEventHandler(async (event) => {
   validateArtifactTile(artifact, z, x, y)
   if (!artifact) return emptyTileHeadResponse(event, source)
 
-  return hostedTileHeadResponse(event, environment, artifact, z, x, y)
+  return hostedTileHeadResponse(event, environment, source, artifact, z, x, y)
 })

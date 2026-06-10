@@ -179,11 +179,17 @@ function emptyTileForSource(source: AtlasTileSource) {
   return EMPTY_BASE_TILE
 }
 
-function emptyTileResponse(event: Parameters<typeof getRouterParam>[0], source: AtlasTileSource) {
+function emptyTileResponse(
+  event: Parameters<typeof getRouterParam>[0],
+  source: AtlasTileSource,
+  metadata: { environment?: string, artifactId?: string } = {},
+) {
   const emptyTile = emptyTileForSource(source)
   setHeader(event, 'Content-Type', 'application/x-protobuf')
   setHeader(event, 'Content-Length', emptyTile.byteLength)
   setHeader(event, 'Cache-Control', 'public, max-age=86400')
+  if (metadata.environment) setHeader(event, 'X-RadMaps-Atlas-Environment', metadata.environment)
+  if (metadata.artifactId) setHeader(event, 'X-RadMaps-Atlas-Artifact', metadata.artifactId)
   setHeader(event, 'X-RadMaps-Atlas-Delivery', 'empty')
   return emptyTile
 }
@@ -239,6 +245,7 @@ function normalizeRequestedTileUrl(event: Parameters<typeof getRouterParam>[0]) 
 async function hostedTileResponse(
   event: Parameters<typeof getRouterParam>[0],
   environment: string,
+  source: AtlasTileSource,
   artifact: AtlasManifestArtifact,
   z: number,
   x: number,
@@ -251,6 +258,9 @@ async function hostedTileResponse(
   const tileBaseUrl = (configuredBaseUrl || DEFAULT_HOSTED_TILE_BASE_URL).replace(/\/$/, '')
   const tileUrl = `${tileBaseUrl}/tiles/${encodeURIComponent(environment)}/${encodeURIComponent(artifact.id)}/${z}/${x}/${y}.mvt`
   const response = await fetch(tileUrl)
+  if (response.status === 204) {
+    return emptyTileResponse(event, source, { environment, artifactId: artifact.id })
+  }
   if (!response.ok) {
     throw createError({
       statusCode: response.status === 404 ? 404 : 502,
@@ -295,7 +305,7 @@ export default defineEventHandler(async (event) => {
     const artifact = await artifactFromQuery(event, source, z, x, y)
     validateArtifactTile(artifact, z, x, y)
     if (artifact) {
-      return hostedTileResponse(event, environment, artifact, z, x, y)
+      return hostedTileResponse(event, environment, source, artifact, z, x, y)
     }
     if (source !== 'base') return emptyTileResponse(event, source)
   }

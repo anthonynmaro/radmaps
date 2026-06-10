@@ -24,11 +24,11 @@ const environment = args.environment || 'production'
 const date = args.date || new Date().toISOString().slice(0, 10)
 const outputDir = resolve(ROOT, args.outputDir || `artifacts/atlas-print-qa/${date}`)
 const shouldRender = Boolean(args.render)
-const limit = args.limit ? Number.parseInt(args.limit, 10) : Number.POSITIVE_INFINITY
+const limit = args.limit === undefined ? null : Number.parseInt(args.limit, 10)
 const requestedFixture = args.fixture || 'all'
 const requestedTarget = args.target || ''
 
-if (!Number.isFinite(limit) || limit < 1) {
+if (limit !== null && (!Number.isFinite(limit) || limit < 1)) {
   throw new Error('--limit must be a positive integer')
 }
 
@@ -38,7 +38,7 @@ const coverageTargets = JSON.parse(readFileSync(COVERAGE_TARGETS_PATH, 'utf8'))
 const fixtures = buildFixtures(coverageTargets)
   .filter(fixture => requestedFixture === 'all' || fixture.id === requestedFixture)
   .filter(fixture => !requestedTarget || fixture.targetId === requestedTarget)
-  .slice(0, limit)
+  .slice(0, limit ?? undefined)
 
 if (!fixtures.length) {
   throw new Error('No Atlas print QA fixtures matched the requested filters')
@@ -153,18 +153,24 @@ function buildFixtures(coverageTargets) {
 
 async function auditFixture({ fixture, manifest, environment, siteUrl, tileBaseUrl }) {
   const center = bboxCenter(fixture.bbox)
+  const baseTile = tileForLngLat(8, center.lng, center.lat)
+  const overlayTile = tileForLngLat(16, center.lng, center.lat)
   const baseArtifacts = artifacts(manifest, 'base').filter(artifact => intersects(artifact.bounds, fixture.bbox))
   const poiArtifacts = artifacts(manifest, 'poi').filter(artifact => intersects(artifact.bounds, fixture.bbox))
   const outdoorRouteArtifacts = artifacts(manifest, 'outdoorRoutes').filter(artifact => intersects(artifact.bounds, fixture.bbox))
+  const baseTileArtifact = baseArtifacts.find(artifact => intersects(artifact.bounds, baseTile.bbox))
+  const poiTileArtifact = poiArtifacts.find(artifact => intersects(artifact.bounds, overlayTile.bbox))
+  const outdoorRouteTileArtifact = outdoorRouteArtifacts.find(artifact => intersects(artifact.bounds, overlayTile.bbox))
   const probes = []
 
-  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/base/${tilePathForLngLat(8, center.lng, center.lat)}.mvt?environment=${environment}`))
-  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/poi/${tilePathForLngLat(16, center.lng, center.lat)}.mvt?environment=${environment}`))
-  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/outdoorRoutes/${tilePathForLngLat(16, center.lng, center.lat)}.mvt?environment=${environment}`))
+  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/base/${baseTile.path}.mvt?environment=${environment}`))
+  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/poi/${overlayTile.path}.mvt?environment=${environment}`))
+  probes.push(await appProxyProbe(`${siteUrl}/api/atlas/tiles/outdoorRoutes/${overlayTile.path}.mvt?environment=${environment}`))
 
-  for (const artifact of [baseArtifacts[0], poiArtifacts[0], outdoorRouteArtifacts[0]].filter(Boolean)) {
+  for (const artifact of [baseTileArtifact, poiTileArtifact, outdoorRouteTileArtifact].filter(Boolean)) {
     const z = artifact.kind === 'base' ? 8 : 16
-    probes.push(await workerProbe(`${tileBaseUrl}/tiles/${environment}/${artifact.id}/${tilePathForLngLat(z, center.lng, center.lat)}.mvt`))
+    const tile = z === 8 ? baseTile : overlayTile
+    probes.push(await workerProbe(`${tileBaseUrl}/tiles/${environment}/${artifact.id}/${tile.path}.mvt`, artifact.kind))
   }
 
   const status = probes.every(probe => probe.ok) && baseArtifacts.length ? 'passed' : 'needs-review'
@@ -189,8 +195,16 @@ async function appProxyProbe(url) {
   return probe(url, 'app-proxy')
 }
 
-async function workerProbe(url) {
-  return probe(url, 'cloudflare-worker')
+async function workerProbe(url, kind) {
+  const result = await probe(url, 'cloudflare-worker')
+  if (kind !== 'base' && result.status === 204) {
+    return {
+      ...result,
+      ok: true,
+      delivery: result.delivery || 'empty-upstream',
+    }
+  }
+  return result
 }
 
 async function probe(url, surface) {
@@ -305,11 +319,36 @@ function bboxCenter([west, south, east, north]) {
 }
 
 function tilePathForLngLat(z, lng, lat) {
+  return tileForLngLat(z, lng, lat).path
+}
+
+function tileForLngLat(z, lng, lat) {
   const n = 2 ** z
   const x = Math.floor(((lng + 180) / 360) * n)
   const latRad = lat * Math.PI / 180
   const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n)
-  return `${z}/${Math.max(0, Math.min(n - 1, x))}/${Math.max(0, Math.min(n - 1, y))}`
+  const clampedX = Math.max(0, Math.min(n - 1, x))
+  const clampedY = Math.max(0, Math.min(n - 1, y))
+  return {
+    z,
+    x: clampedX,
+    y: clampedY,
+    path: `${z}/${clampedX}/${clampedY}`,
+    bbox: tileBbox(z, clampedX, clampedY),
+  }
+}
+
+function tileBbox(z, x, y) {
+  const n = 2 ** z
+  const west = x / n * 360 - 180
+  const east = (x + 1) / n * 360 - 180
+  const north = tileYToLat(y, n)
+  const south = tileYToLat(y + 1, n)
+  return [west, south, east, north]
+}
+
+function tileYToLat(y, n) {
+  return Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI
 }
 
 function intersects(bounds, bbox) {
