@@ -9,6 +9,7 @@ import {
   orderedQuickThemeOptionsForRoute,
   priorityThemeIdsForMap,
   purposeForTheme,
+  resolveThemePreviewBaseMapMode,
   showsRefinedThemeBadge,
 } from '~/utils/themeOptions'
 import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
@@ -140,7 +141,66 @@ describe('theme options', () => {
     expect(base).toEqual(before)
     expect(preview).not.toBe(base)
     expect(preview.color_theme).toBe('blueprint')
+    expect(preview.base_map_mode).toBe('minimal')
     expect(preview.poster_text_overrides).toEqual({ trail_name: { text: 'Saved title' } })
+  })
+
+  it('resolves base map mode deterministically from route context', () => {
+    const flatRoute = { distance_km: 42, elevation_gain_m: 22, elevation_loss_m: 20, max_elevation_m: 190, min_elevation_m: 160 }
+    const mountainRoute = { distance_km: 12, elevation_gain_m: 900, elevation_loss_m: 900, max_elevation_m: 1800, min_elevation_m: 700 }
+
+    expect(resolveThemePreviewBaseMapMode({ stats: flatRoute })).toBe('minimal')
+    expect(resolveThemePreviewBaseMapMode({ stats: { ...flatRoute }, atlas_coverage_status: 'base' })).toBe('streets')
+    expect(resolveThemePreviewBaseMapMode({ stats: mountainRoute })).toBe('terrain')
+    expect(resolveThemePreviewBaseMapMode({ stats: mountainRoute }, 'minimal')).toBe('minimal')
+  })
+
+  it('applies minimal as a base-mode overlay without replacing the theme preset', () => {
+    const theme = getThemeDefinition('blueprint')
+    expect(theme).toBeTruthy()
+
+    const preview = deriveThemePreviewConfig(config(), theme!, {
+      stats: { distance_km: 42, elevation_gain_m: 22, elevation_loss_m: 20, max_elevation_m: 190, min_elevation_m: 160 },
+      baseMapMode: 'minimal',
+    })
+
+    expect(preview.base_map_mode).toBe('minimal')
+    expect(preview.preset).toBe(theme!.map_defaults?.preset)
+    expect(preview.show_contours).toBe(false)
+    expect(preview.show_roads).toBe(false)
+    expect(preview.show_place_labels).toBe(false)
+    expect(preview.atlas_layers).toMatchObject({
+      contour: false,
+      transportation: false,
+      water: false,
+      place: false,
+      poi: false,
+    })
+  })
+
+  it('derives street tokens from theme contour tokens when Atlas coverage is available', () => {
+    const theme = getThemeDefinition('transit-diagram')
+    expect(theme).toBeTruthy()
+
+    const preview = deriveThemePreviewConfig(config(), theme!, {
+      stats: { distance_km: 42, elevation_gain_m: 22, elevation_loss_m: 20, max_elevation_m: 190, min_elevation_m: 160 },
+      atlas_coverage_status: 'base',
+      baseMapMode: 'auto',
+    })
+
+    expect(preview.base_map_mode).toBe('streets')
+    expect(preview.show_contours).toBe(false)
+    expect(preview.show_roads).toBe(true)
+    expect(preview.show_place_labels).toBe(false)
+    expect(preview.atlas_layers).toMatchObject({
+      contour: false,
+      transportation: true,
+      place: false,
+      poi: false,
+    })
+    expect(preview.atlas_layer_settings?.transportation?.major_color).toBe(preview.contour_major_color)
+    expect(preview.atlas_layer_settings?.transportation?.minor_color).toBe(preview.contour_color)
+    expect(preview.atlas_layer_settings?.transportation?.labels).toBe(false)
   })
 
   it('orders quick themes deterministically from route stats', () => {
@@ -202,7 +262,7 @@ describe('theme options', () => {
     expect(routeGroups[0]?.purpose).toBe('route-terrain')
   })
 
-  it('adds map context to place previews without forcing contours back on', () => {
+  it('uses the minimal base overlay for place previews by default', () => {
     const theme = getThemeDefinition('transit-diagram')
     expect(theme).toBeTruthy()
 
@@ -211,34 +271,35 @@ describe('theme options', () => {
       geojson: POINT_GEOJSON,
     })
 
-    expect(preview.show_roads).toBe(true)
-    expect(preview.show_place_labels).toBe(true)
-    expect(preview.show_poi_labels).toBe(true)
+    expect(preview.base_map_mode).toBe('minimal')
+    expect(preview.show_roads).toBe(false)
+    expect(preview.show_place_labels).toBe(false)
+    expect(preview.show_poi_labels).toBe(false)
     expect(preview.show_contours).toBe(false)
-    expect(preview.roads_color).toBe(preview.contour_major_color)
-    expect(preview.roads_color).not.toBe(preview.route_color)
-    expect(preview.roads_opacity).toBeLessThanOrEqual(0.5)
     expect(preview.atlas_layers).toMatchObject({
       contour: false,
-      water: true,
-      waterway: true,
-      transportation: true,
-      place: true,
-      poi: true,
+      water: false,
+      waterway: false,
+      transportation: false,
+      place: false,
+      poi: false,
     })
   })
 
-  it('preserves mid-century readable place-label ink in place previews', () => {
+  it('preserves manual streets label ink in place previews without enabling labels', () => {
     const theme = getThemeDefinition('midcentury-travel')
     expect(theme).toBeTruthy()
 
     const preview = deriveThemePreviewConfig(config(), theme!, {
       stats: PLACE_STATS,
       geojson: POINT_GEOJSON,
+      atlas_coverage_status: 'base',
+      baseMapMode: 'streets',
     })
 
     expect(preview.place_labels_color).toBe('#31442D')
     expect(preview.poi_labels_color).toBe('#31442D')
     expect(preview.atlas_layer_settings?.place?.label_color).toBe('#31442D')
+    expect(preview.show_place_labels).toBe(false)
   })
 })

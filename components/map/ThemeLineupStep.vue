@@ -8,12 +8,27 @@
             {{ selectedTheme.label }}
             <span v-if="selectedTheme.family">/ {{ selectedTheme.family }}</span>
           </p>
+          <div class="theme-base-mode-picker" data-testid="theme-base-mode-picker" aria-label="Base map mode">
+            <button
+              v-for="option in baseModeOptions"
+              :key="option.id"
+              type="button"
+              class="theme-base-mode-option"
+              :class="{ 'is-active': selectedBaseMode === option.id }"
+              :disabled="option.disabled"
+              :data-testid="`theme-base-mode-${option.id}`"
+              @click="selectBaseMode(option.id)"
+            >
+              <span>{{ option.label }}</span>
+              <small v-if="option.id === 'auto'">{{ resolvedBaseModeLabel }}</small>
+            </button>
+          </div>
         </div>
 
         <div class="theme-lineup-poster" data-testid="theme-picker-hero" :style="{ backgroundColor: selectedTheme.background_color }">
           <ClientOnly>
             <MapPreview
-              :key="selectedTheme.id"
+              :key="`${selectedTheme.id}-${resolvedBaseMode}`"
               :map="map"
               :style-config="selectedPreviewConfig"
               :editable="false"
@@ -97,6 +112,8 @@ import {
   deriveThemePreviewConfig,
   groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
+  resolveThemePreviewBaseMapMode,
+  type ThemeBaseMapSelection,
 } from '~/utils/themeOptions'
 
 const props = defineProps<{
@@ -116,14 +133,27 @@ const themePurposeGroups = computed(() => groupThemeOptionsByPurpose(orderedThem
   geojson: props.map.geojson,
 }))
 const selectedThemeId = ref<ColorTheme>((orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0]).id)
+const selectedBaseMode = ref<ThemeBaseMapSelection>('auto')
 const liveCardThemeIds = ref<ColorTheme[]>([])
 const maxLivePreviewCards = 4
+const baseModeOptions: Array<{ id: ThemeBaseMapSelection; label: string; disabled?: boolean }> = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'streets', label: 'Streets' },
+  { id: 'minimal', label: 'Minimal' },
+]
 
 const selectedTheme = computed(() =>
   orderedThemes.value.find(theme => theme.id === selectedThemeId.value) ?? orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0],
 )
 
 const selectedPreviewConfig = computed(() => previewConfigFor(selectedTheme.value))
+const resolvedBaseMode = computed(() => resolveThemePreviewBaseMapMode({
+  ...props.map,
+  stats: props.map.stats,
+  geojson: props.map.geojson,
+}, selectedBaseMode.value))
+const resolvedBaseModeLabel = computed(() => resolvedBaseMode.value[0].toUpperCase() + resolvedBaseMode.value.slice(1))
 
 watch(orderedThemes, (themes) => {
   if (!themes.some(theme => theme.id === selectedThemeId.value)) {
@@ -136,8 +166,10 @@ watch(orderedThemes, (themes) => {
 
 function previewConfigFor(theme: ThemeDefinition): StyleConfig {
   return deriveThemePreviewConfig(props.modelValue, theme, {
+    ...props.map,
     stats: props.map.stats,
     geojson: props.map.geojson,
+    baseMapMode: selectedBaseMode.value,
   })
 }
 
@@ -150,6 +182,10 @@ function enableLiveCard(themeId: ColorTheme) {
   if (liveCardThemeIds.value.includes(themeId)) return
   if (themeId !== selectedThemeId.value && liveCardThemeIds.value.length >= maxLivePreviewCards) return
   liveCardThemeIds.value = [...liveCardThemeIds.value, themeId]
+}
+
+function selectBaseMode(mode: ThemeBaseMapSelection) {
+  selectedBaseMode.value = mode
 }
 
 function cardLiveEnabled(themeId: ColorTheme) {
@@ -211,6 +247,53 @@ function applySelected() {
   color: #78716c;
   font-size: 12px;
   font-weight: 700;
+}
+
+.theme-base-mode-picker {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  width: min(100%, 360px);
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid #d6d3d1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.theme-base-mode-option {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  gap: 1px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.theme-base-mode-option small {
+  color: #a8a29e;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.theme-base-mode-option.is-active {
+  background: #1c1917;
+  color: white;
+}
+
+.theme-base-mode-option.is-active small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.theme-base-mode-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .theme-lineup-poster {

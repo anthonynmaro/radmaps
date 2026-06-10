@@ -1,4 +1,4 @@
-import type { ColorTheme, CompositionId, PosterTextSlot, RouteStats, StyleConfig, ThemeDefinition } from '~/types'
+import type { ColorTheme, CompositionId, PosterTextSlot, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
 
 export const THEME_DATA_CONTRACT_VERSION = 'theme-data-contract-v1'
 
@@ -60,6 +60,7 @@ export interface ThemeDataContextInput {
   location_elevation_m?: number | null
   location_metadata_source?: string | null
   location_metadata_enriched_at?: string | null
+  atlas_coverage_status?: 'terrain' | 'base' | 'missing' | null
 }
 
 export interface ThemeDataContext {
@@ -85,6 +86,8 @@ export interface ThemeDataContext {
   locationMetadataSource: string | null
   locationMetadataEnrichedAt: string | null
   bbox: [number, number, number, number] | null
+  atlasCoverageStatus: 'terrain' | 'base' | 'missing' | null
+  recommendedBaseMapMode: ThemeBaseMapMode
 }
 
 export interface ResolvedThemeDataContract {
@@ -185,6 +188,22 @@ function purposeForContext(input: {
   return 'place'
 }
 
+function recommendedBaseMapModeForContext(input: {
+  purpose: ThemePurpose
+  hasRoute: boolean
+  reliefM: number | null
+  elevationChangeM: number | null
+  atlasCoverageStatus: 'terrain' | 'base' | 'missing' | null
+}): ThemeBaseMapMode {
+  if (!input.hasRoute || input.purpose === 'place') return 'minimal'
+  const reliefM = input.reliefM ?? input.elevationChangeM
+  const lowRelief = reliefM != null && reliefM <= 80
+  if (!lowRelief) return 'terrain'
+  return input.atlasCoverageStatus === 'base' || input.atlasCoverageStatus === 'terrain'
+    ? 'streets'
+    : 'minimal'
+}
+
 export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeDataContext {
   const stats = input.stats ?? {}
   const styleConfig = input.styleConfig ?? {}
@@ -199,9 +218,15 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
   const elevationLossM = finiteNumber(stats.elevation_loss_m)
   const maxElevationM = finiteNumber(stats.max_elevation_m)
   const minElevationM = finiteNumber(stats.min_elevation_m)
+  const reliefM = minElevationM != null && maxElevationM != null && maxElevationM > minElevationM
+    ? maxElevationM - minElevationM
+    : null
+  const gainM = Math.max(elevationGainM ?? 0, elevationLossM ?? 0)
+  const elevationChangeM = reliefM ?? (gainM > 0 ? gainM : null)
   const hasLine = hasRenderableLine(input.geojson)
-  const hasDistance = distanceKm != null && distanceKm > 0
-  const hasRoute = hasLine || hasDistance
+  const hasDistanceStat = distanceKm != null && distanceKm > 0
+  const hasRoute = hasLine || (input.geojson == null && hasDistanceStat)
+  const hasDistance = hasRoute && hasDistanceStat
   const hasElevation = hasRoute && (
     geojsonHasElevation(input.geojson) ||
     Boolean(elevationGainM && elevationGainM > 0) ||
@@ -220,16 +245,18 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
   const hasLocation = Boolean(label || city || region || country || coords)
   const activityType = cleanText(stats.activity_type)
   const composition = styleConfig.composition
+  const purpose = purposeForContext({
+    composition,
+    activityType,
+    hasRoute,
+    hasElevation,
+    hasLocation,
+  })
+  const atlasCoverageStatus = input.atlas_coverage_status ?? null
 
   return {
     version: THEME_DATA_CONTRACT_VERSION,
-    purpose: purposeForContext({
-      composition,
-      activityType,
-      hasRoute,
-      hasElevation,
-      hasLocation,
-    }),
+    purpose,
     hasRoute,
     hasDistance,
     hasElevation,
@@ -250,6 +277,14 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     locationMetadataSource: cleanText(input.location_metadata_source),
     locationMetadataEnrichedAt: cleanText(input.location_metadata_enriched_at),
     bbox,
+    atlasCoverageStatus,
+    recommendedBaseMapMode: recommendedBaseMapModeForContext({
+      purpose,
+      hasRoute,
+      reliefM,
+      elevationChangeM,
+      atlasCoverageStatus,
+    }),
   }
 }
 
@@ -276,7 +311,16 @@ export function themeDataContextSignature(context: ThemeDataContext) {
     coords: context.coords,
     locationMetadataSource: context.locationMetadataSource,
     locationMetadataEnrichedAt: context.locationMetadataEnrichedAt,
+    atlasCoverageStatus: context.atlasCoverageStatus,
+    recommendedBaseMapMode: context.recommendedBaseMapMode,
   }
+}
+
+export function resolveThemeBaseMapMode(
+  context: ThemeDataContext,
+  requested?: ThemeBaseMapMode | 'auto' | null,
+): ThemeBaseMapMode {
+  return requested && requested !== 'auto' ? requested : context.recommendedBaseMapMode
 }
 
 export function themePurposeForContext(context: ThemeDataContext): ThemePurpose {

@@ -940,6 +940,8 @@ test.describe('style browser visual harness', () => {
     await page.goto('/style-browser-fixture?themePicker=1&width=1180&height=820')
 
     await expect(page.getByTestId('theme-lineup-step')).toBeVisible()
+    await expect(page.getByTestId('theme-base-mode-picker')).toBeVisible()
+    await expect(page.getByTestId('theme-base-mode-auto')).toContainText('Minimal')
     expect(await page.getByTestId('theme-preview-card').count()).toBeGreaterThan(10)
     await expect(page.locator('.theme-lineup-grid-head')).toHaveCount(0)
     await expect(page.locator('.theme-lineup-icon-action')).toHaveCount(0)
@@ -949,9 +951,13 @@ test.describe('style browser visual harness', () => {
       return fixture?.getStyle()?.color_theme ?? null
     })).toBe('editorial-minimal')
 
+    await page.getByTestId('theme-base-mode-terrain').click()
     await page.locator('[data-testid="theme-preview-card"][data-theme-id="blueprint"]').click()
     const heroPoster = page.locator('[data-testid="theme-picker-hero"] [data-testid="poster-canvas"]').first()
     await expect(heroPoster).toHaveAttribute('data-theme', 'blueprint')
+    await expect(heroPoster).toHaveAttribute('data-base-map-mode', 'terrain')
+    await expect(page.locator('[data-testid="theme-preview-card"][data-theme-id="blueprint"] [data-testid="poster-canvas"]').first())
+      .toHaveAttribute('data-base-map-mode', 'terrain')
     const heroPosterBox = await heroPoster.boundingBox()
     expect(heroPosterBox?.width).toBeGreaterThan(240)
     expect(heroPosterBox?.height).toBeGreaterThan(360)
@@ -979,6 +985,40 @@ test.describe('style browser visual harness', () => {
     })
     expect(appliedStyle.color_theme).toBe('blueprint')
     expect(appliedStyle.composition).toBe('blueprint-grid')
+    expect(appliedStyle.base_map_mode).toBe('terrain')
+    await expect(page.getByTestId('poster-canvas')).toHaveAttribute('data-base-map-mode', 'terrain')
+  })
+
+  test('route-first POI themes drop route stats and keep the map rect stable', async ({ page }) => {
+    for (const [theme, composition] of [
+      ['splits-stats', 'splits-grid'],
+      ['marathon-bib', 'bib-numerals'],
+    ] as const) {
+      await page.goto(`/style-browser-fixture?route=0&theme=${theme}&composition=${composition}&width=520&height=780&distanceKm=42&gainM=900`, { waitUntil: 'domcontentloaded' })
+
+      const poster = page.getByTestId('poster-canvas')
+      const map = page.getByTestId('poster-map')
+      await expect(poster).toBeVisible()
+      await expect(poster).toHaveClass(/poster-place-map/)
+      await expect(map).toBeVisible()
+      await expect(page.getByTestId('elevation-profile')).toHaveCount(0)
+      await expect(page.getByTestId('elevation-profile-band')).toHaveCount(0)
+      await expect(page.getByTestId('composition-technical-data-footer')).toHaveCount(0)
+      await expect(page.getByTestId('composition-bib-data-footer')).toHaveCount(0)
+
+      const boxes = await page.evaluate(() => {
+        const posterEl = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+        const mapEl = document.querySelector<HTMLElement>('[data-testid="poster-map"]')
+        return {
+          poster: posterEl?.getBoundingClientRect().toJSON(),
+          map: mapEl?.getBoundingClientRect().toJSON(),
+        }
+      })
+      expect(boxes.poster, theme).toBeTruthy()
+      expect(boxes.map, theme).toBeTruthy()
+      expect(boxes.map!.width, theme).toBeGreaterThan(boxes.poster!.width * 0.82)
+      expect(boxes.map!.height, theme).toBeGreaterThan(boxes.poster!.height * 0.52)
+    }
   })
 
   test('theme picker design-myself exits without applying the selected preview', async ({ page }, testInfo) => {

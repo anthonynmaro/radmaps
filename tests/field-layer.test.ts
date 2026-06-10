@@ -17,6 +17,7 @@ const fullConfig: StyleConfig = {
   ...DEFAULT_STYLE_CONFIG,
   // Optional map fields
   toner_variant: 'dark',
+  base_map_mode: 'terrain',
   route_deleted_ranges: [],
   route_color_mode: 'solid',
   show_roads: false,

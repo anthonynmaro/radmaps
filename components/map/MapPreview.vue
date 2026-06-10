@@ -373,6 +373,7 @@
       :style="posterCanvasStyle"
       :data-composition="composition.id"
       :data-theme="styleConfig.color_theme"
+      :data-base-map-mode="styleConfig.base_map_mode ?? 'unspecified'"
       data-testid="poster-canvas"
       @pointerdown.self="onChromeCanvasPointerDown"
     >

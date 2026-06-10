@@ -50,6 +50,7 @@ export const FIELD_LAYER = {
   atlas_manifest_id: 'map',
   atlas_style_id: 'map',
   toner_variant: 'map',
+  base_map_mode: 'map',
   atlas_layers: 'map',
   atlas_layer_settings: 'map',
   watercolor_seed: 'map',

@@ -93,6 +93,7 @@ export type BaseTileStyle =
   | 'maptiler-topo'
   | 'maptiler-winter'
 export type TonerVariant = 'auto' | 'light' | 'dark'
+export type ThemeBaseMapMode = 'terrain' | 'streets' | 'minimal'
 
 export type AtlasLayerId =
   | 'contour'
@@ -540,6 +541,7 @@ export interface StyleConfig {
   atlas_manifest_id?: string
   atlas_style_id?: string
   toner_variant?: TonerVariant
+  base_map_mode?: ThemeBaseMapMode
   atlas_layers?: AtlasLayerVisibility
   atlas_layer_settings?: AtlasLayerSettings
   watercolor_seed?: string

@@ -1,8 +1,8 @@
-import type { ColorTheme, RouteStats, StyleConfig, ThemeDefinition } from '~/types'
+import type { ColorTheme, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
 import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
-import { buildThemeDataContext, type ThemeDataContextInput, type ThemePurpose } from '~/utils/themeDataContract'
+import { buildThemeDataContext, resolveThemeBaseMapMode, type ThemeDataContextInput, type ThemePurpose } from '~/utils/themeDataContract'
 import { REFINED_THEMES } from '~/utils/themes/refined'
 import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
 
@@ -290,15 +290,162 @@ export function showsRefinedThemeBadge(themeId: ColorTheme | string): boolean {
   return isManifestRefinedTheme(themeId)
 }
 
-type ThemeContext = ThemeDataContextInput
+export type ThemeBaseMapSelection = ThemeBaseMapMode | 'auto'
+type ThemeContext = ThemeDataContextInput & {
+  baseMapMode?: ThemeBaseMapSelection
+}
 
 const PLACE_THEME_PRIORITY: ColorTheme[] = ['cartouche-place', 'editorial-minimal', 'usgs-vintage']
 
 export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
+  const { baseMapMode = 'auto', ...dataInput } = context
   const base = JSON.parse(JSON.stringify(baseConfig)) as StyleConfig
   const themed = applyThemeToStyleConfig(base, theme)
-  const dataContext = buildThemeDataContext({ ...context, styleConfig: baseConfig })
-  return dataContext.purpose === 'place' ? mapRichPlaceConfig(themed) : themed
+  const dataContext = buildThemeDataContext({ ...dataInput, styleConfig: themed })
+  return applyThemeBaseMapMode(themed, resolveThemeBaseMapMode(dataContext, baseMapMode))
+}
+
+export function resolveThemePreviewBaseMapMode(context: ThemeDataContextInput, requested: ThemeBaseMapSelection = 'auto'): ThemeBaseMapMode {
+  return resolveThemeBaseMapMode(buildThemeDataContext(context), requested)
+}
+
+export function applyThemeBaseMapMode(config: StyleConfig, mode: ThemeBaseMapMode): StyleConfig {
+  if (mode === 'minimal') return applyMinimalBaseMapMode(config)
+  if (mode === 'streets') return applyStreetsBaseMapMode(config)
+  return applyTerrainBaseMapMode(config)
+}
+
+function applyMinimalBaseMapMode(config: StyleConfig): StyleConfig {
+  return {
+    ...config,
+    base_map_mode: 'minimal',
+    show_contours: false,
+    show_hillshade: false,
+    show_roads: false,
+    show_place_labels: false,
+    show_poi_labels: false,
+    map_3d: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: false,
+      water: false,
+      waterway: false,
+      park: false,
+      landcover: false,
+      transportation: false,
+      building: false,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        opacity: 0,
+        show_major: false,
+        show_minor: false,
+        show_trails: false,
+        labels: false,
+      },
+      contour: {
+        ...config.atlas_layer_settings?.contour,
+        labels: false,
+      },
+    },
+  }
+}
+
+function applyTerrainBaseMapMode(config: StyleConfig): StyleConfig {
+  return {
+    ...config,
+    base_map_mode: 'terrain',
+    show_contours: true,
+    show_roads: false,
+    show_place_labels: false,
+    show_poi_labels: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: true,
+      transportation: false,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        show_major: false,
+        show_minor: false,
+        show_trails: false,
+        labels: false,
+      },
+      contour: {
+        ...config.atlas_layer_settings?.contour,
+        labels: config.show_elevation_labels === true,
+      },
+    },
+  }
+}
+
+const STREET_WIDTH_FACTOR = 2.2
+
+function applyStreetsBaseMapMode(config: StyleConfig): StyleConfig {
+  const roadOpacity = Math.min(1, (config.contour_opacity ?? 0.7) + 0.1)
+  const minorWidth = Math.max(0.35, (config.contour_minor_width ?? 1) * STREET_WIDTH_FACTOR)
+  const majorWidth = Math.max(minorWidth, (config.contour_major_width ?? 0.5) * STREET_WIDTH_FACTOR * 2.2)
+  const roadColor = config.contour_color ?? config.roads_color ?? config.label_text_color
+  const majorColor = config.contour_major_color ?? roadColor
+
+  return {
+    ...config,
+    base_map_mode: 'streets',
+    show_contours: false,
+    show_hillshade: false,
+    show_roads: true,
+    roads_color: majorColor,
+    roads_opacity: roadOpacity,
+    show_place_labels: false,
+    show_poi_labels: false,
+    map_3d: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: false,
+      water: true,
+      waterway: true,
+      park: true,
+      landcover: true,
+      transportation: true,
+      building: true,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        density: 'balanced',
+        road_color: roadColor,
+        major_color: majorColor,
+        minor_color: roadColor,
+        trail_color: roadColor,
+        opacity: roadOpacity,
+        show_major: true,
+        show_minor: true,
+        show_trails: true,
+        labels: false,
+        major_width: majorWidth,
+        minor_width: minorWidth,
+        trail_width: Math.max(0.35, minorWidth * 0.82),
+      },
+      place: {
+        ...config.atlas_layer_settings?.place,
+      },
+      poi: {
+        ...config.atlas_layer_settings?.poi,
+        labels: false,
+      },
+    },
+  }
 }
 
 export function priorityThemeIdsForMap(stats?: Partial<RouteStats> | null, geojson?: GeoJSON.FeatureCollection | null): ColorTheme[] {

@@ -64,13 +64,29 @@ describe('theme data contract', () => {
     expect(context.hasPointElevation).toBe(true)
     expect(context.region).toBe('Illinois')
     expect(context.pointElevationM).toBe(187)
+    expect(context.recommendedBaseMapMode).toBe('minimal')
     expect(themeDataContextSignature(context)).toMatchObject({
       version: THEME_DATA_CONTRACT_VERSION,
       purpose: 'place',
       region: 'Illinois',
       pointElevationM: 187,
       locationMetadataSource: 'mapbox-geocoding-v6-reverse+terrarium-dem-z12',
+      recommendedBaseMapMode: 'minimal',
     })
+  })
+
+  it('recommends Minimal for flat uncovered routes and Streets for flat Atlas-covered routes', () => {
+    const flatStats: RouteStats = {
+      distance_km: 42,
+      elevation_gain_m: 24,
+      elevation_loss_m: 20,
+      max_elevation_m: 184,
+      min_elevation_m: 150,
+    }
+
+    expect(buildThemeDataContext({ stats: flatStats }).recommendedBaseMapMode).toBe('minimal')
+    expect(buildThemeDataContext({ stats: flatStats, atlas_coverage_status: 'base' }).recommendedBaseMapMode).toBe('streets')
+    expect(buildThemeDataContext({ stats: routeStats, geojson: routeGeojson }).recommendedBaseMapMode).toBe('terrain')
   })
 
   it('omits route-only slots and map features for proof rendering of place data', () => {
@@ -113,5 +129,20 @@ describe('theme data contract', () => {
     expect(resolved.omittedSlotIds).not.toContain('distance')
     expect(resolved.omittedSlotIds).not.toContain('elevation_gain')
     expect(resolved.omittedMapFeatures).not.toContain('elevation_profile')
+  })
+
+  it('treats explicit empty route geometry as missing route data even when stale stats exist', () => {
+    const context = buildThemeDataContext({
+      geojson: emptyGeojson,
+      stats: routeStats,
+      location_label: 'Starved Rock',
+      location_region: 'Illinois',
+    })
+
+    expect(context.hasRoute).toBe(false)
+    expect(context.hasDistance).toBe(false)
+    expect(context.hasElevation).toBe(false)
+    expect(context.purpose).toBe('place')
+    expect(context.recommendedBaseMapMode).toBe('minimal')
   })
 })
