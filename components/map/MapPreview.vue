@@ -12208,10 +12208,10 @@ onUnmounted(() => {
   pointer-events: none;
   color: color-mix(in srgb, var(--label-text-color, #dceeff) 72%, transparent);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 1.25cqh;
+  font-size: 1.08cqh;
   font-weight: 500;
   line-height: 1;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -12227,8 +12227,8 @@ onUnmounted(() => {
 
 .poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure,
 .poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
-  left: 8.8cqw;
-  top: 9.1cqh;
+  left: 13cqw;
+  top: 10.2cqh;
 }
 
 .poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-sheet-neatline,
@@ -12286,7 +12286,7 @@ onUnmounted(() => {
 }
 
 .poster-composition--blueprint-grid[data-theme="blueprint"] .poster-trail-name {
-  font-size: min(8.1cqh, 11.2cqw) !important;
+  font-size: min(8.1cqh, 9.4cqw) !important;
   letter-spacing: 0.015em !important;
   transform: translateY(-1.45cqh);
   white-space: nowrap !important;
