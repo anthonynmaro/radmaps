@@ -295,6 +295,10 @@ const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
   ['splits-stats', 3],
 ])
 
+const THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL = new Map<string, number>([
+  ['night-ride', 0],
+])
+
 const SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS = new Set([
   'blueprint-strava',
   'splits-stats',
@@ -395,6 +399,10 @@ export function resolveAdaptiveContourDetail(
   if (themeMaximumDetail != null) {
     adaptiveDetail = Math.min(adaptiveDetail, themeMaximumDetail)
   }
+  const nonLowReliefThemeMaximumDetail = THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
+  if (nonLowReliefThemeMaximumDetail != null && profile.band !== 'low') {
+    adaptiveDetail = Math.min(adaptiveDetail, nonLowReliefThemeMaximumDetail)
+  }
   if (
     adaptiveDetail === 5 &&
     fallback < adaptiveDetail &&
@@ -483,6 +491,13 @@ export function resolveAdaptiveContourStyleConfig(
             2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
             3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.80, widthFactor: 1 },
           } as const)[adaptiveDetail]
+        : config.color_theme === 'night-ride'
+          ? ({
+              0: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.54, widthFactor: 0.86 },
+              1: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.56, widthFactor: 0.9 },
+              2: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.58, widthFactor: 0.94 },
+              3: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.60, widthFactor: 1 },
+            } as const)[adaptiveDetail]
         : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
           ? ({
               0: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.62, widthFactor: 1 },

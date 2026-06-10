@@ -142,6 +142,29 @@ describe('adaptive contour detail', () => {
     expect(resolveAdaptiveContourThresholds({ color_theme: 'midcentury-travel', contour_detail: 0 }, dolomitesStats)).toBe(CONTOUR_THRESHOLDS[1])
     expect(resolveAdaptiveContourDetail({ color_theme: 'ranch-ochre', contour_detail: 1 }, moabStats)).toBe(1)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'ranch-ochre', contour_detail: 1 }, moabStats)).toBe(CONTOUR_THRESHOLDS[1])
+    expect(resolveAdaptiveContourDetail({ color_theme: 'night-ride', contour_detail: 5 }, moabStats)).toBe(0)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'night-ride', contour_detail: 5 }, moabStats)).toBe(CONTOUR_THRESHOLDS[0])
+    const nightRide = resolveAdaptiveContourStyleConfig({
+      ...DEFAULT_STYLE_CONFIG,
+      color_theme: 'night-ride',
+      show_contours: true,
+      contour_detail: 5,
+      contour_opacity: 0.32,
+      contour_minor_width: 1,
+      contour_major_width: 1.6,
+      atlas_layer_settings: {
+        contour: {
+          minor_opacity: 0.32,
+          major_opacity: 0.48,
+          minor_width: 1,
+          major_width: 1.6,
+        },
+      },
+    } as StyleConfig, moabStats)
+    expect(nightRide.contour_detail).toBe(0)
+    expect(nightRide.atlas_layer_settings?.contour?.minor_opacity).toBe(0.22)
+    expect(nightRide.atlas_layer_settings?.contour?.major_opacity).toBe(0.48)
+    expect(nightRide.atlas_layer_settings?.contour?.minor_width).toBe(0.86)
   })
 
   it('uses near-max Brutalist intervals so flat city maps still show index contours', () => {
