@@ -963,6 +963,26 @@ test.describe('style browser visual harness', () => {
     expect(heroPosterBox?.width).toBeGreaterThan(240)
     expect(heroPosterBox?.height).toBeGreaterThan(360)
 
+    const interactionState = await page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_MAP_CAMERA__?: {
+          getInteractionState: () => {
+            dragPan: boolean
+            scrollZoom: boolean
+            doubleClickZoom: boolean
+            touchZoomRotate: boolean
+          }
+        }
+      }
+      return win.__RADMAPS_MAP_CAMERA__?.getInteractionState?.() ?? null
+    })
+    expect(interactionState).toEqual({
+      dragPan: false,
+      scrollZoom: false,
+      doubleClickZoom: false,
+      touchZoomRotate: false,
+    })
+
     const afterSelectStyle = await page.evaluate(() => {
       const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
       return fixture?.getStyle()
