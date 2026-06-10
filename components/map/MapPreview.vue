@@ -3894,6 +3894,7 @@ function defaultSlotText(slot: PosterTextSlot) {
   if (slot === 'trail_name') return props.styleConfig.trail_name || props.map.title || 'Your Trail'
   if (slot === 'location_text') {
     const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
+    if (composition.value.id === 'blueprint-strava') return text
     return text ? text.toUpperCase() : ''
   }
   if (slot === 'occasion_text') return props.styleConfig.occasion_text || ''
@@ -4678,6 +4679,7 @@ const locationLine = computed(() => {
   if (composition.value.id === 'botanical-plate') return locationText.value
   if (composition.value.id === 'place-frame') return locationText.value
   if (composition.value.id === 'darksky-stars') return locationText.value
+  if (composition.value.id === 'blueprint-strava') return locationText.value
   return locationText.value.toUpperCase()
 })
 

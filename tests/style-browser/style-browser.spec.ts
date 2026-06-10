@@ -331,6 +331,8 @@ test.describe('style browser visual harness', () => {
     })).toContain('route-line-electric-pulse')
     await expect.poll(async () => page.locator('.poster-composition--blueprint-strava .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Big Shoulders Display')
 
+    await expect(page.locator('.poster-composition--blueprint-strava .poster-location-line')).toHaveText('Kickapoo State Park')
+    await expect(page.locator('.poster-composition--blueprint-strava .composition-technical-data-item').filter({ hasText: 'Location' }).locator('strong')).toHaveText('ILLINOIS')
     await page.goto('/style-browser-fixture?composition=splits-grid&theme=splits-stats&elevation=1')
     await expect(page.getByTestId('elevation-profile-band')).toBeVisible()
     await expect.poll(async () => page.evaluate(() => {
