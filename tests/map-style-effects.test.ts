@@ -250,7 +250,7 @@ describe('adaptive contour detail', () => {
   })
 
   it('smooths DEM contours for line-art themes that otherwise render coastline fragments', () => {
-    for (const color_theme of ['blueprint-strava', 'classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'midcentury-travel', 'ranch-ochre', 'splits-stats'] as const) {
+    for (const color_theme of ['blueprint-strava', 'classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'electric-atlas', 'midcentury-travel', 'ranch-ochre', 'splits-stats'] as const) {
       expect(resolveAdaptiveContourOverzoom({ color_theme }), color_theme).toBe(2)
     }
     expect(resolveAdaptiveContourOverzoom({ color_theme: 'brutalist' })).toBe(0)
@@ -2379,10 +2379,10 @@ describe('RadMaps Atlas style integration', () => {
         waterwayOpacity: 0.34,
         minorContour: '#4A49A2',
         majorContour: '#7772EA',
-        baseLayers: true,
+        baseLayers: false,
         minorOpacity: 0.44,
         majorOpacity: 0.62,
-        suppressSeaLevelContours: false,
+        suppressSeaLevelContours: true,
       },
     ] as const
 

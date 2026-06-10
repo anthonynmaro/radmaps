@@ -268,6 +268,7 @@ const SMOOTH_CONTOUR_THEME_IDS = new Set([
   'contour-wash',
   'daybreak-trace',
   'editorial-minimal',
+  'electric-atlas',
   'midcentury-travel',
   'ranch-ochre',
   'splits-stats',
@@ -303,6 +304,7 @@ const THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL = new Map<string, number>([
 
 const SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS = new Set([
   'blueprint-strava',
+  'electric-atlas',
   'splits-stats',
 ])
 

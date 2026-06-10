@@ -1362,6 +1362,18 @@ const REFINED_THEME_RECIPES = [
       grid_opacity: 0.16,
       grid_weight: 1,
       grid_spacing: 6,
+      atlas_layers: {
+        contour: true,
+        landcover: false,
+        water: false,
+        waterway: false,
+        park: false,
+        transportation: false,
+        outdoorRoute: false,
+        building: false,
+        place: false,
+        poi: false,
+      },
       atlas_layer_settings: {
         landcover: { color: '#0B0E1A', opacity: 0.96 },
         park: { fill_color: '#10152C', opacity: 0.20 },
