@@ -18,6 +18,15 @@ on:
           - honshu-japan
           - mount-fuji-japan
           - new-zealand-outdoor
+          - western-alps-dolomites
+          - atlantic-islands-portugal
+          - atlantic-islands-canaries
+          - andes-peru
+          - andes-ecuador
+          - nepal-himalaya
+          - iceland-adventure
+          - scotland-adventure
+          - costa-rica-central-america
       environment:
         description: Atlas manifest target
         required: true
@@ -43,6 +52,10 @@ on:
         required: true
         default: true
         type: boolean
+      estimated_cost_usd:
+        description: Required for non-dry-run heavyweight stages; must fit atlas/coverage-targets.json budget gates
+        required: false
+        default: '0'
 
 permissions:
   contents: read
@@ -59,7 +72,7 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       R2_SESSION_TOKEN: ${{ secrets.R2_SESSION_TOKEN }}
-      ATLAS_MIN_FREE_GB: ${{ inputs.region == 'north-america' && '900' || inputs.region == 'us-contiguous' && '500' || (inputs.region == 'new-zealand-outdoor' || inputs.region == 'mount-fuji-japan') && '60' || (inputs.region == 'patagonia-andes' || inputs.region == 'northern-spain-camino' || inputs.region == 'honshu-japan') && '80' || '120' }}
+      ATLAS_MIN_FREE_GB: ${{ inputs.region == 'north-america' && '900' || inputs.region == 'us-contiguous' && '500' || inputs.region == 'western-alps-dolomites' && '120' || (inputs.region == 'patagonia-andes' || inputs.region == 'northern-spain-camino' || inputs.region == 'honshu-japan' || inputs.region == 'andes-peru' || inputs.region == 'nepal-himalaya') && '80' || '60' }}
       PLANETILER_IMAGE: ghcr.io/onthegomap/planetiler:latest
     steps:
       - name: Checkout
@@ -96,5 +109,7 @@ jobs:
           fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS+=(--dry-run)
+          else
+            ARGS+=(--estimated-cost-usd "${{ inputs.estimated_cost_usd }}")
           fi
           npm run atlas:pipeline -- "${ARGS[@]}"

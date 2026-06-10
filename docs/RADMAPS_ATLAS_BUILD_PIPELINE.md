@@ -129,10 +129,35 @@ Run policy for new coverage targets:
 - Start with `workflow_dispatch` or `npm run atlas:pipeline -- --dry-run`.
 - Keep `dry_run=true` until source size, runner shape, and scratch storage are
   reviewed.
+- For any non-dry-run heavyweight build stage, pass `--estimated-cost-usd`.
+  The pipeline checks this against `atlas/coverage-targets.json` v2 and blocks
+  runs that would exceed the `$200` total coverage-build ceiling.
 - Do not run any target marked `deferred-*` in `atlas/coverage-targets.json`
   until the cost/demand gate has been explicitly cleared.
-- Keep cached contours disabled for these new base packs unless Browserless
+- Keep cached contours disabled for these new base packs unless AWS renderer
   render metrics show runtime contours are unreliable or too slow.
+
+Overlay build contract:
+
+- `base` artifacts remain the Planetiler/OSM source for roads, water,
+  landcover, buildings, places, base POIs, and basic trail/path geometry in the
+  `transportation` source layer.
+- Overture Places enrichment is written as a separate PMTiles overlay under the
+  existing manifest key `poi`, with source layer `poi`, bbox-filtered to the
+  target hotspot mesh and built to z16.
+- Named outdoor route enrichment is written under the manifest key
+  `outdoorRoutes`, with source layer `outdoor_route`, extracted only from OSM
+  relations where `route=hiking`, `route=bicycle`, or `route=mtb`, and built to
+  z16.
+- Overlay object paths stay immutable, for example
+  `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
+  `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`.
+- Every overlay run starts with `npm run atlas:pipeline -- --dry-run` or the
+  equivalent overlay dry-run, records estimated cost before a real build, and
+  updates `atlas/coverage-targets.json` actual cost fields after completion.
+- Promote overlays by merging the generated artifact into the existing manifest
+  with `npm run atlas:merge-manifest-artifact`; never replace the full manifest
+  with a single overlay build output.
 
 ## Current Progress Snapshot
 
@@ -440,7 +465,7 @@ Recommended cadence:
 
 - Base atlas: monthly while usage is early; tighten to weekly only if map
   freshness becomes product-critical.
-- Terrain/contours: browser-rendered in editor and Browserless by default.
+- Terrain/contours: runtime-generated in editor and AWS renderer by default.
   Precompute/cache only specific regions that are slow, failure-prone, or
   proven by search/render/order demand. Do not schedule global high-detail
   contour PMTiles as a routine build.
@@ -507,7 +532,7 @@ The owned atlas is useful but not production-complete. The remaining work is:
      Mexico, Alaska, and coastal edge cases.
    - Run house-style visual checks for Toner, Field Topo, Watercolor,
      Night Relief, and Simple Contour.
-   - Confirm Browserless proof/final renders match the editor at `8x12`,
+   - Confirm AWS renderer proof/final renders match the editor at `8x12`,
      `24x36`, and `32x48`.
 3. **Production editor integration**
    - Move Atlas styles from Atlas Lab into the shared style builder path.
@@ -522,11 +547,11 @@ The owned atlas is useful but not production-complete. The remaining work is:
 5. **Coverage expansion**
    - Keep building base coverage first: North America staging is complete;
      globe base is next when cost is acceptable.
-   - Keep high-detail contours browser-rendered through `maplibre-contour` for
-     editor and Browserless renders. Add cached contour PMTiles only where usage
+   - Keep high-detail contours runtime-generated through `maplibre-contour` for
+     editor and AWS renderer output. Add cached contour PMTiles only where usage
      or reliability proves the need.
-   - Add richer overlays for public lands, trail/recreation POIs, boundaries,
-     parks, and destination-specific upgrades.
+   - Add richer overlays for public lands, Overture Places `poi`, OSM
+     `outdoorRoutes`, boundaries, parks, and destination-specific upgrades.
 
 ## Contours
 

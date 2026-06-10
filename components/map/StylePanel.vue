@@ -751,6 +751,17 @@
                 @change="setAtlasLayerSetting('transportation', { trail_width: $event })" />
             </template>
 
+            <template v-else-if="activeAtlasLayerId === 'outdoorRoute' && atlasLayerVisible('outdoorRoute')">
+              <ColorRow label="Route color" :value="atlasOutdoorRouteColor" @change="setAtlasLayerSetting('outdoorRoute', { color: $event })" />
+              <SliderRow label="Opacity" :value="atlasOutdoorRouteOpacity" :min="0" :max="1" :step="0.05"
+                :display="(v: number) => Math.round(v * 100) + '%'"
+                @change="setAtlasLayerSetting('outdoorRoute', { opacity: $event })" />
+              <SliderRow label="Width" :value="atlasOutdoorRouteWidth" :min="0.25" :max="5" :step="0.25"
+                :display="(v: number) => v.toFixed(2) + '×'"
+                @change="setAtlasLayerSetting('outdoorRoute', { width: $event })" />
+              <ToggleRow label="Route labels" :value="atlasOutdoorRouteLabels" @change="setAtlasLayerSetting('outdoorRoute', { labels: $event })" />
+            </template>
+
             <template v-else-if="activeAtlasLayerId === 'building' && atlasLayerVisible('building')">
               <ColorRow label="Building fill" :value="atlasBuildingFillColor" @change="setAtlasLayerSetting('building', { fill_color: $event })" />
               <SliderRow label="Opacity" :value="atlasBuildingOpacity" :min="0" :max="1" :step="0.05"
@@ -1791,6 +1802,7 @@ const DEFAULT_ATLAS_LAYER_VISIBILITY: Record<AtlasLayerId, boolean> = {
   park: true,
   landcover: true,
   transportation: true,
+  outdoorRoute: true,
   building: true,
   poi: true,
   place: true,
@@ -1823,6 +1835,7 @@ const ATLAS_LAYER_OPTIONS: Array<{ id: AtlasLayerId; label: string }> = [
   { id: 'park', label: 'Parks' },
   { id: 'landcover', label: 'Land' },
   { id: 'transportation', label: 'Roads' },
+  { id: 'outdoorRoute', label: 'Routes' },
   { id: 'building', label: 'Build' },
   { id: 'place', label: 'Places' },
   { id: 'poi', label: 'POIs' },
@@ -1905,6 +1918,10 @@ const atlasShowTrails = computed(() => atlasLayerSettings('transportation').show
 const atlasRoadMajorWidth = computed(() => atlasLayerSettings('transportation').major_width ?? 2)
 const atlasRoadMinorWidth = computed(() => atlasLayerSettings('transportation').minor_width ?? 0.9)
 const atlasTrailWidth = computed(() => atlasLayerSettings('transportation').trail_width ?? 1.2)
+const atlasOutdoorRouteColor = computed(() => atlasLayerSettings('outdoorRoute').color ?? atlasTrailColor.value)
+const atlasOutdoorRouteOpacity = computed(() => atlasLayerSettings('outdoorRoute').opacity ?? 0.58)
+const atlasOutdoorRouteWidth = computed(() => atlasLayerSettings('outdoorRoute').width ?? 1.2)
+const atlasOutdoorRouteLabels = computed(() => atlasLayerSettings('outdoorRoute').labels ?? true)
 const atlasBuildingFillColor = computed(() => atlasLayerSettings('building').fill_color ?? local.label_text_color ?? '#405340')
 const atlasBuildingOpacity = computed(() => atlasLayerSettings('building').opacity ?? 0.16)
 const atlasPlaceLabelColor = computed(() => atlasLayerSettings('place').label_color ?? local.place_labels_color ?? local.label_text_color)

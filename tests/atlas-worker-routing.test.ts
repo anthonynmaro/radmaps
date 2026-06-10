@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AtlasManifest } from '../utils/atlasManifest'
 import {
+  artifactKindCounts,
   manifestObjectPath,
   parseTileRequestPath,
   tileToBbox,
@@ -18,6 +19,28 @@ const manifest: AtlasManifest = {
         minzoom: 0,
         maxzoom: 14,
         bounds: [-125, 24, -66, 50],
+      },
+    ],
+    poi: [
+      {
+        id: 'overture-chicago-poi',
+        kind: 'poi',
+        url: 'https://tiles.example/chicago-poi.pmtiles',
+        objectPath: 'atlas/chicago-poi.pmtiles',
+        minzoom: 8,
+        maxzoom: 16,
+        bounds: [-88.1, 41.6, -87.4, 42.1],
+      },
+    ],
+    outdoorRoutes: [
+      {
+        id: 'chicago-outdoor-routes',
+        kind: 'outdoorRoutes',
+        url: 'https://tiles.example/chicago-routes.pmtiles',
+        objectPath: 'atlas/chicago-routes.pmtiles',
+        minzoom: 8,
+        maxzoom: 16,
+        bounds: [-88.1, 41.6, -87.4, 42.1],
       },
     ],
   },
@@ -46,6 +69,20 @@ describe('Atlas Worker routing', () => {
 
     const outside = parseTileRequestPath('/tiles/staging/base-us/8/1/1.mvt')
     expect(() => validateArtifactTileRequest(manifest, outside!)).toThrow(/outside artifact bounds/)
+  })
+
+  it('serves approved POI and outdoor route overlay artifacts from the manifest', () => {
+    const poi = parseTileRequestPath('/tiles/production/overture-chicago-poi/12/1050/1522.mvt')
+    const routes = parseTileRequestPath('/tiles/production/chicago-outdoor-routes/12/1050/1522.mvt')
+
+    expect(validateArtifactTileRequest(manifest, poi!).kind).toBe('poi')
+    expect(validateArtifactTileRequest(manifest, routes!).kind).toBe('outdoorRoutes')
+    expect(artifactKindCounts(manifest)).toMatchObject({
+      base: 1,
+      poi: 1,
+      outdoorRoutes: 1,
+      other: 0,
+    })
   })
 
   it('uses fixed R2 manifest object paths', () => {

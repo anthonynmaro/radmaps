@@ -70,7 +70,7 @@
                   Owning the atlas lets RadMaps reduce commercial basemap dependency, avoid paying for every style
                   experiment, and build a differentiated print product that competitors cannot copy by switching a
                   provider preset. The same data can power customer layer controls, staff QA, proof renders, final
-                  Browserless print renders, and usage analytics for spend optimization.
+                  AWS print renders, and usage analytics for spend optimization.
                 </p>
               </div>
               <div class="atlas-business-grid">
@@ -136,14 +136,14 @@
               <span class="atlas-architecture-arrow">-></span>
               <div class="atlas-architecture-node">
                 <span>Output</span>
-                <strong>MapLibre + Browserless contours</strong>
+                <strong>MapLibre + AWS renderer contours</strong>
               </div>
             </div>
 
             <p class="mt-4 text-xs leading-5 text-stone-500">
               Base coverage is staged for the contiguous United States and North America at z0-14. Existing contour
               PMTiles remain visible in the coverage accounting for QA/history, but the production direction is
-              browser-generated contours in editor and Browserless renders, with cached terrain artifacts added only
+              runtime contours in editor and AWS renders, with cached terrain artifacts added only
               where usage proves they are worth the compute.
             </p>
           </div>
@@ -974,6 +974,8 @@ function buildStyle(style: AtlasStyle, urls: { baseUrl: string, baseArtifact?: A
   const minorRoadClasses = ['minor', 'service', 'residential', 'living_street', 'pedestrian']
   const pathClasses = ['path', 'track', 'cycleway', 'bridleway', 'steps']
   const allTransportClasses = [...majorRoadClasses, ...minorRoadClasses, ...pathClasses]
+  // Admin Atlas Lab can still preview cached contour PMTiles for QA/history.
+  // Customer editor/proof/final renders use the runtime maplibre-contour source.
   const terrainArtifacts = urls.terrainArtifacts || []
   const terrainSourceId = (index: number) => `terrain-${index}`
   const browserContourLayers = urls.contourTileUrl ? [

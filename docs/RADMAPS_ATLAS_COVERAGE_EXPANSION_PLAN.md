@@ -13,9 +13,9 @@ builds.
 - Production is now promoted to `2026.05.27-approved-coverage.1` with the
   Driftless lab pack plus approved U.S., North America, New Zealand, Northern
   Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts.
-- High-detail terrain remains browser/Browserless-generated through
-  `maplibre-contour`; precomputed contour PMTiles are retained for QA/cache
-  experiments only.
+- High-detail terrain remains generated at render time through
+  `maplibre-contour` in the editor and AWS renderer; precomputed contour PMTiles
+  are retained for QA/cache experiments only.
 - `radmaps.studio` DNS is now delegated to Cloudflare, and
   `tiles.radmaps.studio` is attached to the Cloudflare Worker custom domain.
 
@@ -155,9 +155,10 @@ builds.
 
 ## Coverage Target Matrix
 
-The operational coverage queue lives in `atlas/coverage-targets.json`. It keeps
-premade-map anchors, sport/audience priorities, global vacation hotspots, cost
-guards, build status, and next actions in one machine-readable file.
+The operational coverage queue lives in `atlas/coverage-targets.json` v2. It
+keeps premade-map anchors, sport/audience priorities, global vacation hotspots,
+artifact kinds, z16 overlay caps, 24x36 print QA requirements, cost guards,
+actual cost fields, build status, and next actions in one machine-readable file.
 
 Current priority order:
 
@@ -172,15 +173,18 @@ Current priority order:
 
 Cost policy:
 
-- Treat `$300/month` as the AWS experiment guardrail.
+- Treat `$200` as the total coverage-build ceiling until we explicitly raise it.
 - Require a dry run before any real build.
+- Require `--estimated-cost-usd` before any non-dry-run heavyweight build stage.
 - Require manual approval for source extracts above `20 GB`, estimated single
-  runs above `$50`, cached terrain outside measured reliability/demand, or any
-  full-globe base artifact.
+  runs above `$25` unless the target carries a higher cap, cached terrain
+  outside measured AWS renderer reliability/demand, any full-globe base
+  artifact, or any projected run that would push actual plus estimated coverage
+  spend above `$200`.
 - Log actual AWS cost, instance hours, scratch storage, S3 bytes, R2 bytes,
   object paths, and manifest versions after each real run.
-- Keep browser/Browserless runtime contours as the default terrain strategy;
-  only cache terrain where render data proves it is worth it.
+- Keep runtime contours as the default terrain strategy; only cache terrain
+  where render data proves it is worth it.
 
 ## Execution Tracks
 
@@ -230,8 +234,7 @@ Goal: prove customer-visible output, not just browser previews.
 - Render proof/final-style screenshots for `8x12`, `24x36`, and `32x48`.
 - Cover at least U.S., Canada, and Mexico fixtures.
 - Record render time, console errors, failed tile loads, and readiness status.
-- Keep Browserless/Chromium waiting on explicit render readiness, not fixed
-  sleeps.
+- Keep the AWS renderer waiting on explicit render readiness, not fixed sleeps.
 
 Acceptance:
 - Rendered maps are available for human review.
@@ -241,11 +244,21 @@ Acceptance:
 
 Goal: expand what users notice before expanding geography.
 
+- Keep `base` artifacts responsible for Planetiler/OSM roads, water, landcover,
+  buildings, places, base POIs, and basic trail/path geometry from
+  `transportation`.
+- Use the existing `poi` artifact key for bbox-filtered Overture Places
+  overlays. Do not introduce a second generic POI model.
+- Add `outdoorRoutes` only for named OSM route relations and semantic route
+  metadata from `route=hiking`, `route=bicycle`, and `route=mtb`; do not create
+  a duplicate trail base layer.
 - Prioritize public lands, national/state/provincial parks, trailheads, peaks,
-  viewpoints, campsites, parking, water, recreation boundaries, and higher-
-  value destination POIs.
+  viewpoints, campsites, parking, water, recreation boundaries, vacation POIs,
+  and higher-value outdoor route labels.
 - Store overlays as manifest-managed artifacts so base coverage and overlays
   can update independently.
+- Build hotspot `poi` and `outdoorRoutes` overlays to z16 for 24x36 print
+  readability.
 - Add attribution/license metadata per overlay source.
 
 Acceptance:
@@ -260,9 +273,9 @@ Goal: avoid expensive global contour precompute until the data proves it is
 needed.
 
 - Keep `maplibre-contour` as the default high-detail terrain path in editor and
-  Browserless renders.
+  AWS renderer outputs.
 - Cache contour PMTiles only for regions with measured render latency,
-  Browserless timeout risk, DEM availability gaps, or paid-order demand.
+  AWS renderer timeout risk, DEM availability gaps, or paid-order demand.
 - Track `dem_source`, `contour_detail`, `contour_interval`, render class, and
   timeout/failure metadata on renders.
 

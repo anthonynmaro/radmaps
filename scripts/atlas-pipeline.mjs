@@ -7,7 +7,7 @@
  * with enough scratch disk. Artifacts are uploaded to Cloudflare R2.
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,7 @@ const repoRoot = resolve(__dirname, '..')
 const args = parseArgs(process.argv.slice(2))
 const env = { ...loadEnv(resolve(repoRoot, '.env')), ...process.env }
 const regions = JSON.parse(readFileSync(resolve(repoRoot, 'atlas/regions.json'), 'utf8'))
+const coverageTargets = JSON.parse(readFileSync(resolve(repoRoot, 'atlas/coverage-targets.json'), 'utf8'))
 const regionKey = args.region || 'driftless-lab'
 const region = regions[regionKey]
 if (!region) throw new Error(`Unknown atlas region: ${regionKey}`)
@@ -34,6 +35,7 @@ const outputDir = resolve(buildRoot, 'output')
 const manifestPath = resolve(repoRoot, `public/atlas/manifests/${environment}.json`)
 const publicBaseUrl = args.publicBaseUrl || env.ATLAS_PUBLIC_BASE_URL
 const bucket = args.bucket || (environment === 'production' ? 'radmaps-atlas-prod' : 'radmaps-atlas-staging')
+const estimatedCostUsd = numericArg(args.estimatedCostUsd, env.ATLAS_ESTIMATED_COST_USD)
 
 const stages = expandStage(stage)
 console.log(JSON.stringify({
@@ -44,11 +46,13 @@ console.log(JSON.stringify({
   stages,
   dryRun,
   buildRoot,
+  estimatedCostUsd,
 }, null, 2))
 
 mkdirSync(sourceDir, { recursive: true })
 mkdirSync(outputDir, { recursive: true })
 
+enforceCoverageCostGate()
 if (stages.includes('preflight')) preflight()
 if (stages.includes('download')) downloadSource()
 if (stages.includes('base')) buildBase()
@@ -71,6 +75,7 @@ function parseArgs(argv) {
     else if (arg === '--date') parsed.date = argv[++i]
     else if (arg === '--workdir') parsed.workdir = argv[++i]
     else if (arg === '--public-base-url') parsed.publicBaseUrl = argv[++i]
+    else if (arg === '--estimated-cost-usd') parsed.estimatedCostUsd = argv[++i]
     else if (arg === '--dry-run') parsed.dryRun = true
     else if (arg === '--no-allow-missing-contours') parsed.allowMissingContours = false
     else if (arg === '--help' || arg === '-h') {
@@ -85,12 +90,69 @@ Options:
   --date <yyyy-mm-dd>           Date inserted into R2 object paths
   --workdir <path>              Build scratch dir, defaults to atlas/build/<region>
   --public-base-url <url>       R2 public base URL
+  --estimated-cost-usd <value>  Required for real heavyweight builds; checked against atlas/coverage-targets.json
   --dry-run                     Print commands without running heavyweight stages
   --no-allow-missing-contours   Fail if a region has no contour artifact`)
       process.exit(0)
     }
   }
   return parsed
+}
+
+function numericArg(...values) {
+  const raw = values.find(value => value !== undefined && value !== null && String(value).trim() !== '')
+  if (raw === undefined) return null
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`Invalid estimated cost: ${raw}`)
+  return parsed
+}
+
+function enforceCoverageCostGate() {
+  const target = findCoverageTarget()
+  const heavyStages = stages.filter(item => ['download', 'base', 'contours', 'upload'].includes(item))
+  const requiresEstimate = !dryRun && heavyStages.length > 0
+  const guardrails = coverageTargets.costGuardrails || {}
+  const totalBudgetUsd = Number(guardrails.totalBuildBudgetUsd ?? guardrails.awsExperimentBudgetUsdPerMonth ?? 200)
+  const actualCoverageBuildCostUsd = Number(guardrails.actualCoverageBuildCostUsd ?? guardrails.observedAwsMonthToDateUsd ?? 0)
+  const remainingBudgetUsd = Math.max(0, totalBudgetUsd - actualCoverageBuildCostUsd)
+  const targetMaxUsd = target?.maxNewBuildCostUsd
+
+  console.log(JSON.stringify({
+    costGate: {
+      schemaVersion: coverageTargets.schemaVersion,
+      targetId: target?.id ?? null,
+      heavyStages,
+      dryRun,
+      estimatedCostUsd,
+      actualCoverageBuildCostUsd,
+      totalBudgetUsd,
+      remainingBudgetUsd,
+      targetMaxUsd,
+    },
+  }, null, 2))
+
+  if (target?.status?.startsWith('deferred') && requiresEstimate) {
+    throw new Error(`Coverage target ${target.id} is ${target.status}; move it to build-candidate/qa-ready/staging-live before running real build stages`)
+  }
+  if (!requiresEstimate) return
+  if (estimatedCostUsd === null || estimatedCostUsd <= 0) {
+    throw new Error('Real atlas build stages require --estimated-cost-usd so the $200 coverage budget gate can run')
+  }
+  if (estimatedCostUsd > remainingBudgetUsd) {
+    throw new Error(`Estimated atlas build cost $${estimatedCostUsd.toFixed(2)} exceeds remaining $${remainingBudgetUsd.toFixed(2)} of the $${totalBudgetUsd.toFixed(2)} coverage budget`)
+  }
+  if (typeof targetMaxUsd === 'number' && estimatedCostUsd > targetMaxUsd) {
+    throw new Error(`Estimated atlas build cost $${estimatedCostUsd.toFixed(2)} exceeds ${target.id}'s $${targetMaxUsd.toFixed(2)} target cap`)
+  }
+}
+
+function findCoverageTarget() {
+  return (coverageTargets.targets || []).find(target =>
+    target.id === regionKey ||
+    target.id === region.coverage ||
+    target.atlasRegion === regionKey ||
+    target.atlasRegion === region.id,
+  )
 }
 
 function expandStage(value) {
@@ -117,10 +179,31 @@ function downloadSource() {
   }
   const target = sourcePbfPath()
   if (existsSync(target) && statSync(target).size > 0) {
+    if (looksLikeHtml(target)) {
+      console.warn(`Existing source looks like HTML, deleting and redownloading: ${target}`)
+      unlinkSync(target)
+    } else {
+      console.log(`Using existing source: ${target}`)
+      return
+    }
+  }
+  if (existsSync(target) && statSync(target).size > 0) {
     console.log(`Using existing source: ${target}`)
     return
   }
   run('curl', ['--fail', '--location', '--continue-at', '-', '--output', target, region.source.url], { heavy: true })
+}
+
+function looksLikeHtml(file) {
+  const fd = openSync(file, 'r')
+  try {
+    const buffer = Buffer.alloc(256)
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0)
+    const prefix = buffer.subarray(0, bytesRead).toString('utf8').trimStart().toLowerCase()
+    return prefix.startsWith('<!doctype html') || prefix.startsWith('<html')
+  } finally {
+    closeSync(fd)
+  }
 }
 
 function buildBase() {

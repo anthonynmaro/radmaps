@@ -217,10 +217,23 @@ describe('style JSON matrix', () => {
       ...DEFAULT_STYLE_CONFIG,
       preset: 'contour-art',
       show_contours: false,
-    }, 'mapbox-token')
+    }, 'mapbox-token', undefined, 'contour://dem/{z}/{x}/{y}')
 
     expect(layerIds(style)).toContain('contours-minor')
     expect(layerIds(style)).toContain('contours-major')
+  })
+
+  it('does not fall back to Mapbox terrain-v2 when the runtime contour protocol is absent', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-simple-contour',
+      show_contours: true,
+    }, 'mapbox-token')
+
+    expect(sourceIds(style)).not.toContain('mapbox-terrain-v2')
+    expect(sourceIds(style)).not.toContain('contours')
+    expect(layerIds(style)).not.toContain('contours-minor')
+    expect(layerIds(style)).not.toContain('contours-major')
   })
 
   it('uses browser-generated contours for Atlas presets when MapPreview provides the contour protocol', () => {
@@ -238,6 +251,19 @@ describe('style JSON matrix', () => {
     expect(layerIds(style)).toContain('contours-minor')
     expect(layerIds(style)).toContain('contours-mid')
     expect(layerIds(style)).toContain('contours-major')
+  })
+
+  it('keeps Atlas POI and outdoor route overlays in the graph contract', () => {
+    const style = buildMapStyle({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-field-topo',
+    }, 'mapbox-token')
+
+    expect(sourceIds(style)).toContain('radmaps-atlas-poi')
+    expect(sourceIds(style)).toContain('radmaps-atlas-outdoor-routes')
+    expect(layerIds(style)).toContain('radmaps-field-topo-poi-overlay-labels')
+    expect(layerIds(style)).toContain('radmaps-field-topo-outdoor-routes')
+    expect(layerIds(style)).toContain('radmaps-field-topo-outdoor-route-labels')
   })
 
   it('keeps optional roads, labels, and POIs editable for contour art presets', () => {
@@ -286,7 +312,7 @@ describe('style JSON matrix', () => {
         ...DEFAULT_STYLE_CONFIG,
         preset,
         show_hillshade: true,
-      }, 'mapbox-token')
+      }, 'mapbox-token', undefined, 'contour://dem/{z}/{x}/{y}')
       const rendersHillshade = layerIds(style).includes('hillshade')
       expect(rendersHillshade, preset).toBe(graph.features.hillshade === 'editable-vector')
     }
@@ -304,7 +330,7 @@ describe('style JSON matrix', () => {
         show_place_labels: true,
         show_poi_labels: true,
         show_elevation_labels: true,
-      }, 'mapbox-token')
+      }, 'mapbox-token', undefined, 'contour://dem/{z}/{x}/{y}')
       const generatedLayerIds = layerIds(style)
       for (const graphLayer of graph.layers) {
         if (graphLayer.source === 'route') continue

@@ -20,7 +20,7 @@ flowchart LR
   A["StyleConfig intent"] --> B["styleLayerGraph effective config"]
   B --> C["mapStyle.ts MapLibre style"]
   C --> D["MapPreview.vue editor/proof/final poster"]
-  D --> E["Browserless screenshots"]
+  D --> E["AWS renderer screenshots"]
   E --> F["Supabase Storage + checkout/share/order surfaces"]
   D --> G["Usage analytics events"]
   G --> H["Provider spend + optimization decisions"]
@@ -31,13 +31,13 @@ flowchart LR
 | System | App names | Status | Cost model | What it provides | Main styling attributes | Attribution / license posture |
 |---|---|---:|---|---|---|---|
 | CARTO Basemaps | `carto-light`, `carto-dark`, `Minimalist` | Active | Enterprise | Retina raster base tiles with baked roads, water, labels, and landuse | `base_tile_style`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate`, `tile_grain` | Requires CARTO and OpenStreetMap attribution; commercial basemap use requires CARTO Enterprise terms. |
-| Mapbox Maps/Streets/Terrain/Fonts | `topographic`, Mapbox Outdoors, Mapbox Streets overlay, Terrain v2 fallback | Active | Usage-based | Raster topographic tiles, vector roads/water/labels/POIs, contour fallback, glyphs | `show_roads`, `roads_color`, `water_color`, `show_place_labels`, `show_poi_labels`, `contour_*`, `show_hillshade` | Requires Mapbox and OpenStreetMap attribution; satellite would add imagery credits such as Maxar where applicable. |
+| Mapbox Maps/Streets/Fonts | `topographic`, Mapbox Outdoors, Mapbox Streets overlay | Active | Usage-based | Raster topographic tiles, vector roads/water/labels/POIs, glyphs | `show_roads`, `roads_color`, `water_color`, `show_place_labels`, `show_poi_labels` | Requires Mapbox and OpenStreetMap attribution; satellite would add imagery credits such as Maxar where applicable. |
 | MapTiler Raster Styles | `maptiler-outdoor`, `maptiler-topo`, `maptiler-winter`, `alidade-smooth`, `alidade-smooth-dark` | Active | Paid/custom | Baked raster outdoor/topo/winter/dataviz styles | `base_tile_style`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires MapTiler and OpenStreetMap attribution unless written terms and non-OSM data remove parts of it. |
 | Stadia/Stamen | `stadia-watercolor`, `stadia-toner` | Active | Paid/commercial license | Legacy provider-backed Watercolor and Toner raster art; Toner label-family toggle remains for comparison and saved maps | `show_place_labels`, `tile_effect`, `tile_contrast`, `tile_saturation`, `tile_hue_rotate` | Requires Stadia, Stamen, and source-data attribution; commercial use requires Stadia licensing. |
 | AWS Terrain Tiles / Mapzen DEM | `mapbox-dem` source name, browser contour DEM, hillshade DEM | Active | Free public source | Terrarium DEM tiles for hillshade, browser contours, terrain exaggeration | `show_hillshade`, `hillshade_intensity`, `show_contours`, `contour_detail`, `map_3d`, `terrain_exaggeration` | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. |
-| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, `radmaps-toner-light`, `radmaps-toner-dark`, Atlas Lab house styles including `Toner Light`, `Toner Dark`, and `RadMaps Contour Wash` | Beta | Self-hosted | Production R2 PMTiles base atlas for contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes, plus the Driftless lab pack; hosted tile contract at `tiles.radmaps.studio`; water, waterways, transportation/roads, trails, labels, POIs, buildings, landuse, parks/forests; first-party light/dark Toner presets with high-contrast road linework and soft dot patterns for named protected park areas. | Full vector paint/layout control for layer families; current Planetiler transportation geometry is documented as polygon-compatible with line fallback styling | OSM attribution remains unless source data is non-OSM or attribution-free. |
+| RadMaps Open Vector Atlas | `radmaps-vector`, `radmaps-roads`, `radmaps-water`, `radmaps-labels`, `radmaps-toner-light`, `radmaps-toner-dark`, Atlas Lab house styles including `Toner Light`, `Toner Dark`, and `RadMaps Contour Wash` | Beta | Self-hosted | Production R2 PMTiles base atlas for contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes, plus the Driftless lab pack; hosted tile contract at `tiles.radmaps.studio`; water, waterways, transportation/roads, basic trails/paths, named outdoor-route overlays, labels, base POIs plus additive Overture POI overlays, buildings, landuse, parks/forests; first-party light/dark Toner presets with high-contrast road linework and soft dot patterns for named protected park areas. | Full vector paint/layout control for layer families; `poi` remains the manifest key for Overture Places overlays, while `outdoorRoutes` carries named OSM hiking/bicycle/MTB route relations. | OSM attribution remains unless source data is non-OSM or attribution-free; Overture overlays require Overture attribution/data-lineage review before promotion. |
 | RadMaps Watercolor Art Tile Renderer | `/api/watercolor/tiles/base`, `radmaps-watercolor` | Beta | Self-hosted server PNG art tiles with MapLibre tile/readiness tracking | Same-origin Atlas MVT tiles converted into deterministic 1024px `scale=2` watercolor raster art tiles displayed as 512px MapLibre tiles: filled water/park washes, brush-painted roads/trails/waterways, sketched boundaries/buildings, world-aligned first-party paper/pigment/drybrush textures, and crisp vector labels/route above. Legacy `radmaps-watercolor-*` ids are hidden aliases for saved maps. | `watercolor_seed`, canonical recipe, `atlas_layers`, `atlas_layer_settings`, `water_color`, `land_color`, `roads_color`, `show_roads` | Inherits RadMaps Atlas/OpenStreetMap attribution. Does not ship Stamen/Stadia watercolor raster assets. |
-| RadMaps Terrain Runtime | `radmaps-terrain`, browser-generated `contours`, `radmaps-hillshade`, `RadMaps Simple Contour` | Beta | Browser/Browserless compute first; self-hosted cache later only if needed | Atlas styles now prefer browser-generated `maplibre-contour` output from Terrarium DEM in both editor and Browserless print renders. Existing R2 contour PMTiles remain QA/history/coverage experiments, not the global production default. | `show_contours`, `contour_detail`, `contour_*`, `show_hillshade`, `hillshade_intensity`, `terrain_exaggeration`, Atlas style ids | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. Cached/self-hosted terrain artifacts must carry source DEM metadata. |
+| RadMaps Terrain Runtime | `radmaps-terrain`, browser-generated `contours`, `radmaps-hillshade`, `RadMaps Simple Contour` | Beta | Browser/AWS renderer compute first; self-hosted cache later only if needed | Atlas styles now prefer generated `maplibre-contour` output from Terrarium DEM in both editor and AWS-rendered proof/final output. Existing R2 contour PMTiles remain QA/history/coverage experiments, not the global production default. | `show_contours`, `contour_detail`, `contour_*`, `show_hillshade`, `hillshade_intensity`, `terrain_exaggeration`, Atlas style ids | Requires Mapzen/OpenStreetMap attribution where derived terrain layers are visible. Cached/self-hosted terrain artifacts must carry source DEM metadata. |
 | NAIP Aerial Imagery | `naip-aerial-us`, `Aerial Edition USA` | Candidate | Self-hosted | 0.6m to 1m public-domain US aerial imagery, natural color and potential false-color variants | `imagery_opacity`, `imagery_saturation`, `imagery_contrast`, `imagery_tint`, vector overlay attributes | Public domain, but credit USDA/USGS/NAIP for product clarity and data lineage. |
 
 ## Layer Capability Accounting
@@ -47,13 +47,17 @@ Current owned-atlas coverage accounting:
 | Environment | Base coverage | Terrain/contour coverage | Customer status |
 |---|---|---|---|
 | `staging` | Contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts in R2. Main artifact ids: `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`. | `177` `us-terrain-phase1` contour shards retained for QA/cache experiments; default strategy is browser-rendered contours. | Hosted at `tiles.radmaps.studio` through the Cloudflare Worker custom domain and verified at `radmaps-atlas-tiles.radmaps-atlas.workers.dev`; the Vercel shim remains as fallback during DNS cache transition. |
-| `production` | Driftless, contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts in R2. | Driftless contour artifact only, plus browser/Browserless runtime contour generation. | Active approved coverage manifest `2026.05.27-approved-coverage.1`; broad customer access still gated by `radmaps_atlas_editor`. |
+| `production` | Driftless, contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts in R2. | Driftless contour artifact only, plus editor/AWS renderer runtime contour generation. | Active approved coverage manifest `2026.05.27-approved-coverage.1`; broad customer access still gated by `radmaps_atlas_editor`. |
 
 The next production step is not more precomputed terrain. It is to keep
-production QA tight across the approved coverage, then decide whether wider
-Honshu/Japan or larger Europe/global packs justify the runner/source cost.
+production QA tight across the approved coverage, add z16 `poi` and
+`outdoorRoutes` hotspot overlays, then decide whether wider Honshu/Japan or
+larger Europe/global packs justify the runner/source cost.
 High-detail contours remain runtime-generated through `maplibre-contour` unless usage or
-reliability makes a regional cache worthwhile.
+reliability makes a regional cache worthwhile. Do not wire Mapbox Terrain v2 or
+R2 contour PMTiles into the customer editor, proof, checkout, or final render
+path as an implicit fallback; keep cached contours in Admin Atlas Lab/QA until a
+separate render-data decision promotes them.
 
 Use these categories when documenting each preset or provider:
 
@@ -142,7 +146,7 @@ flowchart LR
 Why this is attractive:
 
 - PMTiles is designed as a single-file tile archive that can live on static object storage and be read by HTTP range requests.
-- Atlas Lab resolves approved PMTiles artifacts from the active Atlas manifest. When `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` is configured it prefers the hosted tile route `/tiles/{environment}/{artifactId}/{z}/{x}/{y}.mvt`; otherwise local/admin development uses the same-origin `/api/atlas/tiles/{base|terrain}/{z}/{x}/{y}.mvt` fallback. `tiles.radmaps.studio` is served by the Cloudflare Worker custom domain backed by R2 manifests, with the Vercel shim retained as fallback during DNS cache transition. Production traffic should not use caller-supplied raw tile URLs.
+- Atlas Lab resolves approved PMTiles artifacts from the active Atlas manifest. When `NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL` is configured it prefers the hosted tile route `/tiles/{environment}/{artifactId}/{z}/{x}/{y}.mvt`; otherwise local/admin development uses the same-origin `/api/atlas/tiles/{base|terrain|poi|outdoorRoutes}/{z}/{x}/{y}.mvt` fallback. `tiles.radmaps.studio` is served by the Cloudflare Worker custom domain backed by R2 manifests, with the Vercel shim retained as fallback during DNS cache transition. Production traffic should not use caller-supplied raw tile URLs.
 - Planetiler can generate planet-scale vector tiles from OSM and other geographic sources without a PostGIS tile stack.
 - Tilemaker is simpler for local/regional experiments and lets us author Lua profiles for exactly the layer schema we want.
 - Vector layers let themes blend water, roads, labels, POIs, landcover, and buildings separately instead of pushing color transforms over baked rasters.
@@ -153,11 +157,13 @@ Why this is attractive:
   preserves feature geometry for brush-painted roads, sketched
   buildings/boundaries, and filled water/park washes, and keeps labels, POIs,
   route collision, and the GPX route as vector layers above it.
-- Coverage expansion targets live in `atlas/coverage-targets.json`. North
+- Coverage expansion targets live in `atlas/coverage-targets.json` v2. North
   America is the promote-first path; New Zealand, Northern Spain/Camino,
   Mount Fuji/Japan, and Patagonia Andes are live low-cost global proof packs.
+  The matrix enforces a `$200` total build budget, dry-run cost logging,
+  z16 `poi`/`outdoorRoutes` overlays, and 24x36 print QA before rollout.
   Larger hotspots such as Alps/Dolomites and Himalaya stay deferred until
-  source-size, demand, and DEM quality gates clear.
+  source-size, demand, DEM quality, and budget gates clear.
 
 Proposed build stages:
 
@@ -171,7 +177,7 @@ Open questions:
 
 - Do we start from Protomaps Basemap layers, OpenMapTiles-compatible output, or a RadMaps-native schema?
 - How much OSM tag richness do we need for trails and park POIs?
-- Should the editor fetch PMTiles directly, or should render-worker/browserless use a tile proxy for caching and observability? Current Atlas Lab behavior favors the tile endpoint because it made road/POI debugging and future Worker deployment cleaner.
+- Should the editor fetch PMTiles directly, or should the AWS renderer use a tile proxy for caching and observability? Current Atlas Lab behavior favors the tile endpoint because it made road/POI debugging and future Worker deployment cleaner.
 
 ## Strategic Track 4: RadMaps Terrain Atlas
 
@@ -183,7 +189,7 @@ Recommended architecture after the 2026-05 browser-rendered contour pivot:
 flowchart LR
   A["Terrarium DEM tiles"] --> B["MapPreview maplibre-contour"]
   B --> C["Editor preview"]
-  B --> D["Browserless proof/final render"]
+  B --> D["AWS proof/final render"]
   E["RadMaps global/base atlas"] --> C
   E --> D
   F["Hillshade + terrain illusion overlays"] --> C
@@ -196,8 +202,8 @@ Automation ideas:
 - Generate contour intervals by target print scale, not just web zoom, using the existing `contour_detail` thresholds as the fidelity benchmark.
 - Build multiple hillshade recipes: soft editorial, dramatic mountain, dark-mode relief, blueprint relief.
 - Add slope/aspect, hachure, watercolor wash, paper grain, and ghost-contour treatments as runtime/renderer effects before paying to precompute global terrain.
-- Run Browserless readiness checks that wait for contour/DEM source completion before final render jobs submit to Gelato.
-- Store `dem_source`, `contour_detail`, `contour_interval`, `hillshade_style`, and whether Browserless timed out waiting for terrain in render metadata.
+- Run AWS renderer readiness checks that wait for contour/DEM source completion before final render jobs submit to Gelato.
+- Store `dem_source`, `contour_detail`, `contour_interval`, `hillshade_style`, and whether the AWS renderer timed out waiting for terrain in render metadata.
 
 Current live terrain packs:
 
@@ -235,7 +241,7 @@ Why this changed:
 - High-detail global precomputed contour PMTiles are too expensive for the current business stage.
 - Current browser contours can be denser than the owned PMTiles contour shards because `maplibre-contour` can generate intervals directly from DEM thresholds at render time.
 - The global owned atlas should focus first on base data: roads, water, labels, parks, POIs, buildings, landcover, and boundaries.
-- Terrain richness should come from browser-generated contours plus hillshade/slope/wash/hachure/grain effects. Build a contour cache only if Browserless reliability, DEM availability, or order volume proves we need it.
+- Terrain richness should come from generated contours plus hillshade/slope/wash/hachure/grain effects. Build a contour cache only if AWS renderer reliability, DEM availability, or order volume proves we need it.
 
 Open questions:
 
@@ -281,7 +287,7 @@ Limitations:
 - NAIP is not global.
 - It is aerial imagery, not satellite imagery.
 - It is often leaf-on and state/year-dependent, which is beautiful for many trail posters but not always the freshest possible image.
-- Production use needs preprocessing and caching; relying on public image services during Browserless final renders would be brittle.
+- Production use needs preprocessing and caching; relying on public image services during AWS final renders would be brittle.
 
 ## Source Notes
 

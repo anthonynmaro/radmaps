@@ -103,11 +103,13 @@ export type AtlasLayerId =
   | 'park'
   | 'landcover'
   | 'transportation'
+  | 'outdoorRoute'
   | 'building'
   | 'poi'
   | 'place'
 
 export type AtlasLayerVisibility = Partial<Record<AtlasLayerId, boolean>>
+export type AtlasOutdoorRouteActivity = 'hiking' | 'cycling' | 'mountain-biking' | 'bikepacking'
 
 export interface AtlasLayerSettings {
   contour?: {
@@ -147,6 +149,16 @@ export interface AtlasLayerSettings {
     density?: 'sparse' | 'balanced' | 'detailed'
     categories?: string[]
     icon_opacity?: number
+    labels?: boolean
+    label_color?: string
+    label_opacity?: number
+  }
+  outdoorRoute?: {
+    density?: 'sparse' | 'balanced' | 'detailed'
+    activities?: AtlasOutdoorRouteActivity[]
+    color?: string
+    opacity?: number
+    width?: number
     labels?: boolean
     label_color?: string
     label_opacity?: number

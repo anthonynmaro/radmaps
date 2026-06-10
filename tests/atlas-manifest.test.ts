@@ -44,6 +44,34 @@ const manifest: AtlasManifest = {
         layers: ['contour'],
       },
     ],
+    poi: [
+      {
+        id: 'overture-chicago-poi',
+        kind: 'poi',
+        url: 'https://tiles.example/chicago-poi.pmtiles',
+        objectPath: 'atlas/chicago-poi.pmtiles',
+        minzoom: 8,
+        maxzoom: 16,
+        bounds: [-88.1, 41.6, -87.4, 42.1],
+        layers: ['poi'],
+        sourceStrategy: 'bbox-filtered Overture Places overlay',
+        sourceDate: '2026-06-01',
+      },
+    ],
+    outdoorRoutes: [
+      {
+        id: 'chicago-outdoor-routes',
+        kind: 'outdoorRoutes',
+        url: 'https://tiles.example/chicago-routes.pmtiles',
+        objectPath: 'atlas/chicago-routes.pmtiles',
+        minzoom: 8,
+        maxzoom: 16,
+        bounds: [-88.1, 41.6, -87.4, 42.1],
+        layers: ['outdoor_route'],
+        sourceStrategy: 'OSM route=hiking/bicycle/mtb relation overlay',
+        sourceDate: '2026-06-01',
+      },
+    ],
   },
 }
 
@@ -62,7 +90,27 @@ describe('Atlas manifest resolver', () => {
 
   it('finds approved artifacts by id across all artifact arrays', () => {
     expect(findAtlasArtifact(manifest, 'terrain-west')?.objectPath).toBe('atlas/west.pmtiles')
+    expect(findAtlasArtifact(manifest, 'overture-chicago-poi')?.kind).toBe('poi')
+    expect(findAtlasArtifact(manifest, 'chicago-outdoor-routes')?.kind).toBe('outdoorRoutes')
     expect(findAtlasArtifact(manifest, 'missing')).toBeNull()
+  })
+
+  it('resolves additive POI and outdoor route overlays by bbox without renaming POI', () => {
+    const chicagoResolved = resolveAtlasArtifacts(manifest, manifest, {
+      bbox: [-88.1, 41.6, -87.4, 42.1],
+      requiredKinds: ['base', 'poi', 'outdoorRoutes'],
+    })
+    const denverResolved = resolveAtlasArtifacts(manifest, manifest, {
+      bbox: [-105.2, 39.5, -104.7, 40],
+      requiredKinds: ['base', 'poi', 'outdoorRoutes'],
+    })
+
+    expect(chicagoResolved.artifactsByKind.poi?.map(artifact => artifact.id)).toEqual(['overture-chicago-poi'])
+    expect(chicagoResolved.artifactsByKind.outdoorRoutes?.map(artifact => artifact.id)).toEqual(['chicago-outdoor-routes'])
+    expect(chicagoResolved.coverageLabel).toContain('poi z8-16')
+    expect(chicagoResolved.coverageLabel).toContain('outdoor routes z8-16')
+    expect(denverResolved.artifactsByKind.poi).toBeUndefined()
+    expect(denverResolved.artifactsByKind.outdoorRoutes).toBeUndefined()
   })
 
   it('allows overlapping base artifacts while resolving only bbox-intersecting coverage', () => {

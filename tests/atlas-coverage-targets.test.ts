@@ -14,7 +14,20 @@ type CoverageTarget = {
   activities: string[]
   anchorPremades: string[]
   maxNewBuildCostUsd: number
+  estimatedNextBuildCostUsd: number
+  actualBuildCostUsd: number | null
+  actualOverlayCostUsd: number | null
+  lastCostAuditAt: string | null
   terrainStrategy: string
+  artifactKinds: string[]
+  sourceStrategy: string
+  maxOverlayZoom: number
+  printQaRequired: boolean
+  qaFixtures: Array<{
+    label: string
+    activity: string
+    printSize: string
+  }>
 }
 
 const repoRoot = resolve(__dirname, '..')
@@ -23,8 +36,12 @@ const coverageTargets = JSON.parse(
 ) as {
   schemaVersion: string
   costGuardrails: {
+    totalBuildBudgetUsd: number
+    actualCoverageBuildCostUsd: number
+    remainingCoverageBuildBudgetUsd: number
     awsExperimentBudgetUsdPerMonth: number
     manualApprovalRequiredFor: string[]
+    perRunRequirements: string[]
   }
   targets: CoverageTarget[]
 }
@@ -33,9 +50,17 @@ const premadeSlugs = new Set(PREMADE_MAPS.map(map => map.slug))
 
 describe('atlas coverage target matrix', () => {
   it('keeps coverage targets unique and ordered', () => {
-    expect(coverageTargets.schemaVersion).toBe('radmaps-atlas-coverage-targets-v1')
-    expect(coverageTargets.costGuardrails.awsExperimentBudgetUsdPerMonth).toBeLessThanOrEqual(300)
+    expect(coverageTargets.schemaVersion).toBe('radmaps-atlas-coverage-targets-v2')
+    expect(coverageTargets.costGuardrails.totalBuildBudgetUsd).toBe(200)
+    expect(coverageTargets.costGuardrails.awsExperimentBudgetUsdPerMonth).toBeLessThanOrEqual(200)
+    expect(
+      coverageTargets.costGuardrails.actualCoverageBuildCostUsd +
+      coverageTargets.costGuardrails.remainingCoverageBuildBudgetUsd,
+    ).toBeLessThanOrEqual(coverageTargets.costGuardrails.totalBuildBudgetUsd)
     expect(coverageTargets.costGuardrails.manualApprovalRequiredFor.join(' ')).toContain('20 GB')
+    expect(coverageTargets.costGuardrails.manualApprovalRequiredFor.join(' ')).toContain('200 USD')
+    expect(coverageTargets.costGuardrails.perRunRequirements.join(' ')).toContain('--dry-run')
+    expect(coverageTargets.costGuardrails.perRunRequirements.join(' ')).toContain('--estimated-cost-usd')
 
     const ids = coverageTargets.targets.map(target => target.id)
     const priorities = coverageTargets.targets.map(target => target.priority)
@@ -69,6 +94,17 @@ describe('atlas coverage target matrix', () => {
       expect(minLat, target.id).toBeLessThan(maxLat)
       expect(target.activities.length, target.id).toBeGreaterThan(0)
       expect(target.terrainStrategy, target.id).toContain('runtime')
+      expect(target.artifactKinds, target.id).toContain('base')
+      expect(target.artifactKinds, target.id).toContain('poi')
+      expect(target.artifactKinds, target.id).toContain('outdoorRoutes')
+      expect(target.sourceStrategy, target.id).toMatch(/overlay|base|extract/i)
+      expect(target.maxOverlayZoom, target.id).toBe(16)
+      expect(target.printQaRequired, target.id).toBe(true)
+      expect(target.qaFixtures.length, target.id).toBeGreaterThanOrEqual(2)
+      expect(target.qaFixtures.every(fixture => fixture.printSize === '24x36'), target.id).toBe(true)
+      expect(target.estimatedNextBuildCostUsd, target.id).toBeLessThanOrEqual(target.maxNewBuildCostUsd)
+      expect(target.actualBuildCostUsd === null || target.actualBuildCostUsd >= 0, target.id).toBe(true)
+      expect(target.actualOverlayCostUsd === null || target.actualOverlayCostUsd >= 0, target.id).toBe(true)
 
       for (const slug of target.anchorPremades) {
         expect(premadeSlugs.has(slug), `${target.id} references ${slug}`).toBe(true)
@@ -84,6 +120,11 @@ describe('atlas coverage target matrix', () => {
     for (const target of firstWave) {
       expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(25)
     }
+
+    const buildCandidateBudget = coverageTargets.targets
+      .filter(target => target.status === 'build-candidate')
+      .reduce((sum, target) => sum + target.estimatedNextBuildCostUsd, 0)
+    expect(buildCandidateBudget + coverageTargets.costGuardrails.actualCoverageBuildCostUsd).toBeLessThanOrEqual(200)
 
     expect(coverageTargets.targets.find(target => target.id === 'new-zealand-outdoor')?.status).toBe('staging-live')
     expect(coverageTargets.targets.find(target => target.id === 'northern-spain-camino')?.status).toBe('staging-live')

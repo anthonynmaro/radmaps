@@ -4,6 +4,7 @@ import type {
   AtlasManifestArtifact,
 } from '../../../utils/atlasManifest'
 import {
+  ATLAS_ARTIFACT_KEYS,
   atlasAllManifestArtifacts,
   atlasArtifactIntersectsBbox,
   findAtlasArtifact,
@@ -106,13 +107,13 @@ export function artifactKindCounts(manifest: AtlasManifest) {
     const kind = normalizedArtifactKind(artifact)
     acc[kind] = (acc[kind] || 0) + 1
     return acc
-  }, { base: 0, contours: 0, hillshade: 0, publicLands: 0, poi: 0, other: 0 })
+  }, Object.fromEntries([...ATLAS_ARTIFACT_KEYS, 'other'].map(kind => [kind, 0])) as Record<AtlasArtifactKey | 'other', number>)
 }
 
 function normalizedArtifactKind(artifact: AtlasManifestArtifact): AtlasArtifactKey | 'other' {
   if (artifact.kind === 'terrain') return 'contours'
-  if (artifact.kind === 'base' || artifact.kind === 'contours' || artifact.kind === 'hillshade' || artifact.kind === 'publicLands' || artifact.kind === 'poi') {
-    return artifact.kind
+  if ((ATLAS_ARTIFACT_KEYS as readonly string[]).includes(artifact.kind)) {
+    return artifact.kind as AtlasArtifactKey
   }
   return 'other'
 }

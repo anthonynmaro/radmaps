@@ -48,9 +48,19 @@ are retained for QA, history, and optional cached coverage experiments. They
 are no longer the default strategy for scaling high-detail terrain globally.
 
 Production direction: keep approved base archives in R2, but keep high-detail
-terrain browser-rendered through `maplibre-contour` in both editor and
-Browserless print renders. Only add/cache contour PMTiles for regions where
-usage, reliability, or render latency proves the extra compute is worth it.
+terrain generated through `maplibre-contour` in both editor and AWS renderer
+outputs. Only add/cache contour PMTiles for regions where usage, reliability,
+or render latency proves the extra compute is worth it.
+
+Overlay direction: `poi` remains the existing manifest key for additive
+Overture Places overlays. `outdoorRoutes` is the only new overlay artifact kind
+for named OSM `route=hiking`, `route=bicycle`, and `route=mtb` relations. Basic
+trail/path geometry stays in the base `transportation` source layer. Overlay
+PMTiles should use immutable paths such as
+`atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
+`atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`,
+with z16 max zoom, source date, bytes, checksum, cost, and print QA status
+recorded before promotion.
 
 Current production tile service code:
 - Preferred edge: `workers/atlas-tiles`
@@ -351,7 +361,7 @@ are true:
   `tiles.radmaps.studio`.
 - Atlas Lab proves base coverage in U.S., Canada, Mexico, Alaska, and at least
   one coastal/ocean-heavy map.
-- Browserless proof and final renders complete for `8x12`, `24x36`, and
+- AWS renderer proof and final renders complete for `8x12`, `24x36`, and
   `32x48` using Atlas styles.
 - Route linework renders below labels and remains readable across house styles.
 - Runtime contours from `maplibre-contour` load before render readiness marks

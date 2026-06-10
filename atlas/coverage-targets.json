@@ -1,20 +1,25 @@
 {
-  "schemaVersion": "radmaps-atlas-coverage-targets-v1",
-  "updatedAt": "2026-05-27",
+  "schemaVersion": "radmaps-atlas-coverage-targets-v2",
+  "updatedAt": "2026-06-09",
   "costGuardrails": {
-    "awsExperimentBudgetUsdPerMonth": 300,
+    "totalBuildBudgetUsd": 200,
+    "actualCoverageBuildCostUsd": 3.75,
+    "remainingCoverageBuildBudgetUsd": 196.25,
+    "awsExperimentBudgetUsdPerMonth": 200,
     "observedAwsMonthToDateUsd": 3.75,
     "observedAwsMonthToDateSource": "AWS Billing screenshot, 2026-05-26",
     "defaultTerrainStrategy": "runtime-contours",
     "baseBuildPolicy": "Prefer already-built coverage first, then small regional/country extracts, then continent/global builds only after manual approval.",
     "manualApprovalRequiredFor": [
       "source extracts estimated above 20 GB",
-      "single build runs estimated above 50 USD",
-      "cached terrain packs outside measured Browserless reliability gaps or paid-order demand",
+      "single build runs estimated above 25 USD unless the target explicitly carries a higher cap",
+      "any projected coverage spend that would push actual plus estimated build cost above 200 USD",
+      "cached terrain packs outside measured AWS renderer reliability gaps or paid-order demand",
       "any full-globe base artifact"
     ],
     "perRunRequirements": [
       "Run atlas:pipeline with --dry-run first",
+      "Pass --estimated-cost-usd before any non-dry-run heavyweight build stage",
       "Record source URL/date, runner type, instance hours, scratch storage, S3 bytes, R2 bytes, manifest version, and actual AWS cost after the run",
       "Publish immutable PMTiles objects and promote by manifest pointer only"
     ]
@@ -45,7 +50,20 @@
       ],
       "nextAction": "Render and review QA fixtures, then promote the existing staging manifest to production if print output passes.",
       "maxNewBuildCostUsd": 0,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 0,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Reuse approved North America base; add bbox-filtered Overture POI and OSM outdoor route overlay packs only after dry-run cost approval.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Whistler / Squamish MTB", "activity": "mountain-biking", "printSize": "24x36" },
+        { "label": "Moab / Canyonlands", "activity": "bikepacking", "printSize": "24x36" },
+        { "label": "Acadia / New England", "activity": "hiking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "patagonia-andes",
@@ -66,7 +84,19 @@
       ],
       "nextAction": "Staging base atlas is built and published; review Torres del Paine, El Chalten, Bariloche, and Carretera Austral fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 25,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Use staging base plus hotspot-scoped Overture POI and OSM hiking/bicycle/MTB route overlays.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Torres del Paine W Trek", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Carretera Austral", "activity": "bikepacking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "northern-spain-camino",
@@ -87,7 +117,19 @@
       ],
       "nextAction": "Staging base atlas is built and published; review Camino, Picos, Basque Country, and Galicia fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 25,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Use staging base plus Camino/Picos/Basque/Galicia overlay extracts for Overture POIs and named OSM outdoor routes.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Camino Frances", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Basque Country cycling", "activity": "cycling", "printSize": "24x36" }
+      ]
     },
     {
       "id": "honshu-japan",
@@ -108,7 +150,19 @@
       ],
       "nextAction": "Mount Fuji proof pack is built and published to staging; split wider Honshu into smaller regions or rerun on a larger runner after the ubuntu-latest archive-generation OOM.",
       "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 25,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Keep Mount Fuji base live; split wider Honshu into small OSM extracts and overlay packs before any larger rerun.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Mount Fuji ascent", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Shimanami Kaido", "activity": "cycling", "printSize": "24x36" }
+      ]
     },
     {
       "id": "new-zealand-outdoor",
@@ -129,13 +183,25 @@
       ],
       "nextAction": "Staging base atlas is built and published; review Queenstown, Rotorua, Great Walks, and bikepacking fixtures before production promotion.",
       "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 25,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Use staging country base plus Rotorua/Queenstown/Great Walks overlay packs for Overture POIs and OSM route relations.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Rotorua MTB", "activity": "mountain-biking", "printSize": "24x36" },
+        { "label": "Milford / Routeburn / Kepler", "activity": "hiking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "western-alps-dolomites",
       "label": "Western Alps / Dolomites",
       "priority": 6,
-      "status": "deferred-cost-gate",
+      "status": "build-candidate",
       "buildClass": "multi-country",
       "atlasRegion": null,
       "bbox": [5.5, 43.5, 14.5, 47.8],
@@ -149,84 +215,156 @@
         "Finale Ligure",
         "Lake Garda"
       ],
-      "nextAction": "Do not build from the full Europe extract until we add a multi-extract/cutline workflow or approve a larger Europe run.",
-      "maxNewBuildCostUsd": 75,
-      "terrainStrategy": "runtime-contours"
+      "nextAction": "Build from the Geofabrik Alps extract only; do not use the full Europe extract.",
+      "maxNewBuildCostUsd": 25,
+      "estimatedNextBuildCostUsd": 25,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Use Geofabrik Alps extract with bbox bounds; no full Europe base. Build hotspot overlays to z16 after dry-run and cost approval.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Chamonix / Zermatt", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Finale Ligure / Lake Garda", "activity": "mountain-biking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "atlantic-islands",
       "label": "Atlantic island vacation hotspots",
       "priority": 7,
-      "status": "deferred-source-selection",
+      "status": "build-candidate",
       "buildClass": "small-regional",
       "atlasRegion": null,
       "bbox": [-31.5, 27.5, -12.0, 40.5],
       "activities": ["mountain-biking", "hiking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Madeira", "Canary Islands", "Azores"],
-      "nextAction": "Choose the smallest reliable OSM extract path before adding runnable build targets.",
+      "nextAction": "Build split Portugal-islands and Canary Islands extracts so island coverage stays small.",
       "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 20,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Build Portugal extract bounded to Madeira/Azores and Canary Islands extract separately; overlay packs are bbox-filtered per island and capped at z16.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Madeira levadas", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Canary Islands MTB", "activity": "mountain-biking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "andes-peru-ecuador",
       "label": "Peru / Ecuador Andes",
       "priority": 8,
-      "status": "deferred-product-demand",
+      "status": "build-candidate",
       "buildClass": "regional",
       "atlasRegion": null,
       "bbox": [-81.5, -18.5, -68.5, 1.5],
       "activities": ["hiking", "bikepacking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Machu Picchu / Salkantay", "Cordillera Blanca", "Cotopaxi", "Quilotoa", "Sacred Valley"],
-      "nextAction": "Queue after the live Patagonia proof pack passes visual review unless customer/search demand indicates earlier interest.",
+      "nextAction": "Build Peru and Ecuador extracts separately to cover Salkantay/Sacred Valley, Cordillera Blanca, Cotopaxi, and Quilotoa without a full South America rerun.",
       "maxNewBuildCostUsd": 35,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 30,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Split Peru and Ecuador extracts with hotspot overlays; defer cached terrain until AWS renderer QA shows need.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Salkantay / Sacred Valley", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Cotopaxi / Quilotoa", "activity": "bikepacking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "nepal-himalaya",
       "label": "Nepal Himalaya",
       "priority": 9,
-      "status": "deferred-dem-risk",
+      "status": "build-candidate-dem-qa",
       "buildClass": "country-regional",
       "atlasRegion": null,
       "bbox": [80.0, 26.0, 89.5, 31.0],
       "activities": ["hiking", "bikepacking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Everest Base Camp", "Annapurna Circuit", "Langtang", "Mustang"],
-      "nextAction": "Validate DEM/contour quality before committing to cached terrain or product promotion.",
-      "maxNewBuildCostUsd": 35,
-      "terrainStrategy": "runtime-contours-with-dem-qa"
+      "nextAction": "Build Nepal base first, then require 24x36 DEM/runtime-contour QA before production promotion.",
+      "maxNewBuildCostUsd": 20,
+      "estimatedNextBuildCostUsd": 15,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours-with-dem-qa",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Country-regional extract only after DEM/contour QA; overlay packs use Overture POIs and OSM route relations.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Everest Base Camp", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Annapurna Circuit", "activity": "hiking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "iceland-scotland",
       "label": "Iceland / Scotland adventure travel",
       "priority": 10,
-      "status": "deferred-source-selection",
+      "status": "build-candidate",
       "buildClass": "regional",
       "atlasRegion": null,
       "bbox": [-25.0, 54.5, -0.5, 66.8],
       "activities": ["hiking", "bikepacking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Laugavegur", "Iceland Ring Road", "West Highland Way", "Skye", "Cairngorms"],
-      "nextAction": "Split into separate Iceland and Scotland targets before building so source downloads stay small.",
+      "nextAction": "Build Iceland and Scotland as separate extracts so source downloads stay small.",
       "maxNewBuildCostUsd": 35,
-      "terrainStrategy": "runtime-contours"
+      "estimatedNextBuildCostUsd": 30,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Split Iceland and Scotland into separate extracts and overlay packs; no combined heavy regional source.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Laugavegur", "activity": "hiking", "printSize": "24x36" },
+        { "label": "West Highland Way", "activity": "hiking", "printSize": "24x36" }
+      ]
     },
     {
       "id": "costa-rica-central-america",
       "label": "Costa Rica / Central America vacation trails",
       "priority": 11,
-      "status": "deferred-product-demand",
+      "status": "build-candidate",
       "buildClass": "regional",
       "atlasRegion": null,
       "bbox": [-86.5, 7.5, -82.0, 11.5],
       "activities": ["mountain-biking", "hiking", "vacation"],
       "anchorPremades": [],
       "hotspots": ["Arenal", "Monteverde", "Rincon de la Vieja", "Nicoya", "Osa Peninsula"],
-      "nextAction": "Queue after premade-driven regions unless vacation poster demand pulls it forward.",
-      "maxNewBuildCostUsd": 25,
-      "terrainStrategy": "runtime-contours"
+      "nextAction": "Build Costa Rica extract for Arenal, Monteverde, Rincon de la Vieja, Nicoya, and Osa vacation-trail fixtures.",
+      "maxNewBuildCostUsd": 15,
+      "estimatedNextBuildCostUsd": 10,
+      "actualBuildCostUsd": null,
+      "actualOverlayCostUsd": null,
+      "lastCostAuditAt": null,
+      "terrainStrategy": "runtime-contours",
+      "artifactKinds": ["base", "poi", "outdoorRoutes"],
+      "sourceStrategy": "Small Central America vacation-trail extract with z16 POI/outdoor-route hotspot overlays only after demand signal.",
+      "maxOverlayZoom": 16,
+      "printQaRequired": true,
+      "qaFixtures": [
+        { "label": "Arenal / Monteverde", "activity": "hiking", "printSize": "24x36" },
+        { "label": "Nicoya / Osa", "activity": "vacation", "printSize": "24x36" }
+      ]
     }
   ]
 }
