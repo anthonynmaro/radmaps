@@ -135,7 +135,6 @@ const themePurposeGroups = computed(() => groupThemeOptionsByPurpose(orderedThem
 const selectedThemeId = ref<ColorTheme>((orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0]).id)
 const selectedBaseMode = ref<ThemeBaseMapSelection>('auto')
 const liveCardThemeIds = ref<ColorTheme[]>([])
-const maxLivePreviewCards = 4
 const baseModeOptions: Array<{ id: ThemeBaseMapSelection; label: string; disabled?: boolean }> = [
   { id: 'auto', label: 'Auto' },
   { id: 'terrain', label: 'Terrain' },
@@ -160,7 +159,6 @@ watch(orderedThemes, (themes) => {
   }
   liveCardThemeIds.value = liveCardThemeIds.value
     .filter(themeId => themes.some(theme => theme.id === themeId))
-    .slice(0, maxLivePreviewCards)
 }, { immediate: true })
 
 function previewConfigFor(theme: ThemeDefinition): StyleConfig {
@@ -179,7 +177,6 @@ function selectTheme(themeId: ColorTheme) {
 
 function enableLiveCard(themeId: ColorTheme) {
   if (liveCardThemeIds.value.includes(themeId)) return
-  if (themeId !== selectedThemeId.value && liveCardThemeIds.value.length >= maxLivePreviewCards) return
   liveCardThemeIds.value = [...liveCardThemeIds.value, themeId]
 }
 
