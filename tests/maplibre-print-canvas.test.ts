@@ -33,7 +33,7 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
       isPrintRender: true,
       deviceScaleFactor: 2,
       mapCssWidth: 3636,
-      mapCssHeight: 4300,
+      mapCssHeight: 9000,
     })
 
     expect(result).toMatchObject({
@@ -43,7 +43,7 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
       ],
     })
     expect('pixelRatio' in result ? result.pixelRatio : null)
-      .toBeCloseTo(PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX / 4300, 3)
+      .toBeCloseTo(PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX / 9000, 3)
   })
 
   it('clamps pathological DPR values to the renderer-supported range', () => {

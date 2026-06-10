@@ -1,4 +1,4 @@
-export const PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX = 8_192
+export const PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX = 16_384
 
 interface MapLibrePrintCanvasOptions {
   isPrintRender: boolean
