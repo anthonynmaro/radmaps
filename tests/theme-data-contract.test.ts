@@ -82,18 +82,18 @@ describe('theme data contract', () => {
     expect(context.hasPointElevation).toBe(true)
     expect(context.region).toBe('Illinois')
     expect(context.pointElevationM).toBe(187)
-    expect(context.recommendedBaseMapMode).toBe('minimal')
+    expect(context.recommendedBaseMapMode).toBe('terrain')
     expect(themeDataContextSignature(context)).toMatchObject({
       version: THEME_DATA_CONTRACT_VERSION,
       purpose: 'place',
       region: 'Illinois',
       pointElevationM: 187,
       locationMetadataSource: 'mapbox-geocoding-v6-reverse+terrarium-dem-z12',
-      recommendedBaseMapMode: 'minimal',
+      recommendedBaseMapMode: 'terrain',
     })
   })
 
-  it('recommends Minimal for flat uncovered routes and Streets for flat Atlas-covered routes', () => {
+  it('recommends Terrain for flat uncovered routes and Streets for flat Atlas-covered routes', () => {
     const flatStats: RouteStats = {
       distance_km: 42,
       elevation_gain_m: 24,
@@ -102,7 +102,7 @@ describe('theme data contract', () => {
       min_elevation_m: 150,
     }
 
-    expect(buildThemeDataContext({ stats: flatStats }).recommendedBaseMapMode).toBe('minimal')
+    expect(buildThemeDataContext({ stats: flatStats }).recommendedBaseMapMode).toBe('terrain')
     expect(buildThemeDataContext({ stats: flatStats, atlas_coverage_status: 'base' }).recommendedBaseMapMode).toBe('streets')
     expect(buildThemeDataContext({ stats: routeStats, geojson: routeGeojson }).recommendedBaseMapMode).toBe('terrain')
   })
@@ -223,6 +223,6 @@ describe('theme data contract', () => {
     expect(context.hasDistance).toBe(false)
     expect(context.hasElevation).toBe(false)
     expect(context.purpose).toBe('place')
-    expect(context.recommendedBaseMapMode).toBe('minimal')
+    expect(context.recommendedBaseMapMode).toBe('terrain')
   })
 })

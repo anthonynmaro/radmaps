@@ -941,7 +941,8 @@ test.describe('style browser visual harness', () => {
 
     await expect(page.getByTestId('theme-lineup-step')).toBeVisible()
     await expect(page.getByTestId('theme-base-mode-picker')).toBeVisible()
-    await expect(page.getByTestId('theme-base-mode-auto')).toContainText('Minimal')
+    await expect(page.getByTestId('theme-base-mode-auto')).toContainText('Terrain')
+    await expect(page.getByTestId('theme-base-mode-minimal')).toHaveCount(0)
     expect(await page.getByTestId('theme-preview-card').count()).toBeGreaterThan(10)
     await expect(page.locator('.theme-lineup-grid-head')).toHaveCount(0)
     await expect(page.locator('.theme-lineup-icon-action')).toHaveCount(0)

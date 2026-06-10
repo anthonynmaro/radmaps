@@ -140,7 +140,6 @@ const baseModeOptions: Array<{ id: ThemeBaseMapSelection; label: string; disable
   { id: 'auto', label: 'Auto' },
   { id: 'terrain', label: 'Terrain' },
   { id: 'streets', label: 'Streets' },
-  { id: 'minimal', label: 'Minimal' },
 ]
 
 const selectedTheme = computed(() =>

@@ -141,7 +141,7 @@ describe('theme options', () => {
     expect(base).toEqual(before)
     expect(preview).not.toBe(base)
     expect(preview.color_theme).toBe('blueprint')
-    expect(preview.base_map_mode).toBe('minimal')
+    expect(preview.base_map_mode).toBe('terrain')
     expect(preview.poster_text_overrides).toEqual({ trail_name: { text: 'Saved title' } })
   })
 
@@ -149,7 +149,7 @@ describe('theme options', () => {
     const flatRoute = { distance_km: 42, elevation_gain_m: 22, elevation_loss_m: 20, max_elevation_m: 190, min_elevation_m: 160 }
     const mountainRoute = { distance_km: 12, elevation_gain_m: 900, elevation_loss_m: 900, max_elevation_m: 1800, min_elevation_m: 700 }
 
-    expect(resolveThemePreviewBaseMapMode({ stats: flatRoute })).toBe('minimal')
+    expect(resolveThemePreviewBaseMapMode({ stats: flatRoute })).toBe('terrain')
     expect(resolveThemePreviewBaseMapMode({ stats: { ...flatRoute }, atlas_coverage_status: 'base' })).toBe('streets')
     expect(resolveThemePreviewBaseMapMode({ stats: mountainRoute })).toBe('terrain')
     expect(resolveThemePreviewBaseMapMode({ stats: mountainRoute }, 'minimal')).toBe('minimal')
@@ -262,7 +262,7 @@ describe('theme options', () => {
     expect(routeGroups[0]?.purpose).toBe('route-terrain')
   })
 
-  it('uses the minimal base overlay for place previews by default', () => {
+  it('uses the terrain base overlay for place previews by default', () => {
     const theme = getThemeDefinition('transit-diagram')
     expect(theme).toBeTruthy()
 
@@ -271,15 +271,13 @@ describe('theme options', () => {
       geojson: POINT_GEOJSON,
     })
 
-    expect(preview.base_map_mode).toBe('minimal')
+    expect(preview.base_map_mode).toBe('terrain')
     expect(preview.show_roads).toBe(false)
     expect(preview.show_place_labels).toBe(false)
     expect(preview.show_poi_labels).toBe(false)
-    expect(preview.show_contours).toBe(false)
+    expect(preview.show_contours).toBe(true)
     expect(preview.atlas_layers).toMatchObject({
-      contour: false,
-      water: false,
-      waterway: false,
+      contour: true,
       transportation: false,
       place: false,
       poi: false,

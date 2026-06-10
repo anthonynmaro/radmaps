@@ -209,13 +209,13 @@ function recommendedBaseMapModeForContext(input: {
   elevationChangeM: number | null
   atlasCoverageStatus: 'terrain' | 'base' | 'missing' | null
 }): ThemeBaseMapMode {
-  if (!input.hasRoute || input.purpose === 'place') return 'minimal'
+  if (!input.hasRoute || input.purpose === 'place') return 'terrain'
   const reliefM = input.reliefM ?? input.elevationChangeM
   const lowRelief = reliefM != null && reliefM <= 80
   if (!lowRelief) return 'terrain'
   return input.atlasCoverageStatus === 'base' || input.atlasCoverageStatus === 'terrain'
     ? 'streets'
-    : 'minimal'
+    : 'terrain'
 }
 
 export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeDataContext {
