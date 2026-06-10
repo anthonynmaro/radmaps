@@ -89,7 +89,7 @@ export async function renderFinalWithScreenshot(input: {
     heightPx: viewportHeightPx,
     deviceScaleFactor,
     format: 'jpeg',
-    quality: 95,
+    quality: 98,
     waitUntil: 'domcontentloaded',
     waitForFunction: RENDER_READY_EXPRESSION,
     timeoutMs: CONFIG.renderTimeoutMs,
@@ -103,7 +103,7 @@ export async function renderFinalWithScreenshot(input: {
     expectedWidth: framing.fullWidthPx,
     expectedHeight: framing.fullHeightPx,
     maxOversizePx: deviceScaleFactor,
-    quality: 95,
+    quality: 98,
     densityDpi: framing.dpi,
   })
 

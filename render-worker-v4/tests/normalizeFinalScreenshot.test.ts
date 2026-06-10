@@ -29,6 +29,7 @@ describe('normalizeFinalScreenshot', () => {
     expect(metadata.height).toBe(180)
     expect(metadata.format).toBe('jpeg')
     expect(metadata.density).toBe(300)
+    expect(metadata.chromaSubsampling).toBe('4:4:4')
   })
 
   it('crops small DPR rounding surplus to the expected final size', async () => {

@@ -9,7 +9,7 @@ export async function normalizeFinalScreenshot(input: {
   densityDpi?: number
 }): Promise<Buffer> {
   const maxOversizePx = input.maxOversizePx ?? 2
-  const quality = input.quality ?? 95
+  const quality = input.quality ?? 98
   const metadata = await sharp(input.buffer).metadata()
   const width = metadata.width
   const height = metadata.height
@@ -38,6 +38,6 @@ export async function normalizeFinalScreenshot(input: {
   }
 
   return image
-    .jpeg({ quality })
+    .jpeg({ quality, chromaSubsampling: '4:4:4' })
     .toBuffer()
 }

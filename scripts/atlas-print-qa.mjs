@@ -15,7 +15,7 @@ const FINAL_24X36 = {
   heightPx: 10871,
   deviceScaleFactor: 2,
   dpi: 300,
-  quality: 95,
+  quality: 98,
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -336,7 +336,7 @@ async function normalizeFinalPrintBuffer(buffer, options) {
 
   return image
     .withMetadata({ density: options.dpi })
-    .jpeg({ quality: options.quality })
+    .jpeg({ quality: options.quality, chromaSubsampling: '4:4:4' })
     .toBuffer()
 }
 
