@@ -1473,6 +1473,7 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.route_color).toBe('#2F536A')
     expect(config.route_width).toBe(3.25)
     expect(config.route_opacity).toBe(0.94)
+    expect(config.contour_detail).toBe(2)
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#EEEEEA')
     expect(layerById(style, 'radmaps-simple-contour-landcover')?.paint?.['fill-color']).toBe('#EEEEEA')
     expect(layerById(style, 'radmaps-simple-contour-landcover')?.paint?.['fill-opacity']).toBe(0.98)

@@ -945,7 +945,7 @@ const REFINED_THEME_RECIPES = [
       show_poi_labels: false,
       show_hillshade: false,
       show_contours: true,
-      contour_detail: 1,
+      contour_detail: 2,
       route_width: 3.25,
       route_opacity: 0.94,
       pin_color: '#2F536A',
