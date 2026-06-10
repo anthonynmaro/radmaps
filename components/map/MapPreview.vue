@@ -10710,6 +10710,13 @@ onUnmounted(() => {
   border-bottom: 0 !important;
   background-color: transparent !important;
   background-image: none !important;
+  padding-inline: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  box-sizing: border-box !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="elevation-profile"] {
+  height: 35% !important;
+  margin-top: 4.8cqh !important;
 }
 
 .poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="elevation-profile-band"] {
