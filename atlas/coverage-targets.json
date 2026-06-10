@@ -60,9 +60,9 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Whistler / Squamish MTB", "activity": "mountain-biking", "printSize": "24x36" },
-        { "label": "Moab / Canyonlands", "activity": "bikepacking", "printSize": "24x36" },
-        { "label": "Acadia / New England", "activity": "hiking", "printSize": "24x36" }
+        { "label": "Whistler / Squamish MTB", "activity": "mountain-biking", "printSize": "24x36", "bbox": [-123.25, 49.55, -122.78, 50.16] },
+        { "label": "Moab / Canyonlands", "activity": "bikepacking", "printSize": "24x36", "bbox": [-109.75, 38.45, -109.25, 38.85] },
+        { "label": "Acadia / New England", "activity": "hiking", "printSize": "24x36", "bbox": [-68.45, 44.25, -68.1, 44.45] }
       ]
     },
     {
@@ -94,8 +94,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Torres del Paine W Trek", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Carretera Austral", "activity": "bikepacking", "printSize": "24x36" }
+        { "label": "Torres del Paine W Trek", "activity": "hiking", "printSize": "24x36", "bbox": [-73.2, -51.1, -72.75, -50.88] },
+        { "label": "Carretera Austral", "activity": "bikepacking", "printSize": "24x36", "bbox": [-73.2, -46.0, -72.2, -45.2] }
       ]
     },
     {
@@ -127,8 +127,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Camino Frances", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Basque Country cycling", "activity": "cycling", "printSize": "24x36" }
+        { "label": "Camino Frances", "activity": "hiking", "printSize": "24x36", "bbox": [-2.55, 42.38, -1.55, 42.9] },
+        { "label": "Basque Country cycling", "activity": "cycling", "printSize": "24x36", "bbox": [-2.4, 42.95, -1.6, 43.35] }
       ]
     },
     {
@@ -160,8 +160,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Mount Fuji ascent", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Shimanami Kaido", "activity": "cycling", "printSize": "24x36" }
+        { "label": "Mount Fuji ascent", "activity": "hiking", "printSize": "24x36", "bbox": [138.62, 35.28, 138.84, 35.46] },
+        { "label": "Shimanami Kaido", "activity": "cycling", "printSize": "24x36", "bbox": [132.9, 34.0, 133.3, 34.45] }
       ]
     },
     {
@@ -193,8 +193,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Rotorua MTB", "activity": "mountain-biking", "printSize": "24x36" },
-        { "label": "Milford / Routeburn / Kepler", "activity": "hiking", "printSize": "24x36" }
+        { "label": "Rotorua MTB", "activity": "mountain-biking", "printSize": "24x36", "bbox": [176.15, -38.25, 176.45, -37.95] },
+        { "label": "Milford / Routeburn / Kepler", "activity": "hiking", "printSize": "24x36", "bbox": [167.6, -45.8, 168.3, -44.6] }
       ]
     },
     {
@@ -227,8 +227,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Chamonix / Zermatt", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Finale Ligure / Lake Garda", "activity": "mountain-biking", "printSize": "24x36" }
+        { "label": "Chamonix / Zermatt", "activity": "hiking", "printSize": "24x36", "bbox": [6.8, 45.82, 7.9, 46.1] },
+        { "label": "Finale Ligure / Lake Garda", "activity": "mountain-biking", "printSize": "24x36", "bbox": [8.25, 44.1, 10.95, 45.9] }
       ]
     },
     {
@@ -254,8 +254,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Madeira levadas", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Canary Islands MTB", "activity": "mountain-biking", "printSize": "24x36" }
+        { "label": "Madeira levadas", "activity": "hiking", "printSize": "24x36", "bbox": [-17.3, 32.6, -16.65, 32.9] },
+        { "label": "Canary Islands MTB", "activity": "mountain-biking", "printSize": "24x36", "bbox": [-16.95, 28.0, -15.25, 28.65] }
       ]
     },
     {
@@ -281,8 +281,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Salkantay / Sacred Valley", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Cotopaxi / Quilotoa", "activity": "bikepacking", "printSize": "24x36" }
+        { "label": "Salkantay / Sacred Valley", "activity": "hiking", "printSize": "24x36", "bbox": [-72.3, -13.7, -71.6, -13.1] },
+        { "label": "Cotopaxi / Quilotoa", "activity": "bikepacking", "printSize": "24x36", "bbox": [-79.1, -1.1, -78.0, 0.1] }
       ]
     },
     {
@@ -308,8 +308,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Everest Base Camp", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Annapurna Circuit", "activity": "hiking", "printSize": "24x36" }
+        { "label": "Everest Base Camp", "activity": "hiking", "printSize": "24x36", "bbox": [86.4, 27.6, 87.2, 28.2] },
+        { "label": "Annapurna Circuit", "activity": "hiking", "printSize": "24x36", "bbox": [83.5, 28.1, 84.5, 28.8] }
       ]
     },
     {
@@ -335,8 +335,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Laugavegur", "activity": "hiking", "printSize": "24x36" },
-        { "label": "West Highland Way", "activity": "hiking", "printSize": "24x36" }
+        { "label": "Laugavegur", "activity": "hiking", "printSize": "24x36", "bbox": [-19.8, 63.8, -18.4, 64.2] },
+        { "label": "West Highland Way", "activity": "hiking", "printSize": "24x36", "bbox": [-5.2, 56.0, -4.1, 57.2] }
       ]
     },
     {
@@ -362,8 +362,8 @@
       "maxOverlayZoom": 16,
       "printQaRequired": true,
       "qaFixtures": [
-        { "label": "Arenal / Monteverde", "activity": "hiking", "printSize": "24x36" },
-        { "label": "Nicoya / Osa", "activity": "vacation", "printSize": "24x36" }
+        { "label": "Arenal / Monteverde", "activity": "hiking", "printSize": "24x36", "bbox": [-85.1, 10.2, -84.5, 10.6] },
+        { "label": "Nicoya / Osa", "activity": "vacation", "printSize": "24x36", "bbox": [-85.8, 8.3, -83.2, 10.4] }
       ]
     }
   ]

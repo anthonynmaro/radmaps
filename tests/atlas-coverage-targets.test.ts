@@ -24,6 +24,7 @@ type CoverageTarget = {
     label: string
     activity: string
     printSize: string
+    bbox: [number, number, number, number]
   }>
 }
 
@@ -103,6 +104,17 @@ describe('atlas coverage target matrix', () => {
       expect(target.maxOverlayZoom, target.id).toBe(16)
       expect(target.printQaRequired, target.id).toBe(true)
       expect(target.qaFixtures.some(fixture => fixture.printSize === '24x36'), target.id).toBe(true)
+      expect(target.qaFixtures.length, target.id).toBeGreaterThan(0)
+      for (const fixture of target.qaFixtures) {
+        const [fixtureMinLng, fixtureMinLat, fixtureMaxLng, fixtureMaxLat] = fixture.bbox
+        expect(fixture.printSize, `${target.id}/${fixture.label}`).toBe('24x36')
+        expect(fixtureMinLng, `${target.id}/${fixture.label}`).toBeGreaterThanOrEqual(-180)
+        expect(fixtureMaxLng, `${target.id}/${fixture.label}`).toBeLessThanOrEqual(180)
+        expect(fixtureMinLat, `${target.id}/${fixture.label}`).toBeGreaterThanOrEqual(-90)
+        expect(fixtureMaxLat, `${target.id}/${fixture.label}`).toBeLessThanOrEqual(90)
+        expect(fixtureMinLng, `${target.id}/${fixture.label}`).toBeLessThan(fixtureMaxLng)
+        expect(fixtureMinLat, `${target.id}/${fixture.label}`).toBeLessThan(fixtureMaxLat)
+      }
 
       for (const slug of target.anchorPremades) {
         expect(premadeSlugs.has(slug), `${target.id} references ${slug}`).toBe(true)

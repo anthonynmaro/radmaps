@@ -93,9 +93,9 @@ Current production tile service code:
   `https://radmaps-atlas-tiles.radmaps-atlas.workers.dev`
 - Active `tiles.radmaps.studio` custom domain:
   `workers/atlas-tiles`
-- Fallback Vercel/Nuxt shim:
-  `server/routes/manifests/*`, `server/routes/tiles/*`, and
-  `server/utils/atlasPublicTileService.ts`
+- Same-origin app proxy for renderer/editor fallback:
+  `server/api/atlas/tiles/[...tile].get.ts` plus HEAD smoke probes in
+  `server/api/atlas/tiles/[...tile].head.ts`
 
 Preferred production service shape:
 
@@ -166,6 +166,12 @@ Global-hotspot promotion verification on 2026-06-09:
 - Non-empty production overlay probes returned `200` through both
   `https://tiles.radmaps.studio/tiles/production/...` and the live app proxy
   `https://radmaps.studio/api/atlas/tiles/...`.
+- The app proxy returns valid empty MVTs for sparse `poi`/`outdoorRoutes`
+  tiles when no overlay artifact intersects a map view. This keeps Atlas
+  styles renderable before every region has z16 overlay enrichment.
+- App-proxy HEAD support is implemented for `base`, `poi`, and
+  `outdoorRoutes` probes so monitoring can validate production without
+  downloading full vector tile bodies.
 
 Current staging terrain coverage:
 

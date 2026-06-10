@@ -162,6 +162,21 @@ final-order orchestrator: claim queued jobs, call the configured browser
 screenshot backend, validate/upload, write product render rows, and submit to
 Gelato. Do not remove it without replacing the queue/orchestration layer.
 
+Atlas print QA:
+
+1. `npm run atlas:print-qa` reads fixture bboxes from
+   `atlas/coverage-targets.json` and writes a tile-audit summary under
+   `artifacts/atlas-print-qa/{date}/`.
+2. `npm run atlas:print-qa -- --render` signs `atlas-qa` render tickets and
+   asks the AWS renderer to screenshot `/render/atlas-qa/{fixtureId}?ticket=...`.
+3. `/api/render/payload` validates the ticket and builds a synthetic QA
+   `TrailMap` from the coverage fixture. It does not query Supabase or create
+   customer maps.
+4. `/render/atlas-qa/[fixtureId].vue` screenshots the real `MapPreview.vue`
+   print path at 24x36 final dimensions, so it is suitable for Atlas rollout
+   QA. The dev-only `/style-browser-fixture` route remains useful for local
+   regression tests but is not the production Atlas print-QA gate.
+
 Product mockups:
 
 Product mockups are merchandising previews, not print artifacts. They are

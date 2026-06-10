@@ -47,7 +47,7 @@ Current owned-atlas coverage accounting:
 | Environment | Base coverage | Terrain/contour coverage | Customer status |
 |---|---|---|---|
 | `staging` | Contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts in R2. Main new artifact ids include `radmaps-western-alps-dolomites-base`, `radmaps-atlantic-islands-portugal-base`, `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`, `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`, `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, and `radmaps-costa-rica-central-america-base`. | `177` `us-terrain-phase1` contour shards retained for QA/cache experiments; default strategy is browser-rendered contours. | Active staging manifest `2026.06.09-global-hotspots.1`; hosted at `tiles.radmaps.studio` through the Cloudflare Worker custom domain. |
-| `production` | Driftless, contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts in R2, plus `9` Overture Places `poi` overlays and `9` named OSM `outdoorRoutes` overlays for the global hotspot packs. | Driftless contour artifact only, plus editor/AWS renderer runtime contour generation. | Active approved coverage manifest `2026.06.09-global-hotspots-production.2`; production PMTiles range checks and production tile probes passed for base, POI, and outdoor route artifacts; broad customer access still gated by `radmaps_atlas_editor` pending 24x36 print QA. |
+| `production` | Driftless, contiguous U.S., North America, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts in R2, plus `9` Overture Places `poi` overlays and `9` named OSM `outdoorRoutes` overlays for the global hotspot packs. | Driftless contour artifact only, plus editor/AWS renderer runtime contour generation. | Active approved coverage manifest `2026.06.09-global-hotspots-production.2`; production PMTiles range checks and production tile probes passed for base, POI, and outdoor route artifacts; app-proxy empty overlay tiles and HEAD probes are implemented for the next app deployment; broad customer access still gated by `radmaps_atlas_editor` pending 24x36 print QA. |
 
 The next production step is not more precomputed terrain. It is to keep
 production QA tight across the approved coverage and promoted z16 `poi` /
@@ -166,6 +166,10 @@ Why this is attractive:
   `npm run atlas:build-overlays` / the `Atlas Overlay Build` GitHub workflow,
   with Overture Places and OSM relation extraction kept separate from base
   `transportation` trail geometry.
+  Print QA target bboxes live in `atlas/coverage-targets.json` and run through
+  `npm run atlas:print-qa`. The signed `/render/atlas-qa/{fixtureId}` route
+  uses `MapPreview.vue` and the AWS renderer path; the dev-only style browser
+  fixture is not the production rollout gate.
   Larger hotspots such as Alps/Dolomites and Himalaya stay deferred until
   source-size, demand, DEM quality, and budget gates clear.
 

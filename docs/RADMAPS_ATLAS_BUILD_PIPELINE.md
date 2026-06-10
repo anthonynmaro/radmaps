@@ -264,6 +264,15 @@ As of 2026-06-09:
   named OSM hiking/bicycle/MTB route overlays, `55,644,584` bytes total. The
   promotion dry run estimated less than `$0.01` of R2 copy/manifest work.
   Remaining overlay rollout gate is 24x36 AWS-rendered print QA.
+- Print-QA runner status: `npm run atlas:print-qa` is implemented. Audit mode
+  fetches the active manifest, probes direct Worker and app-proxy MVT delivery,
+  records matching artifact ids, and writes
+  `artifacts/atlas-print-qa/{date}/summary.json`. Render mode
+  (`-- --render`) signs `atlas-qa` render tickets and sends the real Nuxt
+  `/render/atlas-qa/{fixtureId}` page through the AWS renderer. Render mode
+  requires `PROOF_RENDER_ENDPOINT`, `PROOF_RENDER_TOKEN`, and
+  `RENDER_TICKET_SECRET`, and should be run only after the app deployment
+  includes the signed QA route.
 
 North America build details:
 
@@ -378,6 +387,24 @@ Current production manifest details:
 | Outdoor route artifacts | `9` (`radmaps-western-alps-dolomites-outdoor-routes`, `radmaps-atlantic-islands-portugal-outdoor-routes`, `radmaps-atlantic-islands-canaries-outdoor-routes`, `radmaps-andes-peru-outdoor-routes`, `radmaps-andes-ecuador-outdoor-routes`, `radmaps-nepal-himalaya-outdoor-routes`, `radmaps-iceland-adventure-outdoor-routes`, `radmaps-scotland-adventure-outdoor-routes`, `radmaps-costa-rica-central-america-outdoor-routes`) |
 | Promotion workflow run | `27209290643` |
 | Verification | Production manifest returned `200`; all nine new base PMTiles and all 18 overlay PMTiles returned HTTP `206` with `PMTiles` magic bytes; non-empty `poi` and `outdoorRoutes` tile probes returned `200` through both `tiles.radmaps.studio` and the live RadMaps app proxy. |
+
+## Atlas Print QA Runner
+
+Use this before customer rollout and after any Atlas manifest, proxy, or
+renderer change:
+
+```bash
+npm run atlas:print-qa -- --limit 3
+npm run atlas:print-qa -- --render
+```
+
+Audit mode is safe and cheap: it performs HTTP tile probes and writes JSON
+metadata only. Render mode calls the AWS renderer for 24x36 PNG captures of the
+signed `/render/atlas-qa/{fixtureId}` page. Each fixture comes from
+`atlas/coverage-targets.json`, including its QA bbox, target id, print size,
+and activity. Treat any `needs-review` fixture as a rollout blocker unless the
+summary explicitly documents an expected coverage gap, such as wider Honshu
+before the Shimanami split is built.
 
 What remains for the New Zealand proof pack:
 

@@ -142,6 +142,16 @@ builds.
   budget gate, filters Overture Places for print-useful POIs, extracts named
   OSM outdoor route relations through Overpass, validates PMTiles metadata, and
   writes mergeable manifests.
+- The signed Atlas print-QA render path is implemented at
+  `/render/atlas-qa/{fixtureId}?ticket=...` and uses the same `MapPreview.vue`
+  print renderer as proof/final output. `npm run atlas:print-qa` reads
+  `atlas/coverage-targets.json`, audits production tile coverage, writes
+  review metadata under `artifacts/atlas-print-qa/{date}/`, and can call the
+  AWS renderer with `--render` once the app deployment includes the route.
+- The Nuxt app proxy now returns valid empty MVT responses for sparse or
+  not-yet-built `poi`/`outdoorRoutes` overlay tiles instead of surfacing 404s
+  into MapLibre. A dedicated HEAD route was added so production smoke monitors
+  can probe `base`, `poi`, and `outdoorRoutes` without false failures.
 - The wider `honshu-japan` staging build failed in workflow run `26488700331`
   after `13m16s` with Docker/Planetiler exit `137` during archive generation,
   consistent with an `ubuntu-latest` runner memory kill. No partial artifact was
@@ -206,18 +216,22 @@ builds.
 The operational coverage queue lives in `atlas/coverage-targets.json` v2. It
 keeps premade-map anchors, sport/audience priorities, global vacation hotspots,
 artifact kinds, z16 overlay caps, 24x36 print QA requirements, cost guards,
-actual cost fields, build status, and next actions in one machine-readable file.
+actual cost fields, build status, concrete QA fixture bboxes, and next actions
+in one machine-readable file.
 
 Current priority order:
 
 1. Keep production atlas QA focused on approved U.S., North America, New
    Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes
    coverage now that those artifacts are live.
-2. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
-   QA justifies it.
-3. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
-   Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
-   justifies the spend.
+2. Run `npm run atlas:print-qa -- --render` only after confirming the deployed
+   app has the signed `/render/atlas-qa` route and current renderer secrets.
+3. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
+   QA justifies it. The Shimanami fixture intentionally records a wider-Honshu
+   gap because no new base PMTiles should be built before the print-QA gate.
+4. Add additional z16 overlays before any new base PMTiles. Defer any full
+   planet or continent build until usage proves demand and the `$200` build
+   ceiling is explicitly re-approved.
 
 Cost policy:
 

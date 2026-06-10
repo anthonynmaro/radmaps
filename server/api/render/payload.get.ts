@@ -1,5 +1,6 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 import { DEFAULT_STYLE_CONFIG, type TrailMap } from '~/types'
+import { buildAtlasPrintQaPayload } from '~/utils/atlasPrintQa'
 import { getPrintFraming } from '~/utils/print/printFraming'
 import { verifyRenderTicket } from '~/utils/render/renderTicket'
 import { getPremadeThumbnailFraming } from '~/utils/render/thumbnailFraming'
@@ -14,10 +15,29 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const payload = verifyRenderTicket(ticket, config.renderTicketSecret)
-  const supabase = await serverSupabaseServiceRole(event)
   const framing = payload.renderClass === 'thumbnail'
     ? getPremadeThumbnailFraming()
     : getPrintFraming(payload.productUid, payload.renderClass)
+
+  if (payload.kind === 'atlas-qa') {
+    try {
+      const qaPayload = buildAtlasPrintQaPayload(payload.subject)
+      return {
+        ticket: payload,
+        framing,
+        map: qaPayload.map,
+        styleConfig: qaPayload.styleConfig,
+        fixture: qaPayload.fixture,
+      }
+    } catch (error) {
+      throw createError({
+        statusCode: 404,
+        message: error instanceof Error ? error.message : 'Atlas print QA fixture not found',
+      })
+    }
+  }
+
+  const supabase = await serverSupabaseServiceRole(event)
 
   if (payload.kind === 'map') {
     const { data: map, error } = await supabase

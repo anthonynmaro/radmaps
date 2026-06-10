@@ -91,11 +91,18 @@ Completed:
   so local editor tests can turn layers off and tune water, roads/trails,
   labels, landcover, parks, buildings, and contour styling from saved
   `StyleConfig` JSON.
+- Sparse `poi` and `outdoorRoutes` tiles now return valid empty MVTs through
+  the app proxy instead of breaking MapLibre with overlay 404s. GET is live in
+  production; HEAD support is implemented for the next app deployment so
+  smoke monitors can probe proxy health consistently.
+- A signed Atlas print-QA render path exists at `/render/atlas-qa/{fixtureId}`
+  and is driven by `npm run atlas:print-qa`. It renders the real
+  `MapPreview.vue` print path with 24x36 framing and coverage-target fixture
+  bboxes, then stores review metadata and optional AWS-rendered PNGs under
+  `artifacts/atlas-print-qa/{date}/`.
 
 Not done yet:
 
-- The Cloudflare Worker is attached to `tiles.radmaps.studio`; some resolvers
-  may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,
   but `radmaps_atlas_editor` should remain disabled for broad customer traffic
   until AWS-rendered print QA and attribution checks pass.
