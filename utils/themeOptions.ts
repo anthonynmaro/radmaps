@@ -2,7 +2,7 @@ import type { ColorTheme, RouteStats, StyleConfig, ThemeDefinition } from '~/typ
 import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
-import { buildThemeDataContext, type ThemeDataContextInput } from '~/utils/themeDataContract'
+import { buildThemeDataContext, type ThemeDataContextInput, type ThemePurpose } from '~/utils/themeDataContract'
 import { REFINED_THEMES } from '~/utils/themes/refined'
 import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
 
@@ -188,6 +188,74 @@ export function groupThemeOptionsByColorway(options: ThemeDefinition[] = QUICK_T
 export const QUICK_THEME_OPTION_GROUPS: ThemeOptionGroup[] = groupThemeOptionsByColorway(QUICK_THEME_OPTIONS)
 
 export const CLASSIC_THEME_OPTIONS: ThemeDefinition[] = COLOR_THEMES
+
+export const THEME_PURPOSE_LABELS: Record<ThemePurpose, string> = {
+  'route-terrain': 'Trail / terrain',
+  'route-urban': 'Route / street',
+  place: 'Place / POI',
+  city: 'City / street',
+  nautical: 'Nautical',
+}
+
+const THEME_PURPOSE_ORDER: ThemePurpose[] = ['route-terrain', 'route-urban', 'place', 'city', 'nautical']
+
+export type ThemePurposeGroup = {
+  purpose: ThemePurpose
+  label: string
+  themes: ThemeDefinition[]
+}
+
+export function purposeForTheme(theme: ThemeDefinition): ThemePurpose {
+  if (theme.composition === 'place-frame' || theme.id === 'cartouche-place') return 'place'
+  if (theme.composition === 'sea-chart' || theme.id === 'sea-chart') return 'nautical'
+  if (theme.composition === 'transit-diagram' || theme.id === 'transit-diagram') return 'city'
+  if (
+    theme.composition === 'blueprint-strava' ||
+    theme.composition === 'splits-grid' ||
+    theme.composition === 'bib-numerals' ||
+    theme.id === 'splits-stats' ||
+    theme.id === 'marathon-bib' ||
+    theme.id === 'night-ride'
+  ) {
+    return 'route-urban'
+  }
+
+  const defaults = theme.map_defaults ?? {}
+  const preset = defaults.preset
+  if (preset === 'radmaps-toner-light' || preset === 'radmaps-toner-dark' || preset === 'radmaps-alidade' || preset === 'radmaps-alidade-dark') {
+    return 'city'
+  }
+  if (defaults.show_roads || defaults.atlas_layers?.transportation) return 'route-urban'
+  return 'route-terrain'
+}
+
+function purposeOrderForContext(context?: ThemeDataContextInput): ThemePurpose[] {
+  const purpose = context ? buildThemeDataContext(context).purpose : null
+  if (purpose === 'place') return ['place', 'city', 'route-terrain', 'route-urban', 'nautical']
+  if (purpose === 'city') return ['city', 'place', 'route-urban', 'route-terrain', 'nautical']
+  if (purpose === 'route-urban') return ['route-urban', 'city', 'route-terrain', 'place', 'nautical']
+  if (purpose === 'nautical') return ['nautical', 'place', 'city', 'route-terrain', 'route-urban']
+  return THEME_PURPOSE_ORDER
+}
+
+export function groupThemeOptionsByPurpose(
+  options: ThemeDefinition[] = QUICK_THEME_OPTIONS,
+  context?: ThemeDataContextInput,
+): ThemePurposeGroup[] {
+  const groups = new Map<ThemePurpose, ThemeDefinition[]>()
+  for (const theme of options) {
+    const purpose = purposeForTheme(theme)
+    groups.set(purpose, [...(groups.get(purpose) ?? []), theme])
+  }
+
+  return purposeOrderForContext(context)
+    .map(purpose => ({
+      purpose,
+      label: THEME_PURPOSE_LABELS[purpose],
+      themes: groups.get(purpose) ?? [],
+    }))
+    .filter(group => group.themes.length > 0)
+}
 
 export function getThemeThumbnailProfile(theme: ThemeDefinition, classic = false): ThemeThumbProfile {
   const composition = classic

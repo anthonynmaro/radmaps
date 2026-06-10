@@ -33,29 +33,46 @@
       </div>
 
       <div class="theme-lineup-grid-wrap">
-        <div class="theme-lineup-grid" data-testid="theme-lineup-grid">
-          <ThemePreviewCard
-            v-for="theme in orderedThemes"
-            :key="theme.id"
-            :map="map"
-            :theme="theme"
-            :preview-config="previewConfigFor(theme)"
-            :selected="theme.id === selectedThemeId"
-            :live-enabled="cardLiveEnabled(theme.id)"
-            @select="selectTheme"
-            @visible="enableLiveCard"
-          />
-          <button
-            type="button"
-            class="theme-design-card"
-            data-testid="theme-design-card"
-            @click="emit('design-myself')"
+        <div class="theme-lineup-groups" data-testid="theme-lineup-grid">
+          <section
+            v-for="group in themePurposeGroups"
+            :key="group.purpose"
+            class="theme-purpose-group"
+            :data-theme-purpose="group.purpose"
           >
-            <span class="theme-design-card-icon">
-              <UIcon name="i-heroicons-pencil-square" />
-            </span>
-            <span>Design myself</span>
-          </button>
+            <div class="theme-purpose-heading">
+              <span>{{ group.label }}</span>
+              <small>{{ group.themes.length }}</small>
+            </div>
+            <div class="theme-lineup-grid">
+              <ThemePreviewCard
+                v-for="theme in group.themes"
+                :key="theme.id"
+                :map="map"
+                :theme="theme"
+                :preview-config="previewConfigFor(theme)"
+                :selected="theme.id === selectedThemeId"
+                :live-enabled="cardLiveEnabled(theme.id)"
+                @select="selectTheme"
+                @visible="enableLiveCard"
+              />
+            </div>
+          </section>
+          <section class="theme-purpose-group theme-purpose-group--custom">
+            <div class="theme-lineup-grid">
+              <button
+                type="button"
+                class="theme-design-card"
+                data-testid="theme-design-card"
+                @click="emit('design-myself')"
+              >
+                <span class="theme-design-card-icon">
+                  <UIcon name="i-heroicons-pencil-square" />
+                </span>
+                <span>Design myself</span>
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -78,6 +95,7 @@ import ThemePreviewCard from '~/components/map/ThemePreviewCard.vue'
 import {
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
+  groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
 } from '~/utils/themeOptions'
 
@@ -92,6 +110,11 @@ const emit = defineEmits<{
 }>()
 
 const orderedThemes = computed(() => orderedQuickThemeOptionsForRoute(props.map.stats, props.map.geojson))
+const themePurposeGroups = computed(() => groupThemeOptionsByPurpose(orderedThemes.value, {
+  ...props.map,
+  stats: props.map.stats,
+  geojson: props.map.geojson,
+}))
 const selectedThemeId = ref<ColorTheme>((orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0]).id)
 const liveCardThemeIds = ref<ColorTheme[]>([])
 const maxLivePreviewCards = 4
@@ -250,11 +273,38 @@ function applySelected() {
   min-width: 0;
 }
 
+.theme-lineup-groups {
+  display: grid;
+  gap: 22px;
+  padding-bottom: 24px;
+}
+
+.theme-purpose-group {
+  display: grid;
+  gap: 10px;
+}
+
+.theme-purpose-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.theme-purpose-heading small {
+  color: #a8a29e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .theme-lineup-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
   gap: 16px;
-  padding-bottom: 24px;
 }
 
 .theme-design-card {

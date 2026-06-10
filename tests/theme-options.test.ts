@@ -5,8 +5,10 @@ import {
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
   groupThemeOptionsByColorway,
+  groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
   priorityThemeIdsForMap,
+  purposeForTheme,
   showsRefinedThemeBadge,
 } from '~/utils/themeOptions'
 import { REFINED_THEMES, getThemeDefinition } from '~/utils/themes/refined'
@@ -177,6 +179,27 @@ describe('theme options', () => {
       'editorial-minimal',
       'usgs-vintage',
     ])
+  })
+
+  it('groups quick themes by purpose and orders groups from the uploaded data', () => {
+    const byId = new Map(QUICK_THEME_OPTIONS.map(theme => [theme.id, theme]))
+    expect(purposeForTheme(byId.get('cartouche-place')!)).toBe('place')
+    expect(purposeForTheme(byId.get('splits-stats')!)).toBe('route-urban')
+    expect(purposeForTheme(byId.get('sea-chart')!)).toBe('nautical')
+
+    const placeGroups = groupThemeOptionsByPurpose(QUICK_THEME_OPTIONS, {
+      stats: PLACE_STATS,
+      geojson: POINT_GEOJSON,
+    })
+    const routeGroups = groupThemeOptionsByPurpose(QUICK_THEME_OPTIONS, {
+      stats: { distance_km: 16, elevation_gain_m: 900, elevation_loss_m: 0, max_elevation_m: 1300, min_elevation_m: 400 },
+    })
+
+    const groupedThemeIds = placeGroups.flatMap(group => group.themes.map(theme => theme.id))
+    expect(placeGroups[0]?.purpose).toBe('place')
+    expect(groupedThemeIds).toHaveLength(QUICK_THEME_OPTIONS.length)
+    expect(new Set(groupedThemeIds)).toEqual(new Set(QUICK_THEME_OPTIONS.map(theme => theme.id)))
+    expect(routeGroups[0]?.purpose).toBe('route-terrain')
   })
 
   it('adds map context to place previews without forcing contours back on', () => {
