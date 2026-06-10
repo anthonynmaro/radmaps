@@ -10832,8 +10832,8 @@ onUnmounted(() => {
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] [data-testid="elevation-profile"] {
-  height: 35% !important;
-  margin-top: 4.8cqh !important;
+  height: 46% !important;
+  margin-top: 5.3cqh !important;
 }
 
 .poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="elevation-profile-band"] {
