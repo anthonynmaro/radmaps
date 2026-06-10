@@ -11898,6 +11898,24 @@ onUnmounted(() => {
   box-shadow: none !important;
 }
 
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-trail-name {
+  font-size: clamp(8.9cqh, var(--trail-title-size, 10.35cqh), 10.7cqh) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-location-line {
+  font-size: 1.82cqh !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  border-top-style: solid !important;
+  border-top-color: color-mix(in srgb, currentColor 36%, transparent) !important;
+  opacity: 1 !important;
+}
+
 .composition-technical-data-footer {
   width: 100%;
   display: grid;
