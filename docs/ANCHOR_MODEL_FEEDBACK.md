@@ -56,3 +56,40 @@ from the unrelated dirty files so it's revertible and bisectable. Add
 `docs/anchor_golden_baseline/` and `docs/anchor_post_w0_capture/` to `.gitignore`
 (large PNG artifacts; keep on disk, don't commit). After commit, W2 (text auto-fit)
 and W3 (Tier 1 editor) are unblocked on the AnchorFrame model.
+
+2026-06-08 20:02 UTC — W0 REVIEW: LGTM (operational action from prior pass resolved)
+Reviewed 3 new commits since 8054196: `anchor(model)` 4bc517a (types/index.ts +66,
+posterLayout.ts, poster-layout.test.ts +238), `anchor(renderer)` a61e067
+(MapPreview.vue), `anchor(tests)` 0990b27 (slot inventory + style-browser spec +
+.gitignore). The prior operational ask is done: W0 is now 3 isolated, bisectable
+commits and no longer mixed with the unrelated dirty files; `.git/index.lock` is
+gone; worktree dirt is now only pre-existing unrelated files (auth/oauth, theme
+picker, knownFlags).
+- **Golden parity — LGTM.** Committed parity report (docs/theme_audit_output/
+  parity-report.md) shows Pixel Chrome = 100.0% and Text Mask = 0 for all over-map
+  themes (cartouche-place, contour-wash, plein-air, sea-chart); map-region pixel
+  diffs are expected (data-driven geometry). Band-anchor path is byte-stable;
+  matches the prior 0-pixel/54-PNG band-path result. No drift → not a regression.
+- **Map-geometry invariant — LGTM.** style-browser.spec.ts asserts the
+  `[data-testid="poster-map"]` rect via boundingBox()/mapRect evaluators
+  (lines ~105/114/581/773/1266).
+- **Over-map anchors — LGTM.** Visually confirmed the committed print renders:
+  cartouche-place's engraved place plate ("CIUDAD DE MÉXICO") and sea-chart's
+  "The Cobbler" title both float as free anchors over the map field (motif/soundings
+  extend behind and around them) — not evicted into header/footer bands.
+- **No migration / compat — LGTM.** No `.sql`/migration files in the diff;
+  `DEFAULT_STYLE_CONFIG` untouched (only re-exported as an import). `poster_layout`
+  stays sparse; `anchors` added additively via PartialAnchorFrame merge.
+- **Discipline — LGTM.** `.gitignore` now excludes the baseline/capture PNG dirs as
+  requested. .gitignored dirs still present on disk (111 files each) for regen.
+NOTE (reviewed, intentional, not a blocker): a61e067 adds `flex: 0 0 <height>%` to
+header/footerBandStyle, gated on `poster_layout?.bands?.{header,footer}?.height != null`.
+For default themes (height null) flex stays `undefined`, which is why chrome parity
+holds at 100%. Confirm this matches the height computed-style branch directly below it
+so flex-basis and height can't diverge under custom band heights.
+COULD-NOT-RUN: focused Vitest/vue-tsc didn't execute in the review sandbox
+(`@rollup/rollup-linux-arm64-gnu` missing — node_modules built for the host arch, not
+a code fault). Gates verified via the committed parity report + render inspection
+instead. If a fresh local `npm run test:style-graph` + map-rect Playwright are green
+on the host, W2 (text auto-fit) and W3 (Tier 1 editor) are unblocked.
+VERDICT: W0 LGTM.
