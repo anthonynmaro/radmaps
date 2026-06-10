@@ -291,6 +291,7 @@ const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
 const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
   ['blueprint-strava', 3],
   ['daybreak-trace', 3],
+  ['electric-atlas', 3],
   ['splits-stats', 3],
 ])
 

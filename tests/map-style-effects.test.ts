@@ -106,6 +106,8 @@ describe('adaptive contour detail', () => {
     expect(resolveAdaptiveContourThresholds({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace thresholds').toBe(CONTOUR_THRESHOLDS[3])
     expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(3)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava thresholds').toBe(CONTOUR_THRESHOLDS[3])
+    expect(resolveAdaptiveContourDetail({ color_theme: 'electric-atlas', contour_detail: 5 }, lowReliefStats), 'electric-atlas').toBe(3)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'electric-atlas', contour_detail: 5 }, lowReliefStats), 'electric-atlas thresholds').toBe(CONTOUR_THRESHOLDS[3])
     expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(3)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats thresholds').toBe(CONTOUR_THRESHOLDS[3])
   })
