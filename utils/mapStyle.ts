@@ -262,6 +262,7 @@ export interface AdaptiveContourReliefProfile {
 }
 
 const SMOOTH_CONTOUR_THEME_IDS = new Set([
+  'blueprint',
   'blueprint-strava',
   'bold-modern',
   'classic-trail',
@@ -284,6 +285,7 @@ const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set<string>([
 ])
 
 const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
+  ['blueprint', 2],
   ['bold-modern', 2],
   ['classic-trail', 2],
   ['contour-wash', 2],

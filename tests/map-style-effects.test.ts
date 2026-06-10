@@ -284,7 +284,7 @@ describe('adaptive contour detail', () => {
   })
 
   it('smooths DEM contours for line-art themes that otherwise render coastline fragments', () => {
-    for (const color_theme of ['blueprint-strava', 'classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'electric-atlas', 'midcentury-travel', 'ranch-ochre', 'splits-stats'] as const) {
+    for (const color_theme of ['blueprint', 'blueprint-strava', 'classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'electric-atlas', 'midcentury-travel', 'ranch-ochre', 'splits-stats'] as const) {
       expect(resolveAdaptiveContourOverzoom({ color_theme }), color_theme).toBe(2)
     }
     expect(resolveAdaptiveContourOverzoom({ color_theme: 'brutalist' })).toBe(0)
@@ -351,7 +351,7 @@ describe('adaptive contour detail', () => {
     }
 
     expect(resolveAdaptiveContourDetail({ contour_detail: 5 }, extremeRainierStats)).toBe(0)
-    for (const color_theme of ['bold-modern', 'editorial-minimal', 'usgs-vintage', 'classic-trail', 'contour-wash'] as const) {
+    for (const color_theme of ['blueprint', 'bold-modern', 'editorial-minimal', 'usgs-vintage', 'classic-trail', 'contour-wash'] as const) {
       expect(resolveAdaptiveContourDetail({ color_theme, contour_detail: 5 }, extremeRainierStats), color_theme).toBe(2)
       expect(resolveAdaptiveContourThresholds({ color_theme, contour_detail: 5 }, extremeRainierStats), color_theme).toBe(CONTOUR_THRESHOLDS[2])
     }
@@ -1407,15 +1407,15 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-alidade-dark-poi-labels')).toBeUndefined()
     expect(layerById(style, 'contours-ghost-texture')?.paint?.['line-color']).toBe('#9CCDEB')
     expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#9CCDEB')
-    expect(config.contour_detail).toBe(1)
+    expect(config.contour_detail).toBe(2)
     expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual(contourMinorLineOpacityExpression(0.18))
     expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.46 * 0.8, 14, 0.46,
+      'interpolate', ['linear'], ['zoom'], 5, 0.42 * 0.8, 14, 0.42,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#E6F4FF')
     expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.58)
     expect(layerById(style, 'contours-major')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.96 * 1.5, 14, 0.96 * 2.5,
+      'interpolate', ['linear'], ['zoom'], 5, 0.84 * 1.5, 14, 0.84 * 2.5,
     ])
     expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#FFD45A')
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(6.4)
