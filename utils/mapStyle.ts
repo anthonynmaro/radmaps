@@ -528,7 +528,7 @@ export function resolveAdaptiveContourStyleConfig(
 
   if (isLowRelief) {
     const lowReliefOpacityFloor = config.color_theme === 'brutalist'
-      ? { contour: 0.52, minor: 0.68, major: 0.58 }
+      ? { contour: 0.26, minor: 0.30, major: 0.72 }
       : config.color_theme === 'daybreak-trace'
         ? { contour: 0.12, minor: 0.06, major: 0.22 }
       : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
