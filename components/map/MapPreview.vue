@@ -723,6 +723,10 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-poster-fit-slot="cell.block.slot"
+                :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
+                :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
+                :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -1626,6 +1630,10 @@
                 :data-chrome-block-id="cell.block.id"
                 :data-chrome-slot="cell.block.slot"
                 :data-chrome-kind="cell.block.kind"
+                :data-poster-fit-slot="cell.block.slot"
+                :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
+                :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
+                :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -2136,6 +2144,7 @@ import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
 import { resolveFreeOverlayBox } from '~/utils/posterEditorElements'
+import { fitTextToBox } from '~/utils/textFit'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
@@ -2251,6 +2260,7 @@ const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
 const chromeLayoutBuilderEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
+const textFitSettled = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
 const posterElementsEditing = computed(() => props.editable === true && props.posterElementsEditing === true && props.renderMode !== 'print')
@@ -2291,6 +2301,8 @@ let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
 let styleReloadCameraHold: MapCameraSnapshot | null = null
 let styleReloadCameraHoldTimer: ReturnType<typeof setTimeout> | null = null
+let textFitTimer: ReturnType<typeof setTimeout> | null = null
+let textFitRunId = 0
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -2654,6 +2666,7 @@ onMounted(() => {
   document.addEventListener('keydown', onDocumentKeydown)
   nextTick(() => {
     syncPosterMoveableTarget()
+    schedulePosterTextFit()
     requestAnimationFrame(syncPosterMoveableTarget)
   })
 })
@@ -2667,6 +2680,7 @@ onUnmounted(() => {
   teardownChromeBandResize()
   teardownChromeColumnResize()
   teardownChromeRowResize()
+  if (textFitTimer) clearTimeout(textFitTimer)
 })
 
 function bandAnchorFrame(band: ChromeBandId): AnchorFrame | null {
@@ -2942,10 +2956,12 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const align = override.align ?? cell.align ?? block.align ?? 'left'
   const bold = override.bold ?? block.bold
   const italic = override.italic ?? block.italic
+  const targetSizeCqh = block.slot && override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)
   const style: Record<string, string> = {
     width: '100%',
     fontFamily: chromeBlockFontFamily(block, override),
-    fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
+    fontSize: `var(--poster-fit-font-size, ${targetSizeCqh}cqh)`,
+    '--poster-fit-target-cqh': String(targetSizeCqh),
     lineHeight: chromeBlockLineHeight(block),
     letterSpacing: chromeBlockLetterSpacing(block),
     textTransform: chromeBlockTextTransform(block),
@@ -2979,6 +2995,27 @@ function chromeBlockFontSize(block: ChromeBlock) {
   if (block.kind === 'coords') return 0.72 * scale
   if (block.kind === 'brand') return 0.48 * scale
   return 0.9 * scale
+}
+
+function chromeBlockFitTargetCqh(block: ChromeBlock) {
+  if (!block.slot) return undefined
+  const override = slotOverride(block.slot)
+  return override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)
+}
+
+function chromeBlockFitMinScale(block: ChromeBlock) {
+  if (block.kind === 'title') return 0.42
+  if (block.kind === 'stat') return 0.58
+  if (block.kind === 'coords') return 0.55
+  if (block.kind === 'brand') return 0.72
+  return 0.62
+}
+
+function chromeBlockFitMaxLines(block: ChromeBlock) {
+  if (block.kind === 'title') return 3
+  if (block.kind === 'stat' || block.kind === 'coords') return 2
+  if (block.kind === 'note') return 2
+  return 1
 }
 
 function chromeBlockLineHeight(block: ChromeBlock) {
@@ -5921,10 +5958,65 @@ function applyViewportScaledLayerProperties(styleConfig: StyleConfig = props.sty
   }
 }
 
+function posterTextFitElements() {
+  return Array.from(posterCanvasEl.value?.querySelectorAll<HTMLElement>('[data-poster-fit-slot]') ?? [])
+}
+
+function posterTextFitBox(el: HTMLElement) {
+  const container = el.closest<HTMLElement>('.chrome-grid-cell') ?? el.parentElement ?? el
+  const rect = container.getBoundingClientRect()
+  return {
+    width: Math.max(0, rect.width),
+    height: Math.max(0, rect.height),
+  }
+}
+
+function clearPosterFit(el: HTMLElement) {
+  el.style.removeProperty('--poster-fit-font-size')
+  el.removeAttribute('data-poster-fit-clipped')
+}
+
+async function settlePosterTextFit(): Promise<void> {
+  const runId = ++textFitRunId
+  textFitSettled.value = false
+  await nextTick()
+  const elements = posterTextFitElements()
+  await Promise.all(elements.map(async (el) => {
+    const slot = el.dataset.posterFitSlot as PosterTextSlot | undefined
+    if (!slot) return
+    if (slotOverride(slot).font_size_pt != null) {
+      clearPosterFit(el)
+      return
+    }
+    const targetSizeCqh = Number(el.dataset.posterFitTargetCqh)
+    if (!Number.isFinite(targetSizeCqh) || targetSizeCqh <= 0) return
+    const minScale = Number(el.dataset.posterFitMinScale || 1)
+    const rawMaxLines = Number(el.dataset.posterFitMaxLines)
+    const result = await fitTextToBox(el, posterTextFitBox(el), {
+      targetSizeCqh,
+      minScale,
+      maxLines: Number.isFinite(rawMaxLines) && rawMaxLines > 0 ? rawMaxLines : undefined,
+    })
+    el.toggleAttribute('data-poster-fit-clipped', result.clipped)
+  }))
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  if (runId === textFitRunId) textFitSettled.value = true
+}
+
+function schedulePosterTextFit() {
+  textFitSettled.value = false
+  if (textFitTimer) clearTimeout(textFitTimer)
+  textFitTimer = setTimeout(() => {
+    textFitTimer = null
+    void settlePosterTextFit()
+  }, 0)
+}
+
 async function waitForPrintableAssets() {
   await nextTick()
   const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
   if (fonts?.ready) await fonts.ready
+  await settlePosterTextFit()
 
   const images = Array.from(posterCanvasEl.value?.querySelectorAll('img') ?? [])
   await Promise.all(images.map((img) => {
@@ -6994,6 +7086,26 @@ const pinOverlayItems = ref<PinItem[]>([])
 const draggingPin    = ref<'start' | 'finish' | null>(null)
 const draggingLeader = ref<LeaderDragState | null>(null)
 const selectedLeaderIds = ref<string[]>([])
+
+watch(
+  () => [
+    props.map.title,
+    props.map.subtitle,
+    JSON.stringify(props.map.stats ?? {}),
+    props.styleConfig.trail_name,
+    props.styleConfig.location_text,
+    props.styleConfig.occasion_text,
+    props.styleConfig.font_family,
+    props.styleConfig.color_theme,
+    props.styleConfig.composition,
+    JSON.stringify(props.styleConfig.poster_text_overrides ?? {}),
+    JSON.stringify(props.styleConfig.poster_layout ?? {}),
+    containerDims.value.w,
+    containerDims.value.h,
+  ],
+  () => schedulePosterTextFit(),
+  { flush: 'post' },
+)
 
 const posterContentMinPx = (editorMin: number) => isPrintRender.value ? 0 : editorMin
 const svgDotR         = computed(() => Math.max(posterContentMinPx(1.5), containerDims.value.h * 0.00125))
@@ -14140,6 +14252,7 @@ onUnmounted(() => {
 }
 
 .chrome-grid-block {
+  min-height: 0;
   min-width: 0;
   max-width: 100%;
   max-height: 100%;
@@ -14148,6 +14261,11 @@ onUnmounted(() => {
   white-space: pre-line;
   overflow-wrap: anywhere;
   overflow: hidden;
+}
+
+.chrome-grid-block[data-poster-fit-max-lines="1"] {
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .chrome-grid-block--title {

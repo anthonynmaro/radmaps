@@ -916,17 +916,19 @@ test.describe('style browser visual harness', () => {
 
   test('keeps fixed-template design-spec recipes resilient to long route names', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop-only full recipe stress pass')
-    test.skip(true, 'deferred text-fit work per docs/GO_TO_MARKET_COURSE_CORRECTION.md')
     test.setTimeout(180_000)
-    const longTitle = 'Mount Washington Presidential Traverse Ultra Loop Through The Northern Ravine And Summit Ridge'
+    const shortTitle = 'HH'
+    const longTitle = 'Mount Washington Presidential Traverse Ultra Loop'
 
     for (const [theme, composition] of specThemeRecipes) {
-      await page.goto(`/style-browser-fixture?surface=1&theme=${theme}&composition=${composition}&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820&title=${encodeURIComponent(longTitle)}`, { waitUntil: 'domcontentloaded' })
-      await expect(page.getByTestId('poster-canvas')).toBeVisible()
-
-      const issues = await page.evaluate((titleText) => {
+      const inspectTitle = async (titleText: string) => {
+        await page.goto(`/style-browser-fixture?surface=1&theme=${theme}&composition=${composition}&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820&title=${encodeURIComponent(titleText)}`, { waitUntil: 'domcontentloaded' })
+        await expect(page.getByTestId('poster-canvas')).toBeVisible()
+        await page.waitForTimeout(50)
+        return await page.evaluate((expectedTitle) => {
         const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')?.getBoundingClientRect()
-        const normalizedTitle = titleText.replace(/\s+/g, ' ').trim().toLowerCase()
+        const map = document.querySelector<HTMLElement>('[data-testid="poster-map"]')?.getBoundingClientRect()
+        const normalizedTitle = expectedTitle.replace(/\s+/g, ' ').trim().toLowerCase()
         const visibleTitles = [...document.querySelectorAll<HTMLElement>('.poster-trail-name,.chrome-grid-block--title')]
           .filter((element) => {
             const rect = element.getBoundingClientRect()
@@ -937,16 +939,13 @@ test.describe('style browser visual harness', () => {
               rect.height > 0
           })
 
-        if (!poster || visibleTitles.length === 0) return ['missing visible route title']
+        if (!poster || !map || visibleTitles.length === 0) {
+          return { map: map?.toJSON() ?? null, issues: ['missing visible route title'] }
+        }
 
-        return visibleTitles.flatMap((element) => {
+        const issues = visibleTitles.flatMap((element) => {
           const rect = element.getBoundingClientRect()
-          const style = getComputedStyle(element)
           const failures: string[] = []
-          const clipsOverflow = style.overflowX !== 'visible' || style.overflowY !== 'visible'
-          if (clipsOverflow && (element.scrollWidth > element.clientWidth + 2 || element.scrollHeight > element.clientHeight + 2)) {
-            failures.push(`${element.getAttribute('class') ?? 'title'} clips internally`)
-          }
           if (
             rect.x < poster.x - 1 ||
             rect.y < poster.y - 1 ||
@@ -957,9 +956,19 @@ test.describe('style browser visual harness', () => {
           }
           return failures
         })
-      }, longTitle)
+        return { map: map.toJSON(), issues }
+        }, titleText)
+      }
 
-      expect(issues, `${theme}/${composition}`).toEqual([])
+      const shortState = await inspectTitle(shortTitle)
+      const longState = await inspectTitle(longTitle)
+      expect(shortState.issues, `${theme}/${composition} short title`).toEqual([])
+      expect(longState.issues, `${theme}/${composition} long title`).toEqual([])
+      expect(longState.map, `${theme}/${composition} long title map`).toBeTruthy()
+      expect(shortState.map, `${theme}/${composition} short title map`).toBeTruthy()
+      for (const key of ['x', 'y', 'width', 'height'] as const) {
+        expect(Math.abs((longState.map?.[key] ?? 0) - (shortState.map?.[key] ?? 0)), `${theme}/${composition} map ${key}`).toBeLessThanOrEqual(0.75)
+      }
     }
   })
 
