@@ -15,7 +15,7 @@ import type {
   RouteStats,
   StyleConfig,
 } from '~/types'
-import { buildThemeDataContext, resolveThemeDataContract, type ThemeDataContextInput, type ThemeRenderMode } from '~/utils/themeDataContract'
+import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeDataContextInput, type ThemeRenderMode } from '~/utils/themeDataContract'
 
 export const CHROME_BANDS: ChromeBandId[] = ['header', 'footer', 'railLeft', 'railRight']
 export const CHROME_BAND_HEIGHT_BOUNDS = { min: 8, max: 34 } as const
@@ -328,8 +328,14 @@ function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRe
   }
 }
 
-function hasVisibleSlotOverride(styleConfig: StyleConfig, slot: PosterTextSlot) {
-  return hasVisibleText(styleConfig.poster_text_overrides?.[slot]?.text)
+function placeholdersAllowedInLayoutMode(mode: ThemeRenderMode) {
+  return mode === 'picker-preview' || mode === 'editor'
+}
+
+function hasVisibleSlotOverride(styleConfig: StyleConfig, slot: PosterTextSlot, mode: ThemeRenderMode) {
+  const override = styleConfig.poster_text_overrides?.[slot]
+  if (!hasVisibleText(override?.text)) return false
+  return override?.approved_placeholder !== false || placeholdersAllowedInLayoutMode(mode)
 }
 
 export function defaultPosterLayout(
@@ -344,17 +350,21 @@ export function defaultPosterLayout(
     styleConfig,
     stats: stats ?? dataInput.stats,
   })
-  const dataContract = resolveThemeDataContract(styleConfig.color_theme, composition, dataContext, dataInput.mode ?? 'editor')
+  const mode = dataInput.mode ?? 'editor'
+  const dataContract = resolveThemeDataContract(styleConfig.color_theme, composition, dataContext, mode, {
+    approvedPlaceholderSlots: approvedPlaceholderSlotsFromOverrides(styleConfig.poster_text_overrides),
+  })
   const omittedSlots = new Set(dataContract.omittedSlotIds)
-  const slotAvailable = (slot: PosterTextSlot) => !omittedSlots.has(slot) || hasVisibleSlotOverride(styleConfig, slot)
-  const showDate = labels.show_date && slotAvailable('date') && (hasVisibleText(stats?.date) || hasVisibleSlotOverride(styleConfig, 'date'))
+  const visibleOverride = (slot: PosterTextSlot) => hasVisibleSlotOverride(styleConfig, slot, mode)
+  const slotAvailable = (slot: PosterTextSlot) => !omittedSlots.has(slot) || visibleOverride(slot)
+  const showDate = labels.show_date && slotAvailable('date') && (hasVisibleText(stats?.date) || visibleOverride('date'))
   const showLocation = labels.show_location !== false && slotAvailable('location_text')
-  const showDistance = labels.show_distance && slotAvailable('distance') && (dataContext.hasDistance || hasVisibleSlotOverride(styleConfig, 'distance'))
-  const showCoordinates = labels.show_location !== false && slotAvailable('coordinates') && (dataContext.hasLocation || hasVisibleSlotOverride(styleConfig, 'coordinates'))
+  const showDistance = labels.show_distance && slotAvailable('distance') && (dataContext.hasDistance || visibleOverride('distance'))
+  const showCoordinates = labels.show_location !== false && slotAvailable('coordinates') && (dataContext.hasLocation || visibleOverride('coordinates'))
   const showElevationGain =
     labels.show_elevation_gain &&
     slotAvailable('elevation_gain') &&
-    (Boolean(dataContext.elevationGainM) || hasVisibleSlotOverride(styleConfig, 'elevation_gain'))
+    (Boolean(dataContext.elevationGainM) || visibleOverride('elevation_gain'))
   const hasOccasion = compositionUsesOccasion(composition) && hasVisibleText(styleConfig.occasion_text)
   const isUsgsHeritage = styleConfig.color_theme === 'usgs-vintage'
   const isBlueprint = styleConfig.color_theme === 'blueprint' && composition === 'blueprint-grid'
@@ -399,12 +409,16 @@ export function defaultPosterLayout(
     styleConfig.color_theme === 'contour-wash'
 
   if (usesHeaderDecor && !isUsgsHeritage) {
-    headerRows.push(row('header-meta', [
-      cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: recipe.kickerScale })),
-      cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: recipe.metaScale })),
-    ], { fr: recipe.headerMetaFr }))
+    const headerMetaCells: ChromeGridCell[] = []
+    if (slotAvailable('composition_kicker')) {
+      headerMetaCells.push(cell('hdr-kicker', block('hdr-kicker-block', 'eyebrow', 'composition_kicker', { scale: recipe.kickerScale })))
+    }
+    if (slotAvailable('composition_meta')) {
+      headerMetaCells.push(cell('hdr-meta', block('hdr-meta-block', 'coords', 'composition_meta', { align: 'right', scale: recipe.metaScale })))
+    }
+    if (headerMetaCells.length) headerRows.push(row('header-meta', headerMetaCells, { fr: recipe.headerMetaFr }))
   }
-  if (labels.show_title !== false) {
+  if (labels.show_title !== false && slotAvailable('trail_name')) {
     headerRows.push(row('header-title', [
       cell('hdr-title', block('hdr-title-block', 'title', 'trail_name', { scale: recipe.titleScale })),
     ], { fr: recipe.headerTitleFr }))
@@ -464,7 +478,7 @@ export function defaultPosterLayout(
       footerCellPatch('coordinates', composition),
     ))
   }
-  if (compositionUsesFooterNote(composition)) {
+  if (compositionUsesFooterNote(composition) && slotAvailable('composition_footer')) {
     footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: recipe.noteScale })))
   }
   if (styleConfig.show_branding !== false && !isBlueprint) {

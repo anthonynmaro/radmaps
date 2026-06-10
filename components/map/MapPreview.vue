@@ -2165,7 +2165,7 @@ import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
 import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
-import { buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
+import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
 import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/render/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
@@ -2658,6 +2658,9 @@ const themeDataContract = computed(() => resolveThemeDataContract(
   props.styleConfig.composition,
   themeDataContext.value,
   themeRenderMode.value,
+  {
+    approvedPlaceholderSlots: approvedPlaceholderSlotsFromOverrides(props.styleConfig.poster_text_overrides),
+  },
 ))
 
 const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats, {

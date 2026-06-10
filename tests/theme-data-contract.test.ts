@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type RouteStats, type StyleConfig } from '../types'
 import {
   THEME_DATA_CONTRACT_VERSION,
+  approvedPlaceholderSlotsFromOverrides,
   buildThemeDataContext,
   resolveThemeDataContract,
   themeDataContextSignature,
@@ -111,7 +112,57 @@ describe('theme data contract', () => {
       'splits',
       'elevation_profile',
     ]))
-    expect(resolved.warnings.some(warning => warning.includes('placeholder'))).toBe(false)
+    expect(resolved.blockedPlaceholderSlots).toContain('composition_side_rail')
+    expect(resolved.blockedPlaceholderSlots).not.toContain('distance')
+  })
+
+  it('keeps preview placeholders out of checkout and final until explicitly approved', () => {
+    const context = buildThemeDataContext({
+      geojson: emptyGeojson,
+      stats: {
+        distance_km: 0,
+        elevation_gain_m: 0,
+        elevation_loss_m: 0,
+        max_elevation_m: 0,
+        min_elevation_m: 0,
+      },
+    })
+    const picker = resolveThemeDataContract('midcentury-travel', 'travel-banner', context, 'picker-preview')
+    const checkout = resolveThemeDataContract('midcentury-travel', 'travel-banner', context, 'checkout')
+    const final = resolveThemeDataContract('midcentury-travel', 'travel-banner', context, 'final')
+
+    expect(picker.blockedPlaceholderSlots).not.toContain('trail_name')
+    expect(picker.omittedSlotIds).not.toContain('trail_name')
+    expect(checkout.blockedPlaceholderSlots).toEqual(expect.arrayContaining([
+      'trail_name',
+      'location_text',
+      'composition_kicker',
+      'composition_footer',
+      'composition_side_rail',
+    ]))
+    expect(checkout.omittedSlotIds).toEqual(expect.arrayContaining(checkout.blockedPlaceholderSlots))
+    expect(final.blockedPlaceholderSlots).toEqual(expect.arrayContaining(['trail_name']))
+
+    const approvedSlots = approvedPlaceholderSlotsFromOverrides({
+      trail_name: {
+        text: 'Approved Title',
+        approved_placeholder: true,
+        approved_placeholder_at: '2026-06-10T12:00:00.000Z',
+      },
+      location_text: {
+        text: 'Pending Place',
+        approved_placeholder: false,
+      },
+    })
+    const approved = resolveThemeDataContract('midcentury-travel', 'travel-banner', context, 'checkout', {
+      approvedPlaceholderSlots: approvedSlots,
+    })
+
+    expect(approved.approvedPlaceholderSlots).toContain('trail_name')
+    expect(approved.approvedPlaceholderSlots).not.toContain('location_text')
+    expect(approved.blockedPlaceholderSlots).not.toContain('trail_name')
+    expect(approved.omittedSlotIds).not.toContain('trail_name')
+    expect(approved.blockedPlaceholderSlots).toContain('location_text')
   })
 
   it('keeps route stats available when a real GPX route is present', () => {

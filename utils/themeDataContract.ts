@@ -1,4 +1,4 @@
-import type { ColorTheme, CompositionId, PosterTextSlot, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
+import type { ColorTheme, CompositionId, PosterTextOverrides, PosterTextSlot, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
 
 export const THEME_DATA_CONTRACT_VERSION = 'theme-data-contract-v1'
 
@@ -98,9 +98,15 @@ export interface ResolvedThemeDataContract {
   context: ThemeDataContext
   slotContracts: ThemeSlotContract[]
   resolvedSlotValues: Partial<Record<PosterTextSlot, string>>
+  approvedPlaceholderSlots: PosterTextSlot[]
+  blockedPlaceholderSlots: PosterTextSlot[]
   omittedSlotIds: PosterTextSlot[]
   omittedMapFeatures: OmittedThemeMapFeature[]
   warnings: string[]
+}
+
+export interface ResolveThemeDataContractOptions {
+  approvedPlaceholderSlots?: PosterTextSlot[]
 }
 
 const ROUTE_FIRST_COMPOSITIONS = new Set<CompositionId>([
@@ -369,15 +375,25 @@ function placeholdersAllowed(mode: ThemeRenderMode) {
   return PREVIEW_PLACEHOLDER_MODES.has(mode)
 }
 
+export function approvedPlaceholderSlotsFromOverrides(overrides?: PosterTextOverrides): PosterTextSlot[] {
+  if (!overrides) return []
+  return Object.entries(overrides)
+    .filter(([, override]) => override?.approved_placeholder === true && Boolean(cleanText(override.text)))
+    .map(([slot]) => slot as PosterTextSlot)
+}
+
 export function resolveThemeDataContract(
   theme: ThemeDefinition | ColorTheme | string | null | undefined,
   composition: CompositionId | undefined,
   context: ThemeDataContext,
   mode: ThemeRenderMode,
+  options: ResolveThemeDataContractOptions = {},
 ): ResolvedThemeDataContract {
   const themeId = typeof theme === 'string' ? theme : theme?.id ?? 'unknown'
   const contracts = defaultThemeSlotContracts(composition)
+  const approvedPlaceholderSet = new Set(options.approvedPlaceholderSlots ?? [])
   const omittedSlotIds: PosterTextSlot[] = []
+  const blockedPlaceholderSlots: PosterTextSlot[] = []
   const resolvedSlotValues: Partial<Record<PosterTextSlot, string>> = {}
   const warnings: string[] = []
 
@@ -388,13 +404,21 @@ export function resolveThemeDataContract(
       resolvedSlotValues[contract.slot] = value
       continue
     }
+    if (contract.ifMissing === 'placeholder') {
+      const approved = approvedPlaceholderSet.has(contract.slot)
+      if (approved) {
+        continue
+      }
+      if (!placeholdersAllowed(mode)) {
+        omittedSlotIds.push(contract.slot)
+        blockedPlaceholderSlots.push(contract.slot)
+        warnings.push(`${contract.slot}: placeholder suppressed in ${mode}`)
+      }
+      continue
+    }
     if (!met && contract.ifMissing === 'remove') {
       omittedSlotIds.push(contract.slot)
       continue
-    }
-    if (!met && contract.ifMissing === 'placeholder' && !placeholdersAllowed(mode)) {
-      omittedSlotIds.push(contract.slot)
-      warnings.push(`${contract.slot}: placeholder suppressed in ${mode}`)
     }
   }
 
@@ -410,6 +434,8 @@ export function resolveThemeDataContract(
     context,
     slotContracts: contracts,
     resolvedSlotValues,
+    approvedPlaceholderSlots: Array.from(approvedPlaceholderSet),
+    blockedPlaceholderSlots: Array.from(new Set(blockedPlaceholderSlots)),
     omittedSlotIds: Array.from(new Set(omittedSlotIds)),
     omittedMapFeatures: Array.from(new Set(omittedMapFeatures)),
     warnings,

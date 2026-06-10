@@ -222,6 +222,8 @@ export type PosterTextSlot =
 
 export interface PosterTextOverride {
   text?: string
+  approved_placeholder?: boolean
+  approved_placeholder_at?: string
   font_family?: FontFamily
   color?: string
   bg_color?: string

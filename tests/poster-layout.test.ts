@@ -610,4 +610,46 @@ describe('poster layout merge', () => {
 
     expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(true)
   })
+
+  it('keeps pending preview placeholders out of final layout until approved', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+    }
+    const pendingLayout = effectivePosterLayout({
+      ...baseConfig,
+      trail_name: '',
+      location_text: '',
+      poster_text_overrides: {
+        trail_name: {
+          text: 'Preview trail title',
+          approved_placeholder: false,
+        },
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      mode: 'final',
+    })
+    const approvedLayout = effectivePosterLayout({
+      ...baseConfig,
+      trail_name: '',
+      location_text: '',
+      poster_text_overrides: {
+        trail_name: {
+          text: 'Preview trail title',
+          approved_placeholder: true,
+          approved_placeholder_at: '2026-06-10T12:00:00.000Z',
+        },
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      mode: 'final',
+    })
+
+    expect(blocksFor(pendingLayout, 'header').some(block => block?.slot === 'trail_name')).toBe(false)
+    expect(blocksFor(approvedLayout, 'header').some(block => block?.slot === 'trail_name')).toBe(true)
+  })
 })
