@@ -15,6 +15,7 @@ import type {
   RouteStats,
   StyleConfig,
 } from '~/types'
+import { buildThemeDataContext, resolveThemeDataContract, type ThemeDataContextInput, type ThemeRenderMode } from '~/utils/themeDataContract'
 
 export const CHROME_BANDS: ChromeBandId[] = ['header', 'footer', 'railLeft', 'railRight']
 export const CHROME_BAND_HEIGHT_BOUNDS = { min: 8, max: 34 } as const
@@ -327,14 +328,33 @@ function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRe
   }
 }
 
-export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats): PosterLayout {
+function hasVisibleSlotOverride(styleConfig: StyleConfig, slot: PosterTextSlot) {
+  return hasVisibleText(styleConfig.poster_text_overrides?.[slot]?.text)
+}
+
+export function defaultPosterLayout(
+  styleConfig: StyleConfig,
+  stats?: RouteStats,
+  dataInput: ThemeDataContextInput & { mode?: ThemeRenderMode } = {},
+): PosterLayout {
+  const composition = styleConfig.composition
   const labels = styleConfig.labels
-  const showDate = labels.show_date && hasVisibleText(stats?.date)
-  const showLocation = labels.show_location !== false
+  const dataContext = buildThemeDataContext({
+    ...dataInput,
+    styleConfig,
+    stats: stats ?? dataInput.stats,
+  })
+  const dataContract = resolveThemeDataContract(styleConfig.color_theme, composition, dataContext, dataInput.mode ?? 'editor')
+  const omittedSlots = new Set(dataContract.omittedSlotIds)
+  const slotAvailable = (slot: PosterTextSlot) => !omittedSlots.has(slot) || hasVisibleSlotOverride(styleConfig, slot)
+  const showDate = labels.show_date && slotAvailable('date') && (hasVisibleText(stats?.date) || hasVisibleSlotOverride(styleConfig, 'date'))
+  const showLocation = labels.show_location !== false && slotAvailable('location_text')
+  const showDistance = labels.show_distance && slotAvailable('distance') && (dataContext.hasDistance || hasVisibleSlotOverride(styleConfig, 'distance'))
+  const showCoordinates = labels.show_location !== false && slotAvailable('coordinates') && (dataContext.hasLocation || hasVisibleSlotOverride(styleConfig, 'coordinates'))
   const showElevationGain =
     labels.show_elevation_gain &&
-    (Boolean(stats?.elevation_gain_m) || hasVisibleText(styleConfig.poster_text_overrides?.elevation_gain?.text))
-  const composition = styleConfig.composition
+    slotAvailable('elevation_gain') &&
+    (Boolean(dataContext.elevationGainM) || hasVisibleSlotOverride(styleConfig, 'elevation_gain'))
   const hasOccasion = compositionUsesOccasion(composition) && hasVisibleText(styleConfig.occasion_text)
   const isUsgsHeritage = styleConfig.color_theme === 'usgs-vintage'
   const isBlueprint = styleConfig.color_theme === 'blueprint' && composition === 'blueprint-grid'
@@ -400,7 +420,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   headerRows.push(spacerRow('header-spacer-bottom', 'Bottom spacer', recipe.headerBottomFr))
 
   const footerCells: ChromeGridCell[] = []
-  if (labels.show_distance) {
+  if (showDistance) {
     footerCells.push(cell(
       'ft-distance',
       block('ft-distance-block', 'stat', 'distance', footerBlockPatch('distance', composition, recipe)),
@@ -437,7 +457,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
         : footerCellPatch('date', composition),
     ))
   }
-  if (showLocation && !isBlueprint) {
+  if (showCoordinates && !isBlueprint) {
     footerCells.push(cell(
       'ft-coords',
       block('ft-coords-block', 'coords', 'coordinates', footerBlockPatch('coordinates', composition, recipe)),
@@ -704,8 +724,12 @@ export function mergePosterLayout(defaultLayout: PosterLayout, sparse?: PartialP
   }
 }
 
-export function effectivePosterLayout(styleConfig: StyleConfig, stats?: RouteStats): PosterLayout {
-  return mergePosterLayout(defaultPosterLayout(styleConfig, stats), styleConfig.poster_layout)
+export function effectivePosterLayout(
+  styleConfig: StyleConfig,
+  stats?: RouteStats,
+  dataInput?: ThemeDataContextInput & { mode?: ThemeRenderMode },
+): PosterLayout {
+  return mergePosterLayout(defaultPosterLayout(styleConfig, stats, dataInput), styleConfig.poster_layout)
 }
 
 export function patchPosterLayout(

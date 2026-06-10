@@ -2,6 +2,7 @@ import type { ColorTheme, RouteStats, StyleConfig, ThemeDefinition } from '~/typ
 import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
+import { buildThemeDataContext, type ThemeDataContextInput } from '~/utils/themeDataContract'
 import { REFINED_THEMES } from '~/utils/themes/refined'
 import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
 
@@ -221,27 +222,26 @@ export function showsRefinedThemeBadge(themeId: ColorTheme | string): boolean {
   return isManifestRefinedTheme(themeId)
 }
 
-type ThemeContext = {
-  stats?: Partial<RouteStats> | null
-  geojson?: GeoJSON.FeatureCollection | null
-}
+type ThemeContext = ThemeDataContextInput
 
 const PLACE_THEME_PRIORITY: ColorTheme[] = ['cartouche-place', 'editorial-minimal', 'usgs-vintage']
 
 export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
   const base = JSON.parse(JSON.stringify(baseConfig)) as StyleConfig
   const themed = applyThemeToStyleConfig(base, theme)
-  return isPlaceLikeContext(context) ? mapRichPlaceConfig(themed) : themed
+  const dataContext = buildThemeDataContext({ ...context, styleConfig: baseConfig })
+  return dataContext.purpose === 'place' ? mapRichPlaceConfig(themed) : themed
 }
 
 export function priorityThemeIdsForMap(stats?: Partial<RouteStats> | null, geojson?: GeoJSON.FeatureCollection | null): ColorTheme[] {
-  if (isPlaceLikeContext({ stats, geojson })) {
+  const context = buildThemeDataContext({ stats, geojson })
+  if (context.purpose === 'place') {
     return PLACE_THEME_PRIORITY
   }
 
-  const activity = String(stats?.activity_type ?? '').toLowerCase()
-  const elevationGain = stats?.elevation_gain_m ?? 0
-  const distanceKm = stats?.distance_km ?? 0
+  const activity = context.activityType?.toLowerCase() ?? ''
+  const elevationGain = context.elevationGainM ?? 0
+  const distanceKm = context.distanceKm ?? 0
 
   if (elevationGain >= 900 || activity.match(/hike|trail|mountain|alpine/)) {
     return ['relief-shaded', 'usgs-vintage', 'field-journal', 'contour-wash']
@@ -262,21 +262,6 @@ export function orderedQuickThemeOptionsForRoute(stats?: Partial<RouteStats> | n
     ...priorityIds.map(id => byId.get(id)).filter((theme): theme is ThemeDefinition => Boolean(theme)),
     ...QUICK_THEME_OPTIONS.filter(theme => !priority.has(theme.id)),
   ]
-}
-
-function isPlaceLikeContext(context: ThemeContext): boolean {
-  const distanceKm = context.stats?.distance_km ?? 0
-  const activity = String(context.stats?.activity_type ?? '').toLowerCase()
-  return distanceKm <= 0 && !activity && !hasRenderableLine(context.geojson)
-}
-
-function hasRenderableLine(geojson?: GeoJSON.FeatureCollection | null): boolean {
-  for (const feature of geojson?.features ?? []) {
-    const geometry = feature.geometry
-    if (geometry.type === 'LineString' && geometry.coordinates.length > 1) return true
-    if (geometry.type === 'MultiLineString' && geometry.coordinates.some(line => line.length > 1)) return true
-  }
-  return false
 }
 
 function mapRichPlaceConfig(config: StyleConfig): StyleConfig {

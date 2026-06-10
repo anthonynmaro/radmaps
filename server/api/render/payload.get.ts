@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   if (payload.kind === 'map') {
     const { data: map, error } = await supabase
       .from('maps')
-      .select('id, title, subtitle, geojson, bbox, stats, style_config, user_id, status, created_at, updated_at, render_url, thumbnail_url')
+      .select('id, title, subtitle, geojson, bbox, stats, style_config, user_id, status, created_at, updated_at, render_url, thumbnail_url, location_label, location_city, location_region, location_country, location_lng, location_lat')
       .eq('id', payload.subject)
       .single()
     if (error || !map) {
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   if (payload.kind === 'premade') {
     const { data: premade, error } = await supabase
       .from('premade_maps')
-      .select('id, title, subtitle, geojson, bbox, stats, style_config, status, created_at, updated_at, preview_image_url')
+      .select('id, title, subtitle, geojson, bbox, stats, style_config, status, created_at, updated_at, preview_image_url, location_label, location_city, location_region, location_country, location_lng, location_lat')
       .eq('id', payload.subject)
       .single()
     if (error || !premade) {
@@ -65,6 +65,12 @@ export default defineEventHandler(async (event) => {
       thumbnail_url: premade.preview_image_url ?? undefined,
       render_url: undefined,
       proof_render_url: premade.preview_image_url ?? undefined,
+      location_label: premade.location_label ?? undefined,
+      location_city: premade.location_city ?? undefined,
+      location_region: premade.location_region ?? undefined,
+      location_country: premade.location_country ?? undefined,
+      location_lng: premade.location_lng ?? undefined,
+      location_lat: premade.location_lat ?? undefined,
       created_at: premade.created_at,
       updated_at: premade.updated_at,
     } as TrailMap

@@ -85,6 +85,7 @@ try {
   try {
     const mapRes = await client.query(
       `SELECT id, user_id, title, style_config, geojson, stats, bbox,
+              location_label, location_city, location_region, location_country, location_lng, location_lat,
               proof_render_url, render_url
          FROM maps
         WHERE id = $1
@@ -101,8 +102,8 @@ try {
 
     const providerProfile = getProviderProfile(productUid)
     const framing = getPrintFraming(productUid, 'final')
-    const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing)
-    const chromeHash = computeChromeHash(map.style_config, map.stats)
+    const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing, map)
+    const chromeHash = computeChromeHash(map.style_config, map.stats, map)
     const proofRenderHash = computeProofRenderHash(mapContentHash, chromeHash)
     const printHash = computePrintHash({
       mapContentHash,

@@ -370,6 +370,8 @@ import type {
 } from '~/types'
 import MapPreview from '~/components/map/MapPreview.vue'
 import { FONT_REGISTRY } from '~/utils/render/fontRegistry'
+import { buildThemeDataContext } from '~/utils/themeDataContract'
+import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/render/posterFormatters'
 import {
   appendDraftBlock,
   appendDraftRow,
@@ -425,7 +427,7 @@ const emit = defineEmits<{
   'done': []
 }>()
 
-const draft = ref<PosterLayoutDraft>(posterLayoutToDraft(props.modelValue, props.map.stats))
+const draft = ref<PosterLayoutDraft>(posterLayoutToDraft(props.modelValue, props.map.stats, props.map))
 const leftMode = ref<'insert' | 'layers'>('insert')
 const previewMode = ref(false)
 const selectedBandId = ref<PosterLayoutDraftBandId>('header')
@@ -439,7 +441,7 @@ watch(() => [
   props.modelValue.poster_layout,
   props.modelValue.poster_text_overrides,
 ], () => {
-  draft.value = posterLayoutToDraft(props.modelValue, props.map.stats)
+  draft.value = posterLayoutToDraft(props.modelValue, props.map.stats, props.map)
 }, { deep: true })
 
 if (import.meta.dev && typeof window !== 'undefined') {
@@ -553,7 +555,7 @@ function emitLayout(extraBands: PartialPosterLayout['bands'] = {}) {
 
 function mergeLayoutIntoCurrent(layout: PartialPosterLayout, extraBands: PartialPosterLayout['bands'] = {}): PartialPosterLayout {
   const currentBands = props.modelValue.poster_layout?.bands ?? {}
-  const currentVisibleLayout = draftToPosterLayout(posterLayoutToDraft(props.modelValue, props.map.stats))
+  const currentVisibleLayout = draftToPosterLayout(posterLayoutToDraft(props.modelValue, props.map.stats, props.map))
   const bands: PartialPosterLayout['bands'] = {
     ...currentBands,
     header: {
@@ -683,10 +685,11 @@ function slotText(slot: PosterTextSlot) {
   if (slot === 'trail_name') return props.modelValue.trail_name
   if (slot === 'location_text') return props.modelValue.location_text
   if (slot === 'occasion_text') return props.modelValue.occasion_text
-  if (slot === 'distance') return stats?.distance_km ? `${(stats.distance_km * 0.621371).toFixed(1)} miles` : ''
-  if (slot === 'elevation_gain') return stats?.elevation_gain_m ? `${Math.round(stats.elevation_gain_m * 3.28084).toLocaleString()} ft gain` : ''
+  const dataContext = buildThemeDataContext({ ...props.map, styleConfig: props.modelValue })
+  if (slot === 'distance') return dataContext.hasDistance ? `${formatDistanceMiles(stats ?? {})} miles` : ''
+  if (slot === 'elevation_gain') return dataContext.hasElevation ? `${formatElevationGainFeet(stats ?? {})} ft gain` : ''
   if (slot === 'date') return stats?.date ?? ''
-  if (slot === 'coordinates') return stats?.location ?? props.modelValue.location_text
+  if (slot === 'coordinates') return formatPosterLocationLine(dataContext)
   if (slot === 'composition_kicker') return 'NO. 01 - A FIELD RECORD'
   if (slot === 'composition_meta') return stats?.date ? `${props.modelValue.location_text} - ${stats.date}` : props.modelValue.location_text
   if (slot === 'composition_footer') return 'Drawn from route telemetry and terrain data'
@@ -727,7 +730,7 @@ function onPreviewPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
     ...props.modelValue,
     poster_layout: value,
   }
-  draft.value = posterLayoutToDraft(nextStyle, props.map.stats)
+  draft.value = posterLayoutToDraft(nextStyle, props.map.stats, props.map)
   emit('update:modelValue', nextStyle)
 }
 
@@ -962,7 +965,7 @@ function restoreChromeItem(item: RemovedChromeItem) {
     ...props.modelValue,
     poster_layout: nextLayout,
   }
-  draft.value = posterLayoutToDraft(nextStyle, props.map.stats)
+  draft.value = posterLayoutToDraft(nextStyle, props.map.stats, props.map)
   emit('update:modelValue', nextStyle)
   selectedBandId.value = item.band
   selectedRowId.value = item.rowId

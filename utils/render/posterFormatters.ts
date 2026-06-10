@@ -12,6 +12,14 @@ export interface FormattedCoords {
   lng: string // e.g. "113°-29'W"
 }
 
+export interface PosterLocationContext {
+  coords?: { lat: number, lng: number } | null
+  label?: string | null
+  city?: string | null
+  region?: string | null
+  country?: string | null
+}
+
 /**
  * Format a bbox center as a degree/minute string (DMS without seconds),
  * matching the editor's footer-band coords output.
@@ -28,6 +36,29 @@ export function formatCoordsFromBbox(bbox: Bbox | null | undefined): FormattedCo
   }
 
   return { lat: fmt(lat, 'N', 'S'), lng: fmt(lng, 'E', 'W') }
+}
+
+export function formatCoordsFromPoint(coords: { lat: number, lng: number } | null | undefined): FormattedCoords | null {
+  if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return null
+
+  const fmt = (v: number, pos: string, neg: string) => {
+    const d = Math.abs(Math.floor(v))
+    const m = Math.round((Math.abs(v) - d) * 60)
+    return `${d}°${m.toString().padStart(2, '0')}'${v >= 0 ? pos : neg}`
+  }
+
+  return { lat: fmt(coords.lat, 'N', 'S'), lng: fmt(coords.lng, 'E', 'W') }
+}
+
+export function formatPosterRegion(context: PosterLocationContext): string {
+  return context.region || context.city || context.country || context.label || ''
+}
+
+export function formatPosterLocationLine(context: PosterLocationContext): string {
+  const parts = [context.label, context.region ?? context.city, context.country]
+    .map(part => typeof part === 'string' ? part.trim() : '')
+    .filter(Boolean)
+  return Array.from(new Set(parts)).join(', ')
 }
 
 /**

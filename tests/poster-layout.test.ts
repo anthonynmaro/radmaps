@@ -551,4 +551,63 @@ describe('poster layout merge', () => {
       box: { decorations: ['sea-chart-titleblock'] },
     })
   })
+
+  it('ephemerally omits route-only footer stats for place-only data without tombstones', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+      location: 'Starved Rock',
+    }
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+      labels: {
+        ...baseConfig.labels,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_date: true,
+        show_location: true,
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      bbox: [-89.0, 41.2, -88.9, 41.3],
+    })
+    const footerPrimary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+
+    expect(footerPrimary?.cells.some(cell => cell.deleted)).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'elevation_gain')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'coordinates')).toBe(true)
+  })
+
+  it('lets user-owned text overrides re-add a route stat slot on place-only data', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+      location: 'Starved Rock',
+    }
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+      poster_text_overrides: {
+        distance: { text: 'Picnic loop' },
+      },
+      labels: {
+        ...baseConfig.labels,
+        show_distance: true,
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      bbox: [-89.0, 41.2, -88.9, 41.3],
+    })
+
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(true)
+  })
 })

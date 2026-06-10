@@ -12,6 +12,8 @@ import type {
   StyleConfig,
 } from '~/types'
 import { effectivePosterLayout } from '~/utils/posterLayout'
+import { buildThemeDataContext, type ThemeDataContextInput } from '~/utils/themeDataContract'
+import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/render/posterFormatters'
 
 export type PosterLayoutDraftBandId = 'header' | 'footer'
 export type PosterLayoutDraftRowKind = 'content' | 'spacer'
@@ -77,13 +79,13 @@ export function createPosterDraftId(prefix = 'draft') {
   return `${prefix}-${draftIdCounter}`
 }
 
-export function posterLayoutToDraft(styleConfig: StyleConfig, stats?: RouteStats): PosterLayoutDraft {
-  const layout = effectivePosterLayout(styleConfig, stats)
+export function posterLayoutToDraft(styleConfig: StyleConfig, stats?: RouteStats, dataInput?: ThemeDataContextInput): PosterLayoutDraft {
+  const layout = effectivePosterLayout(styleConfig, stats, dataInput)
   return {
     version: 1,
     bands: {
-      header: bandToDraft('header', layout.bands.header, styleConfig, stats),
-      footer: bandToDraft('footer', layout.bands.footer, styleConfig, stats),
+      header: bandToDraft('header', layout.bands.header, styleConfig, stats, dataInput),
+      footer: bandToDraft('footer', layout.bands.footer, styleConfig, stats, dataInput),
     },
   }
 }
@@ -354,18 +356,19 @@ function bandToDraft(
   band: ChromeBand,
   styleConfig: StyleConfig,
   stats?: RouteStats,
+  dataInput?: ThemeDataContextInput,
 ): PosterLayoutDraftBand {
   return {
     id: bandId,
     label: bandId === 'header' ? 'Header' : 'Footer',
-    rows: band.rows.map(row => rowToDraft(row, styleConfig, stats)),
+    rows: band.rows.map(row => rowToDraft(row, styleConfig, stats, dataInput)),
   }
 }
 
-function rowToDraft(row: ChromeGridRow, styleConfig: StyleConfig, stats?: RouteStats): PosterLayoutDraftRow {
+function rowToDraft(row: ChromeGridRow, styleConfig: StyleConfig, stats?: RouteStats, dataInput?: ThemeDataContextInput): PosterLayoutDraftRow {
   const cells = row.cells
     .filter(cell => !cell.deleted)
-    .map(cell => cellToDraft(cell, styleConfig, stats))
+    .map(cell => cellToDraft(cell, styleConfig, stats, dataInput))
   const isSpacer = cells.length > 0 && cells.every(cell =>
     cell.blocks.length > 0 && cell.blocks.every(block => block.kind === 'spacer'),
   )
@@ -377,22 +380,22 @@ function rowToDraft(row: ChromeGridRow, styleConfig: StyleConfig, stats?: RouteS
   }
 }
 
-function cellToDraft(cell: ChromeGridCell, styleConfig: StyleConfig, stats?: RouteStats): PosterLayoutDraftCell {
+function cellToDraft(cell: ChromeGridCell, styleConfig: StyleConfig, stats?: RouteStats, dataInput?: ThemeDataContextInput): PosterLayoutDraftCell {
   return {
     id: cell.id,
     widthFr: cell.fr ?? 1,
     blocks: cell.block && !cell.block.deleted
-      ? [chromeBlockToDraftBlock(cell.block, styleConfig, stats)]
+      ? [chromeBlockToDraftBlock(cell.block, styleConfig, stats, dataInput)]
       : [],
   }
 }
 
-function chromeBlockToDraftBlock(block: ChromeBlock, styleConfig: StyleConfig, stats?: RouteStats): PosterLayoutDraftBlock {
+function chromeBlockToDraftBlock(block: ChromeBlock, styleConfig: StyleConfig, stats?: RouteStats, dataInput?: ThemeDataContextInput): PosterLayoutDraftBlock {
   return {
     id: block.id,
     kind: chromeKindToDraftKind(block.kind),
     label: block.label ?? chromeBlockLabel(block),
-    text: resolveChromeBlockText(block, styleConfig, stats),
+    text: resolveChromeBlockText(block, styleConfig, stats, dataInput),
     source: block.source ?? 'theme',
     slot: block.slot,
     chromeKind: block.kind,
@@ -509,16 +512,17 @@ function chromeBlockLabel(block: ChromeBlock) {
   return block.kind.replace(/^\w/, value => value.toUpperCase())
 }
 
-function resolveChromeBlockText(block: ChromeBlock, styleConfig: StyleConfig, stats?: RouteStats) {
+function resolveChromeBlockText(block: ChromeBlock, styleConfig: StyleConfig, stats?: RouteStats, dataInput?: ThemeDataContextInput) {
   if (block.text || block.value) return block.text ?? block.value
+  const context = buildThemeDataContext({ ...dataInput, styleConfig, stats })
   const slotText: Partial<Record<PosterTextSlot, string>> = {
     trail_name: styleConfig.trail_name,
     location_text: styleConfig.location_text,
     occasion_text: styleConfig.occasion_text,
-    distance: stats?.distance_km ? `${(stats.distance_km * 0.621371).toFixed(1)} miles` : undefined,
-    elevation_gain: stats?.elevation_gain_m ? `${Math.round(stats.elevation_gain_m * 3.28084).toLocaleString()} ft gain` : undefined,
+    distance: context.hasDistance && stats ? `${formatDistanceMiles(stats)} miles` : undefined,
+    elevation_gain: context.hasElevation && stats ? `${formatElevationGainFeet(stats)} ft gain` : undefined,
     date: stats?.date,
-    coordinates: stats?.location,
+    coordinates: formatPosterLocationLine(context),
     composition_kicker: 'NO. 01 - A FIELD RECORD',
     composition_meta: stats?.date ? `${styleConfig.location_text} - ${stats.date}` : styleConfig.location_text,
     composition_footer: 'Drawn from route telemetry and terrain data',

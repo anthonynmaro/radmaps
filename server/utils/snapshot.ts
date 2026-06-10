@@ -53,7 +53,7 @@ export async function freezeOrderSnapshot(
   // 1. Load the design — this is what the customer just approved.
   const { data: map, error: mapError } = await supabase
     .from('maps')
-    .select('id, user_id, style_config, geojson, stats, bbox, render_url, proof_render_url')
+    .select('id, user_id, style_config, geojson, stats, bbox, render_url, proof_render_url, location_label, location_city, location_region, location_country, location_lng, location_lat')
     .eq('id', mapId)
     .single()
 
@@ -69,8 +69,8 @@ export async function freezeOrderSnapshot(
   // 3. Compute the layered hashes. mapContentHash includes the geojson +
   //    framing dimensions; chromeHash includes the stats. Both incorporate
   //    HASH_VERSION so a renderer/style/template bump invalidates the cache.
-  const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing)
-  const chromeHash = computeChromeHash(map.style_config, map.stats)
+  const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing, map)
+  const chromeHash = computeChromeHash(map.style_config, map.stats, map)
   const proofRenderHash = computeProofRenderHash(mapContentHash, chromeHash)
 
   // 4. Pick the "proof" URL we point the customer at. Until the v4 render

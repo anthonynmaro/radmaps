@@ -409,7 +409,7 @@
         aria-hidden="true"
       >
         <span>{{ blueprintDraftingToplineLabel }}</span>
-        <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '36.5785°N' }}</span>
+        <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '' }}</span>
       </div>
       <div
         v-if="isBlueprintDraftingTheme"
@@ -2164,6 +2164,8 @@ import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
 import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import { buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
+import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/render/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
@@ -2645,7 +2647,23 @@ const chromeMobileDrawerOpen = computed(() =>
   chromeInternalShellVisible.value && chromeMobile.value && activeChromeBlock.value != null,
 )
 
-const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
+const themeRenderMode = computed<ThemeRenderMode>(() => props.renderMode === 'print' ? 'proof' : 'editor')
+const themeDataContext = computed(() => buildThemeDataContext({
+  ...props.map,
+  styleConfig: props.styleConfig,
+}))
+const themeDataContract = computed(() => resolveThemeDataContract(
+  props.styleConfig.color_theme,
+  props.styleConfig.composition,
+  themeDataContext.value,
+  themeRenderMode.value,
+))
+
+const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats, {
+  ...props.map,
+  styleConfig: props.styleConfig,
+  mode: themeRenderMode.value,
+}))
 const posterAnchorFrames = computed<AnchorFrame[]>(() =>
   posterLayout.value.anchors?.length
     ? posterLayout.value.anchors
@@ -4675,7 +4693,7 @@ const trailName = computed(() =>
 )
 
 const locationText = computed(() => {
-  const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
+  const text = props.styleConfig.location_text?.trim() || formatPosterLocationLine(themeDataContext.value)
   return textWithOverride('location_text', text)
 })
 const locationLine = computed(() => {
@@ -4696,10 +4714,10 @@ const risoCaptionText = computed(() => {
   const occasion = occasionText.value.trim()
   return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
 })
-const risoLocationText = computed(() => locationText.value.trim() || 'Route study')
+const risoLocationText = computed(() => locationText.value.trim())
 const risoMetaLabel = computed(() => {
   const text = risoLocationText.value.trim()
-  if (!text || text.toLowerCase() === 'route study') return 'ROUTE'
+  if (!text) return 'MAP'
   const parts = text.split(',').map(part => part.trim()).filter(Boolean)
   return (parts[parts.length - 1] || text).toUpperCase()
 })
@@ -4715,16 +4733,7 @@ const OCCASION_SLOT_COMPOSITIONS = new Set([
 const showOccasionSlot = computed(() => OCCASION_SLOT_COMPOSITIONS.has(composition.value.id))
 
 const coords = computed(() => {
-  const b = props.map.bbox
-  if (!b) return null
-  const lat = (b[1] + b[3]) / 2
-  const lng = (b[0] + b[2]) / 2
-  const fmt = (v: number, pos: string, neg: string) => {
-    const d = Math.abs(Math.floor(v))
-    const m = Math.round((Math.abs(v) - d) * 60)
-    return `${d}°${m.toString().padStart(2, '0')}'${v >= 0 ? pos : neg}`
-  }
-  return { lat: fmt(lat, 'N', 'S'), lng: fmt(lng, 'E', 'W') }
+  return formatCoordsFromPoint(themeDataContext.value.coords)
 })
 
 function formatDms(value: number, pos: string, neg: string) {
@@ -4753,8 +4762,7 @@ const usgsCoordinateTicks = computed(() => {
 })
 
 const formattedDistance = computed(() => {
-  const km = props.map.stats?.distance_km ?? 0
-  return km ? (km * 0.621371).toFixed(1) : ''
+  return themeDataContext.value.hasDistance ? formatDistanceMiles(props.map.stats ?? {}) : ''
 })
 
 const formattedDistanceKm = computed(() => {
@@ -4770,11 +4778,11 @@ const compositionFooterDistance = computed(() => {
 })
 
 const formattedGain = computed(() => {
-  const m = props.map.stats?.elevation_gain_m ?? 0
-  return m ? Math.round(m * 3.28084).toLocaleString() : ''
+  return themeDataContext.value.hasElevation ? formatElevationGainFeet(props.map.stats ?? {}) : ''
 })
 
 const formattedGainM = computed(() => {
+  if (!themeDataContext.value.hasElevation) return ''
   const m = props.map.stats?.elevation_gain_m ?? 0
   return m ? Math.round(m).toLocaleString() : ''
 })
@@ -4792,23 +4800,25 @@ const marathonFinishHeadline = computed(() => {
   if (formattedDuration.value) return formattedDuration.value
   if (formattedDistance.value) return `${formattedDistance.value} MI`
   if (formattedGain.value) return `${formattedGain.value} FT`
-  return 'ROUTE DATA'
+  return ''
 })
 const marathonBibYear = computed(() => {
   const value = props.map.stats?.date
-  if (!value) return '2025'
+  if (!value) return ''
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value.slice(0, 4) || '2025'
+  if (Number.isNaN(date.getTime())) return value.slice(0, 4) || ''
   return String(date.getUTCFullYear())
 })
 const marathonBibTopline = computed(() => {
-  const region = (props.map.stats?.location?.trim() || locationText.value)
+  const region = (formatPosterRegion(themeDataContext.value) || locationText.value)
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?.toUpperCase() || 'MASSACHUSETTS'
-  return `${region} · BIB ${marathonBibYear.value}`
+    ?.toUpperCase() || 'ROUTE'
+  return [region, marathonBibYear.value ? `BIB ${marathonBibYear.value}` : '']
+    .filter(Boolean)
+    .join(' · ')
 })
 const marathonBibLatitude = computed(() => {
   const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
@@ -4818,12 +4828,16 @@ const marathonBibLatitude = computed(() => {
   const suffix = lat >= 0 ? 'N' : 'S'
   return `${Math.abs(lat).toFixed(4)}°${suffix}`
 })
-const showBibDataFooter = computed(() => composition.value.id === 'bib-numerals')
 const marathonBibFooterItems = computed(() => [
-  formattedDistance.value ? `${formattedDistance.value} mi` : '26.2 mi',
-  formattedGain.value ? `${formattedGain.value} ft GAIN` : '813 ft GAIN',
-  marathonBibLatitude.value || '42.3601°N',
-])
+  formattedDistance.value ? `${formattedDistance.value} mi` : '',
+  formattedGain.value ? `${formattedGain.value} ft GAIN` : '',
+  marathonBibLatitude.value,
+].filter(Boolean))
+const showBibDataFooter = computed(() =>
+  composition.value.id === 'bib-numerals' &&
+  themeDataContext.value.hasRoute &&
+  marathonBibFooterItems.value.length > 0,
+)
 const botanicalPlateLatitude = computed(() => {
   const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
   const first = routeCoords[0]
@@ -4833,7 +4847,9 @@ const botanicalPlateLatitude = computed(() => {
   return `${Math.abs(lat).toFixed(4)}°${suffix}`
 })
 const contourWashEyebrow = computed(() => {
-  return `ITALIA · ${botanicalPlateLatitude.value || '46.6186°N'}`
+  return [formatPosterRegion(themeDataContext.value) || locationLine.value, botanicalPlateLatitude.value]
+    .filter(Boolean)
+    .join(' · ')
 })
 
 const hasRenderableRoute = computed(() => {
@@ -4898,7 +4914,7 @@ const elevationGainText = computed(() => textWithOverride('elevation_gain', form
 const dateText = computed(() => textWithOverride('date', formattedDate.value))
 const coordinatesText = computed(() => textWithOverride('coordinates', coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''))
 const chromeCoordinatesText = computed(() => {
-  const location = props.map.stats?.location?.trim() || props.styleConfig.location_text?.trim() || ''
+  const location = formatPosterLocationLine(themeDataContext.value) || props.styleConfig.location_text?.trim() || ''
   if (
     composition.value.id === 'blueprint-grid' ||
     composition.value.id === 'blueprint-strava' ||
@@ -4909,17 +4925,17 @@ const chromeCoordinatesText = computed(() => {
   return location || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
 })
 const technicalDataRegion = computed(() => {
-  const source = props.map.stats?.location?.trim() || locationLine.value
+  const source = formatPosterRegion(themeDataContext.value) || locationLine.value
   return source
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?.toUpperCase() || 'ROUTE'
+    ?.toUpperCase() || ''
 })
 const formattedTechnicalDate = computed(() => {
   const value = props.map.stats?.date
-  if (!value) return formattedDateCompact.value || 'DATE'
+  if (!value) return formattedDateCompact.value || ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value.slice(0, 10).replaceAll('-', '.')
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
@@ -4927,11 +4943,15 @@ const formattedTechnicalDate = computed(() => {
   return `${month}.${day}.${date.getUTCFullYear()}`
 })
 const showTechnicalDataFooter = computed(() =>
-  composition.value.id === 'blueprint-strava' ||
-  composition.value.id === 'splits-grid',
+  (
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid'
+  ) &&
+  themeDataContext.value.hasRoute &&
+  technicalDataFooterItems.value.length > 0,
 )
 const showMoonstoneTechnicalFooter = computed(() =>
-  composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'moonstone',
+  composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'moonstone' && themeDataContext.value.hasRoute,
 )
 const hideGenericFooterStats = computed(() =>
   composition.value.id === 'darksky-stars' ||
@@ -4941,18 +4961,18 @@ const hideGenericFooterStats = computed(() =>
   showMoonstoneTechnicalFooter.value,
 )
 const technicalDataFooterItems = computed(() => [
-  { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '—' },
-  { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '—' },
+  { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '' },
+  { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '' },
   { label: 'Location', value: technicalDataRegion.value },
   { label: 'Date', value: props.styleConfig.color_theme === 'night-ride' ? formattedMonthYear.value : formattedTechnicalDate.value },
-])
+].filter(item => item.value))
 const blueprintDraftingToplineLabel = computed(() =>
   composition.value.id === 'blueprint-strava'
-    ? `RADMAPS · ${technicalDataRegion.value}`
+    ? ['RADMAPS', technicalDataRegion.value].filter(Boolean).join(' · ')
     : 'RADMAPS · SHEET A',
 )
 const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
-const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid')
+const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid' && themeDataContext.value.hasElevation)
 const profileGainLabel = computed(() => formattedGain.value ? `${formattedGain.value} ft GAIN` : 'GAIN')
 const startPinLabel = computed(() =>
   composition.value.id === 'bib-numerals' || composition.value.id === 'botanical-plate'
@@ -4974,39 +4994,39 @@ const isBlueprintDraftingTheme = computed(() =>
 )
 
 const compositionDecorDefaults = computed<CompositionDecor>(() => {
-  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
-  const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
-  const date = dateText.value || 'undated'
-  const location = locationLine.value || 'trail record'
-  const locationRegion = locationLine.value
+  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : ''
+  const gain = formattedGain.value ? `${formattedGain.value} ft` : ''
+  const date = dateText.value || ''
+  const location = locationLine.value || ''
+  const locationRegion = formatPosterRegion(themeDataContext.value) || (locationLine.value
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?? location
+    ?? location)
 
   switch (composition.value.id) {
     case 'editorial-tall':
       if (props.styleConfig.color_theme === 'relief-shaded') {
         return {
-          kicker: 'WASHINGTON',
+          kicker: locationRegion || 'FIELD STUDY',
           meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
         }
       }
       return {
-        kicker: 'WASHINGTON',
+        kicker: locationRegion || 'FIELD STUDY',
         meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
       }
     case 'park-quad':
       if (isUsgsHeritageTheme.value) {
         return {
-          kicker: coords.value?.lat ?? '36.5785°N',
+          kicker: coords.value?.lat ?? '',
           meta: 'SCALE 1:24 000',
         }
       }
       if (isClassicTrailTheme.value) {
         return {
-          kicker: coords.value?.lat ?? '56°07\'N',
+          kicker: coords.value?.lat ?? '',
           meta: 'SCALE 1:24,000',
         }
       }
@@ -5056,8 +5076,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'botanical-plate':
       return {
-        kicker: 'Plate IX — Italia',
-        meta: botanicalPlateLatitude.value || '46.6186°N',
+        kicker: ['Plate IX', locationRegion].filter(Boolean).join(' — '),
+        meta: botanicalPlateLatitude.value || locationRegion,
       }
     case 'brutalist-slab':
       return {
@@ -5077,7 +5097,10 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'place-frame':
       return {
         kicker: occasionText.value || location || 'PLACE PORTRAIT',
-        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · ${formattedGainM.value ? `${formattedGainM.value} m` : gain}`.trim(),
+        meta: [
+          `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
+          formattedGainM.value ? `${formattedGainM.value} m` : '',
+        ].filter(Boolean).join(' · '),
       }
     case 'sea-chart':
       return {
@@ -5472,7 +5495,12 @@ const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gr
 const showMapGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'map')
 const elevationProfilePosition = computed(() => props.styleConfig.elevation_profile_position ?? 'map-overlay')
 const elevationProfileHeight = computed(() => props.styleConfig.elevation_profile_height ?? (elevationProfilePosition.value === 'separate-band' ? 12 : 22))
-const showElevationProfile = computed(() => props.styleConfig.show_elevation_profile === true && mapReady.value)
+const showElevationProfile = computed(() =>
+  props.styleConfig.show_elevation_profile === true &&
+  mapReady.value &&
+  themeDataContext.value.hasElevation &&
+  !themeDataContract.value.omittedMapFeatures.includes('elevation_profile'),
+)
 const showOverlayElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'map-overlay')
 const showSeparateElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'separate-band')
 const elevationProfileBandStyle = computed(() => ({
