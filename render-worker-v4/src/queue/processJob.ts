@@ -151,6 +151,9 @@ export async function processJob(input: ProcessJobInput): Promise<ProcessJobResu
               style_config, geojson, stats, bbox,
               proof_render_hash, proof_render_url,
               map_content_hash, chrome_hash, hash_version, provider_profile,
+              location_label, location_city, location_region, location_country,
+              location_lng, location_lat, location_elevation_m,
+              location_metadata_source, location_metadata_enriched_at,
               frozen_at
          FROM order_snapshots
         WHERE stripe_session_id = $1

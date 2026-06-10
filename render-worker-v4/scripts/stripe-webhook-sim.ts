@@ -106,6 +106,7 @@ try {
   const mapRes = await client.query(
     `SELECT id, user_id, title, style_config, geojson, stats, bbox,
             location_label, location_city, location_region, location_country, location_lng, location_lat,
+            location_elevation_m, location_metadata_source, location_metadata_enriched_at,
             proof_render_url, render_url
        FROM maps
       WHERE id = $1
@@ -140,9 +141,12 @@ try {
         stripe_session_id, order_id, user_id, map_id, product_uid,
         style_config, geojson, stats, bbox, proof_render_hash,
         proof_render_url, map_content_hash, chrome_hash, hash_version,
-        provider_profile
+        provider_profile,
+        location_label, location_city, location_region, location_country,
+        location_lng, location_lat, location_elevation_m,
+        location_metadata_source, location_metadata_enriched_at
       )
-      VALUES ($1,NULL,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      VALUES ($1,NULL,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
     [
       stripeSessionId,
       map.user_id,
@@ -158,6 +162,15 @@ try {
       chromeHash,
       HASH_VERSION,
       providerProfile,
+      map.location_label,
+      map.location_city,
+      map.location_region,
+      map.location_country,
+      map.location_lng,
+      map.location_lat,
+      map.location_elevation_m,
+      map.location_metadata_source,
+      map.location_metadata_enriched_at,
     ],
   )
 

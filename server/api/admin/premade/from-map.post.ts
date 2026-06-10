@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: map, error: mapError } = await supabase
     .from('maps')
-    .select('id, title, subtitle, geojson, bbox, stats, style_config, proof_render_url, thumbnail_url, render_url, location_label, location_city, location_region, location_country, location_lng, location_lat')
+    .select('id, title, subtitle, geojson, bbox, stats, style_config, proof_render_url, thumbnail_url, render_url, location_label, location_city, location_region, location_country, location_lng, location_lat, location_elevation_m, location_metadata_source, location_metadata_enriched_at')
     .eq('id', body.map_id)
     .maybeSingle()
 

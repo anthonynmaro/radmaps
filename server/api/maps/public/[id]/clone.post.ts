@@ -41,7 +41,10 @@ export default defineEventHandler(async (event) => {
       location_region,
       location_country,
       location_lng,
-      location_lat
+      location_lat,
+      location_elevation_m,
+      location_metadata_source,
+      location_metadata_enriched_at
     `)
     .eq('id', id)
     .eq('is_public', true)
@@ -85,6 +88,9 @@ export default defineEventHandler(async (event) => {
       location_country: source.location_country,
       location_lng: source.location_lng,
       location_lat: source.location_lat,
+      location_elevation_m: source.location_elevation_m,
+      location_metadata_source: source.location_metadata_source,
+      location_metadata_enriched_at: source.location_metadata_enriched_at,
     })
     .select('id')
     .single()

@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS public.maps (
   location_country TEXT,
   location_lng    DOUBLE PRECISION,
   location_lat    DOUBLE PRECISION,
+  location_elevation_m DOUBLE PRECISION,
+  location_metadata_source TEXT,
+  location_metadata_enriched_at TIMESTAMPTZ,
   location        extensions.geography(POINT, 4326),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -222,6 +225,38 @@ DROP TRIGGER IF EXISTS set_orders_updated_at ON public.orders;
 CREATE TRIGGER set_orders_updated_at
   BEFORE UPDATE ON public.orders
   FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS public.order_snapshots (
+  stripe_session_id    TEXT PRIMARY KEY,
+  order_id             UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+  user_id              UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  map_id               UUID REFERENCES public.maps(id) ON DELETE SET NULL,
+  product_uid          TEXT NOT NULL,
+  style_config         JSONB NOT NULL,
+  geojson              JSONB NOT NULL,
+  stats                JSONB NOT NULL,
+  bbox                 FLOAT8[4] NOT NULL,
+  proof_render_hash    TEXT NOT NULL,
+  proof_render_url     TEXT NOT NULL,
+  map_content_hash     TEXT NOT NULL,
+  chrome_hash          TEXT NOT NULL,
+  hash_version         JSONB NOT NULL,
+  provider_profile     JSONB NOT NULL,
+  location_label       TEXT,
+  location_city        TEXT,
+  location_region      TEXT,
+  location_country     TEXT,
+  location_lng         DOUBLE PRECISION,
+  location_lat         DOUBLE PRECISION,
+  location_elevation_m DOUBLE PRECISION,
+  location_metadata_source TEXT,
+  location_metadata_enriched_at TIMESTAMPTZ,
+  frozen_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT order_snapshots_bbox_len_chk CHECK (array_length(bbox, 1) = 4)
+);
+
+CREATE INDEX IF NOT EXISTS order_snapshots_order_idx
+  ON public.order_snapshots (order_id);
 
 -- ─── coupon_redemptions ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
@@ -1000,6 +1035,9 @@ CREATE TABLE IF NOT EXISTS public.premade_maps (
   location_country      TEXT,
   location_lng          DOUBLE PRECISION,
   location_lat          DOUBLE PRECISION,
+  location_elevation_m  DOUBLE PRECISION,
+  location_metadata_source TEXT,
+  location_metadata_enriched_at TIMESTAMPTZ,
   location              extensions.geography(POINT, 4326),
   created_by            UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   updated_by            UUID REFERENCES public.profiles(id) ON DELETE SET NULL,

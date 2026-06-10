@@ -51,6 +51,9 @@ describe('theme data contract', () => {
       location_label: 'Starved Rock',
       location_region: 'Illinois',
       location_country: 'United States',
+      location_elevation_m: 187,
+      location_metadata_source: 'mapbox-geocoding-v6-reverse+terrarium-dem-z12',
+      location_metadata_enriched_at: '2026-06-10T12:00:00.000Z',
     })
 
     expect(context.version).toBe(THEME_DATA_CONTRACT_VERSION)
@@ -58,11 +61,15 @@ describe('theme data contract', () => {
     expect(context.hasRoute).toBe(false)
     expect(context.hasElevation).toBe(false)
     expect(context.hasLocation).toBe(true)
+    expect(context.hasPointElevation).toBe(true)
     expect(context.region).toBe('Illinois')
+    expect(context.pointElevationM).toBe(187)
     expect(themeDataContextSignature(context)).toMatchObject({
       version: THEME_DATA_CONTRACT_VERSION,
       purpose: 'place',
       region: 'Illinois',
+      pointElevationM: 187,
+      locationMetadataSource: 'mapbox-geocoding-v6-reverse+terrarium-dem-z12',
     })
   })
 

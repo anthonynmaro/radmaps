@@ -9,10 +9,9 @@ import { parseGpxServer } from '~/utils/gpx'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats, TrailSegment } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
-import { bboxCenter } from '~/utils/premadeCatalog'
 import { validateRouteGeojson } from '~/server/utils/routeValidation'
 import { assertRateLimit } from '~/server/utils/rateLimit'
-import { buildThemeDataContext } from '~/utils/themeDataContract'
+import { enrichThemeLocationMetadata } from '~/server/utils/themeDataEnrichment'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -105,13 +104,10 @@ export default defineEventHandler(async (event) => {
   }
 
   // Insert map record
-  const locationCenter = bboxCenter(bbox)
-  const locationContext = buildThemeDataContext({
-    geojson,
+  const locationMetadata = await enrichThemeLocationMetadata({
+    title,
     bbox,
     stats,
-    location_lng: locationCenter?.[0] ?? null,
-    location_lat: locationCenter?.[1] ?? null,
   })
   const { data: map, error } = await supabase
     .from('maps')
@@ -122,10 +118,7 @@ export default defineEventHandler(async (event) => {
       geojson,
       bbox,
       stats,
-      location_label: locationContext.label,
-      location_region: null,
-      location_lng: locationContext.coords?.lng ?? null,
-      location_lat: locationContext.coords?.lat ?? null,
+      ...locationMetadata,
       style_config: trailSegments.length > 0
         ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
         : DEFAULT_STYLE_CONFIG,

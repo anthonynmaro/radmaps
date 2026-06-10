@@ -57,6 +57,9 @@ export interface ThemeDataContextInput {
   location_country?: string | null
   location_lng?: number | null
   location_lat?: number | null
+  location_elevation_m?: number | null
+  location_metadata_source?: string | null
+  location_metadata_enriched_at?: string | null
 }
 
 export interface ThemeDataContext {
@@ -65,11 +68,13 @@ export interface ThemeDataContext {
   hasRoute: boolean
   hasDistance: boolean
   hasElevation: boolean
+  hasPointElevation: boolean
   hasLocation: boolean
   hasCoords: boolean
   hasDate: boolean
   distanceKm: number | null
   elevationGainM: number | null
+  pointElevationM: number | null
   date: string | null
   activityType: string | null
   label: string | null
@@ -77,6 +82,8 @@ export interface ThemeDataContext {
   region: string | null
   country: string | null
   coords: { lng: number, lat: number } | null
+  locationMetadataSource: string | null
+  locationMetadataEnrichedAt: string | null
   bbox: [number, number, number, number] | null
 }
 
@@ -201,6 +208,7 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     Boolean(elevationLossM && elevationLossM > 0) ||
     (maxElevationM != null && minElevationM != null && maxElevationM > minElevationM)
   )
+  const pointElevationM = finiteNumber(input.location_elevation_m)
   const label = cleanText(input.location_label)
     ?? cleanText(stats.location)
     ?? cleanText(styleConfig.location_text)
@@ -225,11 +233,13 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     hasRoute,
     hasDistance,
     hasElevation,
+    hasPointElevation: pointElevationM != null,
     hasLocation,
     hasCoords: Boolean(coords),
     hasDate: Boolean(cleanText(stats.date)),
     distanceKm: hasDistance ? distanceKm : null,
     elevationGainM: hasElevation && elevationGainM != null && elevationGainM > 0 ? elevationGainM : null,
+    pointElevationM,
     date: cleanText(stats.date),
     activityType,
     label,
@@ -237,6 +247,8 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     region,
     country,
     coords,
+    locationMetadataSource: cleanText(input.location_metadata_source),
+    locationMetadataEnrichedAt: cleanText(input.location_metadata_enriched_at),
     bbox,
   }
 }
@@ -248,11 +260,13 @@ export function themeDataContextSignature(context: ThemeDataContext) {
     hasRoute: context.hasRoute,
     hasDistance: context.hasDistance,
     hasElevation: context.hasElevation,
+    hasPointElevation: context.hasPointElevation,
     hasLocation: context.hasLocation,
     hasCoords: context.hasCoords,
     hasDate: context.hasDate,
     distanceKm: context.distanceKm,
     elevationGainM: context.elevationGainM,
+    pointElevationM: context.pointElevationM,
     date: context.date,
     activityType: context.activityType,
     label: context.label,
@@ -260,6 +274,8 @@ export function themeDataContextSignature(context: ThemeDataContext) {
     region: context.region,
     country: context.country,
     coords: context.coords,
+    locationMetadataSource: context.locationMetadataSource,
+    locationMetadataEnrichedAt: context.locationMetadataEnrichedAt,
   }
 }
 
@@ -300,6 +316,7 @@ function valueForSource(source: DataSource, context: ThemeDataContext): string |
   if (source === 'location.name') return context.label
   if (source === 'location.region') return context.region ?? context.city ?? context.country
   if (source === 'location.coords') return context.coords ? `${context.coords.lat},${context.coords.lng}` : null
+  if (source === 'location.point_elevation') return context.pointElevationM != null ? String(context.pointElevationM) : null
   if (source === 'derived.composition_meta') return context.region ?? context.label ?? context.date
   return null
 }

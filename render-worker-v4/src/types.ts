@@ -5,11 +5,12 @@
 // across the path boundary.
 
 import type {
+  LocationMetadata,
   StyleConfig,
   RouteStats,
 } from '../../types'
 
-export type { StyleConfig, RouteStats }
+export type { LocationMetadata, StyleConfig, RouteStats }
 
 // ─── BBox type ───────────────────────────────────────────────────────────────
 // [minLng, minLat, maxLng, maxLat]
@@ -36,7 +37,7 @@ export interface ValidationResult {
 
 // ─── Worker-internal: the project of a snapshot the renderer consumes ───────
 
-export interface OrderSnapshot {
+export interface OrderSnapshot extends LocationMetadata {
   stripe_session_id: string
   order_id: string | null
   user_id: string | null

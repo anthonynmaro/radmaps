@@ -1107,6 +1107,9 @@ export interface LocationMetadata {
   location_country?: string | null
   location_lng?: number | null
   location_lat?: number | null
+  location_elevation_m?: number | null
+  location_metadata_source?: string | null
+  location_metadata_enriched_at?: string | null
 }
 
 // ─── Map Record ───────────────────────────────────────────────────────────────

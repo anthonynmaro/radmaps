@@ -96,3 +96,13 @@ export function formatElevationGainFeet(stats: {
   }
   return ''
 }
+
+export function formatPointElevationFeet(elevationM: number | null | undefined): string {
+  if (typeof elevationM !== 'number' || !Number.isFinite(elevationM)) return ''
+  return Math.round(elevationM * 3.28084).toLocaleString()
+}
+
+export function formatPointElevationMeters(elevationM: number | null | undefined): string {
+  if (typeof elevationM !== 'number' || !Number.isFinite(elevationM)) return ''
+  return Math.round(elevationM).toLocaleString()
+}
