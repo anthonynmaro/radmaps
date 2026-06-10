@@ -372,13 +372,13 @@ describe('adaptive contour detail', () => {
       min_elevation_m: 1220,
       max_elevation_m: 1635,
     })).toBe(1)
-    expect(resolveAdaptiveContourDetail({ color_theme: 'botanical', contour_detail: 0 }, {
+    expect(resolveAdaptiveContourDetail({ color_theme: 'botanical', contour_detail: 1 }, {
       distance_km: 10.5,
       elevation_gain_m: 740,
       elevation_loss_m: 740,
       min_elevation_m: 1960,
       max_elevation_m: 2455,
-    })).toBe(0)
+    })).toBe(1)
   })
 
   it('reduces high-relief contour opacity and width with the sparse interval profile', () => {
@@ -2951,11 +2951,11 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.show_finish_pin).toBe(true)
     expect(config.pin_color).toBe('#31512B')
     expect(config.pin_opacity).toBe(1)
-    expect(config.contour_detail).toBe(0)
+    expect(config.contour_detail).toBe(1)
     expect(config.contour_color).toBe('#8F9F6D')
     expect(config.contour_major_color).toBe('#536737')
-    expect(config.contour_minor_width).toBe(0.62)
-    expect(config.contour_major_width).toBe(1.32)
+    expect(config.contour_minor_width).toBe(0.68)
+    expect(config.contour_major_width).toBe(1.28)
     expect(config.water_color).toBe('#B7C6A8')
     expect(config.land_color).toBe('#EEF1E8')
     expect(config.route_color).toBe('#31512B')
@@ -2975,9 +2975,9 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-natural-place-labels')).toBeUndefined()
     expect(layerById(style, 'radmaps-natural-poi-labels')).toBeUndefined()
     expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#8F9F6D')
-    expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual(contourMinorLineOpacityExpression(0.12))
+    expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual(contourMinorLineOpacityExpression(0.20))
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#536737')
-    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.72)
+    expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.76)
     expect(layerById(style, 'route-line')?.paint?.['line-color']).toBe('#31512B')
     expect(layerById(style, 'route-line')?.paint?.['line-width']).toBe(4.35)
     expect(layerById(style, 'route-line')?.paint?.['line-opacity']).toBe(0.94)

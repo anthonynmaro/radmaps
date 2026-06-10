@@ -490,10 +490,10 @@ export function resolveAdaptiveContourStyleConfig(
           } as const)[adaptiveDetail]
       : config.color_theme === 'botanical'
         ? ({
-            0: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.72, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.76, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.80, widthFactor: 1 },
+            0: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.72, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.78, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.80, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.82, widthFactor: 1 },
           } as const)[adaptiveDetail]
         : config.color_theme === 'night-ride'
           ? ({
