@@ -155,7 +155,7 @@ Current quality bar:
 - Header/footer blank areas are explicit spacer rows.
 - Inline text editing is direct on the poster.
 - Theme-owned text/chrome remains editable through the fixed-template path.
-- Refined themes use self-hosted local fonts for editor and Browserless render
+- Refined themes use self-hosted local fonts for editor and AWS renderer render
   parity; Google Fonts is not a runtime dependency.
 - Left-side selected controls can edit font, emphasis, alignment, duplicate,
   delete, row size, and column operations.

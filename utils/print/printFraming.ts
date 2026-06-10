@@ -4,7 +4,7 @@
 //
 // PrintFraming converts a (productUid, renderClass) pair into the full
 // pixel geometry the render pipeline needs:
-//   - the full bleed canvas (the Browserless viewport)
+//   - the full bleed canvas (the renderer viewport)
 //   - the trim box (where the paper will be cut)
 //   - the safe box (where chrome text MUST live)
 //
@@ -58,7 +58,7 @@ export interface PrintFraming {
   safeBox: Box
   /**
    * Map viewport in pixels. Current model: this equals `bleedBox`; MapPreview
-   * handles all poster chrome inside that full Browserless viewport.
+   * handles all poster chrome inside that full renderer viewport.
    */
   mapViewportPx: Box
 }

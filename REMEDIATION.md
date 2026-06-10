@@ -10,7 +10,7 @@
 
 The core product loop (GPX upload → style → order) is solid. The biggest structural risks are:
 1. **IDOR on the public map API** — any authenticated user can read any other user's private map data.
-2. **SSRF / remote asset risk in render pages** — Browserless will fetch images/logos referenced by the poster unless inputs are trusted or copied to storage first.
+2. **SSRF / remote asset risk in render pages** — AWS renderer will fetch images/logos referenced by the poster unless inputs are trusted or copied to storage first.
 3. **Webhook/idempotency gaps** — Stripe and Gelato retries need stronger durable stage tracking.
 4. **No state management layer** — StyleConfig exists in three places simultaneously (DB, composable, component), causing race conditions.
 5. **Render capacity and observability** — final jobs are queued, but proof renders still need throttling and queue/operator alerts need hardening.
@@ -43,8 +43,8 @@ Switch to anon client instead of service key for this endpoint — RLS handles t
 ---
 
 ### SEC-2 · SSRF: User-Provided Render Assets Need a Trust Boundary
-**File:** Browserless render pages / future logo and image inputs
-**Status:** The legacy `render-worker/` Puppeteer path has been removed. Keep this issue open for current/future Browserless-rendered logos and user images.
+**File:** AWS renderer render pages / future logo and image inputs
+**Status:** The legacy `render-worker/` Puppeteer path has been removed. Keep this issue open for current/future AWS renderer-rendered logos and user images.
 **Risk:** Authenticated user sets an image/logo URL to `http://169.254.169.254/...` or another internal URL and the renderer fetches it.
 
 **Fix:**
@@ -542,7 +542,7 @@ Add secondary sort by `id` to prevent non-deterministic results when two version
 | ID | Severity | Category | File | Description |
 |----|----------|----------|------|-------------|
 | SEC-1 | **CRITICAL** | Security/IDOR | `maps/public/[id].get.ts` | Any UUID reads any private map |
-| SEC-2 | **CRITICAL** | Security/SSRF | Browserless render assets | User-provided logos/images need trusted storage or strict allowlist |
+| SEC-2 | **CRITICAL** | Security/SSRF | AWS renderer render assets | User-provided logos/images need trusted storage or strict allowlist |
 | SEC-3 | **DONE** | Security/DoS | `utils/gpx.ts` | XML bomb guards added |
 | SEC-4 | **PARTIAL** | Backend | `orders/webhook.post.ts`, `render-worker-v4/src/queue/gelato.ts` | Stripe event dedupe fixed; Gelato orderReferenceId reconciliation still needed |
 | SEC-5 | **DONE** | Security | `gelato/webhook.post.ts` | Gelato webhook secret now fails closed |

@@ -127,8 +127,8 @@
           <p>
             RadMaps relies on third-party services for authentication, payments, tax,
             shipping, printing, map tiles, route imports, rendering, hosting, storage, and
-            email. These services may include Stripe, Gelato, Supabase, Vercel, Railway,
-            Browserless, Resend, Mapbox, Stadia, CARTO, OpenStreetMap contributors, Google,
+            email. These services may include Stripe, Gelato, Supabase, Vercel, AWS,
+            Resend, Mapbox, Stadia, CARTO, OpenStreetMap contributors, Google,
             and Strava. Their services are governed by their own terms and policies.
           </p>
           <p class="mt-3">

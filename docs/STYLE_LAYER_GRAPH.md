@@ -29,30 +29,30 @@ Route linework should sit below map labels so place, road, water, POI, and conto
 
 ## Example
 
-Contour art requires contour lines and does not support roads, place labels, or
-POIs:
+Contour art requires contour lines, keeps water editable, and can still draw
+optional Mapbox Streets roads/place/POI overlays above the contours:
 
 ```ts
 makeGraph({
   preset: 'contour-art',
   features: {
     contours: 'required',
-    roads: 'unsupported',
-    placeLabels: 'unsupported',
-    pois: 'unsupported',
+    roads: 'editable-vector',
+    placeLabels: 'editable-vector',
+    pois: 'editable-vector',
     water: 'editable-vector',
     route: 'required',
     routeCasing: 'required',
   },
   requiredFields: { show_contours: true },
-  sources: ['mapbox-terrain-v2', 'route'],
+  sources: ['mapbox-dem', 'contours', 'mapbox-streets', 'route'],
 })
 ```
 
-If an older saved map has `show_roads: true`, that value remains in
-`style_config`, but `effectiveStyleConfig()` turns it off while the contour-art
-graph is active. Switching back to a preset that supports roads can reuse the
-stored intent.
+If an older saved map has fields that the active graph does not consume, those
+values remain in `style_config`, but `effectiveStyleConfig()` hides them from
+the generated MapLibre style. Switching back to a preset that supports those
+fields can reuse the stored intent.
 
 ## Public Helpers
 
@@ -88,6 +88,12 @@ labels.
 `buildMapStyle()` keeps its public API, but internally renders an effective
 config derived from the graph. This means hidden/ignored fields are not allowed
 to leak into the generated style JSON.
+
+Product contours come only from the runtime `contours` source supplied by
+`MapPreview.vue` through `maplibre-contour`. `buildMapStyle()` intentionally
+omits contour sources/layers when no runtime contour protocol URL is supplied;
+do not add Mapbox Terrain v2 or cached PMTiles as an implicit fallback in the
+customer editor, proof, checkout, or final render path.
 
 Viewport scaling is metadata-driven. MapLibre layers that need visual scaling
 carry:
@@ -131,7 +137,7 @@ critical.
 The `design update/implementation-plan.md` direction is compatible with this
 graph reset. Poster composition is now implemented as profile-driven Vue chrome
 inside `MapPreview.vue` instead of a wrapped React subtree, so editor and
-Browserless render parity stay on the existing single renderer. Map controls and
+AWS renderer render parity stay on the existing single renderer. Map controls and
 map-layer construction must still use graph capabilities.
 
 `18x24` is a legacy alias for `24x36`, not a current product size. Keep it

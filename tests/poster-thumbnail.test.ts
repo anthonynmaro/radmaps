@@ -16,10 +16,10 @@ describe('poster thumbnail URL resolution', () => {
   })
 
   it('ignores renderer error sentinels instead of treating them as images', () => {
-    expect(isUsablePosterThumbnailUrl('error: Browserless timeout')).toBe(false)
+    expect(isUsablePosterThumbnailUrl('error: AWS renderer timeout')).toBe(false)
     expect(posterThumbnailUrl({
       id: 'map-1',
-      proof_render_url: 'error: Browserless timeout',
+      proof_render_url: 'error: AWS renderer timeout',
       thumbnail_url: null,
       render_url: 'https://example.com/render.jpg',
     })).toBe('https://example.com/render.jpg')

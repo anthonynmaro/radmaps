@@ -41,7 +41,7 @@ sharing image-first unless the user explicitly opts into exposing route geometry
 | Activity photos | proxied from Strava in `activities/[id]/photos.get.ts` | Potential personal data | Returned as Strava-hosted URLs. Not persisted by RadMaps. |
 | Imported GPS route | `maps.geojson`, `bbox`, `stats`, `location_*` | Highly sensitive location data | Core product data. RLS protects private rows. |
 | Raw GPX file | `gpx-uploads/{user.id}/{timestamp}.gpx` | Highly sensitive location data | Duplicates route data and currently has no retention/delete path. |
-| Poster style | `maps.style_config`, `map_versions.style_config` | Low to medium, can include labels/logo URL | `style_config.logo_url` can drive Browserless image fetches during render. |
+| Poster style | `maps.style_config`, `map_versions.style_config` | Low to medium, can include labels/logo URL | `style_config.logo_url` can drive AWS renderer image fetches during render. |
 | Proof/final images | Supabase Storage `maps/renders/...`, URLs stored in `maps`, `order_snapshots`, `product_renders`, `orders.print_file_url` | Sensitive route image | Code uses `getPublicUrl`, so these are treated as externally accessible. |
 | Public share | `/api/maps/public/:id` returns `geojson`, `bbox`, `stats`, `style_config`, render URLs | Public data after share | A share exposes full route geometry, not just a poster image. |
 | Shipping/order data | `orders.shipping_address`, Stripe metadata, Gelato order payload | Personal data | Needed for fulfillment, but full address is also put in Stripe metadata. |
@@ -57,7 +57,7 @@ sharing image-first unless the user explicitly opts into exposing route geometry
   `user_id`.
 - Public map sharing now requires `maps.is_public = true`.
 - Render payloads require signed, expiring HMAC tickets before service-role data
-  is returned to Browserless render pages.
+  is returned to AWS renderer render pages.
 - GPX parsing rejects files over 5 MB and rejects `DOCTYPE`/`ENTITY` before XML
   parsing.
 - Stripe and Gelato webhooks verify signatures/secrets.
@@ -213,7 +213,7 @@ Routes needing limits:
 - `/api/orders/lookup`
 - `/api/agent/style`
 
-Impact: Abuse can exhaust Browserless/Strava/provider quotas, create unwanted
+Impact: Abuse can exhaust AWS renderer/Strava/provider quotas, create unwanted
 copies of sensitive data, or support order-status enumeration.
 
 Fix:
@@ -442,7 +442,7 @@ Still pending:
 3. Add an ordered-map privacy mode that can purge route geometry after fulfillment
    while retaining required order records and optionally the final poster image.
 4. Replace placeholder privacy policy with a policy that names Strava, Stripe,
-   Gelato, Browserless, Supabase, Resend, and any geocoding providers.
+   Gelato, AWS renderer, Supabase, Resend, and any geocoding providers.
 
 ## Reference Notes
 
