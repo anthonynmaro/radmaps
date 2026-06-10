@@ -1112,6 +1112,7 @@ import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
+import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
@@ -3337,6 +3338,22 @@ function sourceLoaded(instance: maplibregl.Map, sourceId: string) {
     : true
 }
 
+function mapCanvasDiagnostics(instance: maplibregl.Map) {
+  const canvas = instance.getCanvas()
+  const cssWidth = canvas.clientWidth || Number.parseFloat(canvas.style.width) || 0
+  const cssHeight = canvas.clientHeight || Number.parseFloat(canvas.style.height) || 0
+  return {
+    mapPixelRatio: typeof instance.getPixelRatio === 'function' ? instance.getPixelRatio() : null,
+    browserDevicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : null,
+    mapCanvasWidth: canvas.width,
+    mapCanvasHeight: canvas.height,
+    mapCanvasCssWidth: cssWidth,
+    mapCanvasCssHeight: cssHeight,
+    mapCanvasBackingScaleX: cssWidth > 0 ? canvas.width / cssWidth : null,
+    mapCanvasBackingScaleY: cssHeight > 0 ? canvas.height / cssHeight : null,
+  }
+}
+
 function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
   const contoursExpected = styleUsesContours(props.styleConfig)
   const contourSourceId = instance.getSource('contours')
@@ -3370,6 +3387,7 @@ function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
     contourSourceLoaded: !contoursExpected || (!!contourSourceId && sourceLoaded(instance, contourSourceId)),
     demExpected,
     demSourceLoaded: !demExpected || sourceLoaded(instance, 'mapbox-dem'),
+    ...mapCanvasDiagnostics(instance),
     timedOut,
   }
 }
@@ -4706,6 +4724,10 @@ onMounted(async () => {
     bearing: effectiveBearing(),
     attributionControl: false,
     interactive: props.editable !== false && !(props.styleConfig.map_frozen),
+    ...resolveMapLibrePrintCanvasOptions({
+      isPrintRender: isPrintRender.value,
+      deviceScaleFactor: props.printContext?.deviceScaleFactor,
+    }),
   })
   mapInstance.on('styleimagemissing', onStyleImageMissing)
   mapInstance.on('styledata', () => {
