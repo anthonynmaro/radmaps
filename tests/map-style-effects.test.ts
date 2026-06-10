@@ -101,15 +101,18 @@ describe('adaptive contour detail', () => {
     }
   })
 
-  it('lets Daybreak and dark data themes use capped denser low-relief contours', () => {
+  it('lets Daybreak and Electric Atlas use capped denser low-relief contours', () => {
     expect(resolveAdaptiveContourDetail({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace').toBe(3)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'daybreak-trace', contour_detail: 1 }, lowReliefStats), 'daybreak-trace thresholds').toBe(CONTOUR_THRESHOLDS[3])
-    expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(3)
-    expect(resolveAdaptiveContourThresholds({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava thresholds').toBe(CONTOUR_THRESHOLDS[3])
     expect(resolveAdaptiveContourDetail({ color_theme: 'electric-atlas', contour_detail: 5 }, lowReliefStats), 'electric-atlas').toBe(3)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'electric-atlas', contour_detail: 5 }, lowReliefStats), 'electric-atlas thresholds').toBe(CONTOUR_THRESHOLDS[3])
-    expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(3)
-    expect(resolveAdaptiveContourThresholds({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats thresholds').toBe(CONTOUR_THRESHOLDS[3])
+  })
+
+  it('lets dark data themes densify low-relief DEM contours after sea-level filtering', () => {
+    expect(resolveAdaptiveContourDetail({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava').toBe(4)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'blueprint-strava', contour_detail: 1 }, lowReliefStats), 'blueprint-strava thresholds').toBe(CONTOUR_THRESHOLDS[4])
+    expect(resolveAdaptiveContourDetail({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats').toBe(4)
+    expect(resolveAdaptiveContourThresholds({ color_theme: 'splits-stats', contour_detail: 1 }, lowReliefStats), 'splits-stats thresholds').toBe(CONTOUR_THRESHOLDS[4])
   })
 
   it('uses dense printable contour intervals across poster zooms for low-relief routes', () => {
@@ -247,7 +250,7 @@ describe('adaptive contour detail', () => {
   })
 
   it('smooths DEM contours for line-art themes that otherwise render coastline fragments', () => {
-    for (const color_theme of ['classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'midcentury-travel', 'ranch-ochre'] as const) {
+    for (const color_theme of ['blueprint-strava', 'classic-trail', 'contour-wash', 'editorial-minimal', 'bold-modern', 'midcentury-travel', 'ranch-ochre', 'splits-stats'] as const) {
       expect(resolveAdaptiveContourOverzoom({ color_theme }), color_theme).toBe(2)
     }
     expect(resolveAdaptiveContourOverzoom({ color_theme: 'brutalist' })).toBe(0)

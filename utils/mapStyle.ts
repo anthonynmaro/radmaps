@@ -262,6 +262,7 @@ export interface AdaptiveContourReliefProfile {
 }
 
 const SMOOTH_CONTOUR_THEME_IDS = new Set([
+  'blueprint-strava',
   'bold-modern',
   'classic-trail',
   'contour-wash',
@@ -269,6 +270,7 @@ const SMOOTH_CONTOUR_THEME_IDS = new Set([
   'editorial-minimal',
   'midcentury-travel',
   'ranch-ochre',
+  'splits-stats',
 ])
 
 const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
@@ -289,10 +291,10 @@ const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
 ])
 
 const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
-  ['blueprint-strava', 3],
+  ['blueprint-strava', 4],
   ['daybreak-trace', 3],
   ['electric-atlas', 3],
-  ['splits-stats', 3],
+  ['splits-stats', 4],
 ])
 
 const THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL = new Map<string, number>([
