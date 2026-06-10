@@ -12,6 +12,11 @@ import { extractNamedTrackSegments } from '~/utils/trail'
 import { validateRouteGeojson } from '~/server/utils/routeValidation'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 import { enrichThemeLocationMetadata } from '~/server/utils/themeDataEnrichment'
+import {
+  THEME_LOCATION_METADATA_COLUMNS,
+  isMissingPostgrestSchemaColumnError,
+  omitColumns,
+} from '~/server/utils/postgrestSchema'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -109,23 +114,38 @@ export default defineEventHandler(async (event) => {
     bbox,
     stats,
   })
-  const { data: map, error } = await supabase
+  const insertPayload = {
+    user_id: user.id,
+    title,
+    subtitle,
+    geojson,
+    bbox,
+    stats,
+    ...locationMetadata,
+    style_config: trailSegments.length > 0
+      ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
+      : DEFAULT_STYLE_CONFIG,
+    status: 'draft',
+  }
+  let { data: map, error } = await supabase
     .from('maps')
-    .insert({
-      user_id: user.id,
-      title,
-      subtitle,
-      geojson,
-      bbox,
-      stats,
-      ...locationMetadata,
-      style_config: trailSegments.length > 0
-        ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
-        : DEFAULT_STYLE_CONFIG,
-      status: 'draft',
-    })
+    .insert(insertPayload)
     .select()
     .single()
+
+  if (error && isMissingPostgrestSchemaColumnError(error)) {
+    console.warn('[maps:create] location metadata columns missing from PostgREST schema cache; retrying without cached enrichment', {
+      code: error.code,
+      message: error.message,
+    })
+    const retry = await supabase
+      .from('maps')
+      .insert(omitColumns(insertPayload, THEME_LOCATION_METADATA_COLUMNS))
+      .select()
+      .single()
+    map = retry.data
+    error = retry.error
+  }
 
   if (error) {
     throw createError({ statusCode: 500, message: error.message })
