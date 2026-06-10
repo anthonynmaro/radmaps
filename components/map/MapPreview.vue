@@ -10710,6 +10710,32 @@ onUnmounted(() => {
   background-image: none !important;
 }
 
+.poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="elevation-profile-band"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .composition-profile-labels {
+  inset: 0.75cqh 6.8cqw 2.25cqh;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-footer {
+  padding: 0.95cqh calc(6.2cqw + var(--print-bleed, 0px)) calc(4.5cqh + var(--print-bleed, 0px)) !important;
+  align-items: flex-end !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  border-top-style: solid !important;
+  border-top-color: color-mix(in srgb, currentColor 24%, transparent) !important;
+  opacity: 1 !important;
+}
+
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-profile-labels {
   inset: 0.65cqh 6.8cqw 2.2cqh;
 }
