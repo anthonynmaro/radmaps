@@ -899,6 +899,8 @@ export function buildElevationProfile(
   relief = 0.65,
   allowGeometryFallback = false,
 ): { svgPath: string; strokePath: string; minElev: number; maxElev: number; synthetic?: boolean } | null {
+  assertGeometryFallbackAllowed(allowGeometryFallback)
+
   const coords = getAllRouteCoords(geojson)
   const elevations = coords.map(c => c[2] ?? 0).filter(e => e !== 0)
   const sourceValues = elevations.length >= 10
@@ -933,6 +935,13 @@ export function buildElevationProfile(
   const svgPath = `M 0,100 L ${pts.join(' L ')} L 1000,100 Z`
 
   return { svgPath, strokePath, minElev, maxElev, synthetic: elevations.length < 10 }
+}
+
+function assertGeometryFallbackAllowed(allowGeometryFallback: boolean): void {
+  if (!allowGeometryFallback) return
+  if (process.env.NODE_ENV === 'test') return
+
+  throw new Error('Geometry-derived elevation profile fallback is test-only and must not run in proof, checkout, or final render modes.')
 }
 
 function routeGeometryProfileValues(coords: number[][]): number[] {

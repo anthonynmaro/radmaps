@@ -100,6 +100,20 @@ describe('buildElevationProfile', () => {
     expect(fallback?.synthetic).toBe(true)
     expect(fallback?.strokePath).toContain('1000')
   })
+
+  it('rejects the synthetic profile fallback outside tests', () => {
+    const originalNodeEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+
+    try {
+      expect(() => buildElevationProfile(lineRoute([
+        [-89, 40],
+        [-88.998, 40.002],
+      ]), 20, 0.65, true)).toThrow(/test-only/)
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv
+    }
+  })
 })
 
 describe('trail segment geometry', () => {
