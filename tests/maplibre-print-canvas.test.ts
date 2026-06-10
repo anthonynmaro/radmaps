@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
-  PRINT_MAPLIBRE_SUPERSAMPLE_PIXEL_RATIO,
   resolveMapLibrePrintCanvasOptions,
 } from '../utils/render/maplibrePrintCanvas'
 
@@ -14,14 +13,14 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
     })).toEqual({})
   })
 
-  it('raises the print canvas cap and supersamples large print maps', () => {
+  it('raises the print canvas cap and matches the screenshot DPR', () => {
     expect(resolveMapLibrePrintCanvasOptions({
       isPrintRender: true,
       deviceScaleFactor: 2,
       mapCssWidth: 3636,
       mapCssHeight: 3656,
     })).toMatchObject({
-      pixelRatio: PRINT_MAPLIBRE_SUPERSAMPLE_PIXEL_RATIO,
+      pixelRatio: 2,
       maxCanvasSize: [
         PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
         PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
@@ -29,7 +28,7 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
     })
   })
 
-  it('caps supersampling when the map box would exceed the print canvas ceiling', () => {
+  it('caps the backing scale when the map box would exceed the print canvas ceiling', () => {
     const result = resolveMapLibrePrintCanvasOptions({
       isPrintRender: true,
       deviceScaleFactor: 2,
@@ -56,6 +55,6 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
     expect(resolveMapLibrePrintCanvasOptions({
       isPrintRender: true,
       deviceScaleFactor: -1,
-    })).toMatchObject({ pixelRatio: 2 })
+    })).toMatchObject({ pixelRatio: 1 })
   })
 })
