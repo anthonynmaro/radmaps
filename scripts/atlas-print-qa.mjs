@@ -82,6 +82,7 @@ for (const fixture of fixtures) {
 const summaryPath = join(outputDir, 'summary.json')
 writeFileSync(summaryPath, `${JSON.stringify(run, null, 2)}\n`)
 console.log(`Atlas print QA summary written to ${summaryPath}`)
+setImmediate(() => process.exit(0))
 
 function parseArgs(rawArgs) {
   const parsed = {}
