@@ -289,7 +289,7 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
     heightPx: FINAL_24X36.heightPx,
     deviceScaleFactor: FINAL_24X36.deviceScaleFactor,
     renderMs: Date.now() - started,
-    url,
+    url: url.replace(/([?&]ticket=)[^&]+/, '$1REDACTED'),
   }
 }
 
