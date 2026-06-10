@@ -6,6 +6,7 @@ export async function normalizeFinalScreenshot(input: {
   expectedHeight: number
   maxOversizePx?: number
   quality?: number
+  densityDpi?: number
 }): Promise<Buffer> {
   const maxOversizePx = input.maxOversizePx ?? 2
   const quality = input.quality ?? 95
@@ -15,10 +16,6 @@ export async function normalizeFinalScreenshot(input: {
 
   if (!width || !height) {
     throw new Error('Renderer screenshot dimensions are unreadable')
-  }
-
-  if (width === input.expectedWidth && height === input.expectedHeight) {
-    return input.buffer
   }
 
   if (width < input.expectedWidth || height < input.expectedHeight) {
@@ -31,8 +28,16 @@ export async function normalizeFinalScreenshot(input: {
     throw new Error(`Renderer screenshot oversize exceeds crop tolerance: got ${width}x${height}, expected ${input.expectedWidth}x${input.expectedHeight}`)
   }
 
-  return sharp(input.buffer)
-    .extract({ left: 0, top: 0, width: input.expectedWidth, height: input.expectedHeight })
+  let image = sharp(input.buffer)
+  if (width !== input.expectedWidth || height !== input.expectedHeight) {
+    image = image.extract({ left: 0, top: 0, width: input.expectedWidth, height: input.expectedHeight })
+  }
+
+  if (input.densityDpi) {
+    image = image.withMetadata({ density: input.densityDpi })
+  }
+
+  return image
     .jpeg({ quality })
     .toBuffer()
 }

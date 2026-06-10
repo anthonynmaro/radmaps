@@ -42,6 +42,7 @@ docs/anchor_post_w0_capture/
 atlas/planetiler/
 atlas/source/
 atlas/terrain/
+atlas/build/
 public/atlas/*.pmtiles
 public/atlas/*.mbtiles
 

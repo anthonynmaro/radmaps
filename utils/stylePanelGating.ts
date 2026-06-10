@@ -124,7 +124,7 @@ export function computeSectionVisibility(input: GatingInput): SectionVisibility 
   const elevationProfileToggle = input.hasElevationData && input.hasRoute && themeAllows('show_elevation_profile')
   const elevationProfileExpanded = input.showElevationProfile && input.hasRoute && input.hasElevationData && themeAllows('show_elevation_profile')
   const effectsCard = rasterEffectControls || !hasThemeAllowlist
-  const trailSegmentsCard = input.hasRoute && themeAllows('trail_segments')
+  const trailSegmentsCard = input.hasRoute
   const trailLegendControls = trailSegmentsCard && input.trailSegmentCount > 0
 
   return {

@@ -49,7 +49,7 @@ These packages are business-critical — breaking changes or vulnerabilities her
 | `@nuxtjs/supabase` | Auth + database — breaking changes in Supabase client |
 | `maplibre-gl` | Core map rendering — WebGL changes |
 | `resend` | Transactional email delivery |
-| Browserless API / worker deps | Print rendering — Chromium screenshot compatibility |
+| AWS renderer / worker deps | Print rendering — Chromium screenshot compatibility |
 
 ## Analysis Steps
 

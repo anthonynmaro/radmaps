@@ -100,11 +100,52 @@ Current entries:
   `2026.05.27-new-zealand-outdoor.1` produced a validated `403,714,835` byte
   PMTiles archive and published it to R2 as artifact
   `radmaps-new-zealand-outdoor-base`.
+- `western-alps-dolomites`: global-hotspot proof pack for Chamonix, Zermatt,
+  Innsbruck, Dolomites, Finale Ligure, and Lake Garda. Staging build
+  `2026.06.09-western-alps-dolomites.1` produced a validated
+  `1,201,969,253` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-western-alps-dolomites-base`.
+- `atlantic-islands-portugal`: bounded Portugal extract for Madeira/Azores.
+  Staging build `2026.06.09-atlantic-islands-portugal.1` produced a validated
+  `25,126,505` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-atlantic-islands-portugal-base`.
+- `atlantic-islands-canaries`: Canary Islands proof pack. Staging build
+  `2026.06.09-atlantic-islands-canaries.1` produced a validated `44,801,019`
+  byte PMTiles archive and published it to R2 as artifact
+  `radmaps-atlantic-islands-canaries-base`.
+- `andes-peru`: Peru Andes proof pack for Salkantay, Sacred Valley, Cordillera
+  Blanca, and bikepacking/vacation fixtures. Staging build
+  `2026.06.09-andes-peru.1` produced a validated `356,714,058` byte PMTiles
+  archive and published it to R2 as artifact `radmaps-andes-peru-base`.
+- `andes-ecuador`: Ecuador Andes proof pack for Cotopaxi, Quilotoa, and
+  highland vacation fixtures. Staging build `2026.06.09-andes-ecuador.1`
+  produced a validated `141,561,515` byte PMTiles archive and published it to
+  R2 as artifact `radmaps-andes-ecuador-base`.
+- `nepal-himalaya`: Nepal Himalaya proof pack for Everest Base Camp,
+  Annapurna, Langtang, and Mustang fixtures. Staging build
+  `2026.06.09-nepal-himalaya.1` produced a validated `323,016,649` byte
+  PMTiles archive and published it to R2 as artifact
+  `radmaps-nepal-himalaya-base`.
+- `iceland-adventure`: Iceland proof pack for Laugavegur and Ring Road
+  fixtures. Staging build `2026.06.09-iceland-adventure.1` produced a
+  validated `165,636,294` byte PMTiles archive and published it to R2 as
+  artifact `radmaps-iceland-adventure-base`.
+- `scotland-adventure`: Scotland proof pack for West Highland Way, Skye, and
+  Cairngorms fixtures. The first run failed because the source URL returned
+  HTML; the corrected rerun `27206657696` used
+  `https://download.geofabrik.de/europe/united-kingdom/scotland-latest.osm.pbf`
+  and produced a validated `302,811,086` byte PMTiles archive as artifact
+  `radmaps-scotland-adventure-base`.
+- `costa-rica-central-america`: Costa Rica vacation-trail proof pack for
+  Arenal, Monteverde, Nicoya, Osa, and Rincon de la Vieja fixtures. Staging
+  build `2026.06.09-costa-rica-central-america.1` produced a validated
+  `57,846,574` byte PMTiles archive and published it to R2 as artifact
+  `radmaps-costa-rica-central-america-base`.
 
-The broader product queue, including deferred Alps/Dolomites, Nepal, Peru,
-Iceland/Scotland, Madeira/Canaries, and Costa Rica targets, is tracked in
-`atlas/coverage-targets.json` so strategic demand does not automatically become
-a runnable build.
+The broader product queue is tracked in `atlas/coverage-targets.json`. Targets
+may be marked `production-live` for base coverage while Overture Places `poi`
+and OSM `outdoorRoutes` overlays remain separate, budget-gated follow-up
+artifacts.
 
 The full U.S. source is the Geofabrik United States OSM PBF:
 
@@ -126,7 +167,8 @@ upload times.
 
 Run policy for new coverage targets:
 
-- Start with `workflow_dispatch` or `npm run atlas:pipeline -- --dry-run`.
+- Start base builds with `workflow_dispatch` or
+  `npm run atlas:pipeline -- --dry-run`.
 - Keep `dry_run=true` until source size, runner shape, and scratch storage are
   reviewed.
 - For any non-dry-run heavyweight build stage, pass `--estimated-cost-usd`.
@@ -144,39 +186,94 @@ Overlay build contract:
   `transportation` source layer.
 - Overture Places enrichment is written as a separate PMTiles overlay under the
   existing manifest key `poi`, with source layer `poi`, bbox-filtered to the
-  target hotspot mesh and built to z16.
+  target hotspot mesh and built to z8-16.
 - Named outdoor route enrichment is written under the manifest key
   `outdoorRoutes`, with source layer `outdoor_route`, extracted only from OSM
   relations where `route=hiking`, `route=bicycle`, or `route=mtb`, and built to
-  z16.
+  z8-16. Dense relation packs are capped and geometry-thinned because detailed
+  path geometry already comes from the base `transportation` layer; the overlay
+  exists to add semantic named routes and route labels.
 - Overlay object paths stay immutable, for example
   `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
   `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`.
-- Every overlay run starts with `npm run atlas:pipeline -- --dry-run` or the
-  equivalent overlay dry-run, records estimated cost before a real build, and
-  updates `atlas/coverage-targets.json` actual cost fields after completion.
+- Overlay hotspot definitions live in `atlas/overlay-targets.json`.
+- Every overlay run starts with the overlay dry-run, records estimated cost
+  before a real build, and updates `atlas/coverage-targets.json` actual cost
+  fields after completion:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target costa-rica-central-america \
+  --kind all \
+  --environment staging \
+  --dry-run \
+  --estimated-cost-usd 2
+```
+
+- A real local/control-plane smoke build can omit upload/publish while still
+  exercising Overture, Overpass, GDAL PMTiles generation, checksum capture, and
+  manifest output:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target costa-rica-central-america \
+  --kind all \
+  --environment staging \
+  --bbox-limit 1 \
+  --estimated-cost-usd 2
+```
+
+- Publish through the `Atlas Overlay Build` GitHub workflow or pass
+  `--upload --publish` only when R2 credentials are present.
+- POI overlays use GDAL's PMTiles writer directly. `outdoorRoutes` overlays use
+  Tippecanoe MBTiles output followed by `pmtiles convert` because GDAL's native
+  vector tile writers are slower on dense relation line geometry.
 - Promote overlays by merging the generated artifact into the existing manifest
   with `npm run atlas:merge-manifest-artifact`; never replace the full manifest
   with a single overlay build output.
 
 ## Current Progress Snapshot
 
-As of 2026-05-27:
+As of 2026-06-09:
 
 - Staging R2 has full contiguous-U.S. base coverage, North America base
-  coverage, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
-  Patagonia Andes proof-pack base artifacts.
+  coverage, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan,
+  Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador
+  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica proof-pack base
+  artifacts.
 - Staging R2 has 177 verified `us-terrain-phase1` contour PMTiles shards for
   selected U.S. terrain regions. These are retained for QA/history and optional
   cached coverage, not treated as the default global contour strategy.
 - Production R2 now has the Driftless lab pack plus approved U.S., North
-  America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan, and
-  Patagonia Andes base artifacts. The active production manifest is
-  `2026.05.27-approved-coverage.1` with `7` base artifacts and `1` contour
-  artifact. Promotion completed in workflow run `26519815247`.
+  America, New Zealand outdoor, Northern Spain/Camino, Mount Fuji/Japan,
+  Patagonia Andes, Western Alps/Dolomites, Atlantic islands, Peru/Ecuador
+  Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica base artifacts, plus
+  production z16 `poi` and `outdoorRoutes` overlays for the nine global hotspot
+  packs. The active production manifest is
+  `2026.06.09-global-hotspots-production.2` with `16` base artifacts, `1`
+  contour artifact, `9` POI artifacts, and `9` outdoor route artifacts. The
+  global-hotspot base production promotion completed in workflow run
+  `27209290643`; overlay promotion used server-side R2 copy on 2026-06-09.
 - The current staging manifest is a composite manifest. Do not overwrite it
   with a single build runner manifest; merge new artifacts into it so existing
   contour shards remain available.
+- Overlay builder status: `scripts/atlas-build-overlays.mjs` is implemented
+  and production-promoted. The 2026-06-09 all-target staging build generated
+  `18` z8-16 PMTiles artifacts across `poi` and `outdoorRoutes`:
+  `36,471,780` bytes of Overture Places overlays plus `19,172,804` bytes of
+  named OSM hiking/bicycle/MTB route overlays, `55,644,584` bytes total. The
+  promotion dry run estimated less than `$0.01` of R2 copy/manifest work.
+  Remaining overlay rollout gate is 24x36 AWS-rendered print QA.
+- Print-QA runner status: `npm run atlas:print-qa` is implemented. Audit mode
+  fetches the active manifest, probes direct Worker and app-proxy MVT delivery,
+  records matching artifact ids, and writes
+  `artifacts/atlas-print-qa/{date}/summary.json`. Render mode
+  (`-- --render`) signs `atlas-qa` render tickets and sends the real Nuxt
+  `/render/atlas-qa/{fixtureId}` page through the AWS renderer. The runner
+  normalizes the raw browser screenshot to exact 24x36 final-print pixels and
+  300 DPI JPEG metadata before saving review artifacts. Render mode requires
+  `PROOF_RENDER_ENDPOINT`, `PROOF_RENDER_TOKEN`, and `RENDER_TICKET_SECRET`,
+  and should be run only after the app deployment includes the signed QA route.
 
 North America build details:
 
@@ -284,10 +381,31 @@ Current production manifest details:
 | Field | Value |
 |---|---|
 | URL | `https://tiles.radmaps.studio/manifests/production.json` |
-| Atlas version | `2026.05.27-approved-coverage.1` |
-| Base artifacts | `7` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`) |
+| Atlas version | `2026.06.09-global-hotspots-production.2` |
+| Base artifacts | `16` (`radmaps-driftless-planetiler`, `radmaps-us-base`, `radmaps-north-america-base`, `radmaps-new-zealand-outdoor-base`, `radmaps-northern-spain-camino-base`, `radmaps-mount-fuji-japan-base`, `radmaps-patagonia-andes-base`, `radmaps-western-alps-dolomites-base`, `radmaps-atlantic-islands-portugal-base`, `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`, `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`, `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, `radmaps-costa-rica-central-america-base`) |
 | Contour artifacts | `1` |
-| Promotion workflow run | `26519815247` |
+| POI artifacts | `9` (`radmaps-western-alps-dolomites-poi`, `radmaps-atlantic-islands-portugal-poi`, `radmaps-atlantic-islands-canaries-poi`, `radmaps-andes-peru-poi`, `radmaps-andes-ecuador-poi`, `radmaps-nepal-himalaya-poi`, `radmaps-iceland-adventure-poi`, `radmaps-scotland-adventure-poi`, `radmaps-costa-rica-central-america-poi`) |
+| Outdoor route artifacts | `9` (`radmaps-western-alps-dolomites-outdoor-routes`, `radmaps-atlantic-islands-portugal-outdoor-routes`, `radmaps-atlantic-islands-canaries-outdoor-routes`, `radmaps-andes-peru-outdoor-routes`, `radmaps-andes-ecuador-outdoor-routes`, `radmaps-nepal-himalaya-outdoor-routes`, `radmaps-iceland-adventure-outdoor-routes`, `radmaps-scotland-adventure-outdoor-routes`, `radmaps-costa-rica-central-america-outdoor-routes`) |
+| Promotion workflow run | `27209290643` |
+| Verification | Production manifest returned `200`; all nine new base PMTiles and all 18 overlay PMTiles returned HTTP `206` with `PMTiles` magic bytes; non-empty `poi` and `outdoorRoutes` tile probes returned `200` through both `tiles.radmaps.studio` and the live RadMaps app proxy. |
+
+## Atlas Print QA Runner
+
+Use this before customer rollout and after any Atlas manifest, proxy, or
+renderer change:
+
+```bash
+npm run atlas:print-qa -- --limit 3
+npm run atlas:print-qa -- --render
+```
+
+Audit mode is safe and cheap: it performs HTTP tile probes and writes JSON
+metadata only. Render mode calls the AWS renderer for 24x36 PNG captures of the
+signed `/render/atlas-qa/{fixtureId}` page. Each fixture comes from
+`atlas/coverage-targets.json`, including its QA bbox, target id, print size,
+and activity. Treat any `needs-review` fixture as a rollout blocker unless the
+summary explicitly documents an expected coverage gap, such as wider Honshu
+before the Shimanami split is built.
 
 What remains for the New Zealand proof pack:
 

@@ -66,7 +66,7 @@ describe('refined theme editable allowlist', () => {
     expect(s.effectsCard).toBe(false)
     expect(s.terrainCard).toBe(false)
     expect(s.pinControls).toBe(false)
-    expect(s.trailSegmentsCard).toBe(false)
+    expect(s.trailSegmentsCard).toBe(true)
     expect(s.trailLegendControls).toBe(false)
   })
 
@@ -128,15 +128,15 @@ describe('refined theme editable allowlist', () => {
     expect(allowed.elevationProfileExpanded).toBe(true)
   })
 
-  it('exposes trail segment controls only when the refined theme allows segment editing', () => {
+  it('keeps trail segment controls available for routed refined themes', () => {
     const locked = compute({
       hasRoute: true,
       trailSegmentCount: 2,
       editableFields: refinedDefaultEditable,
     })
 
-    expect(locked.trailSegmentsCard).toBe(false)
-    expect(locked.trailLegendControls).toBe(false)
+    expect(locked.trailSegmentsCard).toBe(true)
+    expect(locked.trailLegendControls).toBe(true)
 
     const allowed = compute({
       hasRoute: true,
@@ -184,7 +184,7 @@ describe('refined theme editable allowlist', () => {
       expect(s.roadColorControl, theme.id).toBe(false)
       expect(s.roadOpacityControl, theme.id).toBe(false)
       expect(s.elevationProfileToggle, theme.id).toBe(theme.editable_fields.includes('show_elevation_profile'))
-      expect(s.trailSegmentsCard, theme.id).toBe(theme.editable_fields.includes('trail_segments'))
+      expect(s.trailSegmentsCard, theme.id).toBe(true)
       expect(s.trailLegendControls, theme.id).toBe(false)
       expect(s.contourToggle, theme.id).toBe(theme.editable_fields.includes('show_contours'))
       expect(s.hillshadeToggle, theme.id).toBe(theme.editable_fields.includes('show_hillshade'))

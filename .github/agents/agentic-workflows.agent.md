@@ -4,7 +4,7 @@ You are the central dispatcher for RadMaps agentic workflows. When invoked, you 
 
 ## Repository Context
 
-**RadMaps** (`radmaps.studio`) is a Nuxt 3 e-commerce app that lets users create custom trail map posters from GPX data. The stack includes Vue 3, Supabase, Stripe, Gelato print fulfillment, MapLibre GL JS, Browserless/Chromium screenshot rendering, and a Railway queue worker for final print orchestration.
+**RadMaps** (`radmaps.studio`) is a Nuxt 3 e-commerce app that lets users create custom trail map posters from GPX data. The stack includes Vue 3, Supabase, Stripe, Gelato print fulfillment, MapLibre GL JS, AWS-rendered Chromium screenshots, and an AWS/ECS queue worker for final print orchestration.
 
 ## Workflow Inventory
 

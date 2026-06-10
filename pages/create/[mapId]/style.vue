@@ -277,6 +277,10 @@ function onMapAreaClick(e: MouseEvent) {
   }
 }
 
+// True once the map record has loaded and styleConfig has been seeded — gates
+// the editor thumbnail snapshot so it never fires against an empty config.
+const editorReady = ref(false)
+
 watch(mapData, (m) => {
   if (m?.style_config) {
     styleConfig.value = {
@@ -288,63 +292,18 @@ watch(mapData, (m) => {
         position: m.style_config.trail_legend?.position ?? DEFAULT_STYLE_CONFIG.trail_legend!.position,
       },
     }
-    // Seed history with the loaded config so undo can't go past the initial state
-    nextTick(() => {
-      undoHistory.value = [JSON.parse(JSON.stringify(styleConfig.value))]
-      undoIndex.value = 0
-      historyReady = true
-    })
+    editorReady.value = true
   }
 }, { immediate: true })
 
-// ── Undo / redo ───────────────────────────────────────────────────────────────
-
-const undoHistory = ref<StyleConfig[]>([])
-const undoIndex = ref(-1)
-let historyReady = false
-let isUndoRedoing = false
-let historyTimer: ReturnType<typeof setTimeout> | null = null
-
-const canUndo = computed(() => undoIndex.value > 0)
-const canRedo = computed(() => undoIndex.value < undoHistory.value.length - 1)
-
-function recordHistory(config: StyleConfig) {
-  if (!historyReady || isUndoRedoing) return
-  if (historyTimer) clearTimeout(historyTimer)
-  historyTimer = setTimeout(() => {
-    const snapshot = JSON.parse(JSON.stringify(config))
-    const trimmed = undoHistory.value.slice(0, undoIndex.value + 1)
-    trimmed.push(snapshot)
-    if (trimmed.length > 50) trimmed.shift()
-    undoHistory.value = trimmed
-    undoIndex.value = trimmed.length - 1
-  }, 400)
-}
-
-function undo() {
-  if (!canUndo.value) return
-  if (historyTimer) clearTimeout(historyTimer)
-  isUndoRedoing = true
-  undoIndex.value--
-  styleConfig.value = JSON.parse(JSON.stringify(undoHistory.value[undoIndex.value]))
-  nextTick(() => { isUndoRedoing = false })
-}
-
-function redo() {
-  if (!canRedo.value) return
-  if (historyTimer) clearTimeout(historyTimer)
-  isUndoRedoing = true
-  undoIndex.value++
-  styleConfig.value = JSON.parse(JSON.stringify(undoHistory.value[undoIndex.value]))
-  nextTick(() => { isUndoRedoing = false })
-}
+// Undo / redo history is owned by MapEditorSurface (keyboard shortcuts + the
+// on-poster undo/redo control), so there is intentionally no duplicate here.
 
 // Debounced save — 600ms after the user stops tweaking
 let saveTimer: ReturnType<typeof setTimeout>
 watch(styleConfig, (newConfig) => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => updateStyle(newConfig), 600)
-  recordHistory(newConfig)
   scheduleEditorThumbnailSnapshot()
 }, { deep: true })
 
@@ -485,7 +444,7 @@ function clearThumbnailTimer() {
 }
 
 function scheduleEditorThumbnailSnapshot(delayMs = THUMBNAIL_RENDER_IDLE_DELAY_MS) {
-  if (!historyReady || !mapData.value) return
+  if (!editorReady.value || !mapData.value) return
   clearThumbnailTimer()
   thumbnailTimer = setTimeout(() => {
     refreshEditorThumbnailSnapshot('idle').catch((err) => {

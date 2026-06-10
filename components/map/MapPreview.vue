@@ -597,44 +597,8 @@
         @click.stop="openChromeSection('railLeft')"
       >LEFT RAIL</button>
 
-      <!-- ── Top-right controls: undo/redo + zoom lock ────────────────────── -->
-      <div
-        v-if="editable && mapReady && !chromeGridRendering"
-        class="poster-controls"
-        :class="{ 'map-hovered': mapHovered }"
-      >
-        <!-- Undo / redo pill -->
-        <div class="control-pill">
-          <button
-            class="control-btn"
-            :disabled="segmentDrawMode ? !canUndoSegmentDrawPoint : !canUndo"
-            title="Undo (⌘Z)"
-            @click="requestUndo"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.061.025z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-          <span class="control-divider"/>
-          <button
-            class="control-btn"
-            :disabled="segmentDrawMode ? true : !canRedo"
-            title="Redo (⌘⇧Z)"
-            @click="emit('redo')"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M12.207 2.232a.75.75 0 00.025 1.06l4.146 3.958H6.375a5.375 5.375 0 000 10.75H9.25a.75.75 0 000-1.5H6.375a3.875 3.875 0 010-7.75h10.003l-4.146 3.957a.75.75 0 001.036 1.085l5.5-5.25a.75.75 0 000-1.085l-5.5-5.25a.75.75 0 00-1.061.025z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-        </div>
-
-        <FreezeControl
-          :frozen="styleConfig.map_frozen ?? false"
-          :map-hovered="mapHovered"
-          @freeze="freezeView"
-          @unfreeze="unfreezeView"
-        />
-      </div>
+      <!-- Undo/redo and the view lock now live in the editor panel (panel header +
+           Map → Viewpoint) so the poster preview stays free of overlay chrome. -->
 
       <!-- ── Logo: header-right position ──────────────────────────────────── -->
       <img
@@ -2158,6 +2122,7 @@ import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/poste
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
 import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
+import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
 import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/transitDiagram'
@@ -5970,6 +5935,23 @@ function sourceLoaded(instance: maplibregl.Map, sourceId: string) {
     : true
 }
 
+function mapCanvasDiagnostics(instance: maplibregl.Map) {
+  const canvas = instance.getCanvas()
+  const cssWidth = canvas.clientWidth || Number.parseFloat(canvas.style.width) || 0
+  const cssHeight = canvas.clientHeight || Number.parseFloat(canvas.style.height) || 0
+  const maybeScaledMap = instance as maplibregl.Map & { getPixelRatio?: () => number }
+  return {
+    mapPixelRatio: typeof maybeScaledMap.getPixelRatio === 'function' ? maybeScaledMap.getPixelRatio() : null,
+    browserDevicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : null,
+    mapCanvasWidth: canvas.width,
+    mapCanvasHeight: canvas.height,
+    mapCanvasCssWidth: cssWidth,
+    mapCanvasCssHeight: cssHeight,
+    mapCanvasBackingScaleX: cssWidth > 0 ? canvas.width / cssWidth : null,
+    mapCanvasBackingScaleY: cssHeight > 0 ? canvas.height / cssHeight : null,
+  }
+}
+
 function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
   const contoursExpected = styleUsesContours(props.styleConfig)
   const contourSourceId = instance.getSource('contours') ? 'contours' : null
@@ -6011,6 +5993,7 @@ function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
     contourSourceLoaded: !contoursExpected || (!!contourSourceId && sourceLoaded(instance, contourSourceId)),
     demExpected,
     demSourceLoaded: !demExpected || sourceLoaded(instance, 'mapbox-dem'),
+    ...mapCanvasDiagnostics(instance),
     timedOut,
   }
 }
@@ -7689,6 +7672,10 @@ onMounted(async () => {
     bearing: effectiveBearing(),
     attributionControl: false,
     interactive: mapViewerInteractive.value && (props.mapInteractive === true || !(props.styleConfig.map_frozen)),
+    ...resolveMapLibrePrintCanvasOptions({
+      isPrintRender: isPrintRender.value,
+      deviceScaleFactor: props.printContext?.deviceScaleFactor,
+    }),
   })
   mapInstance.on('styleimagemissing', onStyleImageMissing)
   mapInstance.on('styledata', () => {
@@ -8356,6 +8343,10 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
         ? { ...cameraBeforeReload, pitch: effectivePitch(newConfig), bearing: effectiveBearing(newConfig) }
         : null
       mapReady.value = false
+      // Yield one frame before the synchronous style rebuild so the editor panel
+      // (e.g. the newly selected theme/preset highlight) repaints immediately
+      // instead of being blocked behind buildScaledMapStyle + setStyle.
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
       if (styleUsesContours(newConfig)) await ensureContourProtocol()
       const newStyle = buildScaledMapStyle(newConfig)
       mapInstance.setStyle(newStyle)
@@ -15891,13 +15882,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  opacity: 0.55;
+  opacity: 0.9;
   transition: opacity 0.2s ease;
   pointer-events: auto;
 }
-.poster-controls.map-hovered {
-  opacity: 0.9;
-}
+.poster-controls.map-hovered,
 .poster-controls:hover {
   opacity: 1;
 }

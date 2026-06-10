@@ -138,7 +138,7 @@ To change which themes the AI considers, edit the theme registry reference. To c
 - **Double labels on CARTO maps** — The sanitizer should catch this. If not, check that `show_place_labels` and `show_poi_labels` are both `false` for carto-light/carto-dark tile styles.
 - **Missing composition** — Old maps without a `composition` field render through the `legacy-classic` layout. New maps should always have one.
 - **Theme not found** — Check that the theme ID is in `VALID_THEMES` in the script and in `types/index.ts` ColorTheme union. All 13 refined + 16 legacy themes are valid.
-- **Thumbnail generation fails** — Run `scripts/backfill-premade-thumbnails.mjs` separately. It needs either an AWS renderer URL or local Playwright.
+- **Thumbnail generation fails** — Run `scripts/backfill-premade-thumbnails.mjs` separately. It needs either a AWS renderer URL or local Playwright.
 
 ## File reference
 

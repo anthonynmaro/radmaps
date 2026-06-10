@@ -93,21 +93,29 @@
       <div class="toolbar-row size-row">
         <span class="size-label">Size</span>
         <input
+          class="size-slider"
+          type="range"
+          min="0"
+          :max="SIZE_SLIDER_STEPS"
+          step="1"
+          :value="sizeSliderPos"
+          aria-label="Font size"
+          data-testid="text-size-slider"
+          @input="emitSizeFromSlider(($event.target as HTMLInputElement).value)"
+        />
+        <input
           class="size-input"
           type="number"
           inputmode="numeric"
           :min="MIN_TEXT_SIZE_PT"
           :max="MAX_TEXT_SIZE_PT"
           step="1"
-          list="inline-text-size-options"
           :value="fontSizePt"
+          aria-label="Font size in points"
           data-testid="text-size-input"
           @input="emitFontSize(($event.target as HTMLInputElement).value, false)"
           @change="emitFontSize(($event.target as HTMLInputElement).value, true)"
         />
-        <datalist id="inline-text-size-options">
-          <option v-for="size in TEXT_SIZE_OPTIONS" :key="size" :value="size" />
-        </datalist>
         <span class="size-unit">pt</span>
       </div>
 
@@ -155,7 +163,7 @@ const FONT_OPTIONS: FontFamily[] = [
 
 const MIN_TEXT_SIZE_PT = 6
 const MAX_TEXT_SIZE_PT = 240
-const TEXT_SIZE_OPTIONS = [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 84, 96, 120, 144, 180, 216, 240]
+const SIZE_SLIDER_STEPS = 1000
 const ALIGN_OPTIONS: Array<{ value: ChromeBlockAlign; title: string }> = [
   { value: 'left', title: 'Align left' },
   { value: 'center', title: 'Align center' },
@@ -242,6 +250,24 @@ function emitFontSize(value: string, clamp: boolean) {
   if (!Number.isFinite(size)) return
   if (!clamp && (size < MIN_TEXT_SIZE_PT || size > MAX_TEXT_SIZE_PT)) return
   emitPatch({ font_size_pt: Math.min(MAX_TEXT_SIZE_PT, Math.max(MIN_TEXT_SIZE_PT, Math.round(size))) })
+}
+
+// The point range (6–240) is wide, so a linear slider would crowd the common
+// small sizes into a few pixels. Map the slider on a log curve so drag distance
+// feels even across the whole range.
+const SIZE_LOG_RATIO = Math.log(MAX_TEXT_SIZE_PT / MIN_TEXT_SIZE_PT)
+
+const sizeSliderPos = computed(() => {
+  const clamped = Math.min(MAX_TEXT_SIZE_PT, Math.max(MIN_TEXT_SIZE_PT, props.fontSizePt || MIN_TEXT_SIZE_PT))
+  const t = Math.log(clamped / MIN_TEXT_SIZE_PT) / SIZE_LOG_RATIO
+  return Math.round(t * SIZE_SLIDER_STEPS)
+})
+
+function emitSizeFromSlider(value: string) {
+  const t = Number(value) / SIZE_SLIDER_STEPS
+  if (!Number.isFinite(t)) return
+  const pt = MIN_TEXT_SIZE_PT * Math.exp(t * SIZE_LOG_RATIO)
+  emitPatch({ font_size_pt: Math.min(MAX_TEXT_SIZE_PT, Math.max(MIN_TEXT_SIZE_PT, Math.round(pt))) })
 }
 
 function toggleHighlight() {
@@ -414,10 +440,19 @@ function toggleHighlight() {
   height: 30px;
   border: 1px solid #E7E5E4;
   border-radius: 8px;
-  background: #FFFFFF;
+  background-color: #FFFFFF;
   color: #1C1917;
   font-size: 12px;
-  padding: 0 8px;
+  padding: 0 28px 0 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20' fill='none' stroke='%2378716C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
 }
 
 .toolbar-text-input {
@@ -479,11 +514,68 @@ function toggleHighlight() {
 .size-slider,
 .opacity-slider {
   flex: 1;
-  accent-color: #2D6A4F;
+  min-width: 0;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.size-slider::-webkit-slider-runnable-track,
+.opacity-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #E7E5E4;
+}
+
+.size-slider::-moz-range-track,
+.opacity-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #E7E5E4;
+}
+
+.size-slider::-webkit-slider-thumb,
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.25);
+  transition: box-shadow 0.12s ease;
+}
+
+.size-slider::-moz-range-thumb,
+.opacity-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.25);
+}
+
+.size-slider:focus-visible,
+.opacity-slider:focus-visible {
+  outline: none;
+}
+
+.size-slider:focus-visible::-webkit-slider-thumb,
+.opacity-slider:focus-visible::-webkit-slider-thumb,
+.size-slider:active::-webkit-slider-thumb,
+.opacity-slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.2);
 }
 
 .size-input {
-  width: 88px;
+  width: 56px;
+  flex-shrink: 0;
   height: 30px;
   border: 1px solid #E7E5E4;
   border-radius: 8px;
@@ -491,8 +583,17 @@ function toggleHighlight() {
   color: #1C1917;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  padding: 0 8px;
+  text-align: center;
+  padding: 0 4px;
   outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.size-input::-webkit-outer-spin-button,
+.size-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .size-input:focus {

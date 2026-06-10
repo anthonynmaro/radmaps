@@ -8,11 +8,16 @@ builds.
 ## Current Baseline
 
 - Staging R2 has contiguous U.S., North America, New Zealand, Northern
-  Spain/Camino, Mount Fuji/Japan, and Patagonia Andes proof-pack base PMTiles.
-- The active staging manifest is `2026.05.27-patagonia-andes.1`.
-- Production is now promoted to `2026.05.27-approved-coverage.1` with the
-  Driftless lab pack plus approved U.S., North America, New Zealand, Northern
-  Spain/Camino, Mount Fuji/Japan, and Patagonia Andes base artifacts.
+  Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western Alps/Dolomites,
+  Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and
+  Costa Rica proof-pack base PMTiles.
+- The active staging manifest is `2026.06.09-global-hotspots.1`.
+- Production is now promoted to `2026.06.09-global-hotspots-production.2` with
+  the Driftless lab pack plus approved U.S., North America, New Zealand,
+  Northern Spain/Camino, Mount Fuji/Japan, Patagonia Andes, Western
+  Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal Himalaya,
+  Iceland, Scotland, and Costa Rica base artifacts, plus z16 `poi` and
+  `outdoorRoutes` overlays for the nine global hotspot packs.
 - High-detail terrain remains generated at render time through
   `maplibre-contour` in the editor and AWS renderer; precomputed contour PMTiles
   are retained for QA/cache experiments only.
@@ -94,6 +99,61 @@ builds.
     `25,960` bytes.
 - Rendered review artifact:
   `artifacts/atlas-review/camino-northern-spain-field-topo.png`.
+
+## 2026-06-09 Global Hotspot Execution Log
+
+- Added runnable split regions in `atlas/regions.json` for
+  `western-alps-dolomites`, `atlantic-islands-portugal`,
+  `atlantic-islands-canaries`, `andes-peru`, `andes-ecuador`,
+  `nepal-himalaya`, `iceland-adventure`, `scotland-adventure`, and
+  `costa-rica-central-america`.
+- Kept total planned build estimate at `$130` against the `$200` coverage
+  budget gate. The Scotland rerun raised conservative run accounting to `$145`,
+  still under the `$196.25` remaining budget recorded from the AWS billing
+  screenshot.
+- Built the nine new base PMTiles on the short-lived AWS EC2 runner
+  `i-0da4f63b939fd99d1`; the runner was terminated after validation.
+- The first Scotland run failed because the Geofabrik URL returned HTML. The
+  URL was corrected to
+  `https://download.geofabrik.de/europe/united-kingdom/scotland-latest.osm.pbf`,
+  the bad source/output files were removed, and rerun `27206657696` succeeded.
+- Published corrected staging manifest `2026.06.09-global-hotspots.1` with
+  `15` base artifacts and `177` contour artifacts through GitHub Actions run
+  `27207092680`.
+- Promoted production manifest
+  `2026.06.09-global-hotspots-production.1` through GitHub Actions run
+  `27209290643`; production now has `16` base artifacts and `1` contour
+  artifact.
+- Production verification passed:
+  - live production manifest returned `200` and included all nine new
+    artifacts.
+  - each new production PMTiles object returned HTTP `206` and `PMTiles`
+    magic bytes.
+  - each new `/tiles/production/{artifactId}/8/{x}/{y}.mvt` probe returned
+    HTTP `200` with the matching `X-RadMaps-Atlas-Artifact` response header.
+- Z16 `poi` overlays from Overture Places and z16 `outdoorRoutes` overlays
+  from named OSM hiking/bicycle/MTB relations were promoted to production on
+  2026-06-09 as `2026.06.09-global-hotspots-production.2`. Remaining work is
+  completing AWS-rendered `24x36` print QA for every new global-hotspot fixture
+  before broad customer marketing.
+- Overlay execution now has a dedicated builder:
+  `npm run atlas:build-overlays -- --target <target|all> --kind <all|poi|outdoorRoutes>`.
+  It reads `atlas/overlay-targets.json`, enforces the shared `$200` coverage
+  budget gate, filters Overture Places for print-useful POIs, extracts named
+  OSM outdoor route relations through Overpass, validates PMTiles metadata, and
+  writes mergeable manifests.
+- The signed Atlas print-QA render path is implemented at
+  `/render/atlas-qa/{fixtureId}?ticket=...` and uses the same `MapPreview.vue`
+  print renderer as proof/final output. `npm run atlas:print-qa` reads
+  `atlas/coverage-targets.json`, audits production tile coverage, writes
+  review metadata under `artifacts/atlas-print-qa/{date}/`, and can call the
+  AWS renderer with `--render` once the app deployment includes the route. The
+  render path saves normalized 24x36 final-style JPEGs with exact provider
+  pixels and 300 DPI metadata, not raw browser screenshot PNGs.
+- The Nuxt app proxy now returns valid empty MVT responses for sparse or
+  not-yet-built `poi`/`outdoorRoutes` overlay tiles instead of surfacing 404s
+  into MapLibre. A dedicated HEAD route was added so production smoke monitors
+  can probe `base`, `poi`, and `outdoorRoutes` without false failures.
 - The wider `honshu-japan` staging build failed in workflow run `26488700331`
   after `13m16s` with Docker/Planetiler exit `137` during archive generation,
   consistent with an `ubuntu-latest` runner memory kill. No partial artifact was
@@ -158,18 +218,22 @@ builds.
 The operational coverage queue lives in `atlas/coverage-targets.json` v2. It
 keeps premade-map anchors, sport/audience priorities, global vacation hotspots,
 artifact kinds, z16 overlay caps, 24x36 print QA requirements, cost guards,
-actual cost fields, build status, and next actions in one machine-readable file.
+actual cost fields, build status, concrete QA fixture bboxes, and next actions
+in one machine-readable file.
 
 Current priority order:
 
 1. Keep production atlas QA focused on approved U.S., North America, New
    Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia Andes
    coverage now that those artifacts are live.
-2. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
-   QA justifies it.
-3. Defer Alps/Dolomites, Atlantic islands, Peru/Ecuador Andes, Nepal,
-   Iceland/Scotland, and Costa Rica until source selection, DEM QA, or demand
-   justifies the spend.
+2. Run `npm run atlas:print-qa -- --render` only after confirming the deployed
+   app has the signed `/render/atlas-qa` route and current renderer secrets.
+3. Split wider Japan/Honshu or run it on a larger runner only after proof-pack
+   QA justifies it. The Shimanami fixture intentionally records a wider-Honshu
+   gap because no new base PMTiles should be built before the print-QA gate.
+4. Add additional z16 overlays before any new base PMTiles. Defer any full
+   planet or continent build until usage proves demand and the `$200` build
+   ceiling is explicitly re-approved.
 
 Cost policy:
 

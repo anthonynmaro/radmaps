@@ -3,7 +3,7 @@
 
     <!-- Drag handle -->
     <button
-      class="w-full flex justify-center pt-2.5 pb-1.5 shrink-0 border-none cursor-pointer bg-white focus:outline-none"
+      class="w-full flex justify-center pt-2.5 pb-1.5 shrink-0 border-none cursor-pointer bg-white focus:outline-none md:hidden"
       style="border-radius: 18px 18px 0 0; touch-action: none;"
       @click="onHandleClick"
       @touchstart.passive="onHandleTouchStart"
@@ -16,9 +16,48 @@
     </button>
 
     <!-- Header -->
-    <div class="px-4 pt-0.5 pb-2.5 shrink-0">
-      <p class="text-sm font-bold text-[#1C1917] leading-none">Style your map</p>
-      <p class="text-[10px] text-[#A8A29E] mt-1 leading-none">{{ saving ? 'Saving…' : 'All changes saved' }}</p>
+    <div class="px-4 pt-1 md:pt-4 pb-2.5 shrink-0 flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-sm font-bold text-[#1C1917] leading-none">Style your map</p>
+        <p class="text-[10px] text-[#A8A29E] mt-1 leading-none">{{ saving ? 'Saving…' : 'All changes saved' }}</p>
+      </div>
+      <div class="flex items-center gap-0.5 shrink-0 -mt-0.5">
+        <button
+          type="button"
+          class="flex items-center justify-center w-7 h-7 rounded-md text-[#78716C] bg-transparent border-none cursor-pointer hover:bg-[#F5F5F4] disabled:opacity-30 disabled:cursor-default transition-colors"
+          :disabled="!canUndo"
+          title="Undo (⌘Z)"
+          aria-label="Undo"
+          @click="emit('undo')"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+            <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.061.025z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="flex items-center justify-center w-7 h-7 rounded-md text-[#78716C] bg-transparent border-none cursor-pointer hover:bg-[#F5F5F4] disabled:opacity-30 disabled:cursor-default transition-colors"
+          :disabled="!canRedo"
+          title="Redo (⌘⇧Z)"
+          aria-label="Redo"
+          @click="emit('redo')"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+            <path fill-rule="evenodd" d="M12.207 2.232a.75.75 0 00.025 1.06l4.146 3.958H6.375a5.375 5.375 0 000 10.75H9.25a.75.75 0 000-1.5H6.375a3.875 3.875 0 010-7.75h10.003l-4.146 3.957a.75.75 0 001.036 1.085l5.5-5.25a.75.75 0 000-1.085l-5.5-5.25a.75.75 0 00-1.061.025z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-[#A8A29E] bg-transparent border-none cursor-pointer hover:bg-[#F5F5F4] hover:text-[#57534E] transition-colors"
+          title="Hide panel"
+          aria-label="Hide panel"
+          @click="emit('collapse')"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+            <path d="M8 5l5 5-5 5"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Segmented tab bar -->
@@ -301,10 +340,30 @@
           </div>
         </V4Card>
 
+        <V4Card title="Title & text" hint="The wording on your poster" :default-open="true">
+          <TextRow label="Title" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
+          <SliderRow label="Title size" :value="local.title_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
+            :display="(v: number) => Math.round(v * 100) + '%'" @change="set('title_scale', $event)" />
+          <TextRow label="Location" :value="local.location_text" placeholder="e.g. Twin Falls, Idaho" @change="set('location_text', $event)" />
+          <TextRow label="Occasion" :value="local.occasion_text" placeholder="e.g. Summit Day 2024" @change="set('occasion_text', $event)" />
+          <button
+            type="button"
+            class="text-[11px] font-semibold mt-1 cursor-pointer border-none bg-transparent p-0"
+            style="color: #1F4D38;"
+            @click="activeTab = 'text'"
+          >More text options →</button>
+        </V4Card>
+
         <V4Card v-if="sections.routeLineQuick" title="Route line" :default-open="true">
           <ColorRow v-if="sections.routeColorControl" label="Color" :value="local.route_color" @change="setRouteLineStyle('route_color', $event)" />
           <SliderRow v-if="sections.routeWidthControl" label="Width" :value="local.route_width" :min="1" :max="10" :step="0.5"
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
+        </V4Card>
+
+        <V4Card title="Poster colors" hint="Set by your theme · tap to override" :default-open="false">
+          <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
+          <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
+          <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
         </V4Card>
 
       </template>
@@ -491,8 +550,8 @@
 
         <V4Card
           v-if="showAtlasEditor"
-          title="Owned Atlas maps"
-          hint="RadMaps-hosted vector tiles; editable layers and lower provider dependency"
+          title="Map style"
+          hint="Pick the base map look · fully editable layers"
           :default-open="true"
         >
           <div class="grid grid-cols-3 gap-1.5">
@@ -531,8 +590,8 @@
         </V4Card>
 
         <V4Card
-          title="Classic / provider maps"
-          hint="Older Mapbox, CARTO, MapTiler, and Stadia-backed options"
+          title="More map styles"
+          hint="Classic looks · fewer editable layers"
           :default-open="!isAtlasPresetActive || !showAtlasEditor"
         >
           <div class="grid grid-cols-3 gap-1.5">
@@ -1773,6 +1832,10 @@ const props = defineProps<{
   trackUploadLoading?: boolean
   /** Last additional GPX import error, if any */
   trackUploadError?: string | null
+  /** Whether an undo step is available (history owned by the editor surface) */
+  canUndo?: boolean
+  /** Whether a redo step is available */
+  canRedo?: boolean
 }>()
 
 const sections = computed(() => computeSectionVisibility({
@@ -1973,6 +2036,12 @@ const emit = defineEmits<{
   'poster-element-duplicate': [id: string]
   'poster-text-add': []
   'poster-icon-add': [icon: PosterIconId]
+  /** Undo the last style change (history lives in the editor surface) */
+  'undo': []
+  /** Redo the last undone style change */
+  'redo': []
+  /** Collapse/hide the editor panel for a distraction-free map view */
+  'collapse': []
 }>()
 
 // ── Drag-handle swipe gesture (mobile bottom sheet) ─────────────────────────────
@@ -2032,20 +2101,30 @@ const activeTab = ref<TabId>('quick')
 const CORE_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'quick', label: 'Quick' },
   { id: 'map',   label: 'Map' },
-  { id: 'style', label: 'Style' },
+  { id: 'style', label: 'Poster' },
   { id: 'text',  label: 'Text' },
 ]
 
 const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
-const baseTabs = computed(() => props.posterElementsAvailable
-  ? [
-      { id: 'quick' as const, label: 'Quick' },
-      { id: 'design' as const, label: 'Design' },
-      ...CORE_TABS.slice(1),
-    ]
-  : CORE_TABS,
+const hasPosterStyleTabContent = computed(() =>
+  sections.value.globalColorControls
+  || sections.value.gridControls
+  || sections.value.typographyControls
+  || sections.value.frameControls,
 )
+const baseTabs = computed(() => {
+  const coreTabs = CORE_TABS.filter(tab => tab.id !== 'style' || hasPosterStyleTabContent.value)
+  const quickTab = coreTabs.find(tab => tab.id === 'quick') ?? CORE_TABS[0]
+  const remainingTabs = coreTabs.filter(tab => tab.id !== 'quick')
+  return props.posterElementsAvailable
+    ? [
+        quickTab,
+        { id: 'design' as const, label: 'Design' },
+        ...remainingTabs,
+      ]
+    : coreTabs
+})
 const visibleTabs = computed(() => showScoutTab.value
   ? [...baseTabs.value, { id: 'scout' as const, label: 'Scout' }]
   : baseTabs.value,
@@ -2057,6 +2136,10 @@ watch(showScoutTab, (visible) => {
 
 watch(() => props.posterElementsAvailable, (available) => {
   if (!available && activeTab.value === 'design') activeTab.value = 'quick'
+})
+
+watch(visibleTabs, (tabs) => {
+  if (!tabs.some(tab => tab.id === activeTab.value)) activeTab.value = 'quick'
 })
 
 const scoutRouteStats = computed<RouteStats>(() => props.routeStats ?? {
@@ -3405,7 +3488,10 @@ export const ColorRow = defineComponent({
           h('input', {
             type: 'color', value: props.value,
             style: 'position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;',
+            // input → live updates while dragging (Chrome/Firefox)
+            // change → guaranteed final commit on browsers that only report on close (Safari)
             onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
+            onChange: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
           }),
         ]),
       ]),
@@ -3425,6 +3511,7 @@ export const ColorSwatch = defineComponent({
         type: 'color', value: props.value,
         class: 'absolute inset-0 opacity-0 w-full h-full cursor-pointer',
         onInput: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
+        onChange: (e: Event) => emit('change', (e.target as HTMLInputElement).value),
       }),
     ])
   },

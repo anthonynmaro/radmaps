@@ -1,9 +1,5 @@
-import { PMTiles } from 'pmtiles'
-// @ts-expect-error vt-pbf does not publish bundled TypeScript declarations.
-import vtpbf from 'vt-pbf'
 import type { AtlasArtifactKey, AtlasManifest, AtlasManifestArtifact } from '~/utils/atlasManifest'
 import {
-  ATLAS_ARTIFACT_KEYS,
   atlasArtifactIntersectsBbox,
   atlasManifestArtifacts,
   atlasTileToBbox,
@@ -11,59 +7,27 @@ import {
   selectAtlasArtifactForTile,
 } from '~/utils/atlasManifest'
 
-const DEFAULT_BASE_URL = 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/base/us/2026-05-17/radmaps-base-us.pmtiles'
 const DEFAULT_HOSTED_TILE_BASE_URL = 'https://tiles.radmaps.studio'
 const PUBLIC_MANIFEST_URLS = {
   staging: 'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/v1/manifests/staging.json',
   production: 'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/manifests/production.json',
 } as const
-const ALLOWED_TILE_URL_PREFIXES = [
-  'https://pub-983952a5b3574ca9aa049741eb7d7ce3.r2.dev/atlas/',
-  'https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/',
-]
-const EMPTY_BASE_TILE = Buffer.from(vtpbf.fromGeojsonVt(Object.fromEntries([
-  'landcover',
-  'landuse',
-  'mountain_peak',
-  'park',
-  'place',
-  'transportation',
-  'transportation_name',
-  'water',
-  'water_name',
-  'waterway',
-  'building',
-  'poi',
-].map(layer => [layer, { features: [] }]))))
-const EMPTY_TERRAIN_TILE = Buffer.from(vtpbf.fromGeojsonVt({
-  contour: { features: [] },
-}))
-const EMPTY_POI_TILE = Buffer.from(vtpbf.fromGeojsonVt({
-  poi: { features: [] },
-}))
-const EMPTY_OUTDOOR_ROUTES_TILE = Buffer.from(vtpbf.fromGeojsonVt({
-  outdoor_route: { features: [] },
-}))
+const EMPTY_TILE_LENGTH_BY_SOURCE = {
+  base: 213,
+  terrain: 16,
+  poi: 12,
+  outdoorRoutes: 22,
+} as const
 
 type AtlasTileSource = 'base' | 'terrain' | 'poi' | 'outdoorRoutes'
 
-// The terrain source is retained for Admin Atlas Lab QA of cached contour
-// artifacts. Product MapPreview/proof/final renders use maplibre-contour at
-// runtime instead of this PMTiles path.
-
-const globalForAtlasTiles = globalThis as unknown as {
-  __radmapsAtlasPmtilesCache?: Map<string, PMTiles>
-  __radmapsAtlasManifestCache?: Map<string, AtlasManifest>
-}
-
-function pmtilesCache() {
-  globalForAtlasTiles.__radmapsAtlasPmtilesCache ??= new Map<string, PMTiles>()
-  return globalForAtlasTiles.__radmapsAtlasPmtilesCache
+const globalForAtlasTileHeads = globalThis as unknown as {
+  __radmapsAtlasHeadManifestCache?: Map<string, AtlasManifest>
 }
 
 function manifestCache() {
-  globalForAtlasTiles.__radmapsAtlasManifestCache ??= new Map<string, AtlasManifest>()
-  return globalForAtlasTiles.__radmapsAtlasManifestCache
+  globalForAtlasTileHeads.__radmapsAtlasHeadManifestCache ??= new Map<string, AtlasManifest>()
+  return globalForAtlasTileHeads.__radmapsAtlasHeadManifestCache
 }
 
 function tilePathParts(event: Parameters<typeof getRouterParam>[0]) {
@@ -133,9 +97,16 @@ function artifactKindForSource(source: AtlasTileSource): AtlasArtifactKey {
 
 function normalizedManifestArtifactKind(artifact: AtlasManifestArtifact): AtlasArtifactKey | 'other' {
   if (artifact.kind === 'terrain') return 'contours'
-  return (ATLAS_ARTIFACT_KEYS as readonly string[]).includes(artifact.kind)
+  return ['base', 'contours', 'hillshade', 'publicLands', 'poi', 'outdoorRoutes'].includes(artifact.kind)
     ? artifact.kind as AtlasArtifactKey
     : 'other'
+}
+
+function atlasEnvironmentFromQuery(event: Parameters<typeof getRouterParam>[0]) {
+  const query = getQuery(event)
+  return typeof query.environment === 'string' && query.environment.trim()
+    ? query.environment.trim()
+    : 'production'
 }
 
 async function artifactFromQuery(
@@ -146,9 +117,7 @@ async function artifactFromQuery(
   y: number,
 ): Promise<AtlasManifestArtifact | null> {
   const query = getQuery(event)
-  const environment = typeof query.environment === 'string' && query.environment.trim()
-    ? query.environment.trim()
-    : 'production'
+  const environment = atlasEnvironmentFromQuery(event)
   const artifactId = typeof query.artifactId === 'string' ? query.artifactId.trim() : ''
   const manifest = await loadAtlasManifest(environment)
   if (artifactId) {
@@ -172,28 +141,6 @@ async function artifactFromQuery(
   return artifact
 }
 
-function emptyTileForSource(source: AtlasTileSource) {
-  if (source === 'terrain') return EMPTY_TERRAIN_TILE
-  if (source === 'poi') return EMPTY_POI_TILE
-  if (source === 'outdoorRoutes') return EMPTY_OUTDOOR_ROUTES_TILE
-  return EMPTY_BASE_TILE
-}
-
-function emptyTileResponse(
-  event: Parameters<typeof getRouterParam>[0],
-  source: AtlasTileSource,
-  metadata: { environment?: string, artifactId?: string } = {},
-) {
-  const emptyTile = emptyTileForSource(source)
-  setHeader(event, 'Content-Type', 'application/x-protobuf')
-  setHeader(event, 'Content-Length', emptyTile.byteLength)
-  setHeader(event, 'Cache-Control', 'public, max-age=86400')
-  if (metadata.environment) setHeader(event, 'X-RadMaps-Atlas-Environment', metadata.environment)
-  if (metadata.artifactId) setHeader(event, 'X-RadMaps-Atlas-Artifact', metadata.artifactId)
-  setHeader(event, 'X-RadMaps-Atlas-Delivery', 'empty')
-  return emptyTile
-}
-
 function validateArtifactTile(
   artifact: AtlasManifestArtifact | null,
   z: number,
@@ -211,38 +158,22 @@ function validateArtifactTile(
   }
 }
 
-function atlasEnvironmentFromQuery(event: Parameters<typeof getRouterParam>[0]) {
-  const query = getQuery(event)
-  return typeof query.environment === 'string' && query.environment.trim()
-    ? query.environment.trim()
-    : 'production'
-}
-
-function requestedPmtilesUrlFromQuery(event: Parameters<typeof getRouterParam>[0]) {
-  const query = getQuery(event)
-  return typeof query.url === 'string' && query.url.trim() ? query.url.trim() : ''
-}
-
-function normalizeRequestedTileUrl(event: Parameters<typeof getRouterParam>[0]) {
-  const requestedUrl = requestedPmtilesUrlFromQuery(event)
-
-  if (requestedUrl) {
-    if (!import.meta.dev) {
-      throw createError({ statusCode: 400, message: 'Direct atlas tile URLs are dev-only' })
-    }
-
-    const isAllowedRemote = ALLOWED_TILE_URL_PREFIXES.some(prefix => requestedUrl.startsWith(prefix))
-    const isAllowedLocal = /^https?:\/\/localhost:\d+\/atlas\//.test(requestedUrl)
-    if (!isAllowedRemote && !isAllowedLocal) {
-      throw createError({ statusCode: 400, message: 'Unsupported atlas tile URL' })
-    }
-    return requestedUrl
-  }
-
+function emptyTileHeadResponse(
+  event: Parameters<typeof getRouterParam>[0],
+  source: AtlasTileSource,
+  metadata: { environment?: string, artifactId?: string } = {},
+) {
+  setResponseStatus(event, 200)
+  setHeader(event, 'Content-Type', 'application/x-protobuf')
+  setHeader(event, 'Content-Length', EMPTY_TILE_LENGTH_BY_SOURCE[source as keyof typeof EMPTY_TILE_LENGTH_BY_SOURCE] ?? 0)
+  setHeader(event, 'Cache-Control', 'public, max-age=86400')
+  if (metadata.environment) setHeader(event, 'X-RadMaps-Atlas-Environment', metadata.environment)
+  if (metadata.artifactId) setHeader(event, 'X-RadMaps-Atlas-Artifact', metadata.artifactId)
+  setHeader(event, 'X-RadMaps-Atlas-Delivery', 'empty')
   return ''
 }
 
-async function hostedTileResponse(
+async function hostedTileHeadResponse(
   event: Parameters<typeof getRouterParam>[0],
   environment: string,
   source: AtlasTileSource,
@@ -257,9 +188,9 @@ async function hostedTileResponse(
     : ''
   const tileBaseUrl = (configuredBaseUrl || DEFAULT_HOSTED_TILE_BASE_URL).replace(/\/$/, '')
   const tileUrl = `${tileBaseUrl}/tiles/${encodeURIComponent(environment)}/${encodeURIComponent(artifact.id)}/${z}/${x}/${y}.mvt`
-  const response = await fetch(tileUrl)
+  const response = await fetch(tileUrl, { method: 'HEAD' })
   if (response.status === 204) {
-    return emptyTileResponse(event, source, { environment, artifactId: artifact.id })
+    return emptyTileHeadResponse(event, source, { environment, artifactId: artifact.id })
   }
   if (!response.ok) {
     throw createError({
@@ -268,24 +199,15 @@ async function hostedTileResponse(
     })
   }
 
-  const data = Buffer.from(await response.arrayBuffer())
+  setResponseStatus(event, 200)
   setHeader(event, 'Content-Type', response.headers.get('content-type') || 'application/x-protobuf')
-  setHeader(event, 'Content-Length', data.byteLength)
+  const contentLength = response.headers.get('content-length')
+  if (contentLength) setHeader(event, 'Content-Length', Number(contentLength))
   setHeader(event, 'Cache-Control', response.headers.get('cache-control') || 'public, max-age=86400')
   setHeader(event, 'X-RadMaps-Atlas-Environment', environment)
   setHeader(event, 'X-RadMaps-Atlas-Artifact', artifact.id)
   setHeader(event, 'X-RadMaps-Atlas-Delivery', 'nuxt-proxy')
-  return data
-}
-
-function getPmtiles(url: string) {
-  const cache = pmtilesCache()
-  const cached = cache.get(url)
-  if (cached) return cached
-
-  const pmtiles = new PMTiles(url)
-  cache.set(url, pmtiles)
-  return pmtiles
+  return ''
 }
 
 export default defineEventHandler(async (event) => {
@@ -298,30 +220,11 @@ export default defineEventHandler(async (event) => {
   const x = numericTilePart(xPart, 'x')
   const y = numericTilePart(yPart, 'y')
   validateTileRange(z, x, y)
-  const requestedUrl = normalizeRequestedTileUrl(event)
 
-  if (!requestedUrl) {
-    const environment = atlasEnvironmentFromQuery(event)
-    const artifact = await artifactFromQuery(event, source, z, x, y)
-    validateArtifactTile(artifact, z, x, y)
-    if (artifact) {
-      return hostedTileResponse(event, environment, source, artifact, z, x, y)
-    }
-    if (source !== 'base') return emptyTileResponse(event, source)
-  }
+  const environment = atlasEnvironmentFromQuery(event)
+  const artifact = await artifactFromQuery(event, source, z, x, y)
+  validateArtifactTile(artifact, z, x, y)
+  if (!artifact) return emptyTileHeadResponse(event, source)
 
-  const pmtiles = getPmtiles(requestedUrl || DEFAULT_BASE_URL)
-  const tile = await pmtiles.getZxy(z, x, y)
-
-  if (!tile) {
-    // MapLibre treats 204/empty vector tile responses as console errors. Return
-    // a valid empty MVT containing the expected source layers so sparse PMTiles
-    // archives and overscanned map views stay quiet during local QA.
-    return emptyTileResponse(event, source)
-  }
-
-  setHeader(event, 'Content-Type', 'application/x-protobuf')
-  setHeader(event, 'Content-Length', tile.data.byteLength)
-  setHeader(event, 'Cache-Control', tile.cacheControl || 'public, max-age=31536000, immutable')
-  return Buffer.from(tile.data)
+  return hostedTileHeadResponse(event, environment, source, artifact, z, x, y)
 })

@@ -60,7 +60,32 @@ PMTiles should use immutable paths such as
 `atlas/v1/poi/{target}/{date}/radmaps-poi-{target}.pmtiles` and
 `atlas/v1/outdoorRoutes/{target}/{date}/radmaps-outdoor-routes-{target}.pmtiles`,
 with z16 max zoom, source date, bytes, checksum, cost, and print QA status
-recorded before promotion.
+recorded before promotion. Build overlays as z8-16 archives: the style only
+uses route overlays from z8 and POI labels from z12, so lower zoom archive
+tiles are unnecessary. Dense `outdoorRoutes` packs are capped and
+geometry-thinned so they do not duplicate the full base trail/path network.
+
+Overlay build execution:
+
+```bash
+npm run atlas:build-overlays -- \
+  --target <target|all> \
+  --kind <all|poi|outdoorRoutes> \
+  --environment staging \
+  --estimated-cost-usd <usd>
+```
+
+Use `--dry-run` before real network/build work. Use `--upload --publish` only
+from an environment with R2 credentials. The 2026-06-09 all-target overlay
+build published `18` z8-16 PMTiles artifacts totaling `55,644,584` bytes to
+staging, then server-side copied them into production R2. Complete 24x36
+AWS-rendered print QA before using overlay coverage in broad customer
+marketing.
+
+Implementation note: POI overlays are written with GDAL's PMTiles driver.
+`outdoorRoutes` overlays are written as MBTiles with Tippecanoe first and
+converted with the Protomaps `pmtiles` CLI, which is materially faster for
+line-heavy relation overlays.
 
 Current production tile service code:
 - Preferred edge: `workers/atlas-tiles`
@@ -68,9 +93,9 @@ Current production tile service code:
   `https://radmaps-atlas-tiles.radmaps-atlas.workers.dev`
 - Active `tiles.radmaps.studio` custom domain:
   `workers/atlas-tiles`
-- Fallback Vercel/Nuxt shim:
-  `server/routes/manifests/*`, `server/routes/tiles/*`, and
-  `server/utils/atlasPublicTileService.ts`
+- Same-origin app proxy for renderer/editor fallback:
+  `server/api/atlas/tiles/[...tile].get.ts` plus HEAD smoke probes in
+  `server/api/atlas/tiles/[...tile].head.ts`
 
 Preferred production service shape:
 
@@ -100,12 +125,53 @@ Current promoted production base archives:
 - `atlas/v1/base/northern-spain-camino/2026-05-27/radmaps-base-northern-spain-camino.pmtiles`
 - `atlas/v1/base/mount-fuji-japan/2026-05-27/radmaps-base-mount-fuji-japan.pmtiles`
 - `atlas/v1/base/patagonia-andes/2026-05-27/radmaps-base-patagonia-andes.pmtiles`
+- `atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles`
+- `atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles`
+- `atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles`
+- `atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles`
+- `atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles`
+- `atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles`
+- `atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles`
+- `atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles`
+- `atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles`
 
 Current production contour archive:
 `atlas/v1/terrain/driftless/2026-05-15/radmaps-driftless-contours.pmtiles`
 
 Current production manifest:
 `atlas/v1/manifests/production.json`
+
+Current production manifest version:
+`2026.06.09-global-hotspots-production.2`
+
+Current production manifest counts:
+- `16` base artifacts
+- `1` contour artifact
+- `9` POI overlay artifacts
+- `9` outdoor route overlay artifacts
+
+Global-hotspot promotion verification on 2026-06-09:
+- GitHub Actions workflow run `27209290643` copied approved staging PMTiles
+  into `radmaps-atlas-prod` and published the production manifest pointer.
+- `https://tiles.radmaps.studio/manifests/production.json` returned `200`
+  with all nine new global-hotspot artifact ids.
+- Each new production PMTiles object returned HTTP `206 Partial Content` and
+  `PMTiles` magic bytes for `Range: bytes=0-15`.
+- Each new production tile probe returned HTTP `200` through
+  `/tiles/production/{artifactId}/8/{x}/{y}.mvt` with a matching
+  `X-RadMaps-Atlas-Artifact` header.
+- Overlay promotion verification on 2026-06-09 copied `9` `poi` and `9`
+  `outdoorRoutes` PMTiles into production R2 and published
+  `2026.06.09-global-hotspots-production.2`.
+- Non-empty production overlay probes returned `200` through both
+  `https://tiles.radmaps.studio/tiles/production/...` and the live app proxy
+  `https://radmaps.studio/api/atlas/tiles/...`.
+- The app proxy returns valid empty MVTs for sparse `poi`/`outdoorRoutes`
+  tiles when no overlay artifact intersects a map view. This keeps Atlas
+  styles renderable before every region has z16 overlay enrichment.
+- App-proxy HEAD support is implemented for `base`, `poi`, and
+  `outdoorRoutes` probes so monitoring can validate production without
+  downloading full vector tile bodies.
 
 Current staging terrain coverage:
 

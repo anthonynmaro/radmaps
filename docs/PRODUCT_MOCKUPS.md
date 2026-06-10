@@ -3,7 +3,7 @@
 RadMaps product mockups are RadMaps-rendered merchandising previews. The scene
 images come from the saved Gelato template exports in
 `assets/product_mockup_templates`; Gelato still receives the normal final print
-render from the AWS renderer/ECS fulfillment path.
+render from the AWS renderer/Railway fulfillment path.
 
 The renderer uses the provided wall-setting JPEGs as the base scene and replaces
 the sample artwork inside the product face with the current RadMaps proof or

@@ -15,15 +15,20 @@ async function makeJpeg(width: number, height: number): Promise<Buffer> {
 }
 
 describe('normalizeFinalScreenshot', () => {
-  it('returns exact-size screenshots unchanged', async () => {
+  it('normalizes exact-size screenshots to JPEG with print density metadata', async () => {
     const input = await makeJpeg(120, 180)
     const output = await normalizeFinalScreenshot({
       buffer: input,
       expectedWidth: 120,
       expectedHeight: 180,
+      densityDpi: 300,
     })
 
-    expect(output).toBe(input)
+    const metadata = await sharp(output).metadata()
+    expect(metadata.width).toBe(120)
+    expect(metadata.height).toBe(180)
+    expect(metadata.format).toBe('jpeg')
+    expect(metadata.density).toBe(300)
   })
 
   it('crops small DPR rounding surplus to the expected final size', async () => {
@@ -38,6 +43,19 @@ describe('normalizeFinalScreenshot', () => {
     expect(metadata.width).toBe(120)
     expect(metadata.height).toBe(180)
     expect(metadata.format).toBe('jpeg')
+  })
+
+  it('embeds requested print density after cropping', async () => {
+    const output = await normalizeFinalScreenshot({
+      buffer: await makeJpeg(121, 181),
+      expectedWidth: 120,
+      expectedHeight: 180,
+      maxOversizePx: 2,
+      densityDpi: 200,
+    })
+
+    const metadata = await sharp(output).metadata()
+    expect(metadata.density).toBe(200)
   })
 
   it('rejects undersized screenshots', async () => {

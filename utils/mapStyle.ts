@@ -2526,7 +2526,7 @@ function buildRadMapsAtlasStyle(
       'radmaps-atlas-poi': {
         type: 'vector' as const,
         tiles: [atlasTileUrl('poi')],
-        minzoom: 0,
+        minzoom: 8,
         maxzoom: 16,
         attribution: '© Overture Maps Foundation © OpenStreetMap contributors © RadMaps Atlas',
       },
@@ -2535,7 +2535,7 @@ function buildRadMapsAtlasStyle(
       'radmaps-atlas-outdoor-routes': {
         type: 'vector' as const,
         tiles: [atlasTileUrl('outdoorRoutes')],
-        minzoom: 0,
+        minzoom: 8,
         maxzoom: 16,
         attribution: '© OpenStreetMap contributors © RadMaps Atlas',
       },

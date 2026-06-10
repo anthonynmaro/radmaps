@@ -104,6 +104,7 @@ export async function renderFinalWithScreenshot(input: {
     expectedHeight: framing.fullHeightPx,
     maxOversizePx: deviceScaleFactor,
     quality: 95,
+    densityDpi: framing.dpi,
   })
 
   const validation = await validateBrowserScreenshot({

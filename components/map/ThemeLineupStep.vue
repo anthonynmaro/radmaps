@@ -387,16 +387,19 @@ function applySelected() {
 }
 
 .theme-design-card {
-  display: grid;
-  min-height: 250px;
-  place-items: center;
-  align-content: center;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
+  margin-top: 4px;
+  padding: 20px 24px;
   border: 2px dashed #d6d3d1;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   color: #57534e;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
@@ -470,7 +473,7 @@ function applySelected() {
   }
 
   .theme-design-card {
-    min-height: 230px;
+    padding: 18px 20px;
   }
 }
 </style>

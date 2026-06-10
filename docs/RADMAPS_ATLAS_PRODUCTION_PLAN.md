@@ -18,8 +18,9 @@ usage accounting all share one contract.
 
 ## Current Status
 
-As of 2026-05-27, the owned atlas has crossed the first real coverage
-milestone and the approved base coverage has been promoted to production.
+As of 2026-06-09, the owned atlas has crossed the first global-hotspot
+coverage milestone and the approved base coverage has been promoted to
+production.
 
 Completed:
 
@@ -50,15 +51,25 @@ Completed:
   z0-14.
 - The Patagonia archive is `234,649,027` bytes and verified through
   `tiles.radmaps.studio` tile checks.
-- The staging manifest is now `2026.05.27-patagonia-andes.1` with `6` base
+- The staging manifest is now `2026.06.09-global-hotspots.1` with `15` base
   artifacts and `177` contour artifacts.
-- The production manifest is now `2026.05.27-approved-coverage.1` with `7`
-  base artifacts and `1` contour artifact after GitHub Actions workflow run
-  `26519815247` copied approved staging PMTiles into `radmaps-atlas-prod` and
-  published the manifest.
+- The production manifest is now
+  `2026.06.09-global-hotspots-production.2` with `16` base artifacts, `1`
+  contour artifact, `9` POI overlay artifacts, and `9` outdoor route overlay
+  artifacts after GitHub Actions workflow run `27209290643` copied approved
+  staging base PMTiles and the 2026-06-09 overlay promotion copied z16 overlays
+  into `radmaps-atlas-prod` and published the manifest.
 - Production tile checks through `tiles.radmaps.studio` pass for U.S., Banff,
-  Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, and Patagonia
-  Andes samples.
+  Mexico, New Zealand, Northern Spain/Camino, Mount Fuji/Japan, Patagonia
+  Andes, Western Alps/Dolomites, Madeira/Azores, Canary Islands, Peru Andes,
+  Ecuador Andes, Nepal Himalaya, Iceland, Scotland, and Costa Rica samples.
+- New production global-hotspot base artifacts added on 2026-06-09:
+  `radmaps-western-alps-dolomites-base`,
+  `radmaps-atlantic-islands-portugal-base`,
+  `radmaps-atlantic-islands-canaries-base`, `radmaps-andes-peru-base`,
+  `radmaps-andes-ecuador-base`, `radmaps-nepal-himalaya-base`,
+  `radmaps-iceland-adventure-base`, `radmaps-scotland-adventure-base`, and
+  `radmaps-costa-rica-central-america-base`.
 - Atlas styles, watercolor, route-under-label ordering, manifest
   resolution, usage-event hardening, hosted tile-service code, and
   documentation/catalog pages have been added on the Atlas branch.
@@ -80,17 +91,30 @@ Completed:
   so local editor tests can turn layers off and tune water, roads/trails,
   labels, landcover, parks, buildings, and contour styling from saved
   `StyleConfig` JSON.
+- Sparse `poi` and `outdoorRoutes` tiles now return valid empty MVTs through
+  the app proxy instead of breaking MapLibre with overlay 404s. GET is live in
+  production; HEAD support is implemented for the next app deployment so
+  smoke monitors can probe proxy health consistently.
+- A signed Atlas print-QA render path exists at `/render/atlas-qa/{fixtureId}`
+  and is driven by `npm run atlas:print-qa`. It renders the real
+  `MapPreview.vue` print path with 24x36 framing and coverage-target fixture
+  bboxes, then stores review metadata and optional AWS-rendered final-style
+  JPEGs under `artifacts/atlas-print-qa/{date}/`. Those JPEGs are normalized to
+  exact provider pixels and 300 DPI metadata so they can be judged as print QA,
+  not browser thumbnails.
 
 Not done yet:
 
-- The Cloudflare Worker is attached to `tiles.radmaps.studio`; some resolvers
-  may briefly cache the prior Vercel wildcard address during DNS transition.
 - The customer editor has first-pass Atlas style presets and layer controls,
   but `radmaps_atlas_editor` should remain disabled for broad customer traffic
   until AWS-rendered print QA and attribution checks pass.
-- AWS renderer print QA across large sizes and house styles is still required.
-- Public lands, Overture Places `poi` overlays, and destination-specific
-  `outdoorRoutes` packs are not complete.
+- AWS renderer print QA across large sizes and house styles is still required
+  before broad customer marketing, with `24x36` fixtures required for each new
+  global-hotspot region.
+- Public lands are not complete. Overture Places `poi` overlays and
+  destination-specific `outdoorRoutes` packs are production-promoted for the
+  nine global hotspot packs but still require 24x36 AWS-rendered print QA
+  before broad customer marketing.
 - Build/transfer/manifest publication is documented and scripted in pieces,
   but should be automated into one budget-guarded workflow.
 
@@ -929,7 +953,9 @@ The next phase should turn the staging atlas into a sellable production path.
    - Automate AWS build -> S3 handoff -> R2 transfer -> manifest merge ->
      manifest publish with cost logging.
    - Add public lands, Overture Places `poi`, and OSM `outdoorRoutes` overlay
-     artifacts.
+     artifacts. Overture/OSM hotspot overlays are generated with
+     `npm run atlas:build-overlays`, which keeps `poi` under the existing
+     manifest key and uses `outdoorRoutes` only for named route relations.
    - Build a global base archive when the North America QA/promotion path is
      proven. Keep global high-detail contour PMTiles deferred unless render
      reliability or paid demand requires a cache.

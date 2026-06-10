@@ -1,8 +1,8 @@
 {
-  "atlasVersion": "2026.05.27-approved-coverage.1",
+  "atlasVersion": "2026.06.09-global-hotspots-production.2",
   "schemaVersion": "radmaps-atlas-v1",
-  "coverage": "north-america-global-proof-packs",
-  "label": "RadMaps production atlas: approved coverage",
+  "coverage": "north-america-global-hotspots-poi-outdoor-routes",
+  "label": "RadMaps production atlas: global hotspots with POI and outdoor route overlays",
   "createdAt": "2026-05-15T14:52:47Z",
   "storage": {
     "provider": "cloudflare-r2",
@@ -257,6 +257,330 @@
         ],
         "createdAt": "2026-05-27T04:14:43.073Z",
         "status": "production"
+      },
+      {
+        "id": "radmaps-andes-ecuador-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles",
+        "objectPath": "atlas/v1/base/andes-ecuador/2026-06-09/radmaps-base-andes-ecuador.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -81.5,
+          -5.2,
+          -75,
+          1.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 141561515,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:22:02.929Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-andes-peru-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles",
+        "objectPath": "atlas/v1/base/andes-peru/2026-06-09/radmaps-base-andes-peru.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -81.5,
+          -18.5,
+          -68.5,
+          -3
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 356714058,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:24:58.481Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-atlantic-islands-canaries-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles",
+        "objectPath": "atlas/v1/base/atlantic-islands-canaries/2026-06-09/radmaps-base-atlantic-islands-canaries.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -18.5,
+          27.4,
+          -13,
+          29.7
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 44801019,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:19:58.995Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-atlantic-islands-portugal-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles",
+        "objectPath": "atlas/v1/base/atlantic-islands-portugal/2026-06-09/radmaps-base-atlantic-islands-portugal.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -31.5,
+          32,
+          -12,
+          40.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 25126505,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:17:53.767Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-costa-rica-central-america-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles",
+        "objectPath": "atlas/v1/base/costa-rica-central-america/2026-06-09/radmaps-base-costa-rica-central-america.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -86.5,
+          7.5,
+          -82,
+          11.5
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 57846574,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:33:41.038Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-iceland-adventure-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles",
+        "objectPath": "atlas/v1/base/iceland-adventure/2026-06-09/radmaps-base-iceland-adventure.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -25,
+          63,
+          -13,
+          66.8
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 165636294,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:30:26.654Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-nepal-himalaya-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles",
+        "objectPath": "atlas/v1/base/nepal-himalaya/2026-06-09/radmaps-base-nepal-himalaya.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          80,
+          26,
+          89.5,
+          31
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 323016649,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:28:30.122Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-scotland-adventure-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles",
+        "objectPath": "atlas/v1/base/scotland-adventure/2026-06-09/radmaps-base-scotland-adventure.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          -8.8,
+          54.5,
+          -0.5,
+          61.2
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 302811086,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:40:43.900Z",
+        "status": "production"
+      },
+      {
+        "id": "radmaps-western-alps-dolomites-base",
+        "kind": "base",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles",
+        "objectPath": "atlas/v1/base/western-alps-dolomites/2026-06-09/radmaps-base-western-alps-dolomites.pmtiles",
+        "minzoom": 0,
+        "maxzoom": 14,
+        "bounds": [
+          5.5,
+          43.5,
+          14.5,
+          47.8
+        ],
+        "layers": [
+          "landcover",
+          "landuse",
+          "park",
+          "water",
+          "waterway",
+          "building",
+          "transportation",
+          "transportation_name",
+          "place",
+          "poi"
+        ],
+        "bytes": 1201969253,
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"
+          }
+        ],
+        "createdAt": "2026-06-09T12:15:34.794Z",
+        "status": "production"
       }
     ],
     "contours": [
@@ -285,6 +609,604 @@
         "createdAt": "2026-05-15T14:52:47Z",
         "status": "production"
       }
+    ],
+    "poi": [
+      {
+        "id": "radmaps-western-alps-dolomites-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/western-alps-dolomites/2026-06-09/radmaps-poi-western-alps-dolomites.pmtiles",
+        "objectPath": "atlas/v1/poi/western-alps-dolomites/2026-06-09/radmaps-poi-western-alps-dolomites.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          6.8002333,
+          44.1178866,
+          12.4958221,
+          47.326958
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 4507580,
+        "checksum": "caa06efd3b83a647552c8368244c49fe9d91c3613adfc2c8cb19cb7a45c7a25e",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:35:59.347Z",
+        "status": "production",
+        "sourceRegion": "western-alps-dolomites"
+      },
+      {
+        "id": "radmaps-atlantic-islands-portugal-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/atlantic-islands-portugal/2026-06-09/radmaps-poi-atlantic-islands-portugal.pmtiles",
+        "objectPath": "atlas/v1/poi/atlantic-islands-portugal/2026-06-09/radmaps-poi-atlantic-islands-portugal.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -25.8524651,
+          32.6333,
+          -16.6566111,
+          37.9061
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 3975243,
+        "checksum": "912a4f6edfff255a3e6f78885dab9f173b9e0e9f01b250367d1ead69f6de4555",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:36:38.144Z",
+        "status": "production",
+        "sourceRegion": "atlantic-islands-portugal"
+      },
+      {
+        "id": "radmaps-atlantic-islands-canaries-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/atlantic-islands-canaries/2026-06-09/radmaps-poi-atlantic-islands-canaries.pmtiles",
+        "objectPath": "atlas/v1/poi/atlantic-islands-canaries/2026-06-09/radmaps-poi-atlantic-islands-canaries.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -16.8767339,
+          27.7353579,
+          -13.4292553,
+          29.2313228
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 4140531,
+        "checksum": "663be215742e10df8683beb0dbe2760675eadab762311293497ec0bc3c14730b",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:38:50.112Z",
+        "status": "production",
+        "sourceRegion": "atlantic-islands-canaries"
+      },
+      {
+        "id": "radmaps-andes-peru-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/andes-peru/2026-06-09/radmaps-poi-andes-peru.pmtiles",
+        "objectPath": "atlas/v1/poi/andes-peru/2026-06-09/radmaps-poi-andes-peru.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -77.9,
+          -13.6921586,
+          -71.6063767,
+          -8.8041164
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 3854829,
+        "checksum": "9137b7060669fac954ecd1ae08ce653bf61eaae319b69352035c6d1b34c0e8e9",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:43:06.657Z",
+        "status": "production",
+        "sourceRegion": "andes-peru"
+      },
+      {
+        "id": "radmaps-andes-ecuador-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/andes-ecuador/2026-06-09/radmaps-poi-andes-ecuador.pmtiles",
+        "objectPath": "atlas/v1/poi/andes-ecuador/2026-06-09/radmaps-poi-andes-ecuador.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -79.1,
+          -1.0972128,
+          -78.03,
+          0.0985941
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 4035613,
+        "checksum": "04fd928777f59bd942002ac13fcffab9e19140a2da8fe90b7aca44bec475362a",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:43:32.840Z",
+        "status": "production",
+        "sourceRegion": "andes-ecuador"
+      },
+      {
+        "id": "radmaps-nepal-himalaya-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/nepal-himalaya/2026-06-09/radmaps-poi-nepal-himalaya.pmtiles",
+        "objectPath": "atlas/v1/poi/nepal-himalaya/2026-06-09/radmaps-poi-nepal-himalaya.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          83.5031996,
+          27.5512102,
+          87.1136268,
+          28.7850387
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 3957194,
+        "checksum": "0f6b30316f46d21b7a699e9484c4199c19b000b2771ae73ae7707a41c1c1a93e",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:44:18.792Z",
+        "status": "production",
+        "sourceRegion": "nepal-himalaya"
+      },
+      {
+        "id": "radmaps-iceland-adventure-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/iceland-adventure/2026-06-09/radmaps-poi-iceland-adventure.pmtiles",
+        "objectPath": "atlas/v1/poi/iceland-adventure/2026-06-09/radmaps-poi-iceland-adventure.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -22.191948,
+          63.724133,
+          -17.7091693,
+          65.8434955
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 3323916,
+        "checksum": "64159f24c84cd4aaaf91d2def237a0851087763f15cd5753a02123f7a8bb5263",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:44:54.447Z",
+        "status": "production",
+        "sourceRegion": "iceland-adventure"
+      },
+      {
+        "id": "radmaps-scotland-adventure-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/scotland-adventure/2026-06-09/radmaps-poi-scotland-adventure.pmtiles",
+        "objectPath": "atlas/v1/poi/scotland-adventure/2026-06-09/radmaps-poi-scotland-adventure.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -6.7880985,
+          56.000135,
+          -2.8044419,
+          57.7998486
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 4435532,
+        "checksum": "8f572133d245388dc51b5fdcaaecffba26fa779ec5294ecfb8570676111df402",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:46:00.718Z",
+        "status": "production",
+        "sourceRegion": "scotland-adventure"
+      },
+      {
+        "id": "radmaps-costa-rica-central-america-poi",
+        "kind": "poi",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/poi/costa-rica-central-america/2026-06-09/radmaps-poi-costa-rica-central-america.pmtiles",
+        "objectPath": "atlas/v1/poi/costa-rica-central-america/2026-06-09/radmaps-poi-costa-rica-central-america.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -85.7998712,
+          8.3774038,
+          -83.2,
+          10.5888579
+        ],
+        "layers": [
+          "poi"
+        ],
+        "bytes": 4241342,
+        "checksum": "d3b547e9b6a59def9bb805d26840b2ea380a78447dc2a7f4abaa2c8832d55b6d",
+        "sourceLicenses": [
+          {
+            "name": "Overture Maps Foundation Places",
+            "url": "https://docs.overturemaps.org/guides/places/",
+            "attribution": "Overture Maps Foundation and source contributors"
+          }
+        ],
+        "sourceStrategy": "bbox-filtered Overture Places overlay for global adventure/vacation hotspots",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:46:51.978Z",
+        "status": "production",
+        "sourceRegion": "costa-rica-central-america"
+      }
+    ],
+    "outdoorRoutes": [
+      {
+        "id": "radmaps-western-alps-dolomites-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/western-alps-dolomites/2026-06-09/radmaps-outdoor-routes-western-alps-dolomites.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/western-alps-dolomites/2026-06-09/radmaps-outdoor-routes-western-alps-dolomites.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          6.799915,
+          44.116805,
+          12.500429,
+          47.350012
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 4298045,
+        "checksum": "d947efc26a00c4f836180d42bb6cdbcd72f229a6082c7514fb396e481b8550d9",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:35:59.347Z",
+        "status": "production",
+        "sourceRegion": "western-alps-dolomites"
+      },
+      {
+        "id": "radmaps-atlantic-islands-portugal-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/atlantic-islands-portugal/2026-06-09/radmaps-outdoor-routes-atlantic-islands-portugal.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/atlantic-islands-portugal/2026-06-09/radmaps-outdoor-routes-atlantic-islands-portugal.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -25.853637,
+          32.633324,
+          -16.681851,
+          37.897065
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 1470787,
+        "checksum": "959bda33d68bc64c75a204e18f7c4b23c74ce7085439a746b80a90fbd546fa62",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:36:38.144Z",
+        "status": "production",
+        "sourceRegion": "atlantic-islands-portugal"
+      },
+      {
+        "id": "radmaps-atlantic-islands-canaries-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/atlantic-islands-canaries/2026-06-09/radmaps-outdoor-routes-atlantic-islands-canaries.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/atlantic-islands-canaries/2026-06-09/radmaps-outdoor-routes-atlantic-islands-canaries.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -16.90901,
+          27.768281,
+          -13.422044,
+          29.283516
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 3438604,
+        "checksum": "aad5cf796ec4695f2b939a42768b89aaca7ad93c7fd7b0ee05c3a62f61f3da75",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:38:50.112Z",
+        "status": "production",
+        "sourceRegion": "atlantic-islands-canaries"
+      },
+      {
+        "id": "radmaps-andes-peru-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/andes-peru/2026-06-09/radmaps-outdoor-routes-andes-peru.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/andes-peru/2026-06-09/radmaps-outdoor-routes-andes-peru.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -77.8653889,
+          -13.582576,
+          -71.929961,
+          -8.803402
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 503644,
+        "checksum": "d0d8f8882a0c4b48e064594d414c19304dcf36a02a765f134d34effb78f0ab11",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:43:06.657Z",
+        "status": "production",
+        "sourceRegion": "andes-peru"
+      },
+      {
+        "id": "radmaps-andes-ecuador-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/andes-ecuador/2026-06-09/radmaps-outdoor-routes-andes-ecuador.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/andes-ecuador/2026-06-09/radmaps-outdoor-routes-andes-ecuador.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -78.87437,
+          -0.673777,
+          -77.9998169,
+          0.021846
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 81898,
+        "checksum": "bf8e293c252679aecec89fa32b017ac0a1ecfe9f24fde26ea97542b6c17aaf2a",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:43:32.840Z",
+        "status": "production",
+        "sourceRegion": "andes-ecuador"
+      },
+      {
+        "id": "radmaps-nepal-himalaya-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/nepal-himalaya/2026-06-09/radmaps-outdoor-routes-nepal-himalaya.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/nepal-himalaya/2026-06-09/radmaps-outdoor-routes-nepal-himalaya.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          83.499841,
+          27.599882,
+          87.20009,
+          28.800363
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 1357869,
+        "checksum": "c3c56a45bb9e1e30de8e3d50331d6d6cac8273732897a044d9f348bf9e44e96e",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:44:18.792Z",
+        "status": "production",
+        "sourceRegion": "nepal-himalaya"
+      },
+      {
+        "id": "radmaps-iceland-adventure-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/iceland-adventure/2026-06-09/radmaps-outdoor-routes-iceland-adventure.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/iceland-adventure/2026-06-09/radmaps-outdoor-routes-iceland-adventure.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -22.200727,
+          63.69915,
+          -17.855538,
+          65.829478
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 2119065,
+        "checksum": "c093b4e49659e7aab715157feeeb047315869ceeafac64fbfead85e1159def49",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:44:54.447Z",
+        "status": "production",
+        "sourceRegion": "iceland-adventure"
+      },
+      {
+        "id": "radmaps-scotland-adventure-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/scotland-adventure/2026-06-09/radmaps-outdoor-routes-scotland-adventure.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/scotland-adventure/2026-06-09/radmaps-outdoor-routes-scotland-adventure.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -6.788124,
+          55.99963,
+          -2.798668,
+          57.765923
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 5875304,
+        "checksum": "5c62f1dcf5cc1ae859a801c2828f4ebab2af9e31f548227bbb34d5bc77ef3a8c",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:46:00.718Z",
+        "status": "production",
+        "sourceRegion": "scotland-adventure"
+      },
+      {
+        "id": "radmaps-costa-rica-central-america-outdoor-routes",
+        "kind": "outdoorRoutes",
+        "url": "https://pub-9d309719b5ba4334974a164f41db2a76.r2.dev/atlas/v1/outdoorRoutes/costa-rica-central-america/2026-06-09/radmaps-outdoor-routes-costa-rica-central-america.pmtiles",
+        "objectPath": "atlas/v1/outdoorRoutes/costa-rica-central-america/2026-06-09/radmaps-outdoor-routes-costa-rica-central-america.pmtiles",
+        "minzoom": 8,
+        "maxzoom": 16,
+        "bounds": [
+          -84.801863,
+          9.854605,
+          -83.912936,
+          10.342223
+        ],
+        "layers": [
+          "outdoor_route"
+        ],
+        "bytes": 27588,
+        "checksum": "4d01b2c4c9229c5460388c955ddbb2e243b12cea349f365daf6663641fdbd945",
+        "sourceLicenses": [
+          {
+            "name": "OpenStreetMap",
+            "url": "https://www.openstreetmap.org/copyright",
+            "attribution": "© OpenStreetMap contributors"
+          }
+        ],
+        "sourceStrategy": "OSM route=hiking/bicycle/mtb relation overlay for named outdoor routes",
+        "sourceDate": "2026-06-09",
+        "generatedBy": "scripts/atlas-build-overlays.mjs",
+        "qaStatus": "pending",
+        "createdAt": "2026-06-09T18:46:51.978Z",
+        "status": "production",
+        "sourceRegion": "costa-rica-central-america"
+      }
     ]
   },
   "layerCatalog": [
@@ -296,7 +1218,8 @@
     "transportation",
     "building",
     "poi",
-    "place"
+    "place",
+    "outdoorRoute"
   ],
   "attribution": [
     {
@@ -310,5 +1233,5 @@
       "url": "https://radmaps.studio"
     }
   ],
-  "updatedAt": "2026-05-27T14:55:10.511Z"
+  "updatedAt": "2026-06-09T22:23:06.330Z"
 }

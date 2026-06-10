@@ -16,6 +16,8 @@
     "themes:parity": "node scripts/capture-theme-audit.mjs --targets=docs/theme_screenshots --out=/tmp/radmaps-parity --skip-owned=1",
     "e2e:readiness": "node scripts/e2e-readiness.mjs",
     "atlas:pipeline": "node scripts/atlas-pipeline.mjs",
+    "atlas:build-overlays": "node scripts/atlas-build-overlays.mjs",
+    "atlas:print-qa": "node scripts/atlas-print-qa.mjs",
     "atlas:validate-pmtiles": "node scripts/atlas-validate-pmtiles.mjs",
     "atlas:generate-manifest": "node scripts/atlas-generate-manifest.mjs",
     "atlas:merge-manifest-artifact": "node scripts/atlas-merge-manifest-artifact.mjs",
