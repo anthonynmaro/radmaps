@@ -14,6 +14,8 @@
     "test:style": "npm run test:style-graph && npm run test:style-browser",
     "themes:capture-audit": "node scripts/capture-theme-audit.mjs",
     "themes:parity": "node scripts/capture-theme-audit.mjs --targets=docs/theme_screenshots --out=/tmp/radmaps-parity --skip-owned=1",
+    "themes:golden:capture": "node scripts/capture-theme-audit.mjs --out=docs/theme_goldens --skip-owned=1",
+    "themes:golden:diff": "node scripts/theme-golden-diff.mjs",
     "e2e:readiness": "node scripts/e2e-readiness.mjs",
     "atlas:pipeline": "node scripts/atlas-pipeline.mjs",
     "atlas:build-overlays": "node scripts/atlas-build-overlays.mjs",

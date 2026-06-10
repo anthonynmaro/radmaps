@@ -1,0 +1,55 @@
+name: Theme Goldens
+
+on:
+  pull_request:
+    paths:
+      - 'components/map/**'
+      - 'utils/themes/**'
+      - 'utils/posterCompositions.ts'
+      - 'utils/posterLayout.ts'
+      - 'utils/mapStyle.ts'
+      - 'pages/render/**'
+      - 'scripts/capture-theme-audit.mjs'
+      - 'scripts/theme-golden-diff.mjs'
+      - 'docs/theme_goldens/**'
+      - '.github/workflows/theme-goldens.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'components/map/**'
+      - 'utils/themes/**'
+      - 'utils/posterCompositions.ts'
+      - 'utils/posterLayout.ts'
+      - 'utils/mapStyle.ts'
+      - 'pages/render/**'
+      - 'scripts/capture-theme-audit.mjs'
+      - 'scripts/theme-golden-diff.mjs'
+      - 'docs/theme_goldens/**'
+      - '.github/workflows/theme-goldens.yml'
+
+concurrency:
+  group: theme-goldens-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  theme-golden-diff:
+    name: Theme Golden Diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx nuxi prepare
+      - run: npm run themes:golden:diff
+        env:
+          NUXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+          NUXT_PUBLIC_STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
