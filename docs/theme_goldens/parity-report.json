@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T22:53:06.491Z",
+  "generatedAt": "2026-06-10T23:11:43.986Z",
   "threshold": 0.94,
   "semanticThreshold": 0.94,
   "diffThreshold": 0.12,
@@ -13,10 +13,10 @@
       "score": 0.4426,
       "mapScore": 0.5286,
       "chromeScore": 1,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/cartouche-place.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/cartouche-place.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/cartouche-place.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/cartouche-place.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/cartouche-place.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/cartouche-place.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/cartouche-place.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/cartouche-place.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -949,10 +949,10 @@
       "score": 0.8458,
       "mapScore": 1,
       "chromeScore": 0.8458,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/marathon-bib.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/marathon-bib.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/marathon-bib.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/marathon-bib.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/marathon-bib.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/marathon-bib.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/marathon-bib.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/marathon-bib.png",
       "dimensions": {
         "width": 1014,
         "height": 1518
@@ -2016,10 +2016,10 @@
       "score": 0.8577,
       "mapScore": 0.3128,
       "chromeScore": 0.872,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/bold-modern.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/bold-modern.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/bold-modern.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/bold-modern.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/bold-modern.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/bold-modern.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/bold-modern.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/bold-modern.png",
       "dimensions": {
         "width": 1014,
         "height": 1520
@@ -2996,10 +2996,10 @@
       "score": 0.8802,
       "mapScore": 0.9443,
       "chromeScore": 0.7348,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/risograph.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/risograph.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/risograph.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/risograph.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/risograph.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/risograph.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/risograph.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/risograph.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -3993,10 +3993,10 @@
       "score": 0.8844,
       "mapScore": 0.9001,
       "chromeScore": 0.881,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/blueprint.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/blueprint.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/blueprint.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/blueprint.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/blueprint.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/blueprint.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/blueprint.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/blueprint.png",
       "dimensions": {
         "width": 1008,
         "height": 1512
@@ -5010,10 +5010,10 @@
       "score": 0.8864,
       "mapScore": 0.4357,
       "chromeScore": 0.9001,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/moonstone.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/moonstone.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/moonstone.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/moonstone.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/moonstone.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/moonstone.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/moonstone.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/moonstone.png",
       "dimensions": {
         "width": 1012,
         "height": 1518
@@ -6032,10 +6032,10 @@
       "score": 0.8879,
       "mapScore": 0.9913,
       "chromeScore": 0.7831,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/daybreak-trace.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/daybreak-trace.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/daybreak-trace.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/daybreak-trace.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/daybreak-trace.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/daybreak-trace.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/daybreak-trace.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/daybreak-trace.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -7009,10 +7009,10 @@
       "score": 0.899,
       "mapScore": 0.5236,
       "chromeScore": 0.9089,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/brutalist.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/brutalist.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/brutalist.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/brutalist.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/brutalist.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/brutalist.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/brutalist.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/brutalist.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -7979,10 +7979,10 @@
       "score": 0.9008,
       "mapScore": 0.6341,
       "chromeScore": 0.9009,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/editorial-minimal.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/editorial-minimal.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/editorial-minimal.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/editorial-minimal.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/editorial-minimal.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/editorial-minimal.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/editorial-minimal.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/editorial-minimal.png",
       "dimensions": {
         "width": 1016,
         "height": 1516
@@ -8967,10 +8967,10 @@
       "score": 0.9039,
       "mapScore": 0.896,
       "chromeScore": 0.9482,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/dark-sky.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/dark-sky.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/dark-sky.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/dark-sky.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/dark-sky.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/dark-sky.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/dark-sky.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/dark-sky.png",
       "dimensions": {
         "width": 1020,
         "height": 1508
@@ -10013,10 +10013,10 @@
       "score": 0.9135,
       "mapScore": 0.5714,
       "chromeScore": 0.9136,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/splits-stats.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/splits-stats.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/splits-stats.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/splits-stats.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/splits-stats.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/splits-stats.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/splits-stats.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/splits-stats.png",
       "dimensions": {
         "width": 1010,
         "height": 1510
@@ -11029,10 +11029,10 @@
       "score": 0.9137,
       "mapScore": 0.9902,
       "chromeScore": 0.8248,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/midcentury-travel.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/midcentury-travel.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/midcentury-travel.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/midcentury-travel.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/midcentury-travel.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/midcentury-travel.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/midcentury-travel.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/midcentury-travel.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -12023,10 +12023,10 @@
       "score": 0.9169,
       "mapScore": 0.3333,
       "chromeScore": 0.9191,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/transit-diagram.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/transit-diagram.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/transit-diagram.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/transit-diagram.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/transit-diagram.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/transit-diagram.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/transit-diagram.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/transit-diagram.png",
       "dimensions": {
         "width": 264,
         "height": 397
@@ -12956,10 +12956,10 @@
       "score": 0.9172,
       "mapScore": 0.9342,
       "chromeScore": 0.8748,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/ranch-ochre.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/ranch-ochre.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/ranch-ochre.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/ranch-ochre.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/ranch-ochre.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/ranch-ochre.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/ranch-ochre.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/ranch-ochre.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -13933,10 +13933,10 @@
       "score": 0.9323,
       "mapScore": 1,
       "chromeScore": 0.9323,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/night-ride.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/night-ride.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/night-ride.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/night-ride.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/night-ride.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/night-ride.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/night-ride.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/night-ride.png",
       "dimensions": {
         "width": 1008,
         "height": 1512
@@ -14935,10 +14935,10 @@
       "score": 0.9417,
       "mapScore": 0.9719,
       "chromeScore": 0.9178,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/electric-atlas.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/electric-atlas.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/electric-atlas.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/electric-atlas.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/electric-atlas.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/electric-atlas.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/electric-atlas.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/electric-atlas.png",
       "dimensions": {
         "width": 1006,
         "height": 1510
@@ -15993,10 +15993,10 @@
       "score": 0.9429,
       "mapScore": 0.9569,
       "chromeScore": 1,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/sea-chart.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/sea-chart.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/sea-chart.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/sea-chart.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/sea-chart.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/sea-chart.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/sea-chart.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/sea-chart.png",
       "dimensions": {
         "width": 1014,
         "height": 1518
@@ -16007,7 +16007,7 @@
         "right": 1014,
         "bottom": 1518
       },
-      "dynamicMapMaskedPixels": 74332,
+      "dynamicMapMaskedPixels": 74324,
       "rectMaskedPixels": 0,
       "semantic": {
         "groups": {
@@ -16782,7 +16782,7 @@
             "text": "Chart No. 1 · ARGYLL, SCOTLAND"
           },
           "compositionMeta": {
-            "text": "56°13'N 5°-14'W · SOUNDINGS IN FATHOMS"
+            "text": "56°13'N 4°46'W · SOUNDINGS IN FATHOMS"
           },
           "compositionFooter": {
             "text": ""
@@ -17069,10 +17069,10 @@
       "score": 0.943,
       "mapScore": 0.9983,
       "chromeScore": 0.9359,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/relief-shaded.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/relief-shaded.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/relief-shaded.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/relief-shaded.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/relief-shaded.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/relief-shaded.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/relief-shaded.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/relief-shaded.png",
       "dimensions": {
         "width": 1012,
         "height": 1518
@@ -18053,10 +18053,10 @@
       "score": 0.9448,
       "mapScore": 0.9826,
       "chromeScore": 0.9148,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/usgs-vintage.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/usgs-vintage.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/usgs-vintage.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/usgs-vintage.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/usgs-vintage.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/usgs-vintage.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/usgs-vintage.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/usgs-vintage.png",
       "dimensions": {
         "width": 1012,
         "height": 1520
@@ -19120,10 +19120,10 @@
       "score": 0.9482,
       "mapScore": 0.9969,
       "chromeScore": 0.9033,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/blueprint-strava.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/blueprint-strava.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/blueprint-strava.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/blueprint-strava.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/blueprint-strava.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/blueprint-strava.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/blueprint-strava.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/blueprint-strava.png",
       "dimensions": {
         "width": 1012,
         "height": 1514
@@ -20150,10 +20150,10 @@
       "score": 0.9486,
       "mapScore": 0.6616,
       "chromeScore": 0.9709,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/copper-night.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/copper-night.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/copper-night.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/copper-night.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/copper-night.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/copper-night.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/copper-night.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/copper-night.png",
       "dimensions": {
         "width": 1006,
         "height": 1518
@@ -21159,10 +21159,10 @@
       "score": 0.9522,
       "mapScore": 0.9836,
       "chromeScore": 0.8937,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/blackline.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/blackline.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/blackline.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/blackline.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/blackline.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/blackline.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/blackline.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/blackline.png",
       "dimensions": {
         "width": 1014,
         "height": 1520
@@ -22147,10 +22147,10 @@
       "score": 0.96,
       "mapScore": 0.9908,
       "chromeScore": 0.9545,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/botanical.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/botanical.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/botanical.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/botanical.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/botanical.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/botanical.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/botanical.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/botanical.png",
       "dimensions": {
         "width": 1014,
         "height": 1518
@@ -23167,10 +23167,10 @@
       "score": 0.9623,
       "mapScore": 0.9684,
       "chromeScore": 0.9625,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/field-journal.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/field-journal.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/field-journal.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/field-journal.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/field-journal.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/field-journal.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/field-journal.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/field-journal.png",
       "dimensions": {
         "width": 264,
         "height": 397
@@ -24193,10 +24193,10 @@
       "score": 0.9682,
       "mapScore": 0.999,
       "chromeScore": 0.9163,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/classic-trail.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/classic-trail.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/classic-trail.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/classic-trail.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/classic-trail.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/classic-trail.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/classic-trail.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/classic-trail.png",
       "dimensions": {
         "width": 1014,
         "height": 1520
@@ -25223,10 +25223,10 @@
       "score": 0.9903,
       "mapScore": 0.9917,
       "chromeScore": 1,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/plein-air.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/plein-air.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/plein-air.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/plein-air.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/plein-air.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/plein-air.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/plein-air.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/plein-air.png",
       "dimensions": {
         "width": 264,
         "height": 397
@@ -26237,10 +26237,10 @@
       "score": 0.9956,
       "mapScore": 0.9972,
       "chromeScore": 1,
-      "target": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/reference/contour-wash.png",
-      "live": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/print/contour-wash.png",
-      "editor": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/editor/contour-wash.png",
-      "diffImage": "/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/theme_goldens/poster-themes/diff/contour-wash.png",
+      "target": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/reference/contour-wash.png",
+      "live": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/print/contour-wash.png",
+      "editor": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/editor/contour-wash.png",
+      "diffImage": "/tmp/radmaps-theme-golden-current-1781132915635/poster-themes/diff/contour-wash.png",
       "dimensions": {
         "width": 1012,
         "height": 1510

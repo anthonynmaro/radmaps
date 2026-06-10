@@ -10,6 +10,12 @@ import { getValidStravaAccessToken } from '~/server/utils/stravaTokens'
 import { validateRouteGeojson } from '~/server/utils/routeValidation'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 import { buildStravaImportRoute } from '~/server/utils/stravaImportRoute'
+import { enrichThemeLocationMetadata } from '~/server/utils/themeDataEnrichment'
+import {
+  THEME_LOCATION_METADATA_COLUMNS,
+  isMissingPostgrestSchemaColumnError,
+  omitColumns,
+} from '~/server/utils/postgrestSchema'
 import type { StravaImportActivity, StravaImportStreams } from '~/server/utils/stravaImportRoute'
 
 const importLocks = new Map<string, number>()
@@ -73,23 +79,45 @@ export default defineEventHandler(async (event) => {
     const { geojson, bbox, stats } = buildStravaImportRoute(activity, streams)
     validateRouteGeojson(geojson)
 
-    // Avoid reverse-geocoding exact Strava start coordinates here. Location labels
-    // should come from a coarse, cached geocoding path rather than disclosing every
-    // import to a third party.
+    // Use the route bbox center for cached metadata. This avoids reverse-geocoding
+    // exact Strava start coordinates while keeping theme slots populated.
+    const title = customTitle?.trim() || activity.name
+    const locationMetadata = await enrichThemeLocationMetadata({
+      title,
+      bbox,
+      stats,
+    })
 
-    const { data: map, error: insertError } = await supabase
+    const insertPayload = {
+      user_id: user.id,
+      title,
+      geojson,
+      bbox,
+      stats,
+      ...locationMetadata,
+      style_config: DEFAULT_STYLE_CONFIG,
+      status: 'draft',
+    }
+
+    let { data: map, error: insertError } = await supabase
       .from('maps')
-      .insert({
-        user_id: user.id,
-        title: customTitle?.trim() || activity.name,
-        geojson,
-        bbox,
-        stats,
-        style_config: DEFAULT_STYLE_CONFIG,
-        status: 'draft',
-      })
+      .insert(insertPayload)
       .select('id')
       .single()
+
+    if (insertError && isMissingPostgrestSchemaColumnError(insertError)) {
+      console.warn('[strava:import] location metadata columns missing from PostgREST schema cache; retrying without cached enrichment', {
+        code: insertError.code,
+        message: insertError.message,
+      })
+      const retry = await supabase
+        .from('maps')
+        .insert(omitColumns(insertPayload, THEME_LOCATION_METADATA_COLUMNS))
+        .select('id')
+        .single()
+      map = retry.data
+      insertError = retry.error
+    }
 
     if (insertError || !map) {
       throw createError({ statusCode: 500, message: insertError?.message ?? 'Failed to create map' })

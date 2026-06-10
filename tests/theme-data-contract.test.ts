@@ -199,6 +199,50 @@ describe('theme data contract', () => {
     expect(resolved.omittedMapFeatures).not.toContain('elevation_profile')
   })
 
+  it('formats enriched location and coordinate slot values from the theme data context', () => {
+    const config: StyleConfig = { ...DEFAULT_STYLE_CONFIG, composition: 'splits-grid' }
+    const context = buildThemeDataContext({
+      geojson: routeGeojson,
+      stats: routeStats,
+      styleConfig: config,
+      location_label: 'Boston Common',
+      location_city: 'Boston',
+      location_region: 'Massachusetts',
+      location_country: 'United States',
+      location_lng: -71.0656,
+      location_lat: 42.3555,
+      location_elevation_m: 14,
+    })
+    const resolved = resolveThemeDataContract('splits-stats', 'splits-grid', context, 'proof')
+
+    expect(resolved.resolvedSlotValues.location_text).toBe('Boston Common, Massachusetts, United States')
+    expect(resolved.resolvedSlotValues.composition_meta).toBe('Massachusetts')
+    expect(resolved.resolvedSlotValues.coordinates).toBe("42°21'N\n71°04'W")
+  })
+
+  it('does not treat the map title as missing location metadata', () => {
+    const context = buildThemeDataContext({
+      geojson: routeGeojson,
+      stats: {
+        distance_km: 12,
+        elevation_gain_m: 400,
+        elevation_loss_m: 390,
+        max_elevation_m: 620,
+        min_elevation_m: 220,
+      },
+      title: 'Morning Ride',
+      styleConfig: { ...DEFAULT_STYLE_CONFIG, composition: 'splits-grid' },
+    })
+    const resolved = resolveThemeDataContract('splits-stats', 'splits-grid', context, 'proof')
+
+    expect(context.label).toBeNull()
+    expect(context.title).toBe('Morning Ride')
+    expect(resolved.resolvedSlotValues.trail_name).toBe('Morning Ride')
+    expect(resolved.omittedSlotIds).not.toContain('trail_name')
+    expect(resolved.resolvedSlotValues.location_text).toBeUndefined()
+    expect(resolved.omittedSlotIds).toContain('location_text')
+  })
+
   it('detects nested GPX route geometry when recommending map mode', () => {
     const context = buildThemeDataContext({
       geojson: routeGeometryCollectionGeojson,

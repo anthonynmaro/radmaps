@@ -37,6 +37,14 @@ export default defineEventHandler(async (event) => {
   let bbox: [number, number, number, number]
   let stats: RouteStats
   let trailSegments: TrailSegment[] = []
+  let locationInput: {
+    location_label?: string | null
+    location_city?: string | null
+    location_region?: string | null
+    location_country?: string | null
+    location_lng?: number | null
+    location_lat?: number | null
+  } = {}
 
   if (contentType.includes('application/json')) {
     // Client parsed GPX in the browser and is sending pre-computed GeoJSON + stats
@@ -72,6 +80,14 @@ export default defineEventHandler(async (event) => {
     validateRouteGeojson(geojson)
     bbox = body.bbox
     stats = body.stats
+    locationInput = {
+      location_label: typeof body.location_label === 'string' ? body.location_label : null,
+      location_city: typeof body.location_city === 'string' ? body.location_city : null,
+      location_region: typeof body.location_region === 'string' ? body.location_region : null,
+      location_country: typeof body.location_country === 'string' ? body.location_country : null,
+      location_lng: typeof body.location_lng === 'number' ? body.location_lng : null,
+      location_lat: typeof body.location_lat === 'number' ? body.location_lat : null,
+    }
     // Client-side parsed GPX may include auto-detected named track segments
     if (Array.isArray(body.trail_segments) && body.trail_segments.length > 0) {
       trailSegments = body.trail_segments
@@ -113,6 +129,7 @@ export default defineEventHandler(async (event) => {
     title,
     bbox,
     stats,
+    ...locationInput,
   })
   const insertPayload = {
     user_id: user.id,

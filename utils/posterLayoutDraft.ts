@@ -13,7 +13,7 @@ import type {
 } from '~/types'
 import { effectivePosterLayout } from '~/utils/posterLayout'
 import { buildThemeDataContext, type ThemeDataContextInput } from '~/utils/themeDataContract'
-import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/render/posterFormatters'
+import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/posterFormatters'
 
 export type PosterLayoutDraftBandId = 'header' | 'footer'
 export type PosterLayoutDraftRowKind = 'content' | 'spacer'

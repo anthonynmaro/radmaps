@@ -371,7 +371,7 @@ import type {
 import MapPreview from '~/components/map/MapPreview.vue'
 import { FONT_REGISTRY } from '~/utils/render/fontRegistry'
 import { buildThemeDataContext } from '~/utils/themeDataContract'
-import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/render/posterFormatters'
+import { formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine } from '~/utils/posterFormatters'
 import {
   appendDraftBlock,
   appendDraftRow,

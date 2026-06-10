@@ -1,4 +1,5 @@
 import type { ColorTheme, CompositionId, PosterTextOverrides, PosterTextSlot, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
+import { formatCoordsFromPoint, formatPosterLocationLine, formatPosterRegion } from '~/utils/posterFormatters'
 
 export const THEME_DATA_CONTRACT_VERSION = 'theme-data-contract-v1'
 
@@ -18,6 +19,7 @@ export type ThemeRenderMode =
   | 'share'
 
 export type DataSource =
+  | 'map.title'
   | 'gpx.distance'
   | 'gpx.elevation_gain'
   | 'gpx.elevation_profile'
@@ -73,6 +75,7 @@ export interface ThemeDataContext {
   hasLocation: boolean
   hasCoords: boolean
   hasDate: boolean
+  title: string | null
   distanceKm: number | null
   elevationGainM: number | null
   pointElevationM: number | null
@@ -248,10 +251,10 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     (maxElevationM != null && minElevationM != null && maxElevationM > minElevationM)
   )
   const pointElevationM = finiteNumber(input.location_elevation_m)
+  const title = cleanText(styleConfig.trail_name) ?? cleanText(input.title)
   const label = cleanText(input.location_label)
     ?? cleanText(stats.location)
     ?? cleanText(styleConfig.location_text)
-    ?? cleanText(input.title)
     ?? null
   const city = cleanText(input.location_city)
   const country = cleanText(input.location_country)
@@ -278,6 +281,7 @@ export function buildThemeDataContext(input: ThemeDataContextInput = {}): ThemeD
     hasLocation,
     hasCoords: Boolean(coords),
     hasDate: Boolean(cleanText(stats.date)),
+    title,
     distanceKm: hasDistance ? distanceKm : null,
     elevationGainM: hasElevation && elevationGainM != null && elevationGainM > 0 ? elevationGainM : null,
     pointElevationM,
@@ -313,6 +317,7 @@ export function themeDataContextSignature(context: ThemeDataContext) {
     hasLocation: context.hasLocation,
     hasCoords: context.hasCoords,
     hasDate: context.hasDate,
+    title: context.title,
     distanceKm: context.distanceKm,
     elevationGainM: context.elevationGainM,
     pointElevationM: context.pointElevationM,
@@ -344,7 +349,7 @@ export function themePurposeForContext(context: ThemeDataContext): ThemePurpose 
 export function defaultThemeSlotContracts(composition?: CompositionId): ThemeSlotContract[] {
   const routeFirst = Boolean(composition && ROUTE_FIRST_COMPOSITIONS.has(composition))
   return [
-    { slot: 'trail_name', source: 'location.name', requires: 'always', ifMissing: 'placeholder' },
+    { slot: 'trail_name', source: 'map.title', requires: 'always', ifMissing: 'placeholder' },
     { slot: 'location_text', source: 'location.name', requires: 'location', ifMissing: routeFirst ? 'remove' : 'placeholder' },
     { slot: 'occasion_text', source: 'static', requires: 'always', ifMissing: 'remove' },
     { slot: 'distance', source: 'gpx.distance', requires: 'route', ifMissing: 'remove' },
@@ -369,13 +374,17 @@ function requirementMet(requirement: ThemeRequirement, context: ThemeDataContext
 }
 
 function valueForSource(source: DataSource, context: ThemeDataContext): string | null {
+  if (source === 'map.title') return context.title
   if (source === 'gpx.distance') return context.distanceKm != null ? String(context.distanceKm) : null
   if (source === 'gpx.elevation_gain') return context.elevationGainM != null ? String(context.elevationGainM) : null
-  if (source === 'location.name') return context.label
-  if (source === 'location.region') return context.region ?? context.city ?? context.country
-  if (source === 'location.coords') return context.coords ? `${context.coords.lat},${context.coords.lng}` : null
+  if (source === 'location.name') return formatPosterLocationLine(context) || context.label
+  if (source === 'location.region') return formatPosterRegion(context)
+  if (source === 'location.coords') {
+    const coords = formatCoordsFromPoint(context.coords)
+    return coords ? `${coords.lat}\n${coords.lng}` : null
+  }
   if (source === 'location.point_elevation') return context.pointElevationM != null ? String(context.pointElevationM) : null
-  if (source === 'derived.composition_meta') return context.region ?? context.label ?? context.date
+  if (source === 'derived.composition_meta') return formatPosterRegion(context) || formatPosterLocationLine(context) || context.date
   return null
 }
 

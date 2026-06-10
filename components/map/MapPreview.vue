@@ -2131,7 +2131,7 @@ import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
 import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
-import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/render/posterFormatters'
+import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
@@ -3880,14 +3880,23 @@ function hasVisibleTextOverride(slot: PosterTextSlot) {
   return Boolean(slotOverride(slot).text?.trim())
 }
 
+function contractResolvedSlotText(slot: PosterTextSlot) {
+  return themeDataContract.value.resolvedSlotValues[slot]?.trim() ?? ''
+}
+
+function contractOmitsSlot(slot: PosterTextSlot) {
+  return themeDataContract.value.omittedSlotIds.includes(slot) && !hasVisibleTextOverride(slot)
+}
+
 function textWithOverride(slot: PosterTextSlot, fallback: string) {
   return slotOverride(slot).text ?? fallback
 }
 
 function defaultSlotText(slot: PosterTextSlot) {
+  if (contractOmitsSlot(slot)) return ''
   if (slot === 'trail_name') return props.styleConfig.trail_name || props.map.title || 'Your Trail'
   if (slot === 'location_text') {
-    const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
+    const text = props.styleConfig.location_text?.trim() || contractResolvedSlotText(slot) || formatPosterLocationLine(themeDataContext.value)
     if (composition.value.id === 'blueprint-strava') return text
     return text ? text.toUpperCase() : ''
   }
@@ -3901,7 +3910,7 @@ function defaultSlotText(slot: PosterTextSlot) {
   if (slot === 'composition_meta') return compositionDecorDefaults.value.meta ?? ''
   if (slot === 'composition_footer') return compositionDecorDefaults.value.footerNote ?? ''
   if (slot === 'composition_side_rail') return compositionDecorDefaults.value.sideRailLabel ?? ''
-  return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''
+  return contractResolvedSlotText(slot) || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
 }
 
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {

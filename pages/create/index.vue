@@ -996,7 +996,15 @@ async function savePlaceMap() {
     const response = await fetch('/api/maps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: placeTitle.value.trim(), geojson, bbox: placeBbox.value, stats }),
+      body: JSON.stringify({
+        title: placeTitle.value.trim(),
+        geojson,
+        bbox: placeBbox.value,
+        stats,
+        location_label: placeTitle.value.trim(),
+        location_lng: placePinLng.value,
+        location_lat: placePinLat.value,
+      }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
