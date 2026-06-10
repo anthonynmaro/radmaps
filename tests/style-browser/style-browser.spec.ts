@@ -1625,6 +1625,51 @@ test.describe('style browser visual harness', () => {
     })).toBe(true)
   })
 
+  test('adapts generated contour density to the loaded map location relief', async ({ page }) => {
+    async function contourProfileFor(region: string) {
+      await page.goto(`/style-browser-fixture?composition=modernist-block&theme=blackline&region=${region}&editable=1&elevation=1`)
+      await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+      const readProfile = () => page.evaluate(() => {
+        const win = window as unknown as {
+          __RADMAPS_MAP_CAMERA__?: {
+            getContourProfile?: () => {
+              source: string
+              detail: number
+              thresholds: Record<string, [number, number]>
+              relief: { band: string }
+            }
+          }
+        }
+        const profile = win.__RADMAPS_MAP_CAMERA__?.getContourProfile?.()
+        if (!profile || profile.source !== 'visible-route') return null
+        return {
+          detail: profile.detail,
+          band: profile.relief.band,
+          zoom10: profile.thresholds['10'],
+          zoom14: profile.thresholds['14'],
+        }
+      })
+      await expect.poll(readProfile, { timeout: 15_000 }).not.toBeNull()
+      return await readProfile()
+    }
+
+    const bostonProfile = await contourProfileFor('boston')
+    expect(bostonProfile).toMatchObject({
+      detail: 5,
+      band: 'low',
+      zoom10: [5, 25],
+      zoom14: [5, 25],
+    })
+
+    const whitneyProfile = await contourProfileFor('whitney')
+    expect(whitneyProfile).toMatchObject({
+      detail: 0,
+      band: 'extreme',
+      zoom10: [200, 1000],
+      zoom14: [50, 200],
+    })
+  })
+
   test('updates Dark Sky contour weights live even with Atlas contour defaults', async ({ page }) => {
     await page.goto('/style-browser-fixture?composition=darksky-stars&theme=dark-sky&editable=1')
     await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })

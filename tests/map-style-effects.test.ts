@@ -115,10 +115,10 @@ describe('adaptive contour detail', () => {
   it('uses dense printable contour intervals across poster zooms for low-relief routes', () => {
     expect(resolveAdaptiveContourThresholds({ contour_detail: 0 }, lowReliefStats)).toEqual(LOW_RELIEF_CONTOUR_THRESHOLDS)
     expect(resolveAdaptiveContourThresholds({ contour_detail: 0 }, lowReliefStats)).toMatchObject({
-      1: [2, 10],
-      7: [2, 10],
-      10: [2, 10],
-      14: [2, 10],
+      1: [5, 25],
+      7: [5, 25],
+      10: [5, 25],
+      14: [5, 25],
     })
   })
 
@@ -147,9 +147,9 @@ describe('adaptive contour detail', () => {
   it('uses near-max Brutalist intervals so flat city maps still show index contours', () => {
     expect(resolveAdaptiveContourThresholds({ color_theme: 'brutalist', contour_detail: 0 }, lowReliefStats)).toEqual(BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS)
     expect(resolveAdaptiveContourThresholds({ color_theme: 'brutalist', contour_detail: 0 }, lowReliefStats)).toMatchObject({
-      1: [1, 5],
-      10: [1, 5],
-      14: [1, 5],
+      1: [5, 20],
+      10: [5, 20],
+      14: [5, 20],
     })
   })
 

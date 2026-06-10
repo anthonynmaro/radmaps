@@ -2151,7 +2151,7 @@ import { autoUpdate, computePosition, flip, offset, shift, type Placement } from
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineOpacityExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveAdaptiveContourOverzoom, resolveAdaptiveContourStyleConfig, resolveAdaptiveContourThresholds, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
+import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineOpacityExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveAdaptiveContourOverzoom, resolveAdaptiveContourReliefProfile, resolveAdaptiveContourStyleConfig, resolveAdaptiveContourThresholds, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
@@ -2163,7 +2163,7 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
@@ -2464,6 +2464,9 @@ function ensureTileEffectProtocol() {
 // tiles on-the-fly from free AWS terrarium DEM tiles at any elevation interval.
 
 let mlDemSource: any = null
+const contourViewStats = ref<Partial<RouteStats> | null>(null)
+let contourViewRefreshTimer: ReturnType<typeof setTimeout> | null = null
+let contourProfileReloading = false
 
 async function ensureContourProtocol() {
   if (mlDemSource) return
@@ -2481,9 +2484,13 @@ async function ensureContourProtocol() {
   mlDemSource.setupMaplibre(maplibregl)
 }
 
+function activeContourStats(): Partial<RouteStats> | null | undefined {
+  return contourViewStats.value ?? props.map.stats
+}
+
 function getContourTileUrl(cfg: StyleConfig): string | undefined {
   if (!styleUsesContours(cfg) || !mlDemSource) return undefined
-  const thresholds = resolveAdaptiveContourThresholds(cfg, props.map.stats)
+  const thresholds = resolveAdaptiveContourThresholds(cfg, activeContourStats())
   return mlDemSource.contourProtocolUrl({
     thresholds,
     overzoom: resolveAdaptiveContourOverzoom(cfg),
@@ -5718,7 +5725,7 @@ function currentVisualScale(): number {
 }
 
 function contourAdaptedStyleConfig(styleConfig: StyleConfig): StyleConfig {
-  return resolveAdaptiveContourStyleConfig(styleConfig, props.map.stats)
+  return resolveAdaptiveContourStyleConfig(styleConfig, activeContourStats())
 }
 
 function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecification {
@@ -5732,6 +5739,111 @@ function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecific
   ) as maplibregl.StyleSpecification
   const zoomCompensatedStyle = applyViewportZoomCompensationToStyle(style, printZoomCompensationDelta())
   return applyViewportScaleToStyle(zoomCompensatedStyle, currentVisualScale()) as maplibregl.StyleSpecification
+}
+
+function visibleRouteContourStats(): Partial<RouteStats> | null {
+  if (!mapInstance) return null
+  const routeGeojson = props.map.geojson as GeoJSON.FeatureCollection | undefined
+  if (!routeGeojson?.features?.length) return null
+
+  const bounds = mapInstance.getBounds()
+  const visibleCoords = getAllRouteCoords(routeGeojson).filter(coord => (
+    Number.isFinite(coord[0]) &&
+    Number.isFinite(coord[1]) &&
+    Number.isFinite(coord[2]) &&
+    bounds.contains([coord[0], coord[1]] as [number, number])
+  ))
+  if (visibleCoords.length < 4 || !coordsHaveElevation(visibleCoords)) return null
+
+  const stats = routeStatsForCoords(visibleCoords)
+  const reliefM = (stats.max_elevation_m ?? 0) - (stats.min_elevation_m ?? 0)
+  if (reliefM <= 0 && (stats.elevation_gain_m ?? 0) <= 0 && (stats.elevation_loss_m ?? 0) <= 0) return null
+  return stats
+}
+
+function contourAdaptationSignature(styleConfig: StyleConfig = props.styleConfig): string {
+  if (!styleUsesContours(styleConfig)) return 'contours-disabled'
+  const stats = activeContourStats()
+  const contourConfig = contourAdaptedStyleConfig(styleConfig)
+  return JSON.stringify({
+    detail: contourConfig.contour_detail,
+    thresholds: resolveAdaptiveContourThresholds(contourConfig, stats),
+    overzoom: resolveAdaptiveContourOverzoom(contourConfig),
+    opacity: contourConfig.contour_opacity,
+    minorWidth: contourConfig.contour_minor_width,
+    majorWidth: contourConfig.contour_major_width,
+    atlasContour: contourConfig.atlas_layer_settings?.contour ?? null,
+  })
+}
+
+function devContourProfile() {
+  const stats = activeContourStats()
+  const contourConfig = contourAdaptedStyleConfig(props.styleConfig)
+  return {
+    source: contourViewStats.value ? 'visible-route' : props.map.stats ? 'route-stats' : 'unknown',
+    stats,
+    relief: resolveAdaptiveContourReliefProfile(stats),
+    detail: contourConfig.contour_detail,
+    thresholds: resolveAdaptiveContourThresholds(contourConfig, stats),
+    overzoom: resolveAdaptiveContourOverzoom(contourConfig),
+  }
+}
+
+async function reloadStyleForContourProfile(styleConfig: StyleConfig = props.styleConfig): Promise<boolean> {
+  if (!mapInstance || contourProfileReloading) return false
+  contourProfileReloading = true
+  const instance = mapInstance
+  const cameraBeforeReload = snapshotCurrentCamera()
+  mapReady.value = false
+  if (styleUsesContours(styleConfig)) await ensureContourProtocol()
+
+  return await new Promise<boolean>((resolve) => {
+    const complete = () => {
+      populateRouteSource()
+      populateSegmentSources()
+      placePinMarkers()
+      apply3DTerrain({ animate: false })
+      restoreCameraAfterStyleReload(cameraBeforeReload)
+      applyViewportScaledLayerProperties(styleConfig)
+      mapReady.value = true
+      contourProfileReloading = false
+      if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
+      nextTick(recomputeOverlays)
+      if (props.deleteBrushActive) nextTick(activateDeleteBrush)
+      if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
+      if (props.segmentEditMode) nextTick(syncSegmentEditSources)
+      markPrintRenderReady()
+      resolve(true)
+    }
+
+    try {
+      instance.once('styledata', complete)
+      instance.setStyle(buildScaledMapStyle(styleConfig))
+    } catch {
+      instance.off('styledata', complete)
+      contourProfileReloading = false
+      mapReady.value = true
+      resolve(false)
+    }
+  })
+}
+
+async function refreshContourViewProfile(options: { reloadStyle?: boolean } = {}): Promise<boolean> {
+  if (!mapInstance || !styleUsesContours(props.styleConfig)) return false
+  const before = contourAdaptationSignature()
+  contourViewStats.value = visibleRouteContourStats()
+  const after = contourAdaptationSignature()
+  if (!options.reloadStyle || before === after) return false
+  return await reloadStyleForContourProfile()
+}
+
+function scheduleContourViewProfileRefresh() {
+  if (!mapInstance || !mapReady.value || contourProfileReloading || !styleUsesContours(props.styleConfig)) return
+  if (contourViewRefreshTimer) clearTimeout(contourViewRefreshTimer)
+  contourViewRefreshTimer = setTimeout(() => {
+    contourViewRefreshTimer = null
+    void refreshContourViewProfile({ reloadStyle: true })
+  }, 180)
 }
 
 function addTonerDotPatternImage(instance: maplibregl.Map, id: string): boolean {
@@ -7484,6 +7596,7 @@ function publishDevCameraHandle() {
       getLayerIds: () => string[]
       hasImage: (id: string) => boolean
       getPaintProperty: (layerId: string, property: string) => unknown
+      getContourProfile: () => ReturnType<typeof devContourProfile>
       getInteractionState: () => {
         dragPan: boolean
         scrollZoom: boolean
@@ -7503,6 +7616,7 @@ function publishDevCameraHandle() {
     getLayerIds: () => mapInstance?.getStyle?.()?.layers?.map(layer => layer.id) ?? [],
     hasImage: (id) => mapInstance?.hasImage(id) ?? false,
     getPaintProperty: (layerId, property) => mapInstance?.getPaintProperty(layerId, property) ?? null,
+    getContourProfile: devContourProfile,
     getInteractionState: () => ({
       dragPan: mapInstance?.dragPan.isEnabled() ?? false,
       scrollZoom: mapInstance?.scrollZoom.isEnabled() ?? false,
@@ -7599,7 +7713,7 @@ onMounted(async () => {
     window.setTimeout(() => { suppressViewSave = false }, 250)
   }
 
-  mapInstance.on('load', () => {
+  mapInstance.on('load', async () => {
     populateRouteSource()
     populateSegmentSources()
     placePinMarkers()
@@ -7613,6 +7727,7 @@ onMounted(async () => {
       queuedStyleConfig = null
       void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
     }
+    if (await refreshContourViewProfile({ reloadStyle: true })) return
     markPrintRenderReady()
     if (!isPrintRender.value) {
       const publishStatus = () => requestAnimationFrame(publishEditorRenderStatus)
@@ -7635,6 +7750,7 @@ onMounted(async () => {
 
   mapInstance.on('move', recomputeOverlays)
   mapInstance.on('moveend', scheduleViewSave)
+  mapInstance.on('moveend', scheduleContourViewProfileRefresh)
 
   resizeObserver = new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame)
@@ -9567,6 +9683,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onSegmentEditKeydown)
   cancelAnimationFrame(plotAnimFrame)
   if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
+  if (contourViewRefreshTimer) clearTimeout(contourViewRefreshTimer)
   mapInstance?.remove()
   mapInstance = null
   if (import.meta.dev && typeof window !== 'undefined') {

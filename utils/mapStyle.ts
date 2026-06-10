@@ -226,27 +226,27 @@ export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>
 }
 
 export const LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
-  1: [2, 10],
-  7: [2, 10],
-  8: [2, 10],
-  9: [2, 10],
-  10: [2, 10],
-  11: [2, 10],
-  12: [2, 10],
-  13: [2, 10],
-  14: [2, 10],
+  1: [5, 25],
+  7: [5, 25],
+  8: [5, 25],
+  9: [5, 25],
+  10: [5, 25],
+  11: [5, 25],
+  12: [5, 25],
+  13: [5, 25],
+  14: [5, 25],
 }
 
 export const BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
-  1: [1, 5],
-  7: [1, 5],
-  8: [1, 5],
-  9: [1, 5],
-  10: [1, 5],
-  11: [1, 5],
-  12: [1, 5],
-  13: [1, 5],
-  14: [1, 5],
+  1: [5, 20],
+  7: [5, 20],
+  8: [5, 20],
+  9: [5, 20],
+  10: [5, 20],
+  11: [5, 20],
+  12: [5, 20],
+  13: [5, 20],
+  14: [5, 20],
 }
 
 export const CONTOUR_DEM_OVERZOOM = 0
