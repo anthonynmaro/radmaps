@@ -2,6 +2,7 @@
 import { createHmac } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import sharp from 'sharp'
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname)
 const COVERAGE_TARGETS_PATH = join(ROOT, 'atlas/coverage-targets.json')
@@ -13,6 +14,8 @@ const FINAL_24X36 = {
   widthPx: 7271,
   heightPx: 10871,
   deviceScaleFactor: 2,
+  dpi: 300,
+  quality: 95,
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -252,7 +255,8 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
     body: JSON.stringify({
       url,
       options: {
-        type: 'png',
+        type: 'jpeg',
+        quality: FINAL_24X36.quality,
         fullPage: false,
         captureBeyondViewport: false,
       },
@@ -277,20 +281,63 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
     throw new Error(`AWS renderer failed for ${fixture.id} (${response.status}): ${body.slice(0, 1000)}`)
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer())
-  const imagePath = join(outputDir, `${fixture.id}.png`)
+  const rawBuffer = Buffer.from(await response.arrayBuffer())
+  const rawMetadata = await sharp(rawBuffer).metadata()
+  const buffer = await normalizeFinalPrintBuffer(rawBuffer, {
+    expectedWidth: FINAL_24X36.widthPx,
+    expectedHeight: FINAL_24X36.heightPx,
+    maxOversizePx: FINAL_24X36.deviceScaleFactor,
+    dpi: FINAL_24X36.dpi,
+    quality: FINAL_24X36.quality,
+  })
+  const metadata = await sharp(buffer).metadata()
+  const imagePath = join(outputDir, `${fixture.id}.jpg`)
   writeFileSync(imagePath, buffer)
   return {
     status: 'rendered',
     backend: 'aws-renderer',
     imagePath,
     bytes: buffer.byteLength,
-    widthPx: FINAL_24X36.widthPx,
-    heightPx: FINAL_24X36.heightPx,
+    widthPx: metadata.width,
+    heightPx: metadata.height,
+    densityDpi: metadata.density,
     deviceScaleFactor: FINAL_24X36.deviceScaleFactor,
+    rawScreenshot: {
+      bytes: rawBuffer.byteLength,
+      widthPx: rawMetadata.width,
+      heightPx: rawMetadata.height,
+      densityDpi: rawMetadata.density,
+    },
     renderMs: Date.now() - started,
     url: url.replace(/([?&]ticket=)[^&]+/, '$1REDACTED'),
   }
+}
+
+async function normalizeFinalPrintBuffer(buffer, options) {
+  const metadata = await sharp(buffer).metadata()
+  const width = metadata.width
+  const height = metadata.height
+  if (!width || !height) {
+    throw new Error('AWS renderer screenshot dimensions are unreadable')
+  }
+  if (width < options.expectedWidth || height < options.expectedHeight) {
+    throw new Error(`AWS renderer screenshot is undersized: got ${width}x${height}, expected ${options.expectedWidth}x${options.expectedHeight}`)
+  }
+  const oversizeX = width - options.expectedWidth
+  const oversizeY = height - options.expectedHeight
+  if (oversizeX > options.maxOversizePx || oversizeY > options.maxOversizePx) {
+    throw new Error(`AWS renderer screenshot oversize exceeds crop tolerance: got ${width}x${height}, expected ${options.expectedWidth}x${options.expectedHeight}`)
+  }
+
+  let image = sharp(buffer)
+  if (width !== options.expectedWidth || height !== options.expectedHeight) {
+    image = image.extract({ left: 0, top: 0, width: options.expectedWidth, height: options.expectedHeight })
+  }
+
+  return image
+    .withMetadata({ density: options.dpi })
+    .jpeg({ quality: options.quality })
+    .toBuffer()
 }
 
 function createRenderTicket(payload, secret) {

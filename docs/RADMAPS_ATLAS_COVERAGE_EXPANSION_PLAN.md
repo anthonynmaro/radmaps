@@ -147,7 +147,9 @@ builds.
   print renderer as proof/final output. `npm run atlas:print-qa` reads
   `atlas/coverage-targets.json`, audits production tile coverage, writes
   review metadata under `artifacts/atlas-print-qa/{date}/`, and can call the
-  AWS renderer with `--render` once the app deployment includes the route.
+  AWS renderer with `--render` once the app deployment includes the route. The
+  render path saves normalized 24x36 final-style JPEGs with exact provider
+  pixels and 300 DPI metadata, not raw browser screenshot PNGs.
 - The Nuxt app proxy now returns valid empty MVT responses for sparse or
   not-yet-built `poi`/`outdoorRoutes` overlay tiles instead of surfacing 404s
   into MapLibre. A dedicated HEAD route was added so production smoke monitors

@@ -269,10 +269,11 @@ As of 2026-06-09:
   records matching artifact ids, and writes
   `artifacts/atlas-print-qa/{date}/summary.json`. Render mode
   (`-- --render`) signs `atlas-qa` render tickets and sends the real Nuxt
-  `/render/atlas-qa/{fixtureId}` page through the AWS renderer. Render mode
-  requires `PROOF_RENDER_ENDPOINT`, `PROOF_RENDER_TOKEN`, and
-  `RENDER_TICKET_SECRET`, and should be run only after the app deployment
-  includes the signed QA route.
+  `/render/atlas-qa/{fixtureId}` page through the AWS renderer. The runner
+  normalizes the raw browser screenshot to exact 24x36 final-print pixels and
+  300 DPI JPEG metadata before saving review artifacts. Render mode requires
+  `PROOF_RENDER_ENDPOINT`, `PROOF_RENDER_TOKEN`, and `RENDER_TICKET_SECRET`,
+  and should be run only after the app deployment includes the signed QA route.
 
 North America build details:
 

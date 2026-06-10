@@ -98,8 +98,10 @@ Completed:
 - A signed Atlas print-QA render path exists at `/render/atlas-qa/{fixtureId}`
   and is driven by `npm run atlas:print-qa`. It renders the real
   `MapPreview.vue` print path with 24x36 framing and coverage-target fixture
-  bboxes, then stores review metadata and optional AWS-rendered PNGs under
-  `artifacts/atlas-print-qa/{date}/`.
+  bboxes, then stores review metadata and optional AWS-rendered final-style
+  JPEGs under `artifacts/atlas-print-qa/{date}/`. Those JPEGs are normalized to
+  exact provider pixels and 300 DPI metadata so they can be judged as print QA,
+  not browser thumbnails.
 
 Not done yet:
 

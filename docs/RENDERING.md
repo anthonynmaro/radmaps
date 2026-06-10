@@ -136,7 +136,7 @@ Proof renders:
    In production this backend is the AWS App Runner proof renderer configured
    by `PROOF_RENDER_ENDPOINT`.
 4. [pages/render/map/[id].vue](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/pages/render/map/[id].vue) loads only the server-approved payload from `/api/render/payload`.
-5. The JPEG is validated, uploaded to Supabase Storage, and the map row is updated with proof render metadata.
+5. The JPEG is normalized, validated, uploaded to Supabase Storage, and the map row is updated with proof render metadata.
 6. The same proof URL is written to `proof_render_url`, `thumbnail_url`, and `render_url`. The proof render is the canonical user-facing thumbnail.
 
 Admin premade preview generation uses the same signed Nuxt/MapLibre render
@@ -155,7 +155,7 @@ Final order renders:
 3. The Stripe webhook inserts a `print_render_jobs` row.
 4. The `render-worker-v4` queue consumer calls [renderFinalScreenshot.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/render-worker-v4/src/queue/renderFinalScreenshot.ts).
 5. The configured screenshot backend captures `/render/session/[stripeSessionId]?ticket=...`.
-6. The worker validates dimensions and image health, uploads the artifact, inserts `product_renders`, then submits to Gelato.
+6. The worker normalizes the screenshot to exact provider pixels, embeds the target print DPI, validates dimensions and image health, uploads the artifact, inserts `product_renders`, then submits to Gelato.
 
 `render-worker-v4` is not a second poster renderer anymore. It is the bounded
 final-order orchestrator: claim queued jobs, call the configured browser
@@ -173,9 +173,11 @@ Atlas print QA:
    `TrailMap` from the coverage fixture. It does not query Supabase or create
    customer maps.
 4. `/render/atlas-qa/[fixtureId].vue` screenshots the real `MapPreview.vue`
-   print path at 24x36 final dimensions, so it is suitable for Atlas rollout
-   QA. The dev-only `/style-browser-fixture` route remains useful for local
-   regression tests but is not the production Atlas print-QA gate.
+   print path at 24x36 final dimensions. The QA runner normalizes that raw
+   browser screenshot to the exact final-print pixel box and 300 DPI JPEG
+   metadata used by the final worker, so the saved artifact is suitable for
+   Atlas rollout QA. The dev-only `/style-browser-fixture` route remains useful
+   for local regression tests but is not the production Atlas print-QA gate.
 
 Product mockups:
 
@@ -312,7 +314,7 @@ Do not reintroduce mixed-aspect product choices while the editor is single-aspec
 
 The final render includes bleed. For example, `24x36` with 3 mm bleed at 300 DPI renders to approximately `7271x10871` pixels, not `7200x10800`.
 
-This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Proof and final renders keep the browser CSS layout close to the saved editor map width, then use `deviceScaleFactor` to reach the required print pixels. Print mode also compensates zoom-dependent MapLibre style stops so labels and minor-detail layers evaluate at the editor-equivalent zoom, not the high-resolution screenshot zoom. That keeps MapLibre label density and collision behavior aligned with the editor/product preview instead of changing it at large product viewport widths. The renderer then normalizes the screenshot JPEG back to the exact `getPrintFraming(...)` dimensions before validation/upload. For odd bleed dimensions, this means cropping a small right/bottom surplus after capture. Do not remove this normalization or validate/upload the raw screenshot buffer.
+This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Proof and final renders keep the browser CSS layout close to the saved editor map width, then use `deviceScaleFactor` to reach the required print pixels. Print mode also compensates zoom-dependent MapLibre style stops so labels and minor-detail layers evaluate at the editor-equivalent zoom, not the high-resolution screenshot zoom. That keeps MapLibre label density and collision behavior aligned with the editor/product preview instead of changing it at large product viewport widths. The renderer then normalizes the screenshot JPEG back to the exact `getPrintFraming(...)` dimensions and embeds the target render DPI before validation/upload. For odd bleed dimensions, this means cropping a small right/bottom surplus after capture. Do not remove this normalization or validate/upload the raw screenshot buffer.
 
 Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
 
