@@ -10868,7 +10868,7 @@ onUnmounted(() => {
 
 .poster-composition--splits-grid[data-theme="night-ride"] .poster-footer {
   background: transparent !important;
-  padding: 0.95cqh calc(6.2cqw + var(--print-bleed, 0px)) calc(4.85cqh + var(--print-bleed, 0px)) !important;
+  padding: 0.9cqh calc(6.35cqw + var(--print-bleed, 0px)) calc(4.4cqh + var(--print-bleed, 0px)) !important;
   align-items: flex-end !important;
 }
 
@@ -10884,20 +10884,20 @@ onUnmounted(() => {
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-footer {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  column-gap: 2.05cqw;
+  column-gap: 2.2cqw;
   align-items: end;
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item {
-  padding-left: 1.45cqw;
+  padding-left: 1.6cqw;
   border-left-color: color-mix(in srgb, currentColor 24%, transparent);
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item span {
-  margin-bottom: 1.06cqh;
-  font-size: 1.2cqh;
-  letter-spacing: 0.18em;
-  color: color-mix(in srgb, currentColor 68%, transparent);
+  margin-bottom: 1.34cqh;
+  font-size: 1.16cqh;
+  letter-spacing: 0.2em;
+  color: color-mix(in srgb, currentColor 64%, transparent);
 }
 
 .poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item strong {
