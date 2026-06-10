@@ -23,6 +23,23 @@ const routeGeojson: GeoJSON.FeatureCollection = {
     },
   }],
 }
+const routeGeometryCollectionGeojson: GeoJSON.FeatureCollection = {
+  type: 'FeatureCollection',
+  features: [{
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'GeometryCollection',
+      geometries: [{
+        type: 'LineString',
+        coordinates: [
+          [-87.74, 40.15, 190],
+          [-87.73, 40.16, 260],
+        ],
+      }],
+    },
+  }],
+}
 
 const placeStats: RouteStats = {
   distance_km: 0,
@@ -180,6 +197,18 @@ describe('theme data contract', () => {
     expect(resolved.omittedSlotIds).not.toContain('distance')
     expect(resolved.omittedSlotIds).not.toContain('elevation_gain')
     expect(resolved.omittedMapFeatures).not.toContain('elevation_profile')
+  })
+
+  it('detects nested GPX route geometry when recommending map mode', () => {
+    const context = buildThemeDataContext({
+      geojson: routeGeometryCollectionGeojson,
+      stats: routeStats,
+    })
+
+    expect(context.hasRoute).toBe(true)
+    expect(context.hasElevation).toBe(true)
+    expect(context.purpose).toBe('route-terrain')
+    expect(context.recommendedBaseMapMode).toBe('terrain')
   })
 
   it('treats explicit empty route geometry as missing route data even when stale stats exist', () => {

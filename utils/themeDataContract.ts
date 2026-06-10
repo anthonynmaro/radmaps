@@ -149,30 +149,38 @@ function bboxCenter(bbox: [number, number, number, number] | null) {
   }
 }
 
+function geometryHasRenderableLine(geometry?: GeoJSON.Geometry | null): boolean {
+  if (!geometry) return false
+  if (geometry.type === 'LineString') return geometry.coordinates.length > 1
+  if (geometry.type === 'MultiLineString') return geometry.coordinates.some(line => line.length > 1)
+  if (geometry.type === 'GeometryCollection') return geometry.geometries.some(child => geometryHasRenderableLine(child))
+  return false
+}
+
 function hasRenderableLine(geojson?: GeoJSON.FeatureCollection | null): boolean {
-  for (const feature of geojson?.features ?? []) {
-    const geometry = feature.geometry
-    if (!geometry) continue
-    if (geometry.type === 'LineString' && geometry.coordinates.length > 1) return true
-    if (geometry.type === 'MultiLineString' && geometry.coordinates.some(line => line.length > 1)) return true
+  return (geojson?.features ?? []).some(feature => geometryHasRenderableLine(feature.geometry))
+}
+
+function geometryHasElevation(geometry?: GeoJSON.Geometry | null): boolean {
+  if (!geometry) return false
+  const lines = geometry.type === 'LineString'
+    ? [geometry.coordinates]
+    : geometry.type === 'MultiLineString'
+      ? geometry.coordinates
+      : []
+  if (geometry.type === 'GeometryCollection') return geometry.geometries.some(child => geometryHasElevation(child))
+
+  for (const line of lines) {
+    for (const coord of line) {
+      if (typeof coord[2] === 'number' && Number.isFinite(coord[2]) && coord[2] !== 0) return true
+    }
   }
   return false
 }
 
 function geojsonHasElevation(geojson?: GeoJSON.FeatureCollection | null): boolean {
   for (const feature of geojson?.features ?? []) {
-    const geometry = feature.geometry
-    if (!geometry) continue
-    const lines = geometry.type === 'LineString'
-      ? [geometry.coordinates]
-      : geometry.type === 'MultiLineString'
-        ? geometry.coordinates
-        : []
-    for (const line of lines) {
-      for (const coord of line) {
-        if (typeof coord[2] === 'number' && Number.isFinite(coord[2]) && coord[2] !== 0) return true
-      }
-    }
+    if (geometryHasElevation(feature.geometry)) return true
   }
   return false
 }
