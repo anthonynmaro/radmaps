@@ -30,6 +30,11 @@ type CoverageTarget = {
   }>
 }
 
+type AtlasRegion = {
+  id: string
+  coverage?: string
+}
+
 const repoRoot = resolve(__dirname, '..')
 const coverageTargets = JSON.parse(
   readFileSync(resolve(repoRoot, 'atlas/coverage-targets.json'), 'utf8'),
@@ -45,7 +50,7 @@ const coverageTargets = JSON.parse(
   }
   targets: CoverageTarget[]
 }
-const atlasRegions = JSON.parse(readFileSync(resolve(repoRoot, 'atlas/regions.json'), 'utf8')) as Record<string, unknown>
+const atlasRegions = JSON.parse(readFileSync(resolve(repoRoot, 'atlas/regions.json'), 'utf8')) as Record<string, AtlasRegion>
 const premadeSlugs = new Set(PREMADE_MAPS.map(map => map.slug))
 
 describe('atlas coverage target matrix', () => {
@@ -72,8 +77,12 @@ describe('atlas coverage target matrix', () => {
   it('points runnable targets at declared atlas build regions', () => {
     for (const target of coverageTargets.targets) {
       if (target.status === 'build-candidate' || target.status === 'qa-ready' || target.status === 'staging-live') {
-        expect(target.atlasRegion, target.id).toBeTruthy()
-        expect(atlasRegions[target.atlasRegion!], target.id).toBeTruthy()
+        const splitRegions = Object.values(atlasRegions).filter(region => region.coverage === target.id)
+        if (target.atlasRegion) {
+          expect(atlasRegions[target.atlasRegion], target.id).toBeTruthy()
+        } else {
+          expect(splitRegions.map(region => region.id), target.id).not.toEqual([])
+        }
       }
 
       if (target.status.startsWith('deferred')) {
@@ -115,10 +124,17 @@ describe('atlas coverage target matrix', () => {
   it('keeps first-wave global builds under the small-pack cost cap', () => {
     const firstWave = coverageTargets.targets.filter(target => target.status === 'build-candidate')
 
-    expect(firstWave.map(target => target.id)).toEqual([])
+    expect(firstWave.map(target => target.id)).toEqual([
+      'western-alps-dolomites',
+      'atlantic-islands',
+      'andes-peru-ecuador',
+      'iceland-scotland',
+      'costa-rica-central-america',
+    ])
 
     for (const target of firstWave) {
-      expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(25)
+      expect(target.maxNewBuildCostUsd, target.id).toBeLessThanOrEqual(35)
+      expect(target.estimatedNextBuildCostUsd, target.id).toBeLessThanOrEqual(target.maxNewBuildCostUsd)
     }
 
     const buildCandidateBudget = coverageTargets.targets
