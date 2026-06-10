@@ -121,6 +121,27 @@ describe('poster layout merge', () => {
     expect(coords?.block?.scale).toBeLessThan(distance?.block?.scale ?? 0)
   })
 
+  it('keeps Night Ride map-forward with a compact title and footer stack', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'night-ride',
+      composition: 'splits-grid',
+      labels: {
+        ...baseConfig.labels,
+        show_date: true,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_location: true,
+      },
+    }, stats)
+
+    expect(layout.bands.header.height).toBe(14)
+    expect(layout.bands.footer.height).toBe(14)
+    expect(layout.bands.header.rows.find(row => row.id === 'header-title')?.fr).toBe(1.72)
+    expect(layout.bands.footer.rows.find(row => row.id === 'footer-primary')?.fr).toBe(1.32)
+    expect(blocksFor(layout, 'footer').find(block => block?.slot === 'distance')?.scale).toBeGreaterThan(1.4)
+  })
+
   it('keeps default occasion text only on roomier compositions', () => {
     const roomierCompositions = ['editorial-tall', 'journal-spread'] as const
     const denseCompositions = ['blueprint-grid', 'blueprint-strava', 'splits-grid', 'bib-numerals', 'brutalist-slab'] as const

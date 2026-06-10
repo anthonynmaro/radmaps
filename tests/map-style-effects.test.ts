@@ -2481,6 +2481,7 @@ describe('RadMaps Atlas style integration', () => {
         grid: false,
         gridOpacity: 0.10,
         profileHeight: 17,
+        background: '#0B0D10',
         land: '#141619',
         water: '#0E1720',
         minorContour: '#30343A',
@@ -2500,8 +2501,9 @@ describe('RadMaps Atlas style integration', () => {
         grid: false,
         gridOpacity: 0.2,
         profileHeight: 14,
-        land: '#121823',
-        water: '#0D1B27',
+        background: '#0B111C',
+        land: '#0B111C',
+        water: '#0A1723',
         minorContour: '#222F34',
         majorContour: '#52666A',
         contourDetail: 5,
@@ -2523,6 +2525,8 @@ describe('RadMaps Atlas style integration', () => {
       expect(config.composition).toBe('splits-grid')
       expect(config.font_family).toBe(expected.font)
       expect(config.body_font_family).toBe('IBM Plex Sans')
+      expect(config.background_color).toBe(expected.background)
+      expect(config.label_bg_color).toBe(expected.background)
       expect(config.tile_grain).toBe(expected.grain)
       expect(config.show_roads).toBe(false)
       expect(config.show_place_labels).toBe(false)

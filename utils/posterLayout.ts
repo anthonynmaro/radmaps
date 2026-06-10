@@ -338,6 +338,7 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
   const hasOccasion = compositionUsesOccasion(composition) && hasVisibleText(styleConfig.occasion_text)
   const isUsgsHeritage = styleConfig.color_theme === 'usgs-vintage'
   const isBlueprint = styleConfig.color_theme === 'blueprint' && composition === 'blueprint-grid'
+  const isNightRide = styleConfig.color_theme === 'night-ride' && composition === 'splits-grid'
   const recipe = isUsgsHeritage
     ? {
         ...chromeRecipeForComposition(composition),
@@ -351,6 +352,23 @@ export function defaultPosterLayout(styleConfig: StyleConfig, stats?: RouteStats
         titleScale: 1.38,
         subtitleScale: 0.92,
       }
+    : isNightRide
+      ? {
+          ...chromeRecipeForComposition(composition),
+          headerHeight: 14,
+          footerHeight: 14,
+          headerTopFr: 0.2,
+          headerMetaFr: 0.2,
+          headerTitleFr: 1.72,
+          headerSubFr: 0.42,
+          headerBottomFr: 0.16,
+          footerTopFr: 0.2,
+          footerPrimaryFr: 1.32,
+          footerBottomFr: 0.54,
+          statScale: 1.52,
+          dateScale: 1.12,
+          coordsScale: 0.9,
+        }
     : chromeRecipeForComposition(composition)
 
   const headerRows: ChromeGridRow[] = [
