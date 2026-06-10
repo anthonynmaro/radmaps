@@ -244,6 +244,40 @@ describe('adaptive contour detail', () => {
     expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.86)
   })
 
+  it('preserves Brutalist authored pale minor contour tier outside low-relief maps', () => {
+    const adapted = resolveAdaptiveContourStyleConfig({
+      ...DEFAULT_STYLE_CONFIG,
+      preset: 'radmaps-toner-light',
+      color_theme: 'brutalist',
+      show_contours: true,
+      contour_detail: 1,
+      contour_opacity: 0.36,
+      contour_minor_width: 0.62,
+      contour_major_width: 1.08,
+      atlas_layer_settings: {
+        contour: {
+          minor_opacity: 0.36,
+          major_opacity: 0.74,
+          minor_width: 0.62,
+          major_width: 1.08,
+        },
+      },
+    } as StyleConfig, {
+      distance_km: 24.2,
+      elevation_gain_m: 530,
+      elevation_loss_m: 530,
+      min_elevation_m: 1220,
+      max_elevation_m: 1635,
+    })
+
+    expect(adapted.contour_detail).toBe(1)
+    expect(adapted.contour_opacity).toBe(0.36)
+    expect(adapted.contour_minor_width).toBe(0.62)
+    expect(adapted.atlas_layer_settings?.contour?.minor_opacity).toBe(0.36)
+    expect(adapted.atlas_layer_settings?.contour?.minor_width).toBe(0.62)
+    expect(adapted.atlas_layer_settings?.contour?.major_opacity).toBe(0.74)
+  })
+
   it('uses current-zoom DEM tiles for generated contours by default', () => {
     expect(CONTOUR_DEM_OVERZOOM).toBe(0)
     expect(resolveAdaptiveContourOverzoom({ color_theme: 'usgs-vintage' })).toBe(0)
@@ -3106,8 +3140,8 @@ describe('RadMaps Atlas style integration', () => {
     expect(config.route_opacity).toBe(0.96)
     expect(config.contour_detail).toBe(1)
     expect(config.padding_factor).toBe(0.30)
-    expect(config.contour_opacity).toBe(0.08)
-    expect(config.contour_minor_width).toBe(0.26)
+    expect(config.contour_opacity).toBe(0.36)
+    expect(config.contour_minor_width).toBe(0.62)
     expect(config.contour_major_width).toBe(1.08)
     expect(mapBackgroundColor(config)).toBe('#E6E3DD')
     expect(layerById(style, 'background')?.paint?.['background-color']).toBe('#E6E3DD')
@@ -3121,10 +3155,10 @@ describe('RadMaps Atlas style integration', () => {
     expect(layerById(style, 'radmaps-toner-light-poi-labels')).toBeUndefined()
     expect(layerById(style, 'contours-minor')?.paint?.['line-color']).toBe('#BDB9AE')
     expect(layerById(style, 'contours-minor')?.paint?.['line-opacity']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.07, 14, 0.07 * 0.9,
+      'interpolate', ['linear'], ['zoom'], 5, 0.36, 14, 0.36 * 0.9,
     ])
     expect(layerById(style, 'contours-minor')?.paint?.['line-width']).toEqual([
-      'interpolate', ['linear'], ['zoom'], 5, 0.26 * 0.8, 14, 0.26,
+      'interpolate', ['linear'], ['zoom'], 5, 0.62 * 0.8, 14, 0.62,
     ])
     expect(layerById(style, 'contours-major')?.paint?.['line-color']).toBe('#010202')
     expect(layerById(style, 'contours-major')?.paint?.['line-opacity']).toBe(0.74)

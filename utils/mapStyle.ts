@@ -483,10 +483,10 @@ export function resolveAdaptiveContourStyleConfig(
           } as const)[adaptiveDetail]
       : config.color_theme === 'brutalist'
         ? ({
-            0: { opacityFactor: 1, minorMax: 0.08, majorMax: 0.88, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.10, majorMax: 0.88, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.12, majorMax: 0.88, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.88, widthFactor: 1 },
+            0: { opacityFactor: 1, minorMax: 0.34, majorMax: 0.88, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.36, majorMax: 0.88, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.38, majorMax: 0.88, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.40, majorMax: 0.88, widthFactor: 1 },
           } as const)[adaptiveDetail]
       : config.color_theme === 'botanical'
         ? ({
