@@ -427,7 +427,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Layers" hint="Theme chrome is locked by default" :default-open="true">
+        <V4Card title="Layers" hint="Theme chrome slots are editable" :default-open="true">
           <div class="space-y-1.5">
             <button
               v-for="element in posterEditorElements"

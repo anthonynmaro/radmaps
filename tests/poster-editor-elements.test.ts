@@ -15,6 +15,7 @@ import {
 } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
+import { effectivePosterLayout } from '~/utils/posterLayout'
 
 function config(patch: Partial<StyleConfig> = {}): StyleConfig {
   return {
@@ -115,18 +116,26 @@ describe('poster editor elements adapter', () => {
 
     expect(allowlist.textSlots).toContain('trail_name')
     expect(allowlist.textSlots).toContain('distance')
-    expect(allowlist.textSlots).not.toContain('composition_meta')
+    expect(allowlist.textSlots).toEqual(expect.arrayContaining([
+      'composition_kicker',
+      'composition_meta',
+      'composition_footer',
+      'composition_side_rail',
+    ]))
     expect(elements.find(element => element.id === 'slot:trail_name')).toMatchObject({
       kind: 'theme-text',
       locked: false,
       canTransform: true,
       canEditContent: true,
+      canDelete: true,
       slot: 'trail_name',
     })
     expect(elements.find(element => element.slot === 'composition_meta')).toMatchObject({
-      locked: true,
-      canTransform: false,
-      canEditContent: false,
+      id: 'slot:composition_meta',
+      locked: false,
+      canTransform: true,
+      canEditContent: true,
+      canDelete: true,
     })
   })
 
@@ -198,6 +207,23 @@ describe('poster editor elements adapter', () => {
       opacity: 1,
       locked: true,
     })
+  })
+
+  it('removes editable theme slots through sparse chrome tombstones', () => {
+    const style = config({
+      color_theme: 'sea-chart',
+      composition: 'sea-chart',
+      trail_name: 'H&H Connector Ridge Traverse',
+      location_text: 'Bentonville, Arkansas',
+    })
+
+    const removed = removePosterEditorElement(style, 'slot:composition_meta')
+    const sparseRows = removed.poster_layout?.bands?.header?.rows ?? []
+
+    expect(sparseRows.some(row => row.cells.some(cell => cell.deleted))).toBe(true)
+    expect(effectivePosterLayout(removed).bands.header.rows.some(row =>
+      row.cells.some(cell => cell.block?.slot === 'composition_meta'),
+    )).toBe(false)
   })
 
   it('patches Tier 1 slot edits through poster_text_overrides only', () => {
