@@ -4727,6 +4727,8 @@ onMounted(async () => {
     ...resolveMapLibrePrintCanvasOptions({
       isPrintRender: isPrintRender.value,
       deviceScaleFactor: props.printContext?.deviceScaleFactor,
+      mapCssWidth: mapContainer.value.offsetWidth,
+      mapCssHeight: mapContainer.value.offsetHeight,
     }),
   })
   mapInstance.on('styleimagemissing', onStyleImageMissing)
