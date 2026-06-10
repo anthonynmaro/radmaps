@@ -344,14 +344,17 @@ describe('refined theme Phase 0 scaffolding', () => {
       ['copper-night', { titlePosition: 'top', titleAlign: 'center' }],
       ['usgs-vintage', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['classic-trail', { titlePosition: 'bottom', titleAlign: 'center' }],
-      ['cartouche-place', { titlePosition: 'top', titleAlign: 'center' }],
+      ['cartouche-place', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['sea-chart', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['relief-shaded', { titlePosition: 'bottom', titleAlign: 'left' }],
       ['contour-wash', { titlePosition: 'bottom', titleAlign: 'center' }],
       ['plein-air', { titlePosition: 'bottom', titleAlign: 'left' }],
     ])
     const renderedFooterOverrides = new Map<ColorTheme, 'standard' | 'compact' | 'data' | 'bib' | 'hidden'>([
-      ['editorial-minimal', 'hidden'],
+      ['editorial-minimal', 'standard'],
+      ['midcentury-travel', 'hidden'],
+      ['ranch-ochre', 'hidden'],
+      ['daybreak-trace', 'hidden'],
       ['dark-sky', 'compact'],
       ['copper-night', 'compact'],
       ['relief-shaded', 'standard'],
@@ -533,12 +536,16 @@ describe('refined theme Phase 0 scaffolding', () => {
       '.usgs-coordinate-tick--sw',
     ]))
     expect(getThemeChromeContract('brutalist')?.requiredTestIds).toEqual(expect.arrayContaining([
-      'composition-brutalist-baseline-grid',
       'composition-brutalist-registration-marks',
     ]))
+    expect(getThemeChromeContract('brutalist')?.forbiddenTestIds).toEqual(expect.arrayContaining([
+      'composition-brutalist-baseline-grid',
+    ]))
     expect(getThemeChromeContract('brutalist')?.requiredSelectors).toEqual(expect.arrayContaining([
-      '.composition-brutalist-baseline-grid',
       '.composition-brutalist-registration-marks',
+    ]))
+    expect(getThemeChromeContract('brutalist')?.forbiddenSelectors).toEqual(expect.arrayContaining([
+      '.composition-brutalist-baseline-grid',
     ]))
     for (const themeId of ['midcentury-travel', 'ranch-ochre', 'daybreak-trace'] as const) {
       expect(getThemeChromeContract(themeId)?.requiredSelectors, themeId).toEqual(expect.arrayContaining([
@@ -597,7 +604,7 @@ describe('refined theme Phase 0 scaffolding', () => {
       }
       if (theme.map_defaults.show_grid) {
         expect(theme.map_defaults.grid_opacity, theme.id).toBeGreaterThan(0)
-        expect(theme.map_defaults.grid_opacity, theme.id).toBeLessThanOrEqual(0.2)
+        expect(theme.map_defaults.grid_opacity, theme.id).toBeLessThanOrEqual(theme.id === 'cartouche-place' ? 0.3 : 0.2)
         expect(theme.map_defaults.grid_scope, theme.id).toMatch(/^(poster|map)$/)
       }
     }

@@ -36,26 +36,6 @@ export const CHROME_BLOCK_KIND_LABELS: Record<ChromeBlock['kind'], string> = {
   text: 'Text',
 }
 
-export const CHROME_BLOCK_FIT_DEFAULTS: Record<ChromeBlock['kind'], Required<Pick<NonNullable<ChromeBlock['fit']>, 'minScale' | 'overflow'>> & Pick<NonNullable<ChromeBlock['fit']>, 'maxLines'>> = {
-  title: { minScale: 0.42, maxLines: 3, overflow: 'clip' },
-  subtitle: { minScale: 0.66, maxLines: 1, overflow: 'clamp' },
-  eyebrow: { minScale: 0.64, maxLines: 1, overflow: 'clamp' },
-  occasion: { minScale: 0.64, maxLines: 1, overflow: 'clamp' },
-  coords: { minScale: 0.72, maxLines: 2, overflow: 'clip' },
-  stat: { minScale: 0.76, maxLines: 2, overflow: 'clip' },
-  note: { minScale: 0.66, maxLines: 2, overflow: 'clip' },
-  brand: { minScale: 0.7, maxLines: 1, overflow: 'clamp' },
-  vlabel: { minScale: 0.7, maxLines: 1, overflow: 'clamp' },
-  logo: { minScale: 1, overflow: 'clip' },
-  image: { minScale: 1, overflow: 'clip' },
-  spacer: { minScale: 1, overflow: 'clip' },
-  text: { minScale: 0.62, maxLines: 2, overflow: 'clip' },
-}
-
-export function chromeBlockFitDefaults(kind: ChromeBlock['kind']): NonNullable<ChromeBlock['fit']> {
-  return { ...CHROME_BLOCK_FIT_DEFAULTS[kind] }
-}
-
 function hasVisibleText(value?: string) {
   return Boolean(value?.trim())
 }
@@ -66,9 +46,6 @@ function block(
   slot: PosterTextSlot | undefined,
   patch: Partial<ChromeBlock> = {},
 ): ChromeBlock {
-  const fit = patch.fit === undefined
-    ? chromeBlockFitDefaults(kind)
-    : { ...chromeBlockFitDefaults(kind), ...patch.fit }
   return {
     id,
     kind,
@@ -77,7 +54,6 @@ function block(
     align: 'left',
     valign: 'center',
     ...patch,
-    fit,
   }
 }
 
@@ -200,6 +176,7 @@ const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
 }
 
 const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
+  'editorial-tall',
   'blueprint-grid',
   'blueprint-strava',
   'brutalist-slab',
@@ -316,7 +293,7 @@ function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRe
     case 'modernist-block':
       return { ...BASE_CHROME_RECIPE, headerHeight: 34.2, footerHeight: 0, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
     case 'place-frame':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 18, footerHeight: 0, headerTopFr: 0.18, headerMetaFr: 0.38, headerTitleFr: 1.96, headerSubFr: 0.42, headerBottomFr: 0.22, kickerScale: 0.78, metaScale: 0.74, titleScale: 1.08, subtitleScale: 0.66 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 0, headerTopFr: 0.24, headerMetaFr: 0.42, headerTitleFr: 2.74, headerSubFr: 0.48, headerBottomFr: 0.28, kickerScale: 0.78, metaScale: 0.74, titleScale: 1.08, subtitleScale: 0.66 }
     case 'sea-chart':
       return { ...BASE_CHROME_RECIPE, headerHeight: 20, footerHeight: 0, headerTopFr: 0.12, headerMetaFr: 0.46, headerTitleFr: 2.15, headerSubFr: 0.52, headerBottomFr: 0.18, kickerScale: 0.9, metaScale: 0.76, titleScale: 1.2, subtitleScale: 0.76 }
     case 'bib-numerals':
@@ -524,8 +501,8 @@ function overMapTitleblockAnchorFrames(styleConfig: StyleConfig): AnchorFrame[] 
         box: {
           left: unit(13.5, 'cqw'),
           right: unit(13.5, 'cqw'),
-          top: unit(50, '%'),
-          padding: boxPadding(2.65, 3.8, 2.65, 3.8),
+          top: unit(72, '%'),
+          padding: boxPadding(3.1, 3.8, 3.1, 3.8),
           transform: [{ kind: 'translateY', value: unit(-50, '%') }],
           decorations: ['cartouche-titleblock'],
         },

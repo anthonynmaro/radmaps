@@ -1,6 +1,6 @@
 /**
  * Shared poster typography and layout data.
- * Single source of truth for MapPreview.vue in editor and Browserless render pages.
+ * Single source of truth for MapPreview.vue in editor and AWS render pages.
  *
  * Sizes are stored as plain numbers — consumers append the appropriate CSS unit:
  *   MapPreview.vue: `${profile.titleSize}cqh`
@@ -388,7 +388,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleFont: "'Big Shoulders Display', sans-serif",
     titleWeight: '900',
     titleTracking: '0.015em',
-    titleSize: 5.92,
+    titleSize: 9.72,
     titleLineHeight: '0.88',
     subFont: "'DM Sans', sans-serif",
     subTracking: '0.18em',
@@ -400,7 +400,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleFont: "'Space Grotesk', sans-serif",
     titleWeight: '500',
     titleTracking: '0.015em',
-    titleSize: 3.15,
+    titleSize: 5.05,
     titleLineHeight: '1.06',
     titleCase: 'uppercase',
     subFont: "'Source Sans 3', sans-serif",
@@ -576,7 +576,7 @@ Object.assign(THEME_TYPOGRAPHY, {
     titleWeight: '600',
     titleTracking: '0.01em',
     titleCase: 'none',
-    titleSize: 4.95,
+    titleSize: 6.45,
     titleLineHeight: '0.94',
     subFont: "'Source Serif 4', serif",
     subWeight: '400',

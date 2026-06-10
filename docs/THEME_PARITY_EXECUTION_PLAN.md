@@ -51,6 +51,18 @@ different surfaces — conflating them is what bloated the renderer.
 **0.5 — Scope: all 27 in parallel**, managed by per-theme commits + style tests
 (Section 9), not by avoiding the shared renderer file.
 
+**0.6 — The base layer is a user choice, not a fixed per-theme layer.** Decision
+0.1 says a theme controls "which layers are on" — we now expose that as a
+**Terrain / Streets / Minimal** quick-pick beside the theme selector, with a
+default chosen from the route's relief (flat city → Streets/Minimal, mountain →
+Terrain). This resolves the unsolvable flat-city case (Boston `brutalist` renders
+empty because there is no relief to contour, and faking contours violates 0.1):
+flat routes show a themed street network or route-only paper instead of fabricated
+topo. Full spec — UX, token mapping, default logic, data-source decision — in
+`docs/BASE_LAYER_QUICKPICK_SPEC.md`. Roads reuse the existing `road-network`
+preset + Atlas `transportation` layer; the quick-pick is the calm default over the
+existing `AtlasLayerSettings` panel.
+
 ---
 
 ## 1. Why this stalled (root cause)
@@ -261,7 +273,7 @@ branch:
    palette) — never random, never a static imported asset.
 3. **Colors from palette tokens** so colorways recolor for free.
 4. **Print-safe:** vector where possible; raster (grain/washes) at ≥ print DPI;
-   confirm it survives the Browserless screenshot path.
+   confirm it survives the AWS renderer screenshot path.
 5. **Test:** Playwright assertion that the motif element exists for that
    composition, like the existing blueprint-grid / darksky-stars assertions.
 
@@ -344,7 +356,7 @@ Overall done:
 - proof/final smoke renders at 24x36 (plus 32x48 for dense themes: Brutalist,
   Marathon, Modernist, Electric Atlas) for one heritage, one expressive, one
   data, one atmospheric theme,
-- Browserless readiness still gated on `window.__RENDER_READY`; no editor
+- AWS renderer readiness still gated on `window.__RENDER_READY`; no editor
   controls in print mode,
 - no second renderer, no remote fonts, no DB migration.
 

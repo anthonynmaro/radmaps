@@ -192,7 +192,6 @@
           </div>
 
           <button
-            v-if="showThemeBrowser"
             class="mt-3 w-full rounded-lg border border-[#E7E5E4] bg-white px-3 py-2 text-xs font-semibold transition-colors hover:border-[#2D6A4F] hover:text-[#1F4D38]"
             style="color: #57534E;"
             @click="emit('browse-themes')"
@@ -2038,8 +2037,6 @@ const CORE_TABS: Array<{ id: TabId; label: string }> = [
 ]
 
 const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
-const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
-const showThemeBrowser = computed(() => import.meta.dev || themePickerEnabled.value)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
 const baseTabs = computed(() => props.posterElementsAvailable
   ? [

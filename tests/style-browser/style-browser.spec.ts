@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 const compositions = [
   ['editorial-tall', 'editorial-minimal'],
@@ -21,15 +21,24 @@ const compositions = [
 ] as const
 
 const headerDecorCompositions = new Set([
-  'blueprint-grid',
-  'blueprint-strava',
-  'splits-grid',
+  'editorial-tall',
+  'modernist-block',
   'darksky-stars',
+  'botanical-plate',
+  'brutalist-slab',
   'art-wash',
   'place-frame',
   'sea-chart',
 ])
-const hiddenFooterCompositions = new Set(['art-wash', 'place-frame', 'sea-chart'])
+const hiddenFooterCompositions = new Set([
+  'travel-banner',
+  'modernist-block',
+  'botanical-plate',
+  'art-wash',
+  'place-frame',
+  'sea-chart',
+  'transit-diagram',
+])
 
 const finalPrintForbiddenSelectors = [
   '[contenteditable="true"]',
@@ -46,13 +55,6 @@ const finalPrintForbiddenSelectors = [
   '[data-testid="chrome-context-toolbar-handle"]',
   '[data-testid="composition-blueprint-drafting"]',
 ]
-
-async function waitForTextFitSettled(page: Page) {
-  await expect.poll(async () => page.evaluate(() => {
-    const win = window as unknown as { __RADMAPS_TEXT_FIT_SETTLED?: boolean }
-    return win.__RADMAPS_TEXT_FIT_SETTLED === true
-  }), { timeout: 20_000 }).toBe(true)
-}
 
 const specThemeRecipes = [
   ['editorial-minimal', 'editorial-tall'],
@@ -294,25 +296,25 @@ test.describe('style browser visual harness', () => {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-travel-shadow')
+    })).not.toContain('route-line-travel-shadow')
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-travel-highlight')
+    })).not.toContain('route-line-travel-highlight')
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-travel-register-cuts')
+    })).not.toContain('route-line-travel-register-cuts')
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-travel-waypoints')
+    })).not.toContain('route-line-travel-waypoints')
 
     await page.goto('/style-browser-fixture?composition=blueprint-strava&theme=electric-atlas')
     await expect(page.getByTestId('composition-electric-trace')).toBeVisible()
@@ -330,9 +332,9 @@ test.describe('style browser visual harness', () => {
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
     })).toContain('route-line-electric-pulse')
     await expect.poll(async () => page.locator('.poster-composition--blueprint-strava .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Big Shoulders Display')
-
     await expect(page.locator('.poster-composition--blueprint-strava .poster-location-line')).toHaveText('Kickapoo State Park')
     await expect(page.locator('.poster-composition--blueprint-strava .composition-technical-data-item').filter({ hasText: 'Location' }).locator('strong')).toHaveText('ILLINOIS')
+
     await page.goto('/style-browser-fixture?composition=splits-grid&theme=splits-stats&elevation=1')
     await expect(page.getByTestId('elevation-profile-band')).toBeVisible()
     await expect.poll(async () => page.evaluate(() => {
@@ -393,7 +395,7 @@ test.describe('style browser visual harness', () => {
 
     await page.goto('/style-browser-fixture?composition=botanical-plate&theme=botanical')
     await expect(page.getByTestId('composition-botanical-frame')).toBeVisible()
-    await expect(page.getByTestId('composition-botanical-caption')).toBeVisible()
+    await expect(page.getByTestId('composition-botanical-caption')).toHaveCount(0)
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
@@ -418,10 +420,11 @@ test.describe('style browser visual harness', () => {
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
     })).toContain('route-line-botanical-specimen-dots')
-    await expect.poll(async () => page.locator('.poster-composition--botanical-plate .poster-trail-name').evaluate(el => getComputedStyle(el).letterSpacing)).not.toBe('normal')
+    await expect.poll(async () => page.locator('.poster-composition--botanical-plate .poster-trail-name').evaluate(el => getComputedStyle(el).fontFamily)).toContain('Cormorant Garamond')
 
     await page.goto('/style-browser-fixture?composition=place-frame&theme=cartouche-place')
     await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
+    await expect(page.getByTestId('composition-cartouche-hills')).toBeVisible()
 
     await page.goto('/style-browser-fixture?composition=sea-chart&theme=sea-chart')
     await expect(page.getByTestId('composition-plate-frame')).toHaveCount(0)
@@ -452,7 +455,7 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('transit-diagram-station-key')).toBeVisible()
 
     await page.goto('/style-browser-fixture?composition=brutalist-slab&theme=brutalist')
-    await expect(page.getByTestId('composition-brutalist-baseline-grid')).toBeVisible()
+    await expect(page.getByTestId('composition-brutalist-baseline-grid')).toHaveCount(0)
     await expect(page.getByTestId('composition-brutalist-registration-marks')).toBeVisible()
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
@@ -473,13 +476,13 @@ test.describe('style browser visual harness', () => {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-contour-wash-field')
+    })).toContain('route-line')
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_MAP_CAMERA__?: { getLayerIds?: () => string[] }
       }
       return win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
-    })).toContain('route-line-contour-wash-echo-high')
+    })).not.toContain('route-line-contour-wash-echo-high')
 
     await page.goto('/style-browser-fixture?composition=art-wash&theme=plein-air')
     await expect(page.getByTestId('composition-plein-air-deckle')).toBeVisible()
@@ -550,10 +553,11 @@ test.describe('style browser visual harness', () => {
 
   test('adapts Cartouche title plate for route maps and no-route place portraits', async ({ page }) => {
     await page.goto('/style-browser-fixture?surface=1&composition=place-frame&theme=cartouche-place&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820')
-    await expect(page.getByTestId('poster-canvas')).toHaveClass(/poster-has-route/)
+    await expect(page.getByTestId('poster-canvas')).toHaveClass(/poster-place-map/)
     await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
-    await expect(page.getByTestId('composition-cartouche-seal')).toBeVisible()
-    await expect(page.locator('.cartouche-corner')).toHaveCount(4)
+    await expect(page.getByTestId('composition-cartouche-hills')).toBeVisible()
+    await expect(page.getByTestId('composition-cartouche-seal')).toHaveCount(0)
+    await expect(page.locator('.cartouche-corner')).toHaveCount(0)
     const routeBoxes = await page.evaluate(() => {
       const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
       const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
@@ -564,15 +568,18 @@ test.describe('style browser visual harness', () => {
     })
     expect(routeBoxes.poster).toBeTruthy()
     expect(routeBoxes.header).toBeTruthy()
-    expect(routeBoxes.header!.width).toBeGreaterThan(routeBoxes.poster!.width * 0.50)
-    expect(routeBoxes.header!.width).toBeLessThan(routeBoxes.poster!.width * 0.62)
-    expect(routeBoxes.header!.x - routeBoxes.poster!.x).toBeLessThan(routeBoxes.poster!.width * 0.16)
+    expect(routeBoxes.header!.width).toBeGreaterThan(routeBoxes.poster!.width * 0.60)
+    expect(routeBoxes.header!.width).toBeLessThan(routeBoxes.poster!.width * 0.64)
+    const routePosterCenter = routeBoxes.poster!.x + (routeBoxes.poster!.width / 2)
+    const routeHeaderCenter = routeBoxes.header!.x + (routeBoxes.header!.width / 2)
+    expect(Math.abs(routeHeaderCenter - routePosterCenter)).toBeLessThan(routeBoxes.poster!.width * 0.04)
 
     await page.goto('/style-browser-fixture?surface=1&composition=place-frame&theme=cartouche-place&posterEditor=1&surfaceTemplateEditor=1&width=1180&height=820&route=0')
     await expect(page.getByTestId('poster-canvas')).toHaveClass(/poster-place-map/)
     await expect(page.getByTestId('composition-plate-frame')).toBeVisible()
-    await expect(page.getByTestId('composition-cartouche-seal')).toBeVisible()
-    await expect(page.locator('.cartouche-corner')).toHaveCount(4)
+    await expect(page.getByTestId('composition-cartouche-hills')).toBeVisible()
+    await expect(page.getByTestId('composition-cartouche-seal')).toHaveCount(0)
+    await expect(page.locator('.cartouche-corner')).toHaveCount(0)
     const placeBoxes = await page.evaluate(() => {
       const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
       const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
@@ -612,8 +619,8 @@ test.describe('style browser visual harness', () => {
     expect(boxes.header).toBeTruthy()
     expect(boxes.footer).toBeTruthy()
     expect(boxes.title).toBeTruthy()
-    expect(boxes.map!.height / boxes.poster!.height).toBeGreaterThan(0.72)
-    expect(boxes.map!.height / boxes.poster!.height).toBeLessThan(0.77)
+    expect(boxes.map!.height / boxes.poster!.height).toBeGreaterThan(0.82)
+    expect(boxes.map!.height / boxes.poster!.height).toBeLessThan(0.84)
     expect(boxes.header!.height / boxes.poster!.height).toBeLessThan(0.2)
     expect(boxes.footer!.height / boxes.poster!.height).toBeLessThan(0.1)
     expect(boxes.title!.y).toBeGreaterThanOrEqual(boxes.header!.y - 1)
@@ -630,6 +637,8 @@ test.describe('style browser visual harness', () => {
       const title = document.querySelector<HTMLElement>('.poster-composition--riso-stack .poster-trail-name')
       const titleBefore = title ? getComputedStyle(title, '::before') : null
       const titleStyle = title ? getComputedStyle(title) : null
+      const caption = document.querySelector<HTMLElement>('.poster-composition--riso-stack [data-testid="composition-riso-caption"]')
+      const meta = document.querySelector<HTMLElement>('.poster-composition--riso-stack [data-testid="composition-riso-meta"]')
       return {
         headerOutline: header ? getComputedStyle(header).outlineStyle : null,
         footerOutline: footer ? getComputedStyle(footer).outlineStyle : null,
@@ -637,6 +646,10 @@ test.describe('style browser visual harness', () => {
         titleBeforeColor: titleBefore?.color ?? '',
         titleColor: titleStyle?.color ?? '',
         titleBlend: titleStyle?.mixBlendMode ?? '',
+        titleOverflow: titleStyle?.overflow ?? '',
+        titleLineHeight: titleStyle?.lineHeight ?? '',
+        captionText: caption?.textContent ?? '',
+        metaText: meta?.textContent ?? '',
       }
     })
 
@@ -645,6 +658,10 @@ test.describe('style browser visual harness', () => {
     expect(risoChrome.titleBeforeContent).toContain('Kickapoo Endurance Race')
     expect(risoChrome.titleBeforeColor).not.toBe(risoChrome.titleColor)
     expect(risoChrome.titleBlend).toBe('multiply')
+    expect(risoChrome.titleOverflow).toBe('visible')
+    expect(Number.parseFloat(risoChrome.titleLineHeight)).toBeGreaterThan(40)
+    expect(risoChrome.captionText).toContain('Kickapoo Endurance Race')
+    expect(risoChrome.metaText).toContain('mi')
   })
 
   test('exposes owned Beta map themes in the Quick panel', async ({ page }) => {
@@ -831,9 +848,12 @@ test.describe('style browser visual harness', () => {
       expect(print.forbidden, theme).toEqual([])
       await expect.poll(() => {
         const hasBlobWorkerNoise = consoleErrors.some(error => error.includes('Cannot load blob:http://localhost'))
+        const hasDemoGlyphCorsNoise = consoleErrors.some(error => error.includes('https://demotiles.maplibre.org/font/'))
         return consoleErrors
           .filter(error => !error.includes('Failed to load resource'))
           .filter(error => !error.includes('Cannot load blob:http://localhost'))
+          .filter(error => !error.includes('https://demotiles.maplibre.org/font/'))
+          .filter(error => !(hasDemoGlyphCorsNoise && error === 'Error'))
           .filter(error => !(hasBlobWorkerNoise && error === 'Error'))
           .join('\n')
       }, { message: theme }).toBe('')
@@ -1394,187 +1414,6 @@ test.describe('style browser visual harness', () => {
     await expect.poll(mapRect).toEqual(initial)
   })
 
-  test('fits the H&H Connector title inside its over-map titleblock', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop text-fit proof coverage')
-
-    await page.goto('/style-browser-fixture?composition=sea-chart&theme=sea-chart&width=720&height=1080&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
-    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
-    await waitForTextFitSettled(page)
-
-    const fit = await page.evaluate(() => {
-      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
-      const title = document.querySelector<HTMLElement>('.poster-trail-name')
-      const headerBox = header?.getBoundingClientRect()
-      const titleBox = title?.getBoundingClientRect()
-      const scale = Number.parseFloat(title?.style.getPropertyValue('--radmaps-text-fit-scale') || '1')
-      return {
-        status: title?.dataset.textFitStatus,
-        scale,
-        insideHeader: Boolean(headerBox && titleBox
-          && titleBox.left >= headerBox.left - 1
-          && titleBox.right <= headerBox.right + 1
-          && titleBox.top >= headerBox.top - 1
-          && titleBox.bottom <= headerBox.bottom + 1),
-        text: title?.textContent?.trim(),
-      }
-    })
-
-    expect(fit.text).toBe('H&H CONNECTOR')
-    expect(['fit', 'clipped']).toContain(fit.status)
-    expect(fit.scale).toBeLessThanOrEqual(1)
-    expect(fit.insideHeader).toBe(true)
-  })
-
-  test('clips at the fit floor without moving the map', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop text-fit clipping coverage')
-
-    const longTitle = 'H&H CONNECTOR RIDGE TRAVERSE WITH AN IMPOSSIBLY LONG CEREMONIAL ROUTE NAME FOR PRINT PROOFING'
-    await page.goto(`/style-browser-fixture?composition=sea-chart&theme=sea-chart&width=720&height=1080&title=${encodeURIComponent(longTitle)}`, { waitUntil: 'domcontentloaded' })
-    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
-    await waitForTextFitSettled(page)
-    const initialMap = await page.getByTestId('poster-map').boundingBox()
-
-    const fit = await page.evaluate(() => {
-      const header = document.querySelector<HTMLElement>('[data-testid="poster-header"]')
-      const title = document.querySelector<HTMLElement>('.poster-trail-name')
-      return {
-        status: title?.dataset.textFitStatus,
-        scale: Number.parseFloat(title?.style.getPropertyValue('--radmaps-text-fit-scale') || '1'),
-        titleEscapesHeader: Boolean(header && title && (
-          title.getBoundingClientRect().bottom > header.getBoundingClientRect().bottom + 1 ||
-          title.getBoundingClientRect().right > header.getBoundingClientRect().right + 1
-        )),
-      }
-    })
-
-    expect(['fit', 'clipped']).toContain(fit.status)
-    expect(fit.scale).toBeLessThanOrEqual(1)
-    expect(fit.titleEscapesHeader).toBe(false)
-
-    await page.evaluate(() => {
-      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      const current = fixture.getStyle()
-      fixture.setStyle({
-        poster_text_overrides: {
-          ...(current.poster_text_overrides ?? {}),
-          trail_name: {
-            ...(current.poster_text_overrides?.trail_name ?? {}),
-            text: `${current.poster_text_overrides?.trail_name?.text ?? ''} EXTENDED AGAIN`,
-          },
-        },
-      })
-    })
-    await waitForTextFitSettled(page)
-    const afterMap = await page.getByTestId('poster-map').boundingBox()
-    expect(afterMap).toEqual(initialMap)
-  })
-
-  test('keeps map geometry stable for long titles across refined themes', async ({ context }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop all-theme text-fit geometry coverage')
-    test.setTimeout(180_000)
-    const longTitle = 'H&H CONNECTOR RIDGE TRAVERSE WITH AN INTENTIONALLY LONG ROUTE NAME'
-
-    for (const [theme, composition] of specThemeRecipes) {
-      const page = await context.newPage()
-      await page.goto(`/style-browser-fixture?theme=${theme}&composition=${composition}&width=360&height=540`, { waitUntil: 'domcontentloaded' })
-      await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 20_000 })
-      await waitForTextFitSettled(page)
-      const before = await page.getByTestId('poster-map').evaluate(el => {
-        const rect = el.getBoundingClientRect()
-        return {
-          x: Math.round(rect.x * 10) / 10,
-          y: Math.round(rect.y * 10) / 10,
-          width: Math.round(rect.width * 10) / 10,
-          height: Math.round(rect.height * 10) / 10,
-        }
-      })
-
-      await page.evaluate((text) => {
-        const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-        const current = fixture.getStyle()
-        fixture.setStyle({
-          poster_text_overrides: {
-            ...(current.poster_text_overrides ?? {}),
-            trail_name: {
-              ...(current.poster_text_overrides?.trail_name ?? {}),
-              text,
-            },
-          },
-        })
-      }, longTitle)
-      await waitForTextFitSettled(page)
-      const after = await page.getByTestId('poster-map').evaluate(el => {
-        const rect = el.getBoundingClientRect()
-        return {
-          x: Math.round(rect.x * 10) / 10,
-          y: Math.round(rect.y * 10) / 10,
-          width: Math.round(rect.width * 10) / 10,
-          height: Math.round(rect.height * 10) / 10,
-        }
-      })
-      expect(after, `${theme}/${composition}`).toEqual(before)
-      await page.close()
-    }
-  })
-
-  test('honors manual font size instead of auto-fitting', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop manual text-fit coverage')
-
-    await page.goto('/style-browser-fixture?editable=1&chrome=1&width=720&height=1080&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
-    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
-    await expect.poll(async () => page.evaluate(() => Boolean((window as any).__RADMAPS_STYLE_FIXTURE__))).toBe(true)
-    await page.evaluate(() => {
-      const fixture = (window as any).__RADMAPS_STYLE_FIXTURE__
-      const current = fixture.getStyle()
-      fixture.setStyle({
-        poster_text_overrides: {
-          ...(current.poster_text_overrides ?? {}),
-          trail_name: {
-            ...(current.poster_text_overrides?.trail_name ?? {}),
-            font_size_pt: 120,
-          },
-        },
-      })
-    })
-    await waitForTextFitSettled(page)
-
-    await expect.poll(async () => page.evaluate(() => {
-      const title = document.querySelector<HTMLElement>('.chrome-grid-block[data-chrome-slot="trail_name"]')
-      const status = (window as any).__RADMAPS_TEXT_FIT_STATUS
-      return {
-        elementStatus: title?.dataset.textFitStatus,
-        manualCount: status?.manual ?? 0,
-        scale: title?.style.getPropertyValue('--radmaps-text-fit-scale'),
-      }
-    })).toMatchObject({
-      elementStatus: 'manual',
-      scale: '1',
-    })
-  })
-
-  test('waits for text fit before final print readiness', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'desktop print readiness coverage')
-
-    await page.goto('/style-browser-fixture?print=final&printScale=20&composition=sea-chart&theme=sea-chart&title=H%26H%20CONNECTOR', { waitUntil: 'domcontentloaded' })
-    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
-    await expect.poll(async () => page.evaluate(() => {
-      const win = window as unknown as {
-        __RENDER_READY?: boolean
-        __RADMAPS_RENDER_STATUS?: { textFitSettled?: boolean }
-        __RADMAPS_TEXT_FIT_SETTLED?: boolean
-      }
-      return {
-        ready: win.__RENDER_READY === true,
-        textFitSettled: win.__RADMAPS_TEXT_FIT_SETTLED === true,
-        renderTextFitSettled: win.__RADMAPS_RENDER_STATUS?.textFitSettled === true,
-      }
-    }), { timeout: 30_000 }).toMatchObject({
-      ready: true,
-      textFitSettled: true,
-      renderTextFitSettled: true,
-    })
-  })
-
   test('wires chrome grid edits through the map editor surface', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop editor-surface chrome coverage')
 
@@ -1737,8 +1576,12 @@ test.describe('style browser visual harness', () => {
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_STYLE_FIXTURE__?: { getStyle: () => { atlas_layer_settings?: { contour?: unknown } } }
-        __RADMAPS_MAP_CAMERA__?: { getPaintProperty?: (layerId: string, property: string) => unknown }
+        __RADMAPS_MAP_CAMERA__?: {
+          getLayerIds?: () => string[]
+          getPaintProperty?: (layerId: string, property: string) => unknown
+        }
       }
+      if (!win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.().includes('contours-minor')) return false
       return Boolean(
         win.__RADMAPS_STYLE_FIXTURE__?.getStyle().atlas_layer_settings?.contour
         && win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-minor', 'line-width'),
@@ -1757,8 +1600,13 @@ test.describe('style browser visual harness', () => {
 
     await expect.poll(async () => page.evaluate(() => {
       const win = window as unknown as {
-        __RADMAPS_MAP_CAMERA__?: { getPaintProperty?: (layerId: string, property: string) => unknown }
+        __RADMAPS_MAP_CAMERA__?: {
+          getLayerIds?: () => string[]
+          getPaintProperty?: (layerId: string, property: string) => unknown
+        }
       }
+      const layerIds = win.__RADMAPS_MAP_CAMERA__?.getLayerIds?.() ?? []
+      if (!layerIds.includes('contours-minor') || !layerIds.includes('contours-major')) return null
       return {
         minor: win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-minor', 'line-width'),
         major: win.__RADMAPS_MAP_CAMERA__?.getPaintProperty?.('contours-major', 'line-width'),
@@ -1809,12 +1657,23 @@ test.describe('style browser visual harness', () => {
       bandCount: 0,
     })
 
+    await page.goto('/style-browser-fixture?composition=splits-grid&theme=splits-stats&editable=1&elevation=1')
+    await page.locator('.maplibregl-canvas').waitFor({ state: 'visible', timeout: 15_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const win = window as unknown as {
+        __RADMAPS_STYLE_FIXTURE__?: unknown
+      }
+      return Boolean(win.__RADMAPS_STYLE_FIXTURE__)
+    })).toBe(true)
+
     await page.evaluate(() => {
       const win = window as unknown as {
         __RADMAPS_STYLE_FIXTURE__: { setStyle: (patch: Record<string, unknown>) => void }
       }
       win.__RADMAPS_STYLE_FIXTURE__.setStyle({
+        show_elevation_profile: true,
         elevation_profile_position: 'separate-band',
+        elevation_profile_opacity: 1,
         elevation_profile_height: 12,
       })
     })
@@ -2108,7 +1967,7 @@ test.describe('style browser visual harness', () => {
     await expect(page.getByTestId('chrome-layout-builder')).toHaveCount(0)
     const titleBlock = page.locator('.fixed-template-map-preview .chrome-grid-block--title')
     await expect(titleBlock).toHaveCount(1)
-    await expect.poll(() => titleBlock.evaluate(element => window.getComputedStyle(element).getPropertyValue('--radmaps-text-fit-size-cqh').trim())).not.toBe('')
+    await expect.poll(() => titleBlock.evaluate(element => Number.parseFloat(window.getComputedStyle(element).fontSize))).toBeGreaterThan(0)
     await expect.poll(async () => {
       const box = await titleBlock.boundingBox()
       return box?.height ?? 0

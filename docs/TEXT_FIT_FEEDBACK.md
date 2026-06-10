@@ -34,5 +34,3 @@ What the review checks:
 ---
 
 <!-- Claude appends review passes below this line, newest at the bottom. -->
-
-2026-06-08 20:46 UTC — W2 implemented locally: added shared measured `fitTextToBox`, chrome block fit defaults/floors, measured fit-down + clip for chrome-grid and direct poster slots, inferred manual `font_size_pt` takeover, and `textFitSettled` gating before final print readiness. Proof artifacts refreshed in `docs/theme_audit_output/`, including `text-fit/hh-connector-long-title-sea-chart.png` and JSON status (`titleStatus: fit`, scale ~0.83). Gates green: `npx vue-tsc --noEmit --pretty false`, `npm run test:style-graph` (262 tests), focused Playwright H&H/clipping/manual/print readiness, and all-theme long-title map geometry sweep.

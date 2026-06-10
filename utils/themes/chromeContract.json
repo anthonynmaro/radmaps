@@ -2,9 +2,10 @@
   {
     "themeId": "editorial-minimal",
     "typography": { "titleFont": "Playfair Display", "titleCase": "none" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "hidden" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "standard" },
     "requiredRouteLayers": ["route-line-editorial-gallery-shadow", "route-line-editorial-ink-ridge"],
-    "requiredTestIds": ["pin-marker-start", "pin-marker-finish"],
+    "requiredTestIds": ["composition-kicker", "composition-meta-line", "pin-marker-start", "pin-marker-finish"],
+    "requiredSelectors": [".poster-occasion"],
     "forbiddenTestIds": ["composition-travel-sun", "composition-star-field", "composition-plate-frame"]
   },
   {
@@ -20,6 +21,7 @@
     "themeId": "classic-trail",
     "typography": { "titleFont": "Libre Baskerville", "titleCase": "uppercase" },
     "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "standard" },
+    "requiredTestIds": ["classic-trail-coordinate", "classic-trail-scale"],
     "requiredRouteLayers": ["route-line-classic-trail-paper-channel", "route-line-classic-trail-slate-offset"],
     "forbiddenTestIds": ["usgs-heritage-coordinate", "usgs-heritage-scale", "composition-classic-trail-markers", "pin-label-start", "pin-label-finish"],
     "forbiddenRouteLayers": ["route-line-classic-trail-blaze-cuts", "route-line-classic-trail-blazes"]
@@ -27,7 +29,7 @@
   {
     "themeId": "midcentury-travel",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -35,7 +37,7 @@
   {
     "themeId": "ranch-ochre",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -43,7 +45,7 @@
   {
     "themeId": "daybreak-trace",
     "typography": { "titleFont": "Oswald", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "data" },
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
     "requiredTestIds": ["composition-travel-sun"],
     "requiredSelectors": [".composition-travel-sun__disk", ".composition-travel-sun__arc--wide", ".composition-travel-sun__arc--mid", ".composition-travel-sun__arc--inner"],
     "forbiddenRouteLayers": ["route-line-travel-shadow", "route-line-travel-highlight", "route-line-travel-register-cuts", "route-line-travel-waypoints"]
@@ -126,15 +128,22 @@
     "themeId": "contour-wash",
     "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
     "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
-    "requiredRouteLayers": ["route-line-contour-wash-field", "route-line-contour-wash-echo-high"],
+    "requiredRouteLayers": ["route-line"],
+    "forbiddenRouteLayers": [
+      "route-line-contour-wash-field",
+      "route-line-contour-wash-dark-echo",
+      "route-line-contour-wash-echo-low",
+      "route-line-contour-wash-echo-high"
+    ],
     "forbiddenTestIds": ["composition-plein-air-deckle", "composition-plein-air-palette"]
   },
   {
     "themeId": "splits-stats",
     "typography": { "titleFont": "Space Grotesk", "titleCase": "uppercase" },
     "layout": { "titlePosition": "bottom", "titleAlign": "left", "footerVariant": "data" },
-    "requiredTestIds": ["composition-map-grid-overlay", "elevation-profile-band", "composition-profile-labels", "composition-technical-data-footer"],
+    "requiredTestIds": ["elevation-profile-band", "composition-profile-labels", "composition-technical-data-footer"],
     "requiredSelectors": [".composition-profile-labels__axis span", ".composition-technical-data-item"],
+    "forbiddenTestIds": ["composition-map-grid-overlay"],
     "requiredRouteLayers": ["route-line-performance-glow", "route-line-performance-checkpoints"],
     "forbiddenSelectors": [".poster-composition--splits-grid .poster-stats"]
   },
@@ -160,7 +169,7 @@
     "themeId": "dark-sky",
     "typography": { "titleFont": "Cormorant Garamond", "titleCase": "none" },
     "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "compact" },
-    "requiredTestIds": ["composition-star-field", "composition-star-constellation", "composition-darksky-ridge", "composition-footer-note"],
+    "requiredTestIds": ["composition-kicker", "composition-star-field", "composition-star-constellation", "composition-darksky-ridge", "composition-footer-note"],
     "requiredSelectors": [".darksky-ridge-line"],
     "requiredRouteLayers": ["route-line-darksky-glow-wide", "route-line-darksky-constellation", "route-line-darksky-star-crosses"],
     "forbiddenSelectors": [".poster-composition--darksky-stars .poster-stats"]
@@ -178,17 +187,19 @@
     "themeId": "brutalist",
     "typography": { "titleFont": "Bebas Neue", "titleCase": "uppercase" },
     "layout": { "titlePosition": "top", "titleAlign": "left", "footerVariant": "standard" },
-    "requiredTestIds": ["composition-brutalist-baseline-grid", "composition-brutalist-registration-marks"],
-    "requiredSelectors": [".composition-brutalist-baseline-grid", ".composition-brutalist-registration-marks"],
+    "requiredTestIds": ["composition-brutalist-registration-marks"],
+    "requiredSelectors": [".composition-brutalist-registration-marks"],
+    "forbiddenTestIds": ["composition-brutalist-baseline-grid"],
+    "forbiddenSelectors": [".composition-brutalist-baseline-grid"],
     "requiredRouteLayers": ["route-line-brutalist-slab-shadow", "route-line-brutalist-cement-cut"],
     "forbiddenRouteLayers": ["route-line-brutalist-proof-dashes", "route-line-brutalist-proof-bars"]
   },
   {
     "themeId": "cartouche-place",
     "typography": { "titleFont": "Playfair Display", "titleCase": "uppercase" },
-    "layout": { "titlePosition": "top", "titleAlign": "center", "footerVariant": "hidden" },
-    "requiredTestIds": ["composition-plate-frame", "composition-cartouche-seal"],
-    "requiredSelectors": [".cartouche-corner", ".composition-grid-overlay--map"],
+    "layout": { "titlePosition": "bottom", "titleAlign": "center", "footerVariant": "hidden" },
+    "requiredTestIds": ["composition-plate-frame", "composition-cartouche-hills"],
+    "requiredSelectors": [".composition-grid-overlay--map"],
     "forbiddenTestIds": ["composition-sea-chart-art"]
   },
   {
