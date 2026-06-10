@@ -57,6 +57,7 @@ export type ColorTheme =
   | 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
   // Family B — distinct visual languages
   | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
+  | 'classic-risograph'
   | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
   // Refined design-update themes. Additive only: old ids stay renderable.
   | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
@@ -963,6 +964,23 @@ export const COLOR_THEMES: ThemeDefinition[] = [
   {
     id: 'risograph',
     label: 'Risograph',
+    dark: false,
+    background_color: '#F5ECD4',
+    label_bg_color: '#F5ECD4',
+    label_text_color: '#1A1A3E',
+    route_color: '#E8533C',
+    water_color: '#A0B8C0',
+    land_color: '#EDE0C0',
+    base_tile_style: 'carto-light',
+    contour_color: '#C0A888',
+    contour_major_color: '#988060',
+    font_family: 'Oswald',
+    border_style: 'none',
+    tile_grain: 0.18,
+  },
+  {
+    id: 'classic-risograph',
+    label: 'Classic Risograph',
     dark: false,
     background_color: '#F5ECD4',
     label_bg_color: '#F5ECD4',

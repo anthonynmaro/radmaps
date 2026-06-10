@@ -87,6 +87,7 @@ describe('theme options', () => {
     ]
 
     expect(QUICK_THEME_OPTIONS.map(theme => theme.id)).toEqual(expectedIds)
+    expect(QUICK_THEME_OPTIONS.map(theme => theme.id)).toContain('classic-risograph')
   })
 
   it('exposes every design-spec poster recipe through Quick theme options', () => {

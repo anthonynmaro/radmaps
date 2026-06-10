@@ -37,6 +37,8 @@ describe('poster composition registry', () => {
 
   it('keeps legacy rows on the legacy classic layout when no composition is stored', () => {
     expect(resolvePosterCompositionId({ color_theme: 'chalk' })).toBe('legacy-classic')
+    expect(resolvePosterCompositionId({ color_theme: 'risograph' })).toBe('legacy-classic')
+    expect(resolvePosterCompositionId({ color_theme: 'classic-risograph' })).toBe('legacy-classic')
     expect(getPosterCompositionProfile({ color_theme: 'chalk' }).titlePosition).toBe('top')
   })
 
@@ -45,6 +47,7 @@ describe('poster composition registry', () => {
     expect(resolvePosterCompositionId({ color_theme: 'marathon-bib' })).toBe('bib-numerals')
     expect(resolvePosterCompositionId({ color_theme: 'cartouche-place' })).toBe('place-frame')
     expect(resolvePosterCompositionId({ color_theme: 'contour-wash' })).toBe('art-wash')
+    expect(resolvePosterCompositionId({ color_theme: 'risograph', composition: 'riso-stack' })).toBe('riso-stack')
   })
 
   it('produces stable CSS class names for browser assertions', () => {
