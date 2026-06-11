@@ -8,12 +8,27 @@
             {{ selectedTheme.label }}
             <span v-if="selectedTheme.family">/ {{ selectedTheme.family }}</span>
           </p>
+          <div class="theme-base-mode-picker" data-testid="theme-base-mode-picker" aria-label="Base map mode">
+            <button
+              v-for="option in baseModeOptions"
+              :key="option.id"
+              type="button"
+              class="theme-base-mode-option"
+              :class="{ 'is-active': selectedBaseMode === option.id }"
+              :disabled="option.disabled"
+              :data-testid="`theme-base-mode-${option.id}`"
+              @click="selectBaseMode(option.id)"
+            >
+              <span>{{ option.label }}</span>
+              <small v-if="option.id === 'auto'">{{ resolvedBaseModeLabel }}</small>
+            </button>
+          </div>
         </div>
 
         <div class="theme-lineup-poster" data-testid="theme-picker-hero" :style="{ backgroundColor: selectedTheme.background_color }">
           <ClientOnly>
             <MapPreview
-              :key="selectedTheme.id"
+              :key="`${selectedTheme.id}-${resolvedBaseMode}`"
               :map="map"
               :style-config="selectedPreviewConfig"
               :editable="false"
@@ -33,29 +48,46 @@
       </div>
 
       <div class="theme-lineup-grid-wrap">
-        <div class="theme-lineup-grid" data-testid="theme-lineup-grid">
-          <ThemePreviewCard
-            v-for="theme in orderedThemes"
-            :key="theme.id"
-            :map="map"
-            :theme="theme"
-            :preview-config="previewConfigFor(theme)"
-            :selected="theme.id === selectedThemeId"
-            :live-enabled="cardLiveEnabled(theme.id)"
-            @select="selectTheme"
-            @visible="enableLiveCard"
-          />
-          <button
-            type="button"
-            class="theme-design-card"
-            data-testid="theme-design-card"
-            @click="emit('design-myself')"
+        <div class="theme-lineup-groups" data-testid="theme-lineup-grid">
+          <section
+            v-for="group in themePurposeGroups"
+            :key="group.purpose"
+            class="theme-purpose-group"
+            :data-theme-purpose="group.purpose"
           >
-            <span class="theme-design-card-icon">
-              <UIcon name="i-heroicons-pencil-square" />
-            </span>
-            <span>Design myself</span>
-          </button>
+            <div class="theme-purpose-heading">
+              <span>{{ group.label }}</span>
+              <small>{{ group.themes.length }}</small>
+            </div>
+            <div class="theme-lineup-grid">
+              <ThemePreviewCard
+                v-for="theme in group.themes"
+                :key="theme.id"
+                :map="map"
+                :theme="theme"
+                :preview-config="previewConfigFor(theme)"
+                :selected="theme.id === selectedThemeId"
+                :live-enabled="cardLiveEnabled(theme.id)"
+                @select="selectTheme"
+                @visible="enableLiveCard"
+              />
+            </div>
+          </section>
+          <section class="theme-purpose-group theme-purpose-group--custom">
+            <div class="theme-lineup-grid">
+              <button
+                type="button"
+                class="theme-design-card"
+                data-testid="theme-design-card"
+                @click="emit('design-myself')"
+              >
+                <span class="theme-design-card-icon">
+                  <UIcon name="i-heroicons-pencil-square" />
+                </span>
+                <span>Design myself</span>
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -78,7 +110,10 @@ import ThemePreviewCard from '~/components/map/ThemePreviewCard.vue'
 import {
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
+  groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
+  resolveThemePreviewBaseMapMode,
+  type ThemeBaseMapSelection,
 } from '~/utils/themeOptions'
 
 const props = defineProps<{
@@ -92,26 +127,46 @@ const emit = defineEmits<{
 }>()
 
 const orderedThemes = computed(() => orderedQuickThemeOptionsForRoute(props.map.stats, props.map.geojson))
+const themePurposeGroups = computed(() => groupThemeOptionsByPurpose(orderedThemes.value, {
+  ...props.map,
+  stats: props.map.stats,
+  geojson: props.map.geojson,
+}))
 const selectedThemeId = ref<ColorTheme>((orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0]).id)
+const selectedBaseMode = ref<ThemeBaseMapSelection>('auto')
 const liveCardThemeIds = ref<ColorTheme[]>([])
+const baseModeOptions: Array<{ id: ThemeBaseMapSelection; label: string; disabled?: boolean }> = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'streets', label: 'Streets' },
+]
 
 const selectedTheme = computed(() =>
   orderedThemes.value.find(theme => theme.id === selectedThemeId.value) ?? orderedThemes.value[0] ?? QUICK_THEME_OPTIONS[0],
 )
 
 const selectedPreviewConfig = computed(() => previewConfigFor(selectedTheme.value))
+const resolvedBaseMode = computed(() => resolveThemePreviewBaseMapMode({
+  ...props.map,
+  stats: props.map.stats,
+  geojson: props.map.geojson,
+}, selectedBaseMode.value))
+const resolvedBaseModeLabel = computed(() => resolvedBaseMode.value[0].toUpperCase() + resolvedBaseMode.value.slice(1))
 
 watch(orderedThemes, (themes) => {
   if (!themes.some(theme => theme.id === selectedThemeId.value)) {
     selectedThemeId.value = (themes[0] ?? QUICK_THEME_OPTIONS[0]).id
   }
-  liveCardThemeIds.value = themes.map(theme => theme.id)
+  liveCardThemeIds.value = liveCardThemeIds.value
+    .filter(themeId => themes.some(theme => theme.id === themeId))
 }, { immediate: true })
 
 function previewConfigFor(theme: ThemeDefinition): StyleConfig {
   return deriveThemePreviewConfig(props.modelValue, theme, {
+    ...props.map,
     stats: props.map.stats,
     geojson: props.map.geojson,
+    baseMapMode: selectedBaseMode.value,
   })
 }
 
@@ -123,6 +178,10 @@ function selectTheme(themeId: ColorTheme) {
 function enableLiveCard(themeId: ColorTheme) {
   if (liveCardThemeIds.value.includes(themeId)) return
   liveCardThemeIds.value = [...liveCardThemeIds.value, themeId]
+}
+
+function selectBaseMode(mode: ThemeBaseMapSelection) {
+  selectedBaseMode.value = mode
 }
 
 function cardLiveEnabled(themeId: ColorTheme) {
@@ -186,6 +245,53 @@ function applySelected() {
   font-weight: 700;
 }
 
+.theme-base-mode-picker {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  width: min(100%, 360px);
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid #d6d3d1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.theme-base-mode-option {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  gap: 1px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.theme-base-mode-option small {
+  color: #a8a29e;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.theme-base-mode-option.is-active {
+  background: #1c1917;
+  color: white;
+}
+
+.theme-base-mode-option.is-active small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.theme-base-mode-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .theme-lineup-poster {
   position: relative;
   flex: 1;
@@ -246,11 +352,38 @@ function applySelected() {
   min-width: 0;
 }
 
+.theme-lineup-groups {
+  display: grid;
+  gap: 22px;
+  padding-bottom: 24px;
+}
+
+.theme-purpose-group {
+  display: grid;
+  gap: 10px;
+}
+
+.theme-purpose-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.theme-purpose-heading small {
+  color: #a8a29e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .theme-lineup-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
   gap: 16px;
-  padding-bottom: 24px;
 }
 
 .theme-design-card {

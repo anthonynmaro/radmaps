@@ -224,6 +224,46 @@ describe('two-layer isolation', () => {
     expect(chromeB).not.toBe(chromeA)
   })
 
+  it('changing resolved theme data context changes render hashes', () => {
+    const illinoisContext = {
+      bbox: [-89.0, 41.2, -88.9, 41.3] as [number, number, number, number],
+      location_label: 'Starved Rock',
+      location_region: 'Illinois',
+      location_country: 'United States',
+      location_lng: -88.98,
+      location_lat: 41.32,
+      location_elevation_m: 187,
+    }
+    const massachusettsContext = {
+      ...illinoisContext,
+      location_label: 'Boston Common',
+      location_region: 'Massachusetts',
+      location_lng: -71.06,
+      location_lat: 42.35,
+      location_elevation_m: 14,
+    }
+
+    expect(computeMapContentHash(baseConfig, geojson, framing, illinoisContext))
+      .not.toBe(computeMapContentHash(baseConfig, geojson, framing, massachusettsContext))
+    expect(computeChromeHash(baseConfig, stats, illinoisContext))
+      .not.toBe(computeChromeHash(baseConfig, stats, massachusettsContext))
+  })
+
+  it('changing cached point elevation changes render hashes', () => {
+    const context = {
+      bbox: [-89.0, 41.2, -88.9, 41.3] as [number, number, number, number],
+      location_label: 'Starved Rock',
+      location_region: 'Illinois',
+      location_lng: -88.98,
+      location_lat: 41.32,
+    }
+
+    expect(computeMapContentHash(baseConfig, geojson, framing, { ...context, location_elevation_m: 187 }))
+      .not.toBe(computeMapContentHash(baseConfig, geojson, framing, { ...context, location_elevation_m: 220 }))
+    expect(computeChromeHash(baseConfig, stats, { ...context, location_elevation_m: 187 }))
+      .not.toBe(computeChromeHash(baseConfig, stats, { ...context, location_elevation_m: 220 }))
+  })
+
   it('changing a map field does NOT change chrome_hash', () => {
     const a = computeChromeHash(baseConfig, stats)
     const next = { ...baseConfig, route_color: '#00FF00' }

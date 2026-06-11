@@ -5,7 +5,7 @@
  * workspace so checkout and the editor can use the normal owned-map flows.
  */
 import { z } from 'zod'
-import { serverSupabaseClient, serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 const MapIdSchema = z.string().uuid()
 
@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   if (!user) throw createError({ statusCode: 401, message: 'Sign in to customize this map' })
 
-  const adminClient = await serverSupabaseServiceRole(event)
-  const { data: source, error: sourceError } = await adminClient
+  const supabase = await serverSupabaseClient(event)
+  const { data: source, error: sourceError } = await supabase
     .from('maps')
     .select(`
       id,
@@ -41,7 +41,10 @@ export default defineEventHandler(async (event) => {
       location_region,
       location_country,
       location_lng,
-      location_lat
+      location_lat,
+      location_elevation_m,
+      location_metadata_source,
+      location_metadata_enriched_at
     `)
     .eq('id', id)
     .eq('is_public', true)
@@ -60,7 +63,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const supabase = await serverSupabaseClient(event)
   const hasProof = typeof source.proof_render_url === 'string' && !source.proof_render_url.startsWith('error:')
   const { data: inserted, error: insertError } = await supabase
     .from('maps')
@@ -85,6 +87,9 @@ export default defineEventHandler(async (event) => {
       location_country: source.location_country,
       location_lng: source.location_lng,
       location_lat: source.location_lat,
+      location_elevation_m: source.location_elevation_m,
+      location_metadata_source: source.location_metadata_source,
+      location_metadata_enriched_at: source.location_metadata_enriched_at,
     })
     .select('id')
     .single()

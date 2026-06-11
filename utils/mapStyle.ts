@@ -226,15 +226,27 @@ export const CONTOUR_THRESHOLDS: Record<number, Record<number, [number, number]>
 }
 
 export const LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
-  1: [20, 100],
-  7: [20, 100],
-  8: [20, 100],
-  9: [20, 100],
-  10: [20, 100],
-  11: [20, 100],
-  12: [20, 100],
-  13: [20, 100],
-  14: [20, 100],
+  1: [5, 25],
+  7: [5, 25],
+  8: [5, 25],
+  9: [5, 25],
+  10: [5, 25],
+  11: [5, 25],
+  12: [5, 25],
+  13: [5, 25],
+  14: [5, 25],
+}
+
+export const BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS: Record<number, [number, number]> = {
+  1: [5, 20],
+  7: [5, 20],
+  8: [5, 20],
+  9: [5, 20],
+  10: [5, 20],
+  11: [5, 20],
+  12: [5, 20],
+  13: [5, 20],
+  14: [5, 20],
 }
 
 export const CONTOUR_DEM_OVERZOOM = 0
@@ -250,15 +262,61 @@ export interface AdaptiveContourReliefProfile {
 }
 
 const SMOOTH_CONTOUR_THEME_IDS = new Set([
+  'blueprint',
+  'blueprint-strava',
   'bold-modern',
   'classic-trail',
   'contour-wash',
+  'daybreak-trace',
   'editorial-minimal',
+  'electric-atlas',
+  'midcentury-travel',
+  'ranch-ochre',
+  'splits-stats',
 ])
 
 const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
+  'botanical',
+  'brutalist',
   'moonstone',
 ])
+
+const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set<string>([
+])
+
+const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
+  ['blueprint', 2],
+  ['bold-modern', 2],
+  ['classic-trail', 2],
+  ['contour-wash', 2],
+  ['editorial-minimal', 2],
+  ['usgs-vintage', 2],
+])
+
+const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
+  ['blueprint-strava', 4],
+  ['daybreak-trace', 3],
+  ['electric-atlas', 3],
+  ['splits-stats', 4],
+])
+
+const THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL = new Map<string, number>([
+  ['night-ride', 0],
+])
+
+const SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS = new Set([
+  'blueprint-strava',
+  'electric-atlas',
+  'splits-stats',
+])
+
+function contourFeatureFilter(
+  config: Partial<Pick<StyleConfig, 'color_theme'>>,
+  levelFilter: unknown[],
+): unknown[] {
+  if (!SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS.has(config.color_theme ?? '')) return levelFilter
+  return ['all', ['>', ['get', 'ele'], 0], levelFilter]
+}
 
 function clampContourDetail(detail: number): number {
   if (!Number.isFinite(detail)) return 3
@@ -272,20 +330,19 @@ function finiteOrNull(value: unknown): number | null {
 function detailForReliefMeters(reliefM: number | null): number | null {
   if (reliefM == null) return null
   if (reliefM <= 250) return 5
-  if (reliefM <= 500) return 4
-  if (reliefM <= 850) return 3
-  if (reliefM <= 1200) return 2
-  if (reliefM <= 1300) return 1
+  if (reliefM <= 350) return 4
+  if (reliefM <= 700) return 1
+  if (reliefM <= 1200) return 1
   return 0
 }
 
 function detailForGainPerKm(gainPerKm: number | null): number | null {
   if (gainPerKm == null) return null
   if (gainPerKm <= 35) return 5
-  if (gainPerKm <= 65) return 4
-  if (gainPerKm <= 105) return 3
-  if (gainPerKm <= 155) return 2
-  if (gainPerKm <= 225) return 1
+  if (gainPerKm <= 55) return 4
+  if (gainPerKm <= 85) return 3
+  if (gainPerKm <= 140) return 2
+  if (gainPerKm <= 210) return 1
   return 0
 }
 
@@ -293,7 +350,7 @@ function bandForContourDetail(detail: number | null): AdaptiveContourReliefBand 
   if (detail == null) return 'unknown'
   if (detail === 5) return 'low'
   if (detail === 4) return 'moderate'
-  if (detail >= 2) return 'high'
+  if (detail >= 1) return 'high'
   return 'extreme'
 }
 
@@ -338,8 +395,27 @@ export function resolveAdaptiveContourDetail(
 ): number {
   const fallback = clampContourDetail(config.contour_detail ?? 3)
   const profile = resolveAdaptiveContourReliefProfile(stats)
-  const adaptiveDetail = profile.detail
+  let adaptiveDetail = profile.detail
   if (adaptiveDetail == null) return fallback
+  const themeMinimumDetail = THEME_MIN_CONTOUR_DETAIL.get(config.color_theme ?? '')
+  if (themeMinimumDetail != null) {
+    adaptiveDetail = Math.max(adaptiveDetail, themeMinimumDetail)
+  }
+  const themeMaximumDetail = THEME_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
+  if (themeMaximumDetail != null) {
+    adaptiveDetail = Math.min(adaptiveDetail, themeMaximumDetail)
+  }
+  const nonLowReliefThemeMaximumDetail = THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
+  if (nonLowReliefThemeMaximumDetail != null && profile.band !== 'low') {
+    adaptiveDetail = Math.min(adaptiveDetail, nonLowReliefThemeMaximumDetail)
+  }
+  if (
+    adaptiveDetail === 5 &&
+    fallback < adaptiveDetail &&
+    AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS.has(config.color_theme ?? '')
+  ) {
+    return fallback
+  }
   if (
     adaptiveDetail !== 5 &&
     adaptiveDetail > fallback &&
@@ -363,11 +439,8 @@ export function resolveAdaptiveContourThresholds(
   const detail = resolveAdaptiveContourDetail(config, stats)
   const profile = resolveAdaptiveContourReliefProfile(stats)
   if (detail !== 5 || profile.band !== 'low') return CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
+  if (config.color_theme === 'brutalist') return BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS
   return LOW_RELIEF_CONTOUR_THRESHOLDS
-}
-
-function hasUsableContourStats(stats: Partial<RouteStats> | null | undefined): boolean {
-  return resolveAdaptiveContourReliefProfile(stats).band !== 'unknown'
 }
 
 function scaleNumber(value: number | undefined, factor: number, max: number): number | undefined {
@@ -392,9 +465,10 @@ export function resolveAdaptiveContourStyleConfig(
   if (!styleGraphUsesContours(config)) return config
 
   const adaptiveDetail = resolveAdaptiveContourDetail(config, stats)
-  const hasStats = hasUsableContourStats(stats)
+  const reliefProfile = resolveAdaptiveContourReliefProfile(stats)
+  const hasStats = reliefProfile.band !== 'unknown'
   const isLowRelief = adaptiveDetail === 5 && hasStats
-  const highReliefProfile = adaptiveDetail <= 3
+  const highReliefProfile = adaptiveDetail <= 3 && reliefProfile.band !== 'low'
     ? config.color_theme === 'bold-modern'
       ? ({
           0: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
@@ -411,18 +485,25 @@ export function resolveAdaptiveContourStyleConfig(
           } as const)[adaptiveDetail]
       : config.color_theme === 'brutalist'
         ? ({
-            0: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.22, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.24, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.26, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.28, widthFactor: 1 },
+            0: { opacityFactor: 1, minorMax: 0.34, majorMax: 0.88, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.36, majorMax: 0.88, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.38, majorMax: 0.88, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.40, majorMax: 0.88, widthFactor: 1 },
           } as const)[adaptiveDetail]
       : config.color_theme === 'botanical'
         ? ({
-            0: { opacityFactor: 1, minorMax: 0.14, majorMax: 0.72, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.76, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.80, widthFactor: 1 },
+            0: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.72, widthFactor: 1 },
+            1: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.78, widthFactor: 1 },
+            2: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.80, widthFactor: 1 },
+            3: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.82, widthFactor: 1 },
           } as const)[adaptiveDetail]
+        : config.color_theme === 'night-ride'
+          ? ({
+              0: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.54, widthFactor: 0.86 },
+              1: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.56, widthFactor: 0.9 },
+              2: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.58, widthFactor: 0.94 },
+              3: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.60, widthFactor: 1 },
+            } as const)[adaptiveDetail]
         : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
           ? ({
               0: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.62, widthFactor: 1 },
@@ -448,7 +529,14 @@ export function resolveAdaptiveContourStyleConfig(
   }
 
   if (isLowRelief) {
-    next.contour_opacity = Math.max(next.contour_opacity ?? 0, 0.34)
+    const lowReliefOpacityFloor = config.color_theme === 'brutalist'
+      ? { contour: 0.26, minor: 0.30, major: 0.72 }
+      : config.color_theme === 'daybreak-trace'
+        ? { contour: 0.12, minor: 0.06, major: 0.22 }
+      : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
+        ? { contour: 0.14, minor: 0.055, major: 0.28 }
+        : { contour: 0.34, minor: 0.24, major: 0.42 }
+    next.contour_opacity = Math.max(next.contour_opacity ?? 0, lowReliefOpacityFloor.contour)
 
     const contourSettings = next.atlas_layer_settings?.contour
     if (contourSettings) {
@@ -456,11 +544,11 @@ export function resolveAdaptiveContourStyleConfig(
         ...next.atlas_layer_settings,
         contour: {
           ...contourSettings,
-          minor_opacity: Math.max(contourSettings.minor_opacity ?? next.contour_opacity, 0.24),
-          major_opacity: Math.max(contourSettings.major_opacity ?? contourSettings.index_opacity ?? next.contour_opacity, 0.42),
+          minor_opacity: Math.max(contourSettings.minor_opacity ?? next.contour_opacity, lowReliefOpacityFloor.minor),
+          major_opacity: Math.max(contourSettings.major_opacity ?? contourSettings.index_opacity ?? next.contour_opacity, lowReliefOpacityFloor.major),
           index_opacity: contourSettings.index_opacity == null
             ? contourSettings.index_opacity
-            : Math.max(contourSettings.index_opacity, 0.42),
+            : Math.max(contourSettings.index_opacity, lowReliefOpacityFloor.major),
         },
       }
     }
@@ -559,6 +647,9 @@ function styledTileUrls(config: StyleConfig, urls: string[]): string[] {
 }
 
 export function mapBackgroundColor(config: StyleConfig): string {
+  if (config.color_theme === 'brutalist') {
+    return config.background_color ?? '#E6E3DD'
+  }
   if (isRadMapsTonerPreset(config.preset)) {
     return resolveTonerPalette(config).background
   }
@@ -801,7 +892,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'line',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['!=', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.contour_color,
@@ -814,7 +905,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'line',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['==', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': config.contour_major_color,
@@ -830,7 +921,7 @@ function contourLayers(config: StyleConfig, usingMlContour: boolean) {
         type: 'symbol',
         source: 'contours',
         'source-layer': 'contours',
-        filter: ['==', ['get', 'level'], 1],
+        filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
         layout: {
           'symbol-placement': 'line',
           'symbol-spacing': 500,
@@ -2257,7 +2348,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['!=', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2274,7 +2365,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['!=', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['!=', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2288,7 +2379,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_color,
@@ -2302,7 +2393,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'line',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-color': config.contour_major_color,
@@ -2319,7 +2410,7 @@ function buildAtlasContourLayers(config: StyleConfig, usingMlContour: boolean, o
       type: 'symbol',
       source: 'contours',
       'source-layer': 'contours',
-      filter: ['==', ['get', 'level'], 1],
+      filter: contourFeatureFilter(config, ['==', ['get', 'level'], 1]),
       layout: {
         'symbol-placement': 'line',
         'symbol-spacing': 500,
@@ -2815,7 +2906,7 @@ function buildContourArtStyle(
               type: 'line',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['!=', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['!=', ['get', 'level'], 1]),
               layout: { 'line-join': 'round', 'line-cap': 'round' },
               paint: {
                 'line-color': artConfig.contour_color,
@@ -2828,7 +2919,7 @@ function buildContourArtStyle(
               type: 'line',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['==', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['==', ['get', 'level'], 1]),
               layout: { 'line-join': 'round', 'line-cap': 'round' },
               paint: {
                 'line-color': artConfig.contour_major_color,
@@ -2841,7 +2932,7 @@ function buildContourArtStyle(
               type: 'symbol',
               source: 'contours',
               'source-layer': 'contours',
-              filter: ['==', ['get', 'level'], 1],
+              filter: contourFeatureFilter(artConfig, ['==', ['get', 'level'], 1]),
               layout: {
                 'symbol-placement': 'line',
                 'symbol-spacing': 500,

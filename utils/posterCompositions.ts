@@ -316,6 +316,7 @@ export function resolvePosterCompositionId(styleConfig: Pick<StyleConfig, 'compo
   if (styleConfig.composition && POSTER_COMPOSITIONS[styleConfig.composition]) {
     return styleConfig.composition
   }
+  if (styleConfig.color_theme === 'risograph') return 'legacy-classic'
   const theme = getThemeDefinition(styleConfig.color_theme as ColorTheme)
   if (theme?.composition && POSTER_COMPOSITIONS[theme.composition]) {
     return theme.composition

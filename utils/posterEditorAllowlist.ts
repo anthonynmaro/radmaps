@@ -9,6 +9,10 @@ export const TIER1_TEXT_SLOTS = [
   'elevation_gain',
   'date',
   'coordinates',
+  'composition_kicker',
+  'composition_meta',
+  'composition_footer',
+  'composition_side_rail',
 ] as const satisfies readonly PosterTextSlot[]
 
 const FIELD_TEXT_SLOTS: Partial<Record<ThemeEditableField, readonly PosterTextSlot[]>> = {

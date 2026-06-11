@@ -74,6 +74,15 @@ export interface OrderSnapshotRow {
   chrome_hash: string
   hash_version: Record<string, unknown>
   provider_profile: Record<string, unknown>
+  location_label: string | null
+  location_city: string | null
+  location_region: string | null
+  location_country: string | null
+  location_lng: number | null
+  location_lat: number | null
+  location_elevation_m: number | null
+  location_metadata_source: string | null
+  location_metadata_enriched_at: string | null
   frozen_at: string
 }
 

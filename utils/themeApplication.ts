@@ -83,6 +83,8 @@ const THEME_RESET_FIELDS = {
 function stripThemeOwnedTextOverride(override: PosterTextOverride): PosterTextOverride | undefined {
   const next: PosterTextOverride = {}
   if (override.text != null) next.text = override.text
+  if (override.approved_placeholder != null) next.approved_placeholder = override.approved_placeholder
+  if (override.approved_placeholder_at != null) next.approved_placeholder_at = override.approved_placeholder_at
   return Object.keys(next).length ? next : undefined
 }
 

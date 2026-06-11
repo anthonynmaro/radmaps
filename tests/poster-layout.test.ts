@@ -120,6 +120,27 @@ describe('poster layout merge', () => {
     expect(coords?.block?.scale).toBeLessThan(distance?.block?.scale ?? 0)
   })
 
+  it('keeps Night Ride map-forward with a compact title and footer stack', () => {
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      color_theme: 'night-ride',
+      composition: 'splits-grid',
+      labels: {
+        ...baseConfig.labels,
+        show_date: true,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_location: true,
+      },
+    }, stats)
+
+    expect(layout.bands.header.height).toBe(14)
+    expect(layout.bands.footer.height).toBe(14)
+    expect(layout.bands.header.rows.find(row => row.id === 'header-title')?.fr).toBe(1.72)
+    expect(layout.bands.footer.rows.find(row => row.id === 'footer-primary')?.fr).toBe(1.32)
+    expect(blocksFor(layout, 'footer').find(block => block?.slot === 'distance')?.scale).toBeGreaterThan(1.4)
+  })
+
   it('keeps default occasion text only on roomier compositions', () => {
     const roomierCompositions = ['editorial-tall', 'journal-spread'] as const
     const denseCompositions = ['blueprint-grid', 'blueprint-strava', 'splits-grid', 'bib-numerals', 'brutalist-slab'] as const
@@ -517,5 +538,106 @@ describe('poster layout merge', () => {
       displacesMap: false,
       box: { decorations: ['sea-chart-titleblock'] },
     })
+  })
+
+  it('ephemerally omits route-only footer stats for place-only data without tombstones', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+      location: 'Starved Rock',
+    }
+    const layout = defaultPosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+      labels: {
+        ...baseConfig.labels,
+        show_distance: true,
+        show_elevation_gain: true,
+        show_date: true,
+        show_location: true,
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      bbox: [-89.0, 41.2, -88.9, 41.3],
+    })
+    const footerPrimary = layout.bands.footer.rows.find(row => row.id === 'footer-primary')
+
+    expect(footerPrimary?.cells.some(cell => cell.deleted)).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'elevation_gain')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'date')).toBe(false)
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'coordinates')).toBe(true)
+  })
+
+  it('lets user-owned text overrides re-add a route stat slot on place-only data', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+      location: 'Starved Rock',
+    }
+    const layout = effectivePosterLayout({
+      ...baseConfig,
+      composition: 'splits-grid',
+      poster_text_overrides: {
+        distance: { text: 'Picnic loop' },
+      },
+      labels: {
+        ...baseConfig.labels,
+        show_distance: true,
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      bbox: [-89.0, 41.2, -88.9, 41.3],
+    })
+
+    expect(blocksFor(layout, 'footer').some(block => block?.slot === 'distance')).toBe(true)
+  })
+
+  it('keeps pending preview placeholders out of final layout until approved', () => {
+    const placeStats: RouteStats = {
+      distance_km: 0,
+      elevation_gain_m: 0,
+      elevation_loss_m: 0,
+      max_elevation_m: 0,
+      min_elevation_m: 0,
+    }
+    const pendingLayout = effectivePosterLayout({
+      ...baseConfig,
+      trail_name: '',
+      location_text: '',
+      poster_text_overrides: {
+        trail_name: {
+          text: 'Preview trail title',
+          approved_placeholder: false,
+        },
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      mode: 'final',
+    })
+    const approvedLayout = effectivePosterLayout({
+      ...baseConfig,
+      trail_name: '',
+      location_text: '',
+      poster_text_overrides: {
+        trail_name: {
+          text: 'Preview trail title',
+          approved_placeholder: true,
+          approved_placeholder_at: '2026-06-10T12:00:00.000Z',
+        },
+      },
+    }, placeStats, {
+      geojson: { type: 'FeatureCollection', features: [] },
+      mode: 'final',
+    })
+
+    expect(blocksFor(pendingLayout, 'header').some(block => block?.slot === 'trail_name')).toBe(false)
+    expect(blocksFor(approvedLayout, 'header').some(block => block?.slot === 'trail_name')).toBe(true)
   })
 })

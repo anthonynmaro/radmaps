@@ -53,7 +53,7 @@ export async function freezeOrderSnapshot(
   // 1. Load the design — this is what the customer just approved.
   const { data: map, error: mapError } = await supabase
     .from('maps')
-    .select('id, user_id, style_config, geojson, stats, bbox, render_url, proof_render_url')
+    .select('id, user_id, style_config, geojson, stats, bbox, render_url, proof_render_url, location_label, location_city, location_region, location_country, location_lng, location_lat, location_elevation_m, location_metadata_source, location_metadata_enriched_at')
     .eq('id', mapId)
     .single()
 
@@ -69,8 +69,8 @@ export async function freezeOrderSnapshot(
   // 3. Compute the layered hashes. mapContentHash includes the geojson +
   //    framing dimensions; chromeHash includes the stats. Both incorporate
   //    HASH_VERSION so a renderer/style/template bump invalidates the cache.
-  const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing)
-  const chromeHash = computeChromeHash(map.style_config, map.stats)
+  const mapContentHash = computeMapContentHash(map.style_config, map.geojson, framing, map)
+  const chromeHash = computeChromeHash(map.style_config, map.stats, map)
   const proofRenderHash = computeProofRenderHash(mapContentHash, chromeHash)
 
   // 4. Pick the "proof" URL we point the customer at. Until the v4 render
@@ -101,6 +101,15 @@ export async function freezeOrderSnapshot(
     chrome_hash: chromeHash,
     hash_version: HASH_VERSION,
     provider_profile: providerProfile,
+    location_label: map.location_label,
+    location_city: map.location_city,
+    location_region: map.location_region,
+    location_country: map.location_country,
+    location_lng: map.location_lng,
+    location_lat: map.location_lat,
+    location_elevation_m: map.location_elevation_m,
+    location_metadata_source: map.location_metadata_source,
+    location_metadata_enriched_at: map.location_metadata_enriched_at,
   }
 
   const { error } = await supabase

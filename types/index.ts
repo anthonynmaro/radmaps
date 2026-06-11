@@ -57,6 +57,7 @@ export type ColorTheme =
   | 'chalk' | 'topaz' | 'dusk' | 'obsidian' | 'forest' | 'midnight'
   // Family B — distinct visual languages
   | 'editorial' | 'bauhaus' | 'vintage' | 'brutalist' | 'risograph'
+  | 'classic-risograph'
   | 'blueprint' | 'kertok' | 'mid-century' | 'topo-art' | 'dark-sky'
   // Refined design-update themes. Additive only: old ids stay renderable.
   | 'editorial-minimal' | 'usgs-vintage' | 'midcentury-travel'
@@ -93,6 +94,7 @@ export type BaseTileStyle =
   | 'maptiler-topo'
   | 'maptiler-winter'
 export type TonerVariant = 'auto' | 'light' | 'dark'
+export type ThemeBaseMapMode = 'terrain' | 'streets' | 'minimal'
 
 export type AtlasLayerId =
   | 'contour'
@@ -233,6 +235,8 @@ export type PosterTextSlot =
 
 export interface PosterTextOverride {
   text?: string
+  approved_placeholder?: boolean
+  approved_placeholder_at?: string
   font_family?: FontFamily
   color?: string
   bg_color?: string
@@ -551,6 +555,7 @@ export interface StyleConfig {
   atlas_manifest_id?: string
   atlas_style_id?: string
   toner_variant?: TonerVariant
+  base_map_mode?: ThemeBaseMapMode
   atlas_layers?: AtlasLayerVisibility
   atlas_layer_settings?: AtlasLayerSettings
   watercolor_seed?: string
@@ -985,6 +990,23 @@ export const COLOR_THEMES: ThemeDefinition[] = [
     tile_grain: 0.18,
   },
   {
+    id: 'classic-risograph',
+    label: 'Classic Risograph',
+    dark: false,
+    background_color: '#F5ECD4',
+    label_bg_color: '#F5ECD4',
+    label_text_color: '#1A1A3E',
+    route_color: '#E8533C',
+    water_color: '#A0B8C0',
+    land_color: '#EDE0C0',
+    base_tile_style: 'carto-light',
+    contour_color: '#C0A888',
+    contour_major_color: '#988060',
+    font_family: 'Oswald',
+    border_style: 'none',
+    tile_grain: 0.18,
+  },
+  {
     id: 'blueprint',
     label: 'Blueprint',
     dark: true,
@@ -1118,6 +1140,9 @@ export interface LocationMetadata {
   location_country?: string | null
   location_lng?: number | null
   location_lat?: number | null
+  location_elevation_m?: number | null
+  location_metadata_source?: string | null
+  location_metadata_enriched_at?: string | null
 }
 
 // ─── Map Record ───────────────────────────────────────────────────────────────

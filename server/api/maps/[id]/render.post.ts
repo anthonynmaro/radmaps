@@ -66,7 +66,7 @@ export async function renderMapProof(args: V4Args) {
   const readClient = allowServiceRead ? adminClient : supabase
   const { data: map, error: fetchError } = await readClient
     .from('maps')
-    .select('id, user_id, geojson, style_config, stats, bbox, render_url, thumbnail_url, proof_render_hash, proof_render_url')
+    .select('id, user_id, geojson, style_config, stats, bbox, render_url, thumbnail_url, proof_render_hash, proof_render_url, location_label, location_city, location_region, location_country, location_lng, location_lat, location_elevation_m, location_metadata_source, location_metadata_enriched_at')
     .eq('id', mapId)
     .eq('user_id', userId)
     .single()
@@ -89,8 +89,8 @@ export async function renderMapProof(args: V4Args) {
   const framing = getPrintFraming(productUid, 'proof')
 
   // 2. Compute the three hashes.
-  const mapContentHash = computeMapContentHash(styleConfig, geojson, framing)
-  const chromeHash = computeChromeHash(styleConfig, stats)
+  const mapContentHash = computeMapContentHash(styleConfig, geojson, framing, map)
+  const chromeHash = computeChromeHash(styleConfig, stats, map)
   const proofRenderHash = computeProofRenderHash(mapContentHash, chromeHash)
 
   // 3. Proof cache hit on the maps row itself — fully cached, no work.

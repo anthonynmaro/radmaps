@@ -17,6 +17,7 @@ const fullConfig: StyleConfig = {
   ...DEFAULT_STYLE_CONFIG,
   // Optional map fields
   toner_variant: 'dark',
+  base_map_mode: 'terrain',
   route_deleted_ranges: [],
   route_color_mode: 'solid',
   show_roads: false,
@@ -116,6 +117,11 @@ describe('FIELD_LAYER — locked decisions', () => {
 
   it('poster_layout is "chrome" (direct chrome editing never invalidates the map raster)', () => {
     expect(FIELD_LAYER.poster_layout).toBe('chrome')
+  })
+
+  it('poster element editor fields are "chrome"', () => {
+    expect(FIELD_LAYER.grid_spacing).toBe('chrome')
+    expect(FIELD_LAYER.icon_overlays).toBe('chrome')
   })
 
   it('preset and base_tile_style are "map"', () => {

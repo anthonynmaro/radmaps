@@ -322,6 +322,16 @@ This odd pixel count is expected because 3 mm does not convert to an even number
 
 Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
 
+Proof/final parity is covered by the focused CI job `Proof/Final Parity`, which
+renders the same label-heavy poster through `/style-browser-fixture` at proof
+and final framing, normalizes map/text/chrome rectangles to the poster box,
+and asserts matching layout geometry. The verified contract is layout parity:
+proof and final may differ in raster sharpness and output DPI, but normalized
+map and label positions must not drift. Physical bleed/safe-margin
+certification still depends on Gelato template PDFs and real sample orders; the
+placeholder TODOs in `providerProfile.ts` remain until Anthony verifies those
+numbers.
+
 ## Environment Variables
 
 Required for screenshot rendering:

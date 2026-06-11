@@ -2,6 +2,15 @@
 import { fileURLToPath } from 'node:url'
 import { generateFontFaceCss } from './utils/render/fontRegistry'
 
+const isE2eDevServer = process.env.RADMAPS_E2E === '1'
+const e2eEditorWarmupFiles = [
+  './pages/create/[mapId]/style.vue',
+  './components/map/MapEditorSurface.vue',
+  './components/map/MapPreview.vue',
+  './components/map/ThemeLineupStep.vue',
+  './components/map/StylePanel.vue',
+]
+
 export default defineNuxtConfig({
   devtools: { enabled: !process.env.PLAYWRIGHT_PORT },
   compatibilityDate: '2024-11-01',
@@ -39,7 +48,7 @@ export default defineNuxtConfig({
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_ANON_KEY,
     serviceKey: process.env.SUPABASE_SERVICE_KEY,
-    redirect: true,
+    redirect: isE2eDevServer ? false : true,
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
@@ -56,6 +65,8 @@ export default defineNuxtConfig({
         '/returns',
         '/support',
         '/render/**',
+        '/create',
+        '/create/**',
         '/api/strava/connect',
         '/api/strava/callback',
         '/api/atlas/tiles/**',
@@ -110,6 +121,7 @@ export default defineNuxtConfig({
       radmapsAtlasTileBaseUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_TILE_BASE_URL,
       radmapsAtlasPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_ATLAS_PMTILES_URL,
       radmapsContourPmtilesUrl: process.env.NUXT_PUBLIC_RADMAPS_CONTOUR_PMTILES_URL,
+      radmapsE2eAuth: process.env.NUXT_PUBLIC_RADMAPS_E2E_AUTH,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://radmaps.studio' : 'http://localhost:3001'),
     },
   },
@@ -152,6 +164,7 @@ export default defineNuxtConfig({
       },
     },
     optimizeDeps: {
+      ...(isE2eDevServer ? { entries: e2eEditorWarmupFiles } : {}),
       include: ['@supabase/ssr'],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
@@ -159,6 +172,9 @@ export default defineNuxtConfig({
       exclude: ['maplibre-contour'],
     },
     server: {
+      ...(isE2eDevServer
+        ? { warmup: { clientFiles: e2eEditorWarmupFiles } }
+        : {}),
       allowedHosts: [
         'localhost',
         '127.0.0.1',

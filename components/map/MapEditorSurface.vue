@@ -1,11 +1,91 @@
 <template>
   <div
-    class="flex flex-1 overflow-hidden relative"
+    class="flex flex-1 h-full min-h-0 w-full overflow-hidden relative"
     data-testid="map-editor-surface"
     :data-chrome-editing="chromeDirectEdit ? 'true' : 'false'"
   >
+    <template v-if="fixedTemplateEditorActive && map">
+      <main class="flex-1 min-h-0 overflow-hidden">
+        <FixedPosterTemplateEditor
+          ref="mapPreviewRef"
+          v-model="styleConfig"
+          :map="map"
+          :show-inspector="false"
+          class="h-full w-full"
+          @done="dismissFixedTemplateEditor"
+        />
+      </main>
+
+      <aside
+        class="shrink-0 overflow-hidden flex flex-col bg-white transition-all duration-300 ease-out"
+        :class="[
+          'md:relative md:inset-auto md:w-[320px] md:h-auto md:border-l md:border-stone-200 md:rounded-none md:shadow-none',
+          'fixed inset-x-0 bottom-0 z-30 md:static',
+          sheetState === 'full' ? 'h-[85vh]' :
+          sheetState === 'half' ? 'h-[45vh]' :
+          'h-16',
+        ]"
+        style="box-shadow: 0 -4px 20px rgba(0,0,0,0.08);"
+      >
+        <MapStylePanel
+          v-model="styleConfig"
+          :saving="saving"
+          :has-route="!!map.geojson"
+          :has-elevation-data="hasElevationData"
+          :total-distance-km="map.stats?.distance_km"
+          :active-plot-mode="plotMode"
+          :active-delete-brush="deleteBrushActive"
+          :delete-brush-size="deleteBrushSize"
+          :active-segment-draw-mode="segmentDrawMode"
+          :segment-draw-disabled="segmentDrawDisabled"
+          :active-segment-edit-mode="segmentEditMode"
+          :segment-edit-disabled="segmentEditDisabled"
+          :active-text-target="activeTextTarget"
+          :poster-elements-available="posterElementsEditor"
+          :poster-tier2-available="posterTier2Editor"
+          :poster-editor-mode="posterEditorMode"
+          :selected-poster-element-id="selectedPosterElementId"
+          :poster-guides-visible="posterGuidesVisible"
+          :scout-available="scoutAvailable"
+          :route-stats="routeStats ?? map.stats"
+          :track-upload-available="trackUploadAvailable"
+          :track-upload-loading="trackUploadLoading"
+          :track-upload-error="trackUploadError"
+          @reset="resetStyle"
+          @logo-upload="emit('logo-upload', $event)"
+          @image-upload="emit('image-upload', $event)"
+          @track-upload="onTrackUpload"
+          @toggle-sheet="toggleSheet"
+          @swipe-up="onSwipeUp"
+          @swipe-down="onSwipeDown"
+          @request-plot="onRequestPlot"
+          @request-segment-draw="onRequestSegmentDraw"
+          @request-segment-draw-save="mapPreviewRef?.finishSegmentDraw()"
+          @request-segment-draw-cancel="segmentDrawMode = null"
+          @request-segment-edit="onRequestSegmentEdit"
+          @request-segment-edit-cancel="segmentEditMode = null"
+          @request-detect-disconnected="onDetectDisconnected"
+          @request-brush-delete="onRequestBrushDelete"
+          @update-brush-size="deleteBrushSize = $event"
+          @request-view-lock="mapPreviewRef?.freezeView()"
+          @request-view-edit="mapPreviewRef?.unfreezeView()"
+          @request-view-reset="mapPreviewRef?.resetViewToRoute()"
+          @browse-themes="emit('browse-themes')"
+          @poster-editor-mode-change="posterEditorMode = $event"
+          @poster-guides-visible-change="posterGuidesVisible = $event"
+          @poster-element-selected="onPosterElementSelected"
+          @poster-element-patch="onPosterElementPatch"
+          @poster-element-remove="onPosterElementRemove"
+          @poster-element-duplicate="onPosterElementDuplicate"
+          @poster-text-add="onPosterTextAdd"
+          @poster-icon-add="onPosterIconAdd"
+        />
+      </aside>
+    </template>
+
+    <template v-else>
     <main
-      class="flex-1 flex flex-col overflow-hidden transition-[padding] duration-300 ease-out md:!pb-0"
+      class="flex-1 min-h-0 flex flex-col overflow-hidden transition-[padding] duration-300 ease-out md:!pb-0"
       :class="[
         sheetState === 'closed' ? 'pb-16' :
         sheetState === 'half' ? 'pb-[45vh]' :
@@ -13,7 +93,7 @@
       ]"
       @click="onMapAreaClick"
     >
-      <div class="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+      <div class="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
         <div
           v-if="trackImportWarning"
           class="absolute left-4 right-4 top-4 z-20 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900 shadow-sm"
@@ -35,6 +115,13 @@
             :can-undo="canUndo"
             :can-redo="canRedo"
             :chrome-editing="chromeDirectEdit"
+            :poster-elements-editing="posterElementsEditor"
+            :poster-tier2-editor="posterTier2Editor"
+            :poster-editor-mode="posterEditorMode"
+            :poster-guides-visible="posterGuidesVisible"
+            :selected-poster-element-id="selectedPosterElementId"
+            :editable-text-slots="posterEditableTextSlots"
+            :guided-poster-editor="posterElementsEditor"
             class="w-full h-full"
             @update:trail-name="setStyle({ trail_name: $event })"
             @update:occasion-text="setStyle({ occasion_text: $event })"
@@ -48,6 +135,8 @@
             @asset-selected="onAssetSelected"
             @asset-deleted="onAssetDeleted"
             @asset-resized="onAssetResized"
+            @poster-element-selected="onPosterElementSelected"
+            @poster-element-patched="onPosterElementPatch"
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
@@ -137,6 +226,11 @@
         :active-segment-edit-mode="segmentEditMode"
         :segment-edit-disabled="segmentEditDisabled"
         :active-text-target="activeTextTarget"
+        :poster-elements-available="posterElementsEditor"
+        :poster-tier2-available="posterTier2Editor"
+        :poster-editor-mode="posterEditorMode"
+        :selected-poster-element-id="selectedPosterElementId"
+        :poster-guides-visible="posterGuidesVisible"
         :scout-available="scoutAvailable"
         :route-stats="routeStats ?? map.stats"
         :track-upload-available="trackUploadAvailable"
@@ -167,18 +261,29 @@
         @request-view-edit="mapPreviewRef?.unfreezeView()"
         @request-view-reset="mapPreviewRef?.resetViewToRoute()"
         @browse-themes="emit('browse-themes')"
+        @poster-editor-mode-change="posterEditorMode = $event"
+        @poster-guides-visible-change="posterGuidesVisible = $event"
+        @poster-element-selected="onPosterElementSelected"
+        @poster-element-patch="onPosterElementPatch"
+        @poster-element-remove="onPosterElementRemove"
+        @poster-element-duplicate="onPosterElementDuplicate"
+        @poster-text-add="onPosterTextAdd"
+        @poster-icon-add="onPosterIconAdd"
       />
       <div v-else class="flex-1 bg-white animate-pulse" />
     </aside>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
 import type {
   DeletedRange,
   MapAsset,
   MapAssetKind,
   PartialPosterLayout,
+  PosterIconId,
   PosterTextOverride,
   PosterTextSlot,
   StyleConfig,
@@ -188,6 +293,16 @@ import type {
 } from '~/types'
 import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import { FLAGS } from '~/utils/knownFlags'
+import {
+  addPosterEditorIcon,
+  addPosterEditorText,
+  duplicatePosterEditorElement,
+  patchPosterEditorElement,
+  removePosterEditorElement,
+  syncPosterOverlayAnchors,
+  type PosterEditorElementPatch,
+} from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 import {
   buildElevationProfile,
   detectDisconnectedRanges,
@@ -211,6 +326,7 @@ type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
+type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 type MapPreviewHandle = {
   freezeView: () => void
   unfreezeView: () => void
@@ -254,6 +370,10 @@ const styleConfig = computed({
 const route = useRoute()
 const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
+const selectedPosterElementId = ref<string | null>(null)
+const posterEditorMode = ref<PosterEditorMode>(parsePosterEditorMode(route.query.posterMode))
+const posterGuidesVisible = ref(false)
+const templateEditorDismissed = ref(false)
 const sheetState = ref<'closed' | 'half' | 'full'>('half')
 
 // ── Desktop panel sizing & collapse (browser-local, persisted) ──────────────────
@@ -330,7 +450,30 @@ const hasElevationData = computed(() => {
 })
 
 const chromeDirectEditFlag = useFeatureFlag(FLAGS.CHROME_DIRECT_EDIT)
+const posterElementsEditorFlag = useFeatureFlag(FLAGS.POSTER_ELEMENTS_EDITOR)
+const posterTemplateEditorFlag = useFeatureFlag(FLAGS.POSTER_TEMPLATE_EDITOR)
+const posterTier2EditorFlag = useFeatureFlag(FLAGS.POSTER_TIER2_EDITOR)
+const posterElementsEditor = computed(() => {
+  const queryValue = route.query.posterEditor
+  const queryEnabled = queryValue === '1' || queryValue === 'true'
+  return posterElementsEditorFlag.value || (import.meta.dev && queryEnabled)
+})
+const posterTier2Editor = computed(() => {
+  const queryValue = route.query.posterTier2 ?? route.query.tier2Editor
+  const queryEnabled = queryValue === '1' || queryValue === 'true'
+  return posterElementsEditor.value && (posterTier2EditorFlag.value || (import.meta.dev && queryEnabled))
+})
+const posterEditableTextSlots = computed(() =>
+  posterElementsEditor.value ? posterEditorAllowlistForStyle(styleConfig.value).textSlots : null,
+)
+const fixedTemplateEditorActive = computed(() => {
+  const queryValue = route.query.surfaceTemplateEditor ?? route.query.templateEditor
+  const queryEnabled = queryValue === '1' || queryValue === 'true'
+  return posterElementsEditor.value && !templateEditorDismissed.value && (posterTemplateEditorFlag.value || (import.meta.dev && queryEnabled))
+})
 const chromeDirectEdit = computed(() => {
+  if (fixedTemplateEditorActive.value) return false
+  if (posterElementsEditor.value) return posterEditorMode.value === 'layout'
   const chromeQuery = route.query.chrome
   const chromeQueryEnabled = chromeQuery === '1' || chromeQuery === 'true'
   return chromeDirectEditFlag.value || (import.meta.dev && chromeQueryEnabled)
@@ -371,6 +514,37 @@ watch(
 
 watch(plotMode, (mode) => { if (!mode) pendingDeleteStart.value = null })
 
+watch(posterElementsEditor, (enabled) => {
+  if (!enabled) {
+    selectedPosterElementId.value = null
+    posterEditorMode.value = 'layout'
+  }
+})
+
+watch(
+  () => [posterTier2Editor.value, props.modelValue.image_overlays?.length ?? 0, props.modelValue.text_overlays?.length ?? 0],
+  () => {
+    if (!posterTier2Editor.value) return
+    const next = syncPosterOverlayAnchors(styleConfig.value)
+    if (JSON.stringify(next.poster_layout) !== JSON.stringify(styleConfig.value.poster_layout)) styleConfig.value = next
+  },
+)
+
+watch(() => route.query.posterMode, (mode) => {
+  posterEditorMode.value = parsePosterEditorMode(mode)
+  if (posterEditorMode.value === 'guides') posterGuidesVisible.value = true
+})
+
+watch(() => route.fullPath, () => {
+  templateEditorDismissed.value = false
+})
+
+function parsePosterEditorMode(value: unknown): PosterEditorMode {
+  return value === 'select' || value === 'text' || value === 'image' || value === 'icon' || value === 'guides'
+    ? value
+    : 'layout'
+}
+
 function seedHistory(config: StyleConfig) {
   nextTick(() => {
     undoHistory.value = [JSON.parse(JSON.stringify(config))]
@@ -391,6 +565,11 @@ function toggleSheet() {
   if (sheetState.value === 'closed') sheetState.value = 'half'
   else if (sheetState.value === 'half') sheetState.value = 'full'
   else sheetState.value = 'half'
+}
+
+function dismissFixedTemplateEditor() {
+  templateEditorDismissed.value = true
+  posterEditorMode.value = 'layout'
 }
 
 function onSwipeUp() {
@@ -756,6 +935,40 @@ function updateAsset(id: string, patch: Partial<MapAsset>) {
     ...styleConfig.value,
     image_overlays: assets.map(asset => asset.id === id ? { ...asset, ...patch } : asset),
   }
+}
+
+function onPosterElementSelected(id: string | null) {
+  selectedPosterElementId.value = id
+  if (id?.startsWith('text:')) activeTextTarget.value = { type: 'text-overlay', id: id.slice('text:'.length) }
+  else if (id?.startsWith('asset:')) activeTextTarget.value = { type: 'image-overlay', id: id.slice('asset:'.length) }
+  else activeTextTarget.value = null
+}
+
+function onPosterElementPatch(payload: { id: string; patch: PosterEditorElementPatch }) {
+  styleConfig.value = patchPosterEditorElement(styleConfig.value, payload.id, payload.patch)
+}
+
+function onPosterElementRemove(id: string) {
+  styleConfig.value = removePosterEditorElement(styleConfig.value, id)
+  if (selectedPosterElementId.value === id) onPosterElementSelected(null)
+}
+
+function onPosterElementDuplicate(id: string) {
+  const result = duplicatePosterEditorElement(styleConfig.value, id)
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterTextAdd() {
+  const result = addPosterEditorText(styleConfig.value)
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterIconAdd(icon: PosterIconId) {
+  const result = addPosterEditorIcon(styleConfig.value, icon)
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
 }
 
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {

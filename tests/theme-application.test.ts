@@ -42,7 +42,7 @@ describe('theme application', () => {
     expect(next.color_theme).toBe('midcentury-travel')
     expect(next.preset).toBe('radmaps-simple-contour')
     expect(next.atlas_style_id).toBe('radmaps-simple-contour')
-    expect(next.contour_detail).toBe(5)
+    expect(next.contour_detail).toBe(0)
     expect(next.contour_minor_width).toBe(0.68)
     expect(next.contour_major_width).toBe(1.34)
     expect(next.background_color).toBe('#E6D2A2')

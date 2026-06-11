@@ -1,0 +1,83 @@
+name: Theme Goldens
+
+on:
+  pull_request:
+    paths:
+      - 'components/map/**'
+      - 'utils/themes/**'
+      - 'utils/posterCompositions.ts'
+      - 'utils/posterLayout.ts'
+      - 'utils/mapStyle.ts'
+      - 'pages/render/**'
+      - 'scripts/capture-theme-audit.mjs'
+      - 'scripts/theme-golden-diff.mjs'
+      - 'docs/theme_goldens/**'
+      - '.github/workflows/theme-goldens.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'components/map/**'
+      - 'utils/themes/**'
+      - 'utils/posterCompositions.ts'
+      - 'utils/posterLayout.ts'
+      - 'utils/mapStyle.ts'
+      - 'pages/render/**'
+      - 'scripts/capture-theme-audit.mjs'
+      - 'scripts/theme-golden-diff.mjs'
+      - 'docs/theme_goldens/**'
+      - '.github/workflows/theme-goldens.yml'
+
+concurrency:
+  group: theme-goldens-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  THEME_GOLDEN_OUT: /tmp/radmaps-theme-golden-current
+  THEME_GOLDEN_DIFF_OUT: /tmp/radmaps-theme-golden-current/golden-diff
+
+jobs:
+  theme-golden-diff:
+    name: Theme Golden Diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      NUXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      NUXT_PUBLIC_MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      NUXT_PUBLIC_STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      RENDER_TICKET_SECRET: ${{ secrets.RENDER_TICKET_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Validate CI secrets
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_ANON_KEY MAPBOX_TOKEN MAPTILER_TOKEN STADIA_API_KEY RENDER_TICKET_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing CI secret::${name} is not configured for GitHub Actions"
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - run: npx nuxi prepare
+      - run: npm run themes:golden:diff -- --out="${THEME_GOLDEN_OUT}" --diff-out="${THEME_GOLDEN_DIFF_OUT}"
+      - name: Upload theme golden renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-golden-renders
+          path: ${{ env.THEME_GOLDEN_OUT }}
+          if-no-files-found: warn

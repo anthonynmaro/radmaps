@@ -427,7 +427,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Layers" hint="Theme chrome is locked by default" :default-open="true">
+        <V4Card title="Layers" hint="Theme chrome slots are editable" :default-open="true">
           <div class="space-y-1.5">
             <button
               v-for="element in posterEditorElements"
@@ -2107,14 +2107,24 @@ const CORE_TABS: Array<{ id: TabId; label: string }> = [
 
 const scoutEnabled = useFeatureFlag(FLAGS.SCOUT_STYLE_AGENT)
 const showScoutTab = computed(() => Boolean(props.scoutAvailable && scoutEnabled.value))
-const baseTabs = computed(() => props.posterElementsAvailable
-  ? [
-      { id: 'quick' as const, label: 'Quick' },
-      { id: 'design' as const, label: 'Design' },
-      ...CORE_TABS.slice(1),
-    ]
-  : CORE_TABS,
+const hasPosterStyleTabContent = computed(() =>
+  sections.value.globalColorControls
+  || sections.value.gridControls
+  || sections.value.typographyControls
+  || sections.value.frameControls,
 )
+const baseTabs = computed(() => {
+  const coreTabs = CORE_TABS.filter(tab => tab.id !== 'style' || hasPosterStyleTabContent.value)
+  const quickTab = coreTabs.find(tab => tab.id === 'quick') ?? CORE_TABS[0]
+  const remainingTabs = coreTabs.filter(tab => tab.id !== 'quick')
+  return props.posterElementsAvailable
+    ? [
+        quickTab,
+        { id: 'design' as const, label: 'Design' },
+        ...remainingTabs,
+      ]
+    : coreTabs
+})
 const visibleTabs = computed(() => showScoutTab.value
   ? [...baseTabs.value, { id: 'scout' as const, label: 'Scout' }]
   : baseTabs.value,
@@ -2126,6 +2136,10 @@ watch(showScoutTab, (visible) => {
 
 watch(() => props.posterElementsAvailable, (available) => {
   if (!available && activeTab.value === 'design') activeTab.value = 'quick'
+})
+
+watch(visibleTabs, (tabs) => {
+  if (!tabs.some(tab => tab.id === activeTab.value)) activeTab.value = 'quick'
 })
 
 const scoutRouteStats = computed<RouteStats>(() => props.routeStats ?? {

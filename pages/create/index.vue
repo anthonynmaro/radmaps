@@ -372,10 +372,18 @@
                 type="text"
                 placeholder="Search for a city, park, or landmark…"
                 class="flex-1 rounded-full border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/15"
-                @keydown.enter="geocodePlace"
+                autocomplete="off"
+                role="combobox"
+                :aria-expanded="placeResults.length > 0"
+                aria-autocomplete="list"
+                @focus="startPlaceSearchSession"
+                @keydown.down.prevent="movePlaceResult(1)"
+                @keydown.up.prevent="movePlaceResult(-1)"
+                @keydown.enter.prevent="submitPlaceSearch"
+                @keydown.esc.prevent="closePlaceResults"
               />
               <button
-                @click="geocodePlace"
+                @click="submitPlaceSearch"
                 :disabled="placeSearching || !placeQuery.trim()"
                 class="shrink-0 inline-flex items-center gap-2 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 px-4 py-3 rounded-full transition-colors"
               >
@@ -384,14 +392,31 @@
               </button>
             </div>
 
-            <!-- Geocode results dropdown -->
-            <div v-if="placeResults.length > 0" class="absolute z-20 top-full mt-1 left-0 right-0 bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
+            <!-- Search results dropdown -->
+            <div v-if="placeResults.length > 0 || placeSearchEmpty || placeSearchError" class="absolute z-20 top-full mt-1 left-0 right-0 bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
               <button
                 v-for="r in placeResults"
-                :key="r.lat + r.lon"
-                @click="selectGeoResult(r)"
-                class="w-full text-left px-4 py-3 text-sm text-stone-800 hover:bg-stone-50 transition-colors border-b border-stone-100 last:border-0 truncate"
-              >{{ r.display_name }}</button>
+                :key="r.id"
+                @mousedown.prevent="selectPlaceSuggestion(r)"
+                class="w-full text-left px-4 py-3 text-sm transition-colors border-b border-stone-100 last:border-0"
+                :class="r.id === activePlaceResult?.id ? 'bg-stone-100 text-stone-950' : 'text-stone-800 hover:bg-stone-50'"
+              >
+                <span class="flex items-start justify-between gap-3">
+                  <span class="min-w-0">
+                    <span class="block truncate font-medium">{{ r.name }}</span>
+                    <span v-if="r.label" class="block truncate text-xs text-stone-500">{{ r.label }}</span>
+                  </span>
+                  <span class="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {{ featureTypeLabel(r.featureType) }}
+                  </span>
+                </span>
+              </button>
+              <div v-if="placeSearchEmpty" class="px-4 py-3 text-sm text-stone-500">
+                No matches found. Drop a pin on the map.
+              </div>
+              <div v-if="placeSearchError" class="px-4 py-3 text-sm text-red-700">
+                Location search is unavailable. Drop a pin on the map.
+              </div>
             </div>
           </div>
 
@@ -571,6 +596,7 @@ import { useSupabaseUser } from '#imports'
 import type { RouteStats, PremadeMap } from '~/types'
 import { STRAVA_CREATE_RETURN_PATH } from '~/utils/stravaOAuthReturn'
 import { extractNamedTrackSegments } from '~/utils/trail'
+import { hasDevE2eAuthBypass } from '~/utils/e2eAuth'
 
 // `@tmcw/togeojson` is ~30KB and only needed when the user actually drops a
 // GPX file. Loading it lazily keeps the initial Create page payload light.
@@ -680,12 +706,31 @@ const isCustomizing = ref(false)
 const customizeError = ref<string | null>(null)
 
 // ─── Place state ─────────────────────────────────────────────────────────────
-interface GeoResult { display_name: string; lat: string; lon: string; boundingbox: string[] }
+type LocationFeatureType = 'poi' | 'place' | 'locality' | 'region' | 'district' | 'address'
+
+interface LocationSuggestion {
+  id: string
+  name: string
+  label: string
+  featureType: LocationFeatureType
+  categories: string[]
+}
+
+interface LocationSearchResult extends LocationSuggestion {
+  lng: number
+  lat: number
+  bbox?: [number, number, number, number]
+  suggestedZoom: number
+}
+
 const placeMapEl     = ref<HTMLDivElement | null>(null)
 const placeMapLoaded = ref(false)
 const placeQuery     = ref('')
-const placeResults   = ref<GeoResult[]>([])
+const placeResults   = ref<LocationSuggestion[]>([])
+const activePlaceResultIndex = ref(-1)
 const placeSearching = ref(false)
+const placeSearchEmpty = ref(false)
+const placeSearchError = ref<string | null>(null)
 const placePinLng    = ref<number | null>(null)
 const placePinLat    = ref<number | null>(null)
 const placeBbox      = ref<[number,number,number,number] | null>(null)
@@ -694,6 +739,16 @@ const isSavingPlace  = ref(false)
 const placeError     = ref<string | null>(null)
 let placeMapInstance: any = null
 let placeMarker: any = null
+let placeSearchSessionToken: string | null = null
+let placeSearchDebounce: ReturnType<typeof setTimeout> | null = null
+let placeSuggestAbort: AbortController | null = null
+let placeRetrieveAbort: AbortController | null = null
+let suppressNextPlaceSuggest = false
+
+const activePlaceResult = computed(() => {
+  const index = activePlaceResultIndex.value
+  return index >= 0 ? placeResults.value[index] : null
+})
 
 async function initPlaceMap() {
   if (placeMapInstance || !placeMapEl.value) return
@@ -773,37 +828,160 @@ function viewportBbox(): [number, number, number, number] | null {
   return [west, south, east, north]
 }
 
-async function geocodePlace() {
-  if (!placeQuery.value.trim()) return
+watch(placeQuery, () => {
+  if (suppressNextPlaceSuggest) {
+    suppressNextPlaceSuggest = false
+    return
+  }
+  placeSearchError.value = null
+  placeSearchEmpty.value = false
+  activePlaceResultIndex.value = -1
+  if (placeSearchDebounce) clearTimeout(placeSearchDebounce)
+  if (placeQuery.value.trim().length < 2) {
+    placeResults.value = []
+    return
+  }
+  startPlaceSearchSession()
+  placeSearchDebounce = setTimeout(() => {
+    void fetchPlaceSuggestions()
+  }, 250)
+})
+
+function startPlaceSearchSession() {
+  if (placeSearchSessionToken) return
+  placeSearchSessionToken = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+async function submitPlaceSearch() {
+  if (activePlaceResult.value) {
+    await selectPlaceSuggestion(activePlaceResult.value)
+    return
+  }
+  if (placeResults.value.length === 1) {
+    await selectPlaceSuggestion(placeResults.value[0])
+    return
+  }
+  await fetchPlaceSuggestions()
+}
+
+async function fetchPlaceSuggestions() {
+  const q = placeQuery.value.trim()
+  if (q.length < 2) return
+  startPlaceSearchSession()
+  placeSuggestAbort?.abort()
+  const controller = new AbortController()
+  placeSuggestAbort = controller
   placeSearching.value = true
-  placeResults.value = []
+  placeSearchError.value = null
+  placeSearchEmpty.value = false
+
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeQuery.value)}&format=json&limit=5`
-    const response = await fetch(url, { headers: { 'Accept-Language': 'en' } })
-    if (!response.ok) throw new Error(`Geocoding failed with ${response.status}`)
-    const data = await response.json() as GeoResult[]
-    placeResults.value = data
-  } catch { /* ignore */ } finally {
-    placeSearching.value = false
+    const params = new URLSearchParams({
+      q,
+      session_token: placeSearchSessionToken!,
+      country: 'US',
+    })
+    const center = placeMapInstance?.getCenter?.()
+    if (center && Number.isFinite(center.lng) && Number.isFinite(center.lat)) {
+      params.set('proximity', `${center.lng},${center.lat}`)
+    }
+    const bbox = viewportBbox()
+    if (bbox) params.set('bbox', bbox.join(','))
+
+    const response = await fetch(`/api/locations/suggest?${params.toString()}`, {
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`Location search failed with ${response.status}`)
+    const data = await response.json() as { results?: LocationSuggestion[] }
+    placeResults.value = data.results ?? []
+    activePlaceResultIndex.value = placeResults.value.length > 0 ? 0 : -1
+    placeSearchEmpty.value = placeResults.value.length === 0
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return
+    placeResults.value = []
+    placeSearchError.value = 'Location search failed'
+  } finally {
+    if (placeSuggestAbort === controller) placeSearching.value = false
   }
 }
 
-async function selectGeoResult(r: GeoResult) {
+function movePlaceResult(direction: 1 | -1) {
+  if (placeResults.value.length === 0) return
+  const next = activePlaceResultIndex.value + direction
+  if (next < 0) {
+    activePlaceResultIndex.value = placeResults.value.length - 1
+  } else if (next >= placeResults.value.length) {
+    activePlaceResultIndex.value = 0
+  } else {
+    activePlaceResultIndex.value = next
+  }
+}
+
+function closePlaceResults() {
   placeResults.value = []
-  placeQuery.value = r.display_name.split(',').slice(0, 2).join(',')
+  activePlaceResultIndex.value = -1
+  placeSearchEmpty.value = false
+  placeSearchError.value = null
+}
+
+async function selectPlaceSuggestion(suggestion: LocationSuggestion) {
+  startPlaceSearchSession()
+  placeRetrieveAbort?.abort()
+  const controller = new AbortController()
+  placeRetrieveAbort = controller
+  placeSearching.value = true
+  placeSearchError.value = null
+
+  try {
+    const params = new URLSearchParams({ session_token: placeSearchSessionToken! })
+    const response = await fetch(`/api/locations/retrieve/${encodeURIComponent(suggestion.id)}?${params.toString()}`, {
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`Location lookup failed with ${response.status}`)
+    const result = await response.json() as LocationSearchResult
+    await applyPlaceResult(result)
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return
+    placeSearchError.value = 'Location lookup failed'
+  } finally {
+    if (placeRetrieveAbort === controller) placeSearching.value = false
+  }
+}
+
+async function applyPlaceResult(result: LocationSearchResult) {
+  closePlaceResults()
+  suppressNextPlaceSuggest = true
+  placeQuery.value = result.name
+  placeSearchSessionToken = null
   const maplibregl = (await import('maplibre-gl')).default
-  const bb = r.boundingbox // [south, north, west, east]
-  const bbox: [number,number,number,number] = [
-    parseFloat(bb[2]), parseFloat(bb[0]),
-    parseFloat(bb[3]), parseFloat(bb[1]),
-  ]
-  setPlacePin(parseFloat(r.lon), parseFloat(r.lat), maplibregl, bbox)
+  const bbox = result.bbox ?? derivedBboxForPlaceResult(result)
+  setPlacePin(result.lng, result.lat, maplibregl, bbox)
   if (placeMapInstance) {
-    placeMapInstance.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 40, maxZoom: 14, duration: 600 })
+    if (result.bbox) {
+      placeMapInstance.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 40, maxZoom: 14, duration: 600 })
+    } else {
+      placeMapInstance.flyTo({ center: [result.lng, result.lat], zoom: result.suggestedZoom, duration: 600 })
+    }
   }
   if (!placeTitle.value) {
-    placeTitle.value = r.display_name.split(',').slice(0, 2).join(',').trim()
+    placeTitle.value = result.name.trim()
   }
+}
+
+function derivedBboxForPlaceResult(result: LocationSearchResult): [number, number, number, number] {
+  const delta = result.suggestedZoom >= 14 ? 0.035 : result.suggestedZoom >= 11 ? 0.25 : 1.5
+  const west = Math.max(-180, result.lng - delta)
+  const east = Math.min(180, result.lng + delta)
+  const south = Math.max(-90, result.lat - delta)
+  const north = Math.min(90, result.lat + delta)
+  return [west, south, east, north]
+}
+
+function featureTypeLabel(featureType: LocationFeatureType): string {
+  if (featureType === 'poi') return 'Place'
+  return featureType
 }
 
 async function savePlaceMap() {
@@ -819,7 +997,15 @@ async function savePlaceMap() {
     const response = await fetch('/api/maps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: placeTitle.value.trim(), geojson, bbox: placeBbox.value, stats }),
+      body: JSON.stringify({
+        title: placeTitle.value.trim(),
+        geojson,
+        bbox: placeBbox.value,
+        stats,
+        location_label: placeTitle.value.trim(),
+        location_lng: placePinLng.value,
+        location_lat: placePinLat.value,
+      }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
@@ -1201,7 +1387,7 @@ const resetFile = () => {
 }
 
 const createMap = async () => {
-  if (!user.value?.id || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) return
+  if ((!user.value?.id && !hasDevE2eAuthBypass()) || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) return
   isCreating.value = true
   try {
     const response = await fetch('/api/maps', {
@@ -1220,7 +1406,9 @@ const createMap = async () => {
       throw new Error(err.message ?? 'Failed to create map')
     }
     const data = await response.json()
-    router.push(`/create/${data.id}/style?themePicker=1`)
+    const styleQuery = new URLSearchParams({ themePicker: '1' })
+    if (route.query.e2eAuth === '1') styleQuery.set('e2eAuth', '1')
+    router.push(`/create/${data.id}/style?${styleQuery.toString()}`)
   } catch (err) {
     parseError.value = err instanceof Error ? err.message : 'Failed to create map'
   } finally {
@@ -1316,6 +1504,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  if (placeSearchDebounce) clearTimeout(placeSearchDebounce)
+  placeSuggestAbort?.abort()
+  placeRetrieveAbort?.abort()
   if (drawMapInstance) {
     try { drawMapInstance.remove() } catch {}
     drawMapInstance = null

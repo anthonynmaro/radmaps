@@ -142,6 +142,11 @@
 import type { ChromeBlockAlign, FontFamily, PosterTextOverride } from '~/types'
 
 const FONT_OPTIONS: FontFamily[] = [
+  'Source Sans 3',
+  'IBM Plex Sans',
+  'Atkinson Hyperlegible Next',
+  'Source Serif 4',
+  'Newsreader',
   'Big Shoulders Display',
   'Fjalla One',
   'Oswald',

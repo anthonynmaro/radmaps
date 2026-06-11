@@ -1,7 +1,8 @@
-import type { ColorTheme, RouteStats, StyleConfig, ThemeDefinition } from '~/types'
+import type { ColorTheme, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
 import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
 import { applyThemeToStyleConfig } from '~/utils/themeApplication'
+import { buildThemeDataContext, resolveThemeBaseMapMode, type ThemeDataContextInput, type ThemePurpose } from '~/utils/themeDataContract'
 import { REFINED_THEMES } from '~/utils/themes/refined'
 import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
 
@@ -29,6 +30,7 @@ const THEME_THUMB: Record<string, ThemeThumbProfile> = {
   vintage:         { titlePosition: 'top',    titleAlign: 'center', fontWeight: '400', fontSize: '8px',   letterSpacing: '0.04em', textTransform: 'none',      lineHeight: '1.08' },
   brutalist:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '400', fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: '0.92' },
   risograph:       { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '500', fontSize: '7px',   letterSpacing: '0.10em', textTransform: 'uppercase', lineHeight: '1.0'  },
+  'classic-risograph': { titlePosition: 'top', titleAlign: 'left', fontWeight: '500', fontSize: '7px', letterSpacing: '0.10em', textTransform: 'uppercase', lineHeight: '1.0' },
   blueprint:       { titlePosition: 'bottom', titleAlign: 'left',   fontWeight: '700', fontSize: '6px',   letterSpacing: '0.14em', textTransform: 'uppercase', lineHeight: '1.05' },
   kertok:          { titlePosition: 'top',    titleAlign: 'left',   fontWeight: '200', fontSize: '7px',   letterSpacing: '0.06em', textTransform: 'none',      lineHeight: '1.12' },
   'mid-century':   { titlePosition: 'bottom', titleAlign: 'center', fontWeight: '400', fontSize: '6px',   letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: '1.05' },
@@ -81,6 +83,7 @@ export const THEME_FONT_PREVIEW: Record<string, string> = {
   vintage:     "'Source Serif 4', serif",
   brutalist:   "'Bebas Neue', sans-serif",
   risograph:   "'Big Shoulders Display', sans-serif",
+  'classic-risograph': "'Oswald', sans-serif",
   blueprint:   "'Space Grotesk', sans-serif",
   kertok:      "'Work Sans', sans-serif",
   'mid-century': "'Oswald', sans-serif",
@@ -123,6 +126,7 @@ export const THEME_FONT_NAME: Record<string, string> = {
   vintage:     'Source Serif 4',
   brutalist:   'Bebas Neue',
   risograph:   'Big Shoulders Display',
+  'classic-risograph': 'Oswald',
   blueprint:   'Space Grotesk',
   kertok:      'Work Sans',
   'mid-century': 'Oswald',
@@ -188,6 +192,74 @@ export const QUICK_THEME_OPTION_GROUPS: ThemeOptionGroup[] = groupThemeOptionsBy
 
 export const CLASSIC_THEME_OPTIONS: ThemeDefinition[] = COLOR_THEMES
 
+export const THEME_PURPOSE_LABELS: Record<ThemePurpose, string> = {
+  'route-terrain': 'Trail / terrain',
+  'route-urban': 'Route / street',
+  place: 'Place / POI',
+  city: 'City / street',
+  nautical: 'Nautical',
+}
+
+const THEME_PURPOSE_ORDER: ThemePurpose[] = ['route-terrain', 'route-urban', 'place', 'city', 'nautical']
+
+export type ThemePurposeGroup = {
+  purpose: ThemePurpose
+  label: string
+  themes: ThemeDefinition[]
+}
+
+export function purposeForTheme(theme: ThemeDefinition): ThemePurpose {
+  if (theme.composition === 'place-frame' || theme.id === 'cartouche-place') return 'place'
+  if (theme.composition === 'sea-chart' || theme.id === 'sea-chart') return 'nautical'
+  if (theme.composition === 'transit-diagram' || theme.id === 'transit-diagram') return 'city'
+  if (
+    theme.composition === 'blueprint-strava' ||
+    theme.composition === 'splits-grid' ||
+    theme.composition === 'bib-numerals' ||
+    theme.id === 'splits-stats' ||
+    theme.id === 'marathon-bib' ||
+    theme.id === 'night-ride'
+  ) {
+    return 'route-urban'
+  }
+
+  const defaults = theme.map_defaults ?? {}
+  const preset = defaults.preset
+  if (preset === 'radmaps-toner-light' || preset === 'radmaps-toner-dark' || preset === 'radmaps-alidade' || preset === 'radmaps-alidade-dark') {
+    return 'city'
+  }
+  if (defaults.show_roads || defaults.atlas_layers?.transportation) return 'route-urban'
+  return 'route-terrain'
+}
+
+function purposeOrderForContext(context?: ThemeDataContextInput): ThemePurpose[] {
+  const purpose = context ? buildThemeDataContext(context).purpose : null
+  if (purpose === 'place') return ['place', 'city', 'route-terrain', 'route-urban', 'nautical']
+  if (purpose === 'city') return ['city', 'place', 'route-urban', 'route-terrain', 'nautical']
+  if (purpose === 'route-urban') return ['route-urban', 'city', 'route-terrain', 'place', 'nautical']
+  if (purpose === 'nautical') return ['nautical', 'place', 'city', 'route-terrain', 'route-urban']
+  return THEME_PURPOSE_ORDER
+}
+
+export function groupThemeOptionsByPurpose(
+  options: ThemeDefinition[] = QUICK_THEME_OPTIONS,
+  context?: ThemeDataContextInput,
+): ThemePurposeGroup[] {
+  const groups = new Map<ThemePurpose, ThemeDefinition[]>()
+  for (const theme of options) {
+    const purpose = purposeForTheme(theme)
+    groups.set(purpose, [...(groups.get(purpose) ?? []), theme])
+  }
+
+  return purposeOrderForContext(context)
+    .map(purpose => ({
+      purpose,
+      label: THEME_PURPOSE_LABELS[purpose],
+      themes: groups.get(purpose) ?? [],
+    }))
+    .filter(group => group.themes.length > 0)
+}
+
 export function getThemeThumbnailProfile(theme: ThemeDefinition, classic = false): ThemeThumbProfile {
   const composition = classic
     ? POSTER_COMPOSITIONS['legacy-classic']
@@ -221,27 +293,173 @@ export function showsRefinedThemeBadge(themeId: ColorTheme | string): boolean {
   return isManifestRefinedTheme(themeId)
 }
 
-type ThemeContext = {
-  stats?: Partial<RouteStats> | null
-  geojson?: GeoJSON.FeatureCollection | null
+export type ThemeBaseMapSelection = ThemeBaseMapMode | 'auto'
+type ThemeContext = ThemeDataContextInput & {
+  baseMapMode?: ThemeBaseMapSelection
 }
 
 const PLACE_THEME_PRIORITY: ColorTheme[] = ['cartouche-place', 'editorial-minimal', 'usgs-vintage']
 
 export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
+  const { baseMapMode = 'auto', ...dataInput } = context
   const base = JSON.parse(JSON.stringify(baseConfig)) as StyleConfig
   const themed = applyThemeToStyleConfig(base, theme)
-  return isPlaceLikeContext(context) ? mapRichPlaceConfig(themed) : themed
+  const dataContext = buildThemeDataContext({ ...dataInput, styleConfig: themed })
+  return applyThemeBaseMapMode(themed, resolveThemeBaseMapMode(dataContext, baseMapMode))
+}
+
+export function resolveThemePreviewBaseMapMode(context: ThemeDataContextInput, requested: ThemeBaseMapSelection = 'auto'): ThemeBaseMapMode {
+  return resolveThemeBaseMapMode(buildThemeDataContext(context), requested)
+}
+
+export function applyThemeBaseMapMode(config: StyleConfig, mode: ThemeBaseMapMode): StyleConfig {
+  if (mode === 'minimal') return applyMinimalBaseMapMode(config)
+  if (mode === 'streets') return applyStreetsBaseMapMode(config)
+  return applyTerrainBaseMapMode(config)
+}
+
+function applyMinimalBaseMapMode(config: StyleConfig): StyleConfig {
+  return {
+    ...config,
+    base_map_mode: 'minimal',
+    show_contours: false,
+    show_hillshade: false,
+    show_roads: false,
+    show_place_labels: false,
+    show_poi_labels: false,
+    map_3d: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: false,
+      water: false,
+      waterway: false,
+      park: false,
+      landcover: false,
+      transportation: false,
+      building: false,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        opacity: 0,
+        show_major: false,
+        show_minor: false,
+        show_trails: false,
+        labels: false,
+      },
+      contour: {
+        ...config.atlas_layer_settings?.contour,
+        labels: false,
+      },
+    },
+  }
+}
+
+function applyTerrainBaseMapMode(config: StyleConfig): StyleConfig {
+  return {
+    ...config,
+    base_map_mode: 'terrain',
+    show_contours: true,
+    show_roads: false,
+    show_place_labels: false,
+    show_poi_labels: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: true,
+      transportation: false,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        show_major: false,
+        show_minor: false,
+        show_trails: false,
+        labels: false,
+      },
+      contour: {
+        ...config.atlas_layer_settings?.contour,
+        labels: config.show_elevation_labels === true,
+      },
+    },
+  }
+}
+
+const STREET_WIDTH_FACTOR = 2.2
+
+function applyStreetsBaseMapMode(config: StyleConfig): StyleConfig {
+  const roadOpacity = Math.min(1, (config.contour_opacity ?? 0.7) + 0.1)
+  const minorWidth = Math.max(0.35, (config.contour_minor_width ?? 1) * STREET_WIDTH_FACTOR)
+  const majorWidth = Math.max(minorWidth, (config.contour_major_width ?? 0.5) * STREET_WIDTH_FACTOR * 2.2)
+  const roadColor = config.contour_color ?? config.roads_color ?? config.label_text_color
+  const majorColor = config.contour_major_color ?? roadColor
+
+  return {
+    ...config,
+    base_map_mode: 'streets',
+    show_contours: false,
+    show_hillshade: false,
+    show_roads: true,
+    roads_color: majorColor,
+    roads_opacity: roadOpacity,
+    show_place_labels: false,
+    show_poi_labels: false,
+    map_3d: false,
+    atlas_layers: {
+      ...config.atlas_layers,
+      contour: false,
+      water: true,
+      waterway: true,
+      park: true,
+      landcover: true,
+      transportation: true,
+      building: true,
+      place: false,
+      poi: false,
+    },
+    atlas_layer_settings: {
+      ...config.atlas_layer_settings,
+      transportation: {
+        ...config.atlas_layer_settings?.transportation,
+        density: 'balanced',
+        road_color: roadColor,
+        major_color: majorColor,
+        minor_color: roadColor,
+        trail_color: roadColor,
+        opacity: roadOpacity,
+        show_major: true,
+        show_minor: true,
+        show_trails: true,
+        labels: false,
+        major_width: majorWidth,
+        minor_width: minorWidth,
+        trail_width: Math.max(0.35, minorWidth * 0.82),
+      },
+      place: {
+        ...config.atlas_layer_settings?.place,
+      },
+      poi: {
+        ...config.atlas_layer_settings?.poi,
+        labels: false,
+      },
+    },
+  }
 }
 
 export function priorityThemeIdsForMap(stats?: Partial<RouteStats> | null, geojson?: GeoJSON.FeatureCollection | null): ColorTheme[] {
-  if (isPlaceLikeContext({ stats, geojson })) {
+  const context = buildThemeDataContext({ stats, geojson })
+  if (context.purpose === 'place') {
     return PLACE_THEME_PRIORITY
   }
 
-  const activity = String(stats?.activity_type ?? '').toLowerCase()
-  const elevationGain = stats?.elevation_gain_m ?? 0
-  const distanceKm = stats?.distance_km ?? 0
+  const activity = context.activityType?.toLowerCase() ?? ''
+  const elevationGain = context.elevationGainM ?? 0
+  const distanceKm = context.distanceKm ?? 0
 
   if (elevationGain >= 900 || activity.match(/hike|trail|mountain|alpine/)) {
     return ['relief-shaded', 'usgs-vintage', 'field-journal', 'contour-wash']
@@ -264,23 +482,8 @@ export function orderedQuickThemeOptionsForRoute(stats?: Partial<RouteStats> | n
   ]
 }
 
-function isPlaceLikeContext(context: ThemeContext): boolean {
-  const distanceKm = context.stats?.distance_km ?? 0
-  const activity = String(context.stats?.activity_type ?? '').toLowerCase()
-  return distanceKm <= 0 && !activity && !hasRenderableLine(context.geojson)
-}
-
-function hasRenderableLine(geojson?: GeoJSON.FeatureCollection | null): boolean {
-  for (const feature of geojson?.features ?? []) {
-    const geometry = feature.geometry
-    if (geometry.type === 'LineString' && geometry.coordinates.length > 1) return true
-    if (geometry.type === 'MultiLineString' && geometry.coordinates.some(line => line.length > 1)) return true
-  }
-  return false
-}
-
 function mapRichPlaceConfig(config: StyleConfig): StyleConfig {
-  const showContours = false
+  const showContours = config.show_contours !== false
   const roadOpacity = config.dark ? 0.48 : 0.42
   const roadColor = config.contour_major_color ?? config.roads_color ?? (config.dark ? '#7CB0E8' : '#9A8062')
   const minorRoadColor = config.atlas_layer_settings?.transportation?.minor_color ?? config.contour_color ?? roadColor
@@ -298,7 +501,6 @@ function mapRichPlaceConfig(config: StyleConfig): StyleConfig {
     place_labels_scale: config.place_labels_scale ?? 'village',
     show_poi_labels: true,
     poi_labels_opacity: poiLabelOpacity,
-    show_contours: showContours,
     atlas_layers: {
       ...config.atlas_layers,
       contour: showContours,

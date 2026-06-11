@@ -30,6 +30,9 @@ npm-debug.log*
 # Testing
 coverage/
 test-results/
+docs/theme_audit_output/
+docs/anchor_golden_baseline/
+docs/anchor_post_w0_capture/
 .vercel
 
 # Local dev/runtime state

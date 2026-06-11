@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
   if (payload.kind === 'map') {
     const { data: map, error } = await supabase
       .from('maps')
-      .select('id, title, subtitle, geojson, bbox, stats, style_config, user_id, status, created_at, updated_at, render_url, thumbnail_url')
+      .select('id, title, subtitle, geojson, bbox, stats, style_config, user_id, status, created_at, updated_at, render_url, thumbnail_url, location_label, location_city, location_region, location_country, location_lng, location_lat, location_elevation_m, location_metadata_source, location_metadata_enriched_at')
       .eq('id', payload.subject)
       .single()
     if (error || !map) {
@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
   if (payload.kind === 'premade') {
     const { data: premade, error } = await supabase
       .from('premade_maps')
-      .select('id, title, subtitle, geojson, bbox, stats, style_config, status, created_at, updated_at, preview_image_url')
+      .select('id, title, subtitle, geojson, bbox, stats, style_config, status, created_at, updated_at, preview_image_url, location_label, location_city, location_region, location_country, location_lng, location_lat, location_elevation_m, location_metadata_source, location_metadata_enriched_at')
       .eq('id', payload.subject)
       .single()
     if (error || !premade) {
@@ -85,6 +85,15 @@ export default defineEventHandler(async (event) => {
       thumbnail_url: premade.preview_image_url ?? undefined,
       render_url: undefined,
       proof_render_url: premade.preview_image_url ?? undefined,
+      location_label: premade.location_label ?? undefined,
+      location_city: premade.location_city ?? undefined,
+      location_region: premade.location_region ?? undefined,
+      location_country: premade.location_country ?? undefined,
+      location_lng: premade.location_lng ?? undefined,
+      location_lat: premade.location_lat ?? undefined,
+      location_elevation_m: premade.location_elevation_m ?? undefined,
+      location_metadata_source: premade.location_metadata_source ?? undefined,
+      location_metadata_enriched_at: premade.location_metadata_enriched_at ?? undefined,
       created_at: premade.created_at,
       updated_at: premade.updated_at,
     } as TrailMap
@@ -116,6 +125,15 @@ export default defineEventHandler(async (event) => {
     stats: snapshot.stats,
     style_config: snapshot.style_config ?? DEFAULT_STYLE_CONFIG,
     status: 'rendering',
+    location_label: snapshot.location_label ?? undefined,
+    location_city: snapshot.location_city ?? undefined,
+    location_region: snapshot.location_region ?? undefined,
+    location_country: snapshot.location_country ?? undefined,
+    location_lng: snapshot.location_lng ?? undefined,
+    location_lat: snapshot.location_lat ?? undefined,
+    location_elevation_m: snapshot.location_elevation_m ?? undefined,
+    location_metadata_source: snapshot.location_metadata_source ?? undefined,
+    location_metadata_enriched_at: snapshot.location_metadata_enriched_at ?? undefined,
     created_at: snapshot.frozen_at,
     updated_at: snapshot.frozen_at,
   } as TrailMap

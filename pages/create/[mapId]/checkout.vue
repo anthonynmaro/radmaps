@@ -465,6 +465,7 @@ import {
 } from '~/utils/checkoutAddress'
 import { FLAGS } from '~/utils/knownFlags'
 import { DEFAULT_STYLE_CONFIG, type TrailMap, type PrintProduct, type ProductFraming, type StyleConfig } from '~/types'
+import { hasDevE2eAuthBypass } from '~/utils/e2eAuth'
 
 definePageMeta({
   middleware: 'auth',
@@ -1202,7 +1203,7 @@ watch([selectedProduct, () => map.value?.id, productMockupsEnabled], () => {
 // ─── Payment ────────────────────────────────────────────────────────────────
 
 const proceedToPayment = async () => {
-  if (!map.value || !user.value?.id || !selectedProduct.value) return
+  if (!map.value || (!user.value?.id && !hasDevE2eAuthBypass()) || !selectedProduct.value) return
   checkoutError.value = ''
   if (!isDigital.value && !quoteIsCurrent.value) {
     checkoutError.value = quoteLoading.value
@@ -1254,12 +1255,14 @@ const proceedToPayment = async () => {
 
 onMounted(async () => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('maps')
       .select('id, user_id, title, geojson, bbox, stats, style_config, thumbnail_url, render_url, proof_render_url, status, created_at, updated_at')
       .eq('id', mapId)
-      .eq('user_id', user.value?.id)
-      .single()
+    if (!hasDevE2eAuthBypass()) {
+      query = query.eq('user_id', user.value?.id)
+    }
+    const { data, error } = await query.single()
     if (error) throw error
     map.value = data as CheckoutMap
 

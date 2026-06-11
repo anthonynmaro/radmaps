@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RadMaps Claude Design Review",
+  "type": "object",
+  "required": [
+    "review_version",
+    "review_date",
+    "summary",
+    "global_recommendations",
+    "poster_theme_recommendations",
+    "owned_map_theme_recommendations",
+    "do_not_change"
+  ],
+  "properties": {
+    "review_version": {
+      "type": "string"
+    },
+    "review_date": {
+      "type": "string",
+      "description": "YYYY-MM-DD"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "global_recommendations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/recommendation"
+      }
+    },
+    "poster_theme_recommendations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/poster_theme_recommendation"
+      }
+    },
+    "owned_map_theme_recommendations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/map_theme_recommendation"
+      }
+    },
+    "new_theme_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/new_theme_candidate"
+      }
+    },
+    "do_not_change": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "recommendation": {
+      "type": "object",
+      "required": ["priority", "title", "rationale", "implementation_notes"],
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["p0", "p1", "p2", "p3"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "implementation_notes": {
+          "type": "string"
+        }
+      }
+    },
+    "poster_theme_recommendation": {
+      "type": "object",
+      "required": [
+        "theme_id",
+        "priority",
+        "decision",
+        "problem",
+        "rationale",
+        "changes"
+      ],
+      "properties": {
+        "theme_id": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["p0", "p1", "p2", "p3"]
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["keep", "revise", "merge", "retire", "needs-proof"]
+        },
+        "problem": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "object",
+          "properties": {
+            "palette": {
+              "type": "string"
+            },
+            "typography": {
+              "type": "string"
+            },
+            "composition": {
+              "type": "string"
+            },
+            "map_defaults": {
+              "type": "string"
+            },
+            "route_style": {
+              "type": "string"
+            },
+            "footer": {
+              "type": "string"
+            },
+            "theme_picker_thumbnail": {
+              "type": "string"
+            },
+            "print_risk": {
+              "type": "string"
+            },
+            "implementation_notes": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "map_theme_recommendation": {
+      "type": "object",
+      "required": [
+        "preset_id",
+        "priority",
+        "decision",
+        "problem",
+        "rationale",
+        "changes"
+      ],
+      "properties": {
+        "preset_id": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["p0", "p1", "p2", "p3"]
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["keep-map-only", "promote-to-poster-theme", "revise", "hide", "needs-proof"]
+        },
+        "problem": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "object",
+          "properties": {
+            "cartography": {
+              "type": "string"
+            },
+            "route_style": {
+              "type": "string"
+            },
+            "label_contrast": {
+              "type": "string"
+            },
+            "terrain_or_contours": {
+              "type": "string"
+            },
+            "best_theme_pairings": {
+              "type": "string"
+            },
+            "quick_tab_thumbnail": {
+              "type": "string"
+            },
+            "implementation_notes": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "new_theme_candidate": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "name",
+        "reason_to_add",
+        "composition",
+        "typography",
+        "palette",
+        "map_preset",
+        "implementation_notes"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "reason_to_add": {
+          "type": "string"
+        },
+        "composition": {
+          "type": "string"
+        },
+        "typography": {
+          "type": "string"
+        },
+        "palette": {
+          "type": "string"
+        },
+        "map_preset": {
+          "type": "string"
+        },
+        "implementation_notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+

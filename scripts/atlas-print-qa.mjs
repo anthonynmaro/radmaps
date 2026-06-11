@@ -368,10 +368,6 @@ function bboxCenter([west, south, east, north]) {
   }
 }
 
-function tilePathForLngLat(z, lng, lat) {
-  return tileForLngLat(z, lng, lat).path
-}
-
 function tileForLngLat(z, lng, lat) {
   const n = 2 ** z
   const x = Math.floor(((lng + 180) / 360) * n)

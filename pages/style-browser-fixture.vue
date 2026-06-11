@@ -8,6 +8,12 @@
         @design-myself="themePickerClosed = true"
       />
     </div>
+    <div v-else-if="templateEditorFixture" class="mx-auto bg-stone-100" :style="templateEditorFrameStyle">
+      <FixedPosterTemplateEditor
+        v-model="styleConfig"
+        :map="sampleMap"
+      />
+    </div>
     <div v-else-if="surfaceFixture" class="mx-auto bg-stone-100" :style="editorSurfaceFrameStyle">
       <MapEditorSurface
         v-model="styleConfig"
@@ -21,10 +27,19 @@
         :style-config="styleConfig"
         :editable="editable"
         :chrome-editing="chromeEditing"
+        :poster-elements-editing="posterElementsEditor"
+        :poster-tier2-editor="posterTier2Editor"
+        :poster-editor-mode="posterEditorMode"
+        :poster-guides-visible="posterGuidesVisible"
+        :selected-poster-element-id="selectedPosterElementId"
+        :editable-text-slots="posterEditableTextSlots"
+        :guided-poster-editor="posterElementsEditor"
         :render-mode="renderMode"
         :print-context="printContext"
         @overlay-updated="onOverlayUpdated"
         @asset-moved="onAssetMoved"
+        @poster-element-selected="selectedPosterElementId = $event"
+        @poster-element-patched="onPosterElementPatched"
         @poster-text-override="onPosterTextOverride"
         @poster-text-reset="onPosterTextReset"
         @poster-layout-updated="onPosterLayoutUpdated"
@@ -36,11 +51,14 @@
 <script setup lang="ts">
 import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import MapPreview from '~/components/map/MapPreview.vue'
+import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
-import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
+import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type RouteStats, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
-import { getPrintFraming } from '~/utils/print/printFraming'
+import { getPrintFraming, type RenderClass } from '~/utils/print/printFraming'
+import { patchPosterEditorElement, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
+import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 
 definePageMeta({ layout: false })
 
@@ -49,6 +67,8 @@ if (!import.meta.dev) {
 }
 
 const route = useRoute()
+const templateEditorFixture = route.query.templateEditor === 'true'
+  || route.query.templateEditor === '1'
 const composition = typeof route.query.composition === 'string'
   ? route.query.composition
   : 'editorial-tall'
@@ -61,24 +81,60 @@ const preset = typeof route.query.preset === 'string'
 const region = typeof route.query.region === 'string'
   ? route.query.region
   : 'chicago'
+const routeShape = typeof route.query.routeShape === 'string'
+  ? route.query.routeShape
+  : region
 const gridScope = route.query.gridScope === 'map' || route.query.gridScope === 'poster'
   ? route.query.gridScope
   : undefined
 const width = typeof route.query.width === 'string' ? Number.parseInt(route.query.width, 10) : 520
 const height = typeof route.query.height === 'string' ? Number.parseInt(route.query.height, 10) : 780
-const renderMode = route.query.print === 'final' ? 'print' : 'editor'
+const printRenderClass: RenderClass | null = route.query.print === 'proof' || route.query.print === 'final'
+  ? route.query.print
+  : null
+const renderMode = printRenderClass ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
+const posterElementsEditor = route.query.posterEditor === 'true' || route.query.posterEditor === '1'
+const posterTier2Editor = posterElementsEditor && (route.query.posterTier2 === 'true' || route.query.posterTier2 === '1' || route.query.tier2Editor === 'true' || route.query.tier2Editor === '1')
+const posterEditorMode = typeof route.query.posterMode === 'string'
+  ? route.query.posterMode as 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
+  : 'layout'
+const posterGuidesVisible = posterEditorMode === 'guides' || queryFlag(route.query.guides, false)
 const surfaceFixture = route.query.surface === 'true' || route.query.surface === '1'
 const themePickerFixture = route.query.themePicker === 'true' || route.query.themePicker === '1'
-const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1'
-const withAsset = route.query.asset === 'true' || route.query.asset === '1'
+const withUnsafeOverlay = route.query.unsafeOverlay === 'true' || route.query.unsafeOverlay === '1'
+const withSafeOverlay = route.query.safeOverlay === 'true' || route.query.safeOverlay === '1'
+const withOverlay = route.query.overlay === 'true' || route.query.overlay === '1' || withUnsafeOverlay || withSafeOverlay
+const withAsset = route.query.asset === 'true' || route.query.asset === '1' || withUnsafeOverlay || withSafeOverlay
+const withIcon = route.query.icon === 'true' || route.query.icon === '1'
 const withPins = route.query.pins === 'true' || route.query.pins === '1'
+const withElevationData = route.query.elevation === 'true' || route.query.elevation === '1'
+const withRoute = route.query.route !== 'false' && route.query.route !== '0'
+const hasFixtureRoadsOverride = hasQueryFlag(route.query.roads)
+const hasFixtureLabelsOverride = hasQueryFlag(route.query.labels)
+const hasFixturePoisOverride = hasQueryFlag(route.query.pois)
 const showFixtureRoads = queryFlag(route.query.roads, false)
 const showFixtureLabels = queryFlag(route.query.labels, false)
 const showFixturePois = queryFlag(route.query.pois, false)
 const fixtureTonerVariant = parseTonerVariant(route.query.tonerVariant)
+const fixtureTrailName = typeof route.query.title === 'string' ? route.query.title : undefined
+const fixtureLocationText = typeof route.query.location === 'string' ? route.query.location : undefined
+const fixtureOccasionText = typeof route.query.occasion === 'string' ? route.query.occasion : undefined
+const fixtureCompositionKickerText = typeof route.query.compositionKicker === 'string' ? route.query.compositionKicker : undefined
+const fixtureCompositionMetaText = typeof route.query.compositionMeta === 'string' ? route.query.compositionMeta : undefined
+const fixtureCompositionFooterText = typeof route.query.compositionFooter === 'string' ? route.query.compositionFooter : undefined
+const fixtureDistanceKm = typeof route.query.distanceKm === 'string'
+  ? Number.parseFloat(route.query.distanceKm)
+  : undefined
+const fixtureGainM = typeof route.query.gainM === 'string'
+  ? Number.parseFloat(route.query.gainM)
+  : undefined
+const fixtureDurationSeconds = typeof route.query.durationSeconds === 'string'
+  ? Number.parseFloat(route.query.durationSeconds)
+  : undefined
+const fixtureDate = typeof route.query.date === 'string' ? route.query.date : undefined
 
 const theme = getThemeDefinition(themeId)
 const selectedComposition = COMPOSITION_OPTIONS.some(option => option.id === composition)
@@ -136,15 +192,16 @@ const initialStyleConfig: StyleConfig = {
         text_overlays: [{
           id: 'fixture-overlay-label',
           content: 'Concrete',
-          x: 12,
-          y: 65,
-          font_size: 1.4,
-          color: theme?.route_color ?? '#E85D75',
+          x: withUnsafeOverlay ? 2 : withSafeOverlay ? 50 : 12,
+          y: withUnsafeOverlay ? 2 : withSafeOverlay ? 50 : 65,
+          font_size: withUnsafeOverlay ? 0.1 : withSafeOverlay ? 1 : 1.4,
+          color: withUnsafeOverlay ? '#FFFFFF' : withSafeOverlay ? '#FFFFFF' : theme?.route_color ?? '#E85D75',
           font_family: theme?.body_font_family ?? baseConfig.body_font_family,
           alignment: 'left',
           opacity: 1,
           bold: true,
           italic: false,
+          ...(withUnsafeOverlay ? { bg_color: '#FFFFFF' } : withSafeOverlay ? { bg_color: '#111111' } : {}),
         }],
       }
     : {}),
@@ -156,19 +213,36 @@ const initialStyleConfig: StyleConfig = {
           source_url: 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20160%2080%22%3E%3Crect%20width=%22160%22%20height=%2280%22%20rx=%2212%22%20fill=%22%23ffffff%22/%3E%3Ccircle%20cx=%2240%22%20cy=%2240%22%20r=%2222%22%20fill=%22%232D6A4F%22/%3E%3Cpath%20d=%22M86%2053l12-27%2012%2027%22%20fill=%22none%22%20stroke=%22%232D6A4F%22%20stroke-width=%228%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E',
           render_url: 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20160%2080%22%3E%3Crect%20width=%22160%22%20height=%2280%22%20rx=%2212%22%20fill=%22%23ffffff%22/%3E%3Ccircle%20cx=%2240%22%20cy=%2240%22%20r=%2222%22%20fill=%22%232D6A4F%22/%3E%3Cpath%20d=%22M86%2053l12-27%2012%2027%22%20fill=%22none%22%20stroke=%22%232D6A4F%22%20stroke-width=%228%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E',
           mime_type: 'image/png',
-          width_px: 1600,
-          height_px: 800,
+          width_px: withUnsafeOverlay ? 800 : withSafeOverlay ? 2400 : 1600,
+          height_px: withUnsafeOverlay ? 600 : withSafeOverlay ? 1600 : 800,
           file_size_bytes: 4096,
-          x: 42,
-          y: 48,
-          width: 16,
-          height: 5.33,
+          x: withUnsafeOverlay ? 1 : withSafeOverlay ? 20 : 42,
+          y: withUnsafeOverlay ? 1 : withSafeOverlay ? 30 : 48,
+          width: withUnsafeOverlay ? 80 : withSafeOverlay ? 10 : 16,
+          height: withUnsafeOverlay ? 60 : withSafeOverlay ? 8 : 5.33,
           rotation: 0,
           opacity: 1,
           z_index: 40,
           quality_status: 'excellent',
         }],
         show_logo: true,
+      }
+    : {}),
+  ...(withIcon
+    ? {
+        icon_overlays: [{
+          id: 'fixture-icon',
+          icon: 'mountain',
+          x: 62,
+          y: 24,
+          width: 9,
+          height: 9,
+          color: theme?.route_color ?? '#2D6A4F',
+          opacity: 0.92,
+          rotation: -8,
+          z_index: 45,
+          constrain_to_safe_area: true,
+        }],
       }
     : {}),
 }
@@ -226,32 +300,82 @@ const fixtureLayerSettings: StyleConfig['atlas_layer_settings'] = {
     : {}),
 }
 const fixtureQueryOverrides: Partial<StyleConfig> = {
-  show_roads: showFixtureRoads,
-  show_place_labels: showFixtureLabels,
-  show_poi_labels: showFixturePois,
+  ...(hasFixtureRoadsOverride ? { show_roads: showFixtureRoads } : {}),
+  ...(hasFixtureLabelsOverride ? { show_place_labels: showFixtureLabels } : {}),
+  ...(hasFixturePoisOverride ? { show_poi_labels: showFixturePois } : {}),
   ...(fixtureTonerVariant ? { toner_variant: fixtureTonerVariant } : {}),
   ...(showFixtureRoads ? { roads_opacity: 0.9 } : {}),
-  ...(hasFixtureLayerOverrides || fixturePresetIsRadMapsToner ? { atlas_layer_settings: fixtureLayerSettings } : {}),
+  ...(hasFixtureLayerOverrides ? { atlas_layer_settings: fixtureLayerSettings } : {}),
 }
 
 const styleConfig = ref<StyleConfig>({
   ...initialStyleConfig,
   ...fixtureQueryOverrides,
+  ...(fixtureTrailName ? { trail_name: fixtureTrailName } : {}),
+  ...(fixtureLocationText ? { location_text: fixtureLocationText } : {}),
+  ...(fixtureOccasionText ? { occasion_text: fixtureOccasionText } : {}),
+  ...(fixtureCompositionKickerText || fixtureCompositionMetaText || fixtureCompositionFooterText
+    ? {
+        poster_text_overrides: {
+          ...(initialStyleConfig.poster_text_overrides ?? {}),
+          ...(fixtureCompositionKickerText
+            ? {
+                composition_kicker: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_kicker ?? {}),
+                  text: fixtureCompositionKickerText,
+                },
+              }
+            : {}),
+          ...(fixtureCompositionMetaText
+            ? {
+                composition_meta: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_meta ?? {}),
+                  text: fixtureCompositionMetaText,
+                },
+              }
+            : {}),
+          ...(fixtureCompositionFooterText
+            ? {
+                composition_footer: {
+                  ...(initialStyleConfig.poster_text_overrides?.composition_footer ?? {}),
+                  text: fixtureCompositionFooterText,
+                },
+              }
+            : {}),
+        },
+      }
+    : {}),
 })
+const posterEditableTextSlots = computed(() =>
+  posterElementsEditor ? posterEditorAllowlistForStyle(styleConfig.value).textSlots : null,
+)
+const selectedPosterElementId = ref<string | null>(
+  typeof route.query.selectedPosterElement === 'string' ? route.query.selectedPosterElement : null,
+)
 const themePickerClosed = ref(false)
 
-onMounted(() => {
+function installStyleFixture() {
   ;(window as unknown as {
     __RADMAPS_STYLE_FIXTURE__?: {
       getStyle: () => StyleConfig
       setStyle: (patch: Partial<StyleConfig>) => void
+      patchPosterElement: (id: string, patch: PosterEditorElementPatch) => void
     }
   }).__RADMAPS_STYLE_FIXTURE__ = {
     getStyle: () => styleConfig.value,
     setStyle: (patch) => {
       styleConfig.value = { ...styleConfig.value, ...patch }
     },
+    patchPosterElement: (id, patch) => {
+      onPosterElementPatched({ id, patch })
+    },
   }
+}
+
+if (import.meta.client) installStyleFixture()
+
+onMounted(() => {
+  installStyleFixture()
 })
 
 onUnmounted(() => {
@@ -259,6 +383,7 @@ onUnmounted(() => {
     __RADMAPS_STYLE_FIXTURE__?: {
       getStyle: () => StyleConfig
       setStyle: (patch: Partial<StyleConfig>) => void
+      patchPosterElement: (id: string, patch: PosterEditorElementPatch) => void
     }
   }).__RADMAPS_STYLE_FIXTURE__
 })
@@ -277,6 +402,10 @@ function onAssetMoved(payload: { id: string; x: number; y: number }) {
     ...styleConfig.value,
     image_overlays: assets.map(asset => asset.id === payload.id ? { ...asset, x: payload.x, y: payload.y } : asset),
   }
+}
+
+function onPosterElementPatched(payload: { id: string; patch: PosterEditorElementPatch }) {
+  styleConfig.value = patchPosterEditorElement(styleConfig.value, payload.id, payload.patch)
 }
 
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
@@ -318,16 +447,22 @@ function queryFlag(value: unknown, fallback = false): boolean {
   return fallback
 }
 
+function hasQueryFlag(value: unknown): boolean {
+  return value === 'true' || value === '1' || value === 'false' || value === '0'
+}
+
 function parseTonerVariant(value: unknown): TonerVariant | undefined {
   return value === 'auto' || value === 'light' || value === 'dark' ? value : undefined
 }
 
-const finalFraming = getPrintFraming(styleConfig.value.print_size ?? '24x36', 'final')
+const printFraming = printRenderClass
+  ? getPrintFraming(styleConfig.value.print_size ?? '24x36', printRenderClass)
+  : null
 const printContext = renderMode === 'print'
   ? {
-      framing: finalFraming,
-      cssWidthPx: Math.round(finalFraming.fullWidthPx / printScale),
-      cssHeightPx: Math.round(finalFraming.fullHeightPx / printScale),
+      framing: printFraming!,
+      cssWidthPx: Math.round(printFraming!.fullWidthPx / printScale),
+      cssHeightPx: Math.round(printFraming!.fullHeightPx / printScale),
       deviceScaleFactor: printScale,
     }
   : undefined
@@ -350,6 +485,14 @@ const editorSurfaceFrameStyle = computed(() => ({
   width: `${Number.isFinite(width) ? Math.max(width, 960) : 1180}px`,
   height: `${Number.isFinite(height) ? Math.max(height, 720) : 820}px`,
   maxWidth: '100%',
+  overflow: 'hidden',
+}))
+
+const templateEditorFrameStyle = computed(() => ({
+  width: `${Number.isFinite(width) ? width : 1180}px`,
+  height: `${Number.isFinite(height) ? height : 820}px`,
+  maxWidth: '100%',
+  overflow: 'hidden',
 }))
 
 const sampleRegions: Record<string, {
@@ -357,11 +500,13 @@ const sampleRegions: Record<string, {
   location: string
   bbox: [number, number, number, number]
   route: number[][]
+  stats?: Partial<RouteStats>
 }> = {
   chicago: {
     title: 'Kickapoo Endurance Race',
     location: 'Chicago, Illinois',
     bbox: [-87.75, 41.83, -87.58, 41.92],
+    stats: { distance_km: 30.7, elevation_gain_m: 96, elevation_loss_m: 92, min_elevation_m: 176, max_elevation_m: 226 },
     route: [
       [-87.733, 41.905],
       [-87.71, 41.91],
@@ -372,6 +517,209 @@ const sampleRegions: Record<string, {
       [-87.628, 41.861],
       [-87.609, 41.875],
       [-87.592, 41.842],
+    ],
+  },
+  whitney: {
+    title: 'Mount Whitney',
+    location: 'Sierra Nevada, California',
+    bbox: [-118.37, 36.51, -118.17, 36.69],
+    stats: { distance_km: 34.6, elevation_gain_m: 1910, elevation_loss_m: 1910, min_elevation_m: 2550, max_elevation_m: 4418 },
+    route: [
+      [-118.333, 36.592],
+      [-118.315, 36.602],
+      [-118.295, 36.609],
+      [-118.280, 36.617],
+      [-118.268, 36.610],
+      [-118.276, 36.598],
+      [-118.284, 36.580],
+      [-118.276, 36.562],
+      [-118.254, 36.548],
+      [-118.226, 36.540],
+      [-118.202, 36.539],
+    ],
+  },
+  rainier: {
+    title: 'Wonderland',
+    location: 'Mount Rainier, Washington',
+    bbox: [-121.95, 46.72, -121.58, 46.98],
+    stats: { distance_km: 149.7, elevation_gain_m: 4331, elevation_loss_m: 4331, min_elevation_m: 730, max_elevation_m: 2085 },
+    route: [
+      [-121.840, 46.802],
+      [-121.805, 46.828],
+      [-121.758, 46.858],
+      [-121.705, 46.890],
+      [-121.640, 46.918],
+      [-121.622, 46.900],
+      [-121.692, 46.870],
+      [-121.760, 46.840],
+      [-121.824, 46.770],
+    ],
+  },
+  'rainier-riso': {
+    title: 'Wonderland',
+    location: 'Mount Rainier, Washington',
+    bbox: [-121.95, 46.72, -121.58, 46.98],
+    stats: { distance_km: 149.7, elevation_gain_m: 4331, elevation_loss_m: 4331, min_elevation_m: 730, max_elevation_m: 2085 },
+    route: [
+      [-121.840, 46.875],
+      [-121.780, 46.902],
+      [-121.685, 46.924],
+      [-121.624, 46.919],
+      [-121.646, 46.904],
+      [-121.756, 46.872],
+      [-121.838, 46.802],
+    ],
+  },
+  'whitney-blueprint': {
+    title: 'Mount Whitney',
+    location: 'Sierra Nevada, California',
+    bbox: [-118.34, 36.475, -118.215, 36.635],
+    stats: { distance_km: 35.4, elevation_gain_m: 1910, elevation_loss_m: 1910, min_elevation_m: 2550, max_elevation_m: 4418 },
+    route: [
+      [-118.350, 36.540],
+      [-118.338, 36.548],
+      [-118.322, 36.552],
+      [-118.305, 36.548],
+      [-118.288, 36.535],
+      [-118.272, 36.515],
+      [-118.260, 36.497],
+      [-118.254, 36.482],
+      [-118.249, 36.480],
+      [-118.245, 36.488],
+      [-118.247, 36.516],
+      [-118.250, 36.543],
+      [-118.247, 36.566],
+      [-118.240, 36.590],
+      [-118.257, 36.604],
+    ],
+  },
+  dolomites: {
+    title: 'Tre Cime',
+    location: 'Dolomiti, Italia',
+    bbox: [12.18, 46.54, 12.42, 46.72],
+    stats: { distance_km: 10.5, elevation_gain_m: 740, elevation_loss_m: 740, min_elevation_m: 1960, max_elevation_m: 2455 },
+    route: [
+      [12.217, 46.6186],
+      [12.234, 46.642],
+      [12.250, 46.674],
+      [12.270, 46.690],
+      [12.294, 46.662],
+      [12.318, 46.625],
+      [12.348, 46.588],
+      [12.386, 46.602],
+      [12.350, 46.574],
+      [12.306, 46.562],
+      [12.282, 46.585],
+    ],
+  },
+  'dolomites-copper': {
+    title: 'Tre Cime',
+    location: 'Dolomiti, Italia',
+    bbox: [12.18, 46.54, 12.42, 46.72],
+    stats: { distance_km: 10.5, elevation_gain_m: 740, elevation_loss_m: 740, min_elevation_m: 1960, max_elevation_m: 2455 },
+    route: [
+      [12.213, 46.582],
+      [12.226, 46.588],
+      [12.246, 46.593],
+      [12.267, 46.592],
+      [12.288, 46.588],
+      [12.270, 46.585],
+      [12.244, 46.586],
+      [12.224, 46.584],
+      [12.215, 46.581],
+      [12.236, 46.578],
+      [12.265, 46.577],
+      [12.294, 46.572],
+      [12.323, 46.562],
+      [12.345, 46.548],
+      [12.358, 46.553],
+      [12.369, 46.574],
+      [12.383, 46.595],
+      [12.397, 46.612],
+    ],
+  },
+  moab: {
+    title: 'Moab',
+    location: 'Sand Flats, Utah',
+    bbox: [-109.65, 38.49, -109.42, 38.66],
+    stats: { distance_km: 24.2, elevation_gain_m: 530, elevation_loss_m: 530, min_elevation_m: 1220, max_elevation_m: 1635 },
+    route: [
+      [-109.604, 38.548],
+      [-109.575, 38.568],
+      [-109.562, 38.602],
+      [-109.535, 38.628],
+      [-109.494, 38.618],
+      [-109.474, 38.586],
+      [-109.507, 38.556],
+      [-109.553, 38.535],
+    ],
+  },
+  napa: {
+    title: 'Napa Valley',
+    location: 'Calistoga · Napa · California',
+    bbox: [-122.68, 38.42, -122.34, 38.78],
+    stats: { distance_km: 35.6, elevation_gain_m: 320, elevation_loss_m: 315, min_elevation_m: 35, max_elevation_m: 235 },
+    route: [
+      [-122.618, 38.718],
+      [-122.570, 38.684],
+      [-122.540, 38.642],
+      [-122.497, 38.596],
+      [-122.470, 38.550],
+      [-122.438, 38.492],
+    ],
+  },
+  boston: {
+    title: 'Boston',
+    location: 'Boston, Massachusetts',
+    bbox: [-71.13, 42.32, -71.03, 42.39],
+    stats: { distance_km: 42.1648, elevation_gain_m: 265, elevation_loss_m: 260, min_elevation_m: 0, max_elevation_m: 75 },
+    route: [
+      [-71.0656, 42.3554],
+      [-71.0785, 42.3496],
+      [-71.1016, 42.3489],
+      [-71.1229, 42.3528],
+      [-71.1175, 42.3663],
+      [-71.1052, 42.3744],
+      [-71.0869, 42.3796],
+      [-71.0713, 42.3717],
+      [-71.0591, 42.3810],
+      [-71.0452, 42.3702],
+      [-71.0392, 42.3561],
+      [-71.0496, 42.3414],
+      [-71.0643, 42.3339],
+      [-71.0831, 42.3312],
+      [-71.0965, 42.3410],
+      [-71.0880, 42.3517],
+      [-71.0758, 42.3606],
+      [-71.0629, 42.3662],
+      [-71.0656, 42.3554],
+    ],
+  },
+  scotland: {
+    title: 'The Cobbler',
+    location: 'Argyll, Scotland',
+    bbox: [-4.86, 56.15, -4.70, 56.29],
+    stats: { distance_km: 12.4, elevation_gain_m: 950, elevation_loss_m: 950, min_elevation_m: 20, max_elevation_m: 884 },
+    route: [
+      [-4.815, 56.182],
+      [-4.792, 56.197],
+      [-4.775, 56.218],
+      [-4.768, 56.242],
+      [-4.748, 56.263],
+      [-4.724, 56.254],
+    ],
+  },
+  cdmx: {
+    title: 'Centro Histórico',
+    location: 'Mexico City, Mexico',
+    bbox: [-99.158, 19.420, -99.115, 19.452],
+    stats: { distance_km: 7.2, elevation_gain_m: 54, elevation_loss_m: 48, min_elevation_m: 2230, max_elevation_m: 2260 },
+    route: [
+      [-99.151, 19.432],
+      [-99.144, 19.438],
+      [-99.136, 19.435],
+      [-99.130, 19.441],
+      [-99.123, 19.436],
     ],
   },
   banff: {
@@ -427,6 +775,7 @@ const sampleRegions: Record<string, {
     title: 'Mount Fuji Ascent',
     location: 'Fuji-Hakone, Japan',
     bbox: [138.62, 35.28, 138.84, 35.46],
+    stats: { distance_km: 12.8, elevation_gain_m: 1460, elevation_loss_m: 320, min_elevation_m: 720, max_elevation_m: 3776 },
     route: [
       [138.731, 35.365],
       [138.727, 35.377],
@@ -451,15 +800,44 @@ const sampleRegions: Record<string, {
 }
 
 const sampleRegion = sampleRegions[region] ?? sampleRegions.chicago
+const routeRegion = sampleRegions[routeShape] ?? sampleRegion
+function bboxFromRoute(route: number[][]): [number, number, number, number] | null {
+  const points = route.filter(point =>
+    typeof point[0] === 'number' &&
+    Number.isFinite(point[0]) &&
+    typeof point[1] === 'number' &&
+    Number.isFinite(point[1]),
+  )
+  if (!points.length) return null
+
+  let minLng = points[0][0]
+  let minLat = points[0][1]
+  let maxLng = points[0][0]
+  let maxLat = points[0][1]
+  for (const [lng, lat] of points) {
+    minLng = Math.min(minLng, lng)
+    minLat = Math.min(minLat, lat)
+    maxLng = Math.max(maxLng, lng)
+    maxLat = Math.max(maxLat, lat)
+  }
+
+  return [minLng, minLat, maxLng, maxLat]
+}
+
+const sampleRoute = withRoute ? routeRegion.route : []
+const sampleMapBbox = bboxFromRoute(sampleRoute) ?? routeRegion.bbox ?? sampleRegion.bbox
+const sampleStats = routeRegion.stats ?? sampleRegion.stats ?? sampleRegions.chicago.stats ?? {}
 if (region !== 'chicago') {
   styleConfig.value = {
     ...styleConfig.value,
-    trail_name: sampleRegion.title,
-    location_text: sampleRegion.location,
-    occasion_text: '',
+    trail_name: fixtureTrailName ?? sampleRegion.title,
+    location_text: fixtureLocationText ?? sampleRegion.location,
+    occasion_text: fixtureOccasionText ?? '',
   }
 }
-const sampleRoute = sampleRegion.route
+const sampleRouteWithElevation = withElevationData
+  ? withFixtureElevation(densifyRoute(sampleRoute), sampleStats)
+  : sampleRoute
 
 const sampleMap: TrailMap = {
   id: 'style-browser-fixture',
@@ -467,28 +845,88 @@ const sampleMap: TrailMap = {
   title: sampleRegion.title,
   geojson: {
     type: 'FeatureCollection',
-    features: [{
+    features: sampleRouteWithElevation.length > 1 ? [{
       type: 'Feature',
       properties: {},
       geometry: {
         type: 'LineString',
-        coordinates: sampleRoute,
+        coordinates: sampleRouteWithElevation,
       },
-    }],
+    }] : [],
   },
-  bbox: sampleRegion.bbox,
+  bbox: sampleMapBbox,
   stats: {
-    distance_km: 30.7,
-    elevation_gain_m: 1320,
-    elevation_loss_m: 1280,
-    min_elevation_m: 180,
-    max_elevation_m: 390,
-    date: '2026-05-11',
+    distance_km: typeof fixtureDistanceKm === 'number' && Number.isFinite(fixtureDistanceKm)
+      ? fixtureDistanceKm
+      : sampleStats.distance_km ?? 30.7,
+    elevation_gain_m: typeof fixtureGainM === 'number' && Number.isFinite(fixtureGainM)
+      ? fixtureGainM
+      : sampleStats.elevation_gain_m ?? 1320,
+    elevation_loss_m: sampleStats.elevation_loss_m ?? sampleStats.elevation_gain_m ?? 1280,
+    min_elevation_m: sampleStats.min_elevation_m ?? 180,
+    max_elevation_m: sampleStats.max_elevation_m ?? 390,
+    duration_seconds: typeof fixtureDurationSeconds === 'number' && Number.isFinite(fixtureDurationSeconds)
+      ? fixtureDurationSeconds
+      : 14_832,
+    date: fixtureDate ?? '2026-05-11',
     location: sampleRegion.location,
   },
   style_config: initialStyleConfig,
   status: 'draft',
   created_at: '2026-05-11T00:00:00.000Z',
   updated_at: '2026-05-11T00:00:00.000Z',
+}
+
+function densifyRoute(route: number[][]): number[][] {
+  const out: number[][] = []
+  for (let index = 0; index < route.length; index += 1) {
+    const current = route[index]
+    const next = route[index + 1]
+    out.push(current)
+    if (next) {
+      for (let step = 1; step < 8; step += 1) {
+        const t = step / 8
+        out.push([
+          current[0] + ((next[0] - current[0]) * t),
+          current[1] + ((next[1] - current[1]) * t),
+        ])
+      }
+    }
+  }
+  return out
+}
+
+function withFixtureElevation(route: number[][], stats: Partial<RouteStats>): number[][] {
+  const minElevation = stats.min_elevation_m ?? 120
+  const maxElevation = stats.max_elevation_m ?? minElevation + 420
+  const range = Math.max(80, maxElevation - minElevation)
+  const count = Math.max(1, route.length - 1)
+  return route.map(([lng, lat], index) => {
+    const t = index / count
+    if (styleConfig.value.color_theme === 'splits-stats') {
+      const jag =
+        (Math.sin(Math.PI * 13.5 * t) * 0.018) +
+        (Math.sin((Math.PI * 29 * t) + 0.8) * 0.012) +
+        (((index % 3) - 1) * 0.008)
+      const normalized = Math.min(0.56, Math.max(0.18, 0.26 + (0.18 * t) + jag))
+      return [
+        lng,
+        lat,
+        Math.round(minElevation + (range * normalized)),
+      ]
+    }
+    const wave =
+      0.48 +
+      (Math.sin((Math.PI * 2.1 * t) - 0.7) * 0.24) +
+      (Math.sin((Math.PI * 6.4 * t) + 0.35) * 0.14) +
+      (Math.sin((Math.PI * 15.5 * t) - 0.2) * 0.045)
+    const taper = 0.1 * Math.sin(Math.PI * t)
+    const normalized = Math.min(0.98, Math.max(0.04, wave + taper))
+    return [
+      lng,
+      lat,
+      Math.round(minElevation + (range * normalized)),
+    ]
+  })
 }
 </script>

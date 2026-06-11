@@ -158,7 +158,6 @@ import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import type { DeletedRange, MapAsset, MapAssetKind, PosterTextOverride, PosterTextSlot, StyleConfig, TextOverlay } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
-import { FLAGS } from '~/utils/knownFlags'
 import { buildElevationProfile, detectDisconnectedRanges, mergeDeletedRanges, mergeDeletedRangesForRoute } from '~/utils/trail'
 
 definePageMeta({ middleware: 'auth', layout: false })
@@ -189,15 +188,13 @@ const {
 const styleConfig = ref<StyleConfig>({ ...DEFAULT_STYLE_CONFIG })
 const mapPreviewRef = ref<MapPreviewHandle | null>(null)
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
-const themePickerEnabled = useFeatureFlag(FLAGS.THEME_PICKER_STEP)
 const themePickerDismissed = ref(false)
 
 const themePickerDismissKey = computed(() => `radmaps_theme_picker_dismissed_${mapId.value}`)
 const themePickerRequested = computed(() => route.query.themePicker === '1' || route.query.themePicker === 'true')
-const themePickerAllowed = computed(() => import.meta.dev || themePickerEnabled.value)
 const themePickerForced = computed(() => import.meta.dev && themePickerRequested.value)
 const showThemePicker = computed(() =>
-  Boolean(mapData.value && themePickerRequested.value && themePickerAllowed.value && (themePickerForced.value || !themePickerDismissed.value)),
+  Boolean(mapData.value && themePickerRequested.value && (themePickerForced.value || !themePickerDismissed.value)),
 )
 
 const hasElevationData = computed(() => {
@@ -233,7 +230,6 @@ async function dismissThemePicker() {
 }
 
 async function openThemePicker() {
-  if (!themePickerAllowed.value) return
   if (import.meta.client) {
     localStorage.removeItem(themePickerDismissKey.value)
   }
@@ -739,7 +735,8 @@ function onViewChanged({ map_zoom, map_center, map_editor_width, map_pitch, map_
 
 async function goToCheckout() {
   await persistCurrentStyleNow()
-  await navigateTo(`/create/${mapId.value}/checkout`)
+  const query = route.query.e2eAuth === '1' ? '?e2eAuth=1' : ''
+  await navigateTo(`/create/${mapId.value}/checkout${query}`)
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────

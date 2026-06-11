@@ -5,7 +5,7 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState && (!chromeDirectEditing || activeTextTarget?.type === 'overlay')"
+      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
@@ -113,6 +113,186 @@
     </div>
 
     <div
+      v-if="chromeStructureEditing && chromeLayoutBuilderVisible"
+      class="chrome-editor-app-bar"
+      data-testid="chrome-editor-app-bar"
+      @pointerdown.stop
+      @click.stop
+    >
+      <button class="chrome-editor-app-action" @click="finishActiveTextEdit">Done</button>
+      <span class="chrome-editor-app-title">Editing Poster Layout</span>
+      <button
+        class="chrome-editor-add-button"
+        :class="{ 'is-active': chromeAddPanelOpen }"
+        data-testid="chrome-editor-add-block"
+        @click="toggleChromeAddPanel"
+      >
+        Add Block
+      </button>
+    </div>
+
+    <div
+      v-if="chromeStructureEditing && chromeLayoutBuilderVisible && chromeAddPanelOpen"
+      class="chrome-add-block-panel"
+      data-testid="chrome-add-block-panel"
+      @pointerdown.stop
+      @click.stop
+    >
+      <span class="chrome-add-block-section">Essentials</span>
+      <div class="chrome-add-block-grid">
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-text" @click="addChromeTextFromPalette">
+          <UIcon name="i-heroicons-pencil-square" class="chrome-add-block-icon" />
+          <span>Text</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-column" @click="addColumnFromPalette">
+          <UIcon name="i-heroicons-view-columns" class="chrome-add-block-icon" />
+          <span>Column</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-row" @click="addRowFromPalette">
+          <UIcon name="i-heroicons-queue-list" class="chrome-add-block-icon" />
+          <span>Row</span>
+        </button>
+        <button class="chrome-add-block-card" data-testid="chrome-builder-add-spacer" @click="addSpacerFromPalette">
+          <UIcon name="i-heroicons-arrows-pointing-out" class="chrome-add-block-icon" />
+          <span>Spacer</span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="chromeContextToolbarVisible"
+      ref="chromeLayoutBuilderEl"
+      class="chrome-layout-builder"
+      :class="[
+        chromeLayoutBuilderPopoverVertical === 'top' ? 'is-popover-above' : '',
+        chromeLayoutBuilderPopoverAlign === 'left' ? 'is-popover-left' : '',
+      ]"
+      :style="chromeLayoutBuilderFloatingStyle"
+      data-testid="chrome-layout-builder"
+      @pointerdown.stop
+      @click.stop
+    >
+      <button
+        type="button"
+        class="chrome-context-handle"
+        data-testid="chrome-context-toolbar-handle"
+        title="Drag toolbar"
+        aria-label="Drag toolbar"
+        @pointerdown.prevent.stop="startChromeContextToolbarDrag"
+      >
+        <span />
+        <span />
+        <span />
+        <span />
+      </button>
+
+      <div
+        v-if="!activeChromeBlock"
+        class="chrome-layout-builder-main chrome-layout-builder-main--content"
+      >
+        <button
+          class="chrome-layout-builder-primary"
+          data-testid="chrome-builder-add-text-primary"
+          @click="addChromeTextForSelection"
+        >
+          Add text
+        </button>
+      </div>
+
+      <span v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-divider" />
+
+      <div v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-builder-group chrome-layout-builder-group--icons">
+        <button :class="{ active: activeChromeBold }" title="Bold" data-testid="chrome-builder-bold" @click="toggleChromeBold">B</button>
+        <button :class="{ active: activeChromeItalic }" title="Italic" data-testid="chrome-builder-italic" @click="toggleChromeItalic">I</button>
+        <button title="Smaller" @click="nudgeChromeScale(-0.05)">A-</button>
+        <button title="Larger" @click="nudgeChromeScale(0.05)">A+</button>
+        <label class="chrome-layout-color" title="Text color">
+          <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
+        </label>
+      </div>
+
+      <details class="chrome-layout-more" data-testid="chrome-builder-style-menu">
+        <summary data-testid="chrome-builder-style-toggle">
+          <UIcon name="i-heroicons-adjustments-horizontal" class="chrome-layout-icon" />
+        </summary>
+        <div class="chrome-layout-popover">
+          <div v-if="activeChromeBlock && !isChromeSpacerBlock(activeChromeBlock)" class="chrome-layout-builder-group chrome-layout-builder-group--icons">
+            <button :class="{ active: activeChromeAlign === 'left' }" title="Align left" aria-label="Align left" @click="setChromeAlign('left')">
+              <UIcon name="i-heroicons-bars-3-bottom-left" class="chrome-layout-icon" />
+            </button>
+            <button :class="{ active: activeChromeAlign === 'center' }" title="Align center" aria-label="Align center" @click="setChromeAlign('center')">
+              <UIcon name="i-heroicons-bars-3" class="chrome-layout-icon" />
+            </button>
+            <button :class="{ active: activeChromeAlign === 'right' }" title="Align right" aria-label="Align right" @click="setChromeAlign('right')">
+              <UIcon name="i-heroicons-bars-3-bottom-right" class="chrome-layout-icon" />
+            </button>
+            <span class="chrome-layout-mini-divider" />
+            <button :class="{ active: activeChromeValign === 'top' }" title="Align top" @click="setChromeValign('top')">Top</button>
+            <button :class="{ active: activeChromeValign === 'center' }" title="Align middle" @click="setChromeValign('center')">Mid</button>
+            <button :class="{ active: activeChromeValign === 'bottom' }" title="Align bottom" @click="setChromeValign('bottom')">Bottom</button>
+          </div>
+
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-group">
+            <button :disabled="!activeChromeBlock" data-testid="chrome-builder-duplicate" @click="duplicateChromeBlock">Duplicate</button>
+            <button :disabled="!activeChromeBlock" data-testid="chrome-builder-clear" @click="deleteChromeBlock">Clear</button>
+            <button :disabled="selectedChromeTarget?.type !== 'cell'" data-testid="chrome-builder-remove" @click="removeSelectedCell">Remove</button>
+            <button data-testid="chrome-builder-reset" @click="resetChromeSection(activeChromeBand)">Reset</button>
+          </div>
+
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-spacing">
+            <span>Cell padding</span>
+            <div
+              v-for="side in chromePaddingSides"
+              :key="`cell-${side.key}`"
+              class="chrome-layout-stepper"
+            >
+              <label>{{ side.label }}</label>
+              <button
+                :disabled="selectedChromeTarget?.type !== 'cell'"
+                :data-testid="`chrome-builder-cell-padding-${side.key}-decrease`"
+                @click="nudgeActiveChromeCellPadding(-1, side.index)"
+              >
+                -
+              </button>
+              <output>{{ activeChromePaddingValues[side.index] }}</output>
+              <button
+                :disabled="selectedChromeTarget?.type !== 'cell'"
+                :data-testid="`chrome-builder-cell-padding-${side.key}-increase`"
+                @click="nudgeActiveChromeCellPadding(1, side.index)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div v-if="chromeStructureEditing" class="chrome-layout-builder-spacing">
+            <span>Section padding</span>
+            <div
+              v-for="side in chromePaddingSides"
+              :key="`band-${side.key}`"
+              class="chrome-layout-stepper"
+            >
+              <label>{{ side.label }}</label>
+              <button
+                :data-testid="`chrome-builder-section-padding-${side.key}-decrease`"
+                @click="nudgeChromeBandPaddingSide(activeChromeBand, -1, side.index)"
+              >
+                -
+              </button>
+              <output>{{ activeChromeBandPaddingValues[side.index] }}</output>
+              <button
+                :data-testid="`chrome-builder-section-padding-${side.key}-increase`"
+                @click="nudgeChromeBandPaddingSide(activeChromeBand, 1, side.index)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div
       v-if="chromeMobileDrawerOpen && activeChromeBlock"
       class="chrome-mobile-drawer"
       data-testid="chrome-mobile-drawer"
@@ -143,7 +323,7 @@
           <input type="color" :value="activeChromeColor" @input="setChromeColor(($event.target as HTMLInputElement).value)" />
         </label>
       </div>
-      <div class="chrome-mobile-actions">
+      <div v-if="chromeStructureEditing" class="chrome-mobile-actions">
         <button @click="addColumnForSelection">+ Column</button>
         <button @click="addRowForSelection">+ Row</button>
         <button @click="deleteChromeBlock">Clear</button>
@@ -153,6 +333,38 @@
       </div>
     </div>
 
+    <ClientOnly>
+      <Moveable
+        v-if="posterElementsEditing && posterMoveableTarget && selectedPosterElementCanTransform"
+        class-name="poster-element-moveable"
+        :target="posterMoveableTarget"
+        :draggable="selectedPosterElementDraggable"
+        :drag-area="true"
+        :resizable="selectedPosterElementResizable"
+        :rotatable="selectedPosterElementRotatable"
+        :snappable="true"
+        :snap-container="posterCanvasEl"
+        :vertical-guidelines="posterVerticalGuidelines"
+        :horizontal-guidelines="posterHorizontalGuidelines"
+        :snap-threshold="6"
+        :snap-grid-width="posterSnapGridPx.width"
+        :snap-grid-height="posterSnapGridPx.height"
+        :bounds="posterMoveableBounds"
+        :keep-ratio="selectedPosterElementKeepRatio"
+        :origin="false"
+        :throttle-drag="0"
+        :throttle-resize="0"
+        :throttle-rotate="1"
+        @drag="onPosterMoveableDrag"
+        @drag-end="onPosterMoveableDragEnd"
+        @resize-start="onPosterMoveableResizeStart"
+        @resize="onPosterMoveableResize"
+        @resize-end="onPosterMoveableResizeEnd"
+        @rotate="onPosterMoveableRotate"
+        @rotate-end="onPosterMoveableRotateEnd"
+      />
+    </ClientOnly>
+
     <!-- Poster canvas — maintains print aspect ratio -->
     <div
       ref="posterCanvasEl"
@@ -161,6 +373,7 @@
       :style="posterCanvasStyle"
       :data-composition="composition.id"
       :data-theme="styleConfig.color_theme"
+      :data-base-map-mode="styleConfig.base_map_mode ?? 'unspecified'"
       data-testid="poster-canvas"
       @pointerdown.self="onChromeCanvasPointerDown"
     >
@@ -185,10 +398,174 @@
         data-testid="composition-grid-overlay"
       />
       <div
+        v-if="composition.id === 'brutalist-slab'"
+        class="composition-brutalist-registration-marks"
+        data-testid="composition-brutalist-registration-marks"
+        aria-hidden="true"
+      />
+      <div
+        v-if="isBlueprintDraftingTheme"
+        class="blueprint-drafting-topline"
+        data-testid="blueprint-drafting-topline"
+        aria-hidden="true"
+      >
+        <span>{{ blueprintDraftingToplineLabel }}</span>
+        <span data-testid="blueprint-drafting-coordinate">{{ coords?.lat ?? '' }}</span>
+      </div>
+      <div
+        v-if="isBlueprintDraftingTheme"
+        class="blueprint-drafting-figure"
+        data-testid="blueprint-drafting-figure"
+        aria-hidden="true"
+      >
+        {{ blueprintDraftingFigureLabel }}
+      </div>
+      <div
+        v-if="isBlueprintDraftingTheme"
+        class="blueprint-sheet-neatline"
+        data-testid="blueprint-sheet-neatline"
+        aria-hidden="true"
+      />
+      <div
+        v-if="showEditorGuides"
+        class="poster-editor-guides"
+        data-testid="poster-editor-guides"
+      >
+        <span class="poster-editor-guide poster-editor-guide--safe" />
+        <span class="poster-editor-guide poster-editor-guide--center-v" />
+        <span class="poster-editor-guide poster-editor-guide--center-h" />
+        <span class="poster-editor-guide poster-editor-guide--third-v poster-editor-guide--third-v-1" />
+        <span class="poster-editor-guide poster-editor-guide--third-v poster-editor-guide--third-v-2" />
+        <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-1" />
+        <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-2" />
+      </div>
+      <div
         v-if="composition.showStarField"
         class="composition-star-field"
         data-testid="composition-star-field"
       />
+      <svg
+        v-if="composition.id === 'darksky-stars'"
+        class="composition-star-constellation"
+        viewBox="0 0 100 26"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        data-testid="composition-star-constellation"
+      >
+        <g class="star-constellation-shape star-constellation-shape--horizon">
+          <path class="star-constellation-line" d="M6 13 L24 10 L48 16 L72 11 L91 15" />
+          <path class="star-constellation-line star-constellation-line--secondary" d="M24 10 L39 5 L72 11 L84 4" />
+          <g class="star-constellation-points">
+            <circle cx="6" cy="13" r="1.35" />
+            <circle cx="24" cy="10" r="0.78" />
+            <circle cx="39" cy="5" r="0.54" />
+            <circle cx="48" cy="16" r="1.05" />
+            <circle cx="72" cy="11" r="1.22" />
+            <circle cx="84" cy="4" r="0.62" />
+            <circle cx="91" cy="15" r="1.05" />
+          </g>
+        </g>
+        <g class="star-constellation-shape star-constellation-shape--summit">
+          <path class="star-constellation-line" d="M57 2 L43 19 L28 24 L57 2 L75 17 L83 23" />
+          <path class="star-constellation-line star-constellation-line--secondary" d="M43 19 L66 8 L75 17 L68 22 L83 23" />
+          <g class="star-constellation-points">
+            <ellipse cx="57" cy="2" rx="1.22" ry="0.32" />
+            <ellipse cx="43" cy="19" rx="0.82" ry="0.22" />
+            <ellipse cx="28" cy="24" rx="0.92" ry="0.24" />
+            <ellipse cx="66" cy="8" rx="0.62" ry="0.16" />
+            <ellipse cx="75" cy="17" rx="0.86" ry="0.23" />
+            <ellipse cx="68" cy="22" rx="0.62" ry="0.16" />
+            <ellipse cx="83" cy="23" rx="0.78" ry="0.21" />
+          </g>
+        </g>
+      </svg>
+      <svg
+        v-if="composition.id === 'darksky-stars'"
+        class="composition-darksky-ridge"
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        data-testid="composition-darksky-ridge"
+      >
+        <path class="darksky-ridge-line darksky-ridge-line--back" d="M0 24 L8 20 L15 22 L24 12 L31 19 L38 15 L46 23 L54 10 L63 19 L72 14 L82 23 L91 18 L100 22 L100 36 L0 36 Z" />
+        <path class="darksky-ridge-line darksky-ridge-line--front" d="M0 29 L10 25 L18 27 L29 18 L38 26 L49 21 L60 30 L69 20 L80 27 L90 24 L100 28 L100 36 L0 36 Z" />
+      </svg>
+      <div
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-paper"
+        data-testid="composition-bib-paper"
+        aria-hidden="true"
+      >
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--tl" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--tr" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--br" data-testid="composition-bib-pin-hole" />
+        <span class="composition-bib-pin-hole composition-bib-pin-hole--bl" data-testid="composition-bib-pin-hole" />
+      </div>
+      <div
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-topline"
+        data-testid="composition-bib-topline"
+        aria-hidden="true"
+      >
+        {{ marathonBibTopline }}
+      </div>
+      <div
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-ghost"
+        data-testid="composition-bib-ghost"
+        aria-hidden="true"
+      >
+        {{ marathonBibYear }}
+      </div>
+      <div
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-tear-strip"
+        data-testid="composition-bib-tear-strip"
+        aria-hidden="true"
+      />
+      <div
+        v-if="composition.id === 'bib-numerals'"
+        class="composition-bib-finish-headline"
+        data-testid="composition-bib-finish-headline"
+        aria-hidden="true"
+      >
+        <span>Finisher ·</span>
+        <b>{{ marathonFinishHeadline }}</b>
+      </div>
+      <div
+        v-if="styleConfig.color_theme === 'plein-air'"
+        class="composition-plein-air-deckle"
+        data-testid="composition-plein-air-deckle"
+        aria-hidden="true"
+      >
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--top" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--right" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--bottom" />
+        <span class="plein-air-deckle-edge plein-air-deckle-edge--left" />
+      </div>
+      <aside
+        v-if="styleConfig.color_theme === 'field-journal'"
+        class="composition-journal-notes"
+        data-testid="composition-journal-notes"
+        aria-hidden="true"
+      >
+        <span class="journal-note-heading">Field Notes</span>
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule" />
+        <span class="journal-note-rule journal-note-rule--short" />
+      </aside>
+      <aside
+        v-if="styleConfig.color_theme === 'field-journal'"
+        class="composition-journal-route-sketch"
+        data-testid="composition-journal-route-sketch"
+        aria-hidden="true"
+      >
+        <span class="journal-specimen-tag">Route specimen</span>
+        <span class="journal-specimen-line" />
+        <span>{{ formattedDistance ? `${formattedDistance} mi` : 'measured route' }}</span>
+        <span>{{ formattedGain ? `${formattedGain} ft gain` : 'field survey' }}</span>
+      </aside>
       <div
         v-if="composition.showSideRail && !sideRailInsideMap"
         class="composition-side-rail"
@@ -199,15 +576,16 @@
       <div
         v-if="compositionDecor.sideRailLabel && !sideRailInsideMap && chromeSlotVisible('composition_side_rail')"
         class="composition-side-rail-label"
-        :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_side_rail') }"
+        :class="{ 'editable-text': slotEditable('composition_side_rail'), 'is-selected-text': isSlotActive('composition_side_rail') }"
         :style="compositionSideRailLabelStyle"
-        :contenteditable="editable ? 'true' : 'false'"
+        :contenteditable="slotEditable('composition_side_rail') ? 'true' : 'false'"
         :suppressContentEditableWarning="true"
         role="textbox"
         aria-label="Side rail label"
         enterkeyhint="done"
         spellcheck="true"
         data-testid="composition-side-rail-label"
+        :data-poster-element-id="slotEditorElementId('composition_side_rail')"
         @focus="onSlotFocus($event, 'composition_side_rail')"
         @blur="onSlotBlur($event, 'composition_side_rail')"
         @click="onSlotClick($event, 'composition_side_rail')"
@@ -234,7 +612,10 @@
       <!-- ── HEADER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-header shrink-0"
-        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
+        :class="{
+          'is-chrome-grid-mode': chromeGridRendering,
+          'is-chrome-elevated-band': chromeBandElevated('header'),
+        }"
         :style="headerBandStyle"
         data-testid="poster-header"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
@@ -259,8 +640,19 @@
           >+</button>
         </div>
         <div
-          v-if="chromeDirectEditing"
+          v-if="composition.id === 'modernist-block'"
+          class="composition-modernist-accent"
+          data-testid="composition-modernist-accent"
+          aria-hidden="true"
+        />
+        <div
+          v-if="chromeGridRendering"
           class="chrome-grid-band chrome-grid-band--header"
+          :class="{
+            'is-editable': chromeDirectEditing,
+            'is-resizing-columns': activeChromeColumnResize?.band === 'header',
+            'is-resizing-rows': activeChromeRowResize?.band === 'header',
+          }"
           data-testid="chrome-band-header"
           :style="chromeBandGridStyle('header')"
           @click.self="selectChromeBand('header')"
@@ -269,7 +661,11 @@
             v-for="row in chromeRowsFor('header')"
             :key="row.id"
             class="chrome-grid-row"
-            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id }"
+            :class="{
+              'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
+              'has-selected-cell': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': chromeDirectEditing && activeChromeRowResize?.band === 'header' && activeChromeRowResize.rowId === row.id,
+            }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
             @click.stop="selectChromeRow('header', row.id)"
@@ -278,55 +674,149 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :class="{
+                'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'header' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': chromeDirectEditing && activeChromeColumnResize?.band === 'header' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-empty': !cell.block || cell.block.empty,
+                'is-spacer': isChromeSpacerCell(cell),
+              }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
-              @click.stop="selectChromeCell('header', row.id, cell.id)"
+              @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
             >
+              <button
+                v-if="chromeStructureEditing && (chromeCellSelected('header', row.id, cell.id) || isChromeSpacerCell(cell))"
+                class="chrome-cell-trash"
+                :class="{ 'is-passive': !chromeCellSelected('header', row.id, cell.id) }"
+                :data-testid="chromeCellSelected('header', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
+                :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
+                aria-label="Delete selected cell"
+                @pointerdown.prevent.stop="trashChromeCell('header', row.id, cell.id)"
+                @click.prevent.stop="trashChromeCell('header', row.id, cell.id)"
+              >
+                <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
+              </button>
               <div
-                v-if="cell.block && !cell.block.empty"
-                class="chrome-grid-block editable-text"
-                :class="`chrome-grid-block--${cell.block.kind}`"
+                v-if="isChromeSpacerCell(cell)"
+                class="chrome-grid-spacer"
+                :data-chrome-block-id="cell.block?.id"
+                role="separator"
+                :aria-label="cell.block?.label ?? 'Spacer'"
+                @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
+              >
+                <span>{{ cell.block?.label ?? 'Spacer' }}</span>
+              </div>
+              <div
+                v-else-if="cell.block && !cell.block.empty && (!cell.block.slot || compositionAllowsSlot(cell.block.slot))"
+                class="chrome-grid-block"
+                :class="[
+                  `chrome-grid-block--${cell.block.kind}`,
+                  cell.block.slot ? `chrome-grid-block--slot-${chromeSlotClass(cell.block.slot)}` : '',
+                  { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
+                ]"
                 :style="chromeGridBlockStyle(cell)"
-                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :contenteditable="editable && chromeDirectEditing && chromeBlockEditable(cell.block) ? 'true' : 'false'"
                 :suppressContentEditableWarning="true"
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                :data-chrome-slot="cell.block.slot"
+                :data-chrome-kind="cell.block.kind"
+                :data-poster-fit-slot="cell.block.slot"
+                :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
+                :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
+                :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
+                :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
+                @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'header', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'header', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else
+                v-else-if="chromeStructureEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('header', row.id, cell.id)"
               >+</button>
               <button
-                v-if="cell.block && !cell.block.empty"
+                v-if="chromeStructureEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
-                title="Add column"
+                :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
+                data-testid="chrome-cell-add-column"
+                title="Add column after this cell"
+                aria-label="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('header', row.id, cell.id)"
                 @click.stop
-              >+</button>
+              >
+                <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
+              </button>
+              <button
+                v-if="chromeStructureEditing && canResizeChromeCell(row, cell)"
+                class="chrome-cell-resize-col"
+                data-testid="chrome-cell-resize-column"
+                title="Drag to resize column"
+                @pointerdown.prevent.stop="startChromeColumnResize($event, 'header', row.id, cell.id)"
+                @click.stop
+              />
             </div>
-            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('header', row.id)" @click.stop>+ Row</button>
+            <button
+              v-if="chromeStructureEditing"
+              class="chrome-row-add-row"
+              data-testid="chrome-row-add-row"
+              title="Add row below"
+              aria-label="Add row below"
+              @pointerdown.prevent.stop="addRowAfter('header', row.id)"
+              @click.stop
+            >
+              <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
+            </button>
+            <button
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('header', row, 'top')"
+              class="chrome-row-resize-row chrome-row-resize-row--top"
+              data-testid="chrome-row-resize-row"
+              data-edge="top"
+              title="Drag to adjust top spacing"
+              aria-label="Adjust row top spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id, 'top')"
+              @click.stop
+            />
+            <button
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('header', row, 'bottom')"
+              class="chrome-row-resize-row chrome-row-resize-row--bottom"
+              data-testid="chrome-row-resize-row"
+              data-edge="bottom"
+              title="Drag to adjust bottom spacing"
+              aria-label="Adjust row bottom spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'header', row.id, 'bottom')"
+              @click.stop
+            />
           </div>
-          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>+ Row</button>
+          <button v-if="chromeStructureEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('header')" @click.stop>Row +</button>
+        </div>
+        <div
+          v-if="composition.id === 'botanical-plate'"
+          class="botanical-titleblock-eyebrow"
+          data-testid="composition-kicker"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.kicker }}
         </div>
         <div
           v-if="compositionDecor.kicker && chromeSlotVisible('composition_kicker')"
           class="composition-kicker"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_kicker') }"
+          :class="{ 'editable-text': slotEditable('composition_kicker'), 'is-selected-text': isSlotActive('composition_kicker') }"
           :style="compositionKickerStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_kicker') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition kicker"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-kicker"
+          :data-poster-element-id="slotEditorElementId('composition_kicker')"
           @focus="onSlotFocus($event, 'composition_kicker')"
           @blur="onSlotBlur($event, 'composition_kicker')"
           @click="onSlotClick($event, 'composition_kicker')"
@@ -341,13 +831,16 @@
           v-if="!editable && styleConfig.labels?.show_title !== false && chromeSlotVisible('trail_name')"
           class="poster-trail-name"
           :style="trailNameStyle"
+          :data-riso-title="trailName"
         >{{ trailName }}</h1>
         <h1
           v-else-if="editable && chromeSlotVisible('trail_name')"
           class="poster-trail-name editable-text"
-          :class="{ 'is-selected-text': isSlotActive('trail_name') }"
+          :class="{ 'is-selected-text': isSlotActive('trail_name'), 'editable-text': slotEditable('trail_name') }"
           :style="trailNameStyle"
-          contenteditable="true"
+          :data-poster-element-id="slotEditorElementId('trail_name')"
+          :data-riso-title="trailName"
+          :contenteditable="slotEditable('trail_name') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Trail name"
@@ -368,9 +861,10 @@
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
-          :class="{ 'is-selected-text': isSlotActive('location_text') }"
+          :class="{ 'is-selected-text': isSlotActive('location_text'), 'editable-text': slotEditable('location_text') }"
           :style="locationLineStyle"
-          contenteditable="true"
+          :data-poster-element-id="slotEditorElementId('location_text')"
+          :contenteditable="slotEditable('location_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Location"
@@ -385,20 +879,29 @@
         <div
           v-if="compositionDecor.meta && chromeSlotVisible('composition_meta')"
           class="composition-meta-line"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_meta') }"
+          :class="{ 'editable-text': slotEditable('composition_meta'), 'is-selected-text': isSlotActive('composition_meta') }"
           :style="compositionMetaStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_meta') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition metadata"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-meta-line"
+          :data-poster-element-id="slotEditorElementId('composition_meta')"
           @focus="onSlotFocus($event, 'composition_meta')"
           @blur="onSlotBlur($event, 'composition_meta')"
           @click="onSlotClick($event, 'composition_meta')"
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.meta }}</div>
+        <div
+          v-if="composition.id === 'botanical-plate'"
+          class="botanical-titleblock-coordinate"
+          data-testid="composition-meta-line"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.meta }}
+        </div>
 
         <!-- Thin rule at bottom — only for top-positioned header -->
         <div v-if="layout.titlePosition === 'top'" class="poster-rule" :style="ruleStyle" />
@@ -462,13 +965,288 @@
           data-testid="composition-map-grid-overlay"
         />
         <div
-          v-if="showTerrainIllusionOverlay"
-          class="terrain-illusion-overlay"
-          :class="terrainIllusionClass"
-          :style="terrainIllusionStyle"
-          data-testid="terrain-illusion-overlay"
+          v-if="styleConfig.color_theme === 'electric-atlas'"
+          class="composition-electric-trace"
+          data-testid="composition-electric-trace"
+          aria-hidden="true"
+        >
+          <span class="electric-trace-line electric-trace-line--a" />
+          <span class="electric-trace-line electric-trace-line--b" />
+          <span class="electric-trace-line electric-trace-line--c" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'electric-atlas'"
+          class="composition-electric-chip"
+          data-testid="composition-electric-chip"
+          aria-hidden="true"
+        >
+          <span>LIVE GPX</span>
+          <b>{{ formattedDistance ? `${formattedDistance} MI` : 'ROUTE' }}</b>
+        </div>
+        <svg
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-bands"
+          viewBox="0 0 100 150"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-relief-bands"
+        >
+          <path class="relief-band relief-band--low" d="M0 116 C18 105 31 122 49 112 C66 103 80 110 100 98 L100 150 L0 150 Z" />
+          <path class="relief-band relief-band--mid" d="M0 86 C20 76 34 91 51 82 C69 72 79 84 100 70 L100 104 C80 116 66 104 49 114 C31 124 18 106 0 118 Z" />
+          <path class="relief-band relief-band--high" d="M0 52 C19 44 34 59 50 49 C67 39 80 48 100 34 L100 72 C80 86 68 73 51 84 C34 94 20 77 0 88 Z" />
+        </svg>
+        <div
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-legend"
+          data-testid="composition-relief-legend"
+          aria-hidden="true"
+        >
+          <span class="relief-legend-swatch relief-legend-swatch--low" />
+          <span class="relief-legend-swatch relief-legend-swatch--mid" />
+          <span class="relief-legend-swatch relief-legend-swatch--high" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'relief-shaded'"
+          class="composition-relief-stamp"
+          data-testid="composition-relief-stamp"
+          aria-hidden="true"
+        >
+          Relief
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'plein-air'"
+          class="composition-plein-air-palette"
+          data-testid="composition-plein-air-palette"
+          aria-hidden="true"
+        >
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--route" />
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--water" />
+          <span class="plein-air-palette-swatch plein-air-palette-swatch--contour" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'field-journal'"
+          class="composition-journal-tape"
+          data-testid="composition-journal-tape"
+          aria-hidden="true"
+        >
+          <span class="journal-tape-strip journal-tape-strip--top" />
+          <span class="journal-tape-strip journal-tape-strip--bottom" />
+        </div>
+        <div
+          v-if="styleConfig.color_theme === 'botanical'"
+          class="composition-botanical-frame"
+          data-testid="composition-botanical-frame"
+          aria-hidden="true"
+        >
+          <span class="botanical-corner botanical-corner--tl" />
+          <span class="botanical-corner botanical-corner--tr" />
+          <span class="botanical-corner botanical-corner--br" />
+          <span class="botanical-corner botanical-corner--bl" />
+        </div>
+        <div
+          v-if="showPlateFrameOverlay"
+          class="composition-plate-frame"
+          data-testid="composition-plate-frame"
         />
-
+        <div
+          v-if="showCartoucheHills"
+          class="composition-cartouche-hills"
+          data-testid="composition-cartouche-hills"
+          aria-hidden="true"
+        >
+          <span class="composition-cartouche-hill composition-cartouche-hill--left" />
+          <span class="composition-cartouche-hill composition-cartouche-hill--right" />
+        </div>
+        <svg
+          v-if="composition.id === 'travel-banner'"
+          class="composition-travel-sun"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-travel-sun"
+        >
+          <circle class="composition-travel-sun__disk" cx="50" cy="82" r="78" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--wide" cx="50" cy="82" r="58" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--mid" cx="50" cy="82" r="38" />
+          <circle class="composition-travel-sun__arc composition-travel-sun__arc--inner" cx="50" cy="82" r="22" />
+          <path class="composition-travel-sun__horizon" d="M5 82 H95" />
+        </svg>
+        <svg
+          v-if="composition.id === 'sea-chart'"
+          class="composition-sea-chart-art"
+          viewBox="0 0 100 150"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="composition-sea-chart-art"
+        >
+          <rect class="sea-chart-neatline sea-chart-neatline--outer" x="4" y="5" width="92" height="140" />
+          <rect class="sea-chart-neatline sea-chart-neatline--inner" x="6.2" y="7.2" width="87.6" height="135.6" />
+          <g class="sea-chart-graticule">
+            <path d="M0 34 H100 M0 70 H100 M0 106 H100" />
+            <path d="M18 0 V150 M50 0 V150 M82 0 V150" />
+          </g>
+          <g class="sea-chart-rhumb-lines">
+            <path d="M-8 128 L46 74 L108 12" />
+            <path d="M-12 36 L34 82 L82 130" />
+            <path d="M50 -10 L50 160" />
+            <path d="M-10 75 H110" />
+            <path d="M81 28 L-10 10" />
+            <path d="M81 28 L108 62" />
+            <path d="M81 28 L8 150" />
+            <path d="M81 28 L100 120" />
+            <path d="M81 28 L18 86" />
+            <path d="M81 28 L42 -10" />
+          </g>
+          <g class="sea-chart-depth-bands">
+            <path d="M-4 117 C17 106 31 123 49 113 C67 103 76 116 104 105" />
+            <path d="M-2 127 C19 117 34 132 51 122 C68 113 82 126 102 116" />
+          </g>
+          <g class="sea-chart-soundings">
+            <text x="14" y="27">7</text>
+            <text x="32" y="43">12</text>
+            <text x="71" y="31">5</text>
+            <text x="86" y="58">9</text>
+            <text x="51" y="64">11</text>
+            <text x="11" y="69">6</text>
+            <text x="18" y="91">4</text>
+            <text x="43" y="86">13</text>
+            <text x="66" y="101">16</text>
+            <text x="36" y="116">8</text>
+            <text x="79" y="121">14</text>
+            <text x="18" y="132">10</text>
+            <text x="57" y="137">18</text>
+            <text x="91" y="142">7</text>
+            <text x="8" y="111">3</text>
+            <text x="58" y="16">9</text>
+            <text x="45" y="27">15</text>
+            <text x="88" y="92">12</text>
+            <text x="25" y="73">8</text>
+            <circle cx="24" cy="55" r="0.7" />
+            <circle cx="43" cy="31" r="0.7" />
+            <circle cx="78" cy="82" r="0.7" />
+            <circle cx="55" cy="119" r="0.7" />
+            <circle cx="32" cy="101" r="0.7" />
+            <circle cx="69" cy="48" r="0.7" />
+            <circle cx="91" cy="109" r="0.7" />
+            <circle cx="12" cy="42" r="0.7" />
+          </g>
+          <g class="sea-chart-rose" data-testid="sea-chart-rose" transform="translate(81 27) scale(1.25)">
+            <circle r="8.5" />
+            <path d="M0 -12 L2.2 -2.2 L12 0 L2.2 2.2 L0 12 L-2.2 2.2 L-12 0 L-2.2 -2.2 Z" />
+            <path d="M0 -8 V8 M-8 0 H8" />
+            <text x="0" y="-14">N</text>
+          </g>
+        </svg>
+        <svg
+          v-if="composition.id === 'transit-diagram'"
+          class="transit-diagram-route-stations"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          data-testid="transit-diagram-route-stations"
+        >
+          <g>
+            <circle class="transit-station transit-station--terminal" cx="30" cy="43" r="1.9" />
+            <text x="33" y="43.8">START</text>
+            <circle class="transit-station" cx="39" cy="43" r="1.55" />
+            <text x="41.6" y="40.4">RIDGE</text>
+            <circle class="transit-station transit-station--secondary" cx="46" cy="52" r="1.55" />
+            <text x="48.6" y="52.8">OVERLOOK</text>
+            <circle class="transit-station" cx="46" cy="59" r="1.55" />
+            <text x="48.6" y="60">CELLAR</text>
+            <circle class="transit-station transit-station--secondary" cx="55" cy="77" r="1.55" />
+            <text x="52.4" y="75.9" text-anchor="end">VINEYARD</text>
+            <circle class="transit-station transit-station--terminal" cx="64" cy="77" r="1.9" />
+            <text x="66.8" y="77.8">FINISH</text>
+          </g>
+        </svg>
+        <div
+          v-if="composition.id === 'transit-diagram'"
+          class="composition-transit-diagram-art"
+          data-testid="composition-transit-diagram-art"
+          aria-hidden="true"
+        >
+          <div class="transit-diagram-legend" data-testid="transit-diagram-legend">
+            <span class="transit-diagram-badge">T1</span>
+            <span class="transit-diagram-line-key">
+              <i />
+              <b />
+              <i />
+            </span>
+            <span class="transit-diagram-legend-text">45/90 GPX LINE</span>
+          </div>
+          <div class="transit-diagram-station-key" data-testid="transit-diagram-station-key">
+            <span><i /> START</span>
+            <span><i /> STOP</span>
+            <span><i /> FINISH</span>
+          </div>
+        </div>
+        <div
+          v-if="isUsgsHeritageTheme && compositionDecor.kicker"
+          class="usgs-heritage-map-label usgs-heritage-map-label--coord"
+          :class="{ 'editable-text': slotEditable('composition_kicker'), 'is-selected-text': isSlotActive('composition_kicker') }"
+          :contenteditable="slotEditable('composition_kicker') ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Map coordinate label"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="usgs-heritage-coordinate"
+          :data-poster-element-id="slotEditorElementId('composition_kicker')"
+          @pointerdown.stop
+          @focus="onSlotFocus($event, 'composition_kicker')"
+          @blur="onSlotBlur($event, 'composition_kicker')"
+          @click="onSlotClick($event, 'composition_kicker')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.kicker }}</div>
+        <div
+          v-if="isUsgsHeritageTheme && compositionDecor.meta"
+          class="usgs-heritage-map-label usgs-heritage-map-label--scale"
+          :class="{ 'editable-text': slotEditable('composition_meta'), 'is-selected-text': isSlotActive('composition_meta') }"
+          :contenteditable="slotEditable('composition_meta') ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Map scale label"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="usgs-heritage-scale"
+          :data-poster-element-id="slotEditorElementId('composition_meta')"
+          @pointerdown.stop
+          @focus="onSlotFocus($event, 'composition_meta')"
+          @blur="onSlotBlur($event, 'composition_meta')"
+          @click="onSlotClick($event, 'composition_meta')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ compositionDecor.meta }}</div>
+        <div
+          v-if="isClassicTrailTheme && compositionDecor.kicker"
+          class="classic-trail-map-label classic-trail-map-label--coord"
+          data-testid="classic-trail-coordinate"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.kicker }}
+        </div>
+        <div
+          v-if="isClassicTrailTheme && compositionDecor.meta"
+          class="classic-trail-map-label classic-trail-map-label--scale"
+          data-testid="classic-trail-scale"
+          aria-hidden="true"
+        >
+          {{ compositionDecor.meta }}
+        </div>
+        <div
+          v-if="isUsgsHeritageTheme && usgsCoordinateTicks.length"
+          class="usgs-coordinate-ticks"
+          data-testid="usgs-coordinate-ticks"
+          aria-hidden="true"
+        >
+          <span
+            v-for="tick in usgsCoordinateTicks"
+            :key="tick.id"
+            class="usgs-coordinate-tick"
+            :class="`usgs-coordinate-tick--${tick.id}`"
+            data-testid="usgs-coordinate-tick"
+          >{{ tick.label }}</span>
+        </div>
         <!-- Plot mode overlay — instruction banner + cancel -->
         <div
           v-if="plotMode"
@@ -598,9 +1376,10 @@
 
         <!-- ── Elevation profile ─────────────────────────────────────────── -->
         <ElevationProfile
-          v-if="styleConfig.show_elevation_profile && mapReady"
+          v-if="showOverlayElevationProfile"
           :map="map"
           :style-config="styleConfig"
+          placement="map-overlay"
         />
 
         <!-- ── Leader lines + pin label SVG overlay ──────────────────────── -->
@@ -610,9 +1389,10 @@
           style="z-index: 14; overflow: visible; pointer-events: none;"
         >
           <!-- Pin labels with leader lines (labels are draggable) -->
-          <g v-if="showPinOverlay">
+          <g v-if="showPinOverlay && !isUsgsHeritageTheme && styleConfig.color_theme !== 'classic-trail' && styleConfig.color_theme !== 'editorial-minimal' && styleConfig.color_theme !== 'relief-shaded'">
             <template v-for="pin in pinOverlayItems" :key="pin.id">
               <line
+                v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
                 :x1="pin.dotX" :y1="pin.dotY"
                 :x2="pin.labelX" :y2="pin.labelY"
                 :stroke="pin.color" :stroke-width="svgLineW"
@@ -620,6 +1400,7 @@
                 style="pointer-events: none;"
               />
               <text
+                v-if="pin.label.trim() && composition.id !== 'travel-banner' && composition.id !== 'modernist-block'"
                 :x="pin.labelX" :y="pin.labelY"
                 :text-anchor="pin.anchor"
                 :font-size="pinLabelFontSize(pin.id)"
@@ -711,10 +1492,43 @@
         </svg>
       </div>
 
+      <!-- ── Elevation profile band ─────────────────────────────────────── -->
+      <div
+        v-if="showSeparateElevationProfile"
+        class="relative shrink-0 overflow-hidden"
+        :style="elevationProfileBandStyle"
+        data-testid="elevation-profile-band"
+      >
+        <ElevationProfile
+          :map="map"
+          :style-config="styleConfig"
+          placement="separate-band"
+        />
+        <div
+          v-if="showSplitsProfileChrome"
+          class="composition-profile-labels"
+          data-testid="composition-profile-labels"
+          aria-hidden="true"
+        >
+          <div class="composition-profile-labels__header">
+            <span>Elevation Profile</span>
+            <strong>{{ profileGainLabel }}</strong>
+          </div>
+          <div class="composition-profile-labels__axis">
+            <span>Start</span>
+            <span>High Point</span>
+            <span>Finish</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── FOOTER BAND ─────────────────────────────────────────────────── -->
       <div
         class="poster-footer shrink-0"
-        :class="{ 'is-chrome-grid-mode': chromeDirectEditing }"
+        :class="{
+          'is-chrome-grid-mode': chromeGridRendering,
+          'is-chrome-elevated-band': chromeBandElevated('footer'),
+        }"
         :style="footerBandStyle"
         data-testid="poster-footer"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
@@ -739,8 +1553,13 @@
           >+</button>
         </div>
         <div
-          v-if="chromeDirectEditing"
+          v-if="chromeGridRendering"
           class="chrome-grid-band chrome-grid-band--footer"
+          :class="{
+            'is-editable': chromeDirectEditing,
+            'is-resizing-columns': activeChromeColumnResize?.band === 'footer',
+            'is-resizing-rows': activeChromeRowResize?.band === 'footer',
+          }"
           data-testid="chrome-band-footer"
           :style="chromeBandGridStyle('footer')"
           @click.self="selectChromeBand('footer')"
@@ -749,7 +1568,11 @@
             v-for="row in chromeRowsFor('footer')"
             :key="row.id"
             class="chrome-grid-row"
-            :class="{ 'is-selected': selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id }"
+            :class="{
+              'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'row' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
+              'has-selected-cell': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id,
+              'is-resizing-row': chromeDirectEditing && activeChromeRowResize?.band === 'footer' && activeChromeRowResize.rowId === row.id,
+            }"
             :style="chromeRowStyle(row)"
             :data-chrome-row-id="row.id"
             @click.stop="selectChromeRow('footer', row.id)"
@@ -758,61 +1581,215 @@
               v-for="cell in chromeCellsFor(row)"
               :key="cell.id"
               class="chrome-grid-cell"
-              :class="{ 'is-selected': selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id, 'is-empty': !cell.block || cell.block.empty }"
+              :class="{
+                'is-selected': chromeDirectEditing && selectedChromeTarget?.type === 'cell' && selectedChromeTarget.band === 'footer' && selectedChromeTarget.rowId === row.id && selectedChromeTarget.cellId === cell.id,
+                'is-resizing-col': chromeDirectEditing && activeChromeColumnResize?.band === 'footer' && activeChromeColumnResize.rowId === row.id && activeChromeColumnResize.cellId === cell.id,
+                'is-empty': !cell.block || cell.block.empty,
+                'is-spacer': isChromeSpacerCell(cell),
+              }"
               :style="chromeCellStyle(cell)"
               :data-chrome-cell-id="cell.id"
-              @click.stop="selectChromeCell('footer', row.id, cell.id)"
+              @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
             >
+              <button
+                v-if="chromeStructureEditing && (chromeCellSelected('footer', row.id, cell.id) || isChromeSpacerCell(cell))"
+                class="chrome-cell-trash"
+                :class="{ 'is-passive': !chromeCellSelected('footer', row.id, cell.id) }"
+                :data-testid="chromeCellSelected('footer', row.id, cell.id) ? 'chrome-cell-trash' : undefined"
+                :title="isChromeSpacerCell(cell) ? 'Remove spacer' : cell.block && !cell.block.empty ? 'Delete text' : 'Remove cell'"
+                aria-label="Delete selected cell"
+                @pointerdown.prevent.stop="trashChromeCell('footer', row.id, cell.id)"
+                @click.prevent.stop="trashChromeCell('footer', row.id, cell.id)"
+              >
+                <UIcon name="i-heroicons-trash" class="chrome-cell-trash-icon" />
+              </button>
               <div
-                v-if="cell.block && !cell.block.empty"
-                class="chrome-grid-block editable-text"
-                :class="`chrome-grid-block--${cell.block.kind}`"
+                v-if="isChromeSpacerCell(cell)"
+                class="chrome-grid-spacer"
+                :data-chrome-block-id="cell.block?.id"
+                role="separator"
+                :aria-label="cell.block?.label ?? 'Spacer'"
+                @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
+              >
+                <span>{{ cell.block?.label ?? 'Spacer' }}</span>
+              </div>
+              <div
+                v-else-if="cell.block && !cell.block.empty && (!cell.block.slot || compositionAllowsSlot(cell.block.slot))"
+                class="chrome-grid-block"
+                :class="[
+                  `chrome-grid-block--${cell.block.kind}`,
+                  cell.block.slot ? `chrome-grid-block--slot-${chromeSlotClass(cell.block.slot)}` : '',
+                  { 'editable-text': chromeDirectEditing && chromeBlockEditable(cell.block) },
+                ]"
                 :style="chromeGridBlockStyle(cell)"
-                :contenteditable="editable && chromeBlockEditable(cell.block) ? 'true' : 'false'"
+                :contenteditable="editable && chromeDirectEditing && chromeBlockEditable(cell.block) ? 'true' : 'false'"
                 :suppressContentEditableWarning="true"
                 role="textbox"
                 :aria-label="chromeBlockLabel(cell.block)"
                 :data-chrome-block-id="cell.block.id"
+                :data-chrome-slot="cell.block.slot"
+                :data-chrome-kind="cell.block.kind"
+                :data-poster-fit-slot="cell.block.slot"
+                :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
+                :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
+                :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
+                :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
+                @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @focus="onChromeGridBlockFocus($event, 'footer', row.id, cell.id)"
+                @click.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
                 @blur="onChromeGridBlockBlur($event, 'footer', row.id, cell.id)"
                 @keydown.enter.exact.prevent="finishActiveTextEdit"
               >{{ chromeBlockText(cell.block) }}</div>
               <button
-                v-else
+                v-else-if="chromeStructureEditing"
                 class="chrome-empty-cell-btn"
                 title="Add text"
                 @click.stop="addChromeTextToCell('footer', row.id, cell.id)"
               >+</button>
               <button
-                v-if="cell.block && !cell.block.empty"
+                v-if="chromeStructureEditing && canInsertColumnAfter(row, cell)"
                 class="chrome-cell-add-col chrome-cell-add-col--right"
-                title="Add column"
+                :class="{ 'chrome-cell-add-col--after-resize': canResizeChromeCell(row, cell) }"
+                data-testid="chrome-cell-add-column"
+                title="Add column after this cell"
+                aria-label="Add column after this cell"
                 @pointerdown.prevent.stop="addColumnAfter('footer', row.id, cell.id)"
                 @click.stop
-              >+</button>
+              >
+                <UIcon name="i-heroicons-plus" class="chrome-cell-add-col-icon" />
+              </button>
+              <button
+                v-if="chromeStructureEditing && canResizeChromeCell(row, cell)"
+                class="chrome-cell-resize-col"
+                data-testid="chrome-cell-resize-column"
+                title="Drag to resize column"
+                @pointerdown.prevent.stop="startChromeColumnResize($event, 'footer', row.id, cell.id)"
+                @click.stop
+              />
             </div>
-            <button class="chrome-row-add-row" @pointerdown.prevent.stop="addRowAfter('footer', row.id)" @click.stop>+ Row</button>
+            <button
+              v-if="chromeStructureEditing"
+              class="chrome-row-add-row"
+              data-testid="chrome-row-add-row"
+              title="Add row below"
+              aria-label="Add row below"
+              @pointerdown.prevent.stop="addRowAfter('footer', row.id)"
+              @click.stop
+            >
+              <UIcon name="i-heroicons-plus" class="chrome-row-add-row-icon" />
+            </button>
+            <button
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('footer', row, 'top')"
+              class="chrome-row-resize-row chrome-row-resize-row--top"
+              data-testid="chrome-row-resize-row"
+              data-edge="top"
+              title="Drag to adjust top spacing"
+              aria-label="Adjust row top spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id, 'top')"
+              @click.stop
+            />
+            <button
+              v-if="chromeStructureEditing && canResizeChromeRowEdge('footer', row, 'bottom')"
+              class="chrome-row-resize-row chrome-row-resize-row--bottom"
+              data-testid="chrome-row-resize-row"
+              data-edge="bottom"
+              title="Drag to adjust bottom spacing"
+              aria-label="Adjust row bottom spacing"
+              @pointerdown.prevent.stop="startChromeRowResize($event, 'footer', row.id, 'bottom')"
+              @click.stop
+            />
           </div>
-          <button class="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>+ Row</button>
+          <button v-if="chromeStructureEditing" class="chrome-band-add-row" data-testid="chrome-band-add-row" @pointerdown.prevent.stop="addRowAfter('footer')" @click.stop>Row +</button>
         </div>
         <div class="poster-footer-rule" :style="footerRuleStyle" data-testid="poster-footer-rule" />
         <div
           v-if="compositionDecor.footerNote && chromeSlotVisible('composition_footer')"
           class="composition-footer-note"
-          :class="{ 'editable-text': editable, 'is-selected-text': isSlotActive('composition_footer') }"
+          :class="{ 'editable-text': slotEditable('composition_footer'), 'is-selected-text': isSlotActive('composition_footer') }"
           :style="compositionFooterNoteStyle"
-          :contenteditable="editable ? 'true' : 'false'"
+          :contenteditable="slotEditable('composition_footer') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Composition footer note"
           enterkeyhint="done"
           spellcheck="true"
           data-testid="composition-footer-note"
+          :data-poster-element-id="slotEditorElementId('composition_footer')"
           @focus="onSlotFocus($event, 'composition_footer')"
           @blur="onSlotBlur($event, 'composition_footer')"
           @click="onSlotClick($event, 'composition_footer')"
           @keydown.enter.exact.prevent="finishActiveTextEdit"
         >{{ compositionDecor.footerNote }}</div>
+        <div
+          v-if="composition.id === 'brutalist-slab' && chromeSlotVisible('distance')"
+          class="composition-brutalist-distance editable-text"
+          :class="{ 'is-selected-text': isSlotActive('distance') }"
+          :contenteditable="slotEditable('distance') ? 'true' : 'false'"
+          :suppressContentEditableWarning="true"
+          role="textbox"
+          aria-label="Distance"
+          enterkeyhint="done"
+          spellcheck="false"
+          data-testid="composition-brutalist-distance"
+          :data-poster-element-id="slotEditorElementId('distance')"
+          @focus="onSlotFocus($event, 'distance')"
+          @blur="onSlotBlur($event, 'distance')"
+          @click="onSlotClick($event, 'distance')"
+          @keydown.enter.exact.prevent="finishActiveTextEdit"
+        >{{ brutalistDistanceText }}</div>
+        <div
+          v-if="composition.id === 'riso-stack'"
+          class="composition-riso-caption"
+          data-testid="composition-riso-caption"
+        >
+          <strong>{{ risoCaptionText }}</strong>
+          <span>{{ risoLocationText }}</span>
+        </div>
+        <div
+          v-if="composition.id === 'riso-stack'"
+          class="composition-riso-meta"
+          data-testid="composition-riso-meta"
+        >
+          <span>{{ risoMetaLabel }}</span>
+          <span>{{ formattedDistance ? `${formattedDistance} mi` : compositionDecor.meta }}</span>
+        </div>
+        <div
+          v-if="showTechnicalDataFooter"
+          class="composition-technical-data-footer"
+          data-testid="composition-technical-data-footer"
+        >
+          <div
+            v-for="item in technicalDataFooterItems"
+            :key="item.label"
+            class="composition-technical-data-item"
+          >
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        </div>
+        <div
+          v-if="showMoonstoneTechnicalFooter"
+          class="composition-technical-line-footer"
+          data-testid="composition-technical-line-footer"
+        >
+          <span>DIST {{ formattedDistanceKm }} km</span>
+          <span>GAIN {{ formattedGainM }} m</span>
+          <span>{{ formattedMonthYear }}</span>
+        </div>
+        <div
+          v-if="showBibDataFooter"
+          class="composition-bib-data-footer"
+          data-testid="composition-bib-data-footer"
+          aria-label="Race bib footer data"
+        >
+          <span
+            v-for="item in marathonBibFooterItems"
+            :key="item"
+            class="composition-bib-data-footer__item"
+          >{{ item }}</span>
+        </div>
 
         <!-- Logo: footer-left position -->
         <img
@@ -823,23 +1800,25 @@
         />
 
         <!-- Stat blocks (left) -->
-        <div class="poster-stats" :style="posterStatsStyle">
+        <div v-if="!showTechnicalDataFooter && !hideGenericFooterStats" class="poster-stats" :style="posterStatsStyle">
           <div
             v-if="showDistanceSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('distance') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('distance') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Distance"
             enterkeyhint="done"
             spellcheck="true"
+            :data-poster-element-id="slotEditorElementId('distance')"
             @focus="onSlotFocus($event, 'distance')"
             @blur="onSlotBlur($event, 'distance')"
             @click="onSlotClick($event, 'distance')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span v-if="hasTextOverride('distance')" class="stat-custom-text" :style="statCustomTextStyle('distance')">{{ distanceText }}</span>
+            <span v-if="isBlueprintTheme && !hasTextOverride('distance')" class="stat-custom-text" :style="blueprintTitleblockStatStyle('distance')">DIST {{ formattedDistance }} mi</span>
+            <span v-else-if="hasTextOverride('distance')" class="stat-custom-text" :style="statCustomTextStyle('distance')">{{ distanceText }}</span>
             <template v-else>
               <span class="stat-number" :style="statNumberStyleFor('distance')">{{ formattedDistance }}</span>
               <span class="stat-unit" :style="statUnitStyleFor('distance')">miles</span>
@@ -856,18 +1835,20 @@
             v-if="showElevationGainSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('elevation_gain') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('elevation_gain') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Elevation gain"
             enterkeyhint="done"
             spellcheck="true"
+            :data-poster-element-id="slotEditorElementId('elevation_gain')"
             @focus="onSlotFocus($event, 'elevation_gain')"
             @blur="onSlotBlur($event, 'elevation_gain')"
             @click="onSlotClick($event, 'elevation_gain')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span v-if="hasTextOverride('elevation_gain')" class="stat-custom-text" :style="statCustomTextStyle('elevation_gain')">{{ elevationGainText }}</span>
+            <span v-if="isBlueprintTheme && !hasTextOverride('elevation_gain')" class="stat-custom-text" :style="blueprintTitleblockStatStyle('elevation_gain')">GAIN {{ formattedGain }} ft</span>
+            <span v-else-if="hasTextOverride('elevation_gain')" class="stat-custom-text" :style="statCustomTextStyle('elevation_gain')">{{ elevationGainText }}</span>
             <template v-else>
               <span class="stat-number" :style="statNumberStyleFor('elevation_gain')">{{ formattedGain }}</span>
               <span class="stat-unit" :style="statUnitStyleFor('elevation_gain')">ft gain</span>
@@ -880,18 +1861,19 @@
             v-if="showDateSlot"
             class="stat-block editable-text"
             :class="{ 'is-selected-text': isSlotActive('date') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('date') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Date"
             enterkeyhint="done"
             spellcheck="true"
+            :data-poster-element-id="slotEditorElementId('date')"
             @focus="onSlotFocus($event, 'date')"
             @blur="onSlotBlur($event, 'date')"
             @click="onSlotClick($event, 'date')"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >
-            <span class="stat-custom-text" :style="statCustomTextStyle('date')">{{ dateText }}</span>
+            <span class="stat-custom-text" :style="isBlueprintTheme ? blueprintTitleblockStatStyle('date') : statCustomTextStyle('date')">{{ dateText }}</span>
           </div>
 
           <div v-if="showCoordinatesSlot && (showDistanceSlot || showElevationGainSlot || showDateSlot)" class="stat-divider" :style="dividerStyle" />
@@ -900,12 +1882,13 @@
             v-if="showCoordinatesSlot"
             class="stat-block stat-block--coords editable-text"
             :class="{ 'is-selected-text': isSlotActive('coordinates') }"
-            :contenteditable="editable ? 'true' : 'false'"
+            :contenteditable="slotEditable('coordinates') ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Coordinates"
             enterkeyhint="done"
             spellcheck="true"
+            :data-poster-element-id="slotEditorElementId('coordinates')"
             @focus="onSlotFocus($event, 'coordinates')"
             @blur="onSlotBlur($event, 'coordinates')"
             @click="onSlotClick($event, 'coordinates')"
@@ -930,12 +1913,13 @@
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
-          contenteditable="true"
+          :contenteditable="slotEditable('occasion_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
           aria-label="Occasion"
           enterkeyhint="done"
           spellcheck="true"
+          :data-poster-element-id="slotEditorElementId('occasion_text')"
           @focus="onSlotFocus($event, 'occasion_text')"
           @blur="onSlotBlur($event, 'occasion_text')"
           @click="onSlotClick($event, 'occasion_text')"
@@ -943,7 +1927,7 @@
         >{{ occasionText }}</p>
 
         <!-- RadMaps mark (right) -->
-        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible" class="poster-mark">
+        <div v-if="styleConfig.show_branding !== false && chromeBrandVisible && !showTechnicalDataFooter && !hideGenericFooterStats" class="poster-mark">
           <svg viewBox="0 0 32 32" fill="none" class="mark-svg" :style="{ color: styleConfig.label_text_color, opacity: '0.4' }">
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26Z" fill="currentColor" opacity="0.12"/>
             <path d="M2 26 L11 8 L16 16 L21 10 L30 26" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
@@ -976,7 +1960,7 @@
 
       <!-- ── Image overlays (poster-level — can span header, map, footer) ─── -->
       <div
-        v-if="(styleConfig.image_overlays ?? []).length > 0"
+        v-if="visibleImageAssets.length > 0"
         class="asset-layer"
         style="pointer-events: none;"
         @click.self="selectedAssetId = null"
@@ -985,18 +1969,20 @@
           v-for="asset in visibleImageAssets"
           :key="asset.id"
           :data-asset-id="asset.id"
+          :data-poster-element-id="freeOverlayEditorBlocked ? undefined : `asset:${asset.id}`"
           class="image-asset"
           :class="{
-            'is-editable': editable,
-            'is-selected': editable && selectedAssetId === asset.id,
-            'is-dragging': editable && draggingAssetId === asset.id,
+            'is-editable': editable && !freeOverlayEditorBlocked,
+            'is-selected': editable && !freeOverlayEditorBlocked && (selectedAssetId === asset.id || selectedPosterElementId === `asset:${asset.id}`),
+            'is-dragging': editable && !freeOverlayEditorBlocked && draggingAssetId === asset.id,
+            'is-poster-v2': posterElementsEditing,
           }"
           :style="imageAssetStyle(asset)"
-          :tabindex="editable ? 0 : undefined"
-          @click.stop="editable ? onAssetClick(asset.id, $event) : undefined"
+          :tabindex="editable && !freeOverlayEditorBlocked ? 0 : undefined"
+          @click.stop="editable && !freeOverlayEditorBlocked ? onAssetClick(asset.id, $event) : undefined"
         >
           <img :src="asset.render_url" alt="" draggable="false" />
-          <template v-if="editable">
+          <template v-if="editable && !posterElementsEditing">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -1029,25 +2015,58 @@
         </div>
       </div>
 
+      <!-- ── Icon overlays (poster-level local SVG marks) ───────────────────── -->
+      <div
+        v-if="visibleIconOverlays.length > 0"
+        class="icon-layer"
+        style="pointer-events: none;"
+      >
+        <div
+          v-for="icon in visibleIconOverlays"
+          :key="icon.id"
+          :data-icon-id="icon.id"
+          :data-poster-element-id="guidedPosterEditor ? undefined : `icon:${icon.id}`"
+          class="icon-overlay"
+          :class="{
+            'is-editable': editable && !guidedPosterEditor,
+            'is-selected': editable && !guidedPosterEditor && selectedPosterElementId === `icon:${icon.id}`,
+            'is-poster-v2': posterElementsEditing,
+          }"
+          :style="iconOverlayStyle(icon)"
+          :tabindex="editable && !guidedPosterEditor ? 0 : undefined"
+          @click.stop="editable && !guidedPosterEditor ? onIconClick(icon.id) : undefined"
+        >
+          <svg :viewBox="getPosterIcon(icon.icon).viewBox" aria-hidden="true" focusable="false">
+            <path
+              v-for="path in getPosterIcon(icon.icon).paths"
+              :key="path"
+              :d="path"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
+      </div>
+
       <!-- ── Text overlays (poster-level — can span header, map, footer) ──── -->
       <div
-        v-if="(styleConfig.text_overlays ?? []).length > 0"
+        v-if="visibleTextOverlays.length > 0"
         class="overlay-layer"
         style="pointer-events: none;"
         @click.self="selectedOverlayId = null"
       >
         <div
-          v-for="overlay in styleConfig.text_overlays"
+          v-for="overlay in visibleTextOverlays"
           :key="overlay.id"
           :data-overlay-id="overlay.id"
+          :data-poster-element-id="freeOverlayEditorBlocked ? undefined : `text:${overlay.id}`"
           class="text-overlay"
-          :class="{ 'is-editable': editable, 'is-selected': editable && selectedOverlayId === overlay.id }"
+          :class="{ 'is-editable': editable && !freeOverlayEditorBlocked, 'is-selected': editable && !freeOverlayEditorBlocked && (selectedOverlayId === overlay.id || selectedPosterElementId === `text:${overlay.id}`), 'is-poster-v2': posterElementsEditing }"
           :style="overlayStyle(overlay)"
-          @click.stop="editable ? onOverlayClick(overlay.id) : undefined"
+          @click.stop="editable && !freeOverlayEditorBlocked ? onOverlayClick(overlay.id) : undefined"
         >
           <span
             class="overlay-content editable-text"
-            contenteditable="true"
+            :contenteditable="editable && !freeOverlayEditorBlocked ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
             aria-label="Text overlay"
@@ -1059,7 +2078,7 @@
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >{{ overlay.content }}</span>
-          <template v-if="editable">
+          <template v-if="editable && !posterElementsEditing">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -1105,23 +2124,33 @@ import { autoUpdate, computePosition, flip, offset, shift, type Placement } from
 // directly and keep it excluded from Vite optimizeDeps in nuxt.config.ts.
 // @ts-expect-error maplibre-contour does not publish declarations for this direct build-file import.
 import mlContour from '../../node_modules/maplibre-contour/dist/index.mjs'
-import { buildMapStyle, CONTOUR_THRESHOLDS, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
+import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpression, contourMinorLineOpacityExpression, contourMinorLineWidthExpression, mapBackgroundColor, resolveAdaptiveContourOverzoom, resolveAdaptiveContourReliefProfile, resolveAdaptiveContourStyleConfig, resolveAdaptiveContourThresholds, resolveTonerRouteStyle, shouldRenderPrimaryRoute, styleUsesContours, TONER_DOT_PATTERN_ID_PREFIX, TONER_DOT_PATTERN_IDS } from '~/utils/mapStyle'
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, defaultPosterLayout, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
-import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
 import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
+import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
+import { shouldExpectPrimaryRouteContent } from '~/utils/render/routeReadiness'
+import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/transitDiagram'
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
-import { classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
+import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/posterFormatters'
+import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
+import { getPosterIcon } from '~/utils/posterIcons'
+import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
+import { resolveFreeOverlayBox } from '~/utils/posterEditorElements'
+import { fitTextToBox } from '~/utils/textFit'
+import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
+import Moveable from 'vue3-moveable'
 
 interface PrintContext {
   framing: PrintFraming
@@ -1134,14 +2163,25 @@ type SegmentDrawMode =
   | { type: 'new' }
   | { type: 'extend'; segId: string; end: 'start' | 'end' }
 type SegmentEditMode = { segId: string }
+type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 
 const props = defineProps<{
   map: TrailMap
   styleConfig: StyleConfig
   editable?: boolean
+  mapInteractive?: boolean
   renderMode?: 'editor' | 'print'
   printContext?: PrintContext
   chromeEditing?: boolean
+  chromePreview?: boolean
+  chromeExternalShell?: boolean
+  posterElementsEditing?: boolean
+  posterEditorMode?: PosterEditorMode
+  posterGuidesVisible?: boolean
+  selectedPosterElementId?: string | null
+  editableTextSlots?: readonly PosterTextSlot[] | null
+  guidedPosterEditor?: boolean
+  posterTier2Editor?: boolean
   /** When set, the map enters crosshair mode: user taps to set a segment or crop position */
   plotMode?: { segId: string; field: 'start' | 'end' } | null
   /** When true, the map enters paint-select mode for route deletion */
@@ -1169,10 +2209,18 @@ const emit = defineEmits<{
   'asset-selected': [id: string]
   'asset-deleted': [id: string]
   'asset-resized': [payload: { id: string; width: number; height: number }]
+  'poster-element-selected': [id: string | null]
+  'poster-element-patched': [payload: { id: string; patch: PosterEditorElementPatch }]
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
   'poster-layout-updated': [value: PartialPosterLayout | undefined]
+  'chrome-selection-changed': [payload:
+    | { type: 'band'; band: ChromeBandId }
+    | { type: 'row'; band: ChromeBandId; rowId: string }
+    | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string; blockId: string | null }
+    | null
+  ]
   'freeze-changed': [payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }]
   /** Fired when user taps the route in plot mode; parent should update the segment and clear plotMode */
   'segment-plotted': [payload: { segId: string; field: 'start' | 'end'; pct: number }]
@@ -1209,10 +2257,14 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 const posterCanvasEl = ref<HTMLDivElement | null>(null)
 const chromeToolbarEl = ref<HTMLElement | null>(null)
 const chromeStructurePopoverEl = ref<HTMLElement | null>(null)
+const chromeLayoutBuilderEl = ref<HTMLElement | null>(null)
 const mapReady = ref(false)
 const renderReady = ref(false)
+const textFitSettled = ref(false)
 const liveZoom = ref<number | undefined>(undefined)
 const mapHovered = ref(false)
+const posterElementsEditing = computed(() => props.editable === true && props.posterElementsEditing === true && props.renderMode !== 'print')
+const mapViewerInteractive = computed(() => props.editable !== false || props.mapInteractive === true)
 
 const BRUSH_PREVIEW_SOURCE_ID = 'route-delete-brush-preview'
 const BRUSH_PREVIEW_CASING_LAYER_ID = 'route-delete-brush-preview-casing'
@@ -1243,11 +2295,14 @@ const brushCursorStyle = computed(() => {
   }
 })
 let mapInstance: maplibregl.Map | null = null
+const devCameraHandleId = Symbol('radmaps-map-camera')
 let resizeObserver: ResizeObserver | null = null
 let interactInstances: Array<{ unset: () => void }> = []
 let sessionFrameWidth: number | null = null
 let styleReloadCameraHold: MapCameraSnapshot | null = null
 let styleReloadCameraHoldTimer: ReturnType<typeof setTimeout> | null = null
+let textFitTimer: ReturnType<typeof setTimeout> | null = null
+let textFitRunId = 0
 
 // ── Plot mode (map-tap segment/crop position picking) ─────────────────────────
 let plotGhostMarker: maplibregl.Marker | null = null
@@ -1389,6 +2444,9 @@ function ensureTileEffectProtocol() {
 // tiles on-the-fly from free AWS terrarium DEM tiles at any elevation interval.
 
 let mlDemSource: any = null
+const contourViewStats = ref<Partial<RouteStats> | null>(null)
+let contourViewRefreshTimer: ReturnType<typeof setTimeout> | null = null
+let contourProfileReloading = false
 
 async function ensureContourProtocol() {
   if (mlDemSource) return
@@ -1406,13 +2464,17 @@ async function ensureContourProtocol() {
   mlDemSource.setupMaplibre(maplibregl)
 }
 
+function activeContourStats(): Partial<RouteStats> | null | undefined {
+  return contourViewStats.value ?? props.map.stats
+}
+
 function getContourTileUrl(cfg: StyleConfig): string | undefined {
   if (!styleUsesContours(cfg) || !mlDemSource) return undefined
-  const detail = Math.round(cfg.contour_detail ?? 3)
-  const thresholds = CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
-  // overzoom: 2 — fetch DEM tiles 2 zoom levels higher than the map zoom,
-  // giving accurate contours even when the poster is zoomed out to fit a long route.
-  return mlDemSource.contourProtocolUrl({ thresholds, overzoom: 2 })
+  const thresholds = resolveAdaptiveContourThresholds(cfg, activeContourStats())
+  return mlDemSource.contourProtocolUrl({
+    thresholds,
+    overzoom: resolveAdaptiveContourOverzoom(cfg),
+  })
 }
 
 type ActiveTextTarget =
@@ -1422,37 +2484,104 @@ type ActiveTextTarget =
 const activeTextTarget = ref<ActiveTextTarget | null>(null)
 const activeTextAnchor = ref<DOMRect | null>(null)
 const activeChromeBlockId = ref<string | null>(null)
+const posterMoveableTarget = ref<HTMLElement | null>(null)
+const moveableResizePreview = ref<{ id: string; width: number; height: number } | null>(null)
+const moveableTextResizePreview = ref<{ id: string; font_size: number } | null>(null)
+const moveableSlotResizePreview = ref<{ slot: PosterTextSlot; font_size_pt: number } | null>(null)
 const hoveredChromeBand = ref<ChromeBandId | null>(null)
 const chromeMobile = ref(false)
 const chromePaddingPanelOpen = ref(false)
+const chromeAddPanelOpen = ref(false)
 const lastChromeTextStyle = ref<Partial<ChromeBlock> | null>(null)
 type ChromeSelection =
   | { type: 'band'; band: ChromeBandId }
   | { type: 'row'; band: ChromeBandId; rowId: string }
   | { type: 'cell'; band: ChromeBandId; rowId: string; cellId: string }
+type ChromeRowResizeEdge = 'top' | 'bottom'
 const selectedChromeTarget = ref<ChromeSelection | null>(null)
+function emitChromeSelectionChanged(target: ChromeSelection | null) {
+  if (!chromeDirectEditing.value || !target) {
+    emit('chrome-selection-changed', null)
+    return
+  }
+  if (target.type === 'cell') {
+    emit('chrome-selection-changed', {
+      ...target,
+      blockId: findChromeCell(target.band, target.rowId, target.cellId)?.block?.id ?? null,
+    })
+    return
+  }
+  emit('chrome-selection-changed', target)
+}
 const chromePaddingSides = [
   { key: 'top', name: 'top', label: 'Top', index: 0 },
   { key: 'right', name: 'right', label: 'Right', index: 1 },
   { key: 'bottom', name: 'bottom', label: 'Bottom', index: 2 },
   { key: 'left', name: 'left', label: 'Left', index: 3 },
 ] as const
-const CHROME_COL_STEPS = [4, 6, 8, 12, 16] as const
 const activeChromeBandResize = ref<{
   band: Extract<ChromeBandId, 'header' | 'footer'>
   startY: number
   startHeight: number
   posterHeight: number
 } | null>(null)
+const activeChromeColumnResize = ref<{
+  band: ChromeBandId
+  rowId: string
+  cellId: string
+  nextCellId: string
+  startX: number
+  rowWidth: number
+  startFr: number
+  nextFr: number
+  totalFr: number
+} | null>(null)
+const activeChromeRowResize = ref<{
+  band: ChromeBandId
+  rowId: string
+  adjacentRowId?: string
+  edge: ChromeRowResizeEdge
+  startY: number
+  startFr: number
+  adjacentStartFr?: number
+  startBandHeight: number
+  frUnitPx: number
+  posterHeight: number
+  startRows: ChromeGridRow[]
+} | null>(null)
 
-const chromeDirectEditing = computed(() =>
+const chromeGridRendering = computed(() =>
   Boolean(props.editable && props.chromeEditing && !isPrintRender.value),
 )
+const chromeDirectEditing = computed(() =>
+  chromeGridRendering.value && props.chromePreview !== true,
+)
+const guidedPosterEditor = computed(() =>
+  Boolean(props.guidedPosterEditor && posterElementsEditing.value),
+)
+const tier2PosterEditor = computed(() =>
+  Boolean(props.posterTier2Editor && posterElementsEditing.value),
+)
+const freeOverlayEditorBlocked = computed(() =>
+  guidedPosterEditor.value && !tier2PosterEditor.value,
+)
+const chromeStructureEditing = computed(() =>
+  chromeDirectEditing.value && !guidedPosterEditor.value,
+)
+const chromeInternalShellVisible = computed(() =>
+  chromeDirectEditing.value && props.chromeExternalShell !== true,
+)
 const chromeToolbarVisible = computed(() =>
-  chromeDirectEditing.value && !chromeMobile.value && activeChromeBlock.value != null,
+  chromeInternalShellVisible.value && !posterElementsEditing.value && !chromeMobile.value && activeChromeBlock.value != null && !isChromeSpacerBlock(activeChromeBlock.value),
 )
 const chromeStructurePopoverVisible = computed(() =>
-  chromeDirectEditing.value && !chromeMobile.value && selectedChromeTarget.value?.type === 'cell',
+  chromeInternalShellVisible.value && !posterElementsEditing.value && !chromeMobile.value && selectedChromeTarget.value?.type === 'cell',
+)
+const chromeLayoutBuilderVisible = computed(() =>
+  chromeInternalShellVisible.value && !chromeMobile.value,
+)
+const chromeContextToolbarVisible = computed(() =>
+  chromeLayoutBuilderVisible.value && selectedChromeTarget.value != null && (!guidedPosterEditor.value || activeChromeBlock.value != null),
 )
 const chromeToolbarFloatingStyle = ref<Record<string, string>>({
   position: 'fixed',
@@ -1461,6 +2590,15 @@ const chromeToolbarFloatingStyle = ref<Record<string, string>>({
   width: '508px',
   visibility: 'hidden',
 })
+const chromeLayoutBuilderFloatingStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  left: '0px',
+  top: '0px',
+  visibility: 'hidden',
+  transform: 'none',
+})
+const chromeLayoutBuilderPopoverVertical = ref<'top' | 'bottom'>('bottom')
+const chromeLayoutBuilderPopoverAlign = ref<'left' | 'right'>('right')
 const chromeStructurePopoverFloatingStyle = ref<Record<string, string>>({
   position: 'fixed',
   left: '0px',
@@ -1475,15 +2613,46 @@ const chromeToolbarPointerFloatingStyle = ref<Record<string, string>>({
   borderColor: '#fff transparent transparent transparent',
 })
 const chromeToolbarPlacement = ref('top')
+const chromeContextToolbarManualPosition = ref<{ left: number; top: number } | null>(null)
+const activeChromeContextToolbarDrag = ref<{
+  startX: number
+  startY: number
+  startLeft: number
+  startTop: number
+} | null>(null)
 const chromeAffordancesVisible = computed(() => false)
 const chromeMobileDrawerOpen = computed(() =>
-  chromeDirectEditing.value && chromeMobile.value && activeChromeBlock.value != null,
+  chromeInternalShellVisible.value && chromeMobile.value && activeChromeBlock.value != null,
 )
 
-const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats))
-const defaultLayout = computed(() => defaultPosterLayout(props.styleConfig, props.map.stats))
+const themeRenderMode = computed<ThemeRenderMode>(() => props.renderMode === 'print' ? 'proof' : 'editor')
+const themeDataContext = computed(() => buildThemeDataContext({
+  ...props.map,
+  styleConfig: props.styleConfig,
+}))
+const themeDataContract = computed(() => resolveThemeDataContract(
+  props.styleConfig.color_theme,
+  props.styleConfig.composition,
+  themeDataContext.value,
+  themeRenderMode.value,
+  {
+    approvedPlaceholderSlots: approvedPlaceholderSlotsFromOverrides(props.styleConfig.poster_text_overrides),
+  },
+))
+
+const posterLayout = computed(() => effectivePosterLayout(props.styleConfig, props.map.stats, {
+  ...props.map,
+  styleConfig: props.styleConfig,
+  mode: themeRenderMode.value,
+}))
+const posterAnchorFrames = computed<AnchorFrame[]>(() =>
+  posterLayout.value.anchors?.length
+    ? posterLayout.value.anchors
+    : bandsToAnchorFrames(posterLayout.value),
+)
 let cleanupChromeToolbarFloating: (() => void) | null = null
 let cleanupChromeStructureFloating: (() => void) | null = null
+let cleanupChromeLayoutBuilderFloating: (() => void) | null = null
 
 function syncChromeViewportMode() {
   if (typeof window === 'undefined') return
@@ -1495,6 +2664,11 @@ onMounted(() => {
   window.addEventListener('resize', syncChromeViewportMode)
   document.addEventListener('pointerdown', onDocumentPointerDown)
   document.addEventListener('keydown', onDocumentKeydown)
+  nextTick(() => {
+    syncPosterMoveableTarget()
+    schedulePosterTextFit()
+    requestAnimationFrame(syncPosterMoveableTarget)
+  })
 })
 
 onUnmounted(() => {
@@ -1502,15 +2676,46 @@ onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('keydown', onDocumentKeydown)
   cleanupChromeFloating()
+  teardownChromeContextToolbarDrag()
   teardownChromeBandResize()
+  teardownChromeColumnResize()
+  teardownChromeRowResize()
+  if (textFitTimer) clearTimeout(textFitTimer)
 })
 
+function bandAnchorFrame(band: ChromeBandId): AnchorFrame | null {
+  return posterAnchorFrames.value.find(anchor => anchor.id === `band-${band}` && anchor.displacesMap) ?? null
+}
+
 function chromeRowsFor(band: ChromeBandId) {
-  return posterLayout.value.bands[band].rows.filter(row => !row.deleted)
+  return (bandAnchorFrame(band)?.rows ?? posterLayout.value.bands[band].rows).filter(row => !row.deleted)
 }
 
 function chromeCellsFor(row: ChromeGridRow) {
   return row.cells.filter(cell => !cell.deleted)
+}
+
+function chromeCellSelected(band: ChromeBandId, rowId: string, cellId: string) {
+  return selectedChromeTarget.value?.type === 'cell'
+    && selectedChromeTarget.value.band === band
+    && selectedChromeTarget.value.rowId === rowId
+    && selectedChromeTarget.value.cellId === cellId
+}
+
+function canInsertColumnAfter(_row: ChromeGridRow, cell: ChromeGridCell) {
+  return !cell.deleted
+}
+
+function canResizeChromeCell(row: ChromeGridRow, cell: ChromeGridCell) {
+  const cells = chromeCellsFor(row)
+  return cells.length > 1 && cells.findIndex(item => item.id === cell.id) < cells.length - 1
+}
+
+function canResizeChromeRowEdge(band: ChromeBandId, row: ChromeGridRow, edge: ChromeRowResizeEdge) {
+  const rows = chromeRowsFor(band)
+  const index = rows.findIndex(item => item.id === row.id)
+  if ((band !== 'header' && band !== 'footer') || index < 0) return false
+  return edge === 'top' ? index > 0 : true
 }
 
 function chromeBlocksFor(band: ChromeBandId) {
@@ -1525,7 +2730,16 @@ function chromeBlockForSlot(slot: PosterTextSlot): ChromeBlock | null {
   return null
 }
 
-function chromeBandForBlock(id: string | null): ChromeBandId | null {
+function chromeBlockForId(id: string | undefined): ChromeBlock | null {
+  if (!id) return null
+  for (const band of CHROME_BANDS) {
+    const found = chromeBlocksFor(band).find(block => block.id === id && !block.empty && !block.removed)
+    if (found) return found
+  }
+  return null
+}
+
+function _chromeBandForBlock(id: string | null): ChromeBandId | null {
   if (!id) return null
   for (const band of CHROME_BANDS) {
     if (chromeBlocksFor(band).some(block => block.id === id)) return band
@@ -1541,7 +2755,13 @@ const activeChromeBlock = computed(() => {
   return findChromeCell(target.band, target.rowId, target.cellId)?.block ?? null
 })
 
+function compositionAllowsSlot(slot: PosterTextSlot) {
+  if (slot === 'occasion_text' && !showOccasionSlot.value) return false
+  return true
+}
+
 function chromeSlotVisible(slot: PosterTextSlot) {
+  if (!compositionAllowsSlot(slot)) return false
   return chromeBlockForSlot(slot) != null
 }
 
@@ -1557,6 +2777,14 @@ function chromeBandActive(band: ChromeBandId) {
   return hoveredChromeBand.value === band || activeChromeBand.value === band
 }
 
+function chromeBandElevated(band: ChromeBandId) {
+  return chromeDirectEditing.value && (
+    selectedChromeTarget.value?.band === band ||
+    activeChromeColumnResize.value?.band === band ||
+    activeChromeRowResize.value?.band === band
+  )
+}
+
 function chromeSectionActive(band: ChromeBandId) {
   return chromeBandActive(band) && activeChromeBlockId.value == null
 }
@@ -1564,6 +2792,8 @@ function chromeSectionActive(band: ChromeBandId) {
 function chromeBandLabel(band: ChromeBandId) {
   if (band === 'railLeft') return 'Left rail'
   if (band === 'railRight') return 'Right rail'
+  if (band === 'header') return 'Header'
+  if (band === 'footer') return 'Footer'
   return band
 }
 
@@ -1571,7 +2801,25 @@ function chromeBlockLabel(block: ChromeBlock) {
   return CHROME_BLOCK_KIND_LABELS[block.kind] ?? 'Text'
 }
 
-function chromeGridStyle(band: ChromeBandId) {
+function isChromeSpacerBlock(block: ChromeBlock | null | undefined) {
+  return block?.kind === 'spacer'
+}
+
+function isChromeSpacerCell(cell: ChromeGridCell | null | undefined) {
+  return isChromeSpacerBlock(cell?.block) && !cell?.block?.empty && !cell?.block?.deleted && !cell?.block?.removed
+}
+
+function isChromeSpacerRow(row: ChromeGridRow | null | undefined) {
+  const cells = row ? chromeCellsFor(row) : []
+  return cells.length > 0 && cells.every(isChromeSpacerCell)
+}
+
+function firstChromeContentRow(band: ChromeBandId) {
+  const rows = chromeRowsFor(band)
+  return rows.find(row => !isChromeSpacerRow(row)) ?? rows[0] ?? null
+}
+
+function _chromeGridStyle(band: ChromeBandId) {
   const rows = Math.max(1, posterLayout.value.bands[band].rows.length)
   return {
     backgroundImage: [
@@ -1582,7 +2830,7 @@ function chromeGridStyle(band: ChromeBandId) {
   }
 }
 
-function chromeBandBackground(band: ChromeBandId) {
+function _chromeBandBackground(band: ChromeBandId) {
   return posterLayout.value.bands[band].background ?? (band === 'header' ? headerBg.value : bg.value)
 }
 
@@ -1597,11 +2845,11 @@ function updateChromeBand(band: ChromeBandId, patch: Partial<ChromeBand>) {
   })
 }
 
-function setChromeBandBackground(band: ChromeBandId, background: string) {
+function _setChromeBandBackground(band: ChromeBandId, background: string) {
   updateChromeBand(band, { background })
 }
 
-function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
   const rowId = selectedChromeTarget.value?.type === 'row' || selectedChromeTarget.value?.type === 'cell'
     ? selectedChromeTarget.value.rowId
     : chromeRowsFor(band)[0]?.id
@@ -1614,7 +2862,7 @@ function nudgeChromeBandCols(band: ChromeBandId, direction: -1 | 1) {
   }
 }
 
-function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
   if (direction > 0) addRowAfter(band)
   else {
     const rows = chromeRowsFor(band)
@@ -1622,9 +2870,17 @@ function nudgeChromeBandRows(band: ChromeBandId, direction: -1 | 1) {
   }
 }
 
-function nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
+function _nudgeChromeBandPadding(band: ChromeBandId, direction: -1 | 1) {
   const current = posterLayout.value.bands[band].padding ?? [0, 0, 0, 0]
   const next = current.map(value => Math.min(12, Math.max(0, value + direction))) as [number, number, number, number]
+  updateChromeBand(band, { padding: next })
+}
+
+function nudgeChromeBandPaddingSide(band: ChromeBandId, direction: -1 | 1, sideIndex: 0 | 1 | 2 | 3) {
+  const current = posterLayout.value.bands[band].padding ?? [0, 0, 0, 0]
+  const next = current.map((value, index) =>
+    index === sideIndex ? Math.min(12, Math.max(0, value + direction)) : value,
+  ) as [number, number, number, number]
   updateChromeBand(band, { padding: next })
 }
 
@@ -1646,6 +2902,11 @@ function chromeBandPaddingCss(band: ChromeBandId, fallback: string) {
   return `${padding[0]}cqh ${padding[1]}cqw ${padding[2]}cqh ${padding[3]}cqw`
 }
 
+function chromeBandEditingPaddingCss() {
+  const inset = compositionRuleInset.value
+  return `0 ${inset.right} 0 ${inset.left}`
+}
+
 function chromeBandGridStyle(band: ChromeBandId) {
   const cfg = posterLayout.value.bands[band]
   return {
@@ -1654,6 +2915,8 @@ function chromeBandGridStyle(band: ChromeBandId) {
     gap: '0.55cqh',
     width: '100%',
     height: '100%',
+    minHeight: '0',
+    boxSizing: 'border-box' as const,
     backgroundColor: cfg.background ?? 'transparent',
   }
 }
@@ -1663,6 +2926,8 @@ function chromeRowStyle(row: ChromeGridRow) {
     display: 'grid',
     gridTemplateColumns: chromeCellsFor(row).map(cell => `${cell.fr ?? 1}fr`).join(' ') || '1fr',
     gap: '0.7cqw',
+    minHeight: '0',
+    minWidth: '0',
   }
 }
 
@@ -1673,9 +2938,15 @@ function chromeCellStyle(cell: ChromeGridCell) {
     justifyItems: align === 'right' ? 'end' : align === 'center' ? 'center' : 'start',
     alignItems: cell.valign === 'bottom' ? 'end' : cell.valign === 'top' ? 'start' : 'center',
     textAlign: align,
+    boxSizing: 'border-box',
+    overflow: 'hidden',
   }
   if (cell.padding) style.padding = `${cell.padding[0]}cqh ${cell.padding[1]}cqw ${cell.padding[2]}cqh ${cell.padding[3]}cqw`
   return style
+}
+
+function chromeSlotClass(slot: PosterTextSlot) {
+  return slot.replace(/_/g, '-')
 }
 
 function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
@@ -1685,48 +2956,145 @@ function chromeGridBlockStyle(cell: ChromeGridCell): Record<string, string> {
   const align = override.align ?? cell.align ?? block.align ?? 'left'
   const bold = override.bold ?? block.bold
   const italic = override.italic ?? block.italic
-  return {
+  const targetSizeCqh = block.slot && override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)
+  const style: Record<string, string> = {
     width: '100%',
-    fontFamily: override.font_family ? toFontStack(override.font_family) : block.font_family ? toFontStack(block.font_family) : typography.value.subFont,
-    fontSize: `${override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)}cqh`,
-    lineHeight: block.kind === 'title' ? typography.value.titleLineHeight : '1.12',
+    fontFamily: chromeBlockFontFamily(block, override),
+    fontSize: `var(--poster-fit-font-size, ${targetSizeCqh}cqh)`,
+    '--poster-fit-target-cqh': String(targetSizeCqh),
+    lineHeight: chromeBlockLineHeight(block),
     letterSpacing: chromeBlockLetterSpacing(block),
-    textTransform: block.kind === 'title' || block.kind === 'subtitle' || block.kind === 'eyebrow' || block.kind === 'note' ? 'uppercase' : 'none',
+    textTransform: chromeBlockTextTransform(block),
     color: override.color ?? block.color ?? fg.value,
-    opacity: String(override.opacity ?? block.opacity ?? 1),
+    opacity: String(override.opacity ?? block.opacity ?? chromeBlockOpacity(block)),
     fontWeight: bold ? '800' : chromeBlockWeight(block),
     fontStyle: italic ? 'italic' : 'normal',
     textAlign: align,
     backgroundColor: override.bg_color ?? block.bg_color ?? 'transparent',
     outline: 'none',
   }
+  const minHeight = chromeBlockMinHeight(block)
+  if (minHeight) style.minHeight = minHeight
+  return style
+}
+
+function chromeBlockFontFamily(block: ChromeBlock, override: PosterTextOverride) {
+  if (override.font_family) return toFontStack(override.font_family)
+  if (block.font_family) return toFontStack(block.font_family)
+  if (block.kind === 'title') return typography.value.titleFont
+  if (block.kind === 'stat') return typography.value.statsFont
+  if (block.kind === 'coords' || block.kind === 'brand') return typography.value.subFont
+  return typography.value.subFont
 }
 
 function chromeBlockFontSize(block: ChromeBlock) {
   if (block.font_size_pt != null) return ptToCqh(block.font_size_pt)
   const scale = block.scale ?? 1
   if (block.kind === 'title') return typography.value.titleSize * scale
-  if (block.kind === 'stat') return 1.8 * scale
-  if (block.kind === 'coords') return 1.05 * scale
-  if (block.kind === 'brand') return 0.62 * scale
+  if (block.kind === 'stat') return 0.72 * scale
+  if (block.kind === 'coords') return 0.72 * scale
+  if (block.kind === 'brand') return 0.48 * scale
   return 0.9 * scale
+}
+
+function chromeBlockFitTargetCqh(block: ChromeBlock) {
+  if (!block.slot) return undefined
+  const override = slotOverride(block.slot)
+  return override.font_size_pt != null ? ptToCqh(override.font_size_pt) : chromeBlockFontSize(block)
+}
+
+function chromeBlockFitMinScale(block: ChromeBlock) {
+  if (block.kind === 'title') return 0.42
+  if (block.kind === 'stat') return 0.58
+  if (block.kind === 'coords') return 0.55
+  if (block.kind === 'brand') return 0.72
+  return 0.62
+}
+
+function chromeBlockFitMaxLines(block: ChromeBlock) {
+  if (block.kind === 'title') return 3
+  if (block.kind === 'stat' || block.kind === 'coords') return 2
+  if (block.kind === 'note') return 2
+  return 1
+}
+
+function chromeBlockLineHeight(block: ChromeBlock) {
+  if (block.kind === 'title') {
+    if (composition.value.id === 'travel-banner') return '1.08'
+    if (composition.value.id === 'modernist-block') return '1.02'
+    if (composition.value.id === 'brutalist-slab') return '1.02'
+    return typography.value.titleLineHeight
+  }
+  if (block.kind === 'stat') return '0.92'
+  if (block.kind === 'coords') return '1.25'
+  if (block.kind === 'brand') return '1'
+  return '1.12'
+}
+
+function chromeBlockMinHeight(block: ChromeBlock) {
+  if (block.kind !== 'title') return undefined
+  const length = chromeBlockText(block).trim().length
+  if (length < 54) return undefined
+  const estimatedLines = length > 96 ? 3 : 2
+  const leading = composition.value.id === 'travel-banner' ? 1.08 : 1
+  return `${(estimatedLines * leading) + 0.45}em`
 }
 
 function chromeBlockLetterSpacing(block: ChromeBlock) {
   if (block.kind === 'title') return typography.value.titleTracking
-  if (block.kind === 'stat') return '0.01em'
-  if (block.kind === 'coords') return '0.04em'
+  if (block.kind === 'stat') return '0.14em'
+  if (block.kind === 'coords') return '0.08em'
+  if (block.kind === 'brand') return '0.22em'
   return '0.16em'
+}
+
+function chromeBlockTextTransform(block: ChromeBlock) {
+  if (block.kind === 'title') return typography.value.titleCase
+  if (
+    block.kind === 'subtitle' ||
+    block.kind === 'eyebrow' ||
+    block.kind === 'note' ||
+    block.kind === 'stat' ||
+    block.kind === 'brand'
+  ) return 'uppercase'
+  return 'none'
 }
 
 function chromeBlockWeight(block: ChromeBlock) {
   if (block.kind === 'title') return typography.value.titleWeight
-  if (block.kind === 'stat' || block.kind === 'brand') return '800'
+  if (block.kind === 'stat') return typography.value.statsWeight
+  if (block.kind === 'coords') return '600'
+  if (block.kind === 'brand') return '800'
   return '600'
 }
 
+function chromeBlockOpacity(block: ChromeBlock) {
+  if (block.kind === 'coords') return 0.76
+  if (block.kind === 'brand') {
+    if (
+      composition.value.id === 'editorial-tall' ||
+      composition.value.id === 'journal-spread' ||
+      composition.value.id === 'botanical-plate'
+    ) return 0.46
+    if (composition.value.id === 'travel-banner' || composition.value.id === 'darksky-stars') return 0.5
+    if (
+      composition.value.id === 'blueprint-grid' ||
+      composition.value.id === 'blueprint-strava' ||
+      composition.value.id === 'splits-grid'
+    ) return 0.56
+    if (
+      composition.value.id === 'bib-numerals' ||
+      composition.value.id === 'brutalist-slab' ||
+      composition.value.id === 'modernist-block'
+    ) return 0.72
+    return 0.66
+  }
+  return 1
+}
+
 function chromeBlockEditable(block: ChromeBlock) {
-  return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image'
+  if (block.slot && !slotEditable(block.slot)) return false
+  return block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image' && !isChromeSpacerBlock(block)
 }
 
 function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Record<string, string> {
@@ -1734,10 +3102,28 @@ function chromeCustomBlockStyle(_band: ChromeBandId, _block: ChromeBlock): Recor
 }
 
 function chromeBlockText(block: ChromeBlock) {
-  if (block.empty) return ''
+  if (block.empty || isChromeSpacerBlock(block)) return ''
   if (block.text != null) return block.text
-  if (block.slot) return textWithOverride(block.slot, defaultSlotText(block.slot))
+  if (block.slot) return chromeSlotText(block)
   return 'Your text'
+}
+
+function chromeSlotText(block: ChromeBlock) {
+  if (!block.slot) return ''
+  const override = slotOverride(block.slot)
+  if (override.text != null) return override.text
+  if (block.kind !== 'stat' && block.kind !== 'coords') return defaultSlotText(block.slot)
+
+  if (composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'blueprint') {
+    if (block.slot === 'distance') return formattedDistance.value ? `DIST ${formattedDistance.value} mi` : ''
+    if (block.slot === 'elevation_gain') return formattedGain.value ? `GAIN ${formattedGain.value} ft` : ''
+    if (block.slot === 'date') return formattedDate.value
+  }
+  if (block.slot === 'distance') return formattedDistance.value ? `${formattedDistance.value}\nMILES` : ''
+  if (block.slot === 'elevation_gain') return formattedGain.value ? `${formattedGain.value}\nFT GAIN` : ''
+  if (block.slot === 'date') return formattedDateCompact.value ? `${formattedDateCompact.value}\nDATE` : defaultSlotText(block.slot)
+  if (block.slot === 'coordinates') return chromeCoordinatesText.value
+  return defaultSlotText(block.slot)
 }
 
 function emitPosterLayout(value: PartialPosterLayout | undefined) {
@@ -1817,6 +3203,7 @@ function selectChromeBand(band: ChromeBandId) {
   selectedChromeTarget.value = { type: 'band', band }
   hoveredChromeBand.value = band
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
 }
 
 function selectChromeRow(band: ChromeBandId, rowId: string) {
@@ -1824,6 +3211,7 @@ function selectChromeRow(band: ChromeBandId, rowId: string) {
   selectedChromeTarget.value = { type: 'row', band, rowId }
   hoveredChromeBand.value = band
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
 }
 
 function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
@@ -1832,8 +3220,46 @@ function selectChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
   hoveredChromeBand.value = band
   const cell = findChromeCell(band, rowId, cellId)
   activeChromeBlockId.value = cell?.block?.id ?? null
-  if (cell?.block && !cell.block.empty) rememberChromeTextStyle(cell.block, cell)
+  if (cell?.block && !cell.block.empty && !isChromeSpacerBlock(cell.block)) rememberChromeTextStyle(cell.block, cell)
+  if (posterElementsEditing.value && cell?.block?.slot && slotEditable(cell.block.slot)) {
+    emit('poster-element-selected', `slot:${cell.block.slot}`)
+    activeTextTarget.value = { type: 'slot', slot: cell.block.slot }
+    const selector = `[data-chrome-block-id="${globalThis.CSS?.escape?.(cell.block.id) ?? cell.block.id.replace(/"/g, '\\"')}"]`
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(selector)
+    if (el) activeTextAnchor.value = el.getBoundingClientRect()
+  }
   chromePaddingPanelOpen.value = false
+  emitChromeSelectionChanged(selectedChromeTarget.value)
+}
+
+function selectChromeCellFromInteraction(band: ChromeBandId, rowId: string, cellId: string) {
+  selectChromeCell(band, rowId, cellId)
+  if (typeof window === 'undefined') return
+  window.requestAnimationFrame(() => selectChromeCell(band, rowId, cellId))
+}
+
+function setChromeCellSelection(band: ChromeBandId, rowId: string, cellId: string, blockId: string | null = null) {
+  selectedChromeTarget.value = { type: 'cell', band, rowId, cellId }
+  hoveredChromeBand.value = band
+  activeChromeBlockId.value = blockId
+  emitChromeSelectionChanged(selectedChromeTarget.value)
+  activeTextTarget.value = null
+  chromePaddingPanelOpen.value = false
+}
+
+async function focusChromeBlockInline(blockId: string) {
+  await nextTick()
+  if (!posterCanvasEl.value) return
+  const selector = `[data-chrome-block-id="${globalThis.CSS?.escape?.(blockId) ?? blockId.replace(/"/g, '\\"')}"]`
+  const blockEl = posterCanvasEl.value.querySelector<HTMLElement>(selector)
+  if (!blockEl) return
+  blockEl.focus()
+  const selection = window.getSelection()
+  if (!selection) return
+  const range = document.createRange()
+  range.selectNodeContents(blockEl)
+  selection.removeAllRanges()
+  selection.addRange(range)
 }
 
 function selectChromeBlock(id: string) {
@@ -1866,7 +3292,7 @@ function resetChromeSection(band: ChromeBandId) {
   resetChromeBand(band)
 }
 
-function startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
+function _startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
   if (!chromeDirectEditing.value || typeof window === 'undefined') return
   const posterBox = posterCanvasEl.value?.getBoundingClientRect()
   if (!posterBox?.height) return
@@ -1888,7 +3314,7 @@ function onChromeBandResizeMove(e: PointerEvent) {
   const rawHeight = resize.band === 'header'
     ? resize.startHeight + deltaPct
     : resize.startHeight - deltaPct
-  const height = Math.round(Math.min(34, Math.max(8, rawHeight)) * 10) / 10
+  const height = clampChromeBandHeight(rawHeight)
   updatePosterLayout({
     bands: {
       [resize.band]: {
@@ -1911,12 +3337,191 @@ function teardownChromeBandResize() {
   window.removeEventListener('pointercancel', finishChromeBandResize)
 }
 
+function startChromeColumnResize(e: PointerEvent, band: ChromeBandId, rowId: string, cellId: string) {
+  if (!chromeDirectEditing.value || typeof window === 'undefined') return
+  const row = findChromeRow(band, rowId)
+  const cells = row ? chromeCellsFor(row) : []
+  const index = cells.findIndex(cell => cell.id === cellId)
+  const nextCell = index >= 0 ? cells[index + 1] : undefined
+  const rowEl = e.currentTarget instanceof HTMLElement
+    ? e.currentTarget.closest<HTMLElement>('.chrome-grid-row')
+    : null
+  const rowWidth = rowEl?.getBoundingClientRect().width ?? 0
+  if (!row || !nextCell || rowWidth <= 0) return
+
+  activeChromeColumnResize.value = {
+    band,
+    rowId,
+    cellId,
+    nextCellId: nextCell.id,
+    startX: e.clientX,
+    rowWidth,
+    startFr: cells[index]?.fr ?? 1,
+    nextFr: nextCell.fr ?? 1,
+    totalFr: cells.reduce((sum, cell) => sum + (cell.fr ?? 1), 0),
+  }
+  setChromeCellSelection(band, rowId, cellId, cells[index]?.block?.id ?? null)
+  window.addEventListener('pointermove', onChromeColumnResizeMove)
+  window.addEventListener('pointerup', finishChromeColumnResize, { once: true })
+  window.addEventListener('pointercancel', finishChromeColumnResize, { once: true })
+}
+
+function onChromeColumnResizeMove(e: PointerEvent) {
+  const resize = activeChromeColumnResize.value
+  if (!resize) return
+
+  const pairTotal = resize.startFr + resize.nextFr
+  const minFr = Math.min(0.45, pairTotal / 2)
+  const deltaFr = ((e.clientX - resize.startX) / resize.rowWidth) * resize.totalFr
+  const currentFr = Math.round(Math.min(pairTotal - minFr, Math.max(minFr, resize.startFr + deltaFr)) * 20) / 20
+  const nextFr = Math.round(Math.max(minFr, pairTotal - currentFr) * 20) / 20
+
+  const rows = sparseBandRows(resize.band).map(row => row.id === resize.rowId
+    ? {
+        ...row,
+        cells: row.cells.map(cell => {
+          if (cell.id === resize.cellId) return { ...cell, fr: currentFr }
+          if (cell.id === resize.nextCellId) return { ...cell, fr: nextFr }
+          return cell
+        }),
+      }
+    : row)
+  updateChromeRows(resize.band, rows)
+}
+
+function finishChromeColumnResize() {
+  teardownChromeColumnResize()
+}
+
+function teardownChromeColumnResize() {
+  if (typeof window === 'undefined') return
+  activeChromeColumnResize.value = null
+  window.removeEventListener('pointermove', onChromeColumnResizeMove)
+  window.removeEventListener('pointerup', finishChromeColumnResize)
+  window.removeEventListener('pointercancel', finishChromeColumnResize)
+}
+
+function startChromeRowResize(e: PointerEvent, band: ChromeBandId, rowId: string, edge: ChromeRowResizeEdge = 'bottom') {
+  if (!chromeDirectEditing.value || typeof window === 'undefined') return
+  const rows = chromeRowsFor(band)
+  const index = rows.findIndex(row => row.id === rowId)
+  const row = index >= 0 ? rows[index] : undefined
+  const bandEl = posterCanvasEl.value?.querySelector<HTMLElement>(`.chrome-grid-band--${band}`)
+    ?? (e.currentTarget instanceof HTMLElement
+      ? e.currentTarget.closest<HTMLElement>('.chrome-grid-band')
+      : null)
+  const bandHeight = bandEl?.getBoundingClientRect().height ?? 0
+  const posterHeight = posterCanvasEl.value?.getBoundingClientRect().height ?? 0
+  if (!row || bandHeight <= 0 || posterHeight <= 0) return
+  const rowGap = bandEl ? Number.parseFloat(window.getComputedStyle(bandEl).rowGap || '0') || 0 : 0
+  const startGapHeight = rowGap * Math.max(0, rows.length - 1)
+  const startTrackHeight = Math.max(1, bandHeight - startGapHeight)
+  const totalFr = rows.reduce((sum, row) => sum + (row.fr ?? 1), 0)
+  const frUnitPx = Math.max(1, startTrackHeight / Math.max(1, totalFr))
+  const rowHeights = new Map<string, number>()
+  for (const rowEl of bandEl?.querySelectorAll<HTMLElement>('.chrome-grid-row') ?? []) {
+    const id = rowEl.dataset.chromeRowId
+    if (id) rowHeights.set(id, rowEl.getBoundingClientRect().height)
+  }
+  const normalizedRows = sparseBandRows(band).map(rowValue => {
+    const measuredHeight = rowHeights.get(rowValue.id)
+    if (!measuredHeight) return rowValue
+    return {
+      ...rowValue,
+      fr: Math.round(Math.max(0.25, measuredHeight / frUnitPx) * 20) / 20,
+    }
+  })
+  const normalizedRow = normalizedRows.find(item => item.id === rowId)
+  const adjacentRow = edge === 'top'
+    ? normalizedRows[index - 1]
+    : normalizedRows[index + 1]
+
+  activeChromeRowResize.value = {
+    band,
+    rowId,
+    adjacentRowId: adjacentRow?.id,
+    edge,
+    startY: e.clientY,
+    startFr: normalizedRow?.fr ?? row.fr ?? 1,
+    adjacentStartFr: adjacentRow?.fr,
+    startBandHeight: (bandHeight / posterHeight) * 100,
+    frUnitPx,
+    posterHeight,
+    startRows: normalizedRows,
+  }
+  selectChromeRow(band, rowId)
+  window.addEventListener('pointermove', onChromeRowResizeMove)
+  window.addEventListener('pointerup', finishChromeRowResize, { once: true })
+  window.addEventListener('pointercancel', finishChromeRowResize, { once: true })
+}
+
+function onChromeRowResizeMove(e: PointerEvent) {
+  const resize = activeChromeRowResize.value
+  if (!resize) return
+
+  const minFr = 0.25
+  const rawDeltaFr = (e.clientY - resize.startY) / resize.frUnitPx
+  const rowDeltaFr = resize.edge === 'top' ? -rawDeltaFr : rawDeltaFr
+  const minDeltaFr = minFr - resize.startFr
+  const maxDeltaFr = resize.adjacentStartFr != null ? resize.adjacentStartFr - minFr : Number.POSITIVE_INFINITY
+  const deltaFr = Math.round(Math.min(maxDeltaFr, Math.max(minDeltaFr, rowDeltaFr)) * 20) / 20
+  const currentFr = Math.round((resize.startFr + deltaFr) * 20) / 20
+  const adjacentFr = resize.adjacentStartFr != null ? Math.round((resize.adjacentStartFr - deltaFr) * 20) / 20 : undefined
+
+  const rows = resize.startRows.map(row => {
+    if (row.id === resize.rowId) return { ...row, fr: currentFr }
+    if (row.id === resize.adjacentRowId && adjacentFr != null) return { ...row, fr: adjacentFr }
+    return row
+  })
+  if (resize.adjacentRowId) {
+    updateChromeBand(resize.band, { rows })
+    return
+  }
+
+  const deltaPx = (currentFr - resize.startFr) * resize.frUnitPx
+  const height = clampChromeBandHeight(resize.startBandHeight + (deltaPx / resize.posterHeight) * 100)
+  updateChromeBand(resize.band, { rows, height })
+}
+
+function finishChromeRowResize() {
+  teardownChromeRowResize()
+}
+
+function teardownChromeRowResize() {
+  if (typeof window === 'undefined') return
+  activeChromeRowResize.value = null
+  window.removeEventListener('pointermove', onChromeRowResizeMove)
+  window.removeEventListener('pointerup', finishChromeRowResize)
+  window.removeEventListener('pointercancel', finishChromeRowResize)
+}
+
 function newChromeId(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`
 }
 
 function makeEmptyCell(): ChromeGridCell {
   return { id: newChromeId('chrome-cell'), fr: 1, align: 'left', valign: 'center' }
+}
+
+function makeSpacerBlock(label = 'Spacer'): ChromeBlock {
+  return {
+    id: newChromeId('chrome-spacer'),
+    kind: 'spacer',
+    source: 'user',
+    label,
+    align: 'center',
+    valign: 'center',
+  }
+}
+
+function makeSpacerCell(label = 'Spacer'): ChromeGridCell {
+  return {
+    id: newChromeId('chrome-cell'),
+    fr: 1,
+    align: 'center',
+    valign: 'center',
+    block: makeSpacerBlock(label),
+  }
 }
 
 function defaultChromeFontFamily(block: ChromeBlock) {
@@ -1963,8 +3568,8 @@ function makeTextBlock(text = 'Your text'): ChromeBlock {
 }
 
 function addChromeTextToCell(band: ChromeBandId, rowId: string, cellId: string) {
+  const block = makeTextBlock()
   updateChromeCell(band, rowId, cellId, cell => {
-    const block = makeTextBlock()
     return {
       ...cell,
       align: block.align ?? cell.align,
@@ -1972,36 +3577,120 @@ function addChromeTextToCell(band: ChromeBandId, rowId: string, cellId: string) 
       block,
     }
   })
-  selectChromeCell(band, rowId, cellId)
+  setChromeCellSelection(band, rowId, cellId, block.id)
+  void focusChromeBlockInline(block.id)
 }
 
-function addChromeTextBlock(band: ChromeBandId) {
-  const rowId = chromeRowsFor(band)[0]?.id
-  if (!rowId) {
-    addRowAfter(band)
+function chromeCellAcceptsText(cell: ChromeGridCell) {
+  return !cell.deleted && (!cell.block || cell.block.empty || cell.block.deleted || cell.block.removed)
+}
+
+function addChromeTextBlock(band: ChromeBandId, preferredRowId?: string, afterCellId?: string) {
+  const block = makeTextBlock()
+  let nextSelection: { rowId: string; cellId: string } | null = null
+  const rows = sparseBandRows(band)
+  const workingRows = rows.length
+    ? rows
+    : [{ id: newChromeId('chrome-row'), fr: 1, cells: [] as ChromeGridCell[] }]
+  const fallbackRow = workingRows.find(row => !isChromeSpacerRow(row)) ?? workingRows[0]
+  const rowId = preferredRowId && workingRows.some(row => row.id === preferredRowId)
+    ? preferredRowId
+    : fallbackRow?.id
+
+  if (!rowId) return
+
+  const nextRows = workingRows.map(row => {
+    if (row.id !== rowId) return row
+
+    const existingEmptyCell = afterCellId ? undefined : row.cells.find(chromeCellAcceptsText)
+    if (existingEmptyCell) {
+      nextSelection = { rowId: row.id, cellId: existingEmptyCell.id }
+      return {
+        ...row,
+        cells: row.cells.map(cell => cell.id === existingEmptyCell.id
+          ? {
+              ...cell,
+              align: block.align ?? cell.align,
+              valign: block.valign ?? cell.valign,
+              block,
+            }
+          : cell),
+      }
+    }
+
+    const nextCell: ChromeGridCell = {
+      ...makeEmptyCell(),
+      align: block.align,
+      valign: block.valign,
+      block,
+    }
+    const index = afterCellId ? row.cells.findIndex(cell => cell.id === afterCellId) : row.cells.length - 1
+    const insertIndex = index >= 0 ? index + 1 : row.cells.length
+    const cells = [...row.cells]
+    cells.splice(insertIndex, 0, nextCell)
+    nextSelection = { rowId: row.id, cellId: nextCell.id }
+    return { ...row, cells }
+  })
+
+  updateChromeRows(band, nextRows)
+  const selectedCell = nextSelection as { rowId: string; cellId: string } | null
+  if (selectedCell) {
+    setChromeCellSelection(band, selectedCell.rowId, selectedCell.cellId, block.id)
+    void focusChromeBlockInline(block.id)
+  }
+}
+
+function addChromeTextForSelection() {
+  const target = selectedChromeTarget.value
+  if (target?.type === 'cell') {
+    const cell = findChromeCell(target.band, target.rowId, target.cellId)
+    if (cell && chromeCellAcceptsText(cell)) addChromeTextToCell(target.band, target.rowId, target.cellId)
+    else addChromeTextBlock(target.band, target.rowId, target.cellId)
     return
   }
-  addColumnAfter(band, rowId)
+  addChromeTextBlock(target?.band ?? activeChromeBand.value, target?.type === 'row' ? target.rowId : undefined)
 }
 
 function addColumnAfter(band: ChromeBandId, rowId: string, afterCellId?: string) {
+  let nextCellId: string | null = null
   const rows = sparseBandRows(band).map(row => {
     if (row.id !== rowId) return row
     const nextCell = makeEmptyCell()
+    nextCellId = nextCell.id
     const index = afterCellId ? row.cells.findIndex(cell => cell.id === afterCellId) : row.cells.length - 1
+    const insertIndex = index >= 0 ? index + 1 : row.cells.length
     const cells = [...row.cells]
-    cells.splice(Math.max(0, index) + 1, 0, nextCell)
+    cells.splice(insertIndex, 0, nextCell)
     return { ...row, cells }
   })
+  if (!nextCellId) return null
   updateChromeRows(band, rows)
+  setChromeCellSelection(band, rowId, nextCellId)
+  return nextCellId
 }
 
 function addRowAfter(band: ChromeBandId, afterRowId?: string) {
-  const nextRow: ChromeGridRow = { id: newChromeId('chrome-row'), fr: 1, cells: [makeEmptyCell()] }
+  const nextCell = makeEmptyCell()
+  const nextRow: ChromeGridRow = { id: newChromeId('chrome-row'), fr: 1, cells: [nextCell] }
   const rows = [...sparseBandRows(band)]
   const index = afterRowId ? rows.findIndex(row => row.id === afterRowId) : rows.length - 1
-  rows.splice(Math.max(0, index) + 1, 0, nextRow)
+  const insertIndex = index >= 0 ? index + 1 : rows.length
+  rows.splice(insertIndex, 0, nextRow)
   updateChromeRows(band, rows)
+  setChromeCellSelection(band, nextRow.id, nextCell.id)
+  return nextRow.id
+}
+
+function addSpacerRowAfter(band: ChromeBandId, afterRowId?: string) {
+  const nextCell = makeSpacerCell()
+  const nextRow: ChromeGridRow = { id: newChromeId('chrome-spacer-row'), fr: 0.85, cells: [nextCell] }
+  const rows = [...sparseBandRows(band)]
+  const index = afterRowId ? rows.findIndex(row => row.id === afterRowId) : rows.length - 1
+  const insertIndex = index >= 0 ? index + 1 : rows.length
+  rows.splice(insertIndex, 0, nextRow)
+  updateChromeRows(band, rows)
+  setChromeCellSelection(band, nextRow.id, nextCell.id, nextCell.block?.id ?? null)
+  return nextRow.id
 }
 
 function deleteCellContent(band: ChromeBandId, rowId: string, cellId: string) {
@@ -2013,7 +3702,6 @@ function deleteCellContent(band: ChromeBandId, rowId: string, cellId: string) {
 
 function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
   const currentRows = sparseBandRows(band)
-  const visibleRows = currentRows.filter(row => !row.deleted)
   let nextSelection: ChromeSelection | null = { type: 'row', band, rowId }
 
   const rows = currentRows.map((row) => {
@@ -2027,19 +3715,11 @@ function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
       }
     }
 
-    if (visibleRows.length > 1) {
-      nextSelection = { type: 'band', band }
-      return {
-        ...row,
-        deleted: true,
-        cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
-      }
-    }
-
-    nextSelection = { type: 'cell', band, rowId, cellId }
+    nextSelection = { type: 'band', band }
     return {
       ...row,
-      cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: false, block: undefined } : cell),
+      deleted: true,
+      cells: row.cells.map(cell => cell.id === cellId ? { ...cell, deleted: true, block: undefined } : cell),
     }
   })
   updateChromeRows(band, rows)
@@ -2051,14 +3731,55 @@ function removeCell(band: ChromeBandId, rowId: string, cellId: string) {
 
 function addColumnForSelection() {
   const target = selectedChromeTarget.value
-  if (target?.type !== 'cell') return
-  addColumnAfter(target.band, target.rowId, target.cellId)
+  const band = target?.band ?? activeChromeBand.value
+  if (target?.type === 'cell') {
+    addColumnAfter(target.band, target.rowId, target.cellId)
+    return
+  }
+  if (target?.type === 'row') {
+    addColumnAfter(target.band, target.rowId)
+    return
+  }
+  const firstRow = firstChromeContentRow(band)
+  if (firstRow) addColumnAfter(band, firstRow.id)
+  else addRowAfter(band)
 }
 
 function addRowForSelection() {
   const target = selectedChromeTarget.value
-  if (!target) return
-  addRowAfter(target.band, target.type === 'band' ? undefined : target.rowId)
+  const band = target?.band ?? activeChromeBand.value
+  addRowAfter(band, target?.type === 'cell' || target?.type === 'row' ? target.rowId : undefined)
+}
+
+function closeChromeAddPanel() {
+  chromeAddPanelOpen.value = false
+}
+
+function toggleChromeAddPanel() {
+  if (chromeAddPanelOpen.value) closeChromeAddPanel()
+  else chromeAddPanelOpen.value = true
+}
+
+function addChromeTextFromPalette() {
+  addChromeTextForSelection()
+  closeChromeAddPanel()
+}
+
+function addColumnFromPalette() {
+  addColumnForSelection()
+  closeChromeAddPanel()
+}
+
+function addRowFromPalette() {
+  addRowForSelection()
+  closeChromeAddPanel()
+}
+
+function addSpacerFromPalette() {
+  const target = selectedChromeTarget.value
+  const band = target?.band ?? activeChromeBand.value
+  addSpacerRowAfter(band, target?.type === 'cell' || target?.type === 'row' ? target.rowId : undefined)
+  closeChromeAddPanel()
 }
 
 function removeSelectedCell() {
@@ -2073,6 +3794,19 @@ function deleteChromeBlock() {
   deleteCellContent(target.band, target.rowId, target.cellId)
   activeChromeBlockId.value = null
   activeTextTarget.value = null
+}
+
+function trashChromeCell(band: ChromeBandId, rowId: string, cellId: string) {
+  const cell = findChromeCell(band, rowId, cellId)
+  if (isChromeSpacerCell(cell)) {
+    removeCell(band, rowId, cellId)
+    return
+  }
+  if (cell?.block && !cell.block.empty) {
+    removeCell(band, rowId, cellId)
+    return
+  }
+  removeCell(band, rowId, cellId)
 }
 
 function duplicateChromeBlock() {
@@ -2104,7 +3838,9 @@ function duplicateChromeBlock() {
 }
 
 function onChromeCanvasPointerDown() {
+  if (posterElementsEditing.value) emit('poster-element-selected', null)
   if (!chromeDirectEditing.value) return
+  closeChromeAddPanel()
   selectedChromeTarget.value = null
   activeChromeBlockId.value = null
   activeTextTarget.value = null
@@ -2116,7 +3852,7 @@ function onCustomChromeClick(_e: MouseEvent, _id: string) {}
 function onCustomChromeBlur(_e: FocusEvent, _id: string) {}
 
 function onChromeGridBlockFocus(e: FocusEvent, band: ChromeBandId, rowId: string, cellId: string) {
-  selectChromeCell(band, rowId, cellId)
+  selectChromeCellFromInteraction(band, rowId, cellId)
   activeTextAnchor.value = e.currentTarget instanceof HTMLElement ? e.currentTarget.getBoundingClientRect() : null
 }
 
@@ -2156,6 +3892,15 @@ function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
   activeTextAnchor.value = el.getBoundingClientRect()
 }
 
+function slotEditable(slot: PosterTextSlot) {
+  if (!props.editable) return false
+  return !props.editableTextSlots || props.editableTextSlots.includes(slot)
+}
+
+function slotEditorElementId(slot: PosterTextSlot) {
+  return posterElementsEditing.value && slotEditable(slot) ? `slot:${slot}` : undefined
+}
+
 function isSlotActive(slot: PosterTextSlot) {
   return activeTextTarget.value?.type === 'slot' && activeTextTarget.value.slot === slot
 }
@@ -2172,14 +3917,24 @@ function hasVisibleTextOverride(slot: PosterTextSlot) {
   return Boolean(slotOverride(slot).text?.trim())
 }
 
+function contractResolvedSlotText(slot: PosterTextSlot) {
+  return themeDataContract.value.resolvedSlotValues[slot]?.trim() ?? ''
+}
+
+function contractOmitsSlot(slot: PosterTextSlot) {
+  return themeDataContract.value.omittedSlotIds.includes(slot) && !hasVisibleTextOverride(slot)
+}
+
 function textWithOverride(slot: PosterTextSlot, fallback: string) {
   return slotOverride(slot).text ?? fallback
 }
 
 function defaultSlotText(slot: PosterTextSlot) {
+  if (contractOmitsSlot(slot)) return ''
   if (slot === 'trail_name') return props.styleConfig.trail_name || props.map.title || 'Your Trail'
   if (slot === 'location_text') {
-    const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
+    const text = props.styleConfig.location_text?.trim() || contractResolvedSlotText(slot) || formatPosterLocationLine(themeDataContext.value)
+    if (composition.value.id === 'blueprint-strava') return text
     return text ? text.toUpperCase() : ''
   }
   if (slot === 'occasion_text') return props.styleConfig.occasion_text || ''
@@ -2192,12 +3947,13 @@ function defaultSlotText(slot: PosterTextSlot) {
   if (slot === 'composition_meta') return compositionDecorDefaults.value.meta ?? ''
   if (slot === 'composition_footer') return compositionDecorDefaults.value.footerNote ?? ''
   if (slot === 'composition_side_rail') return compositionDecorDefaults.value.sideRailLabel ?? ''
-  return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''
+  return contractResolvedSlotText(slot) || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
 }
 
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
   const el = e.currentTarget as HTMLElement
   selectTextTarget({ type: 'slot', slot }, el)
+  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -2209,6 +3965,7 @@ function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
 
 function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
   selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
+  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -2225,27 +3982,34 @@ function onSlotBlur(e: FocusEvent, slot: PosterTextSlot) {
 }
 
 function onOverlayTextFocus(e: FocusEvent, id: string) {
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextPointerDown(e: PointerEvent, id: string) {
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextClick(e: MouseEvent, id: string) {
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
+  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextBlur(e: FocusEvent, id: string) {
+  if (freeOverlayEditorBlocked.value) return
   emit('overlay-updated', { id, patch: { content: (e.currentTarget as HTMLElement).innerText.trim() } })
 }
 
@@ -2254,6 +4018,8 @@ function finishActiveTextEdit() {
   activeTextTarget.value = null
   activeTextAnchor.value = null
   activeChromeBlockId.value = null
+  chromePaddingPanelOpen.value = false
+  closeChromeAddPanel()
 }
 
 function resetActiveText() {
@@ -2290,17 +4056,141 @@ let deselectTimer: ReturnType<typeof setTimeout> | null = null
 
 const visibleImageAssets = computed(() => {
   return (props.styleConfig.image_overlays ?? [])
+    .filter(asset => !asset.hidden)
     .filter(asset => asset.kind !== 'logo' || props.styleConfig.show_logo !== false)
     .map(asset => ({
       ...asset,
       quality_status: classifyAssetQuality(computeEffectiveDpi(asset, props.styleConfig.print_size)),
     }))
 })
+const visibleTextOverlays = computed(() => (props.styleConfig.text_overlays ?? []).filter(overlay => !overlay.hidden))
+const visibleIconOverlays = computed(() => (props.styleConfig.icon_overlays ?? []).filter(icon => !icon.hidden))
+const showEditorGuides = computed(() =>
+  (posterElementsEditing.value || chromeDirectEditing.value) &&
+    (props.posterEditorMode === 'guides' || props.posterGuidesVisible === true),
+)
+
+type PosterSelectableElement =
+  | { type: 'text'; id: string; item: TextOverlay }
+  | { type: 'asset'; id: string; item: MapAsset }
+  | { type: 'icon'; id: string; item: IconOverlay }
+  | { type: 'slot'; id: string; slot: PosterTextSlot }
+
+function selectedPosterElement(): PosterSelectableElement | null {
+  const id = props.selectedPosterElementId
+  if (!id) return null
+  if (guidedPosterEditor.value && !id.startsWith('slot:')) {
+    if (!tier2PosterEditor.value || (!id.startsWith('text:') && !id.startsWith('asset:'))) return null
+  }
+  if (id.startsWith('text:')) {
+    const rawId = id.slice('text:'.length)
+    const item = props.styleConfig.text_overlays?.find(overlay => overlay.id === rawId)
+    return item ? { type: 'text', id, item } : null
+  }
+  if (id.startsWith('asset:')) {
+    const rawId = id.slice('asset:'.length)
+    const item = props.styleConfig.image_overlays?.find(asset => asset.id === rawId)
+    return item ? { type: 'asset', id, item } : null
+  }
+  if (id.startsWith('icon:')) {
+    const rawId = id.slice('icon:'.length)
+    const item = props.styleConfig.icon_overlays?.find(icon => icon.id === rawId)
+    return item ? { type: 'icon', id, item } : null
+  }
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    return slotEditable(slot) ? { type: 'slot', id, slot } : null
+  }
+  return null
+}
+
+const selectedPosterElementCanTransform = computed(() => {
+  const selected = selectedPosterElement()
+  if (!selected) return false
+  if (selected.type === 'slot') return true
+  if (selected.type === 'text') return selected.item.locked !== true
+  if (selected.type === 'asset') return selected.item.locked !== true
+  return selected.item.locked !== true
+})
+const selectedPosterElementResizable = computed(() => selectedPosterElementCanTransform.value)
+const selectedPosterElementDraggable = computed(() => {
+  const selected = selectedPosterElement()
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+})
+const selectedPosterElementRotatable = computed(() => {
+  const selected = selectedPosterElement()
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+})
+const selectedPosterElementKeepRatio = computed(() => {
+  const selected = selectedPosterElement()
+  return selected?.type === 'asset' || selected?.type === 'icon'
+})
+const selectedPosterElementAllowsBleed = computed(() => {
+  const selected = selectedPosterElement()
+  return selected?.type === 'asset' && selected.item.allow_bleed === true
+})
+const posterMoveableBounds = computed(() => {
+  if (selectedPosterElementAllowsBleed.value) return undefined
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!rect) return undefined
+  const safe = Math.min(rect.width, rect.height) * 0.04
+  return {
+    left: safe,
+    top: safe,
+    right: rect.width - safe,
+    bottom: rect.height - safe,
+  }
+})
+const posterSnapGridPx = computed(() => {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  const spacing = Math.max(3, Math.min(16, props.styleConfig.grid_spacing ?? 8)) / 100
+  return {
+    width: Math.max(8, (rect?.width ?? 520) * spacing),
+    height: Math.max(8, (rect?.height ?? 780) * spacing),
+  }
+})
+const posterVerticalGuidelines = computed(() => posterGuidePixels('x'))
+const posterHorizontalGuidelines = computed(() => posterGuidePixels('y'))
 
 const showLegacyLogo = computed(() => {
   const hasLogoAsset = (props.styleConfig.image_overlays ?? []).some(asset => asset.kind === 'logo')
   return Boolean(props.styleConfig.show_logo && props.styleConfig.logo_url && !hasLogoAsset)
 })
+
+function posterGuidePixels(axis: 'x' | 'y') {
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  if (!canvas) return []
+  const size = axis === 'x' ? canvas.width : canvas.height
+  const safe = size * 0.04
+  const guides = [0, safe, size / 3, size / 2, (size * 2) / 3, size - safe, size]
+  if (mapContainer.value) {
+    const map = mapContainer.value.getBoundingClientRect()
+    guides.push(axis === 'x' ? map.left - canvas.left : map.top - canvas.top)
+    guides.push(axis === 'x' ? map.right - canvas.left : map.bottom - canvas.top)
+  }
+  if (tier2PosterEditor.value && posterCanvasEl.value) {
+    posterCanvasEl.value.querySelectorAll<HTMLElement>('[data-poster-element-id]').forEach((element) => {
+      if (element === posterMoveableTarget.value) return
+      const rect = element.getBoundingClientRect()
+      const start = axis === 'x' ? rect.left - canvas.left : rect.top - canvas.top
+      const end = axis === 'x' ? rect.right - canvas.left : rect.bottom - canvas.top
+      guides.push(start, (start + end) / 2, end)
+    })
+  }
+  return guides.map(value => Math.round(value)).filter(value => Number.isFinite(value))
+}
+
+function syncPosterMoveableTarget() {
+  if (!posterElementsEditing.value || !props.selectedPosterElementId || !posterCanvasEl.value) {
+    posterMoveableTarget.value = null
+    moveableResizePreview.value = null
+    moveableTextResizePreview.value = null
+    moveableSlotResizePreview.value = null
+    return
+  }
+  const selectorId = props.selectedPosterElementId.replace(/"/g, '\\"')
+  posterMoveableTarget.value = posterCanvasEl.value.querySelector<HTMLElement>(`[data-poster-element-id="${selectorId}"]`)
+}
 
 function scheduleDeselect() {
   if (deselectTimer) clearTimeout(deselectTimer)
@@ -2311,20 +4201,24 @@ function scheduleDeselect() {
 }
 
 function onOverlayClick(id: string) {
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   selectedOverlayId.value = id
   selectedAssetId.value = null
   const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${id}"] .overlay-content`)
   if (el) selectTextTarget({ type: 'overlay', id }, el)
   emit('overlay-selected', id)
+  emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayDelete(id: string) {
   selectedOverlayId.value = null
   emit('overlay-deleted', id)
+  emit('poster-element-selected', null)
 }
 
 function onAssetClick(id: string, event?: MouseEvent) {
+  if (freeOverlayEditorBlocked.value) return
   if (deselectTimer) clearTimeout(deselectTimer)
   if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true })
   selectedAssetId.value = id
@@ -2332,11 +4226,13 @@ function onAssetClick(id: string, event?: MouseEvent) {
   activeTextTarget.value = null
   activeTextAnchor.value = null
   emit('asset-selected', id)
+  emit('poster-element-selected', `asset:${id}`)
 }
 
 function clearAssetSelection() {
   selectedAssetId.value = null
   draggingAssetId.value = null
+  emit('poster-element-selected', null)
 }
 
 function findImageAsset(id: string): MapAsset | undefined {
@@ -2364,18 +4260,234 @@ function roundedPercent(value: number) {
   return Number(value.toFixed(2))
 }
 
+function clampPercent(value: number, min = 0, max = 100) {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
+
+function selectedPosterPercentBounds(id: string) {
+  const selected = selectedPosterElement()
+  const safe = selectedPosterElementAllowsBleed.value ? 0 : 4
+  if (!selected || selected.id !== id) {
+    return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
+  }
+  if (selected.type === 'asset') {
+    if (selected.item.allow_bleed === true) {
+      return {
+        minX: -selected.item.width,
+        maxX: 100,
+        minY: -selected.item.height,
+        maxY: 100,
+      }
+    }
+    return {
+      minX: safe,
+      maxX: Math.max(safe, 100 - safe - selected.item.width),
+      minY: safe,
+      maxY: Math.max(safe, 100 - safe - selected.item.height),
+    }
+  }
+  if (selected.type === 'icon') {
+    return {
+      minX: safe,
+      maxX: Math.max(safe, 100 - safe - selected.item.width),
+      minY: safe,
+      maxY: Math.max(safe, 100 - safe - selected.item.height),
+    }
+  }
+  return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
+}
+
+function patchPosterElement(id: string, patch: PosterEditorElementPatch) {
+  emit('poster-element-patched', { id, patch })
+}
+
+function positionTargetByDelta(target: HTMLElement, dx: number, dy: number) {
+  const id = target.dataset.posterElementId
+  const container = posterCanvasEl.value
+  if (!id || !container) return null
+  const rect = container.getBoundingClientRect()
+  if (!rect.width || !rect.height) return null
+  const bounds = selectedPosterPercentBounds(id)
+  const left = parseFloat(target.style.left) || 0
+  const top = parseFloat(target.style.top) || 0
+  const nextX = clampPercent(left + (dx / rect.width) * 100, bounds.minX, bounds.maxX)
+  const nextY = clampPercent(top + (dy / rect.height) * 100, bounds.minY, bounds.maxY)
+  target.style.left = `${nextX}%`
+  target.style.top = `${nextY}%`
+  return { x: roundedPercent(nextX), y: roundedPercent(nextY) }
+}
+
+function selectedTextAlignmentOffset() {
+  const selected = selectedPosterElement()
+  if (selected?.type !== 'text') return '0%'
+  return selected.item.alignment === 'center'
+    ? '-50%'
+    : selected.item.alignment === 'right'
+      ? '-100%'
+      : '0%'
+}
+
+function applyPosterElementRotation(target: HTMLElement, rotation: number) {
+  const id = target.dataset.posterElementId
+  if (!id) return
+  const normalized = Number.isFinite(rotation) ? rotation : 0
+  if (id.startsWith('text:')) {
+    target.style.transform = `translateX(${selectedTextAlignmentOffset()}) rotate(${normalized}deg)`
+  } else {
+    target.style.transform = `rotate(${normalized}deg)`
+  }
+}
+
+function moveableDelta(event: unknown): [number, number] {
+  const payload = event as { delta?: [number, number]; beforeDelta?: [number, number] }
+  const delta = payload.delta ?? payload.beforeDelta ?? [0, 0]
+  return [Number(delta[0]) || 0, Number(delta[1]) || 0]
+}
+
+function onPosterMoveableDrag(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  if (!payload.target) return
+  const [dx, dy] = moveableDelta(event)
+  positionTargetByDelta(payload.target, dx, dy)
+}
+
+function onPosterMoveableDragEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id || !payload.target) return
+  patchPosterElement(id, {
+    x: roundedPercent(parseFloat(payload.target.style.left) || 0),
+    y: roundedPercent(parseFloat(payload.target.style.top) || 0),
+  })
+}
+
+function onPosterMoveableResizeStart() {
+  moveableResizePreview.value = null
+  moveableTextResizePreview.value = null
+  moveableSlotResizePreview.value = null
+}
+
+function onPosterMoveableResize(event: unknown) {
+  const payload = event as {
+    target?: HTMLElement
+    width?: number
+    height?: number
+    drag?: { delta?: [number, number]; beforeDelta?: [number, number] }
+  }
+  const target = payload.target
+  const id = target?.dataset.posterElementId
+  const container = posterCanvasEl.value
+  if (!target || !id || !container) return
+  const rect = container.getBoundingClientRect()
+  if (!rect.width || !rect.height) return
+
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    const nextSizeCqh = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 0.35, 12)
+    const fontSizePt = clampTextSizePt(cqhToPt(nextSizeCqh))
+    moveableSlotResizePreview.value = { slot, font_size_pt: fontSizePt }
+    target.style.fontSize = `${nextSizeCqh}cqh`
+    return
+  }
+
+  const dx = payload.drag?.delta?.[0] ?? payload.drag?.beforeDelta?.[0] ?? 0
+  const dy = payload.drag?.delta?.[1] ?? payload.drag?.beforeDelta?.[1] ?? 0
+  positionTargetByDelta(target, dx, dy)
+
+  if (id.startsWith('text:')) {
+    const nextSize = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 0.5, 12)
+    moveableTextResizePreview.value = { id: id.slice('text:'.length), font_size: nextSize }
+    target.style.fontSize = `${nextSize}cqh`
+    return
+  }
+
+  const width = clampPercent(((payload.width ?? target.getBoundingClientRect().width) / rect.width) * 100, 2, 100)
+  const height = clampPercent(((payload.height ?? target.getBoundingClientRect().height) / rect.height) * 100, 2, 100)
+  target.style.width = `${width}%`
+  target.style.height = `${height}%`
+  moveableResizePreview.value = { id, width, height }
+}
+
+function onPosterMoveableResizeEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id || !payload.target) {
+    moveableResizePreview.value = null
+    moveableTextResizePreview.value = null
+    moveableSlotResizePreview.value = null
+    return
+  }
+
+  if (id.startsWith('slot:')) {
+    const slot = id.slice('slot:'.length) as PosterTextSlot
+    const preview = moveableSlotResizePreview.value
+    if (preview?.slot === slot) emit('poster-text-override', { slot, patch: { font_size_pt: preview.font_size_pt } })
+    moveableSlotResizePreview.value = null
+    return
+  }
+
+  const patch: PosterEditorElementPatch = {
+    x: roundedPercent(parseFloat(payload.target.style.left) || 0),
+    y: roundedPercent(parseFloat(payload.target.style.top) || 0),
+  }
+  if (id.startsWith('text:')) {
+    const preview = moveableTextResizePreview.value
+    if (preview) patch.font_size = Number(preview.font_size.toFixed(2))
+    patchPosterElement(id, patch)
+  } else {
+    const preview = moveableResizePreview.value
+    if (preview) {
+      patch.width = roundedPercent(preview.width)
+      patch.height = roundedPercent(preview.height)
+    }
+    patchPosterElement(id, patch)
+  }
+  moveableResizePreview.value = null
+  moveableTextResizePreview.value = null
+  moveableSlotResizePreview.value = null
+}
+
+function moveableRotation(event: unknown): number {
+  const payload = event as { beforeRotate?: number; rotation?: number; rotate?: number }
+  return Number(payload.beforeRotate ?? payload.rotation ?? payload.rotate ?? 0)
+}
+
+function onPosterMoveableRotate(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  if (!payload.target) return
+  applyPosterElementRotation(payload.target, moveableRotation(event))
+}
+
+function onPosterMoveableRotateEnd(event: unknown) {
+  const payload = event as { target?: HTMLElement }
+  const id = payload.target?.dataset.posterElementId
+  if (!id) return
+  patchPosterElement(id, { rotation: Number(moveableRotation(event).toFixed(1)) })
+}
+
 function isEditableTextElement(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"], .inline-text-toolbar'))
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
+  if (chromeAddPanelOpen.value) {
+    const target = event.target instanceof HTMLElement ? event.target : null
+    if (!target?.closest('.chrome-editor-app-bar, .chrome-add-block-panel, .chrome-layout-builder')) {
+      closeChromeAddPanel()
+    }
+  }
   if (!props.editable || !selectedAssetId.value) return
   if (event.target instanceof HTMLElement && event.target.closest('.image-asset')) return
   clearAssetSelection()
 }
 
 function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && chromeAddPanelOpen.value) {
+    closeChromeAddPanel()
+    return
+  }
   if (!props.editable || !selectedAssetId.value) return
   if (isEditableTextElement(event.target)) return
 
@@ -2404,6 +4516,17 @@ function onDocumentKeydown(event: KeyboardEvent) {
 function onAssetDelete(id: string) {
   selectedAssetId.value = null
   emit('asset-deleted', id)
+  emit('poster-element-selected', null)
+}
+
+function onIconClick(id: string) {
+  if (guidedPosterEditor.value) return
+  if (deselectTimer) clearTimeout(deselectTimer)
+  selectedAssetId.value = null
+  selectedOverlayId.value = null
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+  emit('poster-element-selected', `icon:${id}`)
 }
 
 function onResizeStart(e: PointerEvent, id: string) {
@@ -2493,6 +4616,7 @@ const previewRootStyle = computed(() => ({
   background: isPrintRender.value ? props.styleConfig.background_color : '#e8e5e0',
   alignItems: chromeMobileDrawerOpen.value ? 'flex-start' : undefined,
   justifyContent: chromeMobileDrawerOpen.value ? 'center' : undefined,
+  containerType: isPrintRender.value ? undefined : 'size',
 }))
 
 const effectiveRoutePaint = computed(() => resolveTonerRouteStyle(props.styleConfig))
@@ -2501,8 +4625,18 @@ const posterCanvasClass = computed(() => ({
   'shadow-[0_32px_80px_rgba(0,0,0,0.35)]': !isPrintRender.value,
   'poster-canvas--print': isPrintRender.value,
   'poster-composition': true,
+  'poster-has-route': hasRenderableRoute.value,
+  'poster-place-map': !hasRenderableRoute.value,
   [posterCompositionClassName(composition.value.id)]: true,
 }))
+
+const editorPosterAspect = computed(() => {
+  const [width, height] = String(props.styleConfig.print_size ?? '').split('x').map(Number)
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return { width, height }
+  }
+  return { width: 2, height: 3 }
+})
 
 const posterCanvasStyle = computed(() => isPrintRender.value
   ? {
@@ -2514,8 +4648,12 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       containerType: 'size',
       '--print-bleed': `${printBleedCssPx.value}px`,
       '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--land-color': props.styleConfig.land_color ?? props.styleConfig.background_color,
+      '--label-text-color': props.styleConfig.label_text_color,
+      '--contour-major-color': props.styleConfig.contour_major_color ?? props.styleConfig.label_text_color,
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
+      '--composition-title-font': typography.value.titleFont,
       '--composition-body-font': typography.value.subFont,
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
@@ -2523,15 +4661,23 @@ const posterCanvasStyle = computed(() => isPrintRender.value
       '--route-color': effectiveRoutePaint.value.route_color,
     }
   : {
-      aspectRatio: '2 / 3',
+      aspectRatio: `${editorPosterAspect.value.width} / ${editorPosterAspect.value.height}`,
       backgroundColor: props.styleConfig.background_color,
-      height: chromeMobileDrawerOpen.value ? 'min(100%, calc(100dvh - min(300px, 48vh) - 80px))' : '100%',
+      width: `min(100cqw, calc(100cqh * ${editorPosterAspect.value.width / editorPosterAspect.value.height}))`,
+      height: chromeMobileDrawerOpen.value
+        ? `min(100cqh, calc(100cqw * ${editorPosterAspect.value.height / editorPosterAspect.value.width}), calc(100dvh - min(300px, 48vh) - 80px))`
+        : `min(100cqh, calc(100cqw * ${editorPosterAspect.value.height / editorPosterAspect.value.width}))`,
       maxWidth: '100%',
+      maxHeight: '100%',
       containerType: 'size',
       '--print-bleed': '0px',
       '--water-color': props.styleConfig.water_color ?? props.styleConfig.label_text_color,
+      '--land-color': props.styleConfig.land_color ?? props.styleConfig.background_color,
+      '--label-text-color': props.styleConfig.label_text_color,
+      '--contour-major-color': props.styleConfig.contour_major_color ?? props.styleConfig.label_text_color,
       '--composition-ink': props.styleConfig.label_text_color,
       '--composition-paper': props.styleConfig.background_color,
+      '--composition-title-font': typography.value.titleFont,
       '--composition-body-font': typography.value.subFont,
       '--composition-rule-left': compositionRuleInset.value.left,
       '--composition-rule-right': compositionRuleInset.value.right,
@@ -2544,7 +4690,9 @@ const typography = computed(() => getPosterTypography(props.styleConfig))
 const layout = computed(() => getPosterLayout(props.styleConfig))
 
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
-const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block')
+const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
+const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
+const showCartoucheHills = computed(() => composition.value.id === 'place-frame')
 
 interface CompositionDecor {
   kicker?: string
@@ -2559,36 +4707,171 @@ const trailName = computed(() =>
   textWithOverride('trail_name', props.styleConfig.trail_name || props.map.title || 'Your Trail'),
 )
 
+const locationText = computed(() => {
+  const text = props.styleConfig.location_text?.trim() || formatPosterLocationLine(themeDataContext.value)
+  return textWithOverride('location_text', text)
+})
 const locationLine = computed(() => {
-  const text = props.styleConfig.location_text?.trim() || ((props.map.stats as unknown as { location?: string })?.location?.trim() ?? '')
-  const display = textWithOverride('location_text', text)
-  return display ? display.toUpperCase() : ''
+  if (!locationText.value) return ''
+  if (props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid') return locationText.value
+  if (composition.value.id === 'modernist-block') return locationText.value
+  if (composition.value.id === 'bib-numerals') return locationText.value
+  if (composition.value.id === 'botanical-plate') return locationText.value
+  if (composition.value.id === 'place-frame') return locationText.value
+  if (composition.value.id === 'darksky-stars') return locationText.value
+  if (composition.value.id === 'blueprint-strava') return locationText.value
+  return locationText.value.toUpperCase()
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
-const showOccasionSlot = computed(() => composition.value.id !== 'modernist-block')
+const genericOccasionText = new Set(['complete trail network'])
+const risoCaptionText = computed(() => {
+  const occasion = occasionText.value.trim()
+  return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
+})
+const risoLocationText = computed(() => locationText.value.trim())
+const risoMetaLabel = computed(() => {
+  const text = risoLocationText.value.trim()
+  if (!text) return 'MAP'
+  const parts = text.split(',').map(part => part.trim()).filter(Boolean)
+  return (parts[parts.length - 1] || text).toUpperCase()
+})
+const OCCASION_SLOT_COMPOSITIONS = new Set([
+  'legacy-classic',
+  'editorial-tall',
+  'park-quad',
+  'riso-stack',
+  'journal-spread',
+  'darksky-stars',
+  'botanical-plate',
+])
+const showOccasionSlot = computed(() => OCCASION_SLOT_COMPOSITIONS.has(composition.value.id))
 
 const coords = computed(() => {
+  return formatCoordsFromPoint(themeDataContext.value.coords)
+})
+
+function formatDms(value: number, pos: string, neg: string) {
+  const abs = Math.abs(value)
+  const d = Math.floor(abs)
+  const mFloat = (abs - d) * 60
+  const m = Math.floor(mFloat)
+  const s = Math.round((mFloat - m) * 60)
+  const normalizedSeconds = s === 60 ? 0 : s
+  const normalizedMinutes = s === 60 ? m + 1 : m
+  const normalizedDegrees = normalizedMinutes === 60 ? d + 1 : d
+  const finalMinutes = normalizedMinutes === 60 ? 0 : normalizedMinutes
+  return `${normalizedDegrees}°${finalMinutes.toString().padStart(2, '0')}'${normalizedSeconds.toString().padStart(2, '0')}"${value >= 0 ? pos : neg}`
+}
+
+const usgsCoordinateTicks = computed(() => {
   const b = props.map.bbox
-  if (!b) return null
-  const lat = (b[1] + b[3]) / 2
-  const lng = (b[0] + b[2]) / 2
-  const fmt = (v: number, pos: string, neg: string) => {
-    const d = Math.abs(Math.floor(v))
-    const m = Math.round((Math.abs(v) - d) * 60)
-    return `${d}°${m.toString().padStart(2, '0')}'${v >= 0 ? pos : neg}`
-  }
-  return { lat: fmt(lat, 'N', 'S'), lng: fmt(lng, 'E', 'W') }
+  if (!b || b.length < 4) return []
+  const [minLng, minLat, maxLng, maxLat] = b
+  return [
+    { id: 'nw', label: `${formatDms(maxLat, 'N', 'S')} · ${formatDms(minLng, 'E', 'W')}` },
+    { id: 'ne', label: `${formatDms(maxLat, 'N', 'S')} · ${formatDms(maxLng, 'E', 'W')}` },
+    { id: 'se', label: `${formatDms(minLat, 'N', 'S')} · ${formatDms(maxLng, 'E', 'W')}` },
+    { id: 'sw', label: `${formatDms(minLat, 'N', 'S')} · ${formatDms(minLng, 'E', 'W')}` },
+  ]
 })
 
 const formattedDistance = computed(() => {
+  return themeDataContext.value.hasDistance ? formatDistanceMiles(props.map.stats ?? {}) : ''
+})
+
+const formattedDistanceKm = computed(() => {
   const km = props.map.stats?.distance_km ?? 0
-  return km ? (km * 0.621371).toFixed(1) : ''
+  return km ? km.toFixed(1) : ''
+})
+
+const compositionFooterDistance = computed(() => {
+  if (props.styleConfig.composition_footer_distance_unit === 'km') {
+    return formattedDistanceKm.value ? `${formattedDistanceKm.value} km` : ''
+  }
+  return formattedDistance.value ? `${formattedDistance.value} mi` : ''
 })
 
 const formattedGain = computed(() => {
+  return themeDataContext.value.hasElevation ? formatElevationGainFeet(props.map.stats ?? {}) : ''
+})
+
+const formattedGainM = computed(() => {
+  if (!themeDataContext.value.hasElevation) return ''
   const m = props.map.stats?.elevation_gain_m ?? 0
-  return m ? Math.round(m * 3.28084).toLocaleString() : ''
+  return m ? Math.round(m).toLocaleString() : ''
+})
+
+const formattedDuration = computed(() => {
+  const total = props.map.stats?.duration_seconds
+  if (!total || total <= 0) return ''
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = Math.floor(total % 60)
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+})
+
+const marathonFinishHeadline = computed(() => {
+  if (formattedDuration.value) return formattedDuration.value
+  if (formattedDistance.value) return `${formattedDistance.value} MI`
+  if (formattedGain.value) return `${formattedGain.value} FT`
+  return ''
+})
+const marathonBibYear = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 4) || ''
+  return String(date.getUTCFullYear())
+})
+const marathonBibTopline = computed(() => {
+  const region = (formatPosterRegion(themeDataContext.value) || locationText.value)
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?.toUpperCase() || 'ROUTE'
+  return [region, marathonBibYear.value ? `BIB ${marathonBibYear.value}` : '']
+    .filter(Boolean)
+    .join(' · ')
+})
+const marathonBibLatitude = computed(() => {
+  const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  const first = routeCoords[0]
+  const lat = Array.isArray(first) ? first[1] : undefined
+  if (typeof lat !== 'number' || !Number.isFinite(lat)) return coords.value?.lat ?? ''
+  const suffix = lat >= 0 ? 'N' : 'S'
+  return `${Math.abs(lat).toFixed(4)}°${suffix}`
+})
+const marathonBibFooterItems = computed(() => [
+  formattedDistance.value ? `${formattedDistance.value} mi` : '',
+  formattedGain.value ? `${formattedGain.value} ft GAIN` : '',
+  marathonBibLatitude.value,
+].filter(Boolean))
+const showBibDataFooter = computed(() =>
+  composition.value.id === 'bib-numerals' &&
+  themeDataContext.value.hasRoute &&
+  marathonBibFooterItems.value.length > 0,
+)
+const botanicalPlateLatitude = computed(() => {
+  const routeCoords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  const first = routeCoords[0]
+  const lat = Array.isArray(first) ? first[1] : undefined
+  if (typeof lat !== 'number' || !Number.isFinite(lat)) return coords.value?.lat ?? ''
+  const suffix = lat >= 0 ? 'N' : 'S'
+  return `${Math.abs(lat).toFixed(4)}°${suffix}`
+})
+const contourWashEyebrow = computed(() => {
+  return [formatPosterRegion(themeDataContext.value) || locationLine.value, botanicalPlateLatitude.value]
+    .filter(Boolean)
+    .join(' · ')
+})
+
+const hasRenderableRoute = computed(() => {
+  const hasVisibleSegments = (props.styleConfig.trail_segments ?? []).some(segment => segment.visible)
+  if (props.styleConfig.show_primary_route === false && !hasVisibleSegments) return false
+  const coords = getAllRouteCoords(props.map.geojson as GeoJSON.FeatureCollection)
+  return coords.length > 1
 })
 
 const formattedDate = computed(() => {
@@ -2596,30 +4879,172 @@ const formattedDate = computed(() => {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
+  if (composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'blueprint') {
+    const day = date.getUTCDate().toString().padStart(2, '0')
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+    return `${day} ${month} ${date.getUTCFullYear()}`
+  }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 })
 
+const formattedDateCompact = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  if (props.styleConfig.composition_footer_date_format === 'month-year') {
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+    return `${month} ${date.getUTCFullYear()}`
+  }
+  if (composition.value.id === 'darksky-stars') {
+    const day = date.getUTCDate().toString().padStart(2, '0')
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+    return `${day} ${month} ${date.getUTCFullYear()}`
+  }
+  if (
+    composition.value.id === 'travel-banner' ||
+    composition.value.id === 'modernist-block' ||
+    composition.value.id === 'blueprint-grid' ||
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid' ||
+    composition.value.id === 'brutalist-slab'
+  ) {
+    return value.slice(0, 10)
+  }
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+})
+
+const formattedMonthYear = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+  return `${month} ${date.getUTCFullYear()}`
+})
+
 const distanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value}\nmiles` : ''))
+const brutalistDistanceText = computed(() => textWithOverride('distance', formattedDistance.value ? `${formattedDistance.value} mi` : ''))
 const elevationGainText = computed(() => textWithOverride('elevation_gain', formattedGain.value ? `${formattedGain.value}\nft gain` : ''))
 const dateText = computed(() => textWithOverride('date', formattedDate.value))
 const coordinatesText = computed(() => textWithOverride('coordinates', coords.value ? `${coords.value.lat}\n${coords.value.lng}` : ''))
-const startPinLabel = computed(() => textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'))
-const finishPinLabel = computed(() => textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'))
+const chromeCoordinatesText = computed(() => {
+  const location = formatPosterLocationLine(themeDataContext.value) || props.styleConfig.location_text?.trim() || ''
+  if (
+    composition.value.id === 'blueprint-grid' ||
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid'
+  ) {
+    return coords.value ? `${coords.value.lat}\n${coords.value.lng}` : location
+  }
+  return location || (coords.value ? `${coords.value.lat}\n${coords.value.lng}` : '')
+})
+const technicalDataRegion = computed(() => {
+  const source = formatPosterRegion(themeDataContext.value) || locationLine.value
+  return source
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?.toUpperCase() || ''
+})
+const formattedTechnicalDate = computed(() => {
+  const value = props.map.stats?.date
+  if (!value) return formattedDateCompact.value || ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10).replaceAll('-', '.')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${month}.${day}.${date.getUTCFullYear()}`
+})
+const showTechnicalDataFooter = computed(() =>
+  (
+    composition.value.id === 'blueprint-strava' ||
+    composition.value.id === 'splits-grid'
+  ) &&
+  themeDataContext.value.hasRoute &&
+  technicalDataFooterItems.value.length > 0,
+)
+const showMoonstoneTechnicalFooter = computed(() =>
+  composition.value.id === 'blueprint-grid' && props.styleConfig.color_theme === 'moonstone' && themeDataContext.value.hasRoute,
+)
+const hideGenericFooterStats = computed(() =>
+  composition.value.id === 'darksky-stars' ||
+  composition.value.id === 'botanical-plate' ||
+  props.styleConfig.color_theme === 'editorial-minimal' ||
+  showBibDataFooter.value ||
+  showMoonstoneTechnicalFooter.value,
+)
+const technicalDataFooterItems = computed(() => [
+  { label: 'Distance', value: formattedDistance.value ? `${formattedDistance.value} mi` : '' },
+  { label: 'Elev Gain', value: formattedGain.value ? `${formattedGain.value} ft` : '' },
+  { label: 'Location', value: technicalDataRegion.value },
+  { label: 'Date', value: props.styleConfig.color_theme === 'night-ride' ? formattedMonthYear.value : formattedTechnicalDate.value },
+].filter(item => item.value))
+const blueprintDraftingToplineLabel = computed(() =>
+  composition.value.id === 'blueprint-strava'
+    ? ['RADMAPS', technicalDataRegion.value].filter(Boolean).join(' · ')
+    : 'RADMAPS · SHEET A',
+)
+const blueprintDraftingFigureLabel = computed(() => 'FIG. 01 · ROUTE PLAN')
+const showSplitsProfileChrome = computed(() => composition.value.id === 'splits-grid' && themeDataContext.value.hasElevation)
+const profileGainLabel = computed(() => formattedGain.value ? `${formattedGain.value} ft GAIN` : 'GAIN')
+const startPinLabel = computed(() =>
+  composition.value.id === 'bib-numerals' || composition.value.id === 'botanical-plate'
+    ? ''
+    : textWithOverride('start_pin_label', props.styleConfig.start_pin_label ?? 'Start'),
+)
+const finishPinLabel = computed(() =>
+  composition.value.id === 'bib-numerals' || composition.value.id === 'botanical-plate'
+    ? ''
+    : textWithOverride('finish_pin_label', props.styleConfig.finish_pin_label ?? 'Finish'),
+)
+const isUsgsHeritageTheme = computed(() => props.styleConfig.color_theme === 'usgs-vintage')
+const isClassicTrailTheme = computed(() => props.styleConfig.color_theme === 'classic-trail')
+const isBlueprintTheme = computed(() => props.styleConfig.color_theme === 'blueprint' && composition.value.id === 'blueprint-grid')
+const isBlueprintDraftingTheme = computed(() =>
+  (composition.value.id === 'blueprint-grid' &&
+    (props.styleConfig.color_theme === 'blueprint' || props.styleConfig.color_theme === 'moonstone')) ||
+  composition.value.id === 'blueprint-strava',
+)
 
 const compositionDecorDefaults = computed<CompositionDecor>(() => {
-  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : 'route study'
-  const gain = formattedGain.value ? `${formattedGain.value} ft` : 'field notes'
-  const date = dateText.value || 'undated'
-  const location = locationLine.value || 'trail record'
+  const distance = formattedDistance.value ? `${formattedDistance.value} mi` : ''
+  const gain = formattedGain.value ? `${formattedGain.value} ft` : ''
+  const date = dateText.value || ''
+  const location = locationLine.value || ''
+  const locationRegion = formatPosterRegion(themeDataContext.value) || (locationLine.value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .pop()
+    ?? location)
 
   switch (composition.value.id) {
     case 'editorial-tall':
+      if (props.styleConfig.color_theme === 'relief-shaded') {
+        return {
+          kicker: locationRegion || 'FIELD STUDY',
+          meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
+        }
+      }
       return {
-        kicker: 'No. 01 — A field record',
-        meta: `${location} · ${date}`,
-        footerNote: 'Drawn from route telemetry and terrain data',
+        kicker: locationRegion || 'FIELD STUDY',
+        meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
       }
     case 'park-quad':
+      if (isUsgsHeritageTheme.value) {
+        return {
+          kicker: coords.value?.lat ?? '',
+          meta: 'SCALE 1:24 000',
+        }
+      }
+      if (isClassicTrailTheme.value) {
+        return {
+          kicker: coords.value?.lat ?? '',
+          meta: 'SCALE 1:24,000',
+        }
+      }
       return {
         kicker: 'United States · Department of the Interior',
         meta: 'Geological Survey · 7.5-minute series',
@@ -2627,8 +5052,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'travel-banner':
       return {
-        kicker: 'Visit · Explore · Return',
-        meta: 'Souvenir route poster',
+        kicker: 'VISIT',
+        meta: `${location} · ${date}`,
       }
     case 'riso-stack':
       return {
@@ -2636,17 +5061,13 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
         meta: 'Two-color trail print',
       }
     case 'blueprint-grid':
+      if (isBlueprintDraftingTheme.value) return {}
       return {
-        kicker: 'DWG · RM-001',
-        meta: 'SHEET 01 / 01 · DATUM WGS84',
-        footerNote: 'Grid overlay · route geometry locked to print frame',
+        kicker: 'WGS84',
+        meta: 'SHEET 01',
       }
     case 'blueprint-strava':
-      return {
-        kicker: 'STRAVA FILE · ACTIVITY',
-        meta: `${date} · SHEET 01 / 01`,
-        footerNote: 'Distance · gain · coordinates · route trace',
-      }
+      return {}
     case 'journal-spread':
       return {
         kicker: 'IX · MMXXVI — A field study',
@@ -2656,39 +5077,55 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'modernist-block':
       return {
-        kicker: 'RADMAPS / ROUTE OBJECT',
-        meta: `${distance} · ${gain}`,
-        sideRailLabel: 'RAD',
+        kicker: locationRegion,
+        meta: `${distance}\n${coords.value?.lat ?? gain}`,
       }
     case 'splits-grid':
-      return {
-        kicker: 'MORNING RUN / DATA SHEET',
-        meta: `${distance} · ${date}`,
-        footerNote: 'Segment stats normalized for print',
-      }
+      return {}
     case 'bib-numerals':
-      return {
-        kicker: 'The forty-first',
-        meta: 'Race commemorative',
-        footerNote: `${distance} / ${gain}`,
-      }
+      return {}
     case 'darksky-stars':
       return {
-        kicker: 'Dark · sky · reserve',
-        meta: 'New moon route plate',
-        footerNote: 'Zodiacal light · clear sky window',
+        kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
+        footerNote: `${location}\n${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
       }
     case 'botanical-plate':
       return {
-        kicker: 'Plate XLI — Cordillera Cascadia',
-        meta: 'Observed along the route transect',
-        footerNote: 'Drawn from life · elevation and terrain survey',
+        kicker: ['Plate IX', locationRegion].filter(Boolean).join(' — '),
+        meta: botanicalPlateLatitude.value || locationRegion,
       }
     case 'brutalist-slab':
       return {
-        kicker: 'RADMAPS · 001',
-        meta: 'LOT 12 / 50',
-        footerNote: '250 GSM · UNCOATED · ROUTE SLAB',
+        kicker: 'RADMAPS',
+        meta: date,
+        footerNote: `${occasionText.value || trailName.value}\n${locationText.value}`,
+      }
+    case 'art-wash':
+      if (props.styleConfig.color_theme === 'contour-wash') {
+        return {
+          kicker: contourWashEyebrow.value,
+        }
+      }
+      return {
+        kicker: `${location} · ${coords.value?.lat ?? ''}`.trim(),
+      }
+    case 'place-frame':
+      return {
+        kicker: occasionText.value || location || 'PLACE PORTRAIT',
+        meta: [
+          `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
+          formattedGainM.value ? `${formattedGainM.value} m` : '',
+        ].filter(Boolean).join(' · '),
+      }
+    case 'sea-chart':
+      return {
+        kicker: `Chart No. 1 · ${location || 'COASTAL ROUTE'}`,
+        meta: `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''} · SOUNDINGS IN FATHOMS`.trim(),
+      }
+    case 'transit-diagram':
+      return {
+        kicker: location || 'TOUR LINE',
+        meta: `STATION · ${date} · ${coords.value?.lat ?? ''}`.trim(),
       }
     default:
       return {}
@@ -2807,10 +5244,10 @@ function effectiveSlotAlign(slot: PosterTextSlot, fallback = defaultSlotAlign(sl
   return slotOverride(slot).align ?? fallback
 }
 
-function effectiveSlotFontSizeCqh(slot: PosterTextSlot, baseCqh: number): number {
+function effectiveSlotFontSizeCqh(slot: PosterTextSlot, baseCqh: number, autoScale = 1): number {
   const override = slotOverride(slot)
   if (override.font_size_pt != null) return ptToCqh(override.font_size_pt)
-  return baseCqh * effectiveSlotScale(slot, legacySlotScale(slot))
+  return baseCqh * effectiveSlotScale(slot, legacySlotScale(slot)) * autoScale
 }
 
 function effectiveSlotOpacity(slot: PosterTextSlot, fallback: number): number {
@@ -2840,20 +5277,31 @@ function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
 const headerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
-  padding: chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
-    ? (layout.value.titlePosition === 'bottom'
-        ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
-        : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
-    : composition.value.headerPadding),
+  padding: chromeGridRendering.value
+    ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
+    : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
+        ? (layout.value.titlePosition === 'bottom'
+            ? `2.4cqh calc(7cqw + ${printBleedCssPx.value}px) calc(3.5cqh + ${printBleedCssPx.value}px)`
+            : `calc(5cqh + ${printBleedCssPx.value}px) calc(7cqw + ${printBleedCssPx.value}px) 2.8cqh`)
+        : composition.value.headerPadding),
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: composition.value.titleAlign === 'left' ? 'flex-start' : 'center',
   justifyContent: 'center',
-  gap: '1.1cqh',
+  gap: composition.value.id === 'legacy-classic' ? '1.1cqh' : '0.8cqh',
   position: 'relative' as const,
   order: String(composition.value.headerOrder),
-  zIndex: 3,
-  height: props.styleConfig.poster_layout?.bands?.header?.height != null
+  zIndex: chromeBandElevated('header') ? 60 : 3,
+  boxSizing: 'border-box' as const,
+  minHeight: '0',
+  flex: composition.value.id === 'transit-diagram'
+    ? '0 0 17%'
+    : posterLayout.value.bands.header.height != null
+      ? `0 0 ${posterLayout.value.bands.header.height}%`
+      : undefined,
+  height: composition.value.id === 'transit-diagram'
+    ? '17%'
+    : posterLayout.value.bands.header.height != null
     ? `${posterLayout.value.bands.header.height}%`
     : undefined,
 }))
@@ -2865,14 +5313,19 @@ const trailNameStyle = computed(() => ({
   letterSpacing: typography.value.titleTracking,
   textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
   fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
+  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
   lineHeight: typography.value.titleLineHeight,
   color: effectiveSlotColor('trail_name', fg.value),
   opacity: String(effectiveSlotOpacity('trail_name', 1)),
   textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
   width: '100%',
+  maxWidth: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
+  overflowWrap: 'anywhere' as const,
+  textWrap: 'balance' as const,
+  hyphens: 'auto' as const,
   textShadow: getTextHalo(headerBg.value),
 }))
 
@@ -2887,9 +5340,13 @@ const locationLineStyle = computed(() => ({
   textTransform: 'uppercase' as const,
   textAlign: effectiveSlotAlign('location_text', composition.value.titleAlign === 'left' ? 'left' : 'center'),
   width: '100%',
+  maxWidth: '100%',
   margin: '0',
   padding: '0',
   outline: 'none',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
   textShadow: getTextHalo(headerBg.value),
 }))
 
@@ -2906,6 +5363,9 @@ const compositionKickerStyle = computed(() => ({
   opacity: String(effectiveSlotOpacity('composition_kicker', composition.value.id === 'brutalist-slab' ? 0.92 : 0.64)),
   textAlign: effectiveSlotAlign('composition_kicker'),
   width: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
 }))
 
 const compositionMetaStyle = computed(() => ({
@@ -2919,6 +5379,9 @@ const compositionMetaStyle = computed(() => ({
   opacity: String(effectiveSlotOpacity('composition_meta', 0.52)),
   textAlign: effectiveSlotAlign('composition_meta'),
   width: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
 }))
 
 const compositionFooterNoteStyle = computed(() => ({
@@ -2958,22 +5421,22 @@ const compositionRuleInset = computed(() => {
   switch (composition.value.id) {
     case 'editorial-tall':
     case 'riso-stack':
-      return { left: `calc(8cqw + ${bleed})`, right: `calc(8cqw + ${bleed})` }
+      return { left: `calc(6.8cqw + ${bleed})`, right: `calc(6.8cqw + ${bleed})` }
     case 'park-quad':
     case 'botanical-plate':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(4.25cqw + ${bleed})`, right: `calc(4.25cqw + ${bleed})` }
     case 'blueprint-strava':
     case 'splits-grid':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(4.35cqw + ${bleed})`, right: `calc(4.35cqw + ${bleed})` }
     case 'modernist-block':
-      return { left: `calc(9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
+      return { left: `calc(18.9cqw + ${bleed})`, right: `calc(5.5cqw + ${bleed})` }
     case 'brutalist-slab':
-      return { left: `calc(5cqw + ${bleed})`, right: `calc(5cqw + ${bleed})` }
+      return { left: `calc(6.7cqw + ${bleed})`, right: `calc(6.7cqw + ${bleed})` }
     case 'travel-banner':
     case 'darksky-stars':
-      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+      return { left: `calc(3.6cqw + ${bleed})`, right: `calc(3.6cqw + ${bleed})` }
     default:
-      return { left: `calc(7cqw + ${bleed})`, right: `calc(7cqw + ${bleed})` }
+      return { left: `calc(6cqw + ${bleed})`, right: `calc(6cqw + ${bleed})` }
   }
 })
 
@@ -2987,19 +5450,36 @@ const footerRuleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
   color: fg.value,
-  padding: chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
-    ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
-        ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
-        : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
-    : composition.value.footerPadding),
-  display: 'flex',
+  padding: composition.value.footerVariant === 'hidden'
+    ? '0'
+    : chromeGridRendering.value
+    ? chromeBandPaddingCss('footer', chromeBandEditingPaddingCss())
+    : chromeBandPaddingCss('footer', composition.value.id === 'legacy-classic'
+        ? `${props.styleConfig.border_style !== 'none' ? 'calc(1.8cqh + 14px)' : '1.8cqh'} calc(7cqw + ${printBleedCssPx.value}px) ${props.styleConfig.border_style !== 'none'
+            ? `calc(1.8cqh + 14px + ${printBleedCssPx.value}px)`
+            : `calc(1.8cqh + ${printBleedCssPx.value}px)`}`
+        : composition.value.footerPadding),
+  display: composition.value.footerVariant === 'hidden' ? 'none' : 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   position: 'relative' as const,
   borderTop: '0',
   order: String(composition.value.footerOrder),
-  zIndex: 3,
-  height: props.styleConfig.poster_layout?.bands?.footer?.height != null
+  zIndex: chromeBandElevated('footer') ? 60 : 3,
+  boxSizing: 'border-box' as const,
+  minHeight: '0',
+  flex: composition.value.footerVariant === 'hidden'
+    ? '0 0 0'
+    : composition.value.id === 'transit-diagram'
+      ? '0 0 8%'
+      : posterLayout.value.bands.footer.height != null
+        ? `0 0 ${posterLayout.value.bands.footer.height}%`
+      : undefined,
+  height: composition.value.footerVariant === 'hidden'
+    ? '0'
+    : composition.value.id === 'transit-diagram'
+      ? '8%'
+      : posterLayout.value.bands.footer.height != null
     ? `${posterLayout.value.bands.footer.height}%`
     : undefined,
 }))
@@ -3009,6 +5489,17 @@ const mapAreaStyle = computed(() => ({
   margin: composition.value.mapMargin,
   border: composition.value.mapBorder,
   boxShadow: composition.value.mapShadow,
+  flex: composition.value.id === 'transit-diagram'
+    ? '0 0 75%'
+    : props.styleConfig.color_theme === 'editorial-minimal'
+      ? '0 0 64%'
+      : undefined,
+  height: composition.value.id === 'transit-diagram'
+    ? '75%'
+    : props.styleConfig.color_theme === 'editorial-minimal'
+      ? '64%'
+      : undefined,
+  boxSizing: 'border-box' as const,
   minHeight: '0',
   zIndex: 2,
   color: fg.value,
@@ -3017,11 +5508,32 @@ const mapAreaStyle = computed(() => ({
 const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
 const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
 const showMapGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'map')
+const elevationProfilePosition = computed(() => props.styleConfig.elevation_profile_position ?? 'map-overlay')
+const elevationProfileHeight = computed(() => props.styleConfig.elevation_profile_height ?? (elevationProfilePosition.value === 'separate-band' ? 12 : 22))
+const showElevationProfile = computed(() =>
+  props.styleConfig.show_elevation_profile === true &&
+  mapReady.value &&
+  themeDataContext.value.hasElevation &&
+  !themeDataContract.value.omittedMapFeatures.includes('elevation_profile'),
+)
+const showOverlayElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'map-overlay')
+const showSeparateElevationProfile = computed(() => showElevationProfile.value && elevationProfilePosition.value === 'separate-band')
+const elevationProfileBandStyle = computed(() => ({
+  order: String(composition.value.id === 'splits-grid' ? composition.value.headerOrder + 1 : composition.value.mapOrder),
+  margin: composition.value.mapMargin,
+  height: `${elevationProfileHeight.value}cqh`,
+  minHeight: '0',
+  zIndex: 2,
+  color: fg.value,
+  backgroundColor: props.styleConfig.label_bg_color ?? props.styleConfig.background_color,
+}))
 const gridOverlayStyle = computed(() => {
   const color = props.styleConfig.grid_color ?? props.styleConfig.label_text_color ?? '#1C1917'
   const weight = props.styleConfig.grid_weight ?? 1
+  const spacing = Math.max(3, Math.min(16, props.styleConfig.grid_spacing ?? 8))
   return {
     opacity: String(props.styleConfig.grid_opacity ?? 0.2),
+    backgroundSize: `${spacing}cqw ${spacing}cqh`,
     backgroundImage: [
       `linear-gradient(to right, ${color} 0 ${weight}px, transparent ${weight}px)`,
       `linear-gradient(to bottom, ${color} 0 ${weight}px, transparent ${weight}px)`,
@@ -3033,6 +5545,7 @@ const posterStatsStyle = computed(() => ({
   gap: composition.value.statsEmphasis === 'numeric' ? '1.6cqw' : '2.4cqw',
   transform: composition.value.statsEmphasis === 'large' ? 'scale(1.12)' : 'none',
   transformOrigin: 'left center',
+  maxWidth: showOccasionSlot.value && occasionText.value ? '52cqw' : '68cqw',
 }))
 
 function statNumberStyleFor(slot: PosterTextSlot) {
@@ -3041,7 +5554,7 @@ function statNumberStyleFor(slot: PosterTextSlot) {
   fontWeight: effectiveSlotWeight(slot, typography.value.statsWeight),
   fontStyle: effectiveSlotItalic(slot),
   fontSize: `${effectiveSlotFontSizeCqh(slot, 2.6)}cqh`,
-  letterSpacing: '-0.01em',
+  letterSpacing: '0',
   lineHeight: '1',
   color: effectiveSlotColor(slot, fg.value),
   opacity: String(effectiveSlotOpacity(slot, 1)),
@@ -3087,6 +5600,22 @@ function statCustomTextStyle(slot: PosterTextSlot) {
     ...statNumberStyleFor(slot),
     fontSize: `${effectiveSlotFontSizeCqh(slot, 1.6)}cqh`,
     whiteSpace: 'pre-line' as const,
+    textAlign: effectiveSlotAlign(slot),
+  }
+}
+
+function blueprintTitleblockStatStyle(slot: PosterTextSlot) {
+  return {
+    fontFamily: effectiveSlotFont(slot, typography.value.statsFont),
+    fontWeight: effectiveSlotWeight(slot, '520'),
+    fontStyle: effectiveSlotItalic(slot),
+    fontSize: `${effectiveSlotFontSizeCqh(slot, 1.34)}cqh`,
+    letterSpacing: '0.14em',
+    lineHeight: '1',
+    color: effectiveSlotColor(slot, fg.value),
+    opacity: String(effectiveSlotOpacity(slot, 0.76)),
+    display: 'block',
+    whiteSpace: 'nowrap' as const,
     textAlign: effectiveSlotAlign(slot),
   }
 }
@@ -3165,9 +5694,13 @@ const occasionStyle = computed(() => ({
   color: effectiveSlotColor('occasion_text', fg.value),
   opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
   textAlign: effectiveSlotAlign('occasion_text', 'center'),
-  position: 'absolute' as const,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  position: 'relative' as const,
+  flex: '1 1 auto',
+  minWidth: '0',
+  maxWidth: '36cqw',
+  margin: '0 2cqw',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
   whiteSpace: 'nowrap' as const,
   outline: 'none',
   textShadow: getTextHalo(bg.value),
@@ -3234,16 +5767,126 @@ function currentVisualScale(): number {
   })
 }
 
+function contourAdaptedStyleConfig(styleConfig: StyleConfig): StyleConfig {
+  return resolveAdaptiveContourStyleConfig(styleConfig, activeContourStats())
+}
+
 function buildScaledMapStyle(styleConfig: StyleConfig): maplibregl.StyleSpecification {
+  const contourStyleConfig = contourAdaptedStyleConfig(styleConfig)
   const style = buildMapStyle(
-    styleConfig,
+    contourStyleConfig,
     config.public.mapboxToken,
     config.public.maptilerToken,
-    getContourTileUrl(styleConfig),
+    getContourTileUrl(contourStyleConfig),
     config.public.stadiaToken,
   ) as maplibregl.StyleSpecification
   const zoomCompensatedStyle = applyViewportZoomCompensationToStyle(style, printZoomCompensationDelta())
   return applyViewportScaleToStyle(zoomCompensatedStyle, currentVisualScale()) as maplibregl.StyleSpecification
+}
+
+function visibleRouteContourStats(): Partial<RouteStats> | null {
+  if (!mapInstance) return null
+  const routeGeojson = props.map.geojson as GeoJSON.FeatureCollection | undefined
+  if (!routeGeojson?.features?.length) return null
+
+  const bounds = mapInstance.getBounds()
+  const visibleCoords = getAllRouteCoords(routeGeojson).filter(coord => (
+    Number.isFinite(coord[0]) &&
+    Number.isFinite(coord[1]) &&
+    Number.isFinite(coord[2]) &&
+    bounds.contains([coord[0], coord[1]] as [number, number])
+  ))
+  if (visibleCoords.length < 4 || !coordsHaveElevation(visibleCoords)) return null
+
+  const stats = routeStatsForCoords(visibleCoords)
+  const reliefM = (stats.max_elevation_m ?? 0) - (stats.min_elevation_m ?? 0)
+  if (reliefM <= 0 && (stats.elevation_gain_m ?? 0) <= 0 && (stats.elevation_loss_m ?? 0) <= 0) return null
+  return stats
+}
+
+function contourAdaptationSignature(styleConfig: StyleConfig = props.styleConfig): string {
+  if (!styleUsesContours(styleConfig)) return 'contours-disabled'
+  const stats = activeContourStats()
+  const contourConfig = contourAdaptedStyleConfig(styleConfig)
+  return JSON.stringify({
+    detail: contourConfig.contour_detail,
+    thresholds: resolveAdaptiveContourThresholds(contourConfig, stats),
+    overzoom: resolveAdaptiveContourOverzoom(contourConfig),
+    opacity: contourConfig.contour_opacity,
+    minorWidth: contourConfig.contour_minor_width,
+    majorWidth: contourConfig.contour_major_width,
+    atlasContour: contourConfig.atlas_layer_settings?.contour ?? null,
+  })
+}
+
+function devContourProfile() {
+  const stats = activeContourStats()
+  const contourConfig = contourAdaptedStyleConfig(props.styleConfig)
+  return {
+    source: contourViewStats.value ? 'visible-route' : props.map.stats ? 'route-stats' : 'unknown',
+    stats,
+    relief: resolveAdaptiveContourReliefProfile(stats),
+    detail: contourConfig.contour_detail,
+    thresholds: resolveAdaptiveContourThresholds(contourConfig, stats),
+    overzoom: resolveAdaptiveContourOverzoom(contourConfig),
+  }
+}
+
+async function reloadStyleForContourProfile(styleConfig: StyleConfig = props.styleConfig): Promise<boolean> {
+  if (!mapInstance || contourProfileReloading) return false
+  contourProfileReloading = true
+  const instance = mapInstance
+  const cameraBeforeReload = snapshotCurrentCamera()
+  mapReady.value = false
+  if (styleUsesContours(styleConfig)) await ensureContourProtocol()
+
+  return await new Promise<boolean>((resolve) => {
+    const complete = () => {
+      populateRouteSource()
+      populateSegmentSources()
+      placePinMarkers()
+      apply3DTerrain({ animate: false })
+      restoreCameraAfterStyleReload(cameraBeforeReload)
+      applyViewportScaledLayerProperties(styleConfig)
+      mapReady.value = true
+      contourProfileReloading = false
+      if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
+      nextTick(recomputeOverlays)
+      if (props.deleteBrushActive) nextTick(activateDeleteBrush)
+      if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
+      if (props.segmentEditMode) nextTick(syncSegmentEditSources)
+      markPrintRenderReady()
+      resolve(true)
+    }
+
+    try {
+      instance.once('styledata', complete)
+      instance.setStyle(buildScaledMapStyle(styleConfig))
+    } catch {
+      instance.off('styledata', complete)
+      contourProfileReloading = false
+      mapReady.value = true
+      resolve(false)
+    }
+  })
+}
+
+async function refreshContourViewProfile(options: { reloadStyle?: boolean } = {}): Promise<boolean> {
+  if (!mapInstance || !styleUsesContours(props.styleConfig)) return false
+  const before = contourAdaptationSignature()
+  contourViewStats.value = visibleRouteContourStats()
+  const after = contourAdaptationSignature()
+  if (!options.reloadStyle || before === after) return false
+  return await reloadStyleForContourProfile()
+}
+
+function scheduleContourViewProfileRefresh() {
+  if (!mapInstance || !mapReady.value || contourProfileReloading || !styleUsesContours(props.styleConfig)) return
+  if (contourViewRefreshTimer) clearTimeout(contourViewRefreshTimer)
+  contourViewRefreshTimer = setTimeout(() => {
+    contourViewRefreshTimer = null
+    void refreshContourViewProfile({ reloadStyle: true })
+  }, 180)
 }
 
 function addTonerDotPatternImage(instance: maplibregl.Map, id: string): boolean {
@@ -3315,10 +5958,65 @@ function applyViewportScaledLayerProperties(styleConfig: StyleConfig = props.sty
   }
 }
 
+function posterTextFitElements() {
+  return Array.from(posterCanvasEl.value?.querySelectorAll<HTMLElement>('[data-poster-fit-slot]') ?? [])
+}
+
+function posterTextFitBox(el: HTMLElement) {
+  const container = el.closest<HTMLElement>('.chrome-grid-cell') ?? el.parentElement ?? el
+  const rect = container.getBoundingClientRect()
+  return {
+    width: Math.max(0, rect.width),
+    height: Math.max(0, rect.height),
+  }
+}
+
+function clearPosterFit(el: HTMLElement) {
+  el.style.removeProperty('--poster-fit-font-size')
+  el.removeAttribute('data-poster-fit-clipped')
+}
+
+async function settlePosterTextFit(): Promise<void> {
+  const runId = ++textFitRunId
+  textFitSettled.value = false
+  await nextTick()
+  const elements = posterTextFitElements()
+  await Promise.all(elements.map(async (el) => {
+    const slot = el.dataset.posterFitSlot as PosterTextSlot | undefined
+    if (!slot) return
+    if (slotOverride(slot).font_size_pt != null) {
+      clearPosterFit(el)
+      return
+    }
+    const targetSizeCqh = Number(el.dataset.posterFitTargetCqh)
+    if (!Number.isFinite(targetSizeCqh) || targetSizeCqh <= 0) return
+    const minScale = Number(el.dataset.posterFitMinScale || 1)
+    const rawMaxLines = Number(el.dataset.posterFitMaxLines)
+    const result = await fitTextToBox(el, posterTextFitBox(el), {
+      targetSizeCqh,
+      minScale,
+      maxLines: Number.isFinite(rawMaxLines) && rawMaxLines > 0 ? rawMaxLines : undefined,
+    })
+    el.toggleAttribute('data-poster-fit-clipped', result.clipped)
+  }))
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  if (runId === textFitRunId) textFitSettled.value = true
+}
+
+function schedulePosterTextFit() {
+  textFitSettled.value = false
+  if (textFitTimer) clearTimeout(textFitTimer)
+  textFitTimer = setTimeout(() => {
+    textFitTimer = null
+    void settlePosterTextFit()
+  }, 0)
+}
+
 async function waitForPrintableAssets() {
   await nextTick()
   const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
   if (fonts?.ready) await fonts.ready
+  await settlePosterTextFit()
 
   const images = Array.from(posterCanvasEl.value?.querySelectorAll('img') ?? [])
   await Promise.all(images.map((img) => {
@@ -3342,8 +6040,9 @@ function mapCanvasDiagnostics(instance: maplibregl.Map) {
   const canvas = instance.getCanvas()
   const cssWidth = canvas.clientWidth || Number.parseFloat(canvas.style.width) || 0
   const cssHeight = canvas.clientHeight || Number.parseFloat(canvas.style.height) || 0
+  const maybeScaledMap = instance as maplibregl.Map & { getPixelRatio?: () => number }
   return {
-    mapPixelRatio: typeof instance.getPixelRatio === 'function' ? instance.getPixelRatio() : null,
+    mapPixelRatio: typeof maybeScaledMap.getPixelRatio === 'function' ? maybeScaledMap.getPixelRatio() : null,
     browserDevicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : null,
     mapCanvasWidth: canvas.width,
     mapCanvasHeight: canvas.height,
@@ -3356,28 +6055,36 @@ function mapCanvasDiagnostics(instance: maplibregl.Map) {
 
 function printableMapStatus(instance: maplibregl.Map, timedOut = false) {
   const contoursExpected = styleUsesContours(props.styleConfig)
-  const contourSourceId = instance.getSource('contours')
-    ? 'contours'
-    : instance.getSource('mapbox-terrain-v2')
-      ? 'mapbox-terrain-v2'
-      : null
+  const contourSourceId = instance.getSource('contours') ? 'contours' : null
   const demExpected = props.styleConfig.show_hillshade === true || props.styleConfig.map_3d === true
   const tilesLoaded = typeof instance.areTilesLoaded === 'function' ? instance.areTilesLoaded() : instance.loaded()
   const visibleSegmentCount = (props.styleConfig.trail_segments ?? []).filter(segment => segment.visible).length
   const visibleSegmentLayerCount = (props.styleConfig.trail_segments ?? []).filter(segment =>
     segment.visible && !!instance.getLayer(`trail-seg-line-${segment.id}`),
   ).length
-  const primaryRouteExpected = shouldRenderPrimaryRoute(props.styleConfig)
+  const primaryRouteExpected = shouldExpectPrimaryRouteContent(
+    props.styleConfig,
+    props.map.geojson as GeoJSON.FeatureCollection | undefined,
+  )
   const routeLayerPresent = !!instance.getLayer('route-line')
+  const routeSourcePresent = !!instance.getSource('route')
+  const routeSourceLoaded = !primaryRouteExpected || sourceLoaded(instance, 'route')
+  const routeFeatureCount = (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0
   const segmentLayersPresent = visibleSegmentCount === 0 || visibleSegmentLayerCount === visibleSegmentCount
-  const routeContentPresent = (primaryRouteExpected ? routeLayerPresent : true) && segmentLayersPresent
+  const routeContentPresent = (
+    primaryRouteExpected
+      ? routeLayerPresent && routeSourcePresent && routeSourceLoaded && routeFeatureCount > 0
+      : true
+  ) && segmentLayersPresent
   return {
     ready: true,
     mapLoaded: instance.loaded(),
     tilesLoaded,
     primaryRouteExpected,
     routeLayerPresent,
-    routeFeatureCount: (props.map.geojson as GeoJSON.FeatureCollection | undefined)?.features?.length ?? 0,
+    routeSourcePresent,
+    routeSourceLoaded,
+    routeFeatureCount,
     visibleSegmentCount,
     visibleSegmentLayerCount,
     segmentLayersPresent,
@@ -3413,14 +6120,24 @@ function markPrintRenderReady() {
   const complete = async (timedOut = false) => {
     if (renderReady.value) return
     const status = printableMapStatus(instance, timedOut)
-    if (!timedOut && !printableMapComplete(status)) return
+    const statusComplete = printableMapComplete(status)
+    if (!timedOut && !statusComplete) return
+    const finalStatus = timedOut && statusComplete
+      ? printableMapStatus(instance, false)
+      : status
     cleanup()
     try {
       await waitForPrintableAssets()
+      const printGuardErrors = isPrintRender.value
+        ? computePosterPrintGuardViolations(props.styleConfig).filter(violation => violation.severity === 'error')
+        : []
+      if (printGuardErrors.length) {
+        throw new Error(`Poster print guards failed: ${printGuardErrors.map(violation => violation.message).join(' ')}`)
+      }
       renderReady.value = true
-      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = status
+      ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof finalStatus; __RENDER_READY?: boolean }).__RADMAPS_RENDER_STATUS = finalStatus
       ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
-      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: status }))
+      document.dispatchEvent(new CustomEvent('radmaps-render-ready', { detail: finalStatus }))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       ;(window as unknown as { __RADMAPS_RENDER_STATUS?: { ready: false; error: string }; __RENDER_ERROR?: string }).__RADMAPS_RENDER_STATUS = { ready: false, error: message }
@@ -3433,6 +6150,13 @@ function markPrintRenderReady() {
   instance.on('styledata', check)
   readyTimer = setTimeout(() => { void complete(true) }, 25_000)
   requestAnimationFrame(check)
+}
+
+function publishEditorRenderStatus() {
+  if (isPrintRender.value || !mapInstance || typeof window === 'undefined') return
+  const status = printableMapStatus(mapInstance)
+  ;(window as unknown as { __RADMAPS_RENDER_STATUS?: typeof status }).__RADMAPS_RENDER_STATUS = status
+  document.dispatchEvent(new CustomEvent('radmaps-render-status', { detail: status }))
 }
 
 // ── Logo styles ───────────────────────────────────────────────────────────────
@@ -3473,12 +6197,16 @@ const logoFooterStyle = computed(() => ({
 // ── Text overlay styles ────────────────────────────────────────────────────────
 
 function overlayStyle(o: TextOverlay): Record<string, string> {
+  const anchorBox = resolveFreeOverlayBox(props.styleConfig, `text:${o.id}`)
   const xOffset = o.alignment === 'center' ? '-50%' : o.alignment === 'right' ? '-100%' : '0%'
-  const fontSize = resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
+  const fontSize = moveableTextResizePreview.value?.id === o.id
+    ? moveableTextResizePreview.value.font_size
+    : resizePreview.value?.id === o.id ? resizePreview.value.font_size : o.font_size
+  const rotation = o.rotation ?? 0
   return {
     position: 'absolute',
-    left: `${o.x}%`,
-    top: `${o.y}%`,
+    left: `${anchorBox.x ?? o.x}%`,
+    top: `${anchorBox.y ?? o.y}%`,
     fontFamily: toFontStack(o.font_family),
     fontSize: `${fontSize}cqh`,
     color: o.color,
@@ -3486,13 +6214,14 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
     opacity: String(o.opacity),
     fontWeight: o.bold ? '700' : '400',
     fontStyle: o.italic ? 'italic' : 'normal',
-    transform: `translateX(${xOffset})`,
+    transform: `translateX(${xOffset}) rotate(${rotation}deg)`,
+    transformOrigin: o.alignment === 'center' ? 'center center' : o.alignment === 'right' ? 'right center' : 'left center',
     whiteSpace: 'pre',
     width: 'max-content',
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
-    zIndex: '8',
+    zIndex: String(anchorBox.zIndex ?? o.z_index ?? 30),
     // Halo: skip when bg_color is set (the pill background already provides contrast)
     ...(!o.bg_color ? { textShadow: getTextHalo() } : {}),
     ...(o.bg_color ? {
@@ -3504,20 +6233,42 @@ function overlayStyle(o: TextOverlay): Record<string, string> {
 }
 
 function imageAssetStyle(asset: MapAsset): Record<string, string> {
-  const preview = assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
+  const anchorBox = resolveFreeOverlayBox(props.styleConfig, `asset:${asset.id}`)
+  const preview = moveableResizePreview.value?.id === `asset:${asset.id}`
+    ? moveableResizePreview.value
+    : assetResizePreview.value?.id === asset.id ? assetResizePreview.value : null
   return {
     position: 'absolute',
-    left: `${asset.x}%`,
-    top: `${asset.y}%`,
-    width: `${preview?.width ?? asset.width}%`,
-    height: `${preview?.height ?? asset.height}%`,
+    left: `${anchorBox.x ?? asset.x}%`,
+    top: `${anchorBox.y ?? asset.y}%`,
+    width: `${preview?.width ?? anchorBox.width ?? asset.width}%`,
+    height: `${preview?.height ?? anchorBox.height ?? asset.height}%`,
     opacity: String(asset.opacity),
     transform: `rotate(${asset.rotation}deg)`,
     transformOrigin: 'center center',
     pointerEvents: props.editable ? 'auto' : 'none',
     cursor: props.editable ? 'move' : 'default',
     userSelect: 'none',
-    zIndex: String(asset.z_index),
+    zIndex: String(anchorBox.zIndex ?? asset.z_index),
+  }
+}
+
+function iconOverlayStyle(icon: IconOverlay): Record<string, string> {
+  const preview = moveableResizePreview.value?.id === `icon:${icon.id}` ? moveableResizePreview.value : null
+  return {
+    position: 'absolute',
+    left: `${icon.x}%`,
+    top: `${icon.y}%`,
+    width: `${preview?.width ?? icon.width}%`,
+    height: `${preview?.height ?? icon.height}%`,
+    color: icon.color,
+    opacity: String(icon.opacity),
+    transform: `rotate(${icon.rotation}deg)`,
+    transformOrigin: 'center center',
+    pointerEvents: props.editable ? 'auto' : 'none',
+    cursor: props.editable ? 'move' : 'default',
+    userSelect: 'none',
+    zIndex: String(icon.z_index),
   }
 }
 
@@ -3661,7 +6412,7 @@ const activeChromeItalic = computed(() => {
 
 const activeChromeTextValue = computed(() => {
   const block = activeChromeBlock.value
-  if (!block) return null
+  if (!block || isChromeSpacerBlock(block)) return null
   return chromeBlockText(block)
 })
 
@@ -3684,6 +6435,10 @@ const activeChromePaddingValues = computed<[number, number, number, number]>(() 
     ? findChromeCell(target.band, target.rowId, target.cellId)?.padding ?? [0, 0, 0, 0]
     : [0, 0, 0, 0]
 })
+
+const activeChromeBandPaddingValues = computed<[number, number, number, number]>(() =>
+  posterLayout.value.bands[activeChromeBand.value].padding ?? [0, 0, 0, 0],
+)
 
 function activeChromeToolbarAnchorElement() {
   return activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
@@ -3784,11 +6539,269 @@ function setChromeValign(valign: NonNullable<ChromeBlock['valign']>) {
   patchActiveChromeLayoutBlock({ valign })
 }
 
+type ChromeFloatingRect = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}
+
+function chromeFloatingPadding() {
+  return {
+    top: 64,
+    right: window.innerWidth >= 1024 ? 376 : 16,
+    bottom: 16,
+    left: 16,
+  }
+}
+
+function chromeFloatingBounds() {
+  const padding = chromeFloatingPadding()
+  return {
+    left: padding.left,
+    top: padding.top,
+    right: window.innerWidth - padding.right,
+    bottom: window.innerHeight - padding.bottom,
+  }
+}
+
+function rectFromDomRect(rect: DOMRect): ChromeFloatingRect {
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+function rectFromPosition(left: number, top: number, width: number, height: number): ChromeFloatingRect {
+  return {
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
+  }
+}
+
+function rectOverlapArea(a: ChromeFloatingRect, b: ChromeFloatingRect) {
+  const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+  const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+  return width * height
+}
+
+function elementVisibleForChromeCollision(el: HTMLElement) {
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const style = window.getComputedStyle(el)
+  return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0.08
+}
+
+function selectedChromeCollisionRects() {
+  const rects: Array<{ rect: ChromeFloatingRect; weight: number }> = []
+  const seen = new Set<HTMLElement>()
+  const addElement = (el: HTMLElement | null | undefined, weight: number) => {
+    if (!el || seen.has(el) || !elementVisibleForChromeCollision(el)) return
+    seen.add(el)
+    rects.push({ rect: rectFromDomRect(el.getBoundingClientRect()), weight })
+  }
+  const cell = activeChromeCellAnchorElement()
+  const text = activeChromeTextAnchorElement()
+  addElement(cell, 8)
+  addElement(text, 12)
+  if (posterCanvasEl.value) {
+    posterCanvasEl.value.querySelectorAll<HTMLElement>('.chrome-grid-block').forEach(el => addElement(el, 4))
+  }
+  if (cell) {
+    addElement(cell.querySelector<HTMLElement>('.chrome-cell-trash'), 18)
+    cell.querySelectorAll<HTMLElement>('.chrome-cell-add-col, .chrome-cell-resize-col').forEach(el => addElement(el, 10))
+    cell.closest<HTMLElement>('.chrome-grid-row')
+      ?.querySelectorAll<HTMLElement>('.chrome-row-add-row, .chrome-row-resize-row')
+      .forEach(el => addElement(el, 8))
+  }
+  return rects
+}
+
+function clampChromeContextToolbarPosition(left: number, top: number) {
+  const toolbar = chromeLayoutBuilderEl.value
+  const rect = toolbar?.getBoundingClientRect()
+  const bounds = chromeFloatingBounds()
+  const width = rect?.width ?? 0
+  const height = rect?.height ?? 0
+  const maxLeft = Math.max(bounds.left, bounds.right - width)
+  const maxTop = Math.max(bounds.top, bounds.bottom - height)
+  return {
+    left: Math.round(Math.min(maxLeft, Math.max(bounds.left, left))),
+    top: Math.round(Math.min(maxTop, Math.max(bounds.top, top))),
+  }
+}
+
+function bestChromeContextToolbarPosition(reference: HTMLElement, toolbar: HTMLElement) {
+  const referenceRect = rectFromDomRect(reference.getBoundingClientRect())
+  const cellRect = activeChromeCellAnchorElement()?.getBoundingClientRect()
+  const anchorRect = cellRect ? rectFromDomRect(cellRect) : referenceRect
+  const posterRect = posterCanvasEl.value ? rectFromDomRect(posterCanvasEl.value.getBoundingClientRect()) : null
+  const toolbarRect = toolbar.getBoundingClientRect()
+  const width = toolbarRect.width
+  const height = toolbarRect.height
+  const gap = 14
+  const bounds = chromeFloatingBounds()
+  const centerLeft = anchorRect.left + anchorRect.width / 2 - width / 2
+  const centerTop = anchorRect.top + anchorRect.height / 2 - height / 2
+  const collisionRects = selectedChromeCollisionRects()
+  const contentBottom = Math.max(anchorRect.bottom, ...collisionRects.map(collision => collision.rect.bottom))
+  const contentTop = Math.min(anchorRect.top, ...collisionRects.map(collision => collision.rect.top))
+  const preferBelow = posterRect
+    ? anchorRect.top + anchorRect.height / 2 < posterRect.top + posterRect.height / 2
+    : anchorRect.top < window.innerHeight / 2
+  const candidates: Array<{ left: number; top: number; priority: number }> = [
+    {
+      left: posterRect ? posterRect.left + posterRect.width / 2 - width / 2 : centerLeft,
+      top: contentBottom + gap,
+      priority: 0,
+    },
+    {
+      left: posterRect ? posterRect.left + posterRect.width / 2 - width / 2 : centerLeft,
+      top: contentTop - height - gap,
+      priority: 1,
+    },
+    {
+      left: centerLeft,
+      top: preferBelow ? anchorRect.bottom + gap : anchorRect.top - height - gap,
+      priority: 2,
+    },
+    {
+      left: centerLeft,
+      top: preferBelow ? anchorRect.top - height - gap : anchorRect.bottom + gap,
+      priority: 3,
+    },
+    {
+      left: anchorRect.right + gap,
+      top: centerTop,
+      priority: 4,
+    },
+    {
+      left: anchorRect.left - width - gap,
+      top: centerTop,
+      priority: 5,
+    },
+  ]
+  if (posterRect) {
+    candidates.push(
+      {
+        left: posterRect.left + posterRect.width / 2 - width / 2,
+        top: posterRect.top + 12,
+        priority: 6,
+      },
+      {
+        left: posterRect.left + posterRect.width / 2 - width / 2,
+        top: posterRect.bottom - height - 12,
+        priority: 7,
+      },
+      {
+        left: posterRect.right + gap,
+        top: centerTop,
+        priority: 8,
+      },
+      {
+        left: posterRect.left - width - gap,
+        top: centerTop,
+        priority: 9,
+      },
+    )
+  }
+  candidates.push({
+    left: bounds.left + (bounds.right - bounds.left - width) / 2,
+    top: bounds.top + 10,
+    priority: 10,
+  })
+  let best = clampChromeContextToolbarPosition(candidates[0].left, candidates[0].top)
+  let bestScore = Number.POSITIVE_INFINITY
+  for (const candidate of candidates) {
+    const clamped = clampChromeContextToolbarPosition(candidate.left, candidate.top)
+    const candidateRect = rectFromPosition(clamped.left, clamped.top, width, height)
+    let score = candidate.priority * 100
+    for (const collision of collisionRects) {
+      score += rectOverlapArea(candidateRect, collision.rect) * collision.weight
+    }
+    if (posterRect) {
+      score += rectOverlapArea(candidateRect, posterRect) * 0.02
+    }
+    if (score < bestScore) {
+      bestScore = score
+      best = clamped
+    }
+  }
+  return best
+}
+
+function setChromeContextToolbarFloatingStyle(left: number, top: number) {
+  const position = clampChromeContextToolbarPosition(left, top)
+  const rect = chromeLayoutBuilderEl.value?.getBoundingClientRect()
+  const height = rect?.height ?? 0
+  chromeLayoutBuilderPopoverVertical.value = position.top + height > window.innerHeight * 0.58 ? 'top' : 'bottom'
+  chromeLayoutBuilderPopoverAlign.value = position.left < 80 ? 'left' : 'right'
+  chromeLayoutBuilderFloatingStyle.value = {
+    position: 'fixed',
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+    visibility: 'visible',
+    transform: 'none',
+  }
+}
+
+function startChromeContextToolbarDrag(e: PointerEvent) {
+  if (!chromeLayoutBuilderEl.value || typeof window === 'undefined') return
+  const rect = chromeLayoutBuilderEl.value.getBoundingClientRect()
+  activeChromeContextToolbarDrag.value = {
+    startX: e.clientX,
+    startY: e.clientY,
+    startLeft: rect.left,
+    startTop: rect.top,
+  }
+  chromeContextToolbarManualPosition.value = { left: rect.left, top: rect.top }
+  chromeLayoutBuilderEl.value.classList.add('is-dragging')
+  window.addEventListener('pointermove', onChromeContextToolbarDragMove)
+  window.addEventListener('pointerup', finishChromeContextToolbarDrag, { once: true })
+  window.addEventListener('pointercancel', finishChromeContextToolbarDrag, { once: true })
+}
+
+function onChromeContextToolbarDragMove(e: PointerEvent) {
+  const drag = activeChromeContextToolbarDrag.value
+  if (!drag) return
+  const next = clampChromeContextToolbarPosition(
+    drag.startLeft + e.clientX - drag.startX,
+    drag.startTop + e.clientY - drag.startY,
+  )
+  chromeContextToolbarManualPosition.value = next
+  setChromeContextToolbarFloatingStyle(next.left, next.top)
+}
+
+function finishChromeContextToolbarDrag() {
+  teardownChromeContextToolbarDrag()
+}
+
+function teardownChromeContextToolbarDrag() {
+  if (typeof window === 'undefined') return
+  activeChromeContextToolbarDrag.value = null
+  chromeLayoutBuilderEl.value?.classList.remove('is-dragging')
+  window.removeEventListener('pointermove', onChromeContextToolbarDragMove)
+  window.removeEventListener('pointerup', finishChromeContextToolbarDrag)
+  window.removeEventListener('pointercancel', finishChromeContextToolbarDrag)
+}
+
 function cleanupChromeFloating() {
   cleanupChromeToolbarFloating?.()
   cleanupChromeStructureFloating?.()
+  cleanupChromeLayoutBuilderFloating?.()
   cleanupChromeToolbarFloating = null
   cleanupChromeStructureFloating = null
+  cleanupChromeLayoutBuilderFloating = null
 }
 
 function toolbarPointerStyle(reference: HTMLElement, floatingX: number, floatingWidth: number, placement: string) {
@@ -3871,10 +6884,31 @@ async function updateChromeStructureFloating() {
   }
 }
 
+async function updateChromeLayoutBuilderFloating() {
+  if (!chromeContextToolbarVisible.value || !chromeLayoutBuilderEl.value) {
+    chromeLayoutBuilderFloatingStyle.value = { ...chromeLayoutBuilderFloatingStyle.value, visibility: 'hidden' }
+    return
+  }
+  const manualPosition = chromeContextToolbarManualPosition.value
+  if (manualPosition) {
+    setChromeContextToolbarFloatingStyle(manualPosition.left, manualPosition.top)
+    return
+  }
+  const reference = activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
+  if (!reference) return
+  const position = bestChromeContextToolbarPosition(reference, chromeLayoutBuilderEl.value)
+  setChromeContextToolbarFloatingStyle(position.left, position.top)
+}
+
 async function syncChromeFloating() {
   if (typeof window === 'undefined') return
   await nextTick()
   cleanupChromeFloating()
+  const layoutReference = activeChromeCellAnchorElement() ?? activeChromeTextAnchorElement()
+  if (chromeContextToolbarVisible.value && layoutReference && chromeLayoutBuilderEl.value) {
+    cleanupChromeLayoutBuilderFloating = autoUpdate(layoutReference, chromeLayoutBuilderEl.value, updateChromeLayoutBuilderFloating)
+    await updateChromeLayoutBuilderFloating()
+  }
   const toolbarReference = activeChromeToolbarAnchorElement()
   if (chromeToolbarVisible.value && toolbarReference && chromeToolbarEl.value) {
     cleanupChromeToolbarFloating = autoUpdate(toolbarReference, chromeToolbarEl.value, updateChromeToolbarFloating)
@@ -3888,12 +6922,27 @@ async function syncChromeFloating() {
 }
 
 watch(
-  [chromeToolbarVisible, chromeStructurePopoverVisible, activeChromeBlockId, chromePaddingPanelOpen, selectedChromeTarget],
+  [chromeToolbarVisible, chromeStructurePopoverVisible, chromeContextToolbarVisible, activeChromeBlockId, chromePaddingPanelOpen, selectedChromeTarget],
   () => { void syncChromeFloating() },
   { flush: 'post' },
 )
 
+watch(
+  () => {
+    const target = selectedChromeTarget.value
+    if (!target) return ''
+    if (target.type === 'band') return `${target.band}:band`
+    if (target.type === 'row') return `${target.band}:${target.rowId}:row`
+    return `${target.band}:${target.rowId}:${target.cellId}`
+  },
+  () => {
+    chromeContextToolbarManualPosition.value = null
+  },
+)
+
 watch(posterLayout, () => { void syncChromeFloating() }, { flush: 'post' })
+
+watch(selectedChromeTarget, target => emitChromeSelectionChanged(target), { deep: true })
 
 // ── Trail legend ──────────────────────────────────────────────────────────────
 
@@ -3993,27 +7042,6 @@ const vignetteStyle = computed(() => {
 
 const grainOpacity = computed(() => props.styleConfig.tile_grain ?? 0)
 
-const showTerrainIllusionOverlay = computed(() => {
-  const preset = props.styleConfig.preset ?? ''
-  return preset.startsWith('radmaps-')
-    && preset !== 'radmaps-watercolor'
-    && (props.styleConfig.show_contours || props.styleConfig.show_hillshade || preset.includes('watercolor') || preset === 'radmaps-night-relief')
-})
-
-const terrainIllusionClass = computed(() => ({
-  'terrain-illusion-overlay--watercolor': props.styleConfig.preset?.includes('watercolor') && props.styleConfig.preset !== 'radmaps-watercolor',
-  'terrain-illusion-overlay--night': props.styleConfig.preset === 'radmaps-night-relief',
-  'terrain-illusion-overlay--topo': props.styleConfig.preset === 'radmaps-field-topo' || props.styleConfig.preset === 'radmaps-simple-contour',
-}))
-
-const terrainIllusionStyle = computed(() => {
-  const preset = props.styleConfig.preset ?? ''
-  const base = preset.includes('watercolor') && preset !== 'radmaps-watercolor' ? 0.10 : preset === 'radmaps-night-relief' ? 0.12 : 0.07
-  const contourBoost = Math.min(0.05, Math.max(0, (props.styleConfig.contour_detail ?? 3) - 2) * 0.012)
-  const hillshadeBoost = (props.styleConfig.show_hillshade ? props.styleConfig.hillshade_intensity ?? 0.35 : 0) * 0.05
-  return { opacity: Math.min(0.18, base + contourBoost + hillshadeBoost).toFixed(3) }
-})
-
 // ── SVG overlay state (leader lines + pin labels) ─────────────────────────────
 // All positions are in px relative to the map container, recomputed on every
 // map move/zoom via recomputeOverlays(). Sizes scale with container height so
@@ -4058,6 +7086,26 @@ const pinOverlayItems = ref<PinItem[]>([])
 const draggingPin    = ref<'start' | 'finish' | null>(null)
 const draggingLeader = ref<LeaderDragState | null>(null)
 const selectedLeaderIds = ref<string[]>([])
+
+watch(
+  () => [
+    props.map.title,
+    props.map.subtitle,
+    JSON.stringify(props.map.stats ?? {}),
+    props.styleConfig.trail_name,
+    props.styleConfig.location_text,
+    props.styleConfig.occasion_text,
+    props.styleConfig.font_family,
+    props.styleConfig.color_theme,
+    props.styleConfig.composition,
+    JSON.stringify(props.styleConfig.poster_text_overrides ?? {}),
+    JSON.stringify(props.styleConfig.poster_layout ?? {}),
+    containerDims.value.w,
+    containerDims.value.h,
+  ],
+  () => schedulePosterTextFit(),
+  { flush: 'post' },
+)
 
 const posterContentMinPx = (editorMin: number) => isPrintRender.value ? 0 : editorMin
 const svgDotR         = computed(() => Math.max(posterContentMinPx(1.5), containerDims.value.h * 0.00125))
@@ -4676,20 +7724,41 @@ function restoreCameraAfterStyleReload(camera: MapCameraSnapshot | null) {
 
 function publishDevCameraHandle() {
   if (!import.meta.dev || typeof window === 'undefined') return
-  ;(window as unknown as {
+  const priority = props.mapInteractive === true ? 2 : props.editable !== false ? 1 : 0
+  const devWindow = window as unknown as {
     __RADMAPS_MAP_CAMERA__?: {
       get: () => MapCameraSnapshot | null
       jumpTo: (camera: Partial<MapCameraSnapshot>) => void
       getLayerIds: () => string[]
       hasImage: (id: string) => boolean
       getPaintProperty: (layerId: string, property: string) => unknown
+      getContourProfile: () => ReturnType<typeof devContourProfile>
+      getInteractionState: () => {
+        dragPan: boolean
+        scrollZoom: boolean
+        doubleClickZoom: boolean
+        touchZoomRotate: boolean
+      }
     }
-  }).__RADMAPS_MAP_CAMERA__ = {
+    __RADMAPS_MAP_CAMERA_OWNER__?: symbol
+    __RADMAPS_MAP_CAMERA_PRIORITY__?: number
+  }
+  if ((devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__ ?? -1) > priority) return
+  devWindow.__RADMAPS_MAP_CAMERA_OWNER__ = devCameraHandleId
+  devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__ = priority
+  devWindow.__RADMAPS_MAP_CAMERA__ = {
     get: snapshotCurrentCamera,
     jumpTo: (camera) => { mapInstance?.jumpTo(camera) },
-    getLayerIds: () => mapInstance?.getStyle().layers?.map(layer => layer.id) ?? [],
+    getLayerIds: () => mapInstance?.getStyle?.()?.layers?.map(layer => layer.id) ?? [],
     hasImage: (id) => mapInstance?.hasImage(id) ?? false,
     getPaintProperty: (layerId, property) => mapInstance?.getPaintProperty(layerId, property) ?? null,
+    getContourProfile: devContourProfile,
+    getInteractionState: () => ({
+      dragPan: mapInstance?.dragPan.isEnabled() ?? false,
+      scrollZoom: mapInstance?.scrollZoom.isEnabled() ?? false,
+      doubleClickZoom: mapInstance?.doubleClickZoom.isEnabled() ?? false,
+      touchZoomRotate: mapInstance?.touchZoomRotate.isEnabled() ?? false,
+    }),
   }
 }
 
@@ -4723,7 +7792,7 @@ onMounted(async () => {
     pitch: effectivePitch(),
     bearing: effectiveBearing(),
     attributionControl: false,
-    interactive: props.editable !== false && !(props.styleConfig.map_frozen),
+    interactive: mapViewerInteractive.value && (props.mapInteractive === true || !(props.styleConfig.map_frozen)),
     ...resolveMapLibrePrintCanvasOptions({
       isPrintRender: isPrintRender.value,
       deviceScaleFactor: props.printContext?.deviceScaleFactor,
@@ -4786,7 +7855,7 @@ onMounted(async () => {
     window.setTimeout(() => { suppressViewSave = false }, 250)
   }
 
-  mapInstance.on('load', () => {
+  mapInstance.on('load', async () => {
     populateRouteSource()
     populateSegmentSources()
     placePinMarkers()
@@ -4794,18 +7863,26 @@ onMounted(async () => {
     apply3DTerrain()
     mapReady.value = true
     liveZoom.value = mapInstance!.getZoom()
-    if (props.editable) initOverlayDrag()
+    if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
     if (queuedStyleConfig || styleConfigSignature(props.styleConfig) !== mountedStyleSignature) {
       queuedStyleConfig = null
       void applyStyleConfigUpdate(props.styleConfig, mountedStyleConfig)
     }
+    if (await refreshContourViewProfile({ reloadStyle: true })) return
     markPrintRenderReady()
+    if (!isPrintRender.value) {
+      const publishStatus = () => requestAnimationFrame(publishEditorRenderStatus)
+      mapInstance!.on('idle', publishStatus)
+      mapInstance!.on('sourcedata', publishStatus)
+      mapInstance!.on('styledata', publishStatus)
+      publishStatus()
+    }
     if (props.deleteBrushActive) nextTick(activateDeleteBrush)
     // Reconcile freeze state on initial load — the map_frozen watcher returns
     // early before mapReady, so a frozen view saved in the DB would otherwise
     // load with gestures still enabled.
-    if (props.styleConfig.map_frozen) disableAllMapGestures()
+    if (props.styleConfig.map_frozen && !canEnableMapGestures()) disableAllMapGestures()
   })
 
   mapInstance.on('zoom', () => {
@@ -4815,10 +7892,13 @@ onMounted(async () => {
 
   mapInstance.on('move', recomputeOverlays)
   mapInstance.on('moveend', scheduleViewSave)
+  mapInstance.on('moveend', scheduleContourViewProfileRefresh)
 
   resizeObserver = new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame)
-    resizeFrame = requestAnimationFrame(syncCameraToFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      syncCameraToFrame()
+    })
   })
   resizeObserver.observe(mapContainer.value)
 })
@@ -4888,6 +7968,82 @@ function smoothGeojson(geojson: GeoJSON.FeatureCollection, strength: number): Ge
   }
 }
 
+const TRANSIT_STATIONS_SOURCE_ID = 'transit-stations'
+const TRANSIT_STATION_HALO_LAYER_ID = 'transit-station-halo'
+const TRANSIT_STATION_DOT_LAYER_ID = 'transit-station-dot'
+const TRANSIT_STATION_LABEL_LAYER_ID = 'transit-station-label'
+
+function removeTransitStationLayers() {
+  if (!mapInstance) return
+  for (const layerId of [TRANSIT_STATION_LABEL_LAYER_ID, TRANSIT_STATION_DOT_LAYER_ID, TRANSIT_STATION_HALO_LAYER_ID]) {
+    if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId)
+  }
+  if (mapInstance.getSource(TRANSIT_STATIONS_SOURCE_ID)) mapInstance.removeSource(TRANSIT_STATIONS_SOURCE_ID)
+}
+
+function syncTransitStationSource(routeGeojson: GeoJSON.FeatureCollection) {
+  if (!mapInstance) return
+  if (composition.value.id !== 'transit-diagram') {
+    removeTransitStationLayers()
+    return
+  }
+
+  const data = buildTransitStationGeojson(routeGeojson)
+  const source = mapInstance.getSource(TRANSIT_STATIONS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+  if (source) source.setData(data)
+  else mapInstance.addSource(TRANSIT_STATIONS_SOURCE_ID, { type: 'geojson', data })
+
+  if (!mapInstance.getLayer(TRANSIT_STATION_HALO_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_HALO_LAYER_ID,
+      type: 'circle',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      paint: {
+        'circle-radius': ['case', ['get', 'terminal'], 14, 10],
+        'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'circle-opacity': 1,
+      },
+    })
+  }
+  if (!mapInstance.getLayer(TRANSIT_STATION_DOT_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_DOT_LAYER_ID,
+      type: 'circle',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      paint: {
+        'circle-radius': ['case', ['get', 'terminal'], 11.5, 8],
+        'circle-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'circle-stroke-color': ['case', ['get', 'secondary'], '#1F8A5B', props.styleConfig.route_color ?? '#7A1FA2'],
+        'circle-stroke-width': 4.2,
+      },
+    })
+  }
+  if (!mapInstance.getLayer(TRANSIT_STATION_LABEL_LAYER_ID)) {
+    mapInstance.addLayer({
+      id: TRANSIT_STATION_LABEL_LAYER_ID,
+      type: 'symbol',
+      source: TRANSIT_STATIONS_SOURCE_ID,
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+        'text-size': 14,
+        'text-anchor': 'left',
+        'text-offset': [1.35, 0],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': props.styleConfig.label_text_color ?? '#181818',
+        'text-halo-color': props.styleConfig.background_color ?? '#F7F5F0',
+        'text-halo-width': 1.5,
+      },
+    })
+  }
+  for (const layerId of [TRANSIT_STATION_HALO_LAYER_ID, TRANSIT_STATION_DOT_LAYER_ID, TRANSIT_STATION_LABEL_LAYER_ID]) {
+    if (mapInstance.getLayer(layerId)) mapInstance.moveLayer(layerId)
+  }
+}
+
 function populateRouteSource() {
   if (!mapInstance) return
   const raw = props.map.geojson as GeoJSON.FeatureCollection
@@ -4900,10 +8056,14 @@ function populateRouteSource() {
     : raw
 
   const iterations = props.styleConfig.route_smooth ?? 0
-  const geojson = smoothGeojson(processed, iterations)
+  const smoothed = smoothGeojson(processed, iterations)
+  const geojson = composition.value.id === 'transit-diagram'
+    ? buildTransitDiagramGeojson(processed, props.map.bbox)
+    : smoothed
   const src = mapInstance.getSource('route') as maplibregl.GeoJSONSource | undefined
   if (src) src.setData(geojson)
   else mapInstance.addSource('route', { type: 'geojson', data: geojson })
+  syncTransitStationSource(geojson)
 }
 
 function lineMetricsSafeGeojson(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
@@ -4975,15 +8135,29 @@ function activeSegmentEditLineGeojson(): GeoJSON.FeatureCollection {
 let startMarker: maplibregl.Marker | null = null
 let finishMarker: maplibregl.Marker | null = null
 
-function makePinDotEl(): HTMLElement {
+function makePinDotEl(kind: 'start' | 'finish' = 'finish'): HTMLElement {
   const color   = contrastSafePinColor.value
   const opacity = props.styleConfig.pin_opacity ?? 0.9
   const size    = Math.max(posterContentMinPx(10), (containerDims.value.h || 600) * 0.015)
   const el = document.createElement('div')
+  const usgs = isUsgsHeritageTheme.value
+  const editorial = props.styleConfig.color_theme === 'editorial-minimal'
+  const relief = props.styleConfig.color_theme === 'relief-shaded'
+  const modernist = props.styleConfig.color_theme === 'bold-modern'
+  const bib = composition.value.id === 'bib-numerals'
+  const botanical = composition.value.id === 'botanical-plate'
+  const markerSize = relief ? size * 1.18 : editorial ? size * 0.82 : usgs ? size * (kind === 'start' ? 0.92 : 1.04) : modernist ? size * 1.04 : bib || botanical ? size * 1.08 : size
+  const radius = editorial || modernist || (usgs && kind === 'start') || ((bib || botanical || relief) && kind === 'finish') ? '0' : '50%'
+  el.dataset.testid = `pin-marker-${kind}`
+  el.className = `pin-marker pin-marker--${kind}`
   el.style.cssText = [
-    `width:${size}px`, `height:${size}px`, 'border-radius:50%',
+    `width:${markerSize}px`, `height:${markerSize}px`, `border-radius:${radius}`,
     `background:${color}`, `opacity:${opacity}`,
-    'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
+    editorial
+      ? 'box-shadow:0 0 0 2px #F8F3EA'
+      : relief ? 'box-shadow:0 0 0 3px #F5EFE2'
+      : modernist ? 'box-shadow:0 0 0 2px #FFFFFB'
+      : usgs ? 'box-shadow:0 0 0 3px #F0ECDE' : 'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
     'cursor:default', 'pointer-events:none',
   ].join(';')
   return el
@@ -5001,13 +8175,13 @@ function placePinMarkers() {
   const endCoord:   [number, number] | null = routeFinish
 
   if (startCoord && props.styleConfig.show_start_pin !== false) {
-    startMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+    startMarker = new maplibregl.Marker({ element: makePinDotEl('start'), anchor: 'center', draggable: false })
       .setLngLat(startCoord)
       .addTo(mapInstance)
   }
 
   if (endCoord && props.styleConfig.show_finish_pin !== false) {
-    finishMarker = new maplibregl.Marker({ element: makePinDotEl(), anchor: 'center', draggable: false })
+    finishMarker = new maplibregl.Marker({ element: makePinDotEl('finish'), anchor: 'center', draggable: false })
       .setLngLat(endCoord)
       .addTo(mapInstance)
   }
@@ -5103,18 +8277,19 @@ function applyWaterPaint(config: StyleConfig) {
 }
 
 function applyContourPaint(config: StyleConfig) {
-  const contourOpacity = config.contour_opacity ?? 0.65
-  const minorColor = config.contour_color ?? config.label_text_color ?? '#64748B'
-  const majorColor = config.contour_major_color ?? minorColor
+  const contourConfig = contourAdaptedStyleConfig(config)
+  const contourOpacity = contourConfig.contour_opacity ?? 0.65
+  const minorColor = contourConfig.contour_color ?? contourConfig.label_text_color ?? '#64748B'
+  const majorColor = contourConfig.contour_major_color ?? minorColor
   setLayerPaint('contours-minor', 'line-color', minorColor)
-  setLayerPaint('contours-minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 5, contourOpacity, 14, contourOpacity * 0.9])
+  setLayerPaint('contours-minor', 'line-opacity', contourMinorLineOpacityExpression(contourOpacity))
   setLayerPaint('contours-mid', 'line-color', minorColor)
   setLayerPaint('contours-mid', 'line-opacity', contourOpacity)
   setLayerPaint('contours-major', 'line-color', majorColor)
   setLayerPaint('contours-major', 'line-opacity', contourOpacity)
   setLayerPaint('contours-labels', 'text-color', majorColor)
   setLayerPaint('contours-labels', 'text-opacity', contourOpacity)
-  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(config))
+  setLayerPaint('contours-labels', 'text-halo-color', mapBackgroundColor(contourConfig))
 }
 
 function applyHillshadePaint(config: StyleConfig) {
@@ -5172,7 +8347,7 @@ function applyAtlasLayerSettingsPaint(config: StyleConfig) {
 // ── interactjs drag for text overlays ────────────────────────────────────────
 
 async function initOverlayDrag() {
-  if (!props.editable || !posterCanvasEl.value) return
+  if (!props.editable || !posterCanvasEl.value || posterElementsEditing.value) return
   // Clean up previous instances
   for (const inst of interactInstances) inst.unset()
   interactInstances = []
@@ -5308,7 +8483,7 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
         restoreCameraAfterStyleReload(cameraAfterReload)
         applyViewportScaledLayerProperties(newConfig)
         mapReady.value = true
-        if (props.editable) nextTick(() => initOverlayDrag())
+        if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
         if (props.segmentDrawMode) nextTick(syncSegmentDrawSources)
@@ -5406,17 +8581,19 @@ async function applyStyleConfigUpdate(newConfig: StyleConfig, oldConfig?: StyleC
       applyContourPaint(newConfig)
     }
     if (newConfig.contour_minor_width !== oldConfig?.contour_minor_width) {
+      const contourConfig = contourAdaptedStyleConfig(newConfig)
       if (mapInstance.getLayer('contours-minor'))
         mapInstance.setPaintProperty('contours-minor', 'line-width',
-          contourMinorLineWidthExpression(newConfig))
+          contourMinorLineWidthExpression(contourConfig))
       if (mapInstance.getLayer('contours-mid'))
         mapInstance.setPaintProperty('contours-mid', 'line-width',
-          contourMidLineWidthExpression(newConfig))
+          contourMidLineWidthExpression(contourConfig))
     }
     if (newConfig.contour_major_width !== oldConfig?.contour_major_width) {
+      const contourConfig = contourAdaptedStyleConfig(newConfig)
       if (mapInstance.getLayer('contours-major'))
         mapInstance.setPaintProperty('contours-major', 'line-width',
-          contourMajorLineWidthExpression(newConfig))
+          contourMajorLineWidthExpression(contourConfig))
     }
 
     // Raster layer paint-only updates (contrast / saturation / hue) —
@@ -5512,7 +8689,7 @@ watch(
         restoreCameraAfterStyleReload(cameraBeforeReload)
         applyViewportScaledLayerProperties()
         mapReady.value = true
-        if (props.editable) nextTick(() => initOverlayDrag())
+        if (props.editable && !posterElementsEditing.value) nextTick(() => initOverlayDrag())
         nextTick(recomputeOverlays)
         if (props.deleteBrushActive) nextTick(activateDeleteBrush)
       })
@@ -5712,7 +8889,7 @@ function onDeleteBrushKeydown(e: KeyboardEvent) {
 
 function setBrushInteractions(enabled: boolean) {
   if (!mapInstance) return
-  if (enabled && !props.styleConfig.map_frozen) {
+  if (enabled && canEnableMapGestures()) {
     mapInstance.dragPan.enable()
     mapInstance.scrollZoom.enable()
     mapInstance.doubleClickZoom.enable()
@@ -5940,7 +9117,7 @@ watch(
       mapInstance.off('click', onSegmentDrawClick)
       mapInstance.off('dblclick', onSegmentDrawDoubleClick)
       if (segmentDrawDisabledDoubleClickZoom) {
-        mapInstance.doubleClickZoom.enable()
+        if (canEnableMapGestures()) mapInstance.doubleClickZoom.enable()
         segmentDrawDisabledDoubleClickZoom = false
       }
       document.removeEventListener('keydown', onSegmentDrawKeydown)
@@ -5973,7 +9150,7 @@ function currentEditSegment() {
 
 function setSegmentEditInteractions(enabled: boolean) {
   if (!mapInstance) return
-  if (enabled) {
+  if (enabled && canEnableMapGestures()) {
     mapInstance.dragPan.enable()
     mapInstance.touchZoomRotate.enable()
     return
@@ -6440,6 +9617,10 @@ watch(
 // may have initialized with bounds before the DB record loaded, so we need
 // to explicitly reposition it here.
 
+function canEnableMapGestures() {
+  return mapViewerInteractive.value && (props.mapInteractive === true || !props.styleConfig.map_frozen)
+}
+
 function disableAllMapGestures() {
   if (!mapInstance) return
   mapInstance.dragPan.disable()
@@ -6454,6 +9635,10 @@ function disableAllMapGestures() {
 
 function enableAllMapGestures() {
   if (!mapInstance) return
+  if (!canEnableMapGestures()) {
+    disableAllMapGestures()
+    return
+  }
   mapInstance.dragPan.enable()
   mapInstance.scrollZoom.enable()
   mapInstance.doubleClickZoom.enable()
@@ -6469,7 +9654,11 @@ watch(
   (frozen) => {
     if (!mapInstance || !mapReady.value) return
     if (frozen) {
-      disableAllMapGestures()
+      if (canEnableMapGestures()) {
+        enableAllMapGestures()
+      } else {
+        disableAllMapGestures()
+      }
       if (canUseSavedCamera()) {
         mapInstance.jumpTo({
           zoom: correctedFrameZoom(props.styleConfig.map_zoom as number),
@@ -6601,9 +9790,31 @@ defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fit
 watch(
   () => [(props.styleConfig.text_overlays ?? []).length, (props.styleConfig.image_overlays ?? []).length],
   () => {
-    if (props.editable && mapReady.value) nextTick(() => initOverlayDrag())
+    if (props.editable && !posterElementsEditing.value && mapReady.value) nextTick(() => initOverlayDrag())
   },
 )
+
+watch(
+  () => [
+    props.selectedPosterElementId,
+    posterElementsEditing.value,
+    (props.styleConfig.text_overlays ?? []).length,
+    (props.styleConfig.image_overlays ?? []).length,
+    (props.styleConfig.icon_overlays ?? []).length,
+  ],
+  () => nextTick(syncPosterMoveableTarget),
+  { immediate: true, flush: 'post' },
+)
+
+watch(posterElementsEditing, (enabled) => {
+  if (enabled) {
+    for (const inst of interactInstances) inst.unset()
+    interactInstances = []
+    nextTick(syncPosterMoveableTarget)
+  } else if (props.editable && mapReady.value) {
+    nextTick(() => initOverlayDrag())
+  }
+})
 
 onUnmounted(() => {
   for (const inst of interactInstances) inst.unset()
@@ -6618,15 +9829,23 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onSegmentEditKeydown)
   cancelAnimationFrame(plotAnimFrame)
   if (styleReloadCameraHoldTimer) clearTimeout(styleReloadCameraHoldTimer)
+  if (contourViewRefreshTimer) clearTimeout(contourViewRefreshTimer)
   mapInstance?.remove()
   mapInstance = null
   if (import.meta.dev && typeof window !== 'undefined') {
-    delete (window as unknown as {
+    const devWindow = window as unknown as {
       __RADMAPS_MAP_CAMERA__?: {
         get: () => MapCameraSnapshot | null
         jumpTo: (camera: Partial<MapCameraSnapshot>) => void
       }
-    }).__RADMAPS_MAP_CAMERA__
+      __RADMAPS_MAP_CAMERA_OWNER__?: symbol
+      __RADMAPS_MAP_CAMERA_PRIORITY__?: number
+    }
+    if (devWindow.__RADMAPS_MAP_CAMERA_OWNER__ === devCameraHandleId) {
+      delete devWindow.__RADMAPS_MAP_CAMERA__
+      delete devWindow.__RADMAPS_MAP_CAMERA_OWNER__
+      delete devWindow.__RADMAPS_MAP_CAMERA_PRIORITY__
+    }
   }
 })
 </script>
@@ -6635,6 +9854,11 @@ onUnmounted(() => {
 .poster-canvas {
   container-type: size;
   color: var(--composition-ink, currentColor);
+}
+
+.poster-header,
+.poster-footer {
+  overflow: hidden;
 }
 
 .radmaps-print-root {
@@ -6652,12 +9876,17 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 2.4cqw;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: 0.8cqh;
 }
 
 .stat-block {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .stat-block--coords {
@@ -6684,6 +9913,7 @@ onUnmounted(() => {
 .composition-paper-texture,
 .composition-grid-overlay,
 .composition-star-field,
+.composition-star-constellation,
 .composition-side-rail {
   position: absolute;
   inset: 0;
@@ -6709,38 +9939,32 @@ onUnmounted(() => {
   inset: 0;
 }
 
-.terrain-illusion-overlay {
+.composition-plate-frame {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 9;
   pointer-events: none;
-  mix-blend-mode: soft-light;
-  background-image:
-    repeating-linear-gradient(108deg, rgba(28, 25, 23, 0.16) 0 0.08cqw, transparent 0.08cqw 0.42cqw),
-    repeating-linear-gradient(18deg, rgba(255, 255, 255, 0.22) 0 0.06cqw, transparent 0.06cqw 0.56cqw),
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.32), transparent 18%),
-    radial-gradient(circle at 78% 76%, rgba(28, 25, 23, 0.20), transparent 22%);
 }
 
-.terrain-illusion-overlay--watercolor {
-  mix-blend-mode: multiply;
-  filter: blur(0.14cqw);
-  background-image:
-    radial-gradient(circle at 18% 16%, rgba(69, 190, 210, 0.24), transparent 15%),
-    radial-gradient(circle at 76% 26%, rgba(191, 148, 84, 0.18), transparent 18%),
-    radial-gradient(circle at 42% 72%, rgba(92, 141, 86, 0.18), transparent 24%),
-    repeating-linear-gradient(94deg, rgba(65, 81, 61, 0.13) 0 0.07cqw, transparent 0.07cqw 0.52cqw);
+.composition-plate-frame {
+  inset: 4.4cqh 4.8cqw;
+  border: 2px solid currentColor;
+  opacity: 0.42;
+  z-index: 10;
+  box-shadow: none;
 }
 
-.terrain-illusion-overlay--night {
-  mix-blend-mode: screen;
-  background-image:
-    repeating-linear-gradient(112deg, rgba(142, 211, 159, 0.20) 0 0.06cqw, transparent 0.06cqw 0.45cqw),
-    radial-gradient(circle at 35% 35%, rgba(63, 159, 189, 0.16), transparent 22%),
-    radial-gradient(circle at 70% 78%, rgba(241, 143, 69, 0.10), transparent 18%);
+.poster-composition--place-frame .composition-plate-frame {
+  opacity: 0.58;
+  border-color: color-mix(in srgb, currentColor 58%, transparent);
 }
 
-.terrain-illusion-overlay--topo {
+.poster-composition--place-frame .composition-grid-overlay--map {
+  inset: -11cqh -10cqw;
+  opacity: 0.28 !important;
+  transform: rotate(14deg);
+  transform-origin: center;
+  background-size: 10cqw 10cqh !important;
   mix-blend-mode: multiply;
 }
 
@@ -6753,6 +9977,419 @@ onUnmounted(() => {
     radial-gradient(circle at 88% 34%, currentColor 0 0.07cqw, transparent 0.1cqw),
     radial-gradient(circle at 28% 69%, currentColor 0 0.06cqw, transparent 0.09cqw),
     radial-gradient(circle at 54% 82%, currentColor 0 0.05cqw, transparent 0.08cqw);
+}
+
+.poster-composition--darksky-stars .composition-star-field {
+  z-index: 6;
+  inset: 0 0 42% 0;
+  color: var(--label-text-color, #e7ecfb);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(circle at 14% 16%, currentColor 0 0.08cqw, transparent 0.1cqw),
+    radial-gradient(circle at 26% 28%, currentColor 0 0.045cqw, transparent 0.08cqw),
+    radial-gradient(circle at 43% 12%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(circle at 66% 22%, currentColor 0 0.05cqw, transparent 0.08cqw),
+    radial-gradient(circle at 83% 13%, currentColor 0 0.075cqw, transparent 0.11cqw),
+    radial-gradient(circle at 91% 35%, currentColor 0 0.045cqw, transparent 0.08cqw),
+    radial-gradient(circle at 52% 38%, var(--route-color, #e8c66a) 0 0.065cqw, transparent 0.1cqw);
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 1 1 100% !important;
+  height: 100% !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) [data-testid="poster-map"] .maplibregl-canvas-container {
+  transform: translateY(12.5cqh) scale(1.16);
+  transform-origin: 50% 52%;
+}
+
+.poster-composition--darksky-stars[data-theme="dark-sky"] [data-testid="poster-map"] .maplibregl-canvas-container {
+  transform: translateY(30cqh) scale(1.36);
+  transform-origin: 50% 58%;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] [data-testid="poster-map"] .maplibregl-canvas-container {
+  transform: translateY(31cqh) scale(1.38);
+  transform-origin: 50% 58%;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
+  inset: calc(7.8cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
+  overflow: visible !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-header {
+  position: absolute !important;
+  inset: calc(6.4cqh + var(--print-bleed, 0px)) 0 auto 0 !important;
+  z-index: 14 !important;
+  padding: 0 calc(8.4cqw + var(--print-bleed, 0px)) !important;
+  background: transparent !important;
+  color: var(--label-text-color, #e7ecfb) !important;
+  pointer-events: none;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-kicker {
+  order: 0;
+  color: var(--route-color, #e8c66a) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.34em !important;
+  opacity: 0.88 !important;
+  text-transform: uppercase;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-trail-name {
+  order: 1;
+  width: 62cqw !important;
+  font-size: 10.8cqh !important;
+  line-height: 0.84 !important;
+  max-width: 62cqw !important;
+  margin: 3.2cqh auto 0 !important;
+  text-shadow:
+    0 0 1.6cqh color-mix(in srgb, var(--background-color, #070c1e) 90%, transparent),
+    0 0 0.25cqh var(--background-color, #070c1e) !important;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .poster-trail-name {
+  width: 74cqw !important;
+  max-width: 74cqw !important;
+  font-size: 8.9cqh !important;
+  line-height: 0.92 !important;
+  margin-top: 3.7cqh !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-kicker,
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-location-line {
+  display: block !important;
+  min-height: 1.45cqh;
+  line-height: 1.2 !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-location-line {
+  order: 2;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 72%, var(--contour-major-color, #50689c) 28%) !important;
+  font-size: 1.45cqh !important;
+  letter-spacing: 0.08em !important;
+  margin-top: 2.2cqh !important;
+  opacity: 0.72 !important;
+  text-transform: none !important;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .poster-location-line {
+  color: color-mix(in srgb, var(--label-text-color, #f0d9bf) 82%, var(--route-color, #f0b15f) 18%) !important;
+  opacity: 0.88 !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-meta-line {
+  display: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer {
+  display: flex !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 72%, transparent) !important;
+  pointer-events: none;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer .poster-stats,
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .poster-footer .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-footer-note {
+  top: auto;
+  bottom: calc(2.6cqh + var(--print-bleed, 0px));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  white-space: pre-line;
+  text-align: left !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.18cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.45 !important;
+  opacity: 0.78 !important;
+  text-transform: none !important;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-footer-note::first-line {
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 76%, transparent);
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-field {
+  inset: 0;
+  opacity: 1;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 82%, transparent);
+  filter: drop-shadow(0 0 0.35cqh color-mix(in srgb, currentColor 38%, transparent));
+  background-image:
+    radial-gradient(circle at 4% 28%, currentColor 0 0.12cqw, transparent 0.17cqw),
+    radial-gradient(circle at 6% 7%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 7% 78%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 12% 55%, var(--route-color, #e8c66a) 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 15% 8%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 18% 62%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 22% 24%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 26% 42%, currentColor 0 0.065cqw, transparent 0.11cqw),
+    radial-gradient(circle at 31% 15%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 35% 17%, currentColor 0 0.075cqw, transparent 0.12cqw),
+    radial-gradient(circle at 38% 37%, var(--route-color, #e8c66a) 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 43% 31%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 49% 7%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 50% 62%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 55% 44%, currentColor 0 0.09cqw, transparent 0.14cqw),
+    radial-gradient(circle at 59% 72%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 62% 22%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 66% 7%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 69% 37%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 72% 52%, var(--route-color, #e8c66a) 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 75% 12%, currentColor 0 0.085cqw, transparent 0.13cqw),
+    radial-gradient(circle at 78% 52%, currentColor 0 0.075cqw, transparent 0.12cqw),
+    radial-gradient(circle at 82% 29%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 86% 72%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 91% 18%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 93% 67%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 96% 44%, currentColor 0 0.09cqw, transparent 0.14cqw);
+}
+
+.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-star-field {
+  z-index: 12;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 94%, transparent);
+  filter: drop-shadow(0 0 0.42cqh color-mix(in srgb, currentColor 42%, transparent));
+  background-image:
+    radial-gradient(circle at 3% 20%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 5% 51%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 7% 78%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 10% 38%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 13% 6%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 16% 44%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 19% 26%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 21% 70%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 25% 16%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 29% 31%, currentColor 0 0.06cqw, transparent 0.11cqw),
+    radial-gradient(circle at 33% 62%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 36% 12%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 39% 40%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 43% 23%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 47% 56%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 51% 7%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 53% 37%, var(--route-color, #e8c66a) 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 57% 76%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 61% 21%, currentColor 0 0.09cqw, transparent 0.14cqw),
+    radial-gradient(circle at 64% 44%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 68% 10%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 70% 60%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 73% 32%, currentColor 0 0.15cqw, transparent 0.21cqw),
+    radial-gradient(circle at 77% 15%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 80% 48%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 83% 4%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 86% 72%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 89% 28%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 92% 12%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 95% 43%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 97% 68%, currentColor 0 0.11cqw, transparent 0.17cqw);
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field {
+  z-index: 13;
+  inset: 0 0 30% 0;
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 78%, var(--label-text-color, #f0d9bf) 22%);
+  filter: drop-shadow(0 0 0.5cqh color-mix(in srgb, currentColor 52%, transparent));
+  mix-blend-mode: normal;
+  background-image:
+    radial-gradient(circle at 3% 20%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 5% 51%, currentColor 0 0.14cqw, transparent 0.2cqw),
+    radial-gradient(circle at 7% 78%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 10% 38%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 13% 6%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 16% 44%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 19% 26%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 21% 70%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 25% 16%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 29% 31%, currentColor 0 0.06cqw, transparent 0.11cqw),
+    radial-gradient(circle at 33% 62%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 36% 12%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 39% 40%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 43% 23%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 47% 56%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 51% 7%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 53% 37%, var(--route-color, #f0b15f) 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 57% 76%, currentColor 0 0.11cqw, transparent 0.17cqw),
+    radial-gradient(circle at 61% 21%, currentColor 0 0.09cqw, transparent 0.14cqw),
+    radial-gradient(circle at 64% 44%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 68% 10%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 70% 60%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 73% 32%, currentColor 0 0.15cqw, transparent 0.21cqw),
+    radial-gradient(circle at 77% 15%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 80% 48%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 83% 4%, currentColor 0 0.07cqw, transparent 0.12cqw),
+    radial-gradient(circle at 86% 72%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 89% 28%, currentColor 0 0.08cqw, transparent 0.13cqw),
+    radial-gradient(circle at 92% 12%, currentColor 0 0.13cqw, transparent 0.19cqw),
+    radial-gradient(circle at 95% 43%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 97% 68%, currentColor 0 0.11cqw, transparent 0.17cqw);
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  color: var(--route-color, #f0b15f);
+  background-image:
+    radial-gradient(circle at 6% 18%, currentColor 0 0.13cqw, transparent 0.2cqw),
+    radial-gradient(circle at 13% 31%, currentColor 0 0.10cqw, transparent 0.16cqw),
+    radial-gradient(circle at 18% 9%, currentColor 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 24% 51%, currentColor 0 0.11cqw, transparent 0.18cqw),
+    radial-gradient(circle at 31% 36%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 36% 22%, currentColor 0 0.12cqw, transparent 0.19cqw),
+    radial-gradient(circle at 43% 11%, currentColor 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 48% 66%, currentColor 0 0.10cqw, transparent 0.17cqw),
+    radial-gradient(circle at 54% 28%, currentColor 0 0.13cqw, transparent 0.2cqw),
+    radial-gradient(circle at 60% 49%, currentColor 0 0.09cqw, transparent 0.15cqw),
+    radial-gradient(circle at 67% 18%, currentColor 0 0.11cqw, transparent 0.18cqw),
+    radial-gradient(circle at 72% 39%, currentColor 0 0.14cqw, transparent 0.21cqw),
+    radial-gradient(circle at 79% 8%, currentColor 0 0.08cqw, transparent 0.14cqw),
+    radial-gradient(circle at 84% 57%, currentColor 0 0.10cqw, transparent 0.17cqw),
+    radial-gradient(circle at 90% 25%, currentColor 0 0.12cqw, transparent 0.19cqw),
+    radial-gradient(circle at 96% 41%, currentColor 0 0.09cqw, transparent 0.15cqw);
+  opacity: 0.72;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-field::after {
+  content: none;
+  position: absolute;
+  inset: 0;
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 68%, var(--label-text-color, #f0d9bf) 32%);
+  background-image:
+    radial-gradient(circle at 21% 23%, currentColor 0 0.12cqw, transparent 0.18cqw),
+    radial-gradient(circle at 68% 37%, currentColor 0 0.085cqw, transparent 0.14cqw),
+    radial-gradient(circle at 42% 71%, var(--route-color, #f0b15f) 0 0.105cqw, transparent 0.16cqw),
+    radial-gradient(circle at 83% 14%, currentColor 0 0.15cqw, transparent 0.22cqw),
+    radial-gradient(circle at 13% 82%, currentColor 0 0.075cqw, transparent 0.13cqw);
+  background-position:
+    0 0,
+    5.2cqw 2.4cqh,
+    2.8cqw 5.6cqh,
+    8.6cqw 1.2cqh,
+    1.4cqw 7.8cqh;
+  background-repeat: repeat;
+  background-size:
+    4cqw 4cqh,
+    5cqw 5cqh,
+    6cqw 6cqh,
+    7cqw 7cqh,
+    4cqw 5cqh;
+  opacity: 1;
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-star-constellation {
+  z-index: 13;
+  top: calc(6.4cqh + var(--print-bleed, 0px));
+  right: calc(10cqw + var(--print-bleed, 0px));
+  bottom: auto;
+  left: calc(20cqw + var(--print-bleed, 0px));
+  height: 15.5cqh;
+  color: color-mix(in srgb, var(--label-text-color, #e7ecfb) 76%, transparent);
+  opacity: 0.9;
+}
+
+.poster-composition--darksky-stars[data-theme="dark-sky"] .composition-star-constellation {
+  top: calc(2.9cqh + var(--print-bleed, 0px));
+  right: calc(9cqw + var(--print-bleed, 0px));
+  left: calc(24cqw + var(--print-bleed, 0px));
+  height: 13.5cqh;
+  opacity: 0.98;
+}
+
+.star-constellation-shape--summit {
+  display: none;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-shape--horizon {
+  display: none;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-shape--summit {
+  display: inline;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .composition-star-constellation {
+  z-index: 15;
+  top: calc(7.2cqh + var(--print-bleed, 0px));
+  right: auto;
+  left: calc(26cqw + var(--print-bleed, 0px));
+  width: 56cqw;
+  height: 36cqh;
+  color: color-mix(in srgb, var(--route-color, #f0b15f) 76%, var(--label-text-color, #f0d9bf) 24%);
+  opacity: 0.98;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line {
+  stroke-width: 0.42;
+  opacity: 0.88;
+}
+
+.poster-composition--darksky-stars[data-theme="copper-night"] .star-constellation-line--secondary {
+  opacity: 0.5;
+}
+
+.star-constellation-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.22;
+  opacity: 0.62;
+  vector-effect: non-scaling-stroke;
+}
+
+.star-constellation-line--secondary {
+  opacity: 0.36;
+}
+
+.star-constellation-points {
+  fill: currentColor;
+  filter: drop-shadow(0 0 0.28cqh color-mix(in srgb, currentColor 52%, transparent));
+}
+
+.poster-composition--darksky-stars:is([data-theme="dark-sky"], [data-theme="copper-night"]) .composition-darksky-ridge {
+  top: 87%;
+  height: 9.5cqh;
+  opacity: 0.22;
+  filter: none;
+}
+
+.composition-darksky-ridge {
+  position: absolute;
+  z-index: 7;
+  left: 0;
+  right: 0;
+  top: 35.5%;
+  height: 13.4cqh;
+  pointer-events: none;
+  color: var(--label-text-color, #e7ecfb);
+  opacity: 0.78;
+  filter: drop-shadow(0 -0.25cqh 1.1cqh color-mix(in srgb, var(--route-color, #e8c66a) 14%, transparent));
+}
+
+.darksky-ridge-line {
+  stroke: none;
+}
+
+.darksky-ridge-line--back {
+  fill: color-mix(in srgb, var(--contour-major-color, #50689c) 34%, var(--background-color, #070c1e) 66%);
+  opacity: 0.48;
+}
+
+.darksky-ridge-line--front {
+  fill: color-mix(in srgb, var(--background-color, #070c1e) 78%, #000 22%);
+  opacity: 0.92;
 }
 
 .composition-side-rail {
@@ -6836,6 +10473,102 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.poster-composition--modernist-block .poster-header {
+  flex: 0 0 34.2%;
+  height: 34.2%;
+  min-height: 34.2%;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 0.72cqh !important;
+  background: var(--composition-paper, #f2e8da) !important;
+  color: var(--label-text-color, #15130f) !important;
+}
+
+.poster-composition--modernist-block .composition-modernist-accent {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14.6cqw;
+  pointer-events: none;
+  background: var(--label-bg-color, #e2483d);
+}
+
+.poster-composition--modernist-block .composition-kicker {
+  position: relative;
+  z-index: 1;
+  order: 1;
+  margin: 0;
+  color: color-mix(in srgb, var(--label-text-color, #15130f) 56%, transparent) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.58cqh !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.34em !important;
+  line-height: 1 !important;
+}
+
+.poster-composition--modernist-block .poster-rule {
+  position: relative;
+  z-index: 1;
+  order: 3;
+  width: 100%;
+  height: 0.18cqh !important;
+  margin: 1.35cqh 0 1.05cqh !important;
+  background: var(--label-text-color, #15130f) !important;
+  opacity: 0.92 !important;
+}
+
+.poster-composition--modernist-block .poster-trail-name {
+  position: relative;
+  z-index: 1;
+  order: 2;
+  margin: 0;
+  max-width: 100%;
+  color: var(--label-text-color, #15130f) !important;
+  font-family: var(--composition-title-font, 'Big Shoulders Display'), sans-serif !important;
+  font-size: min(max(var(--trail-title-size, 8.9cqh), 8.9cqh), 10.4cqh) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  line-height: 0.86 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--modernist-block .poster-location-line {
+  position: relative;
+  z-index: 1;
+  order: 4;
+  max-width: 57%;
+  margin: 0;
+  color: color-mix(in srgb, var(--label-text-color, #15130f) 62%, transparent) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.95cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  text-transform: none !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--modernist-block .composition-meta-line {
+  position: absolute;
+  z-index: 1;
+  right: var(--composition-rule-right);
+  bottom: calc(4.2cqh + var(--print-bleed, 0px));
+  width: 18cqw !important;
+  color: var(--label-text-color, #15130f) !important;
+  font-family: var(--composition-body-font, inherit) !important;
+  font-size: 1.9cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: pre-line !important;
+}
+
 .poster-composition--modernist-block .composition-side-rail {
   background: var(--label-bg-color, currentColor);
   opacity: 1;
@@ -6864,6 +10597,31 @@ onUnmounted(() => {
   width: var(--composition-rule-left);
 }
 
+.poster-composition--modernist-block[data-theme="blackline"] .poster-header {
+  background: #f7f7f4 !important;
+  color: #000 !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] .poster-rule {
+  background: #000 !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] .composition-kicker,
+.poster-composition--modernist-block[data-theme="blackline"] .poster-trail-name,
+.poster-composition--modernist-block[data-theme="blackline"] .poster-location-line,
+.poster-composition--modernist-block[data-theme="blackline"] .composition-meta-line {
+  color: #000 !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] .poster-trail-name {
+  font-size: min(max(var(--trail-title-size, 12.2cqh), 12.2cqh), 13.2cqh) !important;
+  line-height: 0.82 !important;
+}
+
+.poster-composition--modernist-block[data-theme="blackline"] [data-testid="poster-map"]::before {
+  display: none !important;
+}
+
 .poster-composition--splits-grid .poster-footer-rule,
 .poster-composition--blueprint-strava .poster-footer-rule,
 .poster-composition--bib-numerals .poster-footer-rule {
@@ -6872,21 +10630,2765 @@ onUnmounted(() => {
   border-top: 1px dashed currentColor;
 }
 
+.poster-composition--bib-numerals {
+  background: var(--composition-paper, #f0ede5) !important;
+}
+
+.composition-bib-paper {
+  position: absolute;
+  z-index: 1;
+  inset: calc(1.15cqh + var(--print-bleed, 0px)) calc(3.8cqw + var(--print-bleed, 0px));
+  pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--label-text-color, #14264a) 24%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--route-color, #e0322c) 4%, transparent) 0 1px, transparent 1px) 0 0 / 8cqw 100%,
+    color-mix(in srgb, var(--composition-paper, #f0ede5) 90%, #fff 10%);
+  opacity: 0.46;
+}
+
+.composition-bib-topline {
+  position: absolute;
+  z-index: 12;
+  top: calc(7.55cqh + var(--print-bleed, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: var(--label-text-color, #14264a);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1.55cqh;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.composition-bib-ghost {
+  position: absolute;
+  z-index: 6;
+  top: 63.5cqh;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #14264a) 18%, #b9bec4);
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 33.5cqh;
+  font-weight: 900;
+  line-height: 0.78;
+  letter-spacing: 0.015em;
+  opacity: 0.34;
+  mix-blend-mode: multiply;
+}
+
+.composition-bib-pin-hole {
+  position: absolute;
+  width: 1.25cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--label-text-color, #14264a) 42%, transparent) 0 38%, transparent 39%),
+    color-mix(in srgb, var(--composition-paper, #f4f1ea) 72%, transparent);
+  box-shadow: inset 0 0.12cqh 0.3cqh rgba(20, 38, 74, 0.12);
+}
+
+.composition-bib-pin-hole--tl {
+  top: 2.2cqh;
+  left: 3.2cqw;
+}
+
+.composition-bib-pin-hole--tr {
+  top: 2.2cqh;
+  right: 3.2cqw;
+}
+
+.composition-bib-pin-hole--br {
+  right: 3.2cqw;
+  bottom: 2.2cqh;
+}
+
+.composition-bib-pin-hole--bl {
+  bottom: 2.2cqh;
+  left: 3.2cqw;
+}
+
+.composition-bib-tear-strip {
+  position: absolute;
+  z-index: 5;
+  left: calc(8.8cqw + var(--print-bleed, 0px));
+  right: calc(8.8cqw + var(--print-bleed, 0px));
+  bottom: calc(9.2cqh + var(--print-bleed, 0px));
+  height: 0.33cqh;
+  pointer-events: none;
+  background: var(--label-text-color, #14264a);
+  opacity: 0.94;
+}
+
+.composition-bib-finish-headline {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  top: calc(67.8cqh + var(--print-bleed, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.35cqw;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  pointer-events: none;
+  color: var(--route-color, #e0322c);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1.9cqh;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  text-transform: uppercase;
+  border: 0;
+  background: transparent;
+}
+
+.composition-bib-finish-headline b {
+  color: var(--route-color, #e0322c);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 1em;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.poster-composition--bib-numerals .poster-header {
+  flex: 0 0 29.2cqh !important;
+  min-height: 29.2cqh !important;
+  padding: 6.25cqh 7.4cqw 1.65cqh !important;
+  border: 0;
+  background: transparent !important;
+  z-index: 8 !important;
+}
+
+.poster-composition--bib-numerals .poster-header::before,
+.poster-composition--bib-numerals .poster-header::after {
+  content: none;
+  position: absolute;
+  top: 1.6cqh;
+  bottom: 1.4cqh;
+  width: 0.22cqw;
+  opacity: 0.28;
+  background:
+    repeating-linear-gradient(0deg, currentColor 0 0.42cqh, transparent 0.42cqh 0.92cqh);
+}
+
+.poster-composition--bib-numerals .poster-header::before {
+  left: 5.6cqw;
+}
+
+.poster-composition--bib-numerals .poster-header::after {
+  right: 5.6cqw;
+}
+
+.poster-composition--bib-numerals .composition-kicker {
+  width: auto;
+  padding: 0.18cqh 0.95cqw;
+  color: var(--composition-paper, #fbfaf4) !important;
+  background: var(--route-color, currentColor);
+  border-radius: 0;
+  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif !important;
+  font-size: 0.7cqh !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--bib-numerals .poster-trail-name {
+  position: relative;
+  z-index: 9;
+  color: var(--label-text-color, #14264a) !important;
+  font-size: 11.6cqh !important;
+  line-height: 0.78 !important;
+  letter-spacing: 0.015em !important;
+  text-transform: uppercase !important;
+  max-width: 72cqw !important;
+  text-wrap: balance;
+  text-shadow: none !important;
+}
+
+.poster-composition--bib-numerals .poster-location-line {
+  position: relative;
+  z-index: 9;
+  margin-top: 1.75cqh !important;
+  max-width: 72cqw !important;
+  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif !important;
+  font-size: min(var(--location-size, 2.35cqh), 2.35cqh) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: #687386 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.poster-composition--bib-numerals .composition-meta-line {
+  position: absolute;
+  right: 7.4cqw;
+  bottom: 1.45cqh;
+  width: 18cqw !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 0.74cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-align: right !important;
+  opacity: 0.66 !important;
+}
+
+.poster-composition--bib-numerals [data-testid="poster-map"] {
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  z-index: 3;
+}
+
+.poster-composition--bib-numerals .poster-footer {
+  flex: 0 0 9.6cqh !important;
+  min-height: 9.6cqh !important;
+  padding: 1.15cqh 8.8cqw 2.15cqh !important;
+  border: 0;
+  background: transparent !important;
+  z-index: 9 !important;
+}
+
+.poster-composition--bib-numerals .poster-rule {
+  display: none;
+}
+
+.poster-composition--bib-numerals .poster-footer-rule {
+  display: none;
+}
+
+.composition-bib-data-footer {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  width: 100%;
+  height: 100%;
+  color: var(--label-text-color, #14264a);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 2.08cqh;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: none;
+}
+
+.composition-bib-data-footer__item {
+  display: block;
+  white-space: nowrap;
+}
+
+.composition-bib-data-footer__item:nth-child(2) {
+  text-align: center;
+}
+
+.composition-bib-data-footer__item:nth-child(3) {
+  text-align: right;
+}
+
+.poster-composition--bib-numerals .composition-footer-note {
+  top: 0.55cqh;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 0.62cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.28em !important;
+  opacity: 0.52;
+}
+
+.poster-composition--splits-grid [data-testid="elevation-profile-band"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background-image:
+    linear-gradient(color-mix(in srgb, currentColor 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 1px, transparent 1px);
+  background-size: 100% 50%, 10% 100%;
+}
+
+.poster-composition--splits-grid [data-testid="elevation-profile"] {
+  opacity: 0.98;
+  mix-blend-mode: screen;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="poster-map"],
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="poster-map"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent),
+    inset 0 0 4.2cqh color-mix(in srgb, var(--route-color, #ff5a36) 8%, transparent) !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="poster-map"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-header,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-header {
+  background: transparent !important;
+  box-shadow: none !important;
+  gap: 0.68cqh !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-trail-name,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-trail-name,
+.poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--title,
+.poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--title {
+  font-weight: 820 !important;
+  font-size: clamp(6.6cqh, var(--trail-title-size, 8.2cqh), 8.8cqh) !important;
+  letter-spacing: 0.055em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-location-line,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-location-line {
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.28cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.18em !important;
+  color: color-mix(in srgb, var(--label-text-color, currentColor) 66%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-rule,
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .chrome-grid-block--stat::first-line,
+.poster-composition--splits-grid[data-theme="night-ride"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="elevation-profile-band"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  padding-inline: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  box-sizing: border-box !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] [data-testid="elevation-profile"] {
+  height: 46% !important;
+  margin-top: 5.3cqh !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] [data-testid="elevation-profile-band"] {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .composition-profile-labels {
+  inset: 0.75cqh 6.8cqw 2.25cqh;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-footer {
+  padding: 0.95cqh calc(6.2cqw + var(--print-bleed, 0px)) calc(4.5cqh + var(--print-bleed, 0px)) !important;
+  align-items: flex-end !important;
+}
+
+.poster-composition--splits-grid[data-theme="splits-stats"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  border-top-style: solid !important;
+  border-top-color: color-mix(in srgb, currentColor 24%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-profile-labels {
+  inset: 0.65cqh 6.8cqw 2.2cqh;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-footer {
+  background: transparent !important;
+  padding: 0.9cqh calc(6.35cqw + var(--print-bleed, 0px)) calc(4.4cqh + var(--print-bleed, 0px)) !important;
+  align-items: flex-end !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  border-top-style: solid !important;
+  border-top-color: color-mix(in srgb, currentColor 24%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-footer {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 2.2cqw;
+  align-items: end;
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item {
+  padding-left: 1.6cqw;
+  border-left-color: color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item span {
+  margin-bottom: 1.34cqh;
+  font-size: 1.16cqh;
+  letter-spacing: 0.2em;
+  color: color-mix(in srgb, currentColor 64%, transparent);
+}
+
+.poster-composition--splits-grid[data-theme="night-ride"] .composition-technical-data-item strong {
+  font-size: clamp(2.05cqh, 2.32cqh, 2.52cqh);
+  font-weight: 840;
+  letter-spacing: 0.01em;
+}
+
+.composition-profile-labels {
+  position: absolute;
+  z-index: 3;
+  inset: 1.05cqh 6.8cqw 1cqh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  color: var(--label-text-color, currentColor);
+  font-family: "IBM Plex Mono", monospace;
+  text-transform: uppercase;
+}
+
+.composition-profile-labels__header,
+.composition-profile-labels__axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.composition-profile-labels__header span,
+.composition-profile-labels__axis span {
+  font-size: 1.08cqh;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: color-mix(in srgb, currentColor 58%, transparent);
+}
+
+.composition-profile-labels__header strong {
+  font-size: 1.15cqh;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--splits-grid .composition-technical-data-footer {
+  grid-template-columns: 0.95fr 0.95fr 1.45fr 1.12fr;
+  column-gap: 0.9cqw;
+}
+
+.poster-composition--splits-grid .composition-technical-data-item {
+  padding-left: 0.95cqw;
+}
+
+.poster-composition--splits-grid .composition-technical-data-item strong {
+  font-size: clamp(1.45cqh, 1.78cqh, 1.95cqh);
+  letter-spacing: 0;
+}
+
+.poster-composition--travel-banner [data-testid="poster-map"] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+
+.composition-travel-sun {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 63%;
+  z-index: 4;
+  pointer-events: none;
+  color: var(--route-color, #c4561f);
+  mix-blend-mode: multiply;
+  opacity: 0.74;
+}
+
+.composition-travel-sun__disk {
+  fill: color-mix(in srgb, #d89a55 38%, transparent);
+  stroke: none;
+}
+
+.composition-travel-sun__arc,
+.composition-travel-sun__horizon {
+  fill: color-mix(in srgb, #bf7236 36%, transparent);
+  stroke: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.composition-travel-sun__arc--wide {
+  opacity: 0.38;
+}
+
+.composition-travel-sun__arc--mid {
+  opacity: 0.34;
+}
+
+.composition-travel-sun__arc--inner {
+  opacity: 0.30;
+}
+
+.composition-travel-sun__horizon {
+  display: none;
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun {
+  height: 76%;
+  opacity: 0.78;
+  color: var(--contour-major-color, #be624a);
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__disk {
+  fill: color-mix(in srgb, #d98270 28%, transparent);
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc {
+  fill: color-mix(in srgb, #be624a 24%, transparent);
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--wide {
+  opacity: 0.48;
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--mid {
+  opacity: 0.40;
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .composition-travel-sun__arc--inner {
+  opacity: 0.36;
+}
+
+.composition-sea-chart-art {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  color: var(--label-text-color, #1d2a36);
+  opacity: 0.92;
+  mix-blend-mode: multiply;
+}
+
+.composition-sea-chart-art path,
+.composition-sea-chart-art circle,
+.composition-sea-chart-art rect {
+  fill: none;
+  stroke: currentColor;
+  vector-effect: non-scaling-stroke;
+}
+
+.sea-chart-neatline {
+  opacity: 0.82;
+  stroke-width: 0.95;
+}
+
+.sea-chart-neatline--inner {
+  opacity: 0.52;
+  stroke-width: 0.5;
+}
+
+.composition-sea-chart-art text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 3.1px;
+  letter-spacing: 0.08em;
+  fill: currentColor;
+  stroke: none;
+}
+
+.sea-chart-graticule {
+  opacity: 0.48;
+}
+
+.sea-chart-graticule path {
+  stroke-width: 0.5;
+}
+
+.sea-chart-rhumb-lines {
+  opacity: 0.66;
+}
+
+.sea-chart-rhumb-lines path {
+  stroke-width: 0.72;
+  stroke-dasharray: 2 2.4;
+}
+
+.sea-chart-depth-bands {
+  color: var(--water-color, #d7e7e0);
+  opacity: 0.78;
+}
+
+.sea-chart-depth-bands path {
+  stroke-width: 0.86;
+}
+
+.sea-chart-soundings {
+  color: color-mix(in srgb, var(--label-text-color, #1d2a36) 84%, var(--water-color, #d7e7e0));
+  opacity: 0.84;
+}
+
+.sea-chart-soundings circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.sea-chart-rose {
+  color: var(--route-color, #a6245d);
+  opacity: 0.96;
+  filter: drop-shadow(0 0 0.18cqh color-mix(in srgb, currentColor 20%, transparent));
+}
+
+.sea-chart-rose circle {
+  stroke-width: 0.9;
+}
+
+.sea-chart-rose path {
+  stroke-width: 0.82;
+}
+
+.sea-chart-rose text {
+  text-anchor: middle;
+  font-size: 3px;
+  font-weight: 700;
+}
+
+.composition-transit-diagram-art {
+  position: absolute;
+  left: calc(5.6cqw + var(--print-bleed, 0px));
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  bottom: calc(2.1cqh + var(--print-bleed, 0px));
+  z-index: 12;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #181818);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.transit-diagram-route-stations {
+  position: absolute;
+  inset: 0 0 17%;
+  z-index: 13;
+  pointer-events: none;
+  color: var(--route-color, #7a1fa2);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.transit-diagram-route-stations .transit-station {
+  fill: var(--composition-paper, #f7f5f0);
+  stroke: currentColor;
+  stroke-width: 0.65;
+  vector-effect: non-scaling-stroke;
+}
+
+.transit-diagram-route-stations .transit-station--secondary {
+  stroke: var(--contour-major-color, #1f8a5b);
+}
+
+.transit-diagram-route-stations text {
+  fill: var(--label-text-color, #181818);
+  stroke: var(--composition-paper, #f7f5f0);
+  stroke-width: 0.32;
+  paint-order: stroke;
+  font-size: 1.45px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.transit-diagram-legend,
+.transit-diagram-station-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1cqw;
+  min-height: 2.25cqh;
+  padding: 0.5cqh 1.3cqw;
+  background: color-mix(in srgb, var(--composition-paper, #f7f5f0) 86%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  box-shadow: 0 0 0 0.22cqh color-mix(in srgb, var(--composition-paper, #f7f5f0) 54%, transparent);
+}
+
+.transit-diagram-badge {
+  display: grid;
+  place-items: center;
+  width: 2.4cqh;
+  height: 2.4cqh;
+  border-radius: 999px;
+  color: var(--composition-paper, #f7f5f0);
+  background: var(--route-color, #7a1fa2);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.88cqh;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.transit-diagram-line-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 10.5cqw;
+  height: 1.6cqh;
+}
+
+.transit-diagram-line-key::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0.42cqh;
+  border-radius: 999px;
+  background: var(--route-color, #7a1fa2);
+  transform: translateY(-50%);
+}
+
+.transit-diagram-line-key i,
+.transit-diagram-line-key b,
+.transit-diagram-station-key i {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  width: 1.15cqh;
+  height: 1.15cqh;
+  border-radius: 999px;
+  background: var(--composition-paper, #f7f5f0);
+  border: 0.28cqh solid var(--route-color, #7a1fa2);
+}
+
+.transit-diagram-line-key b {
+  margin-left: auto;
+  margin-right: auto;
+  border-color: var(--contour-major-color, #1f8a5b);
+}
+
+.transit-diagram-line-key i:last-child {
+  margin-left: auto;
+}
+
+.transit-diagram-legend-text,
+.transit-diagram-station-key span {
+  font-size: 0.66cqh;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+
+.transit-diagram-station-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55cqw;
+}
+
+.transit-diagram-station-key span:first-child i,
+.transit-diagram-station-key span:last-child i {
+  width: 1.35cqh;
+  height: 1.35cqh;
+}
+
+.composition-plein-air-deckle {
+  position: absolute;
+  inset: calc(1.15cqh + var(--print-bleed, 0px)) calc(1.35cqw + var(--print-bleed, 0px));
+  z-index: 8;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #33302a) 48%, transparent);
+  opacity: 0.9;
+}
+
+.composition-plein-air-deckle::before,
+.composition-plein-air-deckle::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.48;
+}
+
+.composition-plein-air-deckle::before {
+  inset: 0.98cqh 1.05cqw;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-radius: 1.7cqw 1.2cqw 1.55cqw 1.3cqw;
+}
+
+.composition-plein-air-deckle::after {
+  inset: 0.3cqh 0.34cqw;
+  background:
+    linear-gradient(90deg, transparent 0 8%, currentColor 8% 8.2%, transparent 8.2% 91.8%, currentColor 91.8% 92%, transparent 92%) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent 0 7%, currentColor 7% 7.18%, transparent 7.18% 93%, currentColor 93% 93.18%, transparent 93.18%) bottom / 100% 1px no-repeat,
+    linear-gradient(0deg, transparent 0 9%, currentColor 9% 9.18%, transparent 9.18% 91%, currentColor 91% 91.18%, transparent 91.18%) left / 1px 100% no-repeat,
+    linear-gradient(0deg, transparent 0 7%, currentColor 7% 7.18%, transparent 7.18% 93%, currentColor 93% 93.18%, transparent 93.18%) right / 1px 100% no-repeat;
+}
+
+.plein-air-deckle-edge {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  color: currentColor;
+  opacity: 0.92;
+  filter: blur(0.12px);
+}
+
+.plein-air-deckle-edge--top,
+.plein-air-deckle-edge--bottom {
+  left: 0.3cqw;
+  right: 0.3cqw;
+  height: 1.08cqh;
+  background:
+    radial-gradient(ellipse at 3% 46%, currentColor 0 0.07cqh, transparent 0.09cqh),
+    radial-gradient(ellipse at 10% 62%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    radial-gradient(ellipse at 18% 42%, currentColor 0 0.06cqh, transparent 0.09cqh),
+    radial-gradient(ellipse at 31% 54%, currentColor 0 0.11cqh, transparent 0.13cqh),
+    radial-gradient(ellipse at 47% 44%, currentColor 0 0.07cqh, transparent 0.1cqh),
+    radial-gradient(ellipse at 63% 58%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    radial-gradient(ellipse at 79% 46%, currentColor 0 0.07cqh, transparent 0.1cqh),
+    radial-gradient(ellipse at 93% 60%, currentColor 0 0.1cqh, transparent 0.12cqh),
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+}
+
+.plein-air-deckle-edge--top {
+  top: 0;
+}
+
+.plein-air-deckle-edge--bottom {
+  bottom: 0;
+  transform: scaleY(-1);
+}
+
+.plein-air-deckle-edge--left,
+.plein-air-deckle-edge--right {
+  top: 0.25cqh;
+  bottom: 0.25cqh;
+  width: 1.08cqw;
+  background:
+    radial-gradient(ellipse at 48% 4%, currentColor 0 0.07cqw, transparent 0.09cqw),
+    radial-gradient(ellipse at 36% 13%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 58% 24%, currentColor 0 0.06cqw, transparent 0.09cqw),
+    radial-gradient(ellipse at 42% 37%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 56% 51%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(ellipse at 38% 68%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    radial-gradient(ellipse at 54% 82%, currentColor 0 0.07cqw, transparent 0.1cqw),
+    radial-gradient(ellipse at 40% 94%, currentColor 0 0.1cqw, transparent 0.12cqw),
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat;
+}
+
+.plein-air-deckle-edge--left {
+  left: 0;
+}
+
+.plein-air-deckle-edge--right {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.composition-plein-air-palette {
+  position: absolute;
+  right: calc(5.4cqw + var(--print-bleed, 0px));
+  bottom: calc(4.9cqh + var(--print-bleed, 0px));
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 0.86cqw;
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+.plein-air-palette-swatch {
+  display: block;
+  width: 2.18cqh;
+  height: 2.18cqh;
+  border-radius: 46% 54% 42% 58%;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #33302a) 44%, transparent);
+  box-shadow:
+    0 0 0 0.18cqh color-mix(in srgb, var(--composition-paper, #f6f1e8) 78%, transparent),
+    0 0.18cqh 0.5cqh color-mix(in srgb, var(--label-text-color, #33302a) 22%, transparent);
+  mix-blend-mode: multiply;
+}
+
+.plein-air-palette-swatch--route {
+  background: color-mix(in srgb, var(--route-color, #c2683f) 84%, var(--composition-paper, #f6f1e8));
+}
+
+.plein-air-palette-swatch--water {
+  background: color-mix(in srgb, var(--water-color, #a9c2b4) 86%, var(--composition-paper, #f6f1e8));
+}
+
+.plein-air-palette-swatch--contour {
+  background: color-mix(in srgb, var(--contour-color, #c0b59a) 92%, var(--composition-paper, #f6f1e8));
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] [data-testid="poster-map"] {
+  border: 1px solid color-mix(in srgb, currentColor 42%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent),
+    inset 0 0 3.2cqh color-mix(in srgb, var(--water-color, #BCCAD2) 18%, transparent) !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header {
+  background:
+    linear-gradient(90deg, transparent 0 12%, color-mix(in srgb, currentColor 14%, transparent) 12% calc(12% + 1px), transparent calc(12% + 1px)),
+    linear-gradient(90deg, transparent 0 88%, color-mix(in srgb, currentColor 14%, transparent) 88% calc(88% + 1px), transparent calc(88% + 1px)),
+    var(--label-bg-color, #EEEEEA) !important;
+}
+
+.composition-classic-trail-markers {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  color: var(--label-text-color, #26313b);
+}
+
+.classic-trail-blaze,
+.classic-trail-quad {
+  position: absolute;
+  pointer-events: none;
+}
+
+.classic-trail-blaze {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6.6cqw;
+  height: 2.25cqh;
+  padding: 0 0.8cqw;
+  border: 1px solid color-mix(in srgb, var(--route-color, #2f536a) 64%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--label-bg-color, #eeeeea) 86%, transparent);
+  color: var(--route-color, #2f536a);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62cqh;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow:
+    0 0.3cqh 1.2cqh rgba(38, 49, 59, 0.08),
+    inset 0 0 0 0.12cqw color-mix(in srgb, var(--label-bg-color, #eeeeea) 70%, transparent);
+  opacity: 0.88;
+}
+
+.classic-trail-blaze--start {
+  left: 6.4cqw;
+  top: 20.8cqh;
+  transform: rotate(-4deg);
+}
+
+.classic-trail-blaze--end {
+  right: 6.7cqw;
+  bottom: 16.4cqh;
+  transform: rotate(3.2deg);
+}
+
+.classic-trail-quad {
+  opacity: 0.48;
+  background: var(--route-color, #2f536a);
+}
+
+.classic-trail-quad--top,
+.classic-trail-quad--bottom {
+  left: 14cqw;
+  right: 14cqw;
+  height: 1px;
+}
+
+.classic-trail-quad--top {
+  top: 18.4cqh;
+}
+
+.classic-trail-quad--bottom {
+  bottom: 15.2cqh;
+}
+
+.classic-trail-quad--left,
+.classic-trail-quad--right {
+  top: 22cqh;
+  bottom: 18.4cqh;
+  width: 1px;
+}
+
+.classic-trail-quad--left {
+  left: 6.2cqw;
+}
+
+.classic-trail-quad--right {
+  right: 6.2cqw;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--title {
+  color: var(--label-text-color, #26313B) !important;
+  letter-spacing: 0.04em !important;
+  line-height: 0.96 !important;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #EEEEEA) 84%, transparent);
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-location-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, currentColor 58%, transparent) !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label {
+  position: absolute;
+  z-index: 22;
+  color: color-mix(in srgb, #26313b 68%, transparent);
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace;
+  font-size: 0.92cqh;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label--coord {
+  top: calc(2.1cqh + var(--print-bleed, 0px));
+  left: calc(6.25cqw + var(--print-bleed, 0px));
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .classic-trail-map-label--scale {
+  right: calc(6.25cqw + var(--print-bleed, 0px));
+  bottom: calc(17.8cqh + var(--print-bleed, 0px));
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer {
+  background:
+    repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 7%, transparent) 0 1px, transparent 1px 6.4cqw),
+    var(--label-bg-color, #EEEEEA) !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--brand {
+  opacity: 0.42;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] {
+  background:
+    linear-gradient(color-mix(in srgb, #243021 18%, transparent) 0 0) 0 0 / 100% 1px no-repeat,
+    linear-gradient(color-mix(in srgb, #243021 18%, transparent) 0 0) 0 100% / 100% 1px no-repeat,
+    var(--label-bg-color, #f0ecde) !important;
+  gap: 0 !important;
+  color: #243021 !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: calc(4.25cqh + var(--print-bleed, 0px)) calc(6.25cqw + var(--print-bleed, 0px)) 0 !important;
+  border: 2px solid #243021 !important;
+  background-color: var(--label-bg-color, #f0ecde) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] [data-testid="poster-map"]::before {
+  content: "";
+  position: absolute;
+  inset: -0.42cqh -0.42cqw;
+  z-index: 22;
+  pointer-events: none;
+  background:
+    linear-gradient(#243021 0 0) left top / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) left top / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) right top / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) right top / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) left bottom / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) left bottom / 0.32cqw 3.6cqh no-repeat,
+    linear-gradient(#243021 0 0) right bottom / 3.6cqw 0.32cqh no-repeat,
+    linear-gradient(#243021 0 0) right bottom / 0.32cqw 3.6cqh no-repeat;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label {
+  position: absolute;
+  z-index: 26;
+  color: color-mix(in srgb, #243021 72%, transparent);
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 1.28cqh;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  pointer-events: auto;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label--coord {
+  top: 2.15cqh;
+  left: 2.35cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-heritage-map-label--scale {
+  right: 2.5cqw;
+  bottom: 2.05cqh;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-ticks {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick {
+  position: absolute;
+  max-width: 24cqw;
+  color: color-mix(in srgb, #243021 76%, transparent);
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 0.72cqh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick::before {
+  content: "";
+  position: absolute;
+  width: 2.1cqw;
+  height: 1.55cqh;
+  border-color: #243021;
+  opacity: 0.82;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--nw {
+  top: 0.82cqh;
+  left: 0.9cqw;
+  padding-left: 2.75cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--nw::before {
+  left: 0;
+  top: -0.18cqh;
+  border-top: 0.24cqh solid;
+  border-left: 0.24cqw solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--ne {
+  top: 0.82cqh;
+  right: 0.9cqw;
+  padding-right: 2.75cqw;
+  text-align: right;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--ne::before {
+  right: 0;
+  top: -0.18cqh;
+  border-top: 0.24cqh solid;
+  border-right: 0.24cqw solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--se {
+  right: 0.9cqw;
+  bottom: 0.82cqh;
+  padding-right: 2.75cqw;
+  text-align: right;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--se::before {
+  right: 0;
+  bottom: -0.18cqh;
+  border-right: 0.24cqw solid;
+  border-bottom: 0.24cqh solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--sw {
+  left: 0.9cqw;
+  bottom: 0.82cqh;
+  padding-left: 2.75cqw;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .usgs-coordinate-tick--sw::before {
+  left: 0;
+  bottom: -0.18cqh;
+  border-left: 0.24cqw solid;
+  border-bottom: 0.24cqh solid;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header {
+  order: 1 !important;
+  flex: 0 0 12.6cqh !important;
+  min-height: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header::before,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-header::after {
+  content: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-kicker,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-meta-line,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--title {
+  color: #243021 !important;
+  font-family: "Libre Baskerville", Georgia, serif !important;
+  font-size: min(var(--trail-title-size, 5.35cqh), 5.35cqh) !important;
+  font-weight: 800 !important;
+  line-height: 0.92 !important;
+  letter-spacing: 0.01em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--label-bg-color, #f0ecde) 72%, transparent);
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-location-line,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, #617349 88%, #243021) !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.15cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.23em !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer {
+  order: 2 !important;
+  flex: 0 0 calc(5.05cqh + var(--print-bleed, 0px)) !important;
+  min-height: 0 !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) calc(2.8cqh + var(--print-bleed, 0px)) !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::before,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::after {
+  content: "";
+  position: absolute;
+  bottom: calc(2.1cqh + var(--print-bleed, 0px));
+  width: 3.8cqw;
+  height: 2.4cqh;
+  pointer-events: none;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::before {
+  left: calc(6.25cqw + var(--print-bleed, 0px));
+  border-left: 0.32cqw solid #243021;
+  border-bottom: 0.32cqh solid #243021;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer::after {
+  right: calc(6.25cqw + var(--print-bleed, 0px));
+  border-right: 0.32cqw solid #243021;
+  border-bottom: 0.32cqh solid #243021;
+}
+
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-footer-rule,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .composition-footer-note,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-stats,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-date,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .poster-coords,
+.poster-composition--park-quad[data-theme="usgs-vintage"] .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] {
+  background: var(--label-bg-color, #eeeeea) !important;
+  gap: 0 !important;
+  color: #26313b !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  margin: calc(4.25cqh + var(--print-bleed, 0px)) calc(6.25cqw + var(--print-bleed, 0px)) 0 !important;
+  border: 1.5px solid #26313b !important;
+  background-color: var(--label-bg-color, #eeeeea) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header {
+  order: 1 !important;
+  flex: 0 0 12.6cqh !important;
+  min-height: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header::before,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-header::after,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-kicker,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-meta-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-rule {
+  display: none !important;
+  content: none !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-trail-name,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--title {
+  color: #26313b !important;
+  font-family: "Libre Baskerville", Georgia, serif !important;
+  font-size: min(var(--trail-title-size, 4.9cqh), 4.9cqh) !important;
+  font-weight: 800 !important;
+  line-height: 0.92 !important;
+  letter-spacing: 0.015em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-location-line,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--subtitle,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, #5f6e7e 88%, #26313b) !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.12cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer {
+  order: 2 !important;
+  flex: 0 0 calc(5.05cqh + var(--print-bleed, 0px)) !important;
+  min-height: 0 !important;
+  padding: 0 calc(6.25cqw + var(--print-bleed, 0px)) calc(2.8cqh + var(--print-bleed, 0px)) !important;
+  background: transparent !important;
+}
+
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-footer-rule,
+.poster-composition--park-quad[data-theme="classic-trail"] .composition-footer-note,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-stats,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-mark,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-date,
+.poster-composition--park-quad[data-theme="classic-trail"] .poster-coords,
+.poster-composition--park-quad[data-theme="classic-trail"] .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--travel-banner .poster-header {
+  flex: 0 0 20.8% !important;
+  min-height: 0 !important;
+  justify-content: center !important;
+  gap: 1.1cqh !important;
+  background: var(--composition-paper, var(--label-bg-color, #f4ead3)) !important;
+  border-top: 0.55cqh solid var(--route-color, currentColor);
+}
+
+.poster-composition--travel-banner[data-theme="midcentury-travel"] .poster-header {
+  background: #F3EAD6 !important;
+}
+
+.poster-composition--travel-banner[data-theme="ranch-ochre"] .poster-header {
+  background: #EDE2C6 !important;
+}
+
+.poster-composition--travel-banner[data-theme="daybreak-trace"] .poster-header {
+  background: #F5E8E0 !important;
+}
+
+.poster-composition--travel-banner .poster-header::before {
+  content: "VISIT";
+  display: block;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace;
+  font-size: 1.75cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--route-color, currentColor) 62%, #d75c2b);
+  opacity: 0.9;
+  text-align: center;
+}
+
+.poster-composition--travel-banner .composition-kicker {
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.75cqh !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.42em !important;
+  text-transform: uppercase !important;
+  color: var(--route-color, currentColor) !important;
+  opacity: 0.88 !important;
+  text-align: center !important;
+}
+
+.poster-composition--travel-banner .poster-trail-name {
+  font-size: min(max(var(--trail-title-size, 9.4cqh), 9.4cqh), 10.5cqh) !important;
+  line-height: 0.82 !important;
+  letter-spacing: 0.01em !important;
+  text-transform: uppercase !important;
+  color: var(--route-color, currentColor) !important;
+  text-shadow: none !important;
+}
+
+.poster-composition--travel-banner .poster-location-line {
+  margin-top: 0.38cqh !important;
+  font-family: "IBM Plex Mono", "Source Sans 3", monospace !important;
+  font-size: 1.55cqh !important;
+  letter-spacing: 0.26em !important;
+  text-transform: uppercase !important;
+  color: color-mix(in srgb, var(--route-color, currentColor) 62%, var(--label-text-color, currentColor)) !important;
+  opacity: 0.72 !important;
+  text-shadow: none !important;
+}
+
+.poster-composition--travel-banner .poster-footer,
+.poster-composition--travel-banner .poster-stats,
+.poster-composition--travel-banner .chrome-grid-band--footer {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid .poster-header {
+  border-top: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+}
+
+.poster-composition--blueprint-grid .poster-trail-name {
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava .poster-trail-name {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  font-size: clamp(7.65cqh, var(--trail-title-size, 8.8cqh), 9.3cqh) !important;
+  font-weight: 920 !important;
+  line-height: 0.82 !important;
+  letter-spacing: 0.035em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-strava .poster-header {
+  z-index: 5 !important;
+  border-top: 0 !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px) !important;
+  background-size: 8cqw 8cqh !important;
+  background-position: 0 0 !important;
+  box-shadow: none !important;
+  align-items: flex-start !important;
+  gap: 0.52cqh !important;
+  padding-top: 0.72cqh !important;
+  padding-bottom: 0.82cqh !important;
+}
+
+.poster-composition--blueprint-strava .poster-location-line {
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.62cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: color-mix(in srgb, var(--label-text-color, currentColor) 68%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--blueprint-strava .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--blueprint-strava [data-testid="poster-map"] {
+  border-color: color-mix(in srgb, var(--label-text-color, currentColor) 48%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, currentColor) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, currentColor) 10%, transparent) !important;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-topline,
+.poster-composition--blueprint-strava .blueprint-drafting-figure {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #ddf7ec) 70%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.12cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-topline {
+  left: 5.2cqw;
+  right: 5.2cqw;
+  top: 4.9cqh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poster-composition--blueprint-strava .blueprint-drafting-figure {
+  left: 6.9cqw;
+  top: 8.45cqh;
+}
+
+.poster-composition--blueprint-strava .blueprint-sheet-neatline {
+  display: none !important;
+}
+
+.poster-composition--blueprint-strava .logo-map,
+.poster-composition--blueprint-strava .logo-header-right,
+.poster-composition--blueprint-strava .poster-footer img {
+  display: none !important;
+}
+
+.poster-composition--blueprint-strava .poster-footer {
+  z-index: 5 !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--label-text-color, currentColor) 15%, transparent) 0 1px, transparent 1px) !important;
+  background-size: 8cqw 8cqh !important;
+  background-position: 0 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-trail-name {
+  font-size: clamp(8.9cqh, var(--trail-title-size, 10.35cqh), 10.7cqh) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-location-line {
+  font-size: 1.82cqh !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="blueprint-strava"] .poster-footer-rule {
+  top: 0 !important;
+  display: block !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  right: calc(6.8cqw + var(--print-bleed, 0px)) !important;
+  border-top-style: solid !important;
+  border-top-color: color-mix(in srgb, currentColor 36%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.composition-technical-data-footer {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 0.92fr 0.92fr 1.32fr 1.08fr;
+  column-gap: 1.25cqw;
+  align-items: end;
+  color: var(--label-text-color, currentColor);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.composition-technical-data-item {
+  min-width: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 36%, transparent);
+  padding-left: 1.25cqw;
+}
+
+.composition-technical-data-item:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.composition-technical-data-item span,
+.composition-technical-data-item strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.composition-technical-data-item span {
+  margin-bottom: 1.05cqh;
+  font-size: 1.05cqh;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+}
+
+.composition-technical-data-item strong {
+  font-size: clamp(1.45cqh, 1.82cqh, 2.04cqh);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .chrome-grid-block--title {
+  font-family: "Big Shoulders Display", "IBM Plex Sans", sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.035em !important;
+  line-height: 0.86 !important;
+  text-transform: uppercase !important;
+  color: var(--route-color, #FA498E) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-trail-name {
+  font-size: clamp(7cqh, var(--trail-title-size, 8.2cqh), 8.8cqh) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .poster-location-line,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .blueprint-drafting-topline,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .blueprint-drafting-figure,
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .composition-technical-data-item span {
+  color: color-mix(in srgb, var(--label-text-color, #B8B6F4) 82%, transparent) !important;
+}
+
+.poster-composition--blueprint-strava[data-theme="electric-atlas"] .composition-technical-data-item strong {
+  color: #5FC3DD !important;
+}
+
+.composition-electric-trace {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.78;
+  mix-blend-mode: screen;
+}
+
+.electric-trace-line {
+  position: absolute;
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--water-color, #22e3ff), var(--route-color, #ff2e88), transparent);
+  box-shadow: 0 0 0.9cqh color-mix(in srgb, var(--water-color, #22e3ff) 52%, transparent);
+}
+
+.electric-trace-line--a {
+  top: 18%;
+  left: -14%;
+  width: 52%;
+  transform: rotate(-18deg);
+}
+
+.electric-trace-line--b {
+  top: 62%;
+  right: -10%;
+  width: 48%;
+  transform: rotate(14deg);
+}
+
+.electric-trace-line--c {
+  bottom: 16%;
+  left: 18%;
+  width: 28%;
+  transform: rotate(9deg);
+  opacity: 0.56;
+}
+
+.composition-electric-chip {
+  position: absolute;
+  z-index: 9;
+  right: 2.3cqw;
+  top: 2.1cqh;
+  display: grid;
+  gap: 0.15cqh;
+  min-width: 12cqw;
+  padding: 0.58cqh 0.74cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #B8B6F4);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68cqh;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--water-color, #22e3ff) 28%, transparent) 0 1px, transparent 1px) 0 0 / 2.4cqw 100%,
+    color-mix(in srgb, var(--background-color, #0A0A11) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--water-color, #22e3ff) 48%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, #FA498E) 18%, transparent),
+    0 0 1.6cqh color-mix(in srgb, var(--water-color, #22e3ff) 20%, transparent);
+}
+
+.composition-electric-chip b {
+  color: var(--route-color, #ff2e88);
+  font-size: 0.86cqh;
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--blueprint-grid [data-testid="poster-map"] {
+  margin: 0 4.8cqw !important;
+  border: 1px solid color-mix(in srgb, currentColor 46%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent),
+    0 0 0 0.7cqw color-mix(in srgb, currentColor 5%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] [data-testid="poster-map"] {
+  margin: calc(7.6cqh + var(--print-bleed, 0px)) 8.8cqw 0 !important;
+  border-color: color-mix(in srgb, currentColor 58%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent),
+    inset 0 0 4cqh color-mix(in srgb, var(--water-color, #071b32) 32%, transparent),
+    0 0 0 0.7cqw color-mix(in srgb, currentColor 6%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 72%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.08cqh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline {
+  left: 8.8cqw;
+  right: 8.8cqw;
+  top: 5.2cqh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-drafting-figure,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
+  left: 13cqw;
+  top: 10.2cqh;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .blueprint-sheet-neatline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-sheet-neatline {
+  position: absolute;
+  inset: 3.7cqh 3.9cqw 3.8cqh;
+  z-index: 17;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #dceeff) 58%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, #dceeff) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, #dceeff) 22%, transparent);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-header,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 10%, transparent) 0 1px, transparent 1px) 0 0 / 7.2cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 10%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.35cqh,
+    var(--label-bg-color, #0b2948) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-header {
+  flex: 0 0 16.5% !important;
+  height: 16.5% !important;
+  padding-top: 2cqh !important;
+  padding-left: calc(8.8cqw + var(--print-bleed, 0px)) !important;
+  padding-right: calc(4.2cqw + var(--print-bleed, 0px)) !important;
+  padding-bottom: 1.4cqh !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer {
+  flex: 0 0 8.5% !important;
+  height: 8.5% !important;
+  padding-top: 0.8cqh !important;
+  padding-left: calc(9.4cqw + var(--print-bleed, 0px)) !important;
+  padding-right: calc(3.8cqw + var(--print-bleed, 0px)) !important;
+  padding-bottom: calc(1.25cqh + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-footer-rule {
+  height: 1.5px !important;
+  background: color-mix(in srgb, var(--label-text-color, #dceeff) 74%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-trail-name,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--title {
+  color: var(--label-text-color, #dceeff) !important;
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  font-weight: 760 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-trail-name {
+  font-size: min(8.1cqh, 9.4cqw) !important;
+  letter-spacing: 0.015em !important;
+  transform: translateY(-1.45cqh);
+  white-space: nowrap !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-location-line,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--subtitle,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--occasion {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-location-line {
+  font-size: 2.25cqh !important;
+  transform: translateY(-1.55cqh);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 2.2cqw !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-block {
+  flex: 0 1 auto !important;
+  min-width: max-content !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-divider {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .poster-stats .stat-block:last-child {
+  text-align: right !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, #ffd45a);
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--coords {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.44cqh !important;
+  font-weight: 520 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--stat::first-line,
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--slot-date::first-line {
+  color: color-mix(in srgb, var(--label-text-color, #dceeff) 76%, transparent) !important;
+  font-size: 1em !important;
+  font-weight: 520 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1 !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--slot-date {
+  text-align: right !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="blueprint"] .chrome-grid-block--brand {
+  opacity: 0.50;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] [data-testid="poster-map"] {
+  margin: 0 4.2cqw !important;
+  border: 1px solid color-mix(in srgb, currentColor 56%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent),
+    inset 0 0 3.5cqh color-mix(in srgb, var(--water-color, #b7c9cc) 22%, transparent),
+    0 0 0 0.6cqw color-mix(in srgb, currentColor 4%, transparent) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-header {
+  border-top: 1px solid color-mix(in srgb, currentColor 38%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.8cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 9%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.6cqh,
+    var(--label-bg-color, #EEF0ED) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-footer {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 8%, transparent) 0 1px, transparent 1px) 0 0 / 8.8cqw 100%,
+    linear-gradient(0deg, color-mix(in srgb, currentColor 9%, transparent) 0 1px, transparent 1px) 0 0 / 100% 2.6cqh,
+    var(--label-bg-color, #EEF0ED) !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-topline,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-drafting-figure {
+  color: color-mix(in srgb, var(--label-text-color, #243238) 68%, transparent);
+  font-size: 1.03cqh;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .blueprint-sheet-neatline {
+  border-color: color-mix(in srgb, var(--label-text-color, #243238) 36%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--label-text-color, #243238) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--label-text-color, #243238) 16%, transparent);
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-trail-name,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--title {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif !important;
+  font-weight: 760 !important;
+  letter-spacing: 0.18em !important;
+  line-height: 0.92 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-location-line,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--subtitle {
+  color: color-mix(in srgb, var(--label-text-color, #243238) 62%, transparent) !important;
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.55cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .chrome-grid-block--brand {
+  opacity: 0.42;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  justify-content: space-between !important;
+  gap: 2.2cqw !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-stats .stat-divider,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  gap: 2cqw;
+  padding: 0 calc(5.2cqw + var(--print-bleed, 0px)) calc(0.9cqh + var(--print-bleed, 0px));
+  color: color-mix(in srgb, var(--label-text-color, #243238) 70%, transparent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.62cqh;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer span:nth-child(2) {
+  text-align: center;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .composition-technical-line-footer span:nth-child(3) {
+  text-align: right;
+}
+
+.poster-composition--blueprint-grid[data-theme="moonstone"] .stat-block,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-date,
+.poster-composition--blueprint-grid[data-theme="moonstone"] .poster-coords {
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.13em !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--journal-spread [data-testid="poster-map"] {
+  margin: 0 calc(27cqw + var(--print-bleed, 0px)) 0 calc(6.4cqw + var(--print-bleed, 0px)) !important;
+  border: 1.5px solid color-mix(in srgb, currentColor 34%, transparent) !important;
+  overflow: visible !important;
+  box-shadow:
+    0 0 0 1.05cqw color-mix(in srgb, var(--composition-paper, #e8ded0) 62%, transparent),
+    0 1.25cqh 2.8cqh rgba(45, 36, 25, 0.18) !important;
+  transform: rotate(-0.45deg);
+  transform-origin: center;
+}
+
+.composition-journal-notes {
+  position: absolute;
+  z-index: 8;
+  top: calc(19.4cqh + var(--print-bleed, 0px));
+  right: calc(6.2cqw + var(--print-bleed, 0px));
+  width: 19cqw;
+  height: 24cqh;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #362616) 92%, transparent);
+  font-family: "Source Serif 4", "Cormorant Garamond", serif;
+  font-size: 1.18cqh;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.journal-note-heading {
+  display: block;
+  margin-bottom: 1.2cqh;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.9cqh;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.journal-note-rule {
+  display: block;
+  height: 4.2cqh;
+  border-top: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 58%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, currentColor 28%, transparent) 0 0.5cqw, transparent 0.5cqw) 0 1.4cqh / 4.4cqw 1px no-repeat;
+  opacity: 1;
+}
+
+.journal-note-rule--short {
+  width: 72%;
+}
+
+.composition-journal-route-sketch {
+  position: absolute;
+  z-index: 8;
+  right: calc(6.2cqw + var(--print-bleed, 0px));
+  bottom: calc(15.2cqh + var(--print-bleed, 0px));
+  width: 18.2cqw;
+  min-height: 10.8cqh;
+  padding: 1.25cqh 1.45cqw;
+  pointer-events: none;
+  color: var(--label-text-color, #362616);
+  font-family: "Source Serif 4", "Cormorant Garamond", serif;
+  font-size: 1.16cqh;
+  line-height: 1.32;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #fff 38%, transparent), transparent 34%),
+    color-mix(in srgb, var(--composition-paper, #e8ded0) 82%, #cdbb91 18%);
+  border: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 24%, transparent);
+  box-shadow: 0 0.45cqh 1cqh rgba(45, 36, 25, 0.1);
+  transform: rotate(1.2deg);
+}
+
+.composition-journal-route-sketch span {
+  display: block;
+}
+
+.journal-specimen-tag {
+  margin-bottom: 0.75cqh;
+  font-size: 0.92cqh;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--label-text-color, #362616) 72%, transparent);
+}
+
+.journal-specimen-line {
+  width: 100%;
+  height: 1.1cqh;
+  margin: 0.1cqh 0 0.9cqh;
+  border-top: 0.24cqh solid var(--route-color, #6a4a2a);
+  border-bottom: 1px solid color-mix(in srgb, var(--route-color, #6a4a2a) 26%, transparent);
+}
+
+.composition-journal-tape {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.journal-tape-strip {
+  position: absolute;
+  display: block;
+  width: 13cqw;
+  height: 2.2cqh;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, #fff 34%, transparent), transparent 22% 78%, color-mix(in srgb, #6a4a2a 12%, transparent)),
+    color-mix(in srgb, #d6c39a 64%, var(--composition-paper, #e8ded0) 36%);
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+  box-shadow: 0 0.25cqh 0.8cqh rgba(45, 36, 25, 0.12);
+}
+
+.journal-tape-strip--top {
+  top: -1.45cqh;
+  left: 7cqw;
+  transform: rotate(-5deg);
+}
+
+.journal-tape-strip--bottom {
+  right: 5cqw;
+  bottom: -1.25cqh;
+  transform: rotate(4deg);
+}
+
+.poster-composition--journal-spread .poster-header {
+  padding-right: calc(27cqw + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--journal-spread[data-theme="field-journal"] .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--journal-spread[data-theme="field-journal"] [data-testid="poster-map"] {
+  flex: 0 0 76% !important;
+  height: 76% !important;
+  margin-bottom: calc(4cqh + var(--print-bleed, 0px)) !important;
+}
+
+.poster-composition--journal-spread .poster-trail-name {
+  font-family: "Cormorant Garamond", "Source Serif 4", serif !important;
+  font-size: min(var(--trail-title-size, 4.9cqh), 5.8cqh) !important;
+  font-style: italic !important;
+  letter-spacing: 0 !important;
+}
+
+.poster-composition--botanical-plate [data-testid="poster-map"] {
+  flex: 1 1 68% !important;
+  margin: calc(5.25cqh + var(--print-bleed, 0px)) 6.8cqw 0 !important;
+  border: 1px solid color-mix(in srgb, var(--route-color, #31512b) 54%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.composition-botanical-frame {
+  position: absolute;
+  z-index: 8;
+  inset: calc(4.4cqh + var(--print-bleed, 0px)) calc(5.4cqw + var(--print-bleed, 0px)) calc(3.15cqh + var(--print-bleed, 0px));
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--route-color, #3f5a32) 64%, transparent);
+  box-shadow:
+    inset 0 0 0 1.08cqw color-mix(in srgb, var(--composition-paper, #eef1e8) 86%, transparent),
+    inset 0 0 0 calc(1.08cqw + 2px) color-mix(in srgb, var(--route-color, #3f5a32) 42%, transparent);
+}
+
+.botanical-corner {
+  position: absolute;
+  width: 5.4cqw;
+  height: 5.4cqw;
+  border-color: color-mix(in srgb, var(--route-color, #3f5a32) 54%, transparent);
+  opacity: 0.86;
+}
+
+.botanical-corner--tl {
+  top: 0.8cqh;
+  left: 0.8cqw;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.botanical-corner--tr {
+  top: 0.8cqh;
+  right: 0.8cqw;
+  border-top: 1px solid;
+  border-right: 1px solid;
+}
+
+.botanical-corner--br {
+  right: 0.8cqw;
+  bottom: 0.8cqh;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+}
+
+.botanical-corner--bl {
+  bottom: 0.8cqh;
+  left: 0.8cqw;
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+}
+
+.composition-botanical-caption {
+  display: none !important;
+}
+
+.botanical-caption-label {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.35cqh;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.poster-composition--botanical-plate .poster-header {
+  align-items: center !important;
+  text-align: center !important;
+  flex: 0 0 28.6cqh !important;
+  min-height: 28.6cqh !important;
+  padding: 4.4cqh calc(9cqw + var(--print-bleed, 0px)) calc(4.4cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #eef1e8) !important;
+}
+
+.poster-composition--botanical-plate .composition-kicker,
+.poster-composition--botanical-plate .botanical-titleblock-eyebrow {
+  color: color-mix(in srgb, var(--label-text-color, #253721) 72%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.38cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.33em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  width: 100%;
+  text-align: center;
+}
+
+.poster-composition--botanical-plate .poster-trail-name,
+.poster-composition--botanical-plate .chrome-grid-block--title {
+  font-family: "Cormorant Garamond", "Libre Baskerville", serif !important;
+  font-size: 6.9cqh !important;
+  font-style: italic !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 0.9 !important;
+  text-transform: none !important;
+  text-align: center !important;
+  color: var(--label-text-color, #253721) !important;
+  text-shadow: none !important;
+}
+
+.poster-composition--botanical-plate .poster-location-line,
+.poster-composition--botanical-plate .chrome-grid-block--subtitle,
+.poster-composition--botanical-plate .chrome-grid-block--occasion {
+  color: color-mix(in srgb, var(--label-text-color, #253721) 72%, transparent) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: 2cqh !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em !important;
+  text-align: center !important;
+  text-transform: none !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--botanical-plate .composition-meta-line,
+.poster-composition--botanical-plate .botanical-titleblock-coordinate {
+  position: relative;
+  margin-top: 3.05cqh;
+  color: color-mix(in srgb, var(--label-text-color, #253721) 70%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.75cqh !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.15em !important;
+  opacity: 1 !important;
+  text-align: center !important;
+}
+
+.poster-composition--botanical-plate .composition-meta-line::before,
+.poster-composition--botanical-plate .botanical-titleblock-coordinate::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -1.55cqh;
+  width: 7.2cqw;
+  height: 1px;
+  transform: translateX(-50%);
+  background: var(--route-color, #31512b);
+  opacity: 0.76;
+}
+
+.poster-composition--botanical-plate .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--botanical-plate .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  transform: translateY(-0.25cqh);
+}
+
+.poster-composition--botanical-plate .poster-stats,
+.poster-composition--botanical-plate .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 0 0 72% !important;
+  height: 72% !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-header {
+  order: 1 !important;
+  flex: 1 1 28% !important;
+  justify-content: flex-start !important;
+  gap: 1.15cqh !important;
+  padding: 3.2cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(4.6cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #F8F3EA) !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-kicker {
+  position: absolute !important;
+  top: 3.2cqh !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  color: var(--route-color, #9A3B27) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.32cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-trail-name,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--title {
+  font-size: min(var(--trail-title-size, 6.8cqh), 7.2cqh) !important;
+  line-height: 0.92 !important;
+  max-width: 76cqw !important;
+  text-wrap: balance;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-location-line,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--subtitle,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--occasion {
+  letter-spacing: 0.16em !important;
+  opacity: 0.52 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .composition-meta-line {
+  position: absolute !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: 34cqw !important;
+  margin-top: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #171410) 58%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.28cqh !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 22 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-footer > :not(.poster-occasion) {
+  display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .poster-occasion,
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--occasion {
+  position: absolute !important;
+  left: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 42cqw !important;
+  color: color-mix(in srgb, var(--label-text-color, #171410) 62%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 1.65cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--stat::first-line {
+  color: var(--route-color, currentColor);
+}
+
+.poster-composition--editorial-tall[data-theme="editorial-minimal"] .chrome-grid-block--brand {
+  opacity: 0.36;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] [data-testid="poster-map"] {
+  order: 0 !important;
+  flex: 0 0 72% !important;
+  height: 72% !important;
+  margin: calc(4.6cqh + var(--print-bleed, 0px)) calc(7.8cqw + var(--print-bleed, 0px)) 0 !important;
+  background: #EEE6D5 !important;
+  border: 0 !important;
+  border-bottom: 2px double color-mix(in srgb, var(--label-text-color, #27231d) 22%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-header {
+  order: 1 !important;
+  flex: 1 1 28% !important;
+  justify-content: flex-start !important;
+  gap: 1.05cqh !important;
+  padding: 2.9cqh calc(7.8cqw + var(--print-bleed, 0px)) calc(3.6cqh + var(--print-bleed, 0px)) !important;
+  background: var(--label-bg-color, #ece4d3) !important;
+  position: relative !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-rule {
+  display: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-kicker {
+  position: absolute !important;
+  top: 2.9cqh !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  color: #C94D2C !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.22em !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-trail-name {
+  font-family: "Newsreader", "Libre Baskerville", serif !important;
+  font-size: min(var(--trail-title-size, 10.2cqh), 10.4cqh) !important;
+  line-height: 0.92 !important;
+  max-width: 76cqw !important;
+  text-wrap: balance;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-location-line,
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .chrome-grid-block--subtitle {
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 66%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.28em !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-occasion,
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .chrome-grid-block--occasion {
+  position: absolute !important;
+  left: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 42cqw !important;
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 62%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 1.85cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .composition-meta-line {
+  position: absolute !important;
+  right: calc(7.8cqw + var(--print-bleed, 0px)) !important;
+  bottom: calc(3.8cqh + var(--print-bleed, 0px)) !important;
+  width: 34cqw !important;
+  margin-top: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #27231d) 58%, transparent) !important;
+  font-family: "IBM Plex Mono", "Roboto Mono", monospace !important;
+  font-size: 1.45cqh !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-footer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 22 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.poster-composition--editorial-tall[data-theme="relief-shaded"] .poster-footer > :not(.poster-occasion) {
+  display: none !important;
+}
+
+.composition-relief-bands {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.62;
+}
+
+.relief-band {
+  stroke: none;
+}
+
+.relief-band--low {
+  fill: color-mix(in srgb, var(--water-color, #b8c7a3) 32%, transparent);
+}
+
+.relief-band--mid {
+  fill: color-mix(in srgb, var(--contour-color, #cabfa8) 36%, transparent);
+}
+
+.relief-band--high {
+  fill: color-mix(in srgb, var(--route-color, #b4502a) 18%, transparent);
+}
+
+.composition-relief-legend {
+  position: absolute;
+  z-index: 9;
+  right: 2.2cqw;
+  bottom: 2.2cqh;
+  display: flex;
+  gap: 0.45cqw;
+  align-items: center;
+  padding: 0.42cqh 0.6cqw;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--composition-paper, #efe9dd) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #2a2620) 16%, transparent);
+}
+
+.relief-legend-swatch {
+  display: block;
+  width: 1.45cqw;
+  height: 0.68cqh;
+  border: 1px solid color-mix(in srgb, var(--label-text-color, #2a2620) 12%, transparent);
+}
+
+.relief-legend-swatch--low {
+  background: color-mix(in srgb, var(--water-color, #b8c7a3) 56%, transparent);
+}
+
+.relief-legend-swatch--mid {
+  background: color-mix(in srgb, var(--contour-color, #cabfa8) 64%, transparent);
+}
+
+.relief-legend-swatch--high {
+  background: color-mix(in srgb, var(--route-color, #b4502a) 34%, transparent);
+}
+
+.composition-relief-stamp {
+  position: absolute;
+  z-index: 9;
+  left: 2.2cqw;
+  top: 2.1cqh;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--label-text-color, #2a2620) 54%, transparent);
+  font-family: "Source Sans 3", "Inter", sans-serif;
+  font-size: 0.78cqh;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
 .poster-composition--riso-stack .poster-header::before {
   content: "";
   position: absolute;
-  top: 3cqh;
-  right: 7cqw;
-  width: 7cqw;
-  height: 7cqw;
-  background: var(--water-color, currentColor);
-  opacity: 0.85;
+  display: none;
+}
+
+.poster-composition--riso-stack {
+  background: var(--composition-paper, #f4f0e3) !important;
+}
+
+.poster-composition--riso-stack .composition-paper-texture {
+  opacity: 0.32;
+}
+
+.poster-composition--riso-stack [data-testid="poster-map"] {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  height: 72% !important;
+  flex: 0 0 72% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: var(--composition-paper, #eae6db) !important;
+}
+
+.poster-composition--riso-stack .maplibregl-canvas {
+  filter: contrast(1.04) saturate(1.08);
+}
+
+.poster-composition--riso-stack .poster-header {
+  position: absolute !important;
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  bottom: calc(13.4cqh + var(--print-bleed, 0px));
+  z-index: 18 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--route-color, #ff4f7b) !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  gap: 0 !important;
+  pointer-events: auto;
+  overflow: visible !important;
+  outline: none !important;
+}
+
+.poster-composition--riso-stack .poster-footer {
+  outline: none !important;
+}
+
+.poster-composition--riso-stack .composition-kicker,
+.poster-composition--riso-stack .poster-location-line,
+.poster-composition--riso-stack .composition-meta-line,
+.poster-composition--riso-stack .poster-rule,
+.poster-composition--riso-stack .composition-footer-note,
+.poster-composition--riso-stack .poster-stats,
+.poster-composition--riso-stack .poster-occasion,
+.poster-composition--riso-stack .poster-mark {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .poster-trail-name {
+  display: block !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-caption {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-meta {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-trail-name {
+  position: relative;
+  width: 100% !important;
+  max-width: 100% !important;
+  color: var(--route-color, #ff4f7b) !important;
+  font-size: min(var(--trail-title-size, 12.7cqh), 13.1cqh) !important;
+  line-height: 0.94 !important;
+  letter-spacing: 0 !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  text-wrap: balance !important;
+  hyphens: none !important;
+  text-shadow: none !important;
   mix-blend-mode: multiply;
+}
+
+.poster-composition--riso-stack .poster-trail-name::before {
+  content: attr(data-riso-title);
+  position: absolute;
+  left: 1.05cqw;
+  top: 0.48cqh;
+  color: var(--water-color, #2f5fd0);
+  opacity: 0.74;
+  pointer-events: none;
+}
+
+.poster-composition--riso-stack .poster-footer {
+  position: absolute !important;
+  left: calc(6.8cqw + var(--print-bleed, 0px));
+  right: calc(6.8cqw + var(--print-bleed, 0px));
+  bottom: calc(4.3cqh + var(--print-bleed, 0px));
+  z-index: 18 !important;
+  height: 7.2cqh !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--label-text-color, #16243f) !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 4cqw !important;
+  border: 0 !important;
+}
+
+.poster-composition--riso-stack .poster-footer-rule {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .composition-riso-caption {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 58%;
+  font-family: "Work Sans", sans-serif;
+  color: var(--label-text-color, #16243f);
+}
+
+.poster-composition--riso-stack .composition-riso-caption strong {
+  font-size: 1.98cqh;
+  line-height: 1.1;
+  font-weight: 780;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poster-composition--riso-stack .composition-riso-caption span {
+  margin-top: 0.56cqh;
+  font-size: 1.54cqh;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 78%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poster-composition--riso-stack .composition-riso-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.72cqh;
+  min-width: 22cqw;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.28cqh;
+  line-height: 1;
+  color: color-mix(in srgb, var(--label-text-color, #16243f) 78%, transparent);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.poster-composition--riso-stack .composition-riso-meta span:first-child {
+  font-family: "Work Sans", sans-serif;
+  font-size: 1.34cqh;
+  letter-spacing: 0.27em;
+  text-transform: uppercase;
+  color: var(--water-color, #2f5fd0);
+}
+
+.poster-composition--riso-stack .absolute.inset-0.w-full.h-full.pointer-events-none {
+  mix-blend-mode: multiply !important;
 }
 
 .poster-composition--botanical-plate .poster-header::before,
 .poster-composition--botanical-plate .poster-header::after {
-  content: "";
+  content: none;
   position: absolute;
   top: calc(2.8cqh + var(--print-bleed, 0px));
   width: 6cqw;
@@ -6901,6 +13403,703 @@ onUnmounted(() => {
 
 .poster-composition--botanical-plate .poster-header::after {
   right: 7cqw;
+}
+
+.poster-composition--place-frame [data-testid="poster-map"],
+.poster-composition--sea-chart [data-testid="poster-map"],
+.poster-composition--art-wash [data-testid="poster-map"],
+.poster-composition--transit-diagram [data-testid="poster-map"] {
+  flex: 1 1 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+}
+
+.poster-composition--place-frame .poster-footer,
+.poster-composition--sea-chart .poster-footer,
+.poster-composition--art-wash .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--place-frame .poster-header,
+.poster-composition--sea-chart .poster-header,
+.poster-composition--art-wash .poster-header {
+  position: absolute !important;
+  z-index: 18 !important;
+  color: var(--composition-ink, currentColor) !important;
+  max-height: 28cqh;
+  overflow: hidden !important;
+}
+
+.poster-composition--place-frame .poster-header {
+  left: 19cqw;
+  right: 19cqw;
+  top: 72%;
+  bottom: auto;
+  align-items: center !important;
+  padding: 2.75cqh 4.2cqw 2.95cqh !important;
+  background: color-mix(in srgb, var(--composition-paper, white) 92%, #fffdf2 8%) !important;
+  border: 2px solid color-mix(in srgb, currentColor 88%, transparent);
+  box-shadow: 0 1.4cqh 3.2cqh rgba(15, 18, 26, 0.08);
+  transform: translateY(-50%);
+  height: 39.2cqh !important;
+  min-height: 39.2cqh !important;
+  max-height: 39.2cqh !important;
+}
+
+.poster-composition--place-frame.poster-has-route .poster-header {
+  left: calc(18cqw + var(--print-bleed, 0px));
+  right: calc(18cqw + var(--print-bleed, 0px));
+  top: auto;
+  bottom: calc(7.8cqh + var(--print-bleed, 0px));
+  width: auto;
+  align-items: center !important;
+  text-align: center !important;
+  padding: 2.35cqh 3.3cqw 2.55cqh !important;
+  border-width: 2px;
+  border-style: solid;
+  box-shadow: 0 1cqh 2.8cqh rgba(32, 24, 16, 0.12);
+  transform: none;
+  max-height: 34cqh;
+}
+
+.poster-composition--place-frame .poster-header::before,
+.poster-composition--place-frame .poster-header::after {
+  content: none !important;
+}
+
+.poster-composition--place-frame .composition-cartouche-hills {
+  position: absolute;
+  inset: auto 0 calc(-1.2cqh + var(--print-bleed, 0px));
+  height: 30cqh;
+  z-index: 17;
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: multiply;
+}
+
+.poster-composition--place-frame .composition-cartouche-hill {
+  position: absolute;
+  bottom: -5.8cqh;
+  display: block;
+  background: color-mix(in srgb, var(--label-text-color, #0f121a) 36%, var(--water-color, #9fb7aa) 64%);
+  opacity: 0.24;
+  filter: blur(0.08cqh);
+}
+
+.poster-composition--place-frame .composition-cartouche-hill--left {
+  left: -6cqw;
+  width: 48cqw;
+  height: 22cqh;
+  border-radius: 62% 38% 0 0 / 70% 82% 0 0;
+  transform: rotate(-5deg);
+}
+
+.poster-composition--place-frame .composition-cartouche-hill--right {
+  right: -4cqw;
+  width: 62cqw;
+  height: 28cqh;
+  border-radius: 44% 56% 0 0 / 78% 64% 0 0;
+  transform: rotate(-7deg);
+}
+
+.poster-composition--place-frame .composition-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2cqw;
+  color: var(--route-color, currentColor) !important;
+  opacity: 1 !important;
+}
+
+.poster-composition--place-frame.poster-has-route .composition-kicker {
+  justify-content: center;
+  gap: 0.9cqw;
+  max-width: 100%;
+  font-size: 0.8cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.19em !important;
+  white-space: nowrap;
+}
+
+.poster-composition--place-frame .composition-kicker::before,
+.poster-composition--place-frame .composition-kicker::after {
+  content: "";
+  width: 3.6cqw;
+  height: 1px;
+  background: currentColor;
+}
+
+.poster-composition--place-frame .poster-trail-name {
+  font-size: min(var(--trail-title-size, 6.45cqh), 6.55cqh) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.035em !important;
+  line-height: 0.94 !important;
+  max-width: 88% !important;
+  min-height: 10.6cqh;
+  overflow: visible !important;
+}
+
+.poster-composition--place-frame .chrome-grid-block--title {
+  justify-self: center !important;
+  max-width: 88% !important;
+}
+
+.poster-composition--place-frame .poster-location-line,
+.poster-composition--place-frame .chrome-grid-block--subtitle {
+  text-transform: none !important;
+}
+
+.poster-composition--place-frame.poster-has-route .poster-trail-name {
+  max-width: 100% !important;
+  font-size: min(var(--trail-title-size, 4.25cqh), 4.55cqh) !important;
+  line-height: 0.92 !important;
+  text-align: center !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+  text-wrap: balance;
+}
+
+.poster-composition--place-frame.poster-has-route .chrome-grid-block--title {
+  min-height: 8.4cqh;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.poster-composition--place-frame .composition-meta-line {
+  margin-top: 0.8cqh;
+  padding-top: 0.9cqh;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 0.82cqh !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.76 !important;
+  color: currentColor !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.poster-composition--place-frame.poster-has-route .composition-meta-line {
+  margin-top: 0.85cqh;
+  padding-top: 0.85cqh;
+  font-size: 0.78cqh !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0.11em !important;
+  text-align: center !important;
+  white-space: normal !important;
+}
+
+.poster-composition--sea-chart .poster-header {
+  left: calc(5.2cqw + var(--print-bleed, 0px));
+  right: auto;
+  bottom: calc(4.0cqh + var(--print-bleed, 0px));
+  width: min(82cqw, 54cqh);
+  align-items: flex-start !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  max-height: 22cqh;
+}
+
+.poster-composition--sea-chart .poster-header::before,
+.poster-composition--sea-chart .poster-header::after {
+  display: none !important;
+  content: none !important;
+}
+
+.poster-composition--sea-chart .poster-rule {
+  width: 100% !important;
+  height: 1px !important;
+  margin: 0 0 0.48cqh !important;
+  background: currentColor !important;
+  opacity: 0.42 !important;
+}
+
+.poster-composition--sea-chart .composition-kicker {
+  color: var(--route-color, currentColor) !important;
+  opacity: 1 !important;
+  letter-spacing: 0.16em !important;
+  font-size: 0.86cqh !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-weight: 700 !important;
+  padding-right: 24% !important;
+  text-transform: uppercase !important;
+}
+
+.poster-composition--sea-chart .poster-trail-name {
+  margin-top: 0.26cqh !important;
+  font-size: min(var(--trail-title-size, 5.05cqh), 5.05cqh) !important;
+  line-height: 0.94 !important;
+  max-width: 56cqw !important;
+}
+
+.poster-composition--sea-chart .poster-location-line {
+  margin-top: 0.38cqh !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+  letter-spacing: 0.06em !important;
+  text-align: left !important;
+  opacity: 0.82 !important;
+  max-width: 56cqw !important;
+}
+
+.poster-composition--sea-chart .composition-meta-line {
+  position: absolute;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 31cqw !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 0.58cqh !important;
+  line-height: 1.42 !important;
+  text-align: right !important;
+  white-space: normal !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.9 !important;
+}
+
+.poster-composition--art-wash .poster-header {
+  left: 50%;
+  right: auto;
+  bottom: calc(7cqh + var(--print-bleed, 0px));
+  width: min(72cqw, 34cqh);
+  transform: translateX(-50%);
+  align-items: center !important;
+  padding: 1.55cqh 3.5cqw !important;
+  background: var(--composition-paper, white) !important;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 1cqh 3.8cqh rgba(0, 0, 0, 0.08);
+  max-height: 20cqh;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-header {
+  bottom: calc(6.9cqh + var(--print-bleed, 0px));
+  width: 52cqw;
+  padding: 2.05cqh 4.4cqw 2.25cqh !important;
+  background: var(--composition-paper, #ebe9e6) !important;
+  border: 0 !important;
+  box-shadow: 0 1.8cqh 3.8cqh rgba(21, 20, 18, 0.05) !important;
+  overflow: visible !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-header::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--label-text-color, #151412) 28%, transparent);
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .composition-kicker {
+  top: -72cqh;
+  z-index: 22;
+  color: color-mix(in srgb, var(--label-text-color, #151412) 74%, transparent) !important;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 0.88cqh !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.24em !important;
+  opacity: 0.82 !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"] {
+  background: #ebe9e6 !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::before {
+  content: none !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] [data-testid="poster-map"]::after {
+  content: none !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .maplibregl-canvas {
+  filter: none !important;
+  opacity: 1;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-trail-name {
+  font-size: min(var(--trail-title-size, 5.05cqh), 5.05cqh) !important;
+  font-weight: 600 !important;
+  line-height: 0.96 !important;
+}
+
+.poster-composition--art-wash[data-theme="contour-wash"] .poster-location-line {
+  margin-top: 1.05cqh !important;
+  letter-spacing: 0.18em !important;
+  opacity: 0.62 !important;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header {
+  left: calc(6.9cqw + var(--print-bleed, 0px));
+  right: auto;
+  bottom: calc(7.4cqh + var(--print-bleed, 0px));
+  width: min(55cqw, 33cqh);
+  transform: none;
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 1.05cqh 2.1cqw 1.1cqh !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::before,
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::before {
+  z-index: -1;
+  inset: 0.35cqh 8.5cqw 0.1cqh -0.75cqw;
+  opacity: 0.68;
+  background:
+    radial-gradient(ellipse at 22% 45%, color-mix(in srgb, #f8eedb 94%, transparent), transparent 70%),
+    radial-gradient(ellipse at 82% 62%, color-mix(in srgb, #d8b77f 22%, transparent), transparent 60%),
+    repeating-linear-gradient(101deg, color-mix(in srgb, #946b3b 7%, transparent) 0 0.08cqw, transparent 0.08cqw 0.72cqw);
+  filter: blur(0.14cqw);
+  clip-path: polygon(0 12%, 18% 2%, 56% 7%, 93% 0, 100% 28%, 92% 87%, 58% 94%, 24% 88%, 2% 100%);
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-header::after {
+  left: 1.7cqw;
+  right: 5.6cqw;
+  bottom: 0.65cqh;
+  height: 0.22cqh;
+  opacity: 0.62;
+  background: linear-gradient(90deg, var(--route-color, #c2683f), color-mix(in srgb, var(--route-color, #c2683f) 8%, transparent));
+  filter: blur(0.04cqw);
+  transform: rotate(-1.4deg);
+}
+
+.poster-composition--art-wash .poster-trail-name {
+  font-size: min(var(--trail-title-size, 4cqh), 4cqh) !important;
+  line-height: 0.96 !important;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-trail-name {
+  font-family: "Cormorant Garamond", "Newsreader", serif !important;
+  font-size: min(var(--trail-title-size, 5.15cqh), 5.45cqh) !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  line-height: 0.9 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  max-width: 100% !important;
+  text-shadow:
+    0.08cqw 0.06cqh 0 color-mix(in srgb, var(--composition-paper, #f6f1e8) 84%, transparent),
+    -0.06cqw 0 0 color-mix(in srgb, var(--composition-paper, #f6f1e8) 70%, transparent);
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .poster-location-line {
+  margin-top: 0.7cqh !important;
+  max-width: 48cqw !important;
+  text-align: left !important;
+  letter-spacing: 0.08em !important;
+  opacity: 0.66 !important;
+}
+
+.poster-composition--art-wash[data-theme="plein-air"] .composition-kicker {
+  top: -50.5cqh;
+  left: 0.6cqw;
+  transform: none;
+  color: color-mix(in srgb, currentColor 76%, transparent) !important;
+  text-align: left;
+  font-family: "Source Sans 3", "Inter", sans-serif !important;
+  font-size: 0.72cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.24em !important;
+}
+
+.poster-composition--art-wash .composition-kicker {
+  position: absolute;
+  top: -55cqh;
+  left: 50%;
+  width: max-content;
+  transform: translateX(-50%);
+  font-size: 0.82cqh !important;
+  letter-spacing: 0.2em !important;
+  opacity: 0.58 !important;
+}
+
+.poster-composition--transit-diagram [data-testid="poster-map"] {
+  flex: 1 1 auto !important;
+  height: 83% !important;
+}
+
+.poster-composition--transit-diagram .poster-header {
+  flex: 0 0 17% !important;
+  position: relative;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding-top: 1.25cqh !important;
+  padding-bottom: 1.2cqh !important;
+  background: var(--composition-paper, #f7f5f0) !important;
+}
+
+.poster-composition--transit-diagram .poster-header::before {
+  content: "T1";
+  position: absolute;
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  top: calc(1.4cqh + var(--print-bleed, 0px));
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  width: 5.2cqw;
+  min-width: 2.7cqh;
+  height: 2.7cqh;
+  color: var(--composition-paper, #f7f5f0);
+  background: var(--route-color, #7a1fa2);
+  border-radius: 999px;
+  font-family: "IBM Plex Sans", "Inter", sans-serif;
+  font-size: 1.05cqh;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 0.42cqh var(--composition-paper, #f7f5f0);
+}
+
+.poster-composition--transit-diagram .poster-header::after {
+  content: "";
+  position: absolute;
+  left: calc(5.6cqw + var(--print-bleed, 0px));
+  right: calc(5.6cqw + var(--print-bleed, 0px));
+  bottom: 0;
+  z-index: 1;
+  height: 0.35cqh;
+  background:
+    linear-gradient(90deg, var(--route-color, #7a1fa2) 0 68%, var(--contour-major-color, #1f8a5b) 68% 100%);
+}
+
+.poster-composition--transit-diagram .poster-footer {
+  display: none !important;
+}
+
+.poster-composition--transit-diagram .poster-trail-name {
+  max-width: calc(100% - 9cqw);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  font-size: min(var(--trail-title-size, 3.35cqh), 3.35cqh) !important;
+  line-height: 0.9 !important;
+  letter-spacing: 0 !important;
+}
+
+.poster-composition--transit-diagram .chrome-grid-block--title {
+  max-height: none !important;
+  max-width: calc(100% - 8cqw) !important;
+  overflow: visible !important;
+  font-size: min(var(--trail-title-size, 3.15cqh), 3.15cqh) !important;
+  line-height: 0.96 !important;
+  letter-spacing: 0 !important;
+  text-wrap: balance;
+}
+
+.poster-composition--transit-diagram .poster-location-line {
+  margin-top: 0.5cqh !important;
+  opacity: 0.72 !important;
+  text-align: left !important;
+  letter-spacing: 0.02em !important;
+}
+
+.poster-composition--transit-diagram .composition-kicker {
+  position: absolute;
+  top: calc(2.4cqh + var(--print-bleed, 0px));
+  left: calc(6.8cqw + var(--print-bleed, 0px));
+  width: auto !important;
+  color: color-mix(in srgb, currentColor 62%, transparent) !important;
+  opacity: 1 !important;
+  z-index: 20;
+}
+
+.poster-composition--transit-diagram .composition-meta-line {
+  margin-top: 0.85cqh;
+  padding-top: 0.75cqh;
+  border-top: 2px solid currentColor;
+  font-family: "IBM Plex Mono", monospace !important;
+  letter-spacing: 0.08em !important;
+  opacity: 0.74 !important;
+}
+
+.composition-brutalist-baseline-grid,
+.composition-brutalist-registration-marks {
+  position: absolute;
+  inset: calc(2.4cqh + var(--print-bleed, 0px)) calc(3.4cqw + var(--print-bleed, 0px));
+  z-index: 4;
+  pointer-events: none;
+}
+
+.composition-brutalist-baseline-grid {
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  background-image:
+    linear-gradient(color-mix(in srgb, currentColor 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, currentColor 45%, transparent) 1px, transparent 1px);
+  background-size: 100% 4.8cqh, 8.5cqw 100%;
+}
+
+.composition-brutalist-registration-marks {
+  opacity: 0.9;
+  background:
+    linear-gradient(currentColor 0 0) left 0 top 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 2.1cqw top 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 0 top 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 2.1cqw top 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) left 0 bottom 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) left 2.1cqw bottom 0 / 2px 4.2cqh no-repeat,
+    linear-gradient(currentColor 0 0) right 0 bottom 2.1cqh / 4.2cqw 2px no-repeat,
+    linear-gradient(currentColor 0 0) right 2.1cqw bottom 0 / 2px 4.2cqh no-repeat;
+}
+
+.poster-composition--brutalist-slab .poster-header {
+  border-top: 0 !important;
+  background: var(--composition-paper, #e4e0d7) !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+  justify-content: flex-end !important;
+  align-items: flex-start !important;
+  gap: 0.65cqh !important;
+}
+
+.poster-composition--brutalist-slab .poster-header::before,
+.poster-composition--brutalist-slab .poster-header::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.poster-composition--brutalist-slab .poster-header::before {
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  top: calc(7.9cqh + var(--print-bleed, 0px));
+  height: 0.28cqh;
+  background: currentColor;
+}
+
+.poster-composition--brutalist-slab .composition-kicker,
+.poster-composition--brutalist-slab .composition-meta-line,
+.poster-composition--brutalist-slab .poster-location-line {
+  position: absolute;
+  top: calc(5.25cqh + var(--print-bleed, 0px));
+  z-index: 1;
+  margin: 0 !important;
+  color: color-mix(in srgb, var(--label-text-color, #0a0a0a) 68%, transparent) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 1.25cqh !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.20em !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.poster-composition--brutalist-slab .composition-kicker {
+  left: calc(6.7cqw + var(--print-bleed, 0px));
+  width: auto !important;
+}
+
+.poster-composition--brutalist-slab .poster-location-line {
+  left: 50%;
+  width: auto !important;
+  max-width: 36cqw !important;
+  transform: translateX(-50%);
+  text-align: center !important;
+}
+
+.poster-composition--brutalist-slab .composition-meta-line {
+  right: calc(6.7cqw + var(--print-bleed, 0px));
+  width: auto !important;
+  text-align: right !important;
+}
+
+.poster-composition--brutalist-slab .poster-trail-name {
+  margin: 8.2cqh 0 0 !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+  font-size: clamp(9.5cqh, var(--trail-title-size, 16.4cqh), 16.6cqh) !important;
+  line-height: 0.82 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
+  transform: translateY(2.8cqh);
+}
+
+.poster-composition--brutalist-slab [data-testid="poster-map"] {
+  flex: 0 0 58.5% !important;
+  height: 58.5% !important;
+  background: var(--land-color, #d7d3ca) !important;
+  box-sizing: border-box !important;
+}
+
+.poster-composition--brutalist-slab [data-testid="poster-map"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 13;
+  pointer-events: none;
+  background: rgba(230, 227, 221, 0.42);
+  mix-blend-mode: multiply;
+  opacity: 1;
+}
+
+.poster-composition--brutalist-slab .maplibregl-canvas {
+  filter: brightness(0.96) contrast(1.28) sepia(0.08) saturate(0.72);
+}
+
+.poster-composition--brutalist-slab .poster-footer {
+  flex: 0 0 15.5% !important;
+  height: 15.5% !important;
+  min-height: 15.5% !important;
+  background: var(--composition-paper, #e4e0d7) !important;
+  color: var(--label-text-color, #0a0a0a) !important;
+}
+
+.poster-composition--brutalist-slab .poster-footer-rule {
+  opacity: 1 !important;
+  height: 0.28cqh !important;
+  background: currentColor !important;
+}
+
+.poster-composition--brutalist-slab .composition-footer-note {
+  left: var(--composition-rule-left);
+  right: auto;
+  top: 4.05cqh;
+  width: 48cqw;
+  color: var(--label-text-color, #0a0a0a) !important;
+  font-family: "IBM Plex Sans", sans-serif !important;
+  font-size: 1.66cqh !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.45 !important;
+  opacity: 1 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  white-space: pre-line !important;
+}
+
+.poster-composition--brutalist-slab .poster-footer.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--brutalist-slab .poster-footer .poster-stats,
+.poster-composition--brutalist-slab .poster-footer .poster-mark {
+  display: none !important;
+}
+
+.composition-brutalist-distance {
+  position: absolute;
+  right: var(--composition-rule-right);
+  bottom: calc(4.05cqh + var(--print-bleed, 0px));
+  color: var(--route-color, #ff3b00) !important;
+  font-family: "IBM Plex Mono", monospace !important;
+  font-size: 2.2cqh !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1 !important;
+  text-align: right !important;
+  white-space: pre-line !important;
 }
 
 /* Editable text: subtle hover indicator */
@@ -6930,6 +14129,8 @@ onUnmounted(() => {
 .poster-header.is-chrome-grid-mode,
 .poster-footer.is-chrome-grid-mode {
   display: block !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .poster-header.is-chrome-grid-mode > :not(.chrome-grid-band),
@@ -6937,14 +14138,67 @@ onUnmounted(() => {
   display: none !important;
 }
 
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .chrome-grid-band,
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .chrome-grid-band {
+  display: none !important;
+}
+
+.poster-composition--riso-stack .poster-header.is-chrome-grid-mode > .poster-trail-name {
+  display: block !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-caption {
+  display: flex !important;
+}
+
+.poster-composition--riso-stack .poster-footer.is-chrome-grid-mode > .composition-riso-meta {
+  display: flex !important;
+}
+
 .chrome-grid-band {
   position: relative;
   z-index: 8;
 }
 
+.chrome-grid-band:not(.is-editable) {
+  pointer-events: none;
+}
+
+.chrome-grid-band.is-resizing-columns,
+.chrome-grid-band.is-resizing-rows {
+  cursor: grabbing;
+}
+
 .chrome-grid-row {
   position: relative;
   min-height: 0;
+  min-width: 0;
+  border-radius: 5px;
+}
+
+.chrome-grid-row::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -2px;
+  height: 1px;
+  background: rgba(42, 91, 204, 0.74);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.chrome-grid-row:hover,
+.chrome-grid-row.is-selected,
+.chrome-grid-row.is-resizing-row {
+  z-index: 18;
+}
+
+.chrome-grid-row:hover::after,
+.chrome-grid-row.is-selected::after,
+.chrome-grid-row.is-resizing-row::after {
+  opacity: 1;
 }
 
 .chrome-grid-cell {
@@ -6952,6 +14206,8 @@ onUnmounted(() => {
   min-width: 0;
   min-height: 2.2cqh;
   display: grid;
+  box-sizing: border-box;
+  overflow: visible;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 0.22cqh 0.32cqw;
@@ -6971,20 +14227,227 @@ onUnmounted(() => {
   background: rgba(42, 91, 204, 0.035);
 }
 
+.chrome-grid-cell.is-empty:not(.is-selected):hover {
+  background: rgba(42, 91, 204, 0.026);
+}
+
+.chrome-grid-cell.is-spacer {
+  background: transparent;
+}
+
+.chrome-grid-cell.is-selected.is-empty {
+  border-color: rgba(42, 91, 204, 0.38);
+  background: transparent;
+  box-shadow: none;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-row::after,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-empty,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-empty:hover,
+.chrome-grid-band:not(.is-editable) .chrome-grid-cell.is-selected.is-empty {
+  background: transparent;
+}
+
 .chrome-grid-block {
+  min-height: 0;
   min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  display: block;
   white-space: pre-line;
   overflow-wrap: anywhere;
+  overflow: hidden;
+}
+
+.chrome-grid-block[data-poster-fit-max-lines="1"] {
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .chrome-grid-block--title {
   max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  text-wrap: balance;
+}
+
+.chrome-grid-block--subtitle,
+.chrome-grid-block--occasion,
+.chrome-grid-block--eyebrow {
+  text-wrap: balance;
+}
+
+.chrome-grid-block--stat,
+.chrome-grid-block--coords,
+.chrome-grid-block--brand {
+  font-variant-numeric: tabular-nums lining-nums;
+  text-wrap: balance;
+}
+
+.chrome-grid-block--stat::first-line {
+  font-size: 2.34em;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 0.85;
+}
+
+.chrome-grid-block--slot-date::first-line {
+  font-size: 1.48em;
+  font-weight: 780;
+}
+
+.chrome-grid-block--coords {
+  opacity: 0.76;
+}
+
+.chrome-grid-block--brand {
+  opacity: 0.66;
+  white-space: nowrap;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--stat::first-line,
+.poster-composition--journal-spread .chrome-grid-block--stat::first-line,
+.poster-composition--botanical-plate .chrome-grid-block--stat::first-line {
+  font-size: 1.9em;
+  font-weight: 620;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--stat,
+.poster-composition--journal-spread .chrome-grid-block--stat,
+.poster-composition--botanical-plate .chrome-grid-block--stat {
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--editorial-tall .chrome-grid-block--brand,
+.poster-composition--journal-spread .chrome-grid-block--brand,
+.poster-composition--botanical-plate .chrome-grid-block--brand {
+  letter-spacing: 0.18em;
+  opacity: 0.46;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--stat::first-line,
+.poster-composition--darksky-stars .chrome-grid-block--stat::first-line {
+  font-size: 2.72em;
+  font-weight: 880;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--slot-date,
+.poster-composition--darksky-stars .chrome-grid-block--slot-date {
+  letter-spacing: 0.08em;
+}
+
+.poster-composition--travel-banner .chrome-grid-block--brand,
+.poster-composition--darksky-stars .chrome-grid-block--brand {
+  opacity: 0.5;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--stat::first-line,
+.poster-composition--blueprint-strava .chrome-grid-block--stat::first-line,
+.poster-composition--splits-grid .chrome-grid-block--stat::first-line {
+  font-size: 2.12em;
+  font-weight: 820;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--stat,
+.poster-composition--blueprint-strava .chrome-grid-block--stat,
+.poster-composition--splits-grid .chrome-grid-block--stat,
+.poster-composition--blueprint-grid .chrome-grid-block--coords,
+.poster-composition--blueprint-strava .chrome-grid-block--coords,
+.poster-composition--splits-grid .chrome-grid-block--coords {
+  letter-spacing: 0.13em;
+}
+
+.poster-composition--blueprint-grid .chrome-grid-block--brand,
+.poster-composition--blueprint-strava .chrome-grid-block--brand,
+.poster-composition--splits-grid .chrome-grid-block--brand {
+  letter-spacing: 0.2em;
+  opacity: 0.56;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--stat::first-line,
+.poster-composition--brutalist-slab .chrome-grid-block--stat::first-line,
+.poster-composition--modernist-block .chrome-grid-block--stat::first-line {
+  font-size: 2.9em;
+  font-weight: 900;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--slot-date::first-line,
+.poster-composition--brutalist-slab .chrome-grid-block--slot-date::first-line,
+.poster-composition--modernist-block .chrome-grid-block--slot-date::first-line {
+  font-size: 1.66em;
+}
+
+.poster-composition--bib-numerals .chrome-grid-block--brand,
+.poster-composition--brutalist-slab .chrome-grid-block--brand,
+.poster-composition--modernist-block .chrome-grid-block--brand {
+  opacity: 0.72;
+}
+
+.chrome-grid-spacer {
+  width: 100%;
+  height: 100%;
+  min-height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: rgba(42, 91, 204, 0.68);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(42, 91, 204, 0.08) 0 1px,
+      transparent 1px 8px
+    );
+  opacity: 0.24;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.chrome-grid-spacer span {
+  padding: 2px 7px;
+  border: 1px solid rgba(42, 91, 204, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-spacer {
+  background: transparent;
+  opacity: 1;
+}
+
+.chrome-grid-band:not(.is-editable) .chrome-grid-spacer span {
+  display: none;
+}
+
+.chrome-grid-cell.is-spacer:hover .chrome-grid-spacer,
+.chrome-grid-cell.is-spacer.is-selected .chrome-grid-spacer {
+  opacity: 1;
+  background-color: rgba(42, 91, 204, 0.035);
+}
+
+.chrome-grid-cell.is-spacer:hover .chrome-grid-spacer span,
+.chrome-grid-cell.is-spacer.is-selected .chrome-grid-spacer span {
+  opacity: 1;
 }
 
 .chrome-empty-cell-btn,
+.chrome-cell-trash,
 .chrome-row-add-row,
 .chrome-band-add-row,
-.chrome-cell-add-col {
+.chrome-cell-add-col,
+.chrome-cell-resize-col,
+.chrome-row-resize-row {
   min-width: 24px;
   min-height: 24px;
   border: 1px solid rgba(42, 91, 204, 0.42);
@@ -7001,15 +14464,19 @@ onUnmounted(() => {
 
 .chrome-row-add-row,
 .chrome-band-add-row,
-.chrome-cell-add-col {
+.chrome-cell-add-col,
+.chrome-cell-resize-col,
+.chrome-row-resize-row {
   opacity: 0;
   pointer-events: none;
 }
 
 .chrome-empty-cell-btn:hover,
+.chrome-cell-trash:hover,
 .chrome-row-add-row:hover,
 .chrome-band-add-row:hover,
-.chrome-cell-add-col:hover {
+.chrome-cell-add-col:hover,
+.chrome-row-resize-row:hover {
   border-color: #2A5BCC;
   background: #FFFFFF;
 }
@@ -7021,86 +14488,267 @@ onUnmounted(() => {
   height: 24px;
 }
 
-.chrome-cell-add-col {
+.chrome-cell-trash {
   position: absolute;
-  right: -11px;
   top: 50%;
-  z-index: 24;
-  width: 24px;
-  height: 24px;
-  transform: translate(50%, -50%) scale(0.92);
+  left: -42px;
+  z-index: 34;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(214, 211, 209, 0.92);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #DC2626;
+  box-shadow: 0 8px 18px rgba(28, 25, 23, 0.16);
+  transform: translateY(-50%);
 }
 
-.chrome-grid-cell:not(.is-empty):hover > .chrome-cell-add-col,
-.chrome-grid-cell:not(.is-empty).is-selected > .chrome-cell-add-col {
+.chrome-cell-trash:hover {
+  border-color: rgba(220, 38, 38, 0.34);
+  background: #FFF7F7;
+  color: #B91C1C;
+  transform: translateY(calc(-50% - 1px));
+}
+
+.chrome-cell-trash.is-passive {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(5px) scale(0.94);
+}
+
+.chrome-grid-cell:hover > .chrome-cell-trash.is-passive,
+.chrome-grid-cell.is-selected > .chrome-cell-trash.is-passive {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(-50%) translateX(0) scale(1);
+}
+
+.chrome-cell-trash-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.chrome-cell-add-col {
+  position: absolute;
+  right: -28px;
+  top: 50%;
+  z-index: 26;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  transform: translateY(-50%) scale(0.92);
+  font-size: 12px;
+}
+
+.chrome-cell-add-col--after-resize {
+  right: -56px;
+}
+
+.chrome-cell-add-col-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.chrome-cell-resize-col {
+  position: absolute;
+  right: -13px;
+  top: 50%;
+  z-index: 28;
+  width: 26px;
+  min-width: 26px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  transform: translate(50%, -50%) scale(0.92);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: ew-resize;
+  box-shadow: none;
+  touch-action: none;
+}
+
+.chrome-cell-resize-col::before {
+  content: "";
+  position: absolute;
+  inset: 6px 11px;
+  border-radius: 999px;
+  background: rgba(42, 91, 204, 0.62);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
+}
+
+.chrome-cell-resize-col::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: #FFFFFF;
+  opacity: 0.9;
+}
+
+.chrome-grid-cell:hover > .chrome-cell-add-col,
+.chrome-grid-cell.is-selected > .chrome-cell-add-col,
+.chrome-grid-cell:hover > .chrome-cell-resize-col,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col,
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chrome-grid-cell:hover > .chrome-cell-add-col,
+.chrome-grid-cell.is-selected > .chrome-cell-add-col {
+  transform: translateY(-50%) scale(1);
+}
+
+.chrome-grid-cell:hover > .chrome-cell-resize-col,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col,
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col {
   transform: translate(50%, -50%) scale(1);
+}
+
+.chrome-grid-cell:hover > .chrome-cell-resize-col::before,
+.chrome-grid-cell.is-selected > .chrome-cell-resize-col::before,
+.chrome-grid-cell.is-resizing-col > .chrome-cell-resize-col::before {
+  background: #2A5BCC;
 }
 
 .chrome-row-add-row {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: -11px;
-  z-index: 22;
-  height: 18px;
-  min-height: 18px;
+  left: min(calc(50% + 48px), calc(100% - 18px));
+  bottom: 0;
+  z-index: 25;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
-  transform: translateY(1px);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: transparent;
+  transform: translate(-50%, 50%) scale(0.92);
+  border: 1px solid rgba(42, 91, 204, 0.5);
+  border-radius: 999px;
+  background: #FFFFFF;
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+  color: #2A5BCC;
+  font-size: 12px;
+  font-weight: 800;
   overflow: visible;
 }
 
 .chrome-grid-row:hover > .chrome-row-add-row,
-.chrome-grid-row.is-selected > .chrome-row-add-row {
+.chrome-grid-row.is-selected > .chrome-row-add-row,
+.chrome-grid-row.is-resizing-row > .chrome-row-add-row {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translate(-50%, 50%) scale(1);
 }
 
-.chrome-row-add-row::before {
+.chrome-row-add-row-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.chrome-row-resize-row {
+  position: absolute;
+  left: 50%;
+  z-index: 27;
+  width: 28px;
+  min-width: 28px;
+  height: 10px;
+  min-height: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.chrome-row-resize-row--top {
+  top: 0;
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+.chrome-row-resize-row--bottom {
+  bottom: 0;
+  transform: translate(-50%, 50%) scale(0.94);
+}
+
+.chrome-row-resize-row::before {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 8px;
+  right: 8px;
   top: 50%;
-  height: 1px;
+  height: 6px;
   transform: translateY(-50%);
-  background: rgba(42, 91, 204, 0.74);
+  border-radius: 999px;
+  background: rgba(42, 91, 204, 0.68);
+  box-shadow: 0 0 0 2px #FFFFFF, 0 3px 10px rgba(28, 25, 23, 0.12);
 }
 
-.chrome-row-add-row::after {
-  content: "+ Row";
+.chrome-row-resize-row::after {
+  content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  display: inline-grid;
-  place-items: center;
-  min-width: 44px;
-  height: 20px;
+  width: 10px;
+  height: 2px;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(42, 91, 204, 0.5);
   border-radius: 999px;
   background: #FFFFFF;
-  color: #2A5BCC;
-  font-size: 10px;
-  font-weight: 800;
-  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.12);
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row,
+.chrome-grid-row.is-selected > .chrome-row-resize-row,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row--top,
+.chrome-grid-row.is-selected > .chrome-row-resize-row--top,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row--top,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row--top {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.chrome-grid-row:hover > .chrome-row-resize-row--bottom,
+.chrome-grid-row.is-selected > .chrome-row-resize-row--bottom,
+.chrome-grid-row.has-selected-cell > .chrome-row-resize-row--bottom,
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row--bottom {
+  transform: translate(-50%, 50%) scale(1);
+}
+
+.chrome-grid-row.is-resizing-row > .chrome-row-resize-row::before {
+  background: #2A5BCC;
 }
 
 .chrome-band-add-row {
   display: none;
-}
-
-.chrome-grid-band:hover > .chrome-band-add-row {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) scale(1);
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  z-index: 22;
+  height: 24px;
+  padding: 0 10px;
+  transform: translateX(-50%) scale(0.94);
+  color: #2A5BCC;
+  font-size: 10px;
 }
 
 .chrome-inline-popover {
@@ -7145,6 +14793,7 @@ onUnmounted(() => {
   color: #1C1917;
   font-family: "Space Grotesk", system-ui, sans-serif;
   overflow: visible;
+  pointer-events: none;
 }
 
 .chrome-toolbar-kind {
@@ -7674,9 +15323,394 @@ onUnmounted(() => {
   color: #B5251D;
 }
 
+.chrome-editor-app-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10045;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 22px;
+  background: rgba(51, 51, 49, 0.98);
+  color: #FFFFFF;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 8px 26px rgba(28, 25, 23, 0.2);
+}
+
+.chrome-editor-app-action,
+.chrome-editor-add-button {
+  min-height: 36px;
+  padding: 0 3px;
+  border: 0;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chrome-editor-app-action {
+  justify-self: start;
+}
+
+.chrome-editor-add-button {
+  justify-self: end;
+}
+
+.chrome-editor-add-button:hover,
+.chrome-editor-add-button.is-active,
+.chrome-editor-app-action:hover {
+  color: #DCEBE2;
+}
+
+.chrome-editor-app-title {
+  justify-self: center;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.chrome-add-block-panel {
+  position: fixed;
+  top: 66px;
+  right: 18px;
+  z-index: 10046;
+  display: grid;
+  gap: 10px;
+  width: min(284px, calc(100vw - 36px));
+  padding: 10px;
+  border: 1px solid rgba(214, 211, 209, 0.88);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1C1917;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 16px 38px rgba(28, 25, 23, 0.18);
+}
+
+.chrome-add-block-section {
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chrome-add-block-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.chrome-add-block-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #F5F5F4;
+  color: #1C1917;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+
+.chrome-add-block-card:hover {
+  border-color: rgba(42, 91, 204, 0.34);
+  background: #EEF4FF;
+  transform: translateY(-1px);
+}
+
+.chrome-add-block-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: #1C1917;
+}
+
+.chrome-layout-builder {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  z-index: 10044;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: min(920px, calc(100vw - 40px));
+  min-height: 48px;
+  padding: 8px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(214, 211, 209, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1C1917;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  box-shadow: 0 16px 34px rgba(28, 25, 23, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: visible;
+}
+
+.chrome-layout-builder.is-dragging {
+  cursor: grabbing;
+}
+
+.chrome-context-handle {
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 4px;
+  place-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1C1917;
+  cursor: grab;
+  touch-action: none;
+}
+
+.chrome-context-handle:hover {
+  background: #F5F5F4;
+  color: #1D4FA3;
+}
+
+.chrome-context-handle:active {
+  cursor: grabbing;
+}
+
+.chrome-context-handle span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.chrome-layout-builder-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chrome-layout-builder-main--content {
+  flex: 1 1 auto;
+}
+
+.chrome-layout-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  background: #E7E5E4;
+}
+
+.chrome-layout-mini-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  margin: 0 2px;
+  background: #E7E5E4;
+}
+
+.chrome-layout-builder-group,
+.chrome-layout-builder-spacing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chrome-layout-builder-group--primary {
+  padding: 0 6px;
+  border-right: 1px solid #E7E5E4;
+  border-left: 1px solid #E7E5E4;
+}
+
+.chrome-layout-builder-group button,
+.chrome-layout-builder-primary,
+.chrome-layout-stepper button,
+.chrome-layout-more summary {
+  height: 34px;
+  min-width: 32px;
+  padding: 0 8px;
+  border: 1px solid #D6D3D1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #44403C;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chrome-layout-builder-group button:hover:not(:disabled),
+.chrome-layout-builder-primary:hover,
+.chrome-layout-stepper button:hover:not(:disabled),
+.chrome-layout-more summary:hover {
+  border-color: #2A5BCC;
+  color: #1D4FA3;
+}
+
+.chrome-layout-builder-group button.active,
+.chrome-layout-builder-group button.is-primary {
+  border-color: #2A5BCC;
+  background: #E7EEF8;
+  color: #1D4FA3;
+}
+
+.chrome-layout-builder-group button:disabled,
+.chrome-layout-stepper button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.chrome-layout-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.chrome-layout-more {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.chrome-layout-more summary {
+  display: inline-grid;
+  place-items: center;
+  list-style: none;
+}
+
+.chrome-layout-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.chrome-layout-more[open] summary {
+  border-color: #2A5BCC;
+  background: #1D4FA3;
+  color: #FFFFFF;
+}
+
+.chrome-layout-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid rgba(214, 211, 209, 0.96);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 34px rgba(28, 25, 23, 0.18);
+}
+
+.chrome-layout-builder.is-popover-above .chrome-layout-popover {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.chrome-layout-builder.is-popover-left .chrome-layout-popover {
+  right: auto;
+  left: 0;
+}
+
+.chrome-layout-popover .chrome-layout-builder-group,
+.chrome-layout-popover .chrome-layout-builder-spacing {
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+}
+
+.chrome-layout-color {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #D6D3D1;
+  border-radius: 6px;
+  background: #FFFFFF;
+}
+
+.chrome-layout-color input {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chrome-layout-builder-spacing {
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.chrome-layout-builder-spacing > span {
+  color: #78716C;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chrome-layout-stepper {
+  display: grid;
+  grid-template-columns: auto 24px 20px 24px;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 0 3px 0 7px;
+  border: 1px solid #E7E5E4;
+  border-radius: 6px;
+  background: #FAFAF9;
+}
+
+.chrome-layout-stepper label {
+  color: #78716C;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.chrome-layout-stepper output {
+  color: #1C1917;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.chrome-layout-stepper button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
+}
+
+@media (min-width: 1024px) {
+  .chrome-add-block-panel {
+    right: 356px;
+  }
+
+  .chrome-layout-builder {
+    left: calc((100vw - 344px) / 2);
+    max-width: min(760px, calc(100vw - 390px));
+  }
+}
+
 /* Text overlay layer */
 .overlay-layer,
-.asset-layer {
+.asset-layer,
+.icon-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -7685,6 +15719,20 @@ onUnmounted(() => {
 
 .image-asset {
   position: absolute;
+}
+
+.icon-overlay {
+  position: absolute;
+  display: grid;
+  place-items: center;
+}
+
+.icon-overlay svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .image-asset img {
@@ -7696,7 +15744,8 @@ onUnmounted(() => {
   user-select: none;
 }
 
-.image-asset.is-editable {
+.image-asset.is-editable,
+.icon-overlay.is-editable {
   pointer-events: auto !important;
   border-radius: 2px;
   outline: 1.5px dashed transparent;
@@ -7721,13 +15770,98 @@ onUnmounted(() => {
 }
 
 .text-overlay.is-editable:hover,
-.image-asset.is-editable:hover {
+.image-asset.is-editable:hover,
+.icon-overlay.is-editable:hover {
   outline-color: rgba(45, 106, 79, 0.35);
 }
 
 .text-overlay.is-editable.is-selected,
-.image-asset.is-editable.is-selected {
+.image-asset.is-editable.is-selected,
+.icon-overlay.is-editable.is-selected {
   outline-color: rgba(45, 106, 79, 0.65);
+}
+
+.text-overlay.is-poster-v2,
+.image-asset.is-poster-v2,
+.icon-overlay.is-poster-v2 {
+  outline-style: solid;
+}
+
+.poster-element-moveable {
+  --moveable-color: #2A5BCC;
+  z-index: 10020;
+}
+
+:deep(.poster-element-moveable .moveable-control) {
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  margin-left: -7px;
+  border: 2px solid #fff;
+  background: #2A5BCC;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.22);
+}
+
+:deep(.poster-element-moveable .moveable-line) {
+  background: #2A5BCC;
+}
+
+.poster-editor-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.poster-editor-guide {
+  position: absolute;
+  display: block;
+}
+
+.poster-editor-guide--safe {
+  inset: 4%;
+  border: 1px solid rgba(42, 91, 204, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+}
+
+.poster-editor-guide--center-v,
+.poster-editor-guide--third-v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed rgba(42, 91, 204, 0.36);
+}
+
+.poster-editor-guide--center-h,
+.poster-editor-guide--third-h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(42, 91, 204, 0.36);
+}
+
+.poster-editor-guide--center-v {
+  left: 50%;
+}
+
+.poster-editor-guide--center-h {
+  top: 50%;
+}
+
+.poster-editor-guide--third-v-1 {
+  left: 33.333%;
+}
+
+.poster-editor-guide--third-v-2 {
+  left: 66.666%;
+}
+
+.poster-editor-guide--third-h-1 {
+  top: 33.333%;
+}
+
+.poster-editor-guide--third-h-2 {
+  top: 66.666%;
 }
 
 /* Delete + resize buttons: hidden by default, revealed on hover/selected */

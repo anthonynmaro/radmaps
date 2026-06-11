@@ -4,8 +4,11 @@ import {
   type AnchorFrame,
   type AnchorLength,
   type ChromeBandId,
+  type ChromeGridCell,
+  type ChromeGridRow,
   type IconOverlay,
   type MapAsset,
+  type PartialPosterLayout,
   type PosterIconId,
   type PosterTextSlot,
   type RouteStats,
@@ -384,7 +387,7 @@ export function getPosterEditorElements(
           hidden: false,
           canTransform: editableSlot,
           canEditContent: editableSlot && block.kind !== 'brand' && block.kind !== 'logo' && block.kind !== 'image',
-          canDelete: false,
+          canDelete: editableSlot,
           zIndex: 10,
           slot: block.slot,
           band: bandId,
@@ -540,9 +543,70 @@ export function addPosterEditorIcon(config: StyleConfig, icon: PosterIconId = 'm
   }
 }
 
+function cloneSparsePosterLayout(layout: PartialPosterLayout | undefined): PartialPosterLayout {
+  return {
+    ...(layout ?? {}),
+    bands: Object.fromEntries(
+      Object.entries(layout?.bands ?? {}).map(([bandId, band]) => [
+        bandId,
+        {
+          ...band,
+          padding: band.padding ? [...band.padding] as [number, number, number, number] : undefined,
+          rows: band.rows?.map(row => ({
+            ...row,
+            cells: row.cells.map(cell => ({
+              ...cell,
+              padding: cell.padding ? [...cell.padding] as [number, number, number, number] : undefined,
+              block: cell.block ? { ...cell.block } : undefined,
+            })),
+          })),
+        },
+      ]),
+    ) as PartialPosterLayout['bands'],
+    anchors: layout?.anchors?.map(anchor => ({ ...anchor })),
+  }
+}
+
+function tombstoneCell(cell: ChromeGridCell): ChromeGridCell {
+  return {
+    ...cell,
+    padding: cell.padding ? [...cell.padding] as [number, number, number, number] : undefined,
+    deleted: true,
+    block: undefined,
+  }
+}
+
+function removeSlotElement(config: StyleConfig, slot: PosterTextSlot): StyleConfig {
+  const layout = effectivePosterLayout(config)
+  for (const [bandId, band] of Object.entries(layout.bands) as Array<[ChromeBandId, typeof layout.bands[ChromeBandId]]>) {
+    for (const row of band.rows) {
+      const cell = row.cells.find(candidate => candidate.block?.slot === slot)
+      if (!cell) continue
+
+      const nextLayout = cloneSparsePosterLayout(config.poster_layout)
+      nextLayout.bands ??= {}
+      const sparseBand = nextLayout.bands[bandId] ?? {}
+      const sparseRows = sparseBand.rows ? sparseBand.rows.map(existing => ({ ...existing, cells: existing.cells.map(existingCell => ({ ...existingCell })) })) : []
+      let sparseRow = sparseRows.find(candidate => candidate.id === row.id)
+      if (!sparseRow) {
+        sparseRow = { id: row.id, fr: row.fr, cells: [] } as ChromeGridRow
+        sparseRows.push(sparseRow)
+      }
+      const tombstone = tombstoneCell(cell)
+      const existingCellIndex = sparseRow.cells.findIndex(candidate => candidate.id === cell.id)
+      if (existingCellIndex >= 0) sparseRow.cells[existingCellIndex] = tombstone
+      else sparseRow.cells.push(tombstone)
+      nextLayout.bands[bandId] = { ...sparseBand, rows: sparseRows }
+      return { ...config, poster_layout: nextLayout }
+    }
+  }
+  return config
+}
+
 export function removePosterEditorElement(config: StyleConfig, id: string): StyleConfig {
   const parsed = splitElementId(id)
   if (!parsed) return config
+  if (parsed.prefix === 'slot') return removeSlotElement(config, parsed.rawId as PosterTextSlot)
   if (parsed.prefix === 'text') return removeFreeOverlayAnchor({ ...config, text_overlays: (config.text_overlays ?? []).filter(item => item.id !== parsed.rawId) }, id)
   if (parsed.prefix === 'asset') return removeFreeOverlayAnchor({ ...config, image_overlays: (config.image_overlays ?? []).filter(item => item.id !== parsed.rawId) }, id)
   return { ...config, icon_overlays: (config.icon_overlays ?? []).filter(item => item.id !== parsed.rawId) }

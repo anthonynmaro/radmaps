@@ -9,9 +9,14 @@ import { parseGpxServer } from '~/utils/gpx'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats, TrailSegment } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
-import { bboxCenter } from '~/utils/premadeCatalog'
-import { validateRouteGeojson } from '~/server/utils/routeValidation'
+import { assertRouteGeojsonSize, validateRouteGeojson } from '~/server/utils/routeValidation'
 import { assertRateLimit } from '~/server/utils/rateLimit'
+import { enrichThemeLocationMetadata } from '~/server/utils/themeDataEnrichment'
+import {
+  THEME_LOCATION_METADATA_COLUMNS,
+  isMissingPostgrestSchemaColumnError,
+  omitColumns,
+} from '~/server/utils/postgrestSchema'
 
 const CreateMapBody = z.object({
   title: z.string().min(1).max(120),
@@ -32,6 +37,14 @@ export default defineEventHandler(async (event) => {
   let bbox: [number, number, number, number]
   let stats: RouteStats
   let trailSegments: TrailSegment[] = []
+  let locationInput: {
+    location_label?: string | null
+    location_city?: string | null
+    location_region?: string | null
+    location_country?: string | null
+    location_lng?: number | null
+    location_lat?: number | null
+  } = {}
 
   if (contentType.includes('application/json')) {
     // Client parsed GPX in the browser and is sending pre-computed GeoJSON + stats
@@ -44,10 +57,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Prevent oversized GeoJSON from crashing the render worker OOM.
-    const geojsonStr = JSON.stringify(body.geojson)
-    if (geojsonStr.length > 5 * 1024 * 1024) {
-      throw createError({ statusCode: 413, message: 'Route GeoJSON exceeds 5 MB limit' })
-    }
+    assertRouteGeojsonSize(body.geojson)
 
     // Validate bbox values are finite and in legal ranges.
     if (Array.isArray(body.bbox) && body.bbox.length === 4) {
@@ -67,6 +77,14 @@ export default defineEventHandler(async (event) => {
     validateRouteGeojson(geojson)
     bbox = body.bbox
     stats = body.stats
+    locationInput = {
+      location_label: typeof body.location_label === 'string' ? body.location_label : null,
+      location_city: typeof body.location_city === 'string' ? body.location_city : null,
+      location_region: typeof body.location_region === 'string' ? body.location_region : null,
+      location_country: typeof body.location_country === 'string' ? body.location_country : null,
+      location_lng: typeof body.location_lng === 'number' ? body.location_lng : null,
+      location_lat: typeof body.location_lat === 'number' ? body.location_lat : null,
+    }
     // Client-side parsed GPX may include auto-detected named track segments
     if (Array.isArray(body.trail_segments) && body.trail_segments.length > 0) {
       trailSegments = body.trail_segments
@@ -94,6 +112,7 @@ export default defineEventHandler(async (event) => {
     try {
       const result = parseGpxServer(gpxText)
       geojson = result.geojson
+      assertRouteGeojsonSize(geojson)
       validateRouteGeojson(geojson)
       bbox = result.bbox
       stats = result.stats
@@ -104,30 +123,44 @@ export default defineEventHandler(async (event) => {
   }
 
   // Insert map record
-  const locationCenter = bboxCenter(bbox)
-  const locationLabel = typeof stats.location === 'string' && stats.location.trim()
-    ? stats.location.trim()
-    : null
-  const { data: map, error } = await supabase
+  const locationMetadata = await enrichThemeLocationMetadata({
+    title,
+    bbox,
+    stats,
+    ...locationInput,
+  })
+  const insertPayload = {
+    user_id: user.id,
+    title,
+    subtitle,
+    geojson,
+    bbox,
+    stats,
+    ...locationMetadata,
+    style_config: trailSegments.length > 0
+      ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
+      : DEFAULT_STYLE_CONFIG,
+    status: 'draft',
+  }
+  let { data: map, error } = await supabase
     .from('maps')
-    .insert({
-      user_id: user.id,
-      title,
-      subtitle,
-      geojson,
-      bbox,
-      stats,
-      location_label: locationLabel,
-      location_region: locationLabel,
-      location_lng: locationCenter?.[0] ?? null,
-      location_lat: locationCenter?.[1] ?? null,
-      style_config: trailSegments.length > 0
-        ? { ...DEFAULT_STYLE_CONFIG, trail_segments: trailSegments }
-        : DEFAULT_STYLE_CONFIG,
-      status: 'draft',
-    })
+    .insert(insertPayload)
     .select()
     .single()
+
+  if (error && isMissingPostgrestSchemaColumnError(error)) {
+    console.warn('[maps:create] location metadata columns missing from PostgREST schema cache; retrying without cached enrichment', {
+      code: error.code,
+      message: error.message,
+    })
+    const retry = await supabase
+      .from('maps')
+      .insert(omitColumns(insertPayload, THEME_LOCATION_METADATA_COLUMNS))
+      .select()
+      .single()
+    map = retry.data
+    error = retry.error
+  }
 
   if (error) {
     throw createError({ statusCode: 500, message: error.message })

@@ -896,34 +896,75 @@ export function getAllRouteCoords(geojson: GeoJSON.FeatureCollection): number[][
 export function buildElevationProfile(
   geojson: GeoJSON.FeatureCollection,
   samples = 250,
-): { svgPath: string; strokePath: string; minElev: number; maxElev: number } | null {
+  relief = 0.65,
+  allowGeometryFallback = false,
+): { svgPath: string; strokePath: string; minElev: number; maxElev: number; synthetic?: boolean } | null {
+  assertGeometryFallbackAllowed(allowGeometryFallback)
+
   const coords = getAllRouteCoords(geojson)
   const elevations = coords.map(c => c[2] ?? 0).filter(e => e !== 0)
-  if (elevations.length < 10) return null
+  const sourceValues = elevations.length >= 10
+    ? elevations
+    : allowGeometryFallback
+      ? routeGeometryProfileValues(coords)
+      : []
+  if (sourceValues.length < 10) return null
 
-  const step = Math.max(1, Math.floor(elevations.length / samples))
+  const step = Math.max(1, Math.floor(sourceValues.length / samples))
   const sampled: number[] = []
-  for (let i = 0; i < elevations.length; i += step) sampled.push(elevations[i])
-  if (sampled[sampled.length - 1] !== elevations[elevations.length - 1]) {
-    sampled.push(elevations[elevations.length - 1])
+  for (let i = 0; i < sourceValues.length; i += step) sampled.push(sourceValues[i])
+  if (sampled[sampled.length - 1] !== sourceValues[sourceValues.length - 1]) {
+    sampled.push(sourceValues[sourceValues.length - 1])
   }
 
   const minElev = Math.min(...sampled)
   const maxElev = Math.max(...sampled)
   const range = maxElev - minElev || 1
   const TOP_MARGIN = 8  // % of viewbox height reserved at top
+  const reliefScale = Math.min(1, Math.max(0.35, Number.isFinite(relief) ? relief : 0.65))
 
   const n = sampled.length
   const pts = sampled.map((e, i) => {
     const x = parseFloat(((i / (n - 1)) * 1000).toFixed(1))
-    const y = parseFloat((TOP_MARGIN + ((maxElev - e) / range) * (100 - TOP_MARGIN)).toFixed(2))
+    const fullHeightY = TOP_MARGIN + ((maxElev - e) / range) * (100 - TOP_MARGIN)
+    const y = parseFloat((100 - ((100 - fullHeightY) * reliefScale)).toFixed(2))
     return `${x},${y}`
   })
 
   const strokePath = `M ${pts.join(' L ')}`
   const svgPath = `M 0,100 L ${pts.join(' L ')} L 1000,100 Z`
 
-  return { svgPath, strokePath, minElev, maxElev }
+  return { svgPath, strokePath, minElev, maxElev, synthetic: elevations.length < 10 }
+}
+
+function assertGeometryFallbackAllowed(allowGeometryFallback: boolean): void {
+  if (!allowGeometryFallback) return
+  if (process.env.NODE_ENV === 'test') return
+
+  throw new Error('Geometry-derived elevation profile fallback is test-only and must not run in proof, checkout, or final render modes.')
+}
+
+function routeGeometryProfileValues(coords: number[][]): number[] {
+  if (coords.length < 2) return []
+  const source = coords.length >= 10
+    ? coords
+    : Array.from({ length: 24 }, (_, index) => coords[Math.round((index / 23) * (coords.length - 1))])
+  const lngs = source.map(coord => coord[0])
+  const lats = source.map(coord => coord[1])
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const lngSpan = Math.max(0.000001, maxLng - minLng)
+  const latSpan = Math.max(0.000001, maxLat - minLat)
+  return source.map((coord, index) => {
+    const x = (coord[0] - minLng) / lngSpan
+    const y = (coord[1] - minLat) / latSpan
+    const turn = index > 0 && index < source.length - 1
+      ? Math.abs((source[index + 1][0] - coord[0]) * (coord[1] - source[index - 1][1]) - (source[index + 1][1] - coord[1]) * (coord[0] - source[index - 1][0]))
+      : 0
+    return 100 + (y * 56) + (x * 22) + Math.min(18, turn * 800000)
+  })
 }
 
 /**

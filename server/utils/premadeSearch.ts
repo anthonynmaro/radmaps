@@ -1,4 +1,5 @@
 import type { LocationMetadata, PremadeMap } from '~/types'
+import { geocodeTextToLocation, type GeocodedLocation } from '~/server/utils/locationSearch'
 
 export const DEFAULT_PREMADE_SEARCH_RADIUS_KM = 250
 export const MAX_PREMADE_SEARCH_RADIUS_KM = 20000
@@ -42,37 +43,8 @@ export function parsePremadeSearchText(query: Record<string, unknown>): string |
   return q ? q.slice(0, 160) : null
 }
 
-export interface GeocodedLocation {
-  lat: number
-  lng: number
-  label?: string
-}
-
 export async function geocodePremadeSearchText(q: string): Promise<GeocodedLocation | null> {
-  const token = process.env.MAPBOX_TOKEN
-  if (!token) return null
-
-  const url = new URL('https://api.mapbox.com/search/geocode/v6/forward')
-  url.searchParams.set('q', q)
-  url.searchParams.set('access_token', token)
-  url.searchParams.set('limit', '1')
-  url.searchParams.set('types', 'place,locality,region,district,address,postcode')
-
-  try {
-    const response = await $fetch<any>(url.toString())
-    const feature = response?.features?.[0]
-    const coords = feature?.properties?.coordinates
-    const lng = coords?.longitude ?? feature?.geometry?.coordinates?.[0]
-    const lat = coords?.latitude ?? feature?.geometry?.coordinates?.[1]
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
-    return {
-      lat,
-      lng,
-      label: feature?.properties?.full_address || feature?.properties?.name || q,
-    }
-  } catch {
-    return null
-  }
+  return await geocodeTextToLocation(q)
 }
 
 export function distanceMetersBetween(a: Pick<LocationMetadata, 'location_lat' | 'location_lng'>, b: { lat: number; lng: number }): number | null {

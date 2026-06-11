@@ -17,6 +17,7 @@ import type { StyleConfig, RouteStats } from '~/types'
 import { FIELD_LAYER, type FieldLayer } from './fieldLayer'
 import { HASH_VERSION } from './hashVersion'
 import type { PrintFraming } from '../print/printFraming'
+import { buildThemeDataContext, themeDataContextSignature, type ThemeDataContextInput } from '../themeDataContract'
 
 // ─── Stable JSON serialization ───────────────────────────────────────────────
 //
@@ -79,6 +80,11 @@ function pickLayer(styleConfig: StyleConfig, layer: FieldLayer): Record<string, 
   return result
 }
 
+function mapThemeDataSignature(input: ReturnType<typeof themeDataContextSignature>) {
+  const { title: _title, ...mapSignature } = input
+  return mapSignature
+}
+
 // ─── Hash inputs ─────────────────────────────────────────────────────────────
 
 /**
@@ -93,8 +99,14 @@ export function computeMapContentHash(
   styleConfig: StyleConfig,
   geojson: GeoJSON.FeatureCollection,
   framing: PrintFraming,
+  dataContextInput: ThemeDataContextInput = {},
 ): string {
   const mapFields = pickLayer(styleConfig, 'map')
+  const themeDataContext = themeDataContextSignature(buildThemeDataContext({
+    ...dataContextInput,
+    styleConfig,
+    geojson,
+  }))
   const framingDims = {
     fullWidthPx: framing.fullWidthPx,
     fullHeightPx: framing.fullHeightPx,
@@ -106,6 +118,7 @@ export function computeMapContentHash(
   const payload = stableStringify({
     mapFields,
     geojson,
+    themeDataContext: mapThemeDataSignature(themeDataContext),
     framing: framingDims,
     hashVersion: HASH_VERSION.map,
   })
@@ -120,11 +133,21 @@ export function computeMapContentHash(
  * etc. — they don't change the map raster but they do change the
  * composited proof/final.
  */
-export function computeChromeHash(styleConfig: StyleConfig, stats: RouteStats): string {
+export function computeChromeHash(
+  styleConfig: StyleConfig,
+  stats: RouteStats,
+  dataContextInput: ThemeDataContextInput = {},
+): string {
   const chromeFields = pickLayer(styleConfig, 'chrome')
+  const themeDataContext = themeDataContextSignature(buildThemeDataContext({
+    ...dataContextInput,
+    styleConfig,
+    stats,
+  }))
   const payload = stableStringify({
     chromeFields,
     stats,
+    themeDataContext,
     hashVersion: HASH_VERSION.chrome,
   })
   return sha256(payload)

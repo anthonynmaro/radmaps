@@ -4,9 +4,8 @@
  * Only maps with is_public = true are accessible — maps in 'draft' or 'rendering'
  * status are never exposed here regardless of who requests them.
  */
-import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 const MapIdSchema = z.string().uuid()
 
@@ -16,12 +15,7 @@ export default defineEventHandler(async (event) => {
   if (!MapIdSchema.safeParse(id).success) throw createError({ statusCode: 400, message: 'Invalid map ID' })
 
   const user = await serverSupabaseUser(event).catch(() => null)
-  const config = useRuntimeConfig()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createClient(
-    config.public.supabaseUrl as string,
-    config.supabaseServiceKey as string,
-  ) as any
+  const supabase = await serverSupabaseClient(event)
 
   const { data: map, error } = await supabase
     .from('maps')
