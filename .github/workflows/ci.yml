@@ -83,6 +83,23 @@ jobs:
       - run: npx nuxi prepare
       - run: npm run test:e2e-money
 
+  proof-final-parity:
+    name: Proof/Final Parity
+    needs: [typecheck, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx nuxi prepare
+      - run: npm run test:proof-final-parity
+
   worker:
     name: Print Worker
     runs-on: ubuntu-latest

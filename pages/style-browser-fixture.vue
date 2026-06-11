@@ -56,7 +56,7 @@ import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import { DEFAULT_STYLE_CONFIG, type PartialPosterLayout, type PosterTextOverride, type PosterTextSlot, type RouteStats, type StyleConfig, type TextOverlay, type TonerVariant, type TrailMap } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
 import { COMPOSITION_OPTIONS } from '~/utils/posterCompositions'
-import { getPrintFraming } from '~/utils/print/printFraming'
+import { getPrintFraming, type RenderClass } from '~/utils/print/printFraming'
 import { patchPosterEditorElement, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 
@@ -89,7 +89,10 @@ const gridScope = route.query.gridScope === 'map' || route.query.gridScope === '
   : undefined
 const width = typeof route.query.width === 'string' ? Number.parseInt(route.query.width, 10) : 520
 const height = typeof route.query.height === 'string' ? Number.parseInt(route.query.height, 10) : 780
-const renderMode = route.query.print === 'final' ? 'print' : 'editor'
+const printRenderClass: RenderClass | null = route.query.print === 'proof' || route.query.print === 'final'
+  ? route.query.print
+  : null
+const renderMode = printRenderClass ? 'print' : 'editor'
 const printScale = typeof route.query.printScale === 'string' ? Number.parseFloat(route.query.printScale) : 10
 const editable = route.query.editable === 'true' || route.query.editable === '1'
 const chromeEditing = route.query.chrome === 'true' || route.query.chrome === '1'
@@ -452,12 +455,14 @@ function parseTonerVariant(value: unknown): TonerVariant | undefined {
   return value === 'auto' || value === 'light' || value === 'dark' ? value : undefined
 }
 
-const finalFraming = getPrintFraming(styleConfig.value.print_size ?? '24x36', 'final')
+const printFraming = printRenderClass
+  ? getPrintFraming(styleConfig.value.print_size ?? '24x36', printRenderClass)
+  : null
 const printContext = renderMode === 'print'
   ? {
-      framing: finalFraming,
-      cssWidthPx: Math.round(finalFraming.fullWidthPx / printScale),
-      cssHeightPx: Math.round(finalFraming.fullHeightPx / printScale),
+      framing: printFraming!,
+      cssWidthPx: Math.round(printFraming!.fullWidthPx / printScale),
+      cssHeightPx: Math.round(printFraming!.fullHeightPx / printScale),
       deviceScaleFactor: printScale,
     }
   : undefined

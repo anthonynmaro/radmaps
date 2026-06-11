@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const compositions = [
   ['editorial-tall', 'editorial-minimal'],
@@ -88,6 +88,118 @@ const specThemeRecipes = [
   ['transit-diagram', 'transit-diagram'],
   ['plein-air', 'art-wash'],
 ] as const
+
+type NormalizedPrintLayoutItem = {
+  id: string
+  text: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+async function readNormalizedPrintLayout(page: Page, url: string) {
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('poster-canvas')).toBeVisible()
+  await expect(page.getByTestId('poster-map')).toBeVisible()
+  await page.locator('.maplibregl-canvas').first().waitFor({ state: 'visible', timeout: 20_000 })
+  await expect.poll(async () => page.evaluate(() => {
+    const win = window as unknown as { __RENDER_READY?: boolean }
+    return win.__RENDER_READY === true
+  }), { timeout: 30_000 }).toBe(true)
+
+  return page.evaluate(() => {
+    const poster = document.querySelector<HTMLElement>('[data-testid="poster-canvas"]')
+    if (!poster) return []
+    const posterRect = poster.getBoundingClientRect()
+    const selectors = [
+      '[data-testid="poster-map"]',
+      '[data-testid="poster-header"]',
+      '[data-testid="poster-footer"]',
+      '[data-testid="poster-footer-rule"]',
+      '[data-testid="blueprint-drafting-topline"]',
+      '[data-testid="blueprint-drafting-figure"]',
+      '[data-testid="blueprint-sheet-neatline"]',
+      '[data-testid="composition-technical-data-footer"]',
+      '[data-testid^="pin-label-"]',
+      '[data-poster-element-id^="slot:"]',
+      '.poster-trail-name',
+      '.poster-location-line',
+      '.composition-kicker',
+      '.composition-meta-line',
+      '.composition-footer-note',
+      '.poster-occasion',
+      '.stat-block',
+      '.composition-technical-data-item',
+    ].join(',')
+    const seen = new Map<string, number>()
+    const classIds = [
+      'poster-trail-name',
+      'poster-location-line',
+      'composition-kicker',
+      'composition-meta-line',
+      'composition-footer-note',
+      'poster-occasion',
+      'stat-block',
+      'composition-technical-data-item',
+    ]
+
+    return Array.from(document.querySelectorAll<HTMLElement>(selectors))
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        const styles = getComputedStyle(element)
+        if (
+          rect.width <= 0 ||
+          rect.height <= 0 ||
+          styles.display === 'none' ||
+          styles.visibility === 'hidden'
+        ) {
+          return null
+        }
+        const classId = classIds.find(candidate => element.classList.contains(candidate))
+        const baseId = element.dataset.posterElementId ||
+          element.dataset.testid ||
+          classId ||
+          element.tagName.toLowerCase()
+        const count = (seen.get(baseId) ?? 0) + 1
+        seen.set(baseId, count)
+        const id = count === 1 ? baseId : `${baseId}#${count}`
+        return {
+          id,
+          text: (element.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          x: (rect.left - posterRect.left) / posterRect.width,
+          y: (rect.top - posterRect.top) / posterRect.height,
+          w: rect.width / posterRect.width,
+          h: rect.height / posterRect.height,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.id.localeCompare(b!.id)) as NormalizedPrintLayoutItem[]
+  })
+}
+
+function expectNormalizedLayoutsToMatch(proof: NormalizedPrintLayoutItem[], final: NormalizedPrintLayoutItem[]) {
+  expect(proof.map(item => item.id)).toEqual(final.map(item => item.id))
+  expect(proof.map(item => item.id)).toEqual(expect.arrayContaining([
+    'poster-map',
+    'poster-header',
+    'poster-footer',
+    'poster-trail-name',
+    'poster-location-line',
+    'composition-kicker',
+    'composition-footer-note',
+  ]))
+
+  const tolerance = 0.004
+  for (const proofItem of proof) {
+    const finalItem = final.find(item => item.id === proofItem.id)
+    expect(finalItem, proofItem.id).toBeDefined()
+    expect(finalItem!.text, proofItem.id).toBe(proofItem.text)
+    for (const key of ['x', 'y', 'w', 'h'] as const) {
+      expect(Math.abs(finalItem![key] - proofItem[key]), `${proofItem.id}.${key}`).toBeLessThanOrEqual(tolerance)
+    }
+  }
+}
 
 test.describe('style browser visual harness', () => {
   for (const [composition, theme] of compositions) {
@@ -1871,6 +1983,29 @@ test.describe('style browser visual harness', () => {
     expect(Math.round(print.width ?? 0)).toBeGreaterThan(700)
     expect(Math.round(print.height ?? 0)).toBeGreaterThan(1000)
     expect(print.bleed).not.toBe('0px')
+  })
+
+  test('keeps proof and final print label geometry identical after normalization', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1300 })
+    const params = new URLSearchParams({
+      composition: 'darksky-stars',
+      theme: 'copper-night',
+      pins: '1',
+      labels: '1',
+      roads: '1',
+      title: 'Proof Final Ridge',
+      location: 'Boston, MA',
+      occasion: 'Checkout proof parity',
+      date: '2026-04-20',
+      distanceKm: '12.34',
+      gainM: '456',
+    })
+    const baseUrl = `/style-browser-fixture?${params.toString()}`
+
+    const proof = await readNormalizedPrintLayout(page, `${baseUrl}&print=proof&printScale=10`)
+    const final = await readNormalizedPrintLayout(page, `${baseUrl}&print=final&printScale=20`)
+
+    expectNormalizedLayoutsToMatch(proof, final)
   })
 
   test('can target the grid to poster or map only', async ({ page }) => {
