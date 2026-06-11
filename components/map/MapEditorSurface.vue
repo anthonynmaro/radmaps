@@ -165,7 +165,11 @@
             v-if="mapSelectionEnabled"
             :selection="mapElementSelection"
             :get-map="getEditorMapInstance"
+            :segment="selectedMapSegment"
+            :fallback-width="styleConfig.route_width"
             @close="clearMapElementSelection"
+            @patch-segment="onSelectedSegmentPatch"
+            @delete-segment="onSelectedSegmentDelete"
           />
         </ClientOnly>
         <div v-if="!map" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -325,6 +329,8 @@ import {
   extendSegmentCoordinates,
   isGeometryBackedSegment,
   normalizeLineCoords,
+  patchTrailSegment,
+  removeTrailSegment,
   sanitizeSegmentBends,
 } from '~/utils/trail'
 
@@ -524,6 +530,48 @@ const {
 function onEditorMapReady() {
   attachMapSelection()
 }
+
+// ── Segment toolbar (editor-v2 E4) ──────────────────────────────────────────────
+// The toolbar's controls persist exclusively through the same trail_segments
+// write path the StylePanel segments section uses (utils/trail.ts helpers).
+const selectedMapSegment = computed<TrailSegment | null>(() => {
+  const selection = mapElementSelection.value
+  if (!selection || selection.slot !== 'segments-handles' || !selection.featureKey) return null
+  return (props.modelValue.trail_segments ?? []).find(s => s.id === selection.featureKey) ?? null
+})
+
+function onSelectedSegmentPatch(patch: Partial<TrailSegment>) {
+  const segment = selectedMapSegment.value
+  if (!segment) return
+  styleConfig.value = {
+    ...styleConfig.value,
+    trail_segments: patchTrailSegment(styleConfig.value.trail_segments ?? [], segment.id, patch),
+  }
+}
+
+// Simple delete — segments have no tombstone system; the editor undo stack
+// (Cmd+Z) and the StylePanel segments section remain the recovery paths.
+function onSelectedSegmentDelete() {
+  const segment = selectedMapSegment.value
+  if (!segment) return
+  styleConfig.value = {
+    ...styleConfig.value,
+    trail_segments: removeTrailSegment(styleConfig.value.trail_segments ?? [], segment.id),
+  }
+  clearMapElementSelection()
+}
+
+// A segment removed elsewhere (StylePanel, undo) invalidates its selection.
+watch(
+  () => (props.modelValue.trail_segments ?? []).map(s => s.id).join('|'),
+  () => {
+    const selection = mapElementSelection.value
+    if (!selection || selection.slot !== 'segments-handles' || !selection.featureKey) return
+    if (!(props.modelValue.trail_segments ?? []).some(s => s.id === selection.featureKey)) {
+      clearMapElementSelection()
+    }
+  },
+)
 
 // Single-selection world: a map selection evicts any poster-element/text
 // selection, and vice versa (MapPreview's text-target-selected event plus the

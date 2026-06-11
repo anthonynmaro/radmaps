@@ -739,6 +739,7 @@ export function isGeometryBackedSegment(segment: TrailSegment): boolean {
 export function trailSegmentEndpointFeatures(
   segmentGeojson: GeoJSON.FeatureCollection,
   color: string,
+  segId?: string,
 ): GeoJSON.Feature[] {
   const coords = segmentGeojson.features.flatMap(feature => {
     const geometry = feature.geometry
@@ -748,10 +749,30 @@ export function trailSegmentEndpointFeatures(
   })
 
   if (coords.length < 2) return []
+  // seg_id is editor metadata for map-element hit-testing (editor-v2 E4); the
+  // style's paint only reads `color`, so it never affects rendered output.
+  const properties = { color, ...(segId ? { seg_id: segId } : {}) }
   return [
-    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color } },
-    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { ...properties } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { ...properties } },
   ]
+}
+
+// ─── Trail segment list write path (editor-v2 E4) ─────────────────────────────
+// The StylePanel segments section and the map-selection segment toolbar BOTH
+// mutate `style_config.trail_segments` through these helpers — one write path,
+// no parallel segment system.
+
+export function patchTrailSegment(
+  segments: TrailSegment[],
+  id: string,
+  patch: Partial<TrailSegment>,
+): TrailSegment[] {
+  return segments.map(segment => segment.id === id ? { ...segment, ...patch } : segment)
+}
+
+export function removeTrailSegment(segments: TrailSegment[], id: string): TrailSegment[] {
+  return segments.filter(segment => segment.id !== id)
 }
 
 export function unionBboxes(

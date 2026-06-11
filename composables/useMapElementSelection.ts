@@ -55,7 +55,9 @@ export function mapSelectionKindLabel(slot: LayerSlot): string {
  *   tests/style-layer-graph.test.ts), filtered to layers present right now.
  * - route: the primary route renders as a family of art-variant line layers,
  *   all on the shared app-owned 'route' source — any of them is "the route".
- * - segments-handles: app-owned per-segment GeoJSON sources (`trail-seg-<id>`);
+ * - segments-handles: app-owned per-segment GeoJSON sources (`trail-seg-<id>`),
+ *   plus the shared 'segment-handles' endpoint-dot circle layer (its features
+ *   carry `seg_id` since E4, so endpoint dots select their segment too);
  *   ids are data-driven, not preset-driven, so they resolve from the live style.
  * This is data-path resolution, not a preset check — which slots are
  * selectable at all is decided exclusively by the style layer graph.
@@ -65,10 +67,13 @@ function liveLayerIdsForSlot(map: MapLibreMap, preset: StyleConfig['preset'], sl
     const styleLayers = map.getStyle()?.layers ?? []
     return styleLayers
       .filter(layer => {
-        if (layer.type !== 'line' || !('source' in layer) || typeof layer.source !== 'string') return false
-        return slot === 'route'
-          ? layer.source === 'route'
-          : layer.source.startsWith('trail-seg-')
+        if (!('source' in layer) || typeof layer.source !== 'string') return false
+        if (layer.type === 'line') {
+          return slot === 'route'
+            ? layer.source === 'route'
+            : layer.source.startsWith('trail-seg-')
+        }
+        return slot === 'segments-handles' && layer.type === 'circle' && layer.source === 'segment-handles'
       })
       .map(layer => layer.id)
   }
@@ -94,7 +99,13 @@ function buildSelection(
 
   if (slot === 'segments-handles') {
     const sourceId = typeof feature.source === 'string' ? feature.source : ''
-    const segmentId = sourceId.startsWith('trail-seg-') ? sourceId.slice('trail-seg-'.length) : null
+    const segmentId = sourceId.startsWith('trail-seg-')
+      ? sourceId.slice('trail-seg-'.length)
+      // Endpoint dots live on the shared 'segment-handles' source; their
+      // features carry the owning segment id as `seg_id` (set in trail.ts).
+      : typeof properties.seg_id === 'string' && properties.seg_id
+        ? properties.seg_id
+        : null
     const segment = segmentId ? (config.trail_segments ?? []).find(s => s.id === segmentId) : undefined
     return {
       domain: 'map',

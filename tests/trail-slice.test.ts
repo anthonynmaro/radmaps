@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bboxForCoords, bendLineCoords, buildElevationProfile, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import { bboxForCoords, bendLineCoords, buildElevationProfile, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, patchTrailSegment, removeTrailSegment, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
 import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
@@ -416,6 +416,23 @@ describe('trail segment geometry', () => {
       { type: 'Point', coordinates: [-90.0002, 41] },
     ])
     expect(handles.map(feature => feature.properties?.color)).toEqual(['#3A7CA5', '#3A7CA5'])
+    // No seg_id requested → property absent (legacy callers unchanged).
+    expect(handles.every(feature => !('seg_id' in (feature.properties ?? {})))).toBe(true)
+  })
+
+  it('tags segment handle features with the owning segment id for editor hit-testing', () => {
+    const resolved = lineRoute([
+      [-90, 41],
+      [-90.0001, 41],
+      [-90.0002, 41],
+    ])
+
+    const handles = trailSegmentEndpointFeatures(resolved, '#3A7CA5', 'seg-a')
+
+    expect(handles.map(feature => feature.properties)).toEqual([
+      { color: '#3A7CA5', seg_id: 'seg-a' },
+      { color: '#3A7CA5', seg_id: 'seg-a' },
+    ])
   })
 
   it('curves point-to-point geometry and flips bend direction while keeping endpoints anchored', () => {
@@ -648,5 +665,28 @@ describe('route deletion helpers', () => {
     expect(routed.features.map(feature => feature.geometry.type)).toEqual(['LineString', 'LineString'])
     expect((routed.features[0].geometry as GeoJSON.LineString).coordinates.at(-1)).toEqual([-89.0001, 40.0])
     expect((routed.features[1].geometry as GeoJSON.LineString).coordinates[0]).toEqual([-89.0004, 40.0])
+  })
+})
+
+describe('trail segment write-path helpers', () => {
+  const segments: TrailSegment[] = [
+    { id: 'a', name: 'North Loop', color: '#2D6A4F', visible: true, section_start: 0, section_end: 40 },
+    { id: 'b', name: 'South Loop', color: '#3A7CA5', visible: true, section_start: 40, section_end: 100 },
+  ]
+
+  it('patches only the target segment and returns a new array', () => {
+    const next = patchTrailSegment(segments, 'a', { name: 'Renamed', dash: true })
+
+    expect(next).not.toBe(segments)
+    expect(next[0]).toEqual({ ...segments[0], name: 'Renamed', dash: true })
+    expect(next[1]).toBe(segments[1])
+    expect(segments[0].name).toBe('North Loop')
+  })
+
+  it('removes only the target segment', () => {
+    const next = removeTrailSegment(segments, 'a')
+
+    expect(next).toEqual([segments[1]])
+    expect(segments).toHaveLength(2)
   })
 })

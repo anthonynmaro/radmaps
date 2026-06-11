@@ -8120,7 +8120,7 @@ function populateSegmentSources() {
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
   if (src) src.setData(seg.color_mode === 'gradient' ? lineMetricsSafeGeojson(rendered) : rendered)
 
-    handleFeatures.push(...trailSegmentEndpointFeatures(rendered, seg.color))
+    handleFeatures.push(...trailSegmentEndpointFeatures(rendered, seg.color, seg.id))
   }
 
   const handleSrc = mapInstance.getSource('segment-handles') as maplibregl.GeoJSONSource | undefined

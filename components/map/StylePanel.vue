@@ -1778,7 +1778,7 @@ import {
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
 import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
-import { defaultTrailSegmentColor } from '~/utils/trail'
+import { defaultTrailSegmentColor, patchTrailSegment, removeTrailSegment } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type SegmentDrawMode =
@@ -2630,8 +2630,10 @@ function isActiveSegmentEdit(segId: string): boolean {
   return props.activeSegmentEditMode?.segId === segId
 }
 
+// Shared write path with the map-selection segment toolbar (editor-v2 E4) —
+// both surfaces mutate trail_segments via utils/trail.ts patchTrailSegment/removeTrailSegment.
 function setSegment(id: string, patch: Partial<TrailSegment>) {
-  set('trail_segments', (local.trail_segments ?? []).map(s => s.id === id ? { ...s, ...patch } : s))
+  set('trail_segments', patchTrailSegment(local.trail_segments ?? [], id, patch))
 }
 
 function applyToAll(patch: Partial<TrailSegment>) {
@@ -2671,7 +2673,7 @@ function removeDeletedRange(index: number) {
 }
 
 function removeSegment(id: string) {
-  set('trail_segments', (local.trail_segments ?? []).filter(s => s.id !== id))
+  set('trail_segments', removeTrailSegment(local.trail_segments ?? [], id))
   if (expandedSegmentId.value === id) expandedSegmentId.value = null
 }
 
