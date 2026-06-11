@@ -73,6 +73,13 @@
               @click="emitPatch({ dash: !segment.dash })"
             >- - -</button>
             <button
+              class="toolbar-chip"
+              :class="{ 'is-active': splitArmed }"
+              title="Split segment at a point"
+              data-testid="map-selection-segment-split"
+              @click="$emit('toggle-split')"
+            >Split</button>
+            <button
               class="toolbar-icon-btn toolbar-icon-btn--danger"
               title="Delete segment"
               data-testid="map-selection-segment-delete"
@@ -82,6 +89,9 @@
                 <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
               </svg>
             </button>
+          </div>
+          <div v-if="splitArmed" class="split-hint" data-testid="map-selection-split-hint">
+            Click the segment where you want to split it · Esc cancels
           </div>
         </template>
         <!-- Placeholder row — route/label controls land in E5. -->
@@ -105,6 +115,8 @@ const props = defineProps<{
   segment?: TrailSegment | null
   /** Fallback for segments without an explicit width (mirrors the StylePanel slider fallback). */
   fallbackWidth?: number
+  /** One-shot split mode is armed — the next map click on the segment splits it. */
+  splitArmed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -112,6 +124,8 @@ const emit = defineEmits<{
   /** Parent applies this through the shared trail_segments write path (utils/trail.ts patchTrailSegment). */
   'patch-segment': [patch: Partial<TrailSegment>]
   'delete-segment': []
+  /** Arm/disarm the one-shot split-at-point mode. */
+  'toggle-split': []
 }>()
 
 const RING_SIZE_PX = 28
@@ -206,7 +220,7 @@ const toolbarStyle = computed(() => {
     window.innerWidth - width - 12,
   )
   const below = anchor.value.y + TOOLBAR_OFFSET_PX
-  const estimatedHeight = props.segment ? 100 : 76
+  const estimatedHeight = props.segment ? (props.splitArmed ? 130 : 100) : 76
   const top = below + estimatedHeight < window.innerHeight - 12
     ? below
     : Math.max(12, anchor.value.y - estimatedHeight - TOOLBAR_OFFSET_PX)
@@ -396,5 +410,16 @@ const toolbarStyle = computed(() => {
   border-color: #fecaca;
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.split-hint {
+  font-size: 10px;
+  color: #1f4d38;
+  background: #dcebe2;
+  border: 1px solid #2d6a4f33;
+  border-radius: 8px;
+  padding: 5px 8px;
+  text-align: center;
+  user-select: none;
 }
 </style>

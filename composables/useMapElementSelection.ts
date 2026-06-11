@@ -152,6 +152,26 @@ export function useMapElementSelection(options: {
     selection.value = null
   }
 
+  /**
+   * Programmatically select a trail segment (post-split reselection, label
+   * double-click rename). App-owned gesture — bypasses hit-testing but honors
+   * the enabled gate so flag-off behavior is untouched.
+   */
+  function selectSegment(segmentId: string, lngLat: [number, number]) {
+    if (!options.enabled()) return
+    const config = options.getStyleConfig()
+    const segment = (config.trail_segments ?? []).find(s => s.id === segmentId)
+    if (!segment) return
+    selection.value = {
+      domain: 'map',
+      slot: 'segments-handles',
+      featureKey: segmentId,
+      displayName: segment.name?.trim() || 'Trail segment',
+      lngLat,
+      properties: {},
+    }
+  }
+
   function hitTest(map: MapLibreMap, e: MapMouseEvent): MapElementSelection | null {
     const config = options.getStyleConfig()
     const selectableSlots = getSelectableLayerSlots(config.preset)
@@ -200,5 +220,5 @@ export function useMapElementSelection(options: {
 
   onScopeDispose(detachFromMap)
 
-  return { selection, clearSelection, attachToMap, detachFromMap }
+  return { selection, clearSelection, selectSegment, attachToMap, detachFromMap }
 }

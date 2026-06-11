@@ -167,9 +167,11 @@
             :get-map="getEditorMapInstance"
             :segment="selectedMapSegment"
             :fallback-width="styleConfig.route_width"
+            :split-armed="Boolean(segmentSplitTarget)"
             @close="clearMapElementSelection"
             @patch-segment="onSelectedSegmentPatch"
             @delete-segment="onSelectedSegmentDelete"
+            @toggle-split="onSegmentSplitToggle"
           />
         </ClientOnly>
         <div v-if="!map" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -332,6 +334,7 @@ import {
   patchTrailSegment,
   removeTrailSegment,
   sanitizeSegmentBends,
+  splitTrailSegmentInList,
 } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
@@ -514,11 +517,14 @@ function mapSelectionModeActive() {
     && !segmentDrawMode.value
     && !segmentEditMode.value
     && !deleteBrushActive.value
+    // One-shot split mode owns the next map click (E4).
+    && !segmentSplitTarget.value
 }
 
 const {
   selection: mapElementSelection,
   clearSelection: clearMapElementSelection,
+  selectSegment: selectMapSegment,
   attachToMap: attachMapSelection,
 } = useMapElementSelection({
   getMap: getEditorMapInstance,
@@ -572,6 +578,82 @@ watch(
     }
   },
 )
+
+// ── Split at point: one-shot mode (editor-v2 E4) ────────────────────────────────
+// Arm via the toolbar's Split button; the next map click ON the selected
+// segment splits it via the pure splitTrailSegmentInList (utils/trail.ts) and
+// flows through the same trail_segments write path. Esc or any selection
+// change disarms. While armed, selection hit-testing is suspended.
+const segmentSplitTarget = ref<string | null>(null)
+let splitClickMap: import('maplibre-gl').Map | null = null
+
+function onSegmentSplitToggle() {
+  segmentSplitTarget.value = segmentSplitTarget.value ? null : selectedMapSegment.value?.id ?? null
+}
+
+function onSplitMapClick(e: import('maplibre-gl').MapMouseEvent) {
+  const targetId = segmentSplitTarget.value
+  const map = getEditorMapInstance()
+  if (!targetId || !map) return
+
+  // One-shot fires only when the click lands on the selected segment's line.
+  const tolerance = 8
+  const bbox: [[number, number], [number, number]] = [
+    [e.point.x - tolerance, e.point.y - tolerance],
+    [e.point.x + tolerance, e.point.y + tolerance],
+  ]
+  const layerIds = (map.getStyle()?.layers ?? [])
+    .filter(layer => layer.type === 'line' && 'source' in layer && layer.source === `trail-seg-${targetId}`)
+    .map(layer => layer.id)
+  if (!layerIds.length) return
+  if (!map.queryRenderedFeatures(bbox, { layers: layerIds }).length) return
+
+  segmentSplitTarget.value = null
+  const primaryRoute = (props.map?.geojson ?? { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection
+  const result = splitTrailSegmentInList(
+    styleConfig.value.trail_segments ?? [],
+    targetId,
+    primaryRoute,
+    [e.lngLat.lng, e.lngLat.lat],
+  )
+  if (!result) return
+
+  styleConfig.value = { ...styleConfig.value, trail_segments: result.segments }
+  // Keep the user in context: the first child stays selected at the split
+  // point. nextTick so props.modelValue carries the new segment list first
+  // (the stale-id watcher clears the original's selection on the same flush).
+  const splitLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+  nextTick(() => selectMapSegment(result.first.id, splitLngLat))
+}
+
+watch(segmentSplitTarget, (target) => {
+  const map = getEditorMapInstance()
+  if (target && map) {
+    splitClickMap = map
+    map.on('click', onSplitMapClick)
+    map.getCanvas().style.cursor = 'crosshair'
+  } else if (splitClickMap) {
+    try {
+      splitClickMap.off('click', onSplitMapClick)
+      splitClickMap.getCanvas().style.cursor = ''
+    } catch {
+      // Map may already be destroyed.
+    }
+    splitClickMap = null
+  }
+})
+
+// Selection change/clear (incl. unfreeze, draw modes, preset switch) disarms split.
+watch(mapElementSelection, (selection) => {
+  if (!segmentSplitTarget.value) return
+  if (!selection || selection.slot !== 'segments-handles' || selection.featureKey !== segmentSplitTarget.value) {
+    segmentSplitTarget.value = null
+  }
+})
+
+onUnmounted(() => {
+  segmentSplitTarget.value = null
+})
 
 // Single-selection world: a map selection evicts any poster-element/text
 // selection, and vice versa (MapPreview's text-target-selected event plus the
@@ -743,7 +825,12 @@ function redo() {
 function onKeyDown(e: KeyboardEvent) {
   const target = e.target as HTMLElement
   if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-  // Esc clears an active map-element selection (editor-v2 selection mode).
+  // Esc cancels an armed split-at-point mode first (selection stays),
+  // then clears an active map-element selection (editor-v2 selection mode).
+  if (e.key === 'Escape' && segmentSplitTarget.value) {
+    segmentSplitTarget.value = null
+    return
+  }
   if (e.key === 'Escape' && mapElementSelection.value) {
     clearMapElementSelection()
     return
