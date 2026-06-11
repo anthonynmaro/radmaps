@@ -9,7 +9,7 @@ import { parseGpxServer } from '~/utils/gpx'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
 import type { RouteStats, TrailSegment } from '~/types'
 import { extractNamedTrackSegments } from '~/utils/trail'
-import { validateRouteGeojson } from '~/server/utils/routeValidation'
+import { assertRouteGeojsonSize, validateRouteGeojson } from '~/server/utils/routeValidation'
 import { assertRateLimit } from '~/server/utils/rateLimit'
 import { enrichThemeLocationMetadata } from '~/server/utils/themeDataEnrichment'
 import {
@@ -57,10 +57,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Prevent oversized GeoJSON from crashing the render worker OOM.
-    const geojsonStr = JSON.stringify(body.geojson)
-    if (geojsonStr.length > 5 * 1024 * 1024) {
-      throw createError({ statusCode: 413, message: 'Route GeoJSON exceeds 5 MB limit' })
-    }
+    assertRouteGeojsonSize(body.geojson)
 
     // Validate bbox values are finite and in legal ranges.
     if (Array.isArray(body.bbox) && body.bbox.length === 4) {
@@ -115,6 +112,7 @@ export default defineEventHandler(async (event) => {
     try {
       const result = parseGpxServer(gpxText)
       geojson = result.geojson
+      assertRouteGeojsonSize(geojson)
       validateRouteGeojson(geojson)
       bbox = result.bbox
       stats = result.stats

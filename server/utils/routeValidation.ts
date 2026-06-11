@@ -1,6 +1,20 @@
 import { createError } from 'h3'
 
 export const MAX_ROUTE_POINTS = 100_000
+export const MAX_ROUTE_GEOJSON_BYTES = 5 * 1024 * 1024
+
+export function assertRouteGeojsonSize(geojson: unknown): void {
+  let serialized: string
+  try {
+    serialized = JSON.stringify(geojson)
+  } catch {
+    throw createError({ statusCode: 400, message: 'Route GeoJSON could not be serialized safely' })
+  }
+
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_ROUTE_GEOJSON_BYTES) {
+    throw createError({ statusCode: 413, message: 'Route GeoJSON exceeds 5 MB limit' })
+  }
+}
 
 function assertFiniteLngLat(coord: unknown): asserts coord is [number, number, ...number[]] {
   if (!Array.isArray(coord) || coord.length < 2) {

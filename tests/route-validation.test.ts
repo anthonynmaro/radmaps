@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_ROUTE_POINTS, validateRouteGeojson } from '../server/utils/routeValidation'
+import { MAX_ROUTE_GEOJSON_BYTES, MAX_ROUTE_POINTS, assertRouteGeojsonSize, validateRouteGeojson } from '../server/utils/routeValidation'
 
 function routeWithPointCount(count: number): GeoJSON.FeatureCollection {
   return {
@@ -31,5 +31,11 @@ describe('route GeoJSON validation', () => {
     expect(() => validateRouteGeojson(routeWithPointCount(MAX_ROUTE_POINTS + 1))).toThrow(
       `Route exceeds ${MAX_ROUTE_POINTS.toLocaleString()} point limit`,
     )
+  })
+
+  it('rejects oversized serialized GeoJSON before render persistence', () => {
+    const geojson = routeWithPointCount(2)
+    geojson.features[0]!.properties = { padding: 'x'.repeat(MAX_ROUTE_GEOJSON_BYTES) }
+    expect(() => assertRouteGeojsonSize(geojson)).toThrow('Route GeoJSON exceeds 5 MB limit')
   })
 })

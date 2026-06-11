@@ -80,6 +80,11 @@ function pickLayer(styleConfig: StyleConfig, layer: FieldLayer): Record<string, 
   return result
 }
 
+function mapThemeDataSignature(input: ReturnType<typeof themeDataContextSignature>) {
+  const { title: _title, ...mapSignature } = input
+  return mapSignature
+}
+
 // ─── Hash inputs ─────────────────────────────────────────────────────────────
 
 /**
@@ -113,7 +118,7 @@ export function computeMapContentHash(
   const payload = stableStringify({
     mapFields,
     geojson,
-    themeDataContext,
+    themeDataContext: mapThemeDataSignature(themeDataContext),
     framing: framingDims,
     hashVersion: HASH_VERSION.map,
   })

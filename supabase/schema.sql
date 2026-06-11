@@ -488,7 +488,7 @@ CREATE POLICY "Users CRUD own maps" ON public.maps
 
 -- maps: public share — read-only access to explicitly shared maps
 CREATE POLICY "Public map share" ON public.maps
-  FOR SELECT USING (is_public = true);
+  FOR SELECT TO anon, authenticated USING (is_public = true);
 
 -- orders: users read own orders only
 CREATE POLICY "Users read own orders" ON public.orders

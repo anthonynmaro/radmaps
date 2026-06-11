@@ -756,10 +756,6 @@ const requiredSemanticGroups = [
   'print',
 ]
 
-function semanticGroupsPass(semantic) {
-  return semanticGroupStatus(semantic).pass
-}
-
 function semanticGroupStatus(semantic) {
   const groups = semantic?.groups ?? {}
   const missing = []
