@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseMatrixOptions } from './lib/matrixOptions.mjs'
 
 const OWNED_MAP_PRESETS = [
   ['radmaps-minimalist', 'Minimalist'],
@@ -2748,6 +2749,99 @@ function markdownPath(file) {
   return file ? `[file](${file})` : ''
 }
 
+function printHelp() {
+  console.log(`capture-theme-audit — RadMaps theme capture tooling
+
+Default mode (theme parity audit):
+  node scripts/capture-theme-audit.mjs [--base-url=http://localhost:3003] [--out=DIR]
+    [--theme=a,b] [--targets=DIR] [--skip-owned] [--width=540] [--height=810]
+    [--wait=2500] [--map-timeout=25000] [--min-map-score=8]
+    [--diff-threshold=0.12] [--parity-threshold=0.94] [--semantic-threshold=N]
+  Renders every theme in utils/themes/screenshotManifest.json in editor + print
+  mode, scores parity against references, and writes contact sheets + reports.
+
+Matrix mode (theme x route-archetype review grid):
+  node scripts/capture-theme-audit.mjs --matrix [--matrix-out=docs/theme_matrix]
+    [--theme=a,b] [--archetype=archetype-thru-hike,...] [--base-url=...]
+  npm run themes:matrix
+  Renders every theme x every route archetype (utils/themes/routeArchetypes.json)
+  in PRINT mode only into <matrix-out>/<archetype>/<theme>.png, then builds one
+  contact sheet per archetype (full catalog on one data shape) and one per theme
+  (one theme across all data shapes) under <matrix-out>/sheets/.
+  Output is human grading material for an A/B/C curation pass. It is NOT a
+  golden baseline and is never read by themes:golden:diff; docs/theme_matrix/
+  is gitignored and regenerated on demand.
+  Expected runtime cost: 27 themes x 4 archetypes = 108 print renders at
+  roughly 10-25 s each — budget 20-45 minutes for a full pass. Requires the
+  Nuxt dev server (npm run dev, default :3003) and Playwright Chromium.
+
+Both modes need a running dev server; nothing here touches production code.`)
+}
+
+async function loadRouteArchetypes() {
+  const manifestPath = path.resolve('utils/themes/routeArchetypes.json')
+  return JSON.parse(await readFile(manifestPath, 'utf8'))
+}
+
+async function runMatrixCapture(entries) {
+  const allArchetypes = await loadRouteArchetypes()
+  const archetypes = allArchetypes.filter(archetype =>
+    !matrixOptions.archetypeFilter.length || matrixOptions.archetypeFilter.includes(archetype.id))
+  if (!archetypes.length) {
+    throw new Error(`No archetypes matched --archetype filter (known: ${allArchetypes.map(a => a.id).join(', ')})`)
+  }
+  if (!entries.length) throw new Error('No themes matched --theme filter')
+
+  const matrixDir = path.resolve(matrixOptions.matrixOut)
+  const sheetsDir = path.join(matrixDir, 'sheets')
+  await mkdir(sheetsDir, { recursive: true })
+
+  const matrixBrowser = await chromium.launch()
+  const matrixPage = await matrixBrowser.newPage({
+    viewport: { width: posterWidth, height: posterHeight },
+    deviceScaleFactor: 1,
+  })
+
+  const cellsByArchetype = new Map(archetypes.map(archetype => [archetype.id, []]))
+  const cellsByTheme = new Map(entries.map(entry => [entry.themeId, []]))
+
+  for (const archetype of archetypes) {
+    await mkdir(path.join(matrixDir, safeName(archetype.id)), { recursive: true })
+    for (const entry of entries) {
+      const theme = entry.themeId
+      const file = path.join(matrixDir, safeName(archetype.id), `${safeName(theme)}.png`)
+      // The archetype owns the data shape (region/route/stats/title); the
+      // manifest entry keeps only data-capability flags (elevation profile
+      // data), not its per-theme staging text or stat overrides.
+      const elevationQuery = entry.fixtureOverrides?.elevation === true ? '&elevation=1' : ''
+      const url = `${baseUrl}/style-browser-fixture`
+        + `?theme=${encodeURIComponent(theme)}`
+        + `&composition=${encodeURIComponent(entry.composition)}`
+        + `&region=${encodeURIComponent(archetype.id)}`
+        + `&routeShape=${encodeURIComponent(archetype.id)}`
+        + `${elevationQuery}&print=final`
+      await capturePoster(matrixPage, url, file)
+      cellsByArchetype.get(archetype.id).push({ title: theme, subtitle: archetype.label, file })
+      cellsByTheme.get(theme).push({ title: archetype.label, subtitle: theme, file })
+      console.log(`matrix ${archetype.id} x ${theme} -> ${file}`)
+    }
+  }
+
+  await matrixBrowser.close()
+
+  for (const archetype of archetypes) {
+    const sheet = path.join(sheetsDir, `by-archetype-${safeName(archetype.id)}.png`)
+    await writeContactSheet(cellsByArchetype.get(archetype.id), sheet, { cols: 5 })
+    console.log(`MATRIX_ARCHETYPE_SHEET ${sheet}`)
+  }
+  for (const [theme, items] of cellsByTheme) {
+    const sheet = path.join(sheetsDir, `by-theme-${safeName(theme)}.png`)
+    await writeContactSheet(items, sheet, { cols: 4 })
+    console.log(`MATRIX_THEME_SHEET ${sheet}`)
+  }
+  console.log(`MATRIX_DIR ${matrixDir}`)
+}
+
 const baseUrl = argValue('base-url', 'http://localhost:3003')
 const outDir = path.resolve(argValue('out', path.join('/tmp', `radmaps-theme-audit-${Date.now()}`)))
 const standalonePath = path.resolve(argValue('standalone', 'docs/RadMaps Theme Review (standalone).html'))
@@ -2764,6 +2858,12 @@ const minMapPaintScore = Number.parseFloat(argValue('min-map-score', '8'))
 const diffThreshold = Number.parseFloat(argValue('diff-threshold', '0.12'))
 const parityThreshold = Number.parseFloat(argValue('parity-threshold', '0.94'))
 const semanticParityThreshold = Number.parseFloat(argValue('semantic-threshold', String(parityThreshold)))
+const matrixOptions = parseMatrixOptions(process.argv.slice(2))
+
+if (matrixOptions.help) {
+  printHelp()
+  process.exit(0)
+}
 
 const manifest = await loadScreenshotManifest()
 const chromeContracts = await loadChromeContracts()
@@ -2772,6 +2872,13 @@ const specImplementationStatus = await loadSpecImplementationStatus()
 const chromeContractsByTheme = new Map(chromeContracts.map(contract => [contract.themeId, contract]))
 const semanticContractsByTheme = new Map(semanticContracts.map(contract => [contract.themeId, contract]))
 const selectedEntries = manifest.filter(entry => !themeFilter.size || themeFilter.has(entry.themeId))
+
+if (matrixOptions.matrix) {
+  // Matrix review mode is grading material only — it never writes parity
+  // reports, references, or goldens, and exits before the audit flow starts.
+  await runMatrixCapture(selectedEntries)
+  process.exit(0)
+}
 
 await mkdir(outDir, { recursive: true })
 await mkdir(path.join(outDir, 'poster-themes', 'reference'), { recursive: true })

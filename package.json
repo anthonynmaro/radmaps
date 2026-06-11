@@ -17,6 +17,7 @@
     "themes:capture-audit": "node scripts/capture-theme-audit.mjs",
     "themes:parity": "node scripts/capture-theme-audit.mjs --targets=docs/theme_screenshots --out=/tmp/radmaps-parity --skip-owned=1",
     "themes:golden:capture": "node scripts/capture-theme-audit.mjs --out=docs/theme_goldens --skip-owned=1",
+    "themes:matrix": "node scripts/capture-theme-audit.mjs --matrix",
     "themes:golden:diff": "node scripts/theme-golden-diff.mjs",
     "e2e:readiness": "node scripts/e2e-readiness.mjs",
     "atlas:pipeline": "node scripts/atlas-pipeline.mjs",
