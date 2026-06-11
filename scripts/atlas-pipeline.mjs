@@ -56,6 +56,7 @@ enforceCoverageCostGate()
 if (stages.includes('preflight')) preflight()
 if (stages.includes('download')) downloadSource()
 if (stages.includes('base')) buildBase()
+if (stages.includes('feature-ids')) stampFeatureIds()
 if (stages.includes('contours')) buildContours()
 if (stages.includes('validate')) validateArtifacts()
 if (stages.includes('upload')) uploadArtifacts()
@@ -85,7 +86,7 @@ Options:
   --region <id>                 Region key from atlas/regions.json
   --bucket <name>               R2 bucket override
   --environment <name>          staging or production
-  --stage <name>                all, preflight, download, base, contours, validate, upload, manifest, publish, promote-approved
+  --stage <name>                all, preflight, download, base, feature-ids, contours, validate, upload, manifest, publish, promote-approved
   --version <id>                Atlas version, defaults to date + coverage
   --date <yyyy-mm-dd>           Date inserted into R2 object paths
   --workdir <path>              Build scratch dir, defaults to atlas/build/<region>
@@ -156,7 +157,7 @@ function findCoverageTarget() {
 }
 
 function expandStage(value) {
-  if (value === 'all') return ['preflight', 'download', 'base', 'contours', 'validate', 'upload', 'manifest', 'publish']
+  if (value === 'all') return ['preflight', 'download', 'base', 'feature-ids', 'contours', 'validate', 'upload', 'manifest', 'publish']
   return value.split(',').map(item => item.trim()).filter(Boolean)
 }
 
@@ -243,6 +244,25 @@ function buildBase() {
     console.warn(`Expected source PBF at ${resolve(sourceDir, `${region.id}-latest.osm.pbf`)}, got ${hostSource}`)
   }
   run('docker', planetilerArgs, { heavy: true })
+}
+
+function stampFeatureIds() {
+  // Stamps stable rm_id feature ids onto label layers of the base artifact
+  // (docs/ATLAS_STABLE_FEATURE_IDS.md). In-place rewrite of the local PMTiles
+  // before validate/upload; idempotent, so reruns are safe. Marked heavy so
+  // dry runs never mutate an existing artifact. Local-compute only: not part
+  // of the coverage cost gate's heavyweight stage list, which is unchanged.
+  if (!region.base?.localPath) {
+    console.log(`No base artifact configured for ${regionKey}; skipping feature-id stamping.`)
+    return
+  }
+  const file = resolve(repoRoot, fillPath(region.base.localPath))
+  if (dryRun && !existsSync(file)) {
+    console.log(`dry-run: base artifact is not present yet, feature-id stamping will run after build: ${file}`)
+    return
+  }
+  if (!existsSync(file)) throw new Error(`Missing base artifact for feature-id stamping: ${file}`)
+  run('node', ['scripts/atlas-add-feature-ids.mjs', '--input', file, '--in-place'], { heavy: true })
 }
 
 function buildContours() {
