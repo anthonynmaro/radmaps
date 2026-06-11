@@ -117,6 +117,8 @@ const props = defineProps<{
   fallbackWidth?: number
   /** One-shot split mode is armed — the next map click on the segment splits it. */
   splitArmed?: boolean
+  /** Bumped by the parent (label double-click rename) to focus the name input. */
+  renameFocusToken?: number
 }>()
 
 const emit = defineEmits<{
@@ -144,6 +146,15 @@ const segmentWidth = computed(() => props.segment?.width ?? props.fallbackWidth 
 function emitPatch(patch: Partial<TrailSegment>) {
   emit('patch-segment', patch)
 }
+
+// Label double-click rename: parent bumps the token after selecting the
+// segment; focus + select the name input once it exists.
+watch(() => props.renameFocusToken, async (token, previous) => {
+  if (!token || token === previous) return
+  await nextTick()
+  nameInputRef.value?.focus()
+  nameInputRef.value?.select()
+})
 
 // Project the selection anchor through the live camera into viewport (fixed)
 // coordinates; re-run on map move/resize so the chrome tracks the feature.

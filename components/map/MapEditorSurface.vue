@@ -112,6 +112,7 @@
             :delete-brush-size="deleteBrushSize"
             :segment-draw-mode="segmentDrawMode"
             :segment-edit-mode="segmentEditMode"
+            :segment-label-rename-enabled="mapSelectionEnabled"
             :can-undo="canUndo"
             :can-redo="canRedo"
             :chrome-editing="chromeDirectEdit"
@@ -154,6 +155,7 @@
             @segment-label-edit-started="onSegmentLabelEditStarted"
             @segment-label-moved="onSegmentLabelMoved"
             @segment-labels-moved="onSegmentLabelsMoved"
+            @segment-label-rename="onSegmentLabelRename"
             @view-changed="onViewChanged"
             @map-ready="onEditorMapReady"
             @text-target-selected="clearMapElementSelection"
@@ -168,6 +170,7 @@
             :segment="selectedMapSegment"
             :fallback-width="styleConfig.route_width"
             :split-armed="Boolean(segmentSplitTarget)"
+            :rename-focus-token="segmentRenameFocusToken"
             @close="clearMapElementSelection"
             @patch-segment="onSelectedSegmentPatch"
             @delete-segment="onSelectedSegmentDelete"
@@ -654,6 +657,19 @@ watch(mapElementSelection, (selection) => {
 onUnmounted(() => {
   segmentSplitTarget.value = null
 })
+
+// ── Label double-click rename (editor-v2 E4) ────────────────────────────────────
+// Double-click/tap on a draggable segment label selects its segment (toolbar
+// opens anchored at the label) and focuses the toolbar's name input — the
+// SAME field/write path as toolbar rename, one source of truth.
+const segmentRenameFocusToken = ref(0)
+
+function onSegmentLabelRename({ id, lnglat }: { id: string; lnglat: [number, number] }) {
+  if (!mapSelectionEnabled.value) return
+  segmentSplitTarget.value = null
+  selectMapSegment(id, lnglat)
+  segmentRenameFocusToken.value++
+}
 
 // Single-selection world: a map selection evicts any poster-element/text
 // selection, and vice versa (MapPreview's text-target-selected event plus the

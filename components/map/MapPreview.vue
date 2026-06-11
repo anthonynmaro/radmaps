@@ -2192,6 +2192,8 @@ const props = defineProps<{
   segmentDrawMode?: SegmentDrawMode | null
   /** When set, drag existing points to reshape a geometry-backed segment */
   segmentEditMode?: SegmentEditMode | null
+  /** Editor-v2 E4: double-click/tap on a segment label requests an in-place rename (FLAGS.EDITOR_V2-gated by the parent). */
+  segmentLabelRenameEnabled?: boolean
   canUndo?: boolean
   canRedo?: boolean
 }>()
@@ -2246,6 +2248,8 @@ const emit = defineEmits<{
   'segment-label-moved': [payload: { id: string; lnglat: [number, number] }]
   /** Fired when a selected group of trail segment labels moves together */
   'segment-labels-moved': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
+  /** Fired on segment-label double-click/tap (editor-v2 E4); parent opens the in-place rename */
+  'segment-label-rename': [payload: { id: string; lnglat: [number, number] }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
   'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number; map_pitch: number; map_bearing: number }]
   /** Fired once the MapLibre instance has loaded — parents may then call getMapInstance() (editor-v2 selection mode) */
@@ -7528,11 +7532,28 @@ function onLabelDragEnd(e: PointerEvent) {
 
 // ── Trail segment label drag ──────────────────────────────────────────────────
 
+// Manual double-tap detection (editor-v2 E4): startLeaderDrag preventDefaults
+// the pointerdown, so native dblclick cannot be relied on across browsers.
+// Only tracked when the parent enables rename, keeping flag-off pointer
+// behavior byte-identical.
+let lastLeaderLabelTap: { id: string; time: number } | null = null
+
 function startLeaderDrag(e: PointerEvent, segId: string) {
   if (e.shiftKey) {
     toggleLeaderSelection(segId)
     e.preventDefault()
     return
+  }
+
+  if (props.segmentLabelRenameEnabled) {
+    const now = Date.now()
+    if (lastLeaderLabelTap && lastLeaderLabelTap.id === segId && now - lastLeaderLabelTap.time < 400) {
+      lastLeaderLabelTap = null
+      requestLeaderLabelRename(segId)
+      e.preventDefault()
+      return
+    }
+    lastLeaderLabelTap = { id: segId, time: now }
   }
 
   if (!mapContainer.value) return
@@ -7564,6 +7585,14 @@ function toggleLeaderSelection(segId: string) {
   selectedLeaderIds.value = selectedLeaderIds.value.includes(segId)
     ? selectedLeaderIds.value.filter(id => id !== segId)
     : [...selectedLeaderIds.value, segId]
+}
+
+function requestLeaderLabelRename(segId: string) {
+  if (!mapInstance) return
+  const item = leaderLineItems.value.find(item => item.id === segId)
+  if (!item) return
+  const lngLat = mapInstance.unproject([item.labelX, item.labelY])
+  emit('segment-label-rename', { id: segId, lnglat: [lngLat.lng, lngLat.lat] })
 }
 
 function isLeaderDragActive(segId: string): boolean {
