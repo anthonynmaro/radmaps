@@ -1406,7 +1406,9 @@ const createMap = async () => {
       throw new Error(err.message ?? 'Failed to create map')
     }
     const data = await response.json()
-    router.push(`/create/${data.id}/style?themePicker=1`)
+    const styleQuery = new URLSearchParams({ themePicker: '1' })
+    if (route.query.e2eAuth === '1') styleQuery.set('e2eAuth', '1')
+    router.push(`/create/${data.id}/style?${styleQuery.toString()}`)
   } catch (err) {
     parseError.value = err instanceof Error ? err.message : 'Failed to create map'
   } finally {

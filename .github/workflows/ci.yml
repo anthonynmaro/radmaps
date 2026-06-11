@@ -71,6 +71,22 @@ jobs:
     timeout-minutes: 20
     env:
       GELATO_ORDER_TYPE: draft
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      GELATO_API_KEY: ${{ secrets.GELATO_API_KEY }}
+      MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      NUXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      NUXT_PUBLIC_MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      NUXT_PUBLIC_STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      RENDER_TICKET_SECRET: ${{ secrets.RENDER_TICKET_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -79,7 +95,32 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Cache Vite optimized deps
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-money-path-${{ runner.os }}-${{ hashFiles('package-lock.json', 'nuxt.config.ts', 'playwright.e2e.config.ts') }}
+          restore-keys: |
+            vite-money-path-${{ runner.os }}-
       - run: npx playwright install --with-deps chromium
+      - name: Validate CI secrets
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY STRIPE_PUBLISHABLE_KEY STRIPE_SECRET_KEY GELATO_API_KEY MAPBOX_TOKEN MAPTILER_TOKEN STADIA_API_KEY RENDER_TICKET_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing CI secret::${name} is not configured for GitHub Actions"
+              missing=1
+            fi
+          done
+          if [ -n "$STRIPE_PUBLISHABLE_KEY" ] && [[ "$STRIPE_PUBLISHABLE_KEY" != pk_test_* ]]; then
+            echo "::error title=Live Stripe key blocked::STRIPE_PUBLISHABLE_KEY must be a test-mode pk_test_ key in CI"
+            missing=1
+          fi
+          if [ -n "$STRIPE_SECRET_KEY" ] && [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]; then
+            echo "::error title=Live Stripe key blocked::STRIPE_SECRET_KEY must be a test-mode sk_test_ key in CI"
+            missing=1
+          fi
+          exit "$missing"
       - run: npx nuxi prepare
       - run: npm run test:e2e-money
 
@@ -88,6 +129,18 @@ jobs:
     needs: [typecheck, test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      NUXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+      MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      NUXT_PUBLIC_MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
+      STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      NUXT_PUBLIC_STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      RENDER_TICKET_SECRET: ${{ secrets.RENDER_TICKET_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,6 +150,16 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Validate CI secrets
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_ANON_KEY MAPBOX_TOKEN MAPTILER_TOKEN STADIA_API_KEY RENDER_TICKET_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing CI secret::${name} is not configured for GitHub Actions"
+              missing=1
+            fi
+          done
+          exit "$missing"
       - run: npx nuxi prepare
       - run: npm run test:proof-final-parity
 

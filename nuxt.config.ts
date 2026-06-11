@@ -2,6 +2,15 @@
 import { fileURLToPath } from 'node:url'
 import { generateFontFaceCss } from './utils/render/fontRegistry'
 
+const isE2eDevServer = process.env.RADMAPS_E2E === '1'
+const e2eEditorWarmupFiles = [
+  './pages/create/[mapId]/style.vue',
+  './components/map/MapEditorSurface.vue',
+  './components/map/MapPreview.vue',
+  './components/map/ThemeLineupStep.vue',
+  './components/map/StylePanel.vue',
+]
+
 export default defineNuxtConfig({
   devtools: { enabled: !process.env.PLAYWRIGHT_PORT },
   compatibilityDate: '2024-11-01',
@@ -39,7 +48,7 @@ export default defineNuxtConfig({
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_ANON_KEY,
     serviceKey: process.env.SUPABASE_SERVICE_KEY,
-    redirect: true,
+    redirect: isE2eDevServer ? false : true,
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
@@ -155,6 +164,7 @@ export default defineNuxtConfig({
       },
     },
     optimizeDeps: {
+      ...(isE2eDevServer ? { entries: e2eEditorWarmupFiles } : {}),
       include: ['@supabase/ssr'],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
@@ -162,6 +172,9 @@ export default defineNuxtConfig({
       exclude: ['maplibre-contour'],
     },
     server: {
+      ...(isE2eDevServer
+        ? { warmup: { clientFiles: e2eEditorWarmupFiles } }
+        : {}),
       allowedHosts: [
         'localhost',
         '127.0.0.1',

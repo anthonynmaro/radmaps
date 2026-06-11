@@ -735,7 +735,8 @@ function onViewChanged({ map_zoom, map_center, map_editor_width, map_pitch, map_
 
 async function goToCheckout() {
   await persistCurrentStyleNow()
-  await navigateTo(`/create/${mapId.value}/checkout`)
+  const query = route.query.e2eAuth === '1' ? '?e2eAuth=1' : ''
+  await navigateTo(`/create/${mapId.value}/checkout${query}`)
 }
 
 // ─── Logo upload ───────────────────────────────────────────────────────────────

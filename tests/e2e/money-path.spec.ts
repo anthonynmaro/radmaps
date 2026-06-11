@@ -48,12 +48,20 @@ function seedSupabaseSession(page: Page) {
     expires_at: Math.floor(Date.now() / 1000) + 3600,
     user,
   }
+  const supabaseURL = process.env.SUPABASE_URL ?? process.env.PLAYWRIGHT_E2E_SUPABASE_URL ?? 'http://127.0.0.1:54321'
+  const projectRef = new URL(supabaseURL).hostname.split('.')[0]
+  const storageKeys = [
+    'sb-127-auth-token',
+    'sb-localhost-auth-token',
+    `sb-${projectRef}-auth-token`,
+  ]
 
-  return page.addInitScript((payload) => {
+  return page.addInitScript(({ payload, storageKeys }) => {
     window.localStorage.setItem('radmaps:e2e-auth', '1')
-    window.localStorage.setItem('sb-127-auth-token', JSON.stringify(payload))
-    window.localStorage.setItem('sb-localhost-auth-token', JSON.stringify(payload))
-  }, session)
+    for (const key of storageKeys) {
+      window.localStorage.setItem(key, JSON.stringify(payload))
+    }
+  }, { payload: session, storageKeys })
 }
 
 function routeJson(route: Route, body: unknown, status = 200) {
@@ -212,6 +220,9 @@ test('GPX upload to Stripe checkout money path completes with a rendered proof',
   await seedSupabaseSession(page)
   const state = await installMoneyPathRoutes(page)
 
+  await page.goto('/create/00000000-0000-4000-8000-000000000000/style?e2eAuth=1')
+  await page.waitForLoadState('networkidle')
+
   await page.goto('/create?e2eAuth=1')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: /Upload a route From your watch or app/ }).click()
@@ -231,7 +242,7 @@ test('GPX upload to Stripe checkout money path completes with a rendered proof',
   await page.getByRole('button', { name: /Continue to styling/i }).click()
   await createMapRequest
 
-  await expect(page).toHaveURL(new RegExp(`/create/${MAP_ID}/style\\?themePicker=1`))
+  await expect(page).toHaveURL(new RegExp(`/create/${MAP_ID}/style\\?(?=.*themePicker=1)`))
   await expect(page.getByTestId('theme-lineup-step')).toBeVisible()
   await page.getByTestId('theme-picker-apply').click()
   await expect(page.getByTestId('map-editor-surface')).toBeVisible()
