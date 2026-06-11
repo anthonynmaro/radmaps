@@ -376,20 +376,20 @@ function editableRoadLayers(features: Pick<LayerGraphFeatureSet, 'roads' | 'plac
 }
 
 // E3 map-element selection (docs/STYLE_SYSTEM_EVOLUTION.md "Domain 2"):
-// baked-raster presets declare NOTHING selectable — their labels are pixels,
-// and per the no-fake-controls rule selection mode shows no affordance at all
-// there (route/segments included, so the feature is all-or-nothing per preset).
-// Vector presets select the route as one element and segments per feature;
-// label slots are selectable only when the preset actually renders vector
-// label layers. Pins are DOM markers (maplibregl.Marker), not rendered map
-// features, so they are app-owned selection targets outside the graph.
+// Selectability is per-SOURCE, not per-preset. The route and trail segments
+// are app-owned vector layers on EVERY preset (including baked-raster bases),
+// so they are always selectable. Label slots are selectable only when the
+// preset actually renders vector label layers — baked-raster labels are
+// pixels, and per the no-fake-controls rule they get no affordance. Pins are
+// DOM markers (maplibregl.Marker), not rendered map features, so they are
+// app-owned selection targets outside the graph.
 function computeSelectableSlots(features: LayerGraphFeatureSet): LayerGraph['selectableSlots'] {
-  if (features.baseRaster === 'baked-raster') return {}
   const selectable: LayerGraph['selectableSlots'] = {
     'route': 'layer',
     'segments-handles': 'feature',
   }
-  if (features.placeLabels === 'editable-vector' || features.pois === 'editable-vector') {
+  if (features.baseRaster !== 'baked-raster'
+    && (features.placeLabels === 'editable-vector' || features.pois === 'editable-vector')) {
     selectable['labels-pois'] = 'feature'
   }
   return selectable

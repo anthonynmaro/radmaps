@@ -21,7 +21,7 @@ The map is also a pannable viewport. Resolve with the existing FreezeControl, re
 ### Feasibility is per-source, and the graph already knows
 
 - **Vector (Atlas MVT layers, contour labels, route/segments/pins):** symbol/line layers → `queryRenderedFeatures` hit-testing, per-feature overrides via filters/feature-state. Any override that lives in StyleConfig flows through `buildMapStyle()` → render ticket → AWS renderer with zero extra parity work. Fully editable.
-- **Baked raster (CARTO, Stadia, MapTiler):** labels are pixels. Not clickable, not editable — and per the standing rule, we expose no fake controls. Selection mode simply doesn't highlight anything there.
+- **Baked raster (CARTO, Stadia, MapTiler):** labels are pixels. Not clickable, not editable — and per the standing rule, we expose no fake controls for them. Selectability is per-SOURCE, not per-preset: the route and trail segments are app-owned vector layers on every preset, so they remain selectable even on raster bases; only the label/POI domain goes dark there. (Corrected 2026-06-10 — the original blanket "nothing selectable on raster" rule contradicted the source-feasibility model.)
 
 Implication to decide consciously: if click-to-edit labels becomes a headline feature, raster presets are second-class. Options: (a) accept and graph-gate (cheap, consistent); (b) migrate the minimalist preset to Atlas vector for label parity (real project; touches mapToolCatalog, attribution, spend). Recommend (a) for launch, revisit (b) with Streets mode.
 

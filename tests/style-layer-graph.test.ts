@@ -192,25 +192,21 @@ describe('style layer graph contracts', () => {
 describe('map-element selectability (editor-v2 E3)', () => {
   const SELECTION_CAPABLE_SLOTS = ['labels-pois', 'route', 'segments-handles'] as const
 
-  it('declares NOTHING selectable for baked-raster presets', () => {
+  it('declares only app-owned slots (route/segments) selectable for baked-raster presets — never labels', () => {
     for (const preset of ALL_STYLE_PRESETS) {
       const graph = getPresetGraph(preset)
       if (graph.features.baseRaster !== 'baked-raster') continue
-      expect(getSelectableLayerSlots(preset), preset).toEqual({})
-      for (const slot of CANONICAL_LAYER_SLOT_ORDER) {
-        expect(getSlotSelectability(preset, slot), `${preset}.${slot}`).toBe(false)
-      }
+      expect(getSelectableLayerSlots(preset), preset).toEqual({ 'route': 'layer', 'segments-handles': 'feature' })
+      expect(getSlotSelectability(preset, 'labels-pois'), `${preset}.labels-pois`).toBe(false)
     }
     // Pin the family explicitly so a feature-set refactor can't silently flip it.
     for (const preset of ['minimalist', 'topographic', 'natural-topo', 'stadia-watercolor', 'stadia-toner', 'native-watercolor', 'alidade-smooth', 'alidade-smooth-dark', 'radmaps-watercolor']) {
-      expect(getSelectableLayerSlots(preset), preset).toEqual({})
+      expect(getSlotSelectability(preset, 'labels-pois'), preset).toBe(false)
     }
   })
 
-  it('marks route as layer-selectable and segments as feature-selectable on vector presets', () => {
+  it('marks route as layer-selectable and segments as feature-selectable on EVERY preset (app-owned vector sources)', () => {
     for (const preset of ALL_STYLE_PRESETS) {
-      const graph = getPresetGraph(preset)
-      if (graph.features.baseRaster === 'baked-raster') continue
       expect(getSlotSelectability(preset, 'route'), preset).toBe('layer')
       expect(getSlotSelectability(preset, 'segments-handles'), preset).toBe('feature')
     }
