@@ -103,7 +103,7 @@ export async function renderFinalWithScreenshot(input: {
     expectedWidth: framing.fullWidthPx,
     expectedHeight: framing.fullHeightPx,
     maxOversizePx: deviceScaleFactor,
-    quality: 95,
+    quality: 98,
     densityDpi: framing.dpi,
   })
 

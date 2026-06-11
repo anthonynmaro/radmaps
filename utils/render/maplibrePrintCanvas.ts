@@ -3,6 +3,8 @@ export const PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX = 16_384
 interface MapLibrePrintCanvasOptions {
   isPrintRender: boolean
   deviceScaleFactor?: number | null
+  mapCssWidth?: number | null
+  mapCssHeight?: number | null
 }
 
 export interface MapLibreCanvasRenderOptions {
@@ -23,9 +25,17 @@ export function resolveMapLibrePrintCanvasOptions(
   options: MapLibrePrintCanvasOptions,
 ): MapLibreCanvasRenderOptions | Record<string, never> {
   if (!options.isPrintRender) return {}
+  const screenshotPixelRatio = clamp(finitePositiveNumber(options.deviceScaleFactor) ?? 1, 1, 4)
+  const cssWidth = finitePositiveNumber(options.mapCssWidth) ?? 0
+  const cssHeight = finitePositiveNumber(options.mapCssHeight) ?? 0
+  const maxCssDimension = Math.max(cssWidth, cssHeight)
+  const safePixelRatio = maxCssDimension > 0
+    ? PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX / maxCssDimension
+    : screenshotPixelRatio
+  const pixelRatio = clamp(Math.min(screenshotPixelRatio, safePixelRatio), 1, 4)
 
   return {
-    pixelRatio: clamp(finitePositiveNumber(options.deviceScaleFactor) ?? 1, 1, 4),
+    pixelRatio,
     maxCanvasSize: [
       PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
       PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,

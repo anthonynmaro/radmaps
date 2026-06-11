@@ -9,13 +9,15 @@ const COVERAGE_TARGETS_PATH = join(ROOT, 'atlas/coverage-targets.json')
 const DEFAULT_SITE_URL = 'https://radmaps.studio'
 const DEFAULT_TILE_BASE_URL = 'https://tiles.radmaps.studio'
 const RENDER_READY_EXPRESSION = 'window.__RENDER_READY === true && window.__RADMAPS_RENDER_STATUS?.routeContentPresent === true'
+const FINAL_RENDER_TIMEOUT_MS = 240_000
 const FINAL_24X36 = {
   productUid: '24x36',
   widthPx: 7271,
   heightPx: 10871,
   deviceScaleFactor: 2,
   dpi: 300,
-  quality: 95,
+  screenshotQuality: 95,
+  outputQuality: 98,
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -249,14 +251,14 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
   }, secret)
   const url = `${siteUrl}/render/atlas-qa/${fixture.id}?ticket=${encodeURIComponent(ticket)}`
   const started = Date.now()
-  const response = await fetch(`${endpoint}/screenshot?${new URLSearchParams({ token, timeout: '120000' }).toString()}`, {
+  const response = await fetch(`${endpoint}/screenshot?${new URLSearchParams({ token, timeout: String(FINAL_RENDER_TIMEOUT_MS) }).toString()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url,
       options: {
         type: 'jpeg',
-        quality: FINAL_24X36.quality,
+        quality: FINAL_24X36.screenshotQuality,
         fullPage: false,
         captureBeyondViewport: false,
       },
@@ -267,11 +269,11 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
       },
       gotoOptions: {
         waitUntil: 'domcontentloaded',
-        timeout: 120000,
+        timeout: FINAL_RENDER_TIMEOUT_MS,
       },
       waitForFunction: {
         fn: `() => ${RENDER_READY_EXPRESSION}`,
-        timeout: 120000,
+        timeout: FINAL_RENDER_TIMEOUT_MS,
       },
     }),
   })
@@ -288,7 +290,7 @@ async function renderFixture({ fixture, siteUrl, outputDir }) {
     expectedHeight: FINAL_24X36.heightPx,
     maxOversizePx: FINAL_24X36.deviceScaleFactor,
     dpi: FINAL_24X36.dpi,
-    quality: FINAL_24X36.quality,
+    quality: FINAL_24X36.outputQuality,
   })
   const metadata = await sharp(buffer).metadata()
   const imagePath = join(outputDir, `${fixture.id}.jpg`)
@@ -336,7 +338,7 @@ async function normalizeFinalPrintBuffer(buffer, options) {
 
   return image
     .withMetadata({ density: options.dpi })
-    .jpeg({ quality: options.quality })
+    .jpeg({ quality: options.quality, chromaSubsampling: '4:4:4' })
     .toBuffer()
 }
 

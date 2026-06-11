@@ -17,13 +17,33 @@ describe('resolveMapLibrePrintCanvasOptions', () => {
     expect(resolveMapLibrePrintCanvasOptions({
       isPrintRender: true,
       deviceScaleFactor: 2,
-    })).toEqual({
+      mapCssWidth: 3636,
+      mapCssHeight: 3656,
+    })).toMatchObject({
       pixelRatio: 2,
       maxCanvasSize: [
         PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
         PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
       ],
     })
+  })
+
+  it('caps the backing scale when the map box would exceed the print canvas ceiling', () => {
+    const result = resolveMapLibrePrintCanvasOptions({
+      isPrintRender: true,
+      deviceScaleFactor: 2,
+      mapCssWidth: 3636,
+      mapCssHeight: 9000,
+    })
+
+    expect(result).toMatchObject({
+      maxCanvasSize: [
+        PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
+        PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX,
+      ],
+    })
+    expect('pixelRatio' in result ? result.pixelRatio : null)
+      .toBeCloseTo(PRINT_MAPLIBRE_MAX_CANVAS_SIZE_PX / 9000, 3)
   })
 
   it('clamps pathological DPR values to the renderer-supported range', () => {

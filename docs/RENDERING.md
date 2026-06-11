@@ -174,9 +174,9 @@ Atlas print QA:
    customer maps.
 4. `/render/atlas-qa/[fixtureId].vue` screenshots the real `MapPreview.vue`
    print path at 24x36 final dimensions. The QA runner normalizes that raw
-   browser screenshot to the exact final-print pixel box and 300 DPI JPEG
-   metadata used by the final worker, so the saved artifact is suitable for
-   Atlas rollout QA. The dev-only `/style-browser-fixture` route remains useful
+   browser screenshot to the exact final-print pixel box and writes the same
+   high-quality 300 DPI, 4:4:4 JPEG used by the final worker, so the saved
+   artifact is suitable for Atlas rollout QA. The dev-only `/style-browser-fixture` route remains useful
    for local regression tests but is not the production Atlas print-QA gate.
 
 Product mockups:
@@ -252,6 +252,10 @@ The screenshot backend must wait for the render page to be truly ready, not just
   `window.__RADMAPS_RENDER_STATUS.contourSourceLoaded`.
 - For the `radmaps-watercolor` preset, the MapLibre tile set includes the server-rendered `/api/watercolor/tiles/base/{z}/{x}/{y}.png` art tiles. Any missing or failed watercolor tile must surface through render diagnostics; proof/final capture should hard-fail rather than screenshot a partially painted map.
 - The component also writes `window.__RADMAPS_RENDER_STATUS` so the caller can diagnose internal render failures.
+- Print diagnostics include MapLibre canvas backing dimensions and scale
+  (`mapCanvasWidth`, `mapCanvasHeight`, `mapCanvasBackingScaleX`,
+  `mapCanvasBackingScaleY`) so QA can verify map labels and linework are not
+  being stretched from a clamped WebGL surface.
 
 The screenshot caller should use `RENDER_READY_EXPRESSION` from
 [utils/render/readiness.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/utils/render/readiness.ts),
@@ -314,7 +318,7 @@ Do not reintroduce mixed-aspect product choices while the editor is single-aspec
 
 The final render includes bleed. For example, `24x36` with 3 mm bleed at 300 DPI renders to approximately `7271x10871` pixels, not `7200x10800`.
 
-This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Proof and final renders keep the browser CSS layout close to the saved editor map width, then use `deviceScaleFactor` to reach the required print pixels. Print mode also compensates zoom-dependent MapLibre style stops so labels and minor-detail layers evaluate at the editor-equivalent zoom, not the high-resolution screenshot zoom. That keeps MapLibre label density and collision behavior aligned with the editor/product preview instead of changing it at large product viewport widths. The renderer then normalizes the screenshot JPEG back to the exact `getPrintFraming(...)` dimensions and embeds the target render DPI before validation/upload. For odd bleed dimensions, this means cropping a small right/bottom surplus after capture. Do not remove this normalization or validate/upload the raw screenshot buffer.
+This odd pixel count is expected because 3 mm does not convert to an even number of pixels at 300 DPI. Proof and final renders keep the browser CSS layout close to the saved editor map width, then use `deviceScaleFactor` to reach the required print pixels. Print mode also compensates zoom-dependent MapLibre style stops so labels and minor-detail layers evaluate at the editor-equivalent zoom, not the high-resolution screenshot zoom. That keeps MapLibre label density and collision behavior aligned with the editor/product preview instead of changing it at large product viewport widths. In print mode, `MapPreview.vue` also raises MapLibre's canvas cap from the library default and pins the MapLibre `pixelRatio` to the screenshot `deviceScaleFactor`; otherwise large map areas can be rendered into a clamped WebGL canvas and stretched inside an otherwise sharp poster. The renderer then normalizes the screenshot JPEG back to the exact `getPrintFraming(...)` dimensions and embeds the target render DPI before validation/upload. Final artifacts are encoded as high-quality 4:4:4 JPEGs so map labels, routes, contour lines, and colored linework avoid photo-style chroma subsampling softness. For odd bleed dimensions, this means cropping a small right/bottom surplus after capture. Do not remove this normalization or validate/upload the raw screenshot buffer.
 
 Proof renders use lower DPI through `getPrintFraming(productUid, 'proof')`.
 
