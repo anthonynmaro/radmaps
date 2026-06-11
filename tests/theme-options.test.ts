@@ -4,6 +4,7 @@ import {
   QUICK_THEME_OPTION_GROUPS,
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
+  deriveThemePreviewConfigWithMeta,
   groupThemeOptionsByColorway,
   groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
@@ -300,5 +301,34 @@ describe('theme options', () => {
     expect(preview.poi_labels_color).toBe('#31442D')
     expect(preview.atlas_layer_settings?.place?.label_color).toBe('#31442D')
     expect(preview.show_place_labels).toBe(false)
+  })
+})
+
+describe('deriveThemePreviewConfigWithMeta (editor v2 apply path)', () => {
+  it('matches the legacy derivation byte-for-byte when no apply options are passed', () => {
+    const theme = getThemeDefinition('blueprint')
+    expect(theme).toBeTruthy()
+
+    const base = config({ route_color: '#123456', poster_text_overrides: { trail_name: { text: 'Saved title', color: '#FF0000' } } })
+    const context = { stats: PLACE_STATS, geojson: POINT_GEOJSON, baseMapMode: 'terrain' as const }
+
+    const meta = deriveThemePreviewConfigWithMeta(base, theme!, context)
+    expect(meta.config).toEqual(deriveThemePreviewConfig(base, theme!, context))
+    expect(meta.preservedFields).toEqual([])
+  })
+
+  it('preserves customized fields and reports them when preserveUserIntent is on', () => {
+    const theme = getThemeDefinition('blueprint')
+    expect(theme).toBeTruthy()
+
+    const base = config({ route_color: '#123456', poster_text_overrides: { trail_name: { text: 'Saved title', color: '#FF0000' } } })
+    const context = { stats: PLACE_STATS, geojson: POINT_GEOJSON, baseMapMode: 'terrain' as const }
+
+    const meta = deriveThemePreviewConfigWithMeta(base, theme!, context, { preserveUserIntent: true })
+    expect(meta.config.route_color).toBe('#123456')
+    expect(meta.config.poster_text_overrides?.trail_name?.color).toBe('#FF0000')
+    expect(meta.preservedFields.length).toBeGreaterThan(0)
+    // The legacy derivation stays available as the toast's "Reset all to theme" target.
+    expect(deriveThemePreviewConfig(base, theme!, context).route_color).toBe(theme!.route_color)
   })
 })

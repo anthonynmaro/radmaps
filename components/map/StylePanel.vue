@@ -1751,11 +1751,12 @@ import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFa
 import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
+import { useThemeSwitchToast } from '~/composables/useThemeSwitchToast'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { getThemeDefinition } from '~/utils/themes/refined'
-import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import { applyThemeToStyleConfigWithMeta, pairedBodyFont, resetAllToTheme } from '~/utils/themeApplication'
 import { POSTER_ICONS } from '~/utils/posterIcons'
 import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
@@ -2692,26 +2693,46 @@ async function handleLogoUpload(e: Event) {
 }
 
 const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const { notifyThemeSwitchPreserved } = useThemeSwitchToast()
 
 function themeApplyOptions() {
   return { preserveUserIntent: editorV2Enabled.value }
 }
 
-function applyTheme(theme: ThemeDefinition) {
-  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme, themeApplyOptions()))
+// Shared theme-application path. Flag off, this is byte-identical to the legacy
+// clobber (preservedFields is always empty, so the toast never fires). Flag on,
+// preserved customizations surface a toast whose action applies the full reset.
+function applyThemeWithToast(theme: ThemeDefinition, postApply?: () => void) {
+  const result = applyThemeToStyleConfigWithMeta({ ...local } as StyleConfig, theme, themeApplyOptions())
+  Object.assign(local, result.config)
+  postApply?.()
   emit('update:modelValue', { ...local })
+  if (!editorV2Enabled.value || !result.preservedFields.length) return
+  notifyThemeSwitchPreserved({
+    preservedCount: result.preservedFields.length,
+    onResetAll: () => {
+      // Reset from the live config at click time so it always lands on the pure theme.
+      Object.assign(local, resetAllToTheme({ ...local } as StyleConfig, theme))
+      postApply?.()
+      emit('update:modelValue', { ...local })
+    },
+  })
+}
+
+function applyTheme(theme: ThemeDefinition) {
+  applyThemeWithToast(theme)
 }
 
 function applyClassicTheme(theme: ThemeDefinition) {
   const target = theme.migration_target ? getThemeDefinition(theme.migration_target) : undefined
   if (target) {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target, themeApplyOptions()))
+    applyThemeWithToast(target)
   } else {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme, themeApplyOptions()))
-    local.composition = undefined
-    local.audience = undefined
+    applyThemeWithToast(theme, () => {
+      local.composition = undefined
+      local.audience = undefined
+    })
   }
-  emit('update:modelValue', { ...local })
 }
 
 function isRefinedThemeActive(theme: ThemeDefinition) {

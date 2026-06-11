@@ -158,6 +158,8 @@ import MapEditorSurface from '~/components/map/MapEditorSurface.vue'
 import ThemeLineupStep from '~/components/map/ThemeLineupStep.vue'
 import type { DeletedRange, MapAsset, MapAssetKind, PosterTextOverride, PosterTextSlot, StyleConfig, TextOverlay } from '~/types'
 import { DEFAULT_STYLE_CONFIG } from '~/types'
+import { FLAGS } from '~/utils/knownFlags'
+import { useThemeSwitchToast } from '~/composables/useThemeSwitchToast'
 import { buildElevationProfile, detectDisconnectedRanges, mergeDeletedRanges, mergeDeletedRangesForRoute } from '~/utils/trail'
 
 definePageMeta({ middleware: 'auth', layout: false })
@@ -237,13 +239,30 @@ async function openThemePicker() {
   await navigateTo({ path: route.path, query: { ...route.query, themePicker: '1' } }, { replace: true })
 }
 
-async function applyThemePickerSelection(payload: { styleConfig: StyleConfig }) {
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const { notifyThemeSwitchPreserved } = useThemeSwitchToast()
+
+async function applyThemePickerSelection(payload: { styleConfig: StyleConfig; preservedFields?: string[]; resetConfig?: StyleConfig }) {
   styleConfig.value = { ...payload.styleConfig }
   if (mapData.value) {
     mapData.value.style_config = { ...styleConfig.value }
   }
   await nextTick()
   await dismissThemePicker()
+  // E1 follow-up toast (FLAGS.EDITOR_V2): the picker apply preserved user
+  // customizations; offer the legacy full reset as the undo.
+  if (editorV2Enabled.value && payload.preservedFields?.length && payload.resetConfig) {
+    const resetConfig = { ...payload.resetConfig }
+    notifyThemeSwitchPreserved({
+      preservedCount: payload.preservedFields.length,
+      onResetAll: () => {
+        styleConfig.value = { ...resetConfig }
+        if (mapData.value) {
+          mapData.value.style_config = { ...styleConfig.value }
+        }
+      },
+    })
+  }
 }
 
 function toggleSheet() {

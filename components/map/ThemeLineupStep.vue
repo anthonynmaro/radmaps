@@ -107,9 +107,11 @@
 import type { ColorTheme, StyleConfig, ThemeDefinition, TrailMap } from '~/types'
 import MapPreview from '~/components/map/MapPreview.vue'
 import ThemePreviewCard from '~/components/map/ThemePreviewCard.vue'
+import { FLAGS } from '~/utils/knownFlags'
 import {
   QUICK_THEME_OPTIONS,
   deriveThemePreviewConfig,
+  deriveThemePreviewConfigWithMeta,
   groupThemeOptionsByPurpose,
   orderedQuickThemeOptionsForRoute,
   resolveThemePreviewBaseMapMode,
@@ -122,9 +124,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'apply-theme': [payload: { themeId: ColorTheme; styleConfig: StyleConfig }]
+  'apply-theme': [payload: {
+    themeId: ColorTheme
+    styleConfig: StyleConfig
+    /** FLAGS.EDITOR_V2 only: customized fields that survived the switch. */
+    preservedFields?: string[]
+    /** FLAGS.EDITOR_V2 only: the legacy full-clobber config for "Reset all to theme". */
+    resetConfig?: StyleConfig
+  }]
   'design-myself': []
 }>()
+
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
 
 const orderedThemes = computed(() => orderedQuickThemeOptionsForRoute(props.map.stats, props.map.geojson))
 const themePurposeGroups = computed(() => groupThemeOptionsByPurpose(orderedThemes.value, {
@@ -189,6 +200,23 @@ function cardLiveEnabled(themeId: ColorTheme) {
 }
 
 function applySelected() {
+  // Preview cards intentionally stay legacy (pure theme thumbnails); only the
+  // actual apply preserves user intent when FLAGS.EDITOR_V2 is on.
+  if (editorV2Enabled.value) {
+    const result = deriveThemePreviewConfigWithMeta(props.modelValue, selectedTheme.value, {
+      ...props.map,
+      stats: props.map.stats,
+      geojson: props.map.geojson,
+      baseMapMode: selectedBaseMode.value,
+    }, { preserveUserIntent: true })
+    emit('apply-theme', {
+      themeId: selectedTheme.value.id,
+      styleConfig: result.config,
+      preservedFields: result.preservedFields,
+      resetConfig: selectedPreviewConfig.value,
+    })
+    return
+  }
   emit('apply-theme', {
     themeId: selectedTheme.value.id,
     styleConfig: selectedPreviewConfig.value,
