@@ -6,6 +6,7 @@ export const FLAGS = {
   POSTER_TIER2_EDITOR: 'poster_tier2_editor',
   RADMAPS_ATLAS_EDITOR: 'radmaps_atlas_editor',
   SIMPLE_EDITOR_REFRESH: 'simple_editor_refresh',
+  EDITOR_V2: 'editor_v2',
   WATERCOLOR_GEOMETRY_RENDERER: 'watercolor_geometry_renderer',
   STRIPE_HARDENED_CHECKOUT: 'stripe_hardened_checkout',
   ORDER_SUPPORT_ACTIONS: 'order_support_actions',

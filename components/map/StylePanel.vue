@@ -2691,17 +2691,23 @@ async function handleLogoUpload(e: Event) {
   }
 }
 
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+
+function themeApplyOptions() {
+  return { preserveUserIntent: editorV2Enabled.value }
+}
+
 function applyTheme(theme: ThemeDefinition) {
-  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme, themeApplyOptions()))
   emit('update:modelValue', { ...local })
 }
 
 function applyClassicTheme(theme: ThemeDefinition) {
   const target = theme.migration_target ? getThemeDefinition(theme.migration_target) : undefined
   if (target) {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target))
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target, themeApplyOptions()))
   } else {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme, themeApplyOptions()))
     local.composition = undefined
     local.audience = undefined
   }
