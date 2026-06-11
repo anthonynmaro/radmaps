@@ -2,7 +2,7 @@
   <button
     class="freeze-pill"
     :class="{ 'is-frozen': frozen, 'map-hovered': mapHovered }"
-    :title="frozen ? 'Edit map view' : 'Set current map view'"
+    :title="title"
     @click="toggleFreeze"
     style="position: static;"
   >
@@ -23,6 +23,8 @@
 </template>
 
 <script setup lang="ts">
+import { FLAGS } from '~/utils/knownFlags'
+
 const props = defineProps<{
   frozen: boolean
   mapHovered?: boolean
@@ -32,6 +34,19 @@ const emit = defineEmits<{
   freeze: []
   unfreeze: []
 }>()
+
+// Editor-v2 reframes the freeze toggle (docs/STYLE_SYSTEM_EVOLUTION.md "Camera
+// vs selection"): frozen = selection mode, unfrozen = camera mode. Tooltip only;
+// behavior is unchanged.
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const title = computed(() => {
+  if (editorV2Enabled.value) {
+    return props.frozen
+      ? 'Selection mode — click map elements; unlock to pan & zoom'
+      : 'Camera mode — pan & zoom; lock the view to select map elements'
+  }
+  return props.frozen ? 'Edit map view' : 'Set current map view'
+})
 
 function toggleFreeze() {
   if (props.frozen) emit('unfreeze')

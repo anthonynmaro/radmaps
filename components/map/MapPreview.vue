@@ -2248,6 +2248,10 @@ const emit = defineEmits<{
   'segment-labels-moved': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
   'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number; map_pitch: number; map_bearing: number }]
+  /** Fired once the MapLibre instance has loaded — parents may then call getMapInstance() (editor-v2 selection mode) */
+  'map-ready': []
+  /** Fired whenever an inline poster text target (slot/overlay) becomes active — used to keep poster vs map selection mutually exclusive */
+  'text-target-selected': []
   'undo': []
   'redo': []
 }>()
@@ -3890,6 +3894,8 @@ const SLOT_LABELS: Record<PosterTextSlot, string> = {
 function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
   activeTextTarget.value = target
   activeTextAnchor.value = el.getBoundingClientRect()
+  // Single-selection world: parents clear any active map-element selection.
+  emit('text-target-selected')
 }
 
 function slotEditable(slot: PosterTextSlot) {
@@ -7862,6 +7868,7 @@ onMounted(async () => {
     setPaintBackground()
     apply3DTerrain()
     mapReady.value = true
+    emit('map-ready')
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
@@ -9784,7 +9791,12 @@ function requestUndo() {
   emit('undo')
 }
 
-defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint })
+/** Editor-only escape hatch for selection-mode hit-testing (editor-v2). Returns null until 'map-ready'. */
+function getMapInstance(): maplibregl.Map | null {
+  return mapInstance
+}
+
+defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint, getMapInstance })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(

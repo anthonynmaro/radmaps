@@ -155,8 +155,17 @@
             @segment-label-moved="onSegmentLabelMoved"
             @segment-labels-moved="onSegmentLabelsMoved"
             @view-changed="onViewChanged"
+            @map-ready="onEditorMapReady"
+            @text-target-selected="clearMapElementSelection"
             @undo="undo"
             @redo="redo"
+          />
+          <!-- Editor-only selection chrome (FLAGS.EDITOR_V2) — never mounted on render pages, never prints. -->
+          <MapSelectionOverlay
+            v-if="mapSelectionEnabled"
+            :selection="mapElementSelection"
+            :get-map="getEditorMapInstance"
+            @close="clearMapElementSelection"
           />
         </ClientOnly>
         <div v-if="!map" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -278,6 +287,8 @@
 
 <script setup lang="ts">
 import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
+import MapSelectionOverlay from '~/components/map/MapSelectionOverlay.vue'
+import { useMapElementSelection } from '~/composables/useMapElementSelection'
 import type {
   DeletedRange,
   MapAsset,
@@ -335,6 +346,7 @@ type MapPreviewHandle = {
   fitToRouteAndSegments: (segmentBboxes?: Array<[number, number, number, number]>) => void
   finishSegmentDraw: () => void
   undoSegmentDrawPoint: () => boolean
+  getMapInstance: () => import('maplibre-gl').Map | null
 }
 
 type TrackUploadResponse = {
@@ -477,6 +489,64 @@ const chromeDirectEdit = computed(() => {
   const chromeQuery = route.query.chrome
   const chromeQueryEnabled = chromeQuery === '1' || chromeQuery === 'true'
   return chromeDirectEditFlag.value || (import.meta.dev && chromeQueryEnabled)
+})
+
+// ── Map-element selection mode (editor-v2 E3) ───────────────────────────────────
+// FreezeControl semantics reframed: frozen (the existing editor default) =
+// selection mode — clicks hit-test graph-selectable slots; unfrozen = camera
+// mode — clicks do nothing. Everything gated behind FLAGS.EDITOR_V2.
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const mapSelectionEnabled = computed(() => editorV2Enabled.value && !fixedTemplateEditorActive.value)
+
+function getEditorMapInstance() {
+  return mapPreviewRef.value?.getMapInstance?.() ?? null
+}
+
+function mapSelectionModeActive() {
+  return Boolean(props.modelValue.map_frozen)
+    && !plotMode.value
+    && !segmentDrawMode.value
+    && !segmentEditMode.value
+    && !deleteBrushActive.value
+}
+
+const {
+  selection: mapElementSelection,
+  clearSelection: clearMapElementSelection,
+  attachToMap: attachMapSelection,
+} = useMapElementSelection({
+  getMap: getEditorMapInstance,
+  getStyleConfig: () => props.modelValue,
+  enabled: () => mapSelectionEnabled.value,
+  selectionModeActive: mapSelectionModeActive,
+})
+
+function onEditorMapReady() {
+  attachMapSelection()
+}
+
+// Single-selection world: a map selection evicts any poster-element/text
+// selection, and vice versa (MapPreview's text-target-selected event plus the
+// watchers below cover the poster side).
+watch(mapElementSelection, (selection) => {
+  if (!selection) return
+  activeTextTarget.value = null
+  selectedPosterElementId.value = null
+})
+watch(activeTextTarget, (target) => {
+  if (target) clearMapElementSelection()
+})
+watch(selectedPosterElementId, (id) => {
+  if (id) clearMapElementSelection()
+})
+// Leaving selection mode (camera mode, edit gestures) or switching preset
+// invalidates the selection.
+watch(() => props.modelValue.map_frozen, (frozen) => {
+  if (!frozen) clearMapElementSelection()
+})
+watch(() => props.modelValue.preset, () => clearMapElementSelection())
+watch([plotMode, segmentDrawMode, segmentEditMode, deleteBrushActive], (modes) => {
+  if (modes.some(Boolean)) clearMapElementSelection()
 })
 
 onMounted(() => {
@@ -625,6 +695,11 @@ function redo() {
 function onKeyDown(e: KeyboardEvent) {
   const target = e.target as HTMLElement
   if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+  // Esc clears an active map-element selection (editor-v2 selection mode).
+  if (e.key === 'Escape' && mapElementSelection.value) {
+    clearMapElementSelection()
+    return
+  }
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
   const key = e.key.toLowerCase()
