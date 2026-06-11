@@ -23,6 +23,7 @@
     "atlas:build-overlays": "node scripts/atlas-build-overlays.mjs",
     "atlas:print-qa": "node scripts/atlas-print-qa.mjs",
     "atlas:validate-pmtiles": "node scripts/atlas-validate-pmtiles.mjs",
+    "atlas:add-feature-ids": "node scripts/atlas-add-feature-ids.mjs",
     "atlas:generate-manifest": "node scripts/atlas-generate-manifest.mjs",
     "atlas:merge-manifest-artifact": "node scripts/atlas-merge-manifest-artifact.mjs",
     "atlas:terrain-plan": "node scripts/atlas-terrain-plan.mjs",

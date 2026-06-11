@@ -21,9 +21,13 @@ rm_id = base36( xxhash64( layer | class | normalize(name) | geohash6(labelPoint)
 - Deterministic by construction: identical content → identical id across rebuilds and zoom levels. A renamed or relocated-beyond-cell feature gets a new id — correct behavior, since the thing the user overrode no longer exists; the orphaned override is preserved-and-ignored (same posture as effectiveStyleConfig).
 - Collisions: 64-bit hash makes accidental collision negligible. Same-name+class within one geohash cell (two co-located chain stores) intentionally share an id — an override hits both; acceptable edge.
 
-### Implementation point
+### Implementation point (revised 2026-06-10 — no custom Planetiler profile exists)
 
-Custom Planetiler profile post-process (the build already runs Dockerized Planetiler): add the property only to the four label layers — negligible tile-size cost, no geometry layers touched. Local build script's existing `promoteId: 'id'` is replaced by `promoteId: 'rm_id'` in the style source spec so MapLibre feature ids resolve to it (enables hover/selected feature-state for the editor highlight too).
+The atlas build uses STOCK Planetiler layers; there is no checked-in profile to extend. rm_id is therefore added by a post-process stage in the existing Node pipeline (`scripts/atlas-pipeline.mjs`), inserted after `base` and before `validate`: decode the label layers from the built tile artifact (operate on the pre-PMTiles artifact if the flow allows — sqlite/mbtiles is trivially rewritable; else decode/re-encode MVT via @mapbox/vector-tile + vt-pbf), stamp `rm_id`, re-encode. Only the label layers are touched; all other layers pass through byte-identical.
+
+Clipping nuance: line label layers (`transportation_name`, waterway names) are tile-clipped, so geometry-derived geohashes would differ per tile. Line layers therefore key on `layer|class|normalize(name|ref)` WITHOUT geohash — one id per named road/waterway region-wide ("hide this road label" hides all its shields/repeats, the desired UX). Point label layers (`place`, `poi`, water_name points) keep the geohash disambiguator as designed.
+
+Local style wiring: `promoteId: 'rm_id'` on the atlas sources so MapLibre feature ids resolve to it (enables feature-state hover/selected highlight for the editor too).
 
 ### Manifest + capability gating
 
