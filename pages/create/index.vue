@@ -596,6 +596,7 @@ import { useSupabaseUser } from '#imports'
 import type { RouteStats, PremadeMap } from '~/types'
 import { STRAVA_CREATE_RETURN_PATH } from '~/utils/stravaOAuthReturn'
 import { extractNamedTrackSegments } from '~/utils/trail'
+import { hasDevE2eAuthBypass } from '~/utils/e2eAuth'
 
 // `@tmcw/togeojson` is ~30KB and only needed when the user actually drops a
 // GPX file. Loading it lazily keeps the initial Create page payload light.
@@ -1386,7 +1387,7 @@ const resetFile = () => {
 }
 
 const createMap = async () => {
-  if (!user.value?.id || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) return
+  if ((!user.value?.id && !hasDevE2eAuthBypass()) || !mapTitle.value.trim() || !parsedGeojson.value || !parsedStats.value) return
   isCreating.value = true
   try {
     const response = await fetch('/api/maps', {

@@ -9,6 +9,7 @@
     "typecheck": "nuxt typecheck",
     "lint": "eslint . --ext .ts,.vue",
     "test": "vitest",
+    "test:e2e-money": "playwright test tests/e2e/money-path.spec.ts --config=playwright.e2e.config.ts --reporter=line",
     "test:style-graph": "vitest run tests/style-layer-graph.test.ts tests/stylePanelGating.test.ts tests/viewport-scale.test.ts tests/map-style-effects.test.ts tests/poster-compositions.test.ts tests/refined-themes.test.ts tests/theme-application.test.ts tests/field-layer.test.ts tests/poster-editor-elements.test.ts tests/poster-layout.test.ts tests/poster-layout-draft.test.ts",
     "test:style-browser": "playwright test tests/style-browser --reporter=line",
     "test:style": "npm run test:style-graph && npm run test:style-browser",

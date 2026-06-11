@@ -64,6 +64,25 @@ jobs:
           NUXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
           NUXT_PUBLIC_MAPTILER_TOKEN: ${{ secrets.MAPTILER_TOKEN }}
 
+  money-path-e2e:
+    name: Money Path E2E
+    needs: [typecheck, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GELATO_ORDER_TYPE: draft
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx nuxi prepare
+      - run: npm run test:e2e-money
+
   worker:
     name: Print Worker
     runs-on: ubuntu-latest
