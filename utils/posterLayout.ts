@@ -16,6 +16,7 @@ import type {
   StyleConfig,
 } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeDataContextInput, type ThemeRenderMode } from '~/utils/themeDataContract'
+import { CHROME_BAND_HEIGHTS, CHROME_TYPE_SCALE } from '~/utils/themes/posterTokens'
 
 export const CHROME_BANDS: ChromeBandId[] = ['header', 'footer', 'railLeft', 'railRight']
 export const CHROME_BAND_HEIGHT_BOUNDS = { min: 8, max: 34 } as const
@@ -154,8 +155,8 @@ type ChromeLayoutRecipe = {
 }
 
 const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
-  headerHeight: 22,
-  footerHeight: 14,
+  headerHeight: CHROME_BAND_HEIGHTS.header.standard,
+  footerHeight: CHROME_BAND_HEIGHTS.footer.standard,
   headerTopFr: 0.62,
   headerMetaFr: 0.45,
   headerTitleFr: 2.35,
@@ -164,15 +165,15 @@ const BASE_CHROME_RECIPE: ChromeLayoutRecipe = {
   footerTopFr: 0.5,
   footerPrimaryFr: 1,
   footerBottomFr: 0.5,
-  kickerScale: 0.8,
-  metaScale: 0.72,
-  titleScale: 1,
-  subtitleScale: 0.8,
-  occasionScale: 0.75,
-  statScale: 1.35,
-  dateScale: 1.05,
-  coordsScale: 0.9,
-  noteScale: 0.68,
+  kickerScale: CHROME_TYPE_SCALE.kicker.standard,
+  metaScale: CHROME_TYPE_SCALE.meta.standard,
+  titleScale: CHROME_TYPE_SCALE.title.standard,
+  subtitleScale: CHROME_TYPE_SCALE.subtitle.standard,
+  occasionScale: CHROME_TYPE_SCALE.occasion.standard,
+  statScale: CHROME_TYPE_SCALE.stat.standard,
+  dateScale: CHROME_TYPE_SCALE.date.standard,
+  coordsScale: CHROME_TYPE_SCALE.coords.standard,
+  noteScale: CHROME_TYPE_SCALE.note.standard,
 }
 
 const HEADER_DECOR_COMPOSITIONS = new Set<CompositionId>([
@@ -272,34 +273,39 @@ function footerBlockPatch(
 }
 
 function chromeRecipeForComposition(composition?: CompositionId): ChromeLayoutRecipe {
+  // Band heights and type scales reference the shared poster tokens
+  // (utils/themes/posterTokens.ts) wherever a tier genuinely recurs; remaining
+  // literals are bespoke to one composition and stay inline on purpose.
+  const HEIGHT = CHROME_BAND_HEIGHTS
+  const SCALE = CHROME_TYPE_SCALE
   switch (composition) {
     case 'editorial-tall':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 13, headerTopFr: 0.26, headerTitleFr: 2.85, headerBottomFr: 0.72, statScale: 1.14, noteScale: 0.62 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.standard, footerHeight: HEIGHT.footer.compact, headerTopFr: 0.26, headerTitleFr: 2.85, headerBottomFr: 0.72, statScale: SCALE.stat.quiet, noteScale: SCALE.note.quiet }
     case 'park-quad':
     case 'botanical-plate':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 14, headerTopFr: 0.48, headerTitleFr: 2.28, headerBottomFr: 0.58, footerTopFr: 0.52, footerBottomFr: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.standard, footerHeight: HEIGHT.footer.standard, headerTopFr: 0.48, headerTitleFr: 2.28, headerBottomFr: 0.58, footerTopFr: 0.52, footerBottomFr: 0.52 }
     case 'travel-banner':
     case 'darksky-stars':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 17, footerHeight: 12.5, headerTopFr: 0.34, headerMetaFr: 0.34, headerTitleFr: 1.95, headerSubFr: 0.55, headerBottomFr: 0.36, footerTopFr: 0.42, footerBottomFr: 0.42, statScale: 1.14, noteScale: 0.56 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.banner, footerHeight: HEIGHT.footer.slim, headerTopFr: 0.34, headerMetaFr: 0.34, headerTitleFr: 1.95, headerSubFr: 0.55, headerBottomFr: 0.36, footerTopFr: 0.42, footerBottomFr: 0.42, statScale: SCALE.stat.quiet, noteScale: 0.56 }
     case 'riso-stack':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13, headerTopFr: 0.48, headerTitleFr: 2.5, headerBottomFr: 0.42, statScale: 1.24, noteScale: 0.58 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.tall, footerHeight: HEIGHT.footer.compact, headerTopFr: 0.48, headerTitleFr: 2.5, headerBottomFr: 0.42, statScale: 1.24, noteScale: 0.58 }
     case 'blueprint-grid':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 17.5, footerHeight: 12.5, headerTopFr: 0.34, headerTitleFr: 1.78, headerBottomFr: 0.36, kickerScale: 0.7, metaScale: 0.62, statScale: 1.08, noteScale: 0.54 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 17.5, footerHeight: HEIGHT.footer.slim, headerTopFr: 0.34, headerTitleFr: 1.78, headerBottomFr: 0.36, kickerScale: SCALE.kicker.technical, metaScale: SCALE.meta.technical, statScale: 1.08, noteScale: SCALE.note.technical }
     case 'blueprint-strava':
     case 'splits-grid':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 19, footerHeight: 16, headerTopFr: 0.32, headerTitleFr: 1.98, headerBottomFr: 0.34, footerTopFr: 0.36, footerPrimaryFr: 1.26, footerBottomFr: 0.36, kickerScale: 0.7, metaScale: 0.62, statScale: 1.42, dateScale: 1.06, noteScale: 0.54 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.data, footerHeight: HEIGHT.footer.data, headerTopFr: 0.32, headerTitleFr: 1.98, headerBottomFr: 0.34, footerTopFr: 0.36, footerPrimaryFr: 1.26, footerBottomFr: 0.36, kickerScale: SCALE.kicker.technical, metaScale: SCALE.meta.technical, statScale: SCALE.stat.data, dateScale: 1.06, noteScale: SCALE.note.technical }
     case 'journal-spread':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 23, footerHeight: 13.5, headerTopFr: 0.62, headerTitleFr: 2.35, headerBottomFr: 0.74, subtitleScale: 0.72, statScale: 1.12, noteScale: 0.62 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.tall, footerHeight: 13.5, headerTopFr: 0.62, headerTitleFr: 2.35, headerBottomFr: 0.74, subtitleScale: 0.72, statScale: 1.12, noteScale: SCALE.note.quiet }
     case 'modernist-block':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 34.2, footerHeight: 0, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: 0.66, statScale: 1.5, dateScale: 1.14, coordsScale: 0.7, noteScale: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.hero, footerHeight: HEIGHT.footer.hidden, headerTopFr: 0.34, headerMetaFr: 0.3, headerTitleFr: 2.9, headerSubFr: 0.48, headerBottomFr: 0.3, titleScale: 1.1, subtitleScale: SCALE.subtitle.deck, statScale: 1.5, dateScale: 1.14, coordsScale: SCALE.coords.quiet, noteScale: SCALE.note.display }
     case 'place-frame':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 0, headerTopFr: 0.24, headerMetaFr: 0.42, headerTitleFr: 2.74, headerSubFr: 0.48, headerBottomFr: 0.28, kickerScale: 0.78, metaScale: 0.74, titleScale: 1.08, subtitleScale: 0.66 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.titleblock, footerHeight: HEIGHT.footer.hidden, headerTopFr: 0.24, headerMetaFr: 0.42, headerTitleFr: 2.74, headerSubFr: 0.48, headerBottomFr: 0.28, kickerScale: 0.78, metaScale: 0.74, titleScale: 1.08, subtitleScale: SCALE.subtitle.deck }
     case 'sea-chart':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 20, footerHeight: 0, headerTopFr: 0.12, headerMetaFr: 0.46, headerTitleFr: 2.15, headerSubFr: 0.52, headerBottomFr: 0.18, kickerScale: 0.9, metaScale: 0.76, titleScale: 1.2, subtitleScale: 0.76 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: 20, footerHeight: HEIGHT.footer.hidden, headerTopFr: 0.12, headerMetaFr: 0.46, headerTitleFr: 2.15, headerSubFr: 0.52, headerBottomFr: 0.18, kickerScale: 0.9, metaScale: 0.76, titleScale: 1.2, subtitleScale: 0.76 }
     case 'bib-numerals':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 21, footerHeight: 15.5, headerTopFr: 0.38, headerTitleFr: 2.2, headerBottomFr: 0.42, footerTopFr: 0.42, footerPrimaryFr: 1.18, footerBottomFr: 0.42, titleScale: 0.95, statScale: 1.56, dateScale: 1.08 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.titleblock, footerHeight: 15.5, headerTopFr: 0.38, headerTitleFr: 2.2, headerBottomFr: 0.42, footerTopFr: 0.42, footerPrimaryFr: 1.18, footerBottomFr: 0.42, titleScale: 0.95, statScale: SCALE.stat.display, dateScale: 1.08 }
     case 'brutalist-slab':
-      return { ...BASE_CHROME_RECIPE, headerHeight: 22, footerHeight: 14, headerTopFr: 0.24, headerTitleFr: 2.58, headerBottomFr: 0.25, titleScale: 1.06, subtitleScale: 0.64, statScale: 1.56, coordsScale: 0.7, noteScale: 0.52 }
+      return { ...BASE_CHROME_RECIPE, headerHeight: HEIGHT.header.standard, footerHeight: HEIGHT.footer.standard, headerTopFr: 0.24, headerTitleFr: 2.58, headerBottomFr: 0.25, titleScale: 1.06, subtitleScale: 0.64, statScale: SCALE.stat.display, coordsScale: SCALE.coords.quiet, noteScale: SCALE.note.display }
     default:
       return BASE_CHROME_RECIPE
   }
@@ -459,7 +465,7 @@ export function defaultPosterLayout(
     footerCells.push(cell('ft-note', block('ft-note-block', 'note', 'composition_footer', { align: 'center', scale: recipe.noteScale })))
   }
   if (styleConfig.show_branding !== false && !isBlueprint) {
-    footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: 0.58 }), footerCellPatch('brand', composition)))
+    footerCells.push(cell('ft-brand', block('ft-brand-block', 'brand', undefined, { align: 'right', text: 'RADMAPS', scale: CHROME_TYPE_SCALE.brand }), footerCellPatch('brand', composition)))
   }
 
   const layout: PosterLayout = {

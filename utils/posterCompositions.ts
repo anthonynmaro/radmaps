@@ -1,5 +1,14 @@
 import type { ColorTheme, CompositionId, StyleConfig } from '~/types'
 import { getThemeDefinition } from '~/utils/themes/refined'
+import {
+  POSTER_EDGE_MARGINS,
+  RULE_INK,
+  RULE_WEIGHTS,
+  bottomBandPadding,
+  inkRule,
+  innerBandPadding,
+  topBandPadding,
+} from '~/utils/themes/posterTokens'
 
 export type PosterCompositionId = CompositionId | 'legacy-classic'
 
@@ -63,8 +72,8 @@ const STANDARD_BOTTOM = {
 } as const
 
 const BASE_PROFILE = {
-  headerPadding: 'calc(4.6cqh + var(--print-bleed, 0px)) calc(6cqw + var(--print-bleed, 0px)) 2.4cqh',
-  footerPadding: '1.6cqh calc(6cqw + var(--print-bleed, 0px)) calc(1.8cqh + var(--print-bleed, 0px))',
+  headerPadding: topBandPadding(4.6, POSTER_EDGE_MARGINS.standard, 2.4),
+  footerPadding: bottomBandPadding(1.6, POSTER_EDGE_MARGINS.standard, 1.8),
   headerBackground: 'paper',
   mapMargin: '0',
   mapBorder: '0 solid transparent',
@@ -92,8 +101,8 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_TOP,
     titleAlign: 'left',
     ...BASE_PROFILE,
-    headerPadding: 'calc(6.1cqh + var(--print-bleed, 0px)) calc(6.8cqw + var(--print-bleed, 0px)) 3.1cqh',
-    footerPadding: '1.9cqh calc(6.8cqw + var(--print-bleed, 0px)) calc(2.1cqh + var(--print-bleed, 0px))',
+    headerPadding: topBandPadding(6.1, POSTER_EDGE_MARGINS.wide, 3.1),
+    footerPadding: bottomBandPadding(1.9, POSTER_EDGE_MARGINS.wide, 2.1),
     statsEmphasis: 'quiet',
   },
   'park-quad': {
@@ -102,8 +111,8 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     audience: 'National Park / tourist',
     ...STANDARD_TOP,
     ...BASE_PROFILE,
-    mapMargin: '0 4.25cqw',
-    mapBorder: '1.5px solid color-mix(in srgb, currentColor 32%, transparent)',
+    mapMargin: '0 4.25cqw', // bespoke quad inset
+    mapBorder: inkRule(RULE_WEIGHTS.fine, RULE_INK.soft),
     showPaperTexture: true,
     showGridOverlay: true,
   },
@@ -114,7 +123,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'center',
     ...BASE_PROFILE,
-    headerPadding: '2.35cqh calc(4.8cqw + var(--print-bleed, 0px)) calc(2.75cqh + var(--print-bleed, 0px))',
+    headerPadding: bottomBandPadding(2.35, POSTER_EDGE_MARGINS.banner, 2.75),
     headerBackground: 'paper',
     footerVariant: 'data',
     statsEmphasis: 'quiet',
@@ -139,7 +148,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     audience: 'Engineer / surveyor',
     ...STANDARD_BOTTOM,
     ...BASE_PROFILE,
-    headerPadding: '2.3cqh calc(4.8cqw + var(--print-bleed, 0px)) calc(3cqh + var(--print-bleed, 0px))',
+    headerPadding: bottomBandPadding(2.3, POSTER_EDGE_MARGINS.banner, 3),
     footerVariant: 'compact',
     showGridOverlay: true,
   },
@@ -150,10 +159,10 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'left',
     ...BASE_PROFILE,
-    headerPadding: '1.65cqh calc(5.2cqw + var(--print-bleed, 0px)) 1.25cqh',
-    footerPadding: '1.2cqh calc(5.2cqw + var(--print-bleed, 0px)) calc(1.65cqh + var(--print-bleed, 0px))',
-    mapMargin: 'calc(6.65cqh + var(--print-bleed, 0px)) 5.2cqw 0',
-    mapBorder: '1px solid color-mix(in srgb, currentColor 45%, transparent)',
+    headerPadding: innerBandPadding(1.65, POSTER_EDGE_MARGINS.data, 1.25),
+    footerPadding: bottomBandPadding(1.2, POSTER_EDGE_MARGINS.data, 1.65),
+    mapMargin: 'calc(6.65cqh + var(--print-bleed, 0px)) 5.2cqw 0', // bespoke over-map data margin
+    mapBorder: inkRule(RULE_WEIGHTS.hairline, RULE_INK.strong),
     footerVariant: 'data',
     statsEmphasis: 'numeric',
     showGridOverlay: true,
@@ -165,9 +174,9 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_TOP,
     titleAlign: 'left',
     ...BASE_PROFILE,
-    headerPadding: 'calc(5.4cqh + var(--print-bleed, 0px)) calc(7cqw + var(--print-bleed, 0px)) 2.1cqh',
-    mapMargin: '0 4.75cqw',
-    mapBorder: '1px solid color-mix(in srgb, currentColor 24%, transparent)',
+    headerPadding: topBandPadding(5.4, 7, 2.1), // bespoke journal gutter
+    mapMargin: '0 4.75cqw', // bespoke journal inset
+    mapBorder: inkRule(RULE_WEIGHTS.hairline, RULE_INK.faint),
     showPaperTexture: true,
     showSideRail: false,
   },
@@ -177,6 +186,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     audience: 'Designer / collector',
     ...STANDARD_BOTTOM,
     ...BASE_PROFILE,
+    // Bespoke 4-edge hero padding: oversized left gutter carries the block.
     headerPadding: '3.2cqh calc(5.5cqw + var(--print-bleed, 0px)) calc(4.25cqh + var(--print-bleed, 0px)) calc(18.9cqw + var(--print-bleed, 0px))',
     headerBackground: 'paper',
     footerVariant: 'hidden',
@@ -193,8 +203,8 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'left',
     ...BASE_PROFILE,
-    headerPadding: '1.65cqh calc(6.8cqw + var(--print-bleed, 0px)) 1.1cqh',
-    footerPadding: '1.25cqh calc(6.8cqw + var(--print-bleed, 0px)) calc(1.65cqh + var(--print-bleed, 0px))',
+    headerPadding: innerBandPadding(1.65, POSTER_EDGE_MARGINS.wide, 1.1),
+    footerPadding: bottomBandPadding(1.25, POSTER_EDGE_MARGINS.wide, 1.65),
     footerVariant: 'data',
     statsEmphasis: 'numeric',
     showGridOverlay: true,
@@ -206,8 +216,8 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'center',
     ...BASE_PROFILE,
-    headerPadding: '2.2cqh calc(7.2cqw + var(--print-bleed, 0px)) 2.4cqh',
-    footerPadding: '1.15cqh calc(8.8cqw + var(--print-bleed, 0px)) calc(2.35cqh + var(--print-bleed, 0px))',
+    headerPadding: innerBandPadding(2.2, 7.2, 2.4), // bespoke bib gutters
+    footerPadding: bottomBandPadding(1.15, 8.8, 2.35),
     footerVariant: 'bib',
     statsEmphasis: 'large',
   },
@@ -218,7 +228,7 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'center',
     ...BASE_PROFILE,
-    headerPadding: '2.5cqh calc(5.4cqw + var(--print-bleed, 0px)) calc(3.5cqh + var(--print-bleed, 0px))',
+    headerPadding: bottomBandPadding(2.5, 5.4, 3.5), // bespoke night gutter
     footerVariant: 'compact',
     showStarField: true,
   },
@@ -229,10 +239,10 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_BOTTOM,
     titleAlign: 'center',
     ...BASE_PROFILE,
-    headerPadding: '3.25cqh calc(7.6cqw + var(--print-bleed, 0px)) calc(3.7cqh + var(--print-bleed, 0px))',
+    headerPadding: bottomBandPadding(3.25, 7.6, 3.7), // bespoke plate gutter
     footerPadding: '0',
-    mapMargin: 'calc(5.25cqh + var(--print-bleed, 0px)) 6.8cqw 0',
-    mapBorder: '1px solid color-mix(in srgb, currentColor 22%, transparent)',
+    mapMargin: 'calc(5.25cqh + var(--print-bleed, 0px)) 6.8cqw 0', // bespoke over-map plate margin
+    mapBorder: inkRule(RULE_WEIGHTS.hairline, RULE_INK.whisper),
     footerVariant: 'hidden',
     showPaperTexture: true,
   },
@@ -243,10 +253,10 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     ...STANDARD_TOP,
     titleAlign: 'left',
     ...BASE_PROFILE,
-    headerPadding: 'calc(4.6cqh + var(--print-bleed, 0px)) calc(6.7cqw + var(--print-bleed, 0px)) 2.3cqh',
-    footerPadding: '1.8cqh calc(6.7cqw + var(--print-bleed, 0px)) calc(2.4cqh + var(--print-bleed, 0px))',
+    headerPadding: topBandPadding(4.6, 6.7, 2.3), // bespoke slab gutters
+    footerPadding: bottomBandPadding(1.8, 6.7, 2.4),
     mapMargin: '0 6.7cqw',
-    mapBorder: '5px solid currentColor',
+    mapBorder: `${RULE_WEIGHTS.slab}px solid currentColor`,
     statsEmphasis: 'large',
   },
   'art-wash': {
@@ -301,8 +311,8 @@ export const POSTER_COMPOSITIONS: Record<PosterCompositionId, PosterCompositionP
     audience: 'Tour / stops itinerary',
     ...STANDARD_BOTTOM,
     ...BASE_PROFILE,
-    headerPadding: '1.6cqh calc(6.8cqw + var(--print-bleed, 0px)) calc(2.1cqh + var(--print-bleed, 0px))',
-    footerPadding: '1.1cqh calc(6.8cqw + var(--print-bleed, 0px)) calc(1.3cqh + var(--print-bleed, 0px))',
+    headerPadding: bottomBandPadding(1.6, POSTER_EDGE_MARGINS.wide, 2.1),
+    footerPadding: bottomBandPadding(1.1, POSTER_EDGE_MARGINS.wide, 1.3),
     headerBackground: 'paper',
     mapMargin: '0',
     mapBorder: '0 solid transparent',
