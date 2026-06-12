@@ -302,6 +302,7 @@
 <script setup lang="ts">
 import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
 import MapSelectionOverlay from '~/components/map/MapSelectionOverlay.vue'
+import { useElementSelection } from '~/composables/useElementSelection'
 import { useMapElementSelection } from '~/composables/useMapElementSelection'
 import type {
   DeletedRange,
@@ -713,6 +714,38 @@ function onSegmentLabelRename({ id, lnglat }: { id: string; lnglat: [number, num
   selectMapSegment(id, lnglat)
   segmentRenameFocusToken.value++
 }
+
+// ── Unified selection arbiter — poster domain (editor-v2 D1) ────────────────────
+// MapEditorSurface co-holds the poster claim with MapPreview (idempotent claims,
+// shared key grammar: 'slot:<slot>' / 'text:<id>' / 'asset:<id>' / 'icon:<id>')
+// so Moveable state and toolbar state are evicted together when the map domain
+// claims the selection. Claims only happen flag-on; the manual cross-domain
+// watchers below remain as the direct event path.
+const elementSelectionArbiter = useElementSelection()
+
+function posterArbiterKey(target: ActiveTextTarget): string {
+  if (target.type === 'poster-text') return `slot:${target.field}`
+  if (target.type === 'text-overlay') return `text:${target.id}`
+  return `asset:${target.id}`
+}
+
+watch(activeTextTarget, (target, previous) => {
+  if (!editorV2Enabled.value) return
+  if (target) elementSelectionArbiter.claim('poster', posterArbiterKey(target))
+  else if (previous) elementSelectionArbiter.release('poster', posterArbiterKey(previous))
+})
+
+watch(selectedPosterElementId, (id, previous) => {
+  if (!editorV2Enabled.value) return
+  if (id) elementSelectionArbiter.claim('poster', id)
+  else if (previous) elementSelectionArbiter.release('poster', previous)
+})
+
+elementSelectionArbiter.onEvicted('poster', () => {
+  if (!editorV2Enabled.value) return
+  activeTextTarget.value = null
+  selectedPosterElementId.value = null
+})
 
 // Single-selection world: a map selection evicts any poster-element/text
 // selection, and vice versa (MapPreview's text-target-selected event plus the

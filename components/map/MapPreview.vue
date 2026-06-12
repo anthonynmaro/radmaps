@@ -5,7 +5,7 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
+      v-if="editable && !unifiedPosterGrammar && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
@@ -23,6 +23,40 @@
       @reset="resetActiveText"
       @done="finishActiveTextEdit"
     />
+
+    <!-- EDITOR-V2 D1 unified grammar (FLAGS.EDITOR_V2): the same selection state
+         and the same write paths as InlineTextToolbar above, presented through
+         the shared ElementToolbar family so poster text slots and free text
+         overlays speak the exact visual language map elements adopted in
+         MapSelectionOverlay. Editor-only chrome — never on /render pages. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
+      :kind-label="activeToolbarState.label"
+      :anchor-rect="activeTextAnchor"
+      :estimated-height="190"
+      :allow-mobile-pin="true"
+      data-testid="poster-element-toolbar"
+      @close="finishActiveTextEdit"
+    >
+      <ElementTextControls
+        :text-value="activeToolbarState.textValue"
+        :font-family="activeToolbarState.fontFamily"
+        :color="activeToolbarState.color"
+        :background-color="activeToolbarState.backgroundColor"
+        :supports-highlight="activeToolbarState.supportsHighlight"
+        :font-size-pt="activeToolbarState.fontSizePt"
+        :align="activeToolbarState.align"
+        :opacity="activeToolbarState.opacity"
+        :bold="activeToolbarState.bold"
+        :italic="activeToolbarState.italic"
+        :can-reset="activeToolbarState.canReset"
+        :can-delete="activeTextTarget?.type === 'overlay'"
+        @patch="applyToolbarPatch"
+        @reset="resetActiveText"
+        @delete="deleteActiveText"
+        @done="finishActiveTextEdit"
+      />
+    </ElementToolbar>
 
     <div
       v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
@@ -335,7 +369,7 @@
 
     <ClientOnly>
       <Moveable
-        v-if="posterElementsEditing && posterMoveableTarget && selectedPosterElementCanTransform"
+        v-if="(posterElementsEditing || unifiedPosterGrammar) && posterMoveableTarget && selectedPosterElementCanTransform"
         class-name="poster-element-moveable"
         :target="posterMoveableTarget"
         :draggable="selectedPosterElementDraggable"
@@ -2078,7 +2112,9 @@
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
           >{{ overlay.content }}</span>
-          <template v-if="editable && !posterElementsEditing">
+          <!-- Unified grammar (FLAGS.EDITOR_V2): Moveable + ElementToolbar own
+               move/resize/delete, so the bespoke handles stay legacy-only. -->
+          <template v-if="editable && !posterElementsEditing && !unifiedPosterGrammar">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -2150,6 +2186,10 @@ import type { PrintFraming } from '~/utils/print/printFraming'
 import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
+import ElementToolbar from '~/components/map/ElementToolbar.vue'
+import ElementTextControls from '~/components/map/ElementTextControls.vue'
+import { useElementSelection } from '~/composables/useElementSelection'
+import { FLAGS } from '~/utils/knownFlags'
 import Moveable from 'vue3-moveable'
 
 interface PrintContext {
@@ -2573,6 +2613,87 @@ const tier2PosterEditor = computed(() =>
 const freeOverlayEditorBlocked = computed(() =>
   guidedPosterEditor.value && !tier2PosterEditor.value,
 )
+
+// ── Unified element grammar — poster domain (editor-v2 D1, FLAGS.EDITOR_V2) ──
+// docs/EDITOR_UX_NORTH_STAR.md gesture 1: poster text slots and free text
+// overlays select the same way map elements do — Moveable handles plus the
+// ElementToolbar family — replacing the separate InlineTextToolbar path.
+// Under the hood nothing changes: slots stay data-bound and auto-fitting
+// (poster-text-override writes), overlays stay free anchors (overlay-updated /
+// poster-element-patched writes). Flag-off every gate below is false, so the
+// legacy paths render byte-identically.
+const editorV2FlagEnabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const unifiedPosterGrammar = computed(() =>
+  props.editable === true && !isPrintRender.value && editorV2FlagEnabled.value,
+)
+
+// One selection across all editor domains: poster claims here evict map
+// selections (useMapElementSelection) and vice versa. Keys match the
+// poster-element id grammar so MapEditorSurface's Moveable-state claim for the
+// same element is idempotent, never an eviction.
+const elementSelectionArbiter = useElementSelection()
+
+function posterSelectionKey(target: ActiveTextTarget): string {
+  return target.type === 'slot' ? `slot:${target.slot}` : `text:${target.id}`
+}
+
+watch(activeTextTarget, (target, previous) => {
+  if (!unifiedPosterGrammar.value) return
+  if (target) elementSelectionArbiter.claim('poster', posterSelectionKey(target))
+  else if (previous) elementSelectionArbiter.release('poster', posterSelectionKey(previous))
+})
+
+elementSelectionArbiter.onEvicted('poster', () => {
+  if (!unifiedPosterGrammar.value || !activeTextTarget.value) return
+  // Commit any in-flight inline edit (blur fires the slot/overlay text write)
+  // before the selection visuals leave.
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+})
+
+// Click = select, click-again = inline text edit. Canceling pointerdown on a
+// not-yet-selected text element suppresses focus/caret (and therefore
+// contenteditable editing) while the click handlers still run and select it;
+// once the element holds the selection, the next press lands normally and
+// enters the existing contenteditable edit mechanics. Double-click therefore
+// reads as "select, then edit" — the Canva grammar — without touching any of
+// the slot/overlay markup.
+function onUnifiedPosterPointerDownCapture(e: PointerEvent) {
+  if (!unifiedPosterGrammar.value) return
+  if (!(e.target instanceof HTMLElement)) return
+  const editableText = e.target.closest<HTMLElement>('[contenteditable="true"]')
+  if (!editableText) return
+  // Chrome-grid blocks (guided/template editor surfaces) select through
+  // selectChromeCellFromInteraction, not activeTextTarget — suppressing their
+  // focus would lock them out of editing. The guard covers classic band slots
+  // and free text overlays only.
+  if (editableText.dataset.chromeBlockId) return
+  const host = editableText.closest<HTMLElement>('[data-poster-element-id]')
+  const elementId = host?.dataset.posterElementId
+  if (!elementId) return
+  const activeKey = activeTextTarget.value ? posterSelectionKey(activeTextTarget.value) : null
+  if (elementId === activeKey) return
+  e.preventDefault()
+}
+
+onMounted(() => {
+  posterCanvasEl.value?.addEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+})
+
+onUnmounted(() => {
+  posterCanvasEl.value?.removeEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+})
+
+// Toolbar delete (text overlays only — slots are data-bound theme content;
+// their gesture is Reset, not Delete). Same write path as the legacy
+// overlay-delete-btn.
+function deleteActiveText() {
+  const target = activeTextTarget.value
+  if (!target || target.type !== 'overlay') return
+  onOverlayDelete(target.id)
+  finishActiveTextEdit()
+}
 const chromeStructureEditing = computed(() =>
   chromeDirectEditing.value && !guidedPosterEditor.value,
 )
@@ -3908,7 +4029,7 @@ function slotEditable(slot: PosterTextSlot) {
 }
 
 function slotEditorElementId(slot: PosterTextSlot) {
-  return posterElementsEditing.value && slotEditable(slot) ? `slot:${slot}` : undefined
+  return (posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot) ? `slot:${slot}` : undefined
 }
 
 function isSlotActive(slot: PosterTextSlot) {
@@ -3963,7 +4084,7 @@ function defaultSlotText(slot: PosterTextSlot) {
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
   const el = e.currentTarget as HTMLElement
   selectTextTarget({ type: 'slot', slot }, el)
-  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
+  if ((posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -3975,7 +4096,7 @@ function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
 
 function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
   selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
-  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
+  if ((posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -3997,7 +4118,7 @@ function onOverlayTextFocus(e: FocusEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextPointerDown(e: PointerEvent, id: string) {
@@ -4006,7 +4127,7 @@ function onOverlayTextPointerDown(e: PointerEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextClick(e: MouseEvent, id: string) {
@@ -4015,7 +4136,7 @@ function onOverlayTextClick(e: MouseEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextBlur(e: FocusEvent, id: string) {
@@ -4191,7 +4312,7 @@ function posterGuidePixels(axis: 'x' | 'y') {
 }
 
 function syncPosterMoveableTarget() {
-  if (!posterElementsEditing.value || !props.selectedPosterElementId || !posterCanvasEl.value) {
+  if ((!posterElementsEditing.value && !unifiedPosterGrammar.value) || !props.selectedPosterElementId || !posterCanvasEl.value) {
     posterMoveableTarget.value = null
     moveableResizePreview.value = null
     moveableTextResizePreview.value = null
