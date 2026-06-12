@@ -40,6 +40,7 @@
     >
       <ElementTextControls
         :text-value="activeToolbarState.textValue"
+        :text-readonly="activeToolbarState.textReadonly"
         :font-family="activeToolbarState.fontFamily"
         :color="activeToolbarState.color"
         :background-color="activeToolbarState.backgroundColor"
@@ -55,6 +56,31 @@
         @reset="resetActiveText"
         @delete="deleteActiveText"
         @done="finishActiveTextEdit"
+      />
+    </ElementToolbar>
+
+    <!-- EDITOR-V2 D3: icon + image elements join the unified grammar — the
+         same ElementToolbar shell with object-domain controls. Move/resize/
+         rotate stay with the existing Moveable; patches/removes ride the
+         existing poster-element write paths. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && selectedObjectElement"
+      :kind-label="selectedObjectElement.type === 'icon' ? 'Icon' : (selectedObjectElement.item.kind === 'logo' ? 'Logo' : 'Image')"
+      :anchor-rect="objectToolbarAnchor"
+      :estimated-height="150"
+      :allow-mobile-pin="true"
+      data-testid="poster-object-toolbar"
+      @close="closeObjectToolbar"
+    >
+      <ElementObjectControls
+        :kind="selectedObjectElement.type"
+        :opacity="selectedObjectElement.item.opacity ?? 1"
+        :color="selectedObjectElement.type === 'icon' ? selectedObjectElement.item.color : undefined"
+        :icon="selectedObjectElement.type === 'icon' ? selectedObjectElement.item.icon : undefined"
+        :allow-bleed="selectedObjectElement.type === 'asset' ? selectedObjectElement.item.allow_bleed === true : undefined"
+        @patch="applyObjectToolbarPatch"
+        @delete="deleteObjectElement"
+        @done="closeObjectToolbar"
       />
     </ElementToolbar>
 
@@ -2142,10 +2168,10 @@
         >
           <span
             class="overlay-content editable-text"
-            :contenteditable="editable && !freeOverlayEditorBlocked ? 'true' : 'false'"
+            :contenteditable="editable && !freeOverlayEditorBlocked && !overlay.data_binding ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
-            aria-label="Text overlay"
+            :aria-label="overlay.data_binding ? 'Stat overlay' : 'Text overlay'"
             enterkeyhint="done"
             spellcheck="true"
             @focus="onOverlayTextFocus($event, overlay.id)"
@@ -2153,7 +2179,7 @@
             @pointerdown.stop="onOverlayTextPointerDown($event, overlay.id)"
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
-          >{{ overlay.content }}</span>
+          >{{ overlayDisplayContent(overlay) }}</span>
           <!-- Unified grammar (FLAGS.EDITOR_V2): Moveable + ElementToolbar own
                move/resize/delete, so the bespoke handles stay legacy-only. -->
           <template v-if="editable && !posterElementsEditing && !unifiedPosterGrammar">
@@ -2189,6 +2215,20 @@
         </div>
       </div>
 
+      <!-- ── + Add menu (editor-v2 D3, FLAGS.EDITOR_V2) ──────────────────────
+           EDITOR-ONLY CHROME, same rule as the band dividers: mounts only
+           under the unified grammar, never on /render pages, never prints.
+           New elements drop centered over the map area, selected, with their
+           contextual toolbar open. -->
+      <PosterAddMenu
+        v-if="unifiedPosterGrammar && !chromeGridRendering"
+        :stat-options="addMenuStatOptions"
+        @add-text="onAddMenuText"
+        @add-stat="onAddMenuStat"
+        @add-icon="onAddMenuIcon"
+        @add-image="onAddMenuImage"
+      />
+
     </div>
   </div>
 </template>
@@ -2216,13 +2256,13 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterIconId, PosterStatBinding, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
 import { firstPosterTextWithoutTitle, formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion, resolveOccasionLocationNote, resolveRisoCaptionText } from '~/utils/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
-import { resolveFreeOverlayBox } from '~/utils/posterEditorElements'
+import { availablePosterStatBindings, formatPosterStatBinding, resolveFreeOverlayBox } from '~/utils/posterEditorElements'
 import { fitTextToBox } from '~/utils/textFit'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
@@ -2231,6 +2271,8 @@ import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
 import ElementToolbar from '~/components/map/ElementToolbar.vue'
 import ElementTextControls from '~/components/map/ElementTextControls.vue'
+import ElementObjectControls from '~/components/map/ElementObjectControls.vue'
+import PosterAddMenu from '~/components/map/PosterAddMenu.vue'
 import { useElementSelection } from '~/composables/useElementSelection'
 import { FLAGS } from '~/utils/knownFlags'
 import Moveable from 'vue3-moveable'
@@ -2341,6 +2383,13 @@ const emit = defineEmits<{
   'text-target-selected': []
   'undo': []
   'redo': []
+  /** Editor-v2 D3 + Add menu (north-star gesture 4). x/y are % of the poster canvas at the map-area center. */
+  'poster-add-text': [payload: { x: number; y: number }]
+  'poster-add-stat': [payload: { binding: PosterStatBinding; x: number; y: number }]
+  'poster-add-icon': [payload: { icon: PosterIconId; x: number; y: number }]
+  'poster-add-image': [payload: { file: File }]
+  /** Unified-grammar delete for icon/image elements (D3) — same write path as the StylePanel remove. */
+  'poster-element-remove': [id: string]
 }>()
 
 const config = useRuntimeConfig()
@@ -2801,6 +2850,31 @@ onUnmounted(() => {
 function clearBandDividerHover() {
   hoveredBandDividerEdge.value = null
 }
+
+// Editor-v2 D3: a newly added (or externally selected) text overlay opens its
+// contextual toolbar immediately — "drops centered, selected, toolbar open".
+// Idempotent with click-selection: both paths land in selectTextTarget.
+// Selecting an OBJECT element (icon/image) is an intra-poster transition the
+// arbiter deliberately doesn't referee — it ends any text editing here so the
+// object toolbar can take the v-else-if chain.
+watch(() => props.selectedPosterElementId, (id) => {
+  if (!unifiedPosterGrammar.value) return
+  if (id?.startsWith('text:')) {
+    const rawId = id.slice('text:'.length)
+    if (activeTextTarget.value?.type === 'overlay' && activeTextTarget.value.id === rawId) return
+    nextTick(() => {
+      const selector = rawId.replace(/"/g, '\\"')
+      const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${selector}"] .overlay-content`)
+      if (el) selectTextTarget({ type: 'overlay', id: rawId }, el)
+    })
+    return
+  }
+  if ((id?.startsWith('icon:') || id?.startsWith('asset:')) && activeTextTarget.value) {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    activeTextTarget.value = null
+    activeTextAnchor.value = null
+  }
+})
 
 // Toolbar delete (text overlays only — slots are data-bound theme content;
 // their gesture is Reset, not Delete). Same write path as the legacy
@@ -4612,6 +4686,78 @@ function syncPosterMoveableTarget() {
   posterMoveableTarget.value = posterCanvasEl.value.querySelector<HTMLElement>(`[data-poster-element-id="${selectorId}"]`)
 }
 
+// ── + Add menu (editor-v2 D3, north-star gesture 4) ─────────────────────────
+// Editor-only chrome, mounted under the unified grammar like the band
+// dividers — never on /render pages. The Stat options derive from the SAME
+// ThemeDataContext the footer stats consume, so values without real data are
+// not offered (no fabricated stats by construction).
+const addMenuDistanceUnit = computed<'mi' | 'km'>(() =>
+  props.styleConfig.composition_footer_distance_unit === 'km' ? 'km' : 'mi')
+const addMenuStatOptions = computed(() => unifiedPosterGrammar.value
+  ? availablePosterStatBindings(themeDataContext.value, { distanceUnit: addMenuDistanceUnit.value })
+  : [])
+
+/** Map-area center as % of the poster canvas — the + menu's drop point. */
+function mapCenterPosterPercent(): { x: number; y: number } {
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  const map = mapContainer.value?.getBoundingClientRect()
+  if (!canvas || !map || !canvas.width || !canvas.height) return { x: 50, y: 50 }
+  return {
+    x: Math.round(((map.left + map.width / 2 - canvas.left) / canvas.width) * 1000) / 10,
+    y: Math.round(((map.top + map.height / 2 - canvas.top) / canvas.height) * 1000) / 10,
+  }
+}
+
+function onAddMenuText() { emit('poster-add-text', mapCenterPosterPercent()) }
+function onAddMenuStat(binding: PosterStatBinding) { emit('poster-add-stat', { binding, ...mapCenterPosterPercent() }) }
+function onAddMenuIcon(icon: PosterIconId) { emit('poster-add-icon', { icon, ...mapCenterPosterPercent() }) }
+function onAddMenuImage(file: File) { emit('poster-add-image', { file }) }
+
+// Data-bound stat overlays render their LIVE derived value (same formatters
+// as the footer band) with the stored content as fallback. Not flag-gated:
+// the binding field only exists on overlays created through the flag-gated
+// + menu, so legacy maps render byte-identically through the content path.
+function overlayDisplayContent(overlay: TextOverlay): string {
+  if (!overlay.data_binding) return overlay.content
+  return formatPosterStatBinding(overlay.data_binding, themeDataContext.value, { distanceUnit: addMenuDistanceUnit.value }) || overlay.content
+}
+
+// ── Object toolbar (editor-v2 D3): icon + image elements join the unified
+// grammar. Selection/Moveable plumbing is the pre-existing poster-element
+// path; this adds the missing ElementToolbar presentation for non-text kinds.
+const selectedObjectElement = computed(() => {
+  if (!unifiedPosterGrammar.value) return null
+  const selected = selectedPosterElement()
+  if (!selected || (selected.type !== 'icon' && selected.type !== 'asset')) return null
+  return selected
+})
+const objectToolbarAnchor = ref<DOMRect | null>(null)
+
+function syncObjectToolbarAnchor() {
+  objectToolbarAnchor.value = selectedObjectElement.value
+    ? posterMoveableTarget.value?.getBoundingClientRect() ?? null
+    : null
+}
+// The anchor-sync watch registers below `isPrintRender`'s definition — watch
+// sources evaluate eagerly at setup and selectedObjectElement reaches
+// isPrintRender through unifiedPosterGrammar (TDZ otherwise).
+
+function applyObjectToolbarPatch(patch: PosterEditorElementPatch) {
+  const selected = selectedObjectElement.value
+  if (!selected) return
+  emit('poster-element-patched', { id: selected.id, patch })
+}
+
+function deleteObjectElement() {
+  const selected = selectedObjectElement.value
+  if (!selected) return
+  emit('poster-element-remove', selected.id)
+}
+
+function closeObjectToolbar() {
+  emit('poster-element-selected', null)
+}
+
 function scheduleDeselect() {
   if (deselectTimer) clearTimeout(deselectTimer)
   deselectTimer = setTimeout(() => {
@@ -4780,6 +4926,7 @@ function onPosterMoveableDragEnd(event: unknown) {
     x: roundedPercent(parseFloat(payload.target.style.left) || 0),
     y: roundedPercent(parseFloat(payload.target.style.top) || 0),
   })
+  nextTick(syncObjectToolbarAnchor)
 }
 
 function onPosterMoveableResizeStart() {
@@ -4866,6 +5013,7 @@ function onPosterMoveableResizeEnd(event: unknown) {
   moveableResizePreview.value = null
   moveableTextResizePreview.value = null
   moveableSlotResizePreview.value = null
+  nextTick(syncObjectToolbarAnchor)
 }
 
 function moveableRotation(event: unknown): number {
@@ -5119,6 +5267,10 @@ watch(
   () => { nextTick(resolveRenderedDividerBands) },
   { flush: 'post' },
 )
+
+// D3 object-toolbar anchor sync (registered here, after isPrintRender — see
+// the note beside syncObjectToolbarAnchor).
+watch([selectedObjectElement, posterMoveableTarget], () => { nextTick(syncObjectToolbarAnchor) })
 const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
 const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
 const showCartoucheHills = computed(() => composition.value.id === 'place-frame')
@@ -6794,9 +6946,13 @@ const activeToolbarState = computed(() => {
   if (target.type === 'overlay') {
     const overlay = props.styleConfig.text_overlays?.find(o => o.id === target.id)
     if (!overlay) return null
+    const isStat = Boolean(overlay.data_binding)
     return {
-      label: 'Text overlay',
-      textValue: overlay.content,
+      label: isStat ? 'Stat' : 'Text overlay',
+      textValue: isStat ? overlayDisplayContent(overlay) : overlay.content,
+      // Stat overlays are data-bound: their text derives from map data, so
+      // the toolbar shows the live value read-only (styling stays editable).
+      textReadonly: isStat,
       fontFamily: overlay.font_family,
       color: overlay.color,
       backgroundColor: overlay.bg_color || '',
@@ -6835,6 +6991,7 @@ const activeToolbarState = computed(() => {
 
   return {
     label: SLOT_LABELS[slot],
+    textReadonly: false,
     textValue: textWithOverride(slot, defaultSlotText(slot)),
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
@@ -10332,7 +10489,7 @@ function getMapInstance(): maplibregl.Map | null {
   return mapInstance
 }
 
-defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint, getMapInstance })
+defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint, getMapInstance, mapCenterPosterPercent })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(

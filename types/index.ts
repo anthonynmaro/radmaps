@@ -404,9 +404,20 @@ export interface PartialPosterLayout {
 
 export type TextOverlayAlignment = 'left' | 'center' | 'right'
 
+/**
+ * Data-bound stat overlays (editor-v2 D3 + menu). A binding means the
+ * overlay's display text derives from the live theme data context (same
+ * source as footer stats) so editor and print agree by construction; the
+ * stored `content` is the last formatted value, kept as a render fallback.
+ * Per the theme data contract, only stats with REAL data are insertable —
+ * fabricated values never get a binding.
+ */
+export type PosterStatBinding = 'distance' | 'elevation_gain' | 'date' | 'coordinates'
+
 export interface TextOverlay {
   id: string
   content: string
+  data_binding?: PosterStatBinding // present = stat chip; content derives from map data
   x: number                       // 0–100, % from left of map container
   y: number                       // 0–100, % from top of map container
   font_size: number               // in cqh units (0.5–6)

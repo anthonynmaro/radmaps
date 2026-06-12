@@ -138,6 +138,11 @@
             @asset-resized="onAssetResized"
             @poster-element-selected="onPosterElementSelected"
             @poster-element-patched="onPosterElementPatch"
+            @poster-element-remove="onPosterElementRemove"
+            @poster-add-text="onPosterAddText"
+            @poster-add-stat="onPosterAddStat"
+            @poster-add-icon="onPosterAddIconCentered"
+            @poster-add-image="onPosterAddImage"
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
@@ -310,6 +315,7 @@ import type {
   MapAssetKind,
   PartialPosterLayout,
   PosterIconId,
+  PosterStatBinding,
   PosterTextOverride,
   PosterTextSlot,
   StyleConfig,
@@ -321,6 +327,8 @@ import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import { FLAGS } from '~/utils/knownFlags'
 import {
   addPosterEditorIcon,
+  addPosterEditorIconCentered,
+  addPosterEditorStat,
   addPosterEditorText,
   duplicatePosterEditorElement,
   patchPosterEditorElement,
@@ -328,6 +336,7 @@ import {
   syncPosterOverlayAnchors,
   type PosterEditorElementPatch,
 } from '~/utils/posterEditorElements'
+import { buildThemeDataContext } from '~/utils/themeDataContract'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
 import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
 import { getThemeDefinition } from '~/utils/themes/refined'
@@ -367,6 +376,7 @@ type MapPreviewHandle = {
   finishSegmentDraw: () => void
   undoSegmentDrawPoint: () => boolean
   getMapInstance: () => import('maplibre-gl').Map | null
+  mapCenterPosterPercent: () => { x: number; y: number }
 }
 
 type TrackUploadResponse = {
@@ -1269,6 +1279,65 @@ function onPosterIconAdd(icon: PosterIconId) {
   styleConfig.value = result.config
   onPosterElementSelected(result.id)
 }
+
+// ── + Add menu handlers (editor-v2 D3, north-star gesture 4) ────────────────
+// New elements drop centered over the map area (MapPreview sends the center
+// as % of the poster canvas), get selected, and their toolbar opens through
+// the selection watchers. All writes ride the existing element add paths.
+
+function onPosterAddText(payload: { x: number; y: number }) {
+  const result = addPosterEditorText(styleConfig.value, { x: payload.x, y: payload.y })
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterAddStat(payload: { binding: PosterStatBinding; x: number; y: number }) {
+  const context = buildThemeDataContext({ ...props.map, styleConfig: styleConfig.value })
+  const result = addPosterEditorStat(styleConfig.value, payload.binding, context, { x: payload.x, y: payload.y })
+  // null = the contract has no real data for this binding (the menu should
+  // not have offered it); nothing is inserted.
+  if (!result) return
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterAddIconCentered(payload: { icon: PosterIconId; x: number; y: number }) {
+  const result = addPosterEditorIconCentered(styleConfig.value, payload.icon, payload)
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+// Image adds ride the existing upload pipeline (server-side validation +
+// quality classification). The drop center is stashed; when the uploaded
+// asset lands in styleConfig, it is centered over the map and selected.
+const pendingImageAdd = ref<{ x: number; y: number; knownIds: Set<string>; expires: number } | null>(null)
+
+function onPosterAddImage(payload: { file: File }) {
+  const center = mapPreviewRef.value?.mapCenterPosterPercent?.() ?? { x: 50, y: 50 }
+  pendingImageAdd.value = {
+    ...center,
+    knownIds: new Set((styleConfig.value.image_overlays ?? []).map(asset => asset.id)),
+    expires: Date.now() + 60_000,
+  }
+  emit('image-upload', { file: payload.file, kind: 'image' })
+}
+
+watch(() => styleConfig.value.image_overlays, (assets) => {
+  const pending = pendingImageAdd.value
+  if (!pending || !assets?.length) return
+  if (Date.now() > pending.expires) {
+    pendingImageAdd.value = null
+    return
+  }
+  const added = assets.find(asset => asset.kind === 'image' && !pending.knownIds.has(asset.id))
+  if (!added) return
+  pendingImageAdd.value = null
+  styleConfig.value = patchPosterEditorElement(styleConfig.value, `asset:${added.id}`, {
+    x: Math.max(0, pending.x - added.width / 2),
+    y: Math.max(0, pending.y - added.height / 2),
+  })
+  onPosterElementSelected(`asset:${added.id}`)
+})
 
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
   const current = styleConfig.value.poster_text_overrides ?? {}

@@ -60,8 +60,13 @@ byte-identical legacy):
    selections (6d6b94b) in the same visual language, with Moveable handles on
    the poster side. Click = select, click-again/double-click = inline text
    edit; slots stay data-bound + auto-fitting, overlays stay free.
-   Remaining inside gesture 1: image assets and icon overlays still use their
-   legacy selection/drag grammar (joining with gesture 4); chrome-grid blocks
+   D3 update: image assets and icon overlays joined the grammar — clicking
+   them opens the same ElementToolbar shell with object-domain controls
+   (`ElementObjectControls.vue`: icon swap/color, opacity, allow-bleed for
+   images, delete) plus the existing Moveable handles; intra-poster
+   transitions between text and object selections are settled in MapPreview's
+   selectedPosterElementId watcher (the arbiter deliberately doesn't referee
+   intra-domain moves). Remaining inside gesture 1: chrome-grid blocks
    (guided/template surfaces) keep their own selection path; padding control
    is not yet in the unified toolbar.
 2. **Drag band dividers: LIVE** (D2, closed out June 12). The header/map and
@@ -94,8 +99,19 @@ byte-identical legacy):
 3. **Drag free elements over the map: PARTIAL (pre-existing)** — overlays drag
    via Moveable with snap guides under the poster-elements editor; not yet
    reconciled with the unified grammar's flag story.
-4. **One + button: NOT STARTED** (poster-elements editor has a flagged
-   text/icon add path in the StylePanel, not the on-canvas + menu).
+4. **One + button: LIVE** (D3). `PosterAddMenu.vue` floats at the poster's
+   bottom center (editor-only chrome, same mount rule as the dividers):
+   Text / Stat / Icon / Image. New elements drop centered over the map area,
+   selected, with their contextual toolbar open. The Stat picker is
+   data-bound through the theme data contract — options come from
+   `availablePosterStatBindings(ThemeDataContext)` (distance, gain, date,
+   coords) and values without real data are not offered, so fabricated stats
+   are not insertable by construction (`tests/poster-add-menu.test.ts`).
+   Stat chips serialize as text overlays plus a `data_binding` field; their
+   display text derives live from the same formatters the footer band uses
+   (editor == print by construction), inline editing is disabled on them and
+   the toolbar shows the value read-only. Image adds ride the existing asset
+   upload pipeline, then center + select when the asset lands.
 5. **Click empty band space → band properties: NOT STARTED.**
 
 Universals: per-element reset exists for text (toolbar "Reset to imported

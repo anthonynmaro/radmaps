@@ -13,10 +13,12 @@
       class="toolbar-text-input"
       type="text"
       :value="textValue"
+      :readonly="textReadonly === true"
+      :title="textReadonly === true ? 'Bound to map data — value updates automatically' : undefined"
       aria-label="Element text"
       data-testid="element-toolbar-text"
       enterkeyhint="done"
-      @input="emitPatch({ text: ($event.target as HTMLInputElement).value })"
+      @input="textReadonly !== true && emitPatch({ text: ($event.target as HTMLInputElement).value })"
       @keydown.enter.prevent="$emit('done')"
       @keydown.esc.stop="($event.target as HTMLInputElement).blur()"
     />
@@ -196,6 +198,8 @@ const ALIGN_OPTIONS: Array<{ value: ChromeBlockAlign; title: string }> = [
 
 const props = defineProps<{
   textValue: string
+  /** Data-bound elements (D3 stat chips): text derives from map data — show it, don't edit it. */
+  textReadonly?: boolean
   fontFamily: FontFamily
   color: string
   backgroundColor?: string
