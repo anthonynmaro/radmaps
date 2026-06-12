@@ -396,24 +396,11 @@
           >Upload logo</button>
         </V4Card>
 
+        <!-- Printed-grid controls live in ONE place: the Poster tab "Grid" card
+             (E6a dedup — this card's hint promises nothing here prints, and the
+             Poster tab is reachable without FLAGS.POSTER_ELEMENTS_EDITOR). -->
         <V4Card title="Guides" hint="Editing guides are never printed" :default-open="posterEditorMode === 'guides'">
           <ToggleRow label="Editing guides" :value="posterGuidesVisible ?? false" @change="emit('poster-guides-visible-change', $event)" />
-          <div v-if="sections.gridControls" class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
-            <ToggleRow label="Printed grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
-            <template v-if="local.show_grid">
-              <div class="grid grid-cols-2 gap-1.5 my-3">
-                <SegmentButton label="Poster" :active="(local.grid_scope ?? 'poster') === 'poster'" @click="set('grid_scope', 'poster')" />
-                <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
-              </div>
-              <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
-              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
-                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
-              <SliderRow label="Opacity" :value="local.grid_opacity ?? 0.2" :min="0.05" :max="1" :step="0.05"
-                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('grid_opacity', $event)" />
-              <SliderRow label="Weight" :value="local.grid_weight ?? 1" :min="0.5" :max="3" :step="0.25"
-                :display="(v: number) => v.toFixed(v % 1 === 0 ? 0 : 2) + 'px'" @change="set('grid_weight', $event)" />
-            </template>
-          </div>
         </V4Card>
 
         <V4Card v-if="!guidedPosterEditor" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
@@ -1382,6 +1369,8 @@
                 <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
               </div>
               <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
+              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
+                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
               <SliderRow
                 label="Opacity"
                 :value="local.grid_opacity ?? 0.2"
