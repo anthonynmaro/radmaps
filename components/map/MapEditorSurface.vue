@@ -503,10 +503,11 @@ const chromeDirectEdit = computed(() => {
   return chromeDirectEditFlag.value || (import.meta.dev && chromeQueryEnabled)
 })
 
-// ── Map-element selection mode (editor-v2 E3) ───────────────────────────────────
-// FreezeControl semantics reframed: frozen (the existing editor default) =
-// selection mode — clicks hit-test graph-selectable slots; unfrozen = camera
-// mode — clicks do nothing. Everything gated behind FLAGS.EDITOR_V2.
+// ── Map-element selection (editor-v2 E3, modeless since E6) ─────────────────────
+// Click = select, drag = pan — no freeze prerequisite. MapLibre suppresses
+// 'click' after a drag-pan natively, so selection coexists with camera moves
+// in any view state. Special gestures (plot/draw/edit/brush/split) still own
+// the map click while active. Everything gated behind FLAGS.EDITOR_V2.
 const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
 const mapSelectionEnabled = computed(() => editorV2Enabled.value && !fixedTemplateEditorActive.value)
 
@@ -515,8 +516,7 @@ function getEditorMapInstance() {
 }
 
 function mapSelectionModeActive() {
-  return Boolean(props.modelValue.map_frozen)
-    && !plotMode.value
+  return !plotMode.value
     && !segmentDrawMode.value
     && !segmentEditMode.value
     && !deleteBrushActive.value
@@ -529,6 +529,7 @@ const {
   clearSelection: clearMapElementSelection,
   selectSegment: selectMapSegment,
   attachToMap: attachMapSelection,
+  detachFromMap: detachMapSelection,
 } = useMapElementSelection({
   getMap: getEditorMapInstance,
   getStyleConfig: () => props.modelValue,
@@ -539,6 +540,15 @@ const {
 function onEditorMapReady() {
   attachMapSelection()
 }
+
+watch(mapSelectionEnabled, async (enabled) => {
+  if (!enabled) {
+    detachMapSelection()
+    return
+  }
+  await nextTick()
+  attachMapSelection()
+}, { immediate: true })
 
 // ── Segment toolbar (editor-v2 E4) ──────────────────────────────────────────────
 // The toolbar's controls persist exclusively through the same trail_segments
@@ -685,11 +695,8 @@ watch(activeTextTarget, (target) => {
 watch(selectedPosterElementId, (id) => {
   if (id) clearMapElementSelection()
 })
-// Leaving selection mode (camera mode, edit gestures) or switching preset
-// invalidates the selection.
-watch(() => props.modelValue.map_frozen, (frozen) => {
-  if (!frozen) clearMapElementSelection()
-})
+// Edit gestures or switching preset invalidate the selection. (Freeze state
+// no longer affects selection — it only locks the print framing.)
 watch(() => props.modelValue.preset, () => clearMapElementSelection())
 watch([plotMode, segmentDrawMode, segmentEditMode, deleteBrushActive], (modes) => {
   if (modes.some(Boolean)) clearMapElementSelection()

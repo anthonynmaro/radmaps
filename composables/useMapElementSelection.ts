@@ -1,7 +1,7 @@
-// Editor-v2 E3 map selection mode (docs/STYLE_SYSTEM_EVOLUTION.md "The model",
-// "Camera vs selection", "Domain 2"). Owns the single map-element selection:
-// frozen map = selection mode, clicks hit-test graph-selectable slots via
-// queryRenderedFeatures; unfrozen = camera mode, clicks do nothing.
+// Editor-v2 E3 map selection (docs/STYLE_SYSTEM_EVOLUTION.md "The model",
+// "Domain 2"; modeless since E6). Owns the single map-element selection:
+// click = select (hit-tests graph-selectable slots via queryRenderedFeatures),
+// drag = pan. MapLibre suppresses 'click' after drag, so no freeze gate needed.
 //
 // Everything here is editor-only chrome behind FLAGS.EDITOR_V2 — callers gate
 // via `enabled`. Nothing in this file may influence buildMapStyle output.

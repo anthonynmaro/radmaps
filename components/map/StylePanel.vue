@@ -678,8 +678,8 @@
           <!-- Editor-v2: frozen view doubles as map selection mode -->
           <p v-if="editorV2Enabled" class="text-[10px] leading-snug mt-2" style="color: #A8A29E;">
             {{ local.map_frozen
-              ? 'Selection mode — click map elements (route, segments, labels) to select them.'
-              : 'Camera mode — pan & zoom freely. Set the view to select map elements.' }}
+              ? 'View locked for print. Click map elements (route, segments, labels) to edit them.'
+              : 'Drag to pan, scroll to zoom. Click map elements (route, segments, labels) to edit them.' }}
           </p>
         </V4Card>
 
