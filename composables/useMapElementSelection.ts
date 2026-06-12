@@ -145,6 +145,12 @@ export function useMapElementSelection(options: {
   enabled: () => boolean
   /** Frozen map without an active draw/plot/brush mode = selection mode. */
   selectionModeActive: () => boolean
+  /**
+   * Editor-v2 D4 (north-star gesture 5): a click that hits NO selectable
+   * element is the map-style entry point — the caller opens the Advanced
+   * drawer. Fires only when enabled() and selection mode are active.
+   */
+  onEmptyClick?: () => void
 }) {
   const selection = shallowRef<MapElementSelection | null>(null)
   let attachedMap: MapLibreMap | null = null
@@ -217,8 +223,13 @@ export function useMapElementSelection(options: {
     if (!options.enabled() || !options.selectionModeActive()) return
     const map = options.getMap()
     if (!map) return
-    // Empty-map clicks return null → selection clears (spec).
-    selection.value = hitTest(map, e)
+    // Empty-map clicks return null → selection clears (spec). A click that
+    // had nothing to dismiss is the map-style entry point (D4 gesture 5) —
+    // dismiss first, enter the Advanced drawer second.
+    const hadSelection = Boolean(selection.value)
+    const hit = hitTest(map, e)
+    selection.value = hit
+    if (!hit && !hadSelection) options.onEmptyClick?.()
   }
 
   function attachToMap() {

@@ -170,7 +170,8 @@ describe('map-geometry invariant — source contract on MapPreview.vue', () => {
   const ALLOWED_BAND_HEIGHT_WRITERS = new Set([
     'flushBandDividerHeight', // editor-v2 D2 divider gesture (rAF-coalesced flush)
     'onChromeRowResizeMove', // pre-existing chrome row resize (band edge rows)
-    'onChromeBandResizeMove', // pre-existing chrome band resize handler
+    // onChromeBandResizeMove removed in the D4 dead-code sweep — the divider
+    // gesture is the only band-height drag now (chrome row resize remains).
   ])
 
   it('only the allowed gestures write poster_layout band heights', () => {

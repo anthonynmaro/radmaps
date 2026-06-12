@@ -208,18 +208,20 @@
       <span class="editor-resizer-grip" />
     </div>
 
-    <!-- Reopen tab when panel is collapsed (desktop only) -->
+    <!-- Reopen tab when panel is collapsed (desktop only). Editor-v2 D4: the
+         panel is the Advanced drawer, and this is its explicit entry point. -->
     <button
       v-if="panelCollapsed"
       type="button"
       class="hidden md:flex absolute top-4 right-4 z-30 items-center gap-1.5 rounded-full bg-white/90 backdrop-blur border border-stone-200 shadow-sm px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-white transition-colors cursor-pointer"
-      title="Show editor panel"
+      :title="editorV2Enabled ? 'Open the Advanced drawer (themes, map style, ordering)' : 'Show editor panel'"
+      data-testid="advanced-drawer-button"
       @click="panelCollapsed = false"
     >
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
         <path d="M12 5l-5 5 5 5"/>
       </svg>
-      Edit
+      {{ editorV2Enabled ? 'Advanced' : 'Edit' }}
     </button>
 
     <aside
@@ -241,6 +243,7 @@
     >
       <MapStylePanel
         v-if="map"
+        ref="stylePanelRef"
         v-model="styleConfig"
         :saving="saving"
         :has-route="!!map.geojson"
@@ -426,6 +429,8 @@ const PANEL_WIDTH_KEY = 'radmaps:panelWidth'
 const PANEL_COLLAPSED_KEY = 'radmaps:panelCollapsed'
 const panelWidth = ref(PANEL_DEFAULT_W)
 const panelCollapsed = ref(false)
+// (Editor-v2 D4 default-collapse lives below editorV2Enabled's definition —
+// watch sources evaluate eagerly at setup.)
 const isResizing = ref(false)
 
 function clampPanelWidth(w: number) {
@@ -527,6 +532,21 @@ const chromeDirectEdit = computed(() => {
 // in any view state. Special gestures (plot/draw/edit/brush/split) still own
 // the map click while active. Everything gated behind FLAGS.EDITOR_V2.
 const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+
+// Editor-v2 D4: the StylePanel stops being the front door — flag-on it starts
+// collapsed on desktop (the poster is the interface; the panel is the
+// Advanced drawer, reached via empty map-space click or the Advanced button).
+// Mobile keeps the bottom sheet exactly as before. One-shot immediate watch
+// rather than onMounted: the flag state may resolve just after mount.
+const panelAutoCollapsed = ref(false)
+watch(() => editorV2Enabled.value, (on) => {
+  if (!on || panelAutoCollapsed.value || typeof window === 'undefined') return
+  panelAutoCollapsed.value = true
+  // A stored preference (the user explicitly opened/closed the drawer
+  // before) always wins over the flag-on default.
+  try { if (localStorage.getItem(PANEL_COLLAPSED_KEY) != null) return } catch { /* ignore */ }
+  if (window.innerWidth >= 768) panelCollapsed.value = true
+}, { immediate: true })
 const mapSelectionEnabled = computed(() => editorV2Enabled.value && !fixedTemplateEditorActive.value)
 
 function getEditorMapInstance() {
@@ -553,10 +573,33 @@ const {
   getStyleConfig: () => props.modelValue,
   enabled: () => mapSelectionEnabled.value,
   selectionModeActive: mapSelectionModeActive,
+  // D4 gesture 5: empty map space is the map-style entry point. Dismiss-first
+  // applies across domains — with a poster selection active the click only
+  // deselects; a truly idle click opens the Advanced drawer.
+  onEmptyClick: () => {
+    if (selectedPosterElementId.value || activeTextTarget.value) {
+      onPosterElementSelected(null)
+      return
+    }
+    openAdvancedDrawer()
+  },
 })
 
 function onEditorMapReady() {
   attachMapSelection()
+}
+
+// ── Advanced drawer (editor-v2 D4) ───────────────────────────────────────────
+// The StylePanel stops being the front door: empty map-space clicks (and the
+// explicit Advanced affordance) open it scoped to the map-style tab.
+const stylePanelRef = ref<{ openTab: (tab: 'quick' | 'map' | 'style' | 'text') => void } | null>(null)
+
+function openAdvancedDrawer(tab: 'quick' | 'map' | 'style' | 'text' = 'map') {
+  panelCollapsed.value = false
+  if (typeof window !== 'undefined' && window.innerWidth < 768 && sheetState.value === 'closed') {
+    sheetState.value = 'half'
+  }
+  nextTick(() => stylePanelRef.value?.openTab(tab))
 }
 
 watch(mapSelectionEnabled, async (enabled) => {
@@ -785,7 +828,12 @@ onMounted(() => {
   try {
     const savedWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY))
     if (Number.isFinite(savedWidth) && savedWidth > 0) panelWidth.value = clampPanelWidth(savedWidth)
-    panelCollapsed.value = localStorage.getItem(PANEL_COLLAPSED_KEY) === '1'
+    // Editor-v2 D4: with no saved preference the flag-on default is COLLAPSED
+    // (the poster is the interface; the panel is the Advanced drawer). An
+    // explicit user choice, once stored, is always respected.
+    const savedCollapsed = localStorage.getItem(PANEL_COLLAPSED_KEY)
+    if (savedCollapsed != null) panelCollapsed.value = savedCollapsed === '1'
+    else if (panelAutoCollapsed.value) panelCollapsed.value = window.innerWidth >= 768
   } catch { /* ignore */ }
 })
 

@@ -340,7 +340,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Title & text" hint="The wording on your poster" :default-open="true">
+        <V4Card v-if="!editorV2Enabled" title="Title & text" hint="The wording on your poster" :default-open="true">
           <TextRow label="Title" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
           <SliderRow label="Title size" :value="local.title_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('title_scale', $event)" />
@@ -360,7 +360,7 @@
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
         </V4Card>
 
-        <V4Card title="Poster colors" hint="Set by your theme · tap to override" :default-open="false">
+        <V4Card v-if="!editorV2Enabled" title="Poster colors" hint="Set by your theme · tap to override" :default-open="false">
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
@@ -403,7 +403,7 @@
           <ToggleRow label="Editing guides" :value="posterGuidesVisible ?? false" @change="emit('poster-guides-visible-change', $event)" />
         </V4Card>
 
-        <V4Card v-if="!guidedPosterEditor" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
+        <V4Card v-if="!guidedPosterEditor && !editorV2Enabled" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
           <div class="grid grid-cols-3 gap-1.5">
             <button
               v-for="icon in POSTER_ICONS"
@@ -436,7 +436,7 @@
           </div>
         </V4Card>
 
-        <V4Card v-if="activePosterElement" title="Selection" :default-open="true">
+        <V4Card v-if="activePosterElement && !editorV2Enabled" title="Selection" :default-open="true">
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-2">
               <div class="min-w-0">
@@ -646,7 +646,9 @@
           </div>
         </V4Card>
 
-        <V4Card title="Viewpoint" :default-open="true">
+        <!-- Editor-v2 D4: replaced flag-on by the on-canvas viewpoint pill
+             (the buried "Set view" card was the E3 finding). -->
+        <V4Card v-if="!editorV2Enabled" title="Viewpoint" :default-open="true">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-semibold" :style="local.map_frozen ? 'color: #1F4D38;' : 'color: #78716C;'">
               {{ local.map_frozen ? `Locked at Z${local.map_zoom?.toFixed(1) ?? '—'}` : 'Editable view' }}
@@ -1594,7 +1596,7 @@
           <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
-        <V4Card v-if="freeOverlayToolsAvailable" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
+        <V4Card v-if="freeOverlayToolsAvailable && !editorV2Enabled" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
             <div
               v-for="overlay in (local.text_overlays ?? [])"
@@ -3362,6 +3364,14 @@ function applyMapPreset(p: MapPresetOption) {
   Object.assign(local, { preset: p.id, ...atlasDefaults, ...(p.defaults ?? {}) })
   emit('update:modelValue', { ...local })
 }
+
+// Editor-v2 D4: the Advanced-drawer entry points (empty map-space click, the
+// on-canvas Advanced button) land on a specific tab from outside.
+function openTab(tab: TabId) {
+  activeTab.value = tab
+}
+
+defineExpose({ openTab })
 </script>
 
 <!-- ─── Sub-components ─────────────────────────────────────────────────────── -->

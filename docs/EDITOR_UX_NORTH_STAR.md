@@ -112,10 +112,44 @@ byte-identical legacy):
    (editor == print by construction), inline editing is disabled on them and
    the toolbar shows the value read-only. Image adds ride the existing asset
    upload pipeline, then center + select when the asset lands.
-5. **Click empty band space → band properties: NOT STARTED.**
+5. **Click empty band space → band properties: LIVE** (D4). Empty band space
+   selects the band through the same poster-element id grammar
+   (`band:header`/`band:footer` — arbiter claims, mutual eviction and
+   intra-poster transitions all reuse the existing plumbing); the
+   ElementToolbar shell presents `ElementBandControls.vue` (background color,
+   vertical/horizontal padding nudges seeded from the rendered padding,
+   per-band reset-to-template). Writes ride the existing poster_layout band
+   paths (updateChromeBand/resetChromeBand). Band background overrides emit
+   `!important` flag-on, mirroring the D2 height pin-yield — themes like
+   editorial-minimal pin band backgrounds with `!important` rules that would
+   silently defeat the recolor gesture. Clicking empty MAP space (no
+   selectable element hit, nothing to dismiss) opens the Advanced drawer on
+   the Map tab — the StylePanel's new role.
+   Panel demotion (D4): flag-on the panel starts collapsed on desktop (an
+   explicit stored preference wins), the reopen affordance reads "Advanced",
+   and the toolbar-owned poster-chrome cards (Title & text, Poster colors,
+   Icons, Selection, Text overlays, Viewpoint) no longer render flag-on.
+   Mobile keeps the bottom sheet. The buried Viewpoint card became an
+   on-canvas pill on the map area (lock framing / re-center, editor-only).
+   Dead code swept: FreezeControl.vue deleted; the superseded
+   _startChromeBandResize chain removed (the divider gesture is the only
+   band-height drag besides chrome row resize, test-pinned).
 
 Universals: per-element reset exists for text (toolbar "Reset to imported
-text" / reset-to-theme via E1); whole-poster reset-to-template not built.
+text" / reset-to-theme via E1) and per-band reset-to-template (D4);
+whole-poster reset-to-template not built.
+
+ACCEPTANCE: the §Acceptance demo runs as a Playwright spec —
+`tests/style-browser/editor-v2-acceptance.spec.ts` on
+/style-browser-fixture?surface=1 (editorial-minimal, real route geometry,
+deterministic `?flags=` override): title recolor from the floating toolbar,
+divider drag with live refit and no mis-selection, image dragged over the
+map, data-bound elevation-gain stat chip added centered/selected/read-only,
+band recolored from an empty-space click, per-band reset — with the side
+panel closed throughout. Plus: empty-map-click opens the Advanced drawer,
+the viewpoint pill locks/unlocks framing, and flag-off mounts none of the
+editor-v2 chrome. ("Order a proof" stays with the golden/render-hash CI
+gates — not executable headless.)
 
 ## Acceptance (the demo)
 

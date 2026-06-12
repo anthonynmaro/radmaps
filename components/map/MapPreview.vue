@@ -84,6 +84,28 @@
       />
     </ElementToolbar>
 
+    <!-- EDITOR-V2 D4: click empty band space → band properties (gesture 5).
+         Same ElementToolbar shell; writes ride the existing poster_layout
+         band paths. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && selectedBandToolbar"
+      :kind-label="selectedBandToolbar.band === 'header' ? 'Header band' : 'Footer band'"
+      :anchor-rect="selectedBandToolbar.anchor"
+      :estimated-height="140"
+      :allow-mobile-pin="true"
+      data-testid="poster-band-toolbar"
+      @close="closeBandToolbar"
+    >
+      <ElementBandControls
+        :background="selectedBandToolbar.background"
+        :can-reset="selectedBandHasOverrides"
+        @patch="applyBandBackground"
+        @nudge-padding="nudgeBandPadding"
+        @reset="resetSelectedBand"
+        @done="closeBandToolbar"
+      />
+    </ElementToolbar>
+
     <div
       v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
       ref="chromeToolbarEl"
@@ -680,6 +702,7 @@
         data-testid="poster-header"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
         @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        @click="onBandSpaceClick($event, 'header')"
       >
         <div
           v-if="chromeAffordancesVisible"
@@ -1591,6 +1614,39 @@
         >
           <span class="band-divider-pill" />
         </div>
+
+        <!-- ── Viewpoint affordance (editor-v2 D4) ───────────────────────────
+             EDITOR-ONLY CHROME replacing the buried StylePanel "Viewpoint"
+             card flag-on (the E3 finding). Lock = print-framing lock only
+             (modeless selection ignores it); Re-center refits the route. -->
+        <div
+          v-if="unifiedPosterGrammar && !chromeGridRendering"
+          class="viewpoint-pill"
+          data-testid="viewpoint-pill"
+          @pointerdown.stop
+          @click.stop
+        >
+          <button
+            class="viewpoint-btn"
+            :class="{ 'is-locked': styleConfig.map_frozen }"
+            :title="styleConfig.map_frozen ? 'Framing locked for print — click to unlock' : 'Lock this framing for print'"
+            data-testid="viewpoint-lock"
+            @click="styleConfig.map_frozen ? unfreezeView() : freezeView()"
+          >
+            <svg v-if="styleConfig.map_frozen" viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+            <svg v-else viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5a3 3 0 116 0v2.75a.75.75 0 001.5 0V5.5A4.5 4.5 0 0010 1z"/></svg>
+            {{ styleConfig.map_frozen ? 'Locked' : 'Lock framing' }}
+          </button>
+          <button
+            class="viewpoint-btn"
+            title="Re-center the map on your route"
+            data-testid="viewpoint-recenter"
+            @click="resetViewToRoute()"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm0-3.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" clip-rule="evenodd"/></svg>
+            Re-center
+          </button>
+        </div>
       </div>
 
       <!-- ── Elevation profile band ─────────────────────────────────────── -->
@@ -1634,6 +1690,7 @@
         data-testid="poster-footer"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
         @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        @click="onBandSpaceClick($event, 'footer')"
       >
         <div
           v-if="chromeAffordancesVisible"
@@ -2266,12 +2323,12 @@ import { availablePosterStatBindings, formatPosterStatBinding, resolveFreeOverla
 import { fitTextToBox } from '~/utils/textFit'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
-import FreezeControl from '~/components/map/FreezeControl.vue'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
 import ElementToolbar from '~/components/map/ElementToolbar.vue'
 import ElementTextControls from '~/components/map/ElementTextControls.vue'
 import ElementObjectControls from '~/components/map/ElementObjectControls.vue'
+import ElementBandControls from '~/components/map/ElementBandControls.vue'
 import PosterAddMenu from '~/components/map/PosterAddMenu.vue'
 import { useElementSelection } from '~/composables/useElementSelection'
 import { FLAGS } from '~/utils/knownFlags'
@@ -2659,12 +2716,6 @@ const chromePaddingSides = [
   { key: 'bottom', name: 'bottom', label: 'Bottom', index: 2 },
   { key: 'left', name: 'left', label: 'Left', index: 3 },
 ] as const
-const activeChromeBandResize = ref<{
-  band: Extract<ChromeBandId, 'header' | 'footer'>
-  startY: number
-  startHeight: number
-  posterHeight: number
-} | null>(null)
 const activeChromeColumnResize = ref<{
   band: ChromeBandId
   rowId: string
@@ -2859,6 +2910,12 @@ function clearBandDividerHover() {
 // object toolbar can take the v-else-if chain.
 watch(() => props.selectedPosterElementId, (id) => {
   if (!unifiedPosterGrammar.value) return
+  // Band toolbar state follows the id grammar (D4 gesture 5).
+  if (id === 'band:header' || id === 'band:footer') {
+    nextTick(() => resolveBandToolbar(id.slice('band:'.length) as 'header' | 'footer'))
+  } else if (selectedBandToolbar.value) {
+    selectedBandToolbar.value = null
+  }
   if (id?.startsWith('text:')) {
     const rawId = id.slice('text:'.length)
     if (activeTextTarget.value?.type === 'overlay' && activeTextTarget.value.id === rawId) return
@@ -2869,7 +2926,7 @@ watch(() => props.selectedPosterElementId, (id) => {
     })
     return
   }
-  if ((id?.startsWith('icon:') || id?.startsWith('asset:')) && activeTextTarget.value) {
+  if ((id?.startsWith('icon:') || id?.startsWith('asset:') || id?.startsWith('band:')) && activeTextTarget.value) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     activeTextTarget.value = null
     activeTextAnchor.value = null
@@ -2997,7 +3054,6 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onDocumentKeydown)
   cleanupChromeFloating()
   teardownChromeContextToolbarDrag()
-  teardownChromeBandResize()
   teardownBandDividerDrag()
   teardownChromeColumnResize()
   teardownChromeRowResize()
@@ -3623,50 +3679,6 @@ function resetChromeSection(band: ChromeBandId) {
   resetChromeBand(band)
 }
 
-function _startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
-  if (!chromeDirectEditing.value || typeof window === 'undefined') return
-  const posterBox = posterCanvasEl.value?.getBoundingClientRect()
-  if (!posterBox?.height) return
-  activeChromeBandResize.value = {
-    band,
-    startY: e.clientY,
-    startHeight: posterLayout.value.bands[band].height ?? (band === 'header' ? 22 : 14),
-    posterHeight: posterBox.height,
-  }
-  window.addEventListener('pointermove', onChromeBandResizeMove)
-  window.addEventListener('pointerup', finishChromeBandResize, { once: true })
-  window.addEventListener('pointercancel', finishChromeBandResize, { once: true })
-}
-
-function onChromeBandResizeMove(e: PointerEvent) {
-  const resize = activeChromeBandResize.value
-  if (!resize) return
-  const deltaPct = ((e.clientY - resize.startY) / resize.posterHeight) * 100
-  const rawHeight = resize.band === 'header'
-    ? resize.startHeight + deltaPct
-    : resize.startHeight - deltaPct
-  const height = clampChromeBandHeight(rawHeight)
-  updatePosterLayout({
-    bands: {
-      [resize.band]: {
-        ...(props.styleConfig.poster_layout?.bands?.[resize.band] ?? {}),
-        height,
-      },
-    },
-  })
-}
-
-function finishChromeBandResize() {
-  teardownChromeBandResize()
-}
-
-function teardownChromeBandResize() {
-  if (typeof window === 'undefined') return
-  activeChromeBandResize.value = null
-  window.removeEventListener('pointermove', onChromeBandResizeMove)
-  window.removeEventListener('pointerup', finishChromeBandResize)
-  window.removeEventListener('pointercancel', finishChromeBandResize)
-}
 
 // ── Band-divider drag (editor-v2 D2, FLAGS.EDITOR_V2) ────────────────────────
 // docs/EDITOR_UX_NORTH_STAR.md gesture 2: the header/map and map/footer
@@ -4755,6 +4767,105 @@ function deleteObjectElement() {
 }
 
 function closeObjectToolbar() {
+  emit('poster-element-selected', null)
+}
+
+// ── Band properties (editor-v2 D4, north-star gesture 5) ────────────────────
+// Click empty band space → background color, padding, per-band
+// reset-to-template. Band selection rides the SAME poster-element id grammar
+// (`band:header` / `band:footer`) so arbiter claims, mutual eviction with map
+// selections, and intra-poster transitions all reuse the existing plumbing.
+// Writes ride the existing poster_layout band paths (updateChromeBand /
+// resetChromeBand) — no parallel persistence.
+const selectedBandToolbar = ref<{
+  band: Extract<ChromeBandId, 'header' | 'footer'>
+  background: string
+  anchor: DOMRect
+} | null>(null)
+
+function bandElement(band: Extract<ChromeBandId, 'header' | 'footer'>): HTMLElement | null {
+  return posterCanvasEl.value?.querySelector<HTMLElement>(band === 'header' ? '.poster-header' : '.poster-footer') ?? null
+}
+
+function cssColorToHex(value: string): string {
+  const match = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/)
+  if (!match) return /^#[0-9a-f]{6}$/i.test(value) ? value : '#f5f5f4'
+  return '#' + [match[1], match[2], match[3]]
+    .map(part => Number(part).toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function onBandSpaceClick(e: MouseEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  if (!unifiedPosterGrammar.value || chromeGridRendering.value) return
+  if (!(e.target instanceof HTMLElement)) return
+  // Only EMPTY space selects the band — clicks on slots, overlays, chrome
+  // controls, and the divider strip belong to their own elements.
+  if (e.target.closest('[data-poster-element-id], [contenteditable], button, input, .band-divider, .chrome-band-layer, .editable-text')) return
+  emit('poster-element-selected', `band:${band}`)
+}
+
+function resolveBandToolbar(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  const el = bandElement(band)
+  if (!el) {
+    selectedBandToolbar.value = null
+    return
+  }
+  selectedBandToolbar.value = {
+    band,
+    background: cssColorToHex(window.getComputedStyle(el).backgroundColor),
+    anchor: el.getBoundingClientRect(),
+  }
+}
+
+const selectedBandHasOverrides = computed(() =>
+  Boolean(selectedBandToolbar.value && props.styleConfig.poster_layout?.bands?.[selectedBandToolbar.value.band]))
+
+function applyBandBackground(patch: { background: string }) {
+  const state = selectedBandToolbar.value
+  if (!state) return
+  updateChromeBand(state.band, { background: patch.background })
+  selectedBandToolbar.value = { ...state, background: patch.background }
+}
+
+// Padding nudges write the existing [top(cqh), right(cqw), bottom(cqh),
+// left(cqw)] band override; the first nudge seeds it from the band's
+// RENDERED padding so the gesture starts from what the user sees.
+function nudgeBandPadding(payload: { axis: 'vertical' | 'horizontal'; delta: number }) {
+  const state = selectedBandToolbar.value
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  if (!state || !canvas?.height || !canvas.width) return
+  let padding = posterLayout.value.bands[state.band].padding
+  if (!padding) {
+    const el = bandElement(state.band)
+    if (!el) return
+    const cs = window.getComputedStyle(el)
+    padding = [
+      (Number.parseFloat(cs.paddingTop) / canvas.height) * 100,
+      (Number.parseFloat(cs.paddingRight) / canvas.width) * 100,
+      (Number.parseFloat(cs.paddingBottom) / canvas.height) * 100,
+      (Number.parseFloat(cs.paddingLeft) / canvas.width) * 100,
+    ]
+  }
+  const next = [...padding] as [number, number, number, number]
+  const clampPad = (value: number) => Math.round(Math.max(0, Math.min(18, value)) * 10) / 10
+  if (payload.axis === 'vertical') {
+    next[0] = clampPad(next[0] + payload.delta)
+    next[2] = clampPad(next[2] + payload.delta)
+  } else {
+    next[1] = clampPad(next[1] + payload.delta)
+    next[3] = clampPad(next[3] + payload.delta)
+  }
+  updateChromeBand(state.band, { padding: next })
+}
+
+function resetSelectedBand() {
+  const state = selectedBandToolbar.value
+  if (!state) return
+  resetChromeBand(state.band)
+  closeBandToolbar()
+}
+
+function closeBandToolbar() {
   emit('poster-element-selected', null)
 }
 
@@ -5871,8 +5982,19 @@ function bandHeightImportant(band: Extract<ChromeBandId, 'header' | 'footer'>) {
     renderedBandInFlow.value[band]
 }
 
+// Same pin-yield for band BACKGROUND (D4 gesture 5): themes like
+// editorial-minimal pin band background with `!important` rules, which would
+// silently defeat the empty-space recolor gesture.
+function bandBackgroundValue(band: Extract<ChromeBandId, 'header' | 'footer'>, themeFallback: string) {
+  const override = posterLayout.value.bands[band].background
+  if (override == null) return themeFallback
+  const userOwned = editorV2FlagEnabled.value &&
+    props.styleConfig.poster_layout?.bands?.[band]?.background != null
+  return userOwned ? `${override} !important` : override
+}
+
 const headerBandStyle = computed(() => ({
-  backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
+  backgroundColor: bandBackgroundValue('header', headerBg.value),
   color: fg.value,
   padding: chromeGridRendering.value
     ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
@@ -6071,7 +6193,7 @@ const footerRuleStyle = computed(() => ({
 }))
 
 const footerBandStyle = computed(() => ({
-  backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
+  backgroundColor: bandBackgroundValue('footer', bg.value),
   color: fg.value,
   padding: composition.value.footerVariant === 'hidden'
     ? '0'
@@ -10371,7 +10493,7 @@ watch(
   },
 )
 
-// ── Freeze / unfreeze API (called by FreezeControl.vue) ───────────────────────
+// ── Freeze / unfreeze API (StylePanel viewpoint + on-canvas affordance) ───────
 
 function freezeView() {
   if (!mapInstance) return
@@ -14874,6 +14996,49 @@ onUnmounted(() => {
 .band-divider.is-strip-hover .band-divider-pill,
 .band-divider.is-dragging .band-divider-pill {
   opacity: 1;
+}
+
+/* Viewpoint affordance (editor-v2 D4) — editor-only chrome, never printed. */
+.viewpoint-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 32;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: auto;
+}
+
+[data-testid="poster-map"]:hover .viewpoint-pill,
+.viewpoint-pill:focus-within,
+.viewpoint-pill:has(.is-locked) {
+  opacity: 1;
+}
+
+.viewpoint-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid rgba(28, 25, 23, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #44403c;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.16);
+}
+
+.viewpoint-btn:hover { background: #ffffff; }
+
+.viewpoint-btn.is-locked {
+  background: #2d6a4f;
+  border-color: #2d6a4f;
+  color: #ffffff;
 }
 .stat-custom-text {
   display: block;
