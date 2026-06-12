@@ -2387,7 +2387,12 @@ function setContourLabels(enabled: boolean) {
 }
 
 function setRouteLineStyle<K extends RouteLineControlField>(key: K, value: StyleConfig[K]) {
-  Object.assign(local, applyRouteLineControl(local as StyleConfig, key, value))
+  // Editor-v2 (FLAGS.EDITOR_V2): segments are user-owned — route controls only
+  // propagate to segments still tracking the global value (sticky semantics,
+  // see utils/styleControlSync.ts). The segments section's "Apply to all"
+  // controls (applyToAll) remain the explicit force-through path. Flag off:
+  // legacy bulk overwrite, byte-identical.
+  Object.assign(local, applyRouteLineControl(local as StyleConfig, key, value, { stickySegments: editorV2Enabled.value }))
   emit('update:modelValue', { ...local })
 }
 
