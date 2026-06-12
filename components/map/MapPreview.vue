@@ -2139,7 +2139,7 @@ import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
 import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
-import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/posterFormatters'
+import { firstPosterTextWithoutTitle, formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion, resolveOccasionLocationNote, resolveRisoCaptionText } from '~/utils/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
@@ -4734,11 +4734,9 @@ const locationLine = computed(() => {
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
-const genericOccasionText = new Set(['complete trail network'])
-const risoCaptionText = computed(() => {
-  const occasion = occasionText.value.trim()
-  return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
-})
+// Never falls back to the trail name: riso-stack renders the title as the
+// composition-owned hero, so a derived caption equal to it is a duplicate.
+const risoCaptionText = computed(() => resolveRisoCaptionText(occasionText.value, trailName.value))
 const risoLocationText = computed(() => locationText.value.trim())
 const risoMetaLabel = computed(() => {
   const text = risoLocationText.value.trim()
@@ -5034,12 +5032,12 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'editorial-tall':
       if (props.styleConfig.color_theme === 'relief-shaded') {
         return {
-          kicker: locationRegion || 'FIELD STUDY',
+          kicker: firstPosterTextWithoutTitle([locationRegion, 'FIELD STUDY'], trailName.value),
           meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
         }
       }
       return {
-        kicker: locationRegion || 'FIELD STUDY',
+        kicker: firstPosterTextWithoutTitle([locationRegion, 'FIELD STUDY'], trailName.value),
         meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
       }
     case 'park-quad':
@@ -5087,7 +5085,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'modernist-block':
       return {
-        kicker: locationRegion,
+        kicker: firstPosterTextWithoutTitle([locationRegion], trailName.value),
         meta: `${distance}\n${coords.value?.lat ?? gain}`,
       }
     case 'splits-grid':
@@ -5097,7 +5095,10 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'darksky-stars':
       return {
         kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
-        footerNote: `${location}\n${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
+        footerNote: [
+          firstPosterTextWithoutTitle([location], trailName.value),
+          `${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
+        ].filter(Boolean).join('\n'),
       }
     case 'botanical-plate':
       return {
@@ -5108,7 +5109,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       return {
         kicker: 'RADMAPS',
         meta: date,
-        footerNote: `${occasionText.value || trailName.value}\n${locationText.value}`,
+        // The hero title is never a footer-note fallback (it is already the slab).
+        footerNote: resolveOccasionLocationNote(occasionText.value, locationText.value, trailName.value),
       }
     case 'art-wash':
       if (props.styleConfig.color_theme === 'contour-wash') {
@@ -5121,7 +5123,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'place-frame':
       return {
-        kicker: occasionText.value || location || 'PLACE PORTRAIT',
+        kicker: firstPosterTextWithoutTitle([occasionText.value, location, 'PLACE PORTRAIT'], trailName.value),
         meta: [
           `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
           formattedGainM.value ? `${formattedGainM.value} m` : '',
@@ -5134,7 +5136,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'transit-diagram':
       return {
-        kicker: location || 'TOUR LINE',
+        kicker: firstPosterTextWithoutTitle([location, 'TOUR LINE'], trailName.value),
         meta: `STATION · ${date} · ${coords.value?.lat ?? ''}`.trim(),
       }
     default:

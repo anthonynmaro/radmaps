@@ -777,7 +777,10 @@ test.describe('style browser visual harness', () => {
     expect(risoChrome.titleBlend).toBe('multiply')
     expect(risoChrome.titleOverflow).toBe('visible')
     expect(Number.parseFloat(risoChrome.titleLineHeight)).toBeGreaterThan(40)
-    expect(risoChrome.captionText).toContain('Kickapoo Endurance Race')
+    // The caption must NOT repeat the hero title (title-dedupe rule): with no
+    // real occasion the occasion line drops and only the location renders.
+    expect(risoChrome.captionText).not.toContain('Kickapoo Endurance Race')
+    expect(risoChrome.captionText).toContain('Kickapoo State Park')
     expect(risoChrome.metaText).toContain('mi')
   })
 

@@ -165,7 +165,15 @@ export default defineNuxtConfig({
     },
     optimizeDeps: {
       ...(isE2eDevServer ? { entries: e2eEditorWarmupFiles } : {}),
-      include: ['@supabase/ssr'],
+      include: [
+        '@supabase/ssr',
+        '@tmcw/togeojson',
+        '@floating-ui/dom',
+        'interactjs',
+        'maplibre-gl',
+        'three',
+        'vue3-moveable',
+      ],
       // maplibre-contour uses an internal triple-define pattern to create a
       // worker blob URL at module load time. Vite's pre-bundler can mangle this;
       // exclude it so it's served as-is and initialises correctly in the browser.
