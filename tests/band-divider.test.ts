@@ -25,6 +25,7 @@ import {
   defaultPosterLayout,
   mergePosterLayout,
   patchPosterLayout,
+  resolveDividerAdjacency,
 } from '../utils/posterLayout'
 import { DEFAULT_STYLE_CONFIG } from '../types'
 import type { StyleConfig } from '../types'
@@ -117,6 +118,47 @@ describe('band-divider persistence (existing poster_layout band-height mechanism
     })
     expect(rowsEdit.bands.header.height).toBe(defaults.bands.header.height)
     expect(rowsEdit.bands.footer.height).toBe(defaults.bands.footer.height)
+  })
+})
+
+describe('resolveDividerAdjacency (rendered-order adjacency, D2 close-out)', () => {
+  // Adjacency feeds from the RENDERED layout because several themes flip or
+  // pin band order with bespoke `!important` CSS the composition constants
+  // cannot see (usgs-vintage/classic-trail/editorial-minimal/relief-shaded
+  // flip to title-bottom; dark-sky/copper-night absolutize the header).
+  const band = (b: 'header' | 'footer', order: number, domBeforeMap: boolean) =>
+    ({ band: b, order, domBeforeMap })
+
+  it('standard title-top: header above, footer below', () => {
+    expect(resolveDividerAdjacency([band('header', 0, true), band('footer', 2, false)], 1))
+      .toEqual({ top: 'header', bottom: 'footer' })
+  })
+
+  it('title-bottom (modernist model / CSS-flipped usgs/classic/editorial-minimal): header below map, footer last', () => {
+    // map order 0, header 1, footer 2 — the band ADJACENT below the map is the
+    // header; the bottom divider must resize it, never the footer.
+    expect(resolveDividerAdjacency([band('header', 1, true), band('footer', 2, false)], 0))
+      .toEqual({ top: null, bottom: 'header' })
+  })
+
+  it('out-of-flow bands are simply absent (dark-sky absolute header): no divider for that edge', () => {
+    expect(resolveDividerAdjacency([band('footer', 2, false)], 0))
+      .toEqual({ top: null, bottom: 'footer' })
+    expect(resolveDividerAdjacency([], 0)).toEqual({ top: null, bottom: null })
+  })
+
+  it('equal order falls back to DOM position, matching flex tie-break', () => {
+    // Both order 0: header before map in DOM → header renders above the map.
+    expect(resolveDividerAdjacency([band('header', 0, true)], 0))
+      .toEqual({ top: 'header', bottom: null })
+    // Footer after map in DOM at equal order → renders below.
+    expect(resolveDividerAdjacency([band('footer', 0, false)], 0))
+      .toEqual({ top: null, bottom: 'footer' })
+  })
+
+  it('nearest band wins when two bands share a side', () => {
+    expect(resolveDividerAdjacency([band('header', 1, true), band('footer', 2, false)], 3))
+      .toEqual({ top: 'footer', bottom: null })
   })
 })
 

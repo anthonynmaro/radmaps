@@ -176,6 +176,43 @@ export function clampBandDividerHeight(
   return clampChromeBandHeight(Math.min(bounds.max, Math.max(bounds.min, proposedHeight)))
 }
 
+// ── Band-divider adjacency (editor-v2 D2 close-out) ─────────────────────────
+// Which band each divider edge resizes. Composition constants are NOT enough:
+// several themes flip or pin band order again with bespoke `!important` CSS
+// (usgs-vintage / classic-trail / editorial-minimal / relief-shaded render
+// title-bottom on title-top compositions; dark-sky / copper-night absolutize
+// the header over a full-bleed map). The caller therefore feeds this the
+// RENDERED layout — computed flex order plus flow status of each band element
+// — and this pure function answers which in-flow band sits at each map edge.
+
+export interface RenderedBandFlowInfo {
+  band: 'header' | 'footer'
+  /** Used value of the CSS `order` property on the band element. */
+  order: number
+  /** True when the band element precedes the map element in DOM order
+   *  (the flex tie-break when `order` values are equal). */
+  domBeforeMap: boolean
+}
+
+export interface DividerAdjacency {
+  top: 'header' | 'footer' | null
+  bottom: 'header' | 'footer' | null
+}
+
+export function resolveDividerAdjacency(
+  bands: RenderedBandFlowInfo[],
+  mapOrder: number,
+): DividerAdjacency {
+  const isAbove = (item: RenderedBandFlowInfo) =>
+    item.order !== mapOrder ? item.order < mapOrder : item.domBeforeMap
+  const above = bands.filter(isAbove).sort((a, b) => b.order - a.order)
+  const below = bands.filter(item => !isAbove(item)).sort((a, b) => a.order - b.order)
+  return {
+    top: above[0]?.band ?? null,
+    bottom: below[0]?.band ?? null,
+  }
+}
+
 type ChromeLayoutRecipe = {
   headerHeight: number
   footerHeight: number

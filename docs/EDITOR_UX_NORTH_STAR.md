@@ -64,20 +64,33 @@ byte-identical legacy):
    legacy selection/drag grammar (joining with gesture 4); chrome-grid blocks
    (guided/template surfaces) keep their own selection path; padding control
    is not yet in the unified toolbar.
-2. **Drag band dividers: LIVE** (D2). The header/map and map/footer
-   boundaries drag via editor-only `band-divider` affordances in
-   `MapPreview.vue` (adjacency follows composition flex order; transit-diagram
-   excluded). Bands trade height with the map inside the locked aspect, with
-   pure clamps in `utils/posterLayout.ts` (band floor/ceiling =
-   `CHROME_BAND_HEIGHT_BOUNDS` 8–34%; map floor = `BAND_DIVIDER_MAP_MIN_PCT`
-   40% of poster height). Heights persist through the existing
-   `poster_layout.bands.<band>.height` field — no parallel system — so
-   per-band and theme resets already restore template defaults. Slot text
-   refits live (rAF-coalesced emits, drag-debounced serialized fitTextToBox);
-   the MapLibre canvas re-fits through its existing ResizeObserver. The
-   map-geometry invariant is test-pinned (`tests/band-divider.test.ts`): only
-   this gesture and the pre-existing chrome row/band resize write band
-   heights.
+2. **Drag band dividers: LIVE** (D2, closed out June 12). The header/map and
+   map/footer boundaries drag via editor-only `band-divider` affordances in
+   `MapPreview.vue` (transit-diagram excluded). Bands trade height with the
+   map inside the locked aspect, with pure clamps in `utils/posterLayout.ts`
+   (band floor/ceiling = `CHROME_BAND_HEIGHT_BOUNDS` 8–34%; map floor =
+   `BAND_DIVIDER_MAP_MIN_PCT` 40% of poster height). Heights persist through
+   the existing `poster_layout.bands.<band>.height` field — no parallel
+   system — so per-band and theme resets already restore template defaults.
+   Slot text refits live (rAF-coalesced emits, drag-debounced serialized
+   fitTextToBox); the MapLibre canvas re-fits through its existing
+   ResizeObserver. The map-geometry invariant is test-pinned
+   (`tests/band-divider.test.ts`): only this gesture and the pre-existing
+   chrome row/band resize write band heights.
+   D2 close-out details: (a) the divider strip wins pointerdown at capture
+   phase on the poster canvas (the divider element is clipped by the map
+   container's overflow, so band-side presses used to land on slot hit boxes
+   — the trail_name slot swallowed the pill drag on title-bottom themes); a
+   pointer-tracked `is-strip-hover` class surfaces the pill across the full
+   14px strip. (b) Divider adjacency resolves from the RENDERED flex
+   order/flow of the band elements (`resolveDividerAdjacency` in
+   posterLayout.ts), not composition constants — usgs-vintage, classic-trail,
+   editorial-minimal and relief-shaded flip title-bottom via `!important`
+   theme CSS, and dark-sky/copper-night absolutize the header (out-of-flow
+   bands get no divider). (c) Flag-on, a USER band-height override emits
+   `!important` inline styles (band `flex/height`, map `flex: 1 1 0%`) so the
+   gesture beats those same theme pins; flag-off and no-override emit the
+   legacy non-important values, byte-identical.
 3. **Drag free elements over the map: PARTIAL (pre-existing)** — overlays drag
    via Moveable with snap guides under the poster-elements editor; not yet
    reconciled with the unified grammar's flag story.

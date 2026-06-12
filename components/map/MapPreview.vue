@@ -1538,7 +1538,10 @@
         <div
           v-if="bandDividersEnabled && mapTopDividerBand"
           class="band-divider band-divider--top"
-          :class="{ 'is-dragging': activeBandDividerDrag?.edge === 'top' }"
+          :class="{
+            'is-dragging': activeBandDividerDrag?.edge === 'top',
+            'is-strip-hover': hoveredBandDividerEdge === 'top',
+          }"
           data-testid="band-divider-top"
           role="separator"
           aria-orientation="horizontal"
@@ -1550,7 +1553,10 @@
         <div
           v-if="bandDividersEnabled && mapBottomDividerBand"
           class="band-divider band-divider--bottom"
-          :class="{ 'is-dragging': activeBandDividerDrag?.edge === 'bottom' }"
+          :class="{
+            'is-dragging': activeBandDividerDrag?.edge === 'bottom',
+            'is-strip-hover': hoveredBandDividerEdge === 'bottom',
+          }"
           data-testid="band-divider-bottom"
           role="separator"
           aria-orientation="horizontal"
@@ -2200,7 +2206,8 @@ import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpr
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampBandDividerHeight, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampBandDividerHeight, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout, resolveDividerAdjacency } from '~/utils/posterLayout'
+import type { DividerAdjacency, RenderedBandFlowInfo } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
@@ -2708,8 +2715,61 @@ elementSelectionArbiter.onEvicted('poster', () => {
 // enters the existing contenteditable edit mechanics. Double-click therefore
 // reads as "select, then edit" — the Canva grammar — without touching any of
 // the slot/overlay markup.
+// D2 close-out: the 14px divider strip straddles the map/band boundary, but
+// the divider element lives inside the overflow-hidden map container, so its
+// band-side half is clipped out of hit testing — presses there land on band
+// slot hit boxes instead (on title-bottom compositions the trail_name slot
+// swallowed the pill drag entirely). The divider is the only structural
+// gesture and wins its strip outright: hit-test against the divider's
+// UNCLIPPED rect here at capture phase, before any slot handler or
+// contenteditable focus can claim the press.
+function bandDividerEdgeAtPoint(e: PointerEvent): 'top' | 'bottom' | null {
+  if (!bandDividersEnabled.value || e.button !== 0) return null
+  for (const edge of ['top', 'bottom'] as const) {
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-testid="band-divider-${edge}"]`)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (
+      e.clientX >= rect.left && e.clientX <= rect.right &&
+      e.clientY >= rect.top && e.clientY <= rect.bottom
+    ) return edge
+  }
+  return null
+}
+
+// Full-strip hover affordance: CSS :hover only reaches the divider's
+// unclipped half, so the pill is surfaced from pointer tracking instead.
+const hoveredBandDividerEdge = ref<'top' | 'bottom' | null>(null)
+
+function onPosterPointerMoveForDividers(e: PointerEvent) {
+  if (!bandDividersEnabled.value) {
+    if (hoveredBandDividerEdge.value) hoveredBandDividerEdge.value = null
+    return
+  }
+  for (const edge of ['top', 'bottom'] as const) {
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-testid="band-divider-${edge}"]`)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (
+      e.clientX >= rect.left && e.clientX <= rect.right &&
+      e.clientY >= rect.top && e.clientY <= rect.bottom
+    ) {
+      if (hoveredBandDividerEdge.value !== edge) hoveredBandDividerEdge.value = edge
+      return
+    }
+  }
+  if (hoveredBandDividerEdge.value) hoveredBandDividerEdge.value = null
+}
+
 function onUnifiedPosterPointerDownCapture(e: PointerEvent) {
   if (!unifiedPosterGrammar.value) return
+  const dividerEdge = bandDividerEdgeAtPoint(e)
+  if (dividerEdge) {
+    e.preventDefault()
+    e.stopPropagation()
+    startBandDividerDrag(e, dividerEdge)
+    return
+  }
   if (!(e.target instanceof HTMLElement)) return
   const editableText = e.target.closest<HTMLElement>('[contenteditable="true"]')
   if (!editableText) return
@@ -2728,11 +2788,19 @@ function onUnifiedPosterPointerDownCapture(e: PointerEvent) {
 
 onMounted(() => {
   posterCanvasEl.value?.addEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+  posterCanvasEl.value?.addEventListener('pointermove', onPosterPointerMoveForDividers)
+  posterCanvasEl.value?.addEventListener('pointerleave', clearBandDividerHover)
 })
 
 onUnmounted(() => {
   posterCanvasEl.value?.removeEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+  posterCanvasEl.value?.removeEventListener('pointermove', onPosterPointerMoveForDividers)
+  posterCanvasEl.value?.removeEventListener('pointerleave', clearBandDividerHover)
 })
+
+function clearBandDividerHover() {
+  hoveredBandDividerEdge.value = null
+}
 
 // Toolbar delete (text overlays only — slots are data-bound theme content;
 // their gesture is Reset, not Delete). Same write path as the legacy
@@ -3558,32 +3626,51 @@ const bandDividersEnabled = computed(() =>
   unifiedPosterGrammar.value && composition.value.id !== 'transit-diagram',
 )
 
-// Compositions reorder header/map/footer via flex `order` (title-bottom
-// layouts put the header BETWEEN map and footer), so each divider resolves
-// which band is actually adjacent to the map edge it sits on.
-function horizontalBandsByOrder() {
-  const bands: Array<{ band: Extract<ChromeBandId, 'header' | 'footer'>; order: number }> = [
-    { band: 'header', order: composition.value.headerOrder },
-  ]
-  if (composition.value.footerVariant !== 'hidden') {
-    bands.push({ band: 'footer', order: composition.value.footerOrder })
+// Compositions reorder header/map/footer via flex `order`, and several themes
+// flip or pin that order AGAIN with bespoke `!important` CSS the composition
+// constants cannot see (usgs-vintage/classic-trail/editorial-minimal/
+// relief-shaded render title-bottom on title-top compositions; dark-sky/
+// copper-night absolutize the header over a full-bleed map). Divider
+// adjacency therefore resolves from the RENDERED layout — the computed flex
+// order and flow status of the live band elements — re-read whenever the
+// theme or composition changes. Out-of-flow bands (absolute overlays,
+// display:contents shells) get no divider: their height is not band height.
+const renderedDividerBands = ref<DividerAdjacency>({ top: null, bottom: null })
+// Bands a user height-override may legitimately size: in-flow flex children.
+const renderedBandInFlow = ref<{ header: boolean; footer: boolean }>({ header: true, footer: true })
+
+const mapTopDividerBand = computed(() => renderedDividerBands.value.top)
+const mapBottomDividerBand = computed(() => renderedDividerBands.value.bottom)
+
+function bandFlowInfo(band: Extract<ChromeBandId, 'header' | 'footer'>, mapEl: HTMLElement): RenderedBandFlowInfo | null {
+  const el = posterCanvasEl.value?.querySelector<HTMLElement>(band === 'header' ? '.poster-header' : '.poster-footer')
+  if (!el) return null
+  const cs = window.getComputedStyle(el)
+  if (cs.display === 'none' || cs.display === 'contents' || cs.position === 'absolute' || cs.position === 'fixed') return null
+  return {
+    band,
+    order: Number.parseInt(cs.order, 10) || 0,
+    domBeforeMap: Boolean(el.compareDocumentPosition(mapEl) & Node.DOCUMENT_POSITION_FOLLOWING),
   }
-  return bands
 }
 
-const mapTopDividerBand = computed(() => {
-  const above = horizontalBandsByOrder()
-    .filter(item => item.order < composition.value.mapOrder)
-    .sort((a, b) => b.order - a.order)
-  return above[0]?.band ?? null
-})
+function resolveRenderedDividerBands() {
+  const mapEl = mapContainer.value
+  if (typeof window === 'undefined' || !posterCanvasEl.value || !mapEl) {
+    renderedDividerBands.value = { top: null, bottom: null }
+    return
+  }
+  const header = bandFlowInfo('header', mapEl)
+  const footer = composition.value.footerVariant !== 'hidden' ? bandFlowInfo('footer', mapEl) : null
+  renderedBandInFlow.value = { header: Boolean(header), footer: Boolean(footer) }
+  const bands = [header, footer].filter((item): item is RenderedBandFlowInfo => item != null)
+  const mapOrder = Number.parseInt(window.getComputedStyle(mapEl).order, 10) || 0
+  renderedDividerBands.value = resolveDividerAdjacency(bands, mapOrder)
+}
 
-const mapBottomDividerBand = computed(() => {
-  const below = horizontalBandsByOrder()
-    .filter(item => item.order > composition.value.mapOrder)
-    .sort((a, b) => a.order - b.order)
-  return below[0]?.band ?? null
-})
+onMounted(() => { nextTick(resolveRenderedDividerBands) })
+// The re-resolve watch lives below `composition`'s definition (watch source
+// getters run eagerly at setup; `composition` is declared later in the file).
 
 function bandRenderedHeightPct(band: Extract<ChromeBandId, 'header' | 'footer'>) {
   if (band === 'footer' && composition.value.footerVariant === 'hidden') return 0
@@ -5023,6 +5110,15 @@ const typography = computed(() => getPosterTypography(props.styleConfig))
 const layout = computed(() => getPosterLayout(props.styleConfig))
 
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
+
+// Divider adjacency re-resolves whenever anything that can change band CSS
+// changes (theme flips band order with bespoke rules — see
+// resolveRenderedDividerBands above).
+watch(
+  () => [props.styleConfig.color_theme, composition.value.id, chromeGridRendering.value, editorV2FlagEnabled.value] as const,
+  () => { nextTick(resolveRenderedDividerBands) },
+  { flush: 'post' },
+)
 const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
 const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
 const showCartoucheHills = computed(() => composition.value.id === 'place-frame')
@@ -5609,6 +5705,20 @@ function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
   ].join(', ')
 }
 
+// Editor-v2 D2 close-out: a USER band-height override (styleConfig
+// poster_layout, not the merged recipe default) must outrank the bespoke
+// theme CSS that pins band geometry with `!important` (editorial-minimal /
+// relief-shaded pin the map at 72%, usgs-vintage / classic-trail pin both
+// bands in cqh). Vue style bindings pass `!important` through to
+// style.setProperty — the only priority that beats stylesheet !important.
+// Flag-off (and flag-on without an override) emits the legacy non-important
+// values, byte-identical. Out-of-flow bands never get the treatment.
+function bandHeightImportant(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  return editorV2FlagEnabled.value &&
+    props.styleConfig.poster_layout?.bands?.[band]?.height != null &&
+    renderedBandInFlow.value[band]
+}
+
 const headerBandStyle = computed(() => ({
   backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
   color: fg.value,
@@ -5632,12 +5742,12 @@ const headerBandStyle = computed(() => ({
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 17%'
     : posterLayout.value.bands.header.height != null
-      ? `0 0 ${posterLayout.value.bands.header.height}%`
+      ? `0 0 ${posterLayout.value.bands.header.height}%${bandHeightImportant('header') ? ' !important' : ''}`
       : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '17%'
     : posterLayout.value.bands.header.height != null
-    ? `${posterLayout.value.bands.header.height}%`
+    ? `${posterLayout.value.bands.header.height}%${bandHeightImportant('header') ? ' !important' : ''}`
     : undefined,
 }))
 
@@ -5834,14 +5944,14 @@ const footerBandStyle = computed(() => ({
     : composition.value.id === 'transit-diagram'
       ? '0 0 8%'
       : posterLayout.value.bands.footer.height != null
-        ? `0 0 ${posterLayout.value.bands.footer.height}%`
+        ? `0 0 ${posterLayout.value.bands.footer.height}%${bandHeightImportant('footer') ? ' !important' : ''}`
       : undefined,
   height: composition.value.footerVariant === 'hidden'
     ? '0'
     : composition.value.id === 'transit-diagram'
       ? '8%'
       : posterLayout.value.bands.footer.height != null
-    ? `${posterLayout.value.bands.footer.height}%`
+    ? `${posterLayout.value.bands.footer.height}%${bandHeightImportant('footer') ? ' !important' : ''}`
     : undefined,
 }))
 
@@ -5850,16 +5960,23 @@ const mapAreaStyle = computed(() => ({
   margin: composition.value.mapMargin,
   border: composition.value.mapBorder,
   boxShadow: composition.value.mapShadow,
+  // With a user band-height override the map must genuinely become flex-1 —
+  // `!important` because themes that pin map geometry do so with !important
+  // stylesheet rules (editorial-minimal/relief-shaded 72%, usgs/classic auto).
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 75%'
-    : props.styleConfig.color_theme === 'editorial-minimal' && !editorV2BandHeightOverride.value
-      ? '0 0 64%'
-      : undefined,
+    : editorV2BandHeightOverride.value
+      ? '1 1 0% !important'
+      : props.styleConfig.color_theme === 'editorial-minimal'
+        ? '0 0 64%'
+        : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '75%'
-    : props.styleConfig.color_theme === 'editorial-minimal' && !editorV2BandHeightOverride.value
-      ? '64%'
-      : undefined,
+    : editorV2BandHeightOverride.value
+      ? 'auto !important'
+      : props.styleConfig.color_theme === 'editorial-minimal'
+        ? '64%'
+        : undefined,
   boxSizing: 'border-box' as const,
   minHeight: '0',
   zIndex: 2,
@@ -14592,10 +14709,12 @@ onUnmounted(() => {
   pointer-events: none;
 }
 .band-divider:hover::before,
+.band-divider.is-strip-hover::before,
 .band-divider.is-dragging::before {
   background: rgba(45, 106, 79, 0.45);
 }
 .band-divider:hover .band-divider-pill,
+.band-divider.is-strip-hover .band-divider-pill,
 .band-divider.is-dragging .band-divider-pill {
   opacity: 1;
 }
