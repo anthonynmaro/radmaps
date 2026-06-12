@@ -761,6 +761,7 @@
                 :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
                 :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
                 :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-fit-mode="cell.block.slot ? chromeBlockFitMode(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -866,6 +867,7 @@
           class="poster-trail-name"
           :style="trailNameStyle"
           :data-riso-title="trailName"
+          v-bind="trailNameFitAttrs"
         >{{ trailName }}</h1>
         <h1
           v-else-if="editable && chromeSlotVisible('trail_name')"
@@ -874,6 +876,7 @@
           :style="trailNameStyle"
           :data-poster-element-id="slotEditorElementId('trail_name')"
           :data-riso-title="trailName"
+          v-bind="trailNameFitAttrs"
           :contenteditable="slotEditable('trail_name') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -1700,6 +1703,7 @@
                 :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
                 :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
                 :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-fit-mode="cell.block.slot ? chromeBlockFitMode(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -3191,6 +3195,16 @@ function chromeBlockFitMaxLines(block: ChromeBlock) {
   if (block.kind === 'stat' || block.kind === 'coords') return 2
   if (block.kind === 'note') return 2
   return 1
+}
+
+// Editor-v2 D2 word-break fix: title-kind slots never break mid-word —
+// fitTextToBox prefers shrinking toward the floor over wrapping, and the
+// matching [data-poster-fit-mode] CSS pins overflow-wrap: normal +
+// word-break: keep-all so Stage B wraps at word boundaries only. Gated on
+// FLAGS.EDITOR_V2 because it changes fitted output (flag-off renders must
+// stay byte-identical).
+function chromeBlockFitMode(block: ChromeBlock) {
+  return block.kind === 'title' && editorV2FlagEnabled.value ? 'shrink-before-wrap' : undefined
 }
 
 function chromeBlockLineHeight(block: ChromeBlock) {
@@ -5627,28 +5641,54 @@ const headerBandStyle = computed(() => ({
     : undefined,
 }))
 
-const trailNameStyle = computed(() => ({
-  fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
-  fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
-  fontStyle: effectiveSlotItalic('trail_name'),
-  letterSpacing: typography.value.titleTracking,
-  textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
-  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
-  lineHeight: typography.value.titleLineHeight,
-  color: effectiveSlotColor('trail_name', fg.value),
-  opacity: String(effectiveSlotOpacity('trail_name', 1)),
-  textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
-  width: '100%',
-  maxWidth: '100%',
-  margin: '0',
-  padding: '0',
-  outline: 'none',
-  overflowWrap: 'anywhere' as const,
-  textWrap: 'balance' as const,
-  hyphens: 'auto' as const,
-  textShadow: getTextHalo(headerBg.value),
-}))
+const trailNameStyle = computed(() => {
+  const baseSizeCqh = effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)
+  // Editor-v2 D2 word-break fix (FLAGS.EDITOR_V2): the legacy direct <h1> is
+  // the render truth for print and the non-grid editor view, so it carries the
+  // same title-kind fit policy as chrome-grid title blocks — consume the
+  // fitted size var and never break mid-word (shrink via fitTextToBox
+  // instead). Flag-off keeps the byte-identical anywhere-wrap legacy styling.
+  const keepWords = editorV2FlagEnabled.value
+  return {
+    fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
+    fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
+    fontStyle: effectiveSlotItalic('trail_name'),
+    letterSpacing: typography.value.titleTracking,
+    textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
+    fontSize: keepWords ? `var(--poster-fit-font-size, ${baseSizeCqh}cqh)` : `${baseSizeCqh}cqh`,
+    '--trail-title-size': `${baseSizeCqh}cqh`,
+    lineHeight: typography.value.titleLineHeight,
+    color: effectiveSlotColor('trail_name', fg.value),
+    opacity: String(effectiveSlotOpacity('trail_name', 1)),
+    textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
+    width: '100%',
+    maxWidth: '100%',
+    margin: '0',
+    padding: '0',
+    outline: 'none',
+    overflowWrap: keepWords ? 'normal' as const : 'anywhere' as const,
+    wordBreak: keepWords ? 'keep-all' as const : undefined,
+    textWrap: 'balance' as const,
+    hyphens: keepWords ? 'manual' as const : 'auto' as const,
+    textShadow: getTextHalo(headerBg.value),
+  }
+})
+
+// Legacy trail-name <h1> joins the fit engine behind FLAGS.EDITOR_V2 with the
+// same title-kind fit policy as chrome-grid title blocks
+// (chromeBlockFitMinScale/MaxLines/Mode for kind 'title'), so editor, proof
+// and final print agree on the no-mid-word-break behavior. Flag-off the
+// attributes are absent and settlePosterTextFit never touches the node.
+const trailNameFitAttrs = computed(() => {
+  if (!editorV2FlagEnabled.value) return {}
+  return {
+    'data-poster-fit-slot': 'trail_name',
+    'data-poster-fit-target-cqh': String(effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)),
+    'data-poster-fit-min-scale': '0.42',
+    'data-poster-fit-max-lines': '3',
+    'data-poster-fit-mode': 'shrink-before-wrap',
+  }
+})
 
 const locationLineStyle = computed(() => ({
   fontFamily: effectiveSlotFont('location_text', typography.value.subFont),
@@ -6284,11 +6324,23 @@ function posterTextFitElements() {
 }
 
 function posterTextFitBox(el: HTMLElement) {
-  const container = el.closest<HTMLElement>('.chrome-grid-cell') ?? el.parentElement ?? el
-  const rect = container.getBoundingClientRect()
+  const cell = el.closest<HTMLElement>('.chrome-grid-cell')
+  if (cell) {
+    const rect = cell.getBoundingClientRect()
+    return {
+      width: Math.max(0, rect.width),
+      height: Math.max(0, rect.height),
+    }
+  }
+  // Legacy direct chrome nodes (the print render path + non-grid editor view,
+  // e.g. the trail-name <h1> behind FLAGS.EDITOR_V2) are width:100% of the
+  // band's CONTENT box, so the element's own rect is the true available width
+  // — the band rect would overstate it by the band padding. Height is capped
+  // by the band; maxLines governs in practice.
+  const band = el.closest<HTMLElement>('.poster-header, .poster-footer') ?? el.parentElement ?? el
   return {
-    width: Math.max(0, rect.width),
-    height: Math.max(0, rect.height),
+    width: Math.max(0, el.getBoundingClientRect().width),
+    height: Math.max(0, band.getBoundingClientRect().height),
   }
 }
 
@@ -6317,6 +6369,9 @@ async function settlePosterTextFit(): Promise<void> {
       targetSizeCqh,
       minScale,
       maxLines: Number.isFinite(rawMaxLines) && rawMaxLines > 0 ? rawMaxLines : undefined,
+      // Title-kind slots carry 'shrink-before-wrap' behind FLAGS.EDITOR_V2 so
+      // display titles shrink toward the floor instead of breaking mid-word.
+      fitMode: el.dataset.posterFitMode === 'shrink-before-wrap' ? 'shrink-before-wrap' : undefined,
     })
     el.toggleAttribute('data-poster-fit-clipped', result.clipped)
   }))
@@ -14698,6 +14753,17 @@ onUnmounted(() => {
   max-height: 100%;
   overflow: hidden;
   text-wrap: balance;
+}
+
+/* Editor-v2 D2 word-break fix — flag-gated through the data attribute (only
+   set when FLAGS.EDITOR_V2 is on): title-kind slots never break mid-word.
+   fitTextToBox 'shrink-before-wrap' shrinks toward the floor first; when it
+   must wrap, keep-all limits breaks to word boundaries; a single very-long
+   word shrinks to the floor and clips (cells already overflow: hidden). */
+.chrome-grid-block[data-poster-fit-mode="shrink-before-wrap"] {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: manual;
 }
 
 .chrome-grid-block--subtitle,
