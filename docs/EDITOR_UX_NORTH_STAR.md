@@ -46,6 +46,35 @@ After Prompt B (text-fit + editability) and behind the goldens:
 
 Each step ships independently behind FLAGS.POSTER_TIER2_EDITOR (or a successor `editor_v2` flag) with golden + Playwright coverage.
 
+## STATUS — June 12, 2026 (editor-v2 D1)
+
+What of the five gestures is live, all behind `FLAGS.EDITOR_V2` (flag-off is
+byte-identical legacy):
+
+1. **Click anything → handles + contextual toolbar: LIVE** for map elements
+   and poster text. One arbiter (`composables/useElementSelection.ts`,
+   54e3984) makes selection mutually exclusive across the map and poster
+   domains; one toolbar family (`ElementToolbar.vue` +
+   `ElementTextControls.vue`, a935b25) presents route/segment/label
+   selections (`MapSelectionOverlay.vue`) and poster slot/text-overlay
+   selections (6d6b94b) in the same visual language, with Moveable handles on
+   the poster side. Click = select, click-again/double-click = inline text
+   edit; slots stay data-bound + auto-fitting, overlays stay free.
+   Remaining inside gesture 1: image assets and icon overlays still use their
+   legacy selection/drag grammar (joining with gesture 4); chrome-grid blocks
+   (guided/template surfaces) keep their own selection path; padding control
+   is not yet in the unified toolbar.
+2. **Drag band dividers: NOT STARTED** (text-fit prerequisite is merged).
+3. **Drag free elements over the map: PARTIAL (pre-existing)** — overlays drag
+   via Moveable with snap guides under the poster-elements editor; not yet
+   reconciled with the unified grammar's flag story.
+4. **One + button: NOT STARTED** (poster-elements editor has a flagged
+   text/icon add path in the StylePanel, not the on-canvas + menu).
+5. **Click empty band space → band properties: NOT STARTED.**
+
+Universals: per-element reset exists for text (toolbar "Reset to imported
+text" / reset-to-theme via E1); whole-poster reset-to-template not built.
+
 ## Acceptance (the demo)
 
 On editorial-minimal with a real GPX: click the title and change its color from the floating toolbar; drag the header divider down and watch the title refit; add a photo, drag it over the map, snap it to center; add an elevation-gain stat chip over the map; recolor the footer band from empty-space click; hit Reset on one element. Order a proof — it matches the editor exactly. Zero side-panel opens.

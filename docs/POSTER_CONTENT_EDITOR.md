@@ -60,6 +60,47 @@ and `poster_text_overrides`; raw HTML/CSS is never persisted.
 - The standalone fixture keeps a right inspector for rapid prototype review,
   while the integrated editor hides it.
 
+## Unified Element Selection (FLAGS.EDITOR_V2) — June 12, 2026
+
+Editor-v2 D1 (docs/EDITOR_UX_NORTH_STAR.md gesture 1) gives the poster the
+same selection grammar map elements use. Behavior is split by
+`FLAGS.EDITOR_V2`:
+
+**Flag ON (unified grammar):**
+
+- Clicking a poster text slot or a free text overlay selects it: Moveable
+  handles mount around the element and the shared floating
+  `ElementToolbar.vue` + `ElementTextControls.vue` card opens (text input,
+  font, B/I, align, color, size pt with log slider, opacity, delete for
+  overlays, "…" overflow with highlight/reset). This is the same card family
+  `MapSelectionOverlay.vue` uses for route/segment/label selections, so map
+  and poster elements read as one system.
+- Click = select; clicking the already-selected element (or double-clicking)
+  enters the existing contenteditable inline edit. A capture-phase pointerdown
+  guard on the poster canvas suppresses caret focus on first click only;
+  all selection events and write paths are unchanged underneath.
+- Under the hood nothing moved: slots remain data-bound and auto-fitting
+  (`poster_text_overrides` writes; Moveable resize writes the existing
+  `font_size_pt` fit-bypass), overlays remain free anchors (`text_overlays`
+  writes via `overlay-updated`/`poster-element-patched`). Overlay delete moves
+  from the bespoke corner button into the toolbar.
+- Selection arbitration is global through
+  `composables/useElementSelection.ts`: selecting a map element closes any
+  poster selection and vice versa, in both directions
+  (`MapPreview.vue` claims for toolbar state, `MapEditorSurface.vue` co-claims
+  for Moveable state with the same `slot:`/`text:`/`asset:` keys).
+- Chrome-grid blocks (guided/template editor surfaces) are deliberately
+  excluded from the first-click guard; they keep their
+  `selectChromeCellFromInteraction` focus behavior.
+- Image assets and icon overlays keep their existing selection/drag grammar
+  for now; they join the unified grammar with the + Add menu work (gesture 4).
+
+**Flag OFF (legacy, byte-identical):**
+
+- Slots and overlays select through `InlineTextToolbar.vue`; overlays keep
+  the bespoke move/resize/delete handles and interactjs drag; first click
+  focuses the contenteditable immediately. No arbiter claims are ever made.
+
 ## Theme And Template Recipes
 
 `utils/posterLayout.ts` now creates composition-aware default chrome recipes.
