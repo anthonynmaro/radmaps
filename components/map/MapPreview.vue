@@ -943,12 +943,14 @@
           v-if="locationLine && !editable && chromeSlotVisible('location_text')"
           class="poster-location-line"
           :style="locationLineStyle"
+          v-bind="locationLineFitAttrs"
         >{{ locationLine }}</p>
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
           :class="{ 'is-selected-text': isSlotActive('location_text'), 'editable-text': slotEditable('location_text') }"
           :style="locationLineStyle"
+          v-bind="locationLineFitAttrs"
           :data-poster-element-id="slotEditorElementId('location_text')"
           :contenteditable="slotEditable('location_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
@@ -2066,12 +2068,14 @@
           v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
+          v-bind="occasionFitAttrs"
         >{{ occasionText }}</p>
         <p
           v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
+          v-bind="occasionFitAttrs"
           :contenteditable="slotEditable('occasion_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -6074,12 +6078,35 @@ const trailNameFitAttrs = computed(() => {
   }
 })
 
+// Print-fit completion (D2 follow-up): the legacy SUBTITLE-kind nodes —
+// location line and occasion text, the two free-text slots that previously
+// ellipsis-CLIPPED on the print path — join the fit engine with the same
+// policy as chrome-grid subtitle blocks (min scale 0.62, single line). Their
+// nowrap+ellipsis styling stays: the fit shrinks toward the floor first, the
+// ellipsis only ever covers the pathological residue. Numeric/fixed-format
+// slots (distance, gain, date, coords) are bounded by construction and keep
+// their legacy sizing. Flag-off the attributes are absent.
+function subtitleSlotFitAttrs(slot: 'location_text' | 'occasion_text', baseCqh: number) {
+  if (!editorV2FlagEnabled.value) return {}
+  return {
+    'data-poster-fit-slot': slot,
+    'data-poster-fit-target-cqh': String(effectiveSlotFontSizeCqh(slot, baseCqh)),
+    'data-poster-fit-min-scale': '0.62',
+    'data-poster-fit-max-lines': '1',
+  }
+}
+
+const locationLineFitAttrs = computed(() => subtitleSlotFitAttrs('location_text', typography.value.subSize))
+const occasionFitAttrs = computed(() => subtitleSlotFitAttrs('occasion_text', 0.95))
+
 const locationLineStyle = computed(() => ({
   fontFamily: effectiveSlotFont('location_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
   letterSpacing: typography.value.subTracking,
-  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
+  fontSize: editorV2FlagEnabled.value
+    ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh)`
+    : `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
   opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
@@ -6440,7 +6467,9 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
+  fontSize: editorV2FlagEnabled.value
+    ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh)`
+    : `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
   letterSpacing: '0.22em',
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),

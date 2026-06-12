@@ -99,6 +99,9 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
 
     // No title selection happened mid-drag (the D2 hit-zone contract).
     await expect(page.getByTestId('poster-element-toolbar')).toHaveCount(0)
+    // Let the post-drag text refits settle (serialized rAF-spanning passes) —
+    // a re-render mid-pointerdown would make interact drop the next drag.
+    await page.waitForTimeout(900)
 
     // ── 3. Drag the image over the map ──────────────────────────────────────
     const asset = page.locator('.image-asset').first()
