@@ -171,10 +171,15 @@
             :fallback-width="styleConfig.route_width"
             :split-armed="Boolean(segmentSplitTarget)"
             :rename-focus-token="segmentRenameFocusToken"
+            :route-color="styleConfig.route_color"
+            :route-width="styleConfig.route_width"
+            :route-opacity="styleConfig.route_opacity"
+            :route-controls="routeToolbarControls"
             @close="clearMapElementSelection"
             @patch-segment="onSelectedSegmentPatch"
             @delete-segment="onSelectedSegmentDelete"
             @toggle-split="onSegmentSplitToggle"
+            @patch-route="onSelectedRoutePatch"
           />
         </ClientOnly>
         <div v-if="!map" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -323,6 +328,8 @@ import {
   type PosterEditorElementPatch,
 } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
+import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
+import { getThemeDefinition } from '~/utils/themes/refined'
 import {
   buildElevationProfile,
   detectDisconnectedRanges,
@@ -578,6 +585,32 @@ function onSelectedSegmentDelete() {
     trail_segments: removeTrailSegment(styleConfig.value.trail_segments ?? [], segment.id),
   }
   clearMapElementSelection()
+}
+
+// ── Route toolbar (editor-v2 D1) ────────────────────────────────────────────────
+// The route selection's contextual controls (docs/STYLE_SYSTEM_EVOLUTION.md
+// "Per-element toolbars"). Availability mirrors the StylePanel Route section's
+// theme gating (utils/stylePanelGating.ts) so the toolbar never offers a
+// control the panel would hide; writes share the panel's exact write path
+// (applyRouteLineControl) so E6a sticky-segment semantics hold. stickySegments
+// is unconditionally true here: this code path only exists flag-on.
+const routeToolbarControls = computed(() => {
+  const editableFields = getThemeDefinition(props.modelValue.color_theme ?? 'chalk')?.editable_fields
+  const hasAllowlist = Array.isArray(editableFields)
+  return {
+    color: !hasAllowlist || editableFields!.includes('route_color'),
+    width: !hasAllowlist,
+    opacity: !hasAllowlist,
+  }
+})
+
+function onSelectedRoutePatch(patch: { route_color?: string; route_width?: number; route_opacity?: number }) {
+  let next = styleConfig.value
+  for (const [key, value] of Object.entries(patch)) {
+    if (value == null) continue
+    next = applyRouteLineControl(next, key as RouteLineControlField, value as never, { stickySegments: true })
+  }
+  styleConfig.value = next
 }
 
 // A segment removed elsewhere (StylePanel, undo) invalidates its selection.

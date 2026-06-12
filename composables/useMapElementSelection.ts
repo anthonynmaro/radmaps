@@ -7,6 +7,7 @@
 // via `enabled`. Nothing in this file may influence buildMapStyle output.
 
 import type { Map as MapLibreMap, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl'
+import { useElementSelection } from '~/composables/useElementSelection'
 import type { StyleConfig } from '~/types'
 import {
   getGraphSlotLayerIds,
@@ -151,6 +152,29 @@ export function useMapElementSelection(options: {
   function clearSelection() {
     selection.value = null
   }
+
+  // ── Unified selection arbiter (editor-v2 D1) ──────────────────────────────
+  // The map domain registers every selection with the cross-domain arbiter so
+  // selecting a map element evicts poster selections and vice versa — total
+  // mutual exclusion, one selection grammar. Claims only ever happen when a
+  // selection is set, and selections only happen when `enabled()` (the
+  // FLAGS.EDITOR_V2 gate) holds, so flag-off nothing here runs.
+  const arbiter = useElementSelection()
+
+  function arbiterKeyFor(sel: MapElementSelection): string {
+    if (sel.slot === 'segments-handles' && sel.featureKey) return `segment:${sel.featureKey}`
+    if (sel.slot === 'route') return 'route'
+    return `label:${sel.featureKey ?? 'anonymous'}`
+  }
+
+  watch(selection, (sel) => {
+    if (sel) arbiter.claim('map', arbiterKeyFor(sel))
+    else arbiter.release('map')
+  })
+
+  arbiter.onEvicted('map', () => {
+    if (selection.value) selection.value = null
+  })
 
   /**
    * Programmatically select a trail segment (post-split reselection, label

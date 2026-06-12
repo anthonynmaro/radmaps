@@ -1,6 +1,6 @@
 <template>
   <!--
-    EDITOR-ONLY SELECTION CHROME (editor-v2 E3).
+    EDITOR-ONLY SELECTION CHROME (editor-v2 E3; toolbar unified in D1).
     Rule: selection chrome NEVER prints. This DOM overlay is allowed precisely
     because it is editor decoration — it is mounted only from MapEditorSurface
     behind FLAGS.EDITOR_V2 and never on the /render pages the AWS renderer
@@ -8,104 +8,154 @@
     buildMapStyle instead. Highlighting deliberately avoids MapLibre
     feature-state: promoteId/rm_id is not in the tiles yet
     (docs/ATLAS_STABLE_FEATURE_IDS.md).
+
+    Since D1 the floating card is the shared ElementToolbar shell — the same
+    component family poster text slots and overlays present through — so all
+    three domains speak one visual language (docs/EDITOR_UX_NORTH_STAR.md
+    gesture 1). This file keeps what is map-specific: the selection ring and
+    the camera reprojection that anchors the chrome to the feature.
   -->
-  <Teleport to="body">
-    <template v-if="selection && anchorVisible">
+  <template v-if="selection && anchorVisible">
+    <Teleport to="body">
       <div class="map-selection-ring" :style="ringStyle" aria-hidden="true" data-testid="map-selection-ring" />
-      <div
-        class="map-selection-toolbar"
-        :style="toolbarStyle"
-        data-testid="map-selection-toolbar"
-        @pointerdown.stop
-        @click.stop
-      >
-        <div class="toolbar-header">
-          <span class="selection-kind">{{ kindLabel }}</span>
-          <!-- Segments: inline name edit (one source of truth with the StylePanel name field). -->
+    </Teleport>
+    <ElementToolbar
+      :kind-label="kindLabel"
+      :display-name="segment ? '' : selection.displayName"
+      :anchor-point="anchor"
+      :width="toolbarWidth"
+      :estimated-height="estimatedHeight"
+      data-testid="map-selection-toolbar"
+      @close="$emit('close')"
+    >
+      <!-- Segments: inline name edit (one source of truth with the StylePanel name field). -->
+      <template v-if="segment" #name>
+        <input
+          ref="nameInputRef"
+          class="segment-name-input"
+          :value="segment.name"
+          placeholder="Trail name…"
+          data-testid="map-selection-segment-name"
+          @input="emitPatch({ name: ($event.target as HTMLInputElement).value })"
+          @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+          @keydown.esc.stop="($event.target as HTMLInputElement).blur()"
+        />
+      </template>
+
+      <!-- Segment controls (E4). Every change flows through the same
+           trail_segments write path the StylePanel segments section uses. -->
+      <template v-if="segment">
+        <div class="toolbar-row" data-testid="map-selection-segment-controls">
+          <label class="swatch" title="Segment color">
+            <span class="swatch-dot" :style="{ backgroundColor: segment.color }" />
+            <input
+              type="color"
+              :value="segment.color"
+              data-testid="map-selection-segment-color"
+              @input="emitPatch({ color: ($event.target as HTMLInputElement).value })"
+            />
+          </label>
           <input
-            v-if="segment"
-            ref="nameInputRef"
-            class="segment-name-input"
-            :value="segment.name"
-            placeholder="Trail name…"
-            data-testid="map-selection-segment-name"
-            @input="emitPatch({ name: ($event.target as HTMLInputElement).value })"
-            @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
-            @keydown.esc.stop="($event.target as HTMLInputElement).blur()"
+            type="range"
+            class="width-slider"
+            min="1"
+            max="8"
+            step="0.5"
+            :value="segmentWidth"
+            title="Line width"
+            data-testid="map-selection-segment-width"
+            @input="emitPatch({ width: parseFloat(($event.target as HTMLInputElement).value) })"
           />
-          <span v-else class="selection-name" :title="selection.displayName">{{ selection.displayName }}</span>
-          <button class="toolbar-icon-btn" title="Close" data-testid="map-selection-close" @click="$emit('close')">
+          <span class="width-readout">{{ segmentWidth }}px</span>
+          <button
+            class="toolbar-chip"
+            :class="{ 'is-active': segment.dash }"
+            title="Dashed line"
+            data-testid="map-selection-segment-dash"
+            @click="emitPatch({ dash: !segment.dash })"
+          >- - -</button>
+          <button
+            class="toolbar-chip"
+            :class="{ 'is-active': splitArmed }"
+            title="Split segment at a point"
+            data-testid="map-selection-segment-split"
+            @click="$emit('toggle-split')"
+          >Split</button>
+          <button
+            class="toolbar-icon-btn toolbar-icon-btn--danger"
+            title="Delete segment"
+            data-testid="map-selection-segment-delete"
+            @click="$emit('delete-segment')"
+          >
             <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
           </button>
         </div>
-        <!-- Segment controls (E4). Every change flows through the same
-             trail_segments write path the StylePanel segments section uses. -->
-        <template v-if="segment">
-          <div class="toolbar-row" data-testid="map-selection-segment-controls">
-            <label class="swatch" title="Segment color">
-              <span class="swatch-dot" :style="{ backgroundColor: segment.color }" />
-              <input
-                type="color"
-                :value="segment.color"
-                data-testid="map-selection-segment-color"
-                @input="emitPatch({ color: ($event.target as HTMLInputElement).value })"
-              />
-            </label>
+        <div v-if="splitArmed" class="split-hint" data-testid="map-selection-split-hint">
+          Click the segment where you want to split it · Esc cancels
+        </div>
+      </template>
+
+      <!-- Route controls (D1): today's StylePanel Route section, contextualized
+           (docs/STYLE_SYSTEM_EVOLUTION.md "Per-element toolbars"). Writes go
+           through the parent's applyRouteLineControl path so E6a sticky-segment
+           semantics hold. Control availability mirrors StylePanel theme gating. -->
+      <template v-else-if="isRoute && hasAnyRouteControl">
+        <div class="toolbar-row" data-testid="map-selection-route-controls">
+          <label v-if="routeControls?.color" class="swatch" title="Route color">
+            <span class="swatch-dot" :style="{ backgroundColor: routeColor }" />
+            <input
+              type="color"
+              :value="routeColor"
+              data-testid="map-selection-route-color"
+              @input="$emit('patch-route', { route_color: ($event.target as HTMLInputElement).value })"
+            />
+          </label>
+          <template v-if="routeControls?.width">
             <input
               type="range"
               class="width-slider"
               min="1"
-              max="8"
+              max="10"
               step="0.5"
-              :value="segmentWidth"
+              :value="routeWidth"
               title="Line width"
-              data-testid="map-selection-segment-width"
-              @input="emitPatch({ width: parseFloat(($event.target as HTMLInputElement).value) })"
+              data-testid="map-selection-route-width"
+              @input="$emit('patch-route', { route_width: parseFloat(($event.target as HTMLInputElement).value) })"
             />
-            <span class="width-readout">{{ segmentWidth }}px</span>
-            <button
-              class="toolbar-chip"
-              :class="{ 'is-active': segment.dash }"
-              title="Dashed line"
-              data-testid="map-selection-segment-dash"
-              @click="emitPatch({ dash: !segment.dash })"
-            >- - -</button>
-            <button
-              class="toolbar-chip"
-              :class="{ 'is-active': splitArmed }"
-              title="Split segment at a point"
-              data-testid="map-selection-segment-split"
-              @click="$emit('toggle-split')"
-            >Split</button>
-            <button
-              class="toolbar-icon-btn toolbar-icon-btn--danger"
-              title="Delete segment"
-              data-testid="map-selection-segment-delete"
-              @click="$emit('delete-segment')"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
-              </svg>
-            </button>
-          </div>
-          <div v-if="splitArmed" class="split-hint" data-testid="map-selection-split-hint">
-            Click the segment where you want to split it · Esc cancels
-          </div>
-        </template>
-        <!-- Placeholder row — route/label controls land in E5. -->
-        <div v-else class="toolbar-placeholder" aria-disabled="true">Controls coming</div>
-      </div>
-    </template>
-  </Teleport>
+            <span class="width-readout">{{ routeWidth }}px</span>
+          </template>
+        </div>
+        <div v-if="routeControls?.opacity" class="toolbar-row" data-testid="map-selection-route-opacity-row">
+          <span class="row-label">Opacity</span>
+          <input
+            type="range"
+            class="width-slider"
+            min="0.1"
+            max="1"
+            step="0.05"
+            :value="routeOpacity"
+            title="Opacity"
+            data-testid="map-selection-route-opacity"
+            @input="$emit('patch-route', { route_opacity: parseFloat(($event.target as HTMLInputElement).value) })"
+          />
+          <span class="width-readout">{{ Math.round(routeOpacity * 100) }}%</span>
+        </div>
+      </template>
+
+      <!-- Placeholder row — label/POI controls land in E5 (map_element_overrides). -->
+      <div v-else class="toolbar-placeholder" aria-disabled="true">Controls coming</div>
+    </ElementToolbar>
+  </template>
 </template>
 
 <script setup lang="ts">
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import ElementToolbar from '~/components/map/ElementToolbar.vue'
 import { mapSelectionKindLabel, type MapElementSelection } from '~/composables/useMapElementSelection'
 import type { TrailSegment } from '~/types'
-import { DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
+import { DEFAULT_ROUTE_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 
 const props = defineProps<{
   selection: MapElementSelection | null
@@ -119,6 +169,12 @@ const props = defineProps<{
   splitArmed?: boolean
   /** Bumped by the parent (label double-click rename) to focus the name input. */
   renameFocusToken?: number
+  /** Live route styling values (route selection only). */
+  routeColor?: string
+  routeWidth?: number
+  routeOpacity?: number
+  /** Which route controls the active theme allows (mirrors StylePanel gating). */
+  routeControls?: { color: boolean; width: boolean; opacity: boolean } | null
 }>()
 
 const emit = defineEmits<{
@@ -128,20 +184,38 @@ const emit = defineEmits<{
   'delete-segment': []
   /** Arm/disarm the one-shot split-at-point mode. */
   'toggle-split': []
+  /** Parent applies this through utils/styleControlSync.ts applyRouteLineControl (sticky segments). */
+  'patch-route': [patch: { route_color?: string; route_width?: number; route_opacity?: number }]
 }>()
 
 const RING_SIZE_PX = 28
-const TOOLBAR_OFFSET_PX = 18
 const TOOLBAR_WIDTH_PX = 240
 const SEGMENT_TOOLBAR_WIDTH_PX = 280
+const ROUTE_TOOLBAR_WIDTH_PX = 260
 
 const anchor = ref<{ x: number; y: number } | null>(null)
 const anchorVisible = ref(false)
 const nameInputRef = ref<HTMLInputElement | null>(null)
 
 const kindLabel = computed(() => props.selection ? mapSelectionKindLabel(props.selection.slot) : '')
-const toolbarWidth = computed(() => props.segment ? SEGMENT_TOOLBAR_WIDTH_PX : TOOLBAR_WIDTH_PX)
+const isRoute = computed(() => props.selection?.slot === 'route')
+const hasAnyRouteControl = computed(() =>
+  Boolean(props.routeControls && (props.routeControls.color || props.routeControls.width || props.routeControls.opacity)),
+)
+const toolbarWidth = computed(() => {
+  if (props.segment) return SEGMENT_TOOLBAR_WIDTH_PX
+  if (isRoute.value && hasAnyRouteControl.value) return ROUTE_TOOLBAR_WIDTH_PX
+  return TOOLBAR_WIDTH_PX
+})
+const estimatedHeight = computed(() => {
+  if (props.segment) return props.splitArmed ? 130 : 100
+  if (isRoute.value && hasAnyRouteControl.value) return props.routeControls?.opacity ? 124 : 96
+  return 76
+})
 const segmentWidth = computed(() => props.segment?.width ?? props.fallbackWidth ?? DEFAULT_TRAIL_SEGMENT_WIDTH)
+const routeWidth = computed(() => props.routeWidth ?? DEFAULT_ROUTE_WIDTH)
+const routeOpacity = computed(() => props.routeOpacity ?? 1)
+const routeColor = computed(() => props.routeColor ?? '#C1121F')
 
 function emitPatch(patch: Partial<TrailSegment>) {
   emit('patch-segment', patch)
@@ -222,25 +296,9 @@ const ringStyle = computed(() => {
     height: `${RING_SIZE_PX}px`,
   }
 })
-
-const toolbarStyle = computed(() => {
-  if (!anchor.value) return { display: 'none' }
-  const width = toolbarWidth.value
-  const left = Math.min(
-    Math.max(12, anchor.value.x - width / 2),
-    window.innerWidth - width - 12,
-  )
-  const below = anchor.value.y + TOOLBAR_OFFSET_PX
-  const estimatedHeight = props.segment ? (props.splitArmed ? 130 : 100) : 76
-  const top = below + estimatedHeight < window.innerHeight - 12
-    ? below
-    : Math.max(12, anchor.value.y - estimatedHeight - TOOLBAR_OFFSET_PX)
-  return { left: `${left}px`, top: `${top}px`, width: `${width}px` }
-})
 </script>
 
 <style scoped>
-/* Visual language mirrors InlineTextToolbar (white blur card, stone palette). */
 .map-selection-ring {
   position: fixed;
   z-index: 9999;
@@ -249,49 +307,6 @@ const toolbarStyle = computed(() => {
   box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.18), 0 2px 10px rgba(28, 25, 23, 0.18);
   background: transparent;
   pointer-events: none;
-}
-
-.map-selection-toolbar {
-  position: fixed;
-  z-index: 10000;
-  padding: 8px 10px;
-  border: 1px solid rgba(28, 25, 23, 0.12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 16px 44px rgba(28, 25, 23, 0.18);
-  backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.toolbar-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.selection-kind {
-  flex-shrink: 0;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #2d6a4f;
-  background: #dcebe2;
-  border-radius: 999px;
-  padding: 2px 7px;
-}
-
-.selection-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #1c1917;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .toolbar-icon-btn {
@@ -344,6 +359,13 @@ const toolbarStyle = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.row-label {
+  flex-shrink: 0;
+  width: 42px;
+  font-size: 10px;
+  color: #78716c;
 }
 
 .swatch {
