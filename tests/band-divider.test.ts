@@ -126,7 +126,7 @@ describe('map-geometry invariant — source contract on MapPreview.vue', () => {
   // because a new writer appeared, that is a deliberate invariant change —
   // update docs/EDITOR_UX_NORTH_STAR.md gesture 2 and this contract together.
   const ALLOWED_BAND_HEIGHT_WRITERS = new Set([
-    'onBandDividerDragMove', // editor-v2 D2 divider gesture
+    'flushBandDividerHeight', // editor-v2 D2 divider gesture (rAF-coalesced flush)
     'onChromeRowResizeMove', // pre-existing chrome row resize (band edge rows)
     'onChromeBandResizeMove', // pre-existing chrome band resize handler
   ])
@@ -167,6 +167,6 @@ describe('map-geometry invariant — source contract on MapPreview.vue', () => {
       ).toBe(true)
     }
     // The divider gesture itself must be among the writers (it exists).
-    expect(writers.has('onBandDividerDragMove')).toBe(true)
+    expect(writers.has('flushBandDividerHeight')).toBe(true)
   })
 })

@@ -64,7 +64,20 @@ byte-identical legacy):
    legacy selection/drag grammar (joining with gesture 4); chrome-grid blocks
    (guided/template surfaces) keep their own selection path; padding control
    is not yet in the unified toolbar.
-2. **Drag band dividers: NOT STARTED** (text-fit prerequisite is merged).
+2. **Drag band dividers: LIVE** (D2). The header/map and map/footer
+   boundaries drag via editor-only `band-divider` affordances in
+   `MapPreview.vue` (adjacency follows composition flex order; transit-diagram
+   excluded). Bands trade height with the map inside the locked aspect, with
+   pure clamps in `utils/posterLayout.ts` (band floor/ceiling =
+   `CHROME_BAND_HEIGHT_BOUNDS` 8–34%; map floor = `BAND_DIVIDER_MAP_MIN_PCT`
+   40% of poster height). Heights persist through the existing
+   `poster_layout.bands.<band>.height` field — no parallel system — so
+   per-band and theme resets already restore template defaults. Slot text
+   refits live (rAF-coalesced emits, drag-debounced serialized fitTextToBox);
+   the MapLibre canvas re-fits through its existing ResizeObserver. The
+   map-geometry invariant is test-pinned (`tests/band-divider.test.ts`): only
+   this gesture and the pre-existing chrome row/band resize write band
+   heights.
 3. **Drag free elements over the map: PARTIAL (pre-existing)** — overlays drag
    via Moveable with snap guides under the poster-elements editor; not yet
    reconciled with the unified grammar's flag story.

@@ -3595,24 +3595,59 @@ function startBandDividerDrag(e: PointerEvent, edge: 'top' | 'bottom') {
   window.addEventListener('pointercancel', finishBandDividerDrag, { once: true })
 }
 
+// Live refit while dragging (D2 piece 2): pointermove emissions are
+// rAF-coalesced (at most one poster_layout emit per frame) and the text-fit
+// watcher debounces harder while a drag is active, then settles immediately on
+// release. Band height is a CSS-level change — the MapLibre canvas re-fits
+// through its existing mapContainer ResizeObserver (syncCameraToFrame:
+// resize() + saved-camera restore or fitBounds), so no map plumbing here.
+const BAND_DIVIDER_REFIT_DEBOUNCE_MS = 80
+let bandDividerFrame = 0
+let pendingBandDividerHeight: number | null = null
+
 function onBandDividerDragMove(e: PointerEvent) {
   const drag = activeBandDividerDrag.value
-  if (!drag) return
+  if (!drag || typeof window === 'undefined') return
   // At the map's TOP edge the dragged band sits above it (pointer down grows
   // the band); at the BOTTOM edge the band sits below (pointer down shrinks).
   const sign = drag.edge === 'top' ? 1 : -1
   const deltaPct = ((e.clientY - drag.startY) / drag.posterHeight) * 100 * sign
-  const height = clampBandDividerHeight(drag.startHeight + deltaPct, drag.otherBandHeight)
+  pendingBandDividerHeight = clampBandDividerHeight(drag.startHeight + deltaPct, drag.otherBandHeight)
+  if (bandDividerFrame) return
+  bandDividerFrame = window.requestAnimationFrame(() => {
+    bandDividerFrame = 0
+    flushBandDividerHeight()
+  })
+}
+
+function flushBandDividerHeight() {
+  const drag = activeBandDividerDrag.value
+  const height = pendingBandDividerHeight
+  pendingBandDividerHeight = null
+  if (!drag || height == null) return
   if (height === posterLayout.value.bands[drag.band].height) return
   updateChromeBand(drag.band, { height })
 }
 
 function finishBandDividerDrag() {
+  // Flush the last coalesced height before the drag state clears, then settle
+  // the text fit right away (the drag debounce no longer applies).
+  if (bandDividerFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(bandDividerFrame)
+    bandDividerFrame = 0
+  }
+  flushBandDividerHeight()
   teardownBandDividerDrag()
+  schedulePosterTextFit()
 }
 
 function teardownBandDividerDrag() {
   if (typeof window === 'undefined') return
+  if (bandDividerFrame) {
+    window.cancelAnimationFrame(bandDividerFrame)
+    bandDividerFrame = 0
+  }
+  pendingBandDividerHeight = null
   activeBandDividerDrag.value = null
   window.removeEventListener('pointermove', onBandDividerDragMove)
   window.removeEventListener('pointerup', finishBandDividerDrag)
@@ -6289,13 +6324,35 @@ async function settlePosterTextFit(): Promise<void> {
   if (runId === textFitRunId) textFitSettled.value = true
 }
 
-function schedulePosterTextFit() {
+// Editor scheduling only (the print path awaits settlePosterTextFit directly
+// in waitForPrintableAssets). Runs are serialized so overlapping schedules —
+// e.g. every frame of a band-divider drag — never interleave two binary
+// searches writing the same --poster-fit-font-size vars; a schedule arriving
+// mid-run queues exactly one trailing re-run.
+let textFitInFlight: Promise<void> | null = null
+let textFitRerunQueued = false
+
+function requestPosterTextFit() {
+  if (textFitInFlight) {
+    textFitRerunQueued = true
+    return
+  }
+  textFitInFlight = settlePosterTextFit().finally(() => {
+    textFitInFlight = null
+    if (textFitRerunQueued) {
+      textFitRerunQueued = false
+      requestPosterTextFit()
+    }
+  })
+}
+
+function schedulePosterTextFit(delayMs = 0) {
   textFitSettled.value = false
   if (textFitTimer) clearTimeout(textFitTimer)
   textFitTimer = setTimeout(() => {
     textFitTimer = null
-    void settlePosterTextFit()
-  }, 0)
+    requestPosterTextFit()
+  }, delayMs)
 }
 
 async function waitForPrintableAssets() {
@@ -7389,7 +7446,9 @@ watch(
     containerDims.value.w,
     containerDims.value.h,
   ],
-  () => schedulePosterTextFit(),
+  // While a band-divider drag streams poster_layout updates, debounce the
+  // refit (live but not per-frame); everything else refits immediately.
+  () => schedulePosterTextFit(activeBandDividerDrag.value ? BAND_DIVIDER_REFIT_DEBOUNCE_MS : 0),
   { flush: 'post' },
 )
 

@@ -101,6 +101,40 @@ same selection grammar map elements use. Behavior is split by
   the bespoke move/resize/delete handles and interactjs drag; first click
   focuses the contenteditable immediately. No arbiter claims are ever made.
 
+## Band-Divider Drag (FLAGS.EDITOR_V2) — June 12, 2026
+
+Editor-v2 D2 (docs/EDITOR_UX_NORTH_STAR.md gesture 2) makes the header/map and
+map/footer boundaries directly draggable — the only structural gesture in the
+default editor.
+
+- Affordances are two `band-divider` strips at the map container's top/bottom
+  edges in `MapPreview.vue` (subtle pill + seam line on hover/drag). They are
+  **editor-only chrome** under the MapSelectionOverlay rule: mounted only when
+  the unified grammar is active (editable, not print render, FLAGS.EDITOR_V2),
+  never on `/render` pages. Adjacency is resolved from the composition's flex
+  order, so title-bottom layouts drag the header at the map's bottom edge.
+  `transit-diagram` (hard-coded band geometry) shows no dividers.
+- Dragging trades height between the adjacent band and the map area inside the
+  locked 2:3 poster. Clamps are pure functions in `utils/posterLayout.ts`:
+  bands stay inside `CHROME_BAND_HEIGHT_BOUNDS` (8–34%, the existing chrome
+  resize print-legibility bounds) and the map area never drops below
+  `BAND_DIVIDER_MAP_MIN_PCT` (40% of poster height).
+- Persistence is the EXISTING `poster_layout.bands.<band>.height` mechanism —
+  the same field the chrome row-resize writes; no parallel system. Reset is
+  therefore already wired: per-band reset deletes the band override and theme
+  reset clears `poster_layout`, both restoring recipe heights.
+- Live refit: pointermove emissions are rAF-coalesced; the slot text-fit
+  watcher debounces to 80ms during the drag and settles immediately on
+  release (text-fit runs are serialized so searches never interleave). The
+  MapLibre canvas re-fits through its existing `mapContainer` ResizeObserver
+  (`syncCameraToFrame`: `resize()` + saved-camera restore or `fitBounds`).
+- Map-geometry invariant (test-pinned in `tests/band-divider.test.ts`): ONLY
+  this gesture and the pre-existing chrome row/band resize write band heights,
+  and no clamp output can push the map below its floor.
+- `editorial-minimal` pins its map area to a fixed 64% flex share; once a
+  band-height override exists (flag on), that pin yields to `flex-1` so the
+  trade is real. Gated on the flag only, so print resolves identical geometry.
+
 ## Theme And Template Recipes
 
 `utils/posterLayout.ts` now creates composition-aware default chrome recipes.
