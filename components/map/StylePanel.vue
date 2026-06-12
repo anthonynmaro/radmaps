@@ -723,14 +723,14 @@
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs" style="color: #44403C;">Minor / index</span>
                 <div class="flex gap-2">
-                  <ColorSwatch :value="atlasContourMinorColor" title="Minor contour color" @change="setAtlasLayerSetting('contour', { minor_color: $event })" />
-                  <ColorSwatch :value="atlasContourMajorColor" title="Index contour color" @change="setAtlasLayerSetting('contour', { major_color: $event, index_color: $event })" />
+                  <ColorSwatch :value="atlasContourMinorColor" title="Minor contour color" @change="setAtlasContourSetting({ minor_color: $event })" />
+                  <ColorSwatch :value="atlasContourMajorColor" title="Index contour color" @change="setAtlasContourSetting({ major_color: $event, index_color: $event })" />
                 </div>
               </div>
               <SliderRow label="Opacity" :value="atlasContourOpacity" :min="0" :max="1" :step="0.05"
                 :display="(v: number) => Math.round(v * 100) + '%'"
-                @change="setAtlasLayerSetting('contour', { minor_opacity: $event, index_opacity: $event, major_opacity: $event })" />
-              <ToggleRow label="Elevation labels" :value="atlasContourLabels" @change="setAtlasLayerSetting('contour', { labels: $event })" />
+                @change="setAtlasContourSetting({ minor_opacity: $event, index_opacity: $event, major_opacity: $event })" />
+              <ToggleRow label="Elevation labels" :value="atlasContourLabels" @change="setAtlasContourSetting({ labels: $event })" />
             </template>
 
             <template v-else-if="activeAtlasLayerId === 'water' && atlasLayerVisible('water')">
@@ -1766,7 +1766,15 @@ import {
 } from '~/utils/themeOptions'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
-import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
+import {
+  applyAtlasContourSettings,
+  applyContourControl,
+  applyContourLabelsControl,
+  applyRouteLineControl,
+  type AtlasContourSettings,
+  type ContourControlField,
+  type RouteLineControlField,
+} from '~/utils/styleControlSync'
 import { defaultTrailSegmentColor, patchTrailSegment, removeTrailSegment } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
@@ -1778,7 +1786,6 @@ type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
-type ContourControlField = 'contour_color' | 'contour_major_color' | 'contour_opacity' | 'contour_minor_width' | 'contour_major_width'
 type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 
 const THEME_OPTIONS = QUICK_THEME_OPTION_GROUPS.flatMap(group => [group.theme, ...group.colorways])
@@ -2345,33 +2352,29 @@ function handleDesignUpload(e: Event, kind: MapAssetKind) {
   input.value = ''
 }
 
-function updateAtlasContourSettings(patch: Partial<NonNullable<AtlasLayerSettings['contour']>>) {
-  if (!isAtlasPresetActive.value) return
-  const currentContour = atlasLayerSettings('contour')
-  local.atlas_layer_settings = {
-    ...(local.atlas_layer_settings ?? {}),
-    contour: {
-      ...currentContour,
-      ...patch,
-    },
-  }
-}
-
+// Contour styling has two StyleConfig stores (legacy contour_* fields +
+// atlas_layer_settings.contour). Both the terrain card and the atlas layer
+// card write them through utils/styleControlSync.ts — one write path (E6a).
 function setContourControl<K extends ContourControlField>(key: K, value: StyleConfig[K]) {
-  (local as StyleConfig)[key] = value
-
-  if (key === 'contour_color') updateAtlasContourSettings({ minor_color: value as string })
-  if (key === 'contour_major_color') updateAtlasContourSettings({ major_color: value as string, index_color: value as string })
-  if (key === 'contour_opacity') updateAtlasContourSettings({ minor_opacity: value as number, major_opacity: value as number })
-  if (key === 'contour_minor_width') updateAtlasContourSettings({ minor_width: value as number })
-  if (key === 'contour_major_width') updateAtlasContourSettings({ major_width: value as number, index_width: value as number })
-
+  Object.assign(local, applyContourControl(local as StyleConfig, key, value, { atlasActive: isAtlasPresetActive.value }))
   emit('update:modelValue', { ...local })
 }
 
 function setContourLabels(enabled: boolean) {
-  local.show_elevation_labels = enabled
-  updateAtlasContourSettings({ labels: enabled })
+  Object.assign(local, applyContourLabelsControl(local as StyleConfig, enabled, { atlasActive: isAtlasPresetActive.value }))
+  emit('update:modelValue', { ...local })
+}
+
+// Atlas-card contour edits. FLAGS.EDITOR_V2: route through the unified write
+// path so the consumed legacy contour_* fields stay in sync (a stale explicit
+// legacy value otherwise overrides fresh atlas edits in buildMapStyle's atlas
+// resolution). Flag off: legacy atlas-only write, byte-identical.
+function setAtlasContourSetting(patch: Partial<AtlasContourSettings>) {
+  if (!editorV2Enabled.value) {
+    setAtlasLayerSetting('contour', patch)
+    return
+  }
+  Object.assign(local, applyAtlasContourSettings(local as StyleConfig, patch))
   emit('update:modelValue', { ...local })
 }
 

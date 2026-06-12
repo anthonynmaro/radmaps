@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type StyleConfig, type TrailSegment } from '~/types'
-import { applyRouteLineControl } from '~/utils/styleControlSync'
+import {
+  applyAtlasContourSettings,
+  applyContourControl,
+  applyContourLabelsControl,
+  applyRouteLineControl,
+} from '~/utils/styleControlSync'
 
 function segment(patch: Partial<TrailSegment> = {}): TrailSegment {
   return {
@@ -207,5 +212,109 @@ describe('sticky segment synchronization (editor-v2)', () => {
     expect(next.route_width).toBe(1.5)
     expect(next.trail_segments?.[0].width).toBe(6)
     expect(input.trail_segments?.[0].width).toBe(6)
+  })
+})
+
+// E6a: contour intent has two StyleConfig stores (legacy contour_* fields +
+// atlas_layer_settings.contour) because buildMapStyle genuinely consumes both.
+// These functions are the ONLY write path; both StylePanel cards route here.
+describe('contour control synchronization', () => {
+  it('writes only the legacy field when no atlas preset is active (legacy terrain-card behavior)', () => {
+    const input = config({ contour_color: '#111111', atlas_layer_settings: undefined })
+
+    const next = applyContourControl(input, 'contour_color', '#8B875E')
+
+    expect(next.contour_color).toBe('#8B875E')
+    expect(next.atlas_layer_settings).toBeUndefined()
+    expect(input.contour_color).toBe('#111111')
+  })
+
+  it('mirrors terrain-card edits into atlas_layer_settings.contour with the exact legacy key mapping', () => {
+    const atlas = { atlasActive: true } as const
+    let next = config({ atlas_layer_settings: { contour: { interval: 'auto' as const } } })
+
+    next = applyContourControl(next, 'contour_color', '#8B875E', atlas)
+    next = applyContourControl(next, 'contour_major_color', '#68653F', atlas)
+    next = applyContourControl(next, 'contour_opacity', 0.42, atlas)
+    next = applyContourControl(next, 'contour_minor_width', 0.8, atlas)
+    next = applyContourControl(next, 'contour_major_width', 1.6, atlas)
+
+    expect(next).toMatchObject({
+      contour_color: '#8B875E',
+      contour_major_color: '#68653F',
+      contour_opacity: 0.42,
+      contour_minor_width: 0.8,
+      contour_major_width: 1.6,
+    })
+    expect(next.atlas_layer_settings?.contour).toEqual({
+      interval: 'auto', // untouched settings preserved
+      minor_color: '#8B875E',
+      major_color: '#68653F',
+      index_color: '#68653F',
+      minor_opacity: 0.42,
+      major_opacity: 0.42, // contour_opacity maps to minor+major only (legacy parity, no index_opacity)
+      minor_width: 0.8,
+      major_width: 1.6,
+      index_width: 1.6,
+    })
+  })
+
+  it('syncs the elevation labels toggle into atlas labels only when atlas is active', () => {
+    const input = config({ show_elevation_labels: false, atlas_layer_settings: undefined })
+
+    const plain = applyContourLabelsControl(input, true)
+    expect(plain.show_elevation_labels).toBe(true)
+    expect(plain.atlas_layer_settings).toBeUndefined()
+
+    const atlas = applyContourLabelsControl(input, true, { atlasActive: true })
+    expect(atlas.show_elevation_labels).toBe(true)
+    expect(atlas.atlas_layer_settings?.contour?.labels).toBe(true)
+  })
+
+  it('atlas-card edits mirror back into the consumed legacy fields (editor-v2 single write path)', () => {
+    const input = config({
+      contour_color: '#STALE1',
+      contour_major_color: '#STALE2',
+      contour_opacity: 0.9,
+      atlas_layer_settings: { water: { fill_color: '#79B7C8' }, contour: { minor_width: 0.7 } },
+    })
+
+    const next = applyAtlasContourSettings(input, {
+      minor_color: '#8B875E',
+      major_color: '#68653F',
+      index_color: '#68653F',
+      minor_opacity: 0.42,
+      index_opacity: 0.42,
+      major_opacity: 0.42,
+    })
+
+    // Atlas store written, untouched layers/settings preserved
+    expect(next.atlas_layer_settings?.water).toEqual({ fill_color: '#79B7C8' })
+    expect(next.atlas_layer_settings?.contour).toMatchObject({ minor_width: 0.7, minor_color: '#8B875E', major_opacity: 0.42 })
+    // Legacy mirror updated so explicit-override resolution can't go stale
+    expect(next.contour_color).toBe('#8B875E')
+    expect(next.contour_major_color).toBe('#68653F')
+    expect(next.contour_opacity).toBe(0.42)
+    expect(input.contour_color).toBe('#STALE1')
+  })
+
+  it('atlas-card label and width edits mirror to show_elevation_labels and contour widths', () => {
+    const input = config({ show_elevation_labels: true, contour_minor_width: 1, contour_major_width: 1.2 })
+
+    const next = applyAtlasContourSettings(input, { labels: false, minor_width: 0.6, major_width: 2, index_width: 2 })
+
+    expect(next.show_elevation_labels).toBe(false)
+    expect(next.contour_minor_width).toBe(0.6)
+    expect(next.contour_major_width).toBe(2)
+  })
+
+  it('partial atlas patches leave unrelated legacy fields untouched', () => {
+    const input = config({ contour_color: '#111111', contour_opacity: 0.5, show_elevation_labels: true })
+
+    const next = applyAtlasContourSettings(input, { minor_color: '#8B875E' })
+
+    expect(next.contour_color).toBe('#8B875E')
+    expect(next.contour_opacity).toBe(0.5)
+    expect(next.show_elevation_labels).toBe(true)
   })
 })
