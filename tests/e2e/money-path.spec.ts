@@ -217,6 +217,11 @@ async function installMoneyPathRoutes(page: Page) {
 }
 
 test('GPX upload to Stripe checkout money path completes with a rendered proof', async ({ page }) => {
+  // This one test cold-compiles the create AND style pages on a fresh dev
+  // server before any assertion can pass; CI runners take 2-3x local compile
+  // time and the editor-v2 module graph grew it again. The flow itself runs
+  // in ~70s warm — the budget is almost entirely compile headroom.
+  test.setTimeout(300_000)
   await seedSupabaseSession(page)
   const state = await installMoneyPathRoutes(page)
 
