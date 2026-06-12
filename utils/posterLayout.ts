@@ -132,6 +132,50 @@ export function clampChromeBandHeight(height: number) {
   return Math.round(Math.min(CHROME_BAND_HEIGHT_BOUNDS.max, Math.max(CHROME_BAND_HEIGHT_BOUNDS.min, height)) * 10) / 10
 }
 
+// ── Band-divider drag clamps (editor-v2 D2) ──────────────────────────────────
+// The divider gesture trades height between a chrome band and the map area
+// inside the locked poster aspect. Two floors apply:
+//  - the band's print-legibility floor: CHROME_BAND_HEIGHT_BOUNDS.min, the same
+//    constant the existing chrome band/row resize path already enforces via
+//    clampChromeBandHeight();
+//  - the map's floor: the map area (everything the two horizontal bands do not
+//    occupy) may never drop below BAND_DIVIDER_MAP_MIN_PCT of poster height.
+// These are pure functions so the clamp math is unit-testable without DOM.
+
+/** Minimum share of poster height the map area keeps under divider drags. */
+export const BAND_DIVIDER_MAP_MIN_PCT = 40
+
+export interface BandDividerHeightBounds {
+  min: number
+  max: number
+}
+
+/**
+ * Height bounds for one band while divider-dragging, given the rendered height
+ * of the opposite horizontal band (0 when hidden). The band floor wins over the
+ * map floor in the degenerate case where both cannot be satisfied.
+ */
+export function bandDividerHeightBounds(
+  otherBandHeight: number,
+  mapMinPct: number = BAND_DIVIDER_MAP_MIN_PCT,
+): BandDividerHeightBounds {
+  const mapFloorMax = 100 - mapMinPct - Math.max(0, otherBandHeight)
+  return {
+    min: CHROME_BAND_HEIGHT_BOUNDS.min,
+    max: Math.max(CHROME_BAND_HEIGHT_BOUNDS.min, Math.min(CHROME_BAND_HEIGHT_BOUNDS.max, mapFloorMax)),
+  }
+}
+
+/** Clamp a proposed divider-dragged band height to the D2 bounds. */
+export function clampBandDividerHeight(
+  proposedHeight: number,
+  otherBandHeight: number,
+  mapMinPct: number = BAND_DIVIDER_MAP_MIN_PCT,
+): number {
+  const bounds = bandDividerHeightBounds(otherBandHeight, mapMinPct)
+  return clampChromeBandHeight(Math.min(bounds.max, Math.max(bounds.min, proposedHeight)))
+}
+
 type ChromeLayoutRecipe = {
   headerHeight: number
   footerHeight: number

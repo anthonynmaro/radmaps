@@ -1524,6 +1524,38 @@
           </filter>
           <rect width="100%" height="100%" filter="url(#grain-noise)" :opacity="grainOpacity"/>
         </svg>
+
+        <!-- ── Band dividers (editor-v2 D2, FLAGS.EDITOR_V2) ─────────────────
+             EDITOR-ONLY CHROME. Rule (same as MapSelectionOverlay.vue): drag
+             affordances NEVER print — they mount only under the unified editor
+             grammar (editable, not render-mode print, FLAGS.EDITOR_V2), never
+             on the /render pages the AWS renderer screenshots. The gesture's
+             OUTPUT persists through the existing poster_layout band-height
+             field, which editor and print render paths both already consume. -->
+        <div
+          v-if="bandDividersEnabled && mapTopDividerBand"
+          class="band-divider band-divider--top"
+          :class="{ 'is-dragging': activeBandDividerDrag?.edge === 'top' }"
+          data-testid="band-divider-top"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="`Drag to resize the ${mapTopDividerBand} band`"
+          @pointerdown.prevent.stop="startBandDividerDrag($event, 'top')"
+        >
+          <span class="band-divider-pill" />
+        </div>
+        <div
+          v-if="bandDividersEnabled && mapBottomDividerBand"
+          class="band-divider band-divider--bottom"
+          :class="{ 'is-dragging': activeBandDividerDrag?.edge === 'bottom' }"
+          data-testid="band-divider-bottom"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="`Drag to resize the ${mapBottomDividerBand} band`"
+          @pointerdown.prevent.stop="startBandDividerDrag($event, 'bottom')"
+        >
+          <span class="band-divider-pill" />
+        </div>
       </div>
 
       <!-- ── Elevation profile band ─────────────────────────────────────── -->
@@ -2164,7 +2196,7 @@ import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpr
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampBandDividerHeight, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
@@ -2627,6 +2659,19 @@ const unifiedPosterGrammar = computed(() =>
   props.editable === true && !isPrintRender.value && editorV2FlagEnabled.value,
 )
 
+// Editor-v2 D2: once a user has divider-dragged (or row-resized) a band so
+// that poster_layout carries a band-height override, themes that pin the map
+// area to a fixed flex share (editorial-minimal's 64%) must yield to flex-1 so
+// the band actually trades height with the map instead of overflowing the
+// locked 2:3 poster. Gated on the flag only (NOT on `editable`) so the print
+// renderer resolves the exact same geometry as the editor.
+const editorV2BandHeightOverride = computed(() =>
+  editorV2FlagEnabled.value && (
+    props.styleConfig.poster_layout?.bands?.header?.height != null ||
+    props.styleConfig.poster_layout?.bands?.footer?.height != null
+  ),
+)
+
 // One selection across all editor domains: poster claims here evict map
 // selections (useMapElementSelection) and vice versa. Keys match the
 // poster-element id grammar so MapEditorSurface's Moveable-state claim for the
@@ -2807,6 +2852,7 @@ onUnmounted(() => {
   cleanupChromeFloating()
   teardownChromeContextToolbarDrag()
   teardownChromeBandResize()
+  teardownBandDividerDrag()
   teardownChromeColumnResize()
   teardownChromeRowResize()
   if (textFitTimer) clearTimeout(textFitTimer)
@@ -3464,6 +3510,113 @@ function teardownChromeBandResize() {
   window.removeEventListener('pointermove', onChromeBandResizeMove)
   window.removeEventListener('pointerup', finishChromeBandResize)
   window.removeEventListener('pointercancel', finishChromeBandResize)
+}
+
+// ── Band-divider drag (editor-v2 D2, FLAGS.EDITOR_V2) ────────────────────────
+// docs/EDITOR_UX_NORTH_STAR.md gesture 2: the header/map and map/footer
+// boundaries are draggable. Bands trade height with the map area inside the
+// locked poster aspect; clamps live in utils/posterLayout.ts
+// (clampBandDividerHeight: band floor = CHROME_BAND_HEIGHT_BOUNDS, map floor =
+// BAND_DIVIDER_MAP_MIN_PCT). Persistence reuses the EXISTING poster_layout
+// band-height write path (updateChromeBand → patchPosterLayout →
+// 'poster-layout-updated'), the same field the chrome row-resize gesture
+// already writes — no parallel system. Reset flows are therefore already
+// wired: per-band reset (resetChromeBand) deletes the band override and theme
+// reset clears poster_layout entirely, both restoring the theme's recipe
+// heights. MAP-GEOMETRY INVARIANT: this gesture and the existing chrome
+// row/band resize are the ONLY writers of poster_layout band heights
+// (asserted by tests/band-divider.test.ts).
+
+const activeBandDividerDrag = ref<{
+  band: Extract<ChromeBandId, 'header' | 'footer'>
+  edge: 'top' | 'bottom'
+  startY: number
+  startHeight: number
+  otherBandHeight: number
+  posterHeight: number
+} | null>(null)
+
+// Editor-only chrome — same rule as MapSelectionOverlay.vue: divider
+// affordances NEVER print. unifiedPosterGrammar is already false on the
+// /render pages the AWS renderer screenshots (render-mode print, editable
+// false). transit-diagram keeps hard-coded band geometry and is excluded.
+const bandDividersEnabled = computed(() =>
+  unifiedPosterGrammar.value && composition.value.id !== 'transit-diagram',
+)
+
+// Compositions reorder header/map/footer via flex `order` (title-bottom
+// layouts put the header BETWEEN map and footer), so each divider resolves
+// which band is actually adjacent to the map edge it sits on.
+function horizontalBandsByOrder() {
+  const bands: Array<{ band: Extract<ChromeBandId, 'header' | 'footer'>; order: number }> = [
+    { band: 'header', order: composition.value.headerOrder },
+  ]
+  if (composition.value.footerVariant !== 'hidden') {
+    bands.push({ band: 'footer', order: composition.value.footerOrder })
+  }
+  return bands
+}
+
+const mapTopDividerBand = computed(() => {
+  const above = horizontalBandsByOrder()
+    .filter(item => item.order < composition.value.mapOrder)
+    .sort((a, b) => b.order - a.order)
+  return above[0]?.band ?? null
+})
+
+const mapBottomDividerBand = computed(() => {
+  const below = horizontalBandsByOrder()
+    .filter(item => item.order > composition.value.mapOrder)
+    .sort((a, b) => a.order - b.order)
+  return below[0]?.band ?? null
+})
+
+function bandRenderedHeightPct(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  if (band === 'footer' && composition.value.footerVariant === 'hidden') return 0
+  return posterLayout.value.bands[band].height ?? 0
+}
+
+function startBandDividerDrag(e: PointerEvent, edge: 'top' | 'bottom') {
+  if (!bandDividersEnabled.value || typeof window === 'undefined') return
+  const band = edge === 'top' ? mapTopDividerBand.value : mapBottomDividerBand.value
+  const posterBox = posterCanvasEl.value?.getBoundingClientRect()
+  if (!band || !posterBox?.height) return
+  const other = band === 'header' ? 'footer' as const : 'header' as const
+  activeBandDividerDrag.value = {
+    band,
+    edge,
+    startY: e.clientY,
+    startHeight: posterLayout.value.bands[band].height ?? clampChromeBandHeight(band === 'header' ? 22 : 14),
+    otherBandHeight: bandRenderedHeightPct(other),
+    posterHeight: posterBox.height,
+  }
+  window.addEventListener('pointermove', onBandDividerDragMove)
+  window.addEventListener('pointerup', finishBandDividerDrag, { once: true })
+  window.addEventListener('pointercancel', finishBandDividerDrag, { once: true })
+}
+
+function onBandDividerDragMove(e: PointerEvent) {
+  const drag = activeBandDividerDrag.value
+  if (!drag) return
+  // At the map's TOP edge the dragged band sits above it (pointer down grows
+  // the band); at the BOTTOM edge the band sits below (pointer down shrinks).
+  const sign = drag.edge === 'top' ? 1 : -1
+  const deltaPct = ((e.clientY - drag.startY) / drag.posterHeight) * 100 * sign
+  const height = clampBandDividerHeight(drag.startHeight + deltaPct, drag.otherBandHeight)
+  if (height === posterLayout.value.bands[drag.band].height) return
+  updateChromeBand(drag.band, { height })
+}
+
+function finishBandDividerDrag() {
+  teardownBandDividerDrag()
+}
+
+function teardownBandDividerDrag() {
+  if (typeof window === 'undefined') return
+  activeBandDividerDrag.value = null
+  window.removeEventListener('pointermove', onBandDividerDragMove)
+  window.removeEventListener('pointerup', finishBandDividerDrag)
+  window.removeEventListener('pointercancel', finishBandDividerDrag)
 }
 
 function startChromeColumnResize(e: PointerEvent, band: ChromeBandId, rowId: string, cellId: string) {
@@ -5624,12 +5777,12 @@ const mapAreaStyle = computed(() => ({
   boxShadow: composition.value.mapShadow,
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 75%'
-    : props.styleConfig.color_theme === 'editorial-minimal'
+    : props.styleConfig.color_theme === 'editorial-minimal' && !editorV2BandHeightOverride.value
       ? '0 0 64%'
       : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '75%'
-    : props.styleConfig.color_theme === 'editorial-minimal'
+    : props.styleConfig.color_theme === 'editorial-minimal' && !editorV2BandHeightOverride.value
       ? '64%'
       : undefined,
   boxSizing: 'border-box' as const,
@@ -14284,6 +14437,53 @@ onUnmounted(() => {
   -webkit-user-select: text;
   pointer-events: auto;
   user-select: text;
+}
+
+/* Band-divider drag affordances (editor-v2 D2) — editor-only chrome, never
+   mounted in print renders (see the template comment above the elements). */
+.band-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+.band-divider--top { top: -7px; }
+.band-divider--bottom { bottom: -7px; }
+.band-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: transparent;
+  transition: background 120ms ease;
+}
+.band-divider-pill {
+  width: 44px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), inset 0 0 0 1.5px rgba(45, 106, 79, 0.6);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+.band-divider:hover::before,
+.band-divider.is-dragging::before {
+  background: rgba(45, 106, 79, 0.45);
+}
+.band-divider:hover .band-divider-pill,
+.band-divider.is-dragging .band-divider-pill {
+  opacity: 1;
 }
 .stat-custom-text {
   display: block;
