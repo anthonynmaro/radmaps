@@ -183,6 +183,14 @@ export default defineNuxtConfig({
       ...(isE2eDevServer
         ? { warmup: { clientFiles: e2eEditorWarmupFiles } }
         : {}),
+      fs: {
+        allow: [
+          fileURLToPath(new URL('.', import.meta.url)),
+          // Local checkouts share node_modules through a symlink to the
+          // sibling app; Vite resolves @fs imports to the real path.
+          fileURLToPath(new URL('../trailmaps-app/node_modules', import.meta.url)),
+        ],
+      },
       allowedHosts: [
         'localhost',
         '127.0.0.1',
