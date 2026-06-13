@@ -4791,12 +4791,32 @@ function bandElement(band: Extract<ChromeBandId, 'header' | 'footer'>): HTMLElem
   return posterCanvasEl.value?.querySelector<HTMLElement>(band === 'header' ? '.poster-header' : '.poster-footer') ?? null
 }
 
-function cssColorToHex(value: string): string {
-  const match = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/)
-  if (!match) return /^#[0-9a-f]{6}$/i.test(value) ? value : '#f5f5f4'
+// Parse a CSS color to #rrggbb, or null when it's fully transparent /
+// unparseable. Transparent must NOT collapse to #000000 (rgba(0,0,0,0) → black)
+// — themes commonly leave bands transparent and let the poster paper show
+// through, so a naive parse made the band-property swatch read solid black.
+function cssColorToHex(value: string): string | null {
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value
+  const match = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/)
+  if (!match) return null
+  if (match[4] != null && Number(match[4]) === 0) return null // fully transparent
   return '#' + [match[1], match[2], match[3]]
     .map(part => Number(part).toString(16).padStart(2, '0'))
     .join('')
+}
+
+// The visible background at a band: its own color if painted, otherwise the
+// first ancestor that actually paints one (the poster paper), falling back to
+// a light default. Drives the band-property swatch so it reflects what the
+// user sees rather than a transparent band's phantom black.
+function effectiveBandBackgroundHex(el: HTMLElement): string {
+  let node: HTMLElement | null = el
+  while (node) {
+    const hex = cssColorToHex(window.getComputedStyle(node).backgroundColor)
+    if (hex) return hex
+    node = node.parentElement
+  }
+  return '#f5f5f4'
 }
 
 function onBandSpaceClick(e: MouseEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
@@ -4816,7 +4836,9 @@ function resolveBandToolbar(band: Extract<ChromeBandId, 'header' | 'footer'>) {
   }
   selectedBandToolbar.value = {
     band,
-    background: cssColorToHex(window.getComputedStyle(el).backgroundColor),
+    // Prefer the band's explicit override; else the effective visible color.
+    background: cssColorToHex(window.getComputedStyle(el).backgroundColor)
+      ?? effectiveBandBackgroundHex(el),
     anchor: el.getBoundingClientRect(),
   }
 }

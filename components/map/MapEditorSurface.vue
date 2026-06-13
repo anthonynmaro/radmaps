@@ -429,6 +429,7 @@ const PANEL_WIDTH_KEY = 'radmaps:panelWidth'
 const PANEL_COLLAPSED_KEY = 'radmaps:panelCollapsed'
 const panelWidth = ref(PANEL_DEFAULT_W)
 const panelCollapsed = ref(false)
+const panelPreferencesHydrated = ref(false)
 // (Editor-v2 D4 default-collapse lives below editorV2Enabled's definition —
 // watch sources evaluate eagerly at setup.)
 const isResizing = ref(false)
@@ -540,8 +541,9 @@ const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
 // rather than onMounted: the flag state may resolve just after mount.
 const panelAutoCollapsed = ref(false)
 watch(() => editorV2Enabled.value, (on) => {
-  if (!on || panelAutoCollapsed.value || typeof window === 'undefined') return
+  if (!on || panelAutoCollapsed.value) return
   panelAutoCollapsed.value = true
+  if (!panelPreferencesHydrated.value || typeof window === 'undefined') return
   // A stored preference (the user explicitly opened/closed the drawer
   // before) always wins over the flag-on default.
   try { if (localStorage.getItem(PANEL_COLLAPSED_KEY) != null) return } catch { /* ignore */ }
@@ -825,6 +827,7 @@ onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'
   document.addEventListener('keydown', onKeyDown)
   seedHistory(props.modelValue)
+  panelPreferencesHydrated.value = true
   try {
     const savedWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY))
     if (Number.isFinite(savedWidth) && savedWidth > 0) panelWidth.value = clampPanelWidth(savedWidth)
@@ -971,17 +974,30 @@ function redo() {
 
 function onKeyDown(e: KeyboardEvent) {
   const target = e.target as HTMLElement
+  // Escape clears the active selection in priority order — handled BEFORE the
+  // contenteditable guard below so it works while a slot/overlay holds focus
+  // (selected text slots are contenteditable, so the old guard swallowed Esc
+  // and left no keyboard way to deselect). A poster text/band selection
+  // commits any in-flight inline edit (blur) and then clears; the unified
+  // arbiter's eviction callbacks fan the clear out across domains.
+  if (e.key === 'Escape') {
+    if (segmentSplitTarget.value) {
+      segmentSplitTarget.value = null
+      return
+    }
+    if (selectedPosterElementId.value || activeTextTarget.value) {
+      const editing = target.isContentEditable && target.closest('[data-poster-element-id]')
+      if (editing && document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      onPosterElementSelected(null)
+      return
+    }
+    if (mapElementSelection.value) {
+      clearMapElementSelection()
+      return
+    }
+    return
+  }
   if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-  // Esc cancels an armed split-at-point mode first (selection stays),
-  // then clears an active map-element selection (editor-v2 selection mode).
-  if (e.key === 'Escape' && segmentSplitTarget.value) {
-    segmentSplitTarget.value = null
-    return
-  }
-  if (e.key === 'Escape' && mapElementSelection.value) {
-    clearMapElementSelection()
-    return
-  }
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
   const key = e.key.toLowerCase()

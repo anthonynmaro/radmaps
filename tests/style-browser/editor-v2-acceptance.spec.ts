@@ -194,4 +194,61 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
     await expect(page.getByTestId('viewpoint-pill')).toHaveCount(0)
     await expect(page.getByTestId('poster-band-toolbar')).toHaveCount(0)
   })
+
+  // Live-testing refinements (2026-06-12). Found driving the real editor:
+  // a selected element could only be deselected by selecting something else —
+  // Escape was swallowed by the contenteditable guard in onKeyDown.
+  test('Escape deselects the active element (title slot and band)', async ({ page }) => {
+    await gotoEditorV2(page)
+
+    // Title slot: select, Escape, gone.
+    await page.locator('.poster-trail-name').click()
+    await expect(page.getByTestId('poster-element-toolbar')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('poster-element-toolbar')).toHaveCount(0)
+    await expect(page.locator('.moveable-control-box')).toHaveCount(0)
+
+    // Band selection: empty band space → band toolbar → Escape closes it.
+    const header = page.locator('.poster-header')
+    const point = await header.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      for (let fx = 0.08; fx <= 0.92; fx += 0.06) {
+        const x = r.x + r.width * fx, y = r.y + r.height * 0.18
+        if (document.elementFromPoint(x, y) === el) return { x, y }
+      }
+      return null
+    })
+    if (point) {
+      await page.mouse.click(point.x, point.y)
+      await expect(page.getByTestId('poster-band-toolbar')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('poster-band-toolbar')).toHaveCount(0)
+    }
+  })
+
+  // A theme whose band background is transparent (paper shows through from the
+  // poster) used to make the band-property swatch read solid black, because
+  // rgba(0,0,0,0) parsed to #000000. The swatch must reflect the effective
+  // visible color instead. usgs-vintage / park-quad has a transparent header.
+  test('band background swatch reflects the effective color, never phantom black', async ({ page }) => {
+    await gotoEditorV2(page, '/style-browser-fixture?surface=1&theme=usgs-vintage&composition=park-quad&flags=editor_v2')
+    const header = page.locator('.poster-header')
+    // The band must actually be transparent for this to be a meaningful test.
+    const bandBg = await header.evaluate(el => getComputedStyle(el).backgroundColor)
+    expect(bandBg).toBe('rgba(0, 0, 0, 0)')
+    const point = await header.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      for (let fx = 0.08; fx <= 0.92; fx += 0.06) {
+        const x = r.x + r.width * fx, y = r.y + r.height * 0.18
+        if (document.elementFromPoint(x, y) === el) return { x, y }
+      }
+      return null
+    })
+    expect(point, 'expected empty header band space').toBeTruthy()
+    await page.mouse.click(point!.x, point!.y)
+    const swatch = page.getByTestId('poster-band-toolbar').getByTestId('band-background-color')
+    await expect(swatch).toBeVisible()
+    const value = await swatch.inputValue()
+    expect(value.toLowerCase()).not.toBe('#000000')
+  })
 })
