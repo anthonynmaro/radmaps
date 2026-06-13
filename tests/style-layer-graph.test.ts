@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_STYLE_CONFIG, type StyleConfig } from '../types'
 import {
   ALL_STYLE_PRESETS,
+  CANONICAL_LAYER_SLOT_ORDER,
   assertGraphSlotOrder,
   effectiveStyleConfig,
   getGraphFullReloadFields,
+  getGraphSlotLayerIds,
   getPresetGraph,
+  getSelectableLayerSlots,
+  getSlotSelectability,
   getVisibleStyleControls,
   styleFieldUpdateMode,
   styleUsesField,
@@ -182,6 +186,61 @@ describe('style layer graph contracts', () => {
     expect(getVisibleStyleControls('native-toner').water_color?.visible).toBe(false)
     expect(styleUsesField('contour-art', 'water_color')).toBe(true)
     expect(styleUsesField('road-network', 'water_color')).toBe(true)
+  })
+})
+
+describe('map-element selectability (editor-v2 E3)', () => {
+  const SELECTION_CAPABLE_SLOTS = ['labels-pois', 'route', 'segments-handles'] as const
+
+  it('declares only app-owned slots (route/segments) selectable for baked-raster presets — never labels', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      const graph = getPresetGraph(preset)
+      if (graph.features.baseRaster !== 'baked-raster') continue
+      expect(getSelectableLayerSlots(preset), preset).toEqual({ 'route': 'layer', 'segments-handles': 'feature' })
+      expect(getSlotSelectability(preset, 'labels-pois'), `${preset}.labels-pois`).toBe(false)
+    }
+    // Pin the family explicitly so a feature-set refactor can't silently flip it.
+    for (const preset of ['minimalist', 'topographic', 'natural-topo', 'stadia-watercolor', 'stadia-toner', 'native-watercolor', 'alidade-smooth', 'alidade-smooth-dark', 'radmaps-watercolor']) {
+      expect(getSlotSelectability(preset, 'labels-pois'), preset).toBe(false)
+    }
+  })
+
+  it('marks route as layer-selectable and segments as feature-selectable on EVERY preset (app-owned vector sources)', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      expect(getSlotSelectability(preset, 'route'), preset).toBe('layer')
+      expect(getSlotSelectability(preset, 'segments-handles'), preset).toBe('feature')
+    }
+  })
+
+  it('marks labels-pois selectable only when the preset renders vector label layers', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      const graph = getPresetGraph(preset)
+      const hasVectorLabels = graph.features.baseRaster !== 'baked-raster'
+        && (graph.features.placeLabels === 'editable-vector' || graph.features.pois === 'editable-vector')
+      expect(getSlotSelectability(preset, 'labels-pois'), preset).toBe(hasVectorLabels ? 'feature' : false)
+    }
+    expect(getSlotSelectability('radmaps-field-topo', 'labels-pois')).toBe('feature')
+    expect(getSlotSelectability('contour-art', 'labels-pois')).toBe('feature')
+    expect(getSlotSelectability('road-network', 'labels-pois')).toBe(false)
+    expect(getSlotSelectability('native-toner', 'labels-pois')).toBe(false)
+  })
+
+  it('never marks slots outside the selection-capable set as selectable', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      for (const slot of Object.keys(getSelectableLayerSlots(preset))) {
+        expect(SELECTION_CAPABLE_SLOTS, `${preset}.${slot}`).toContain(slot)
+      }
+    }
+  })
+
+  it('keeps selectable label slots backed by declared graph layers', () => {
+    for (const preset of ALL_STYLE_PRESETS) {
+      if (getSlotSelectability(preset, 'labels-pois') !== 'feature') continue
+      expect(getGraphSlotLayerIds(preset, 'labels-pois').length, preset).toBeGreaterThan(0)
+    }
+    expect(getGraphSlotLayerIds('radmaps-field-topo', 'labels-pois')).toContain('radmaps-field-topo-place-labels')
+    expect(getGraphSlotLayerIds('radmaps-field-topo', 'labels-pois')).toContain('radmaps-field-topo-poi-labels')
+    expect(getGraphSlotLayerIds('contour-art', 'labels-pois')).toContain('roads-place-labels')
   })
 })
 

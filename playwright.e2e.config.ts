@@ -21,7 +21,10 @@ const renderTicketSecret = envOr('RENDER_TICKET_SECRET', 'e2e-render-ticket-secr
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 60_000,
+  // 120s: the money path cold-compiles the create + style pages on a fresh
+  // dev server inside one test; editor-v2's larger module graph pushed that
+  // past the old 60s budget on CI (the flow itself passes well under).
+  timeout: 120_000,
   expect: {
     timeout: 15_000,
   },

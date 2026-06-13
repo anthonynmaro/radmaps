@@ -112,6 +112,7 @@
             :delete-brush-size="deleteBrushSize"
             :segment-draw-mode="segmentDrawMode"
             :segment-edit-mode="segmentEditMode"
+            :segment-label-rename-enabled="mapSelectionEnabled"
             :can-undo="canUndo"
             :can-redo="canRedo"
             :chrome-editing="chromeDirectEdit"
@@ -137,9 +138,15 @@
             @asset-resized="onAssetResized"
             @poster-element-selected="onPosterElementSelected"
             @poster-element-patched="onPosterElementPatch"
+            @poster-element-remove="onPosterElementRemove"
+            @poster-add-text="onPosterAddText"
+            @poster-add-stat="onPosterAddStat"
+            @poster-add-icon="onPosterAddIconCentered"
+            @poster-add-image="onPosterAddImage"
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
+            @poster-map-frame="onPosterMapFrame"
             @poster-layout-updated="onPosterLayoutUpdated"
             @freeze-changed="onFreezeChanged"
             @segment-plotted="onSegmentPlotted"
@@ -154,9 +161,31 @@
             @segment-label-edit-started="onSegmentLabelEditStarted"
             @segment-label-moved="onSegmentLabelMoved"
             @segment-labels-moved="onSegmentLabelsMoved"
+            @segment-label-rename="onSegmentLabelRename"
             @view-changed="onViewChanged"
+            @map-ready="onEditorMapReady"
+            @text-target-selected="clearMapElementSelection"
             @undo="undo"
             @redo="redo"
+          />
+          <!-- Editor-only selection chrome (FLAGS.EDITOR_V2) — never mounted on render pages, never prints. -->
+          <MapSelectionOverlay
+            v-if="mapSelectionEnabled"
+            :selection="mapElementSelection"
+            :get-map="getEditorMapInstance"
+            :segment="selectedMapSegment"
+            :fallback-width="styleConfig.route_width"
+            :split-armed="Boolean(segmentSplitTarget)"
+            :rename-focus-token="segmentRenameFocusToken"
+            :route-color="styleConfig.route_color"
+            :route-width="styleConfig.route_width"
+            :route-opacity="styleConfig.route_opacity"
+            :route-controls="routeToolbarControls"
+            @close="clearMapElementSelection"
+            @patch-segment="onSelectedSegmentPatch"
+            @delete-segment="onSelectedSegmentDelete"
+            @toggle-split="onSegmentSplitToggle"
+            @patch-route="onSelectedRoutePatch"
           />
         </ClientOnly>
         <div v-if="!map" class="w-full h-full rounded-2xl bg-stone-200 animate-pulse flex items-center justify-center">
@@ -180,18 +209,20 @@
       <span class="editor-resizer-grip" />
     </div>
 
-    <!-- Reopen tab when panel is collapsed (desktop only) -->
+    <!-- Reopen tab when panel is collapsed (desktop only). Editor-v2 D4: the
+         panel is the Advanced drawer, and this is its explicit entry point. -->
     <button
       v-if="panelCollapsed"
       type="button"
       class="hidden md:flex absolute top-4 right-4 z-30 items-center gap-1.5 rounded-full bg-white/90 backdrop-blur border border-stone-200 shadow-sm px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-white transition-colors cursor-pointer"
-      title="Show editor panel"
+      :title="editorV2Enabled ? 'Open the Advanced drawer (themes, map style, ordering)' : 'Show editor panel'"
+      data-testid="advanced-drawer-button"
       @click="panelCollapsed = false"
     >
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
         <path d="M12 5l-5 5 5 5"/>
       </svg>
-      Edit
+      {{ editorV2Enabled ? 'Advanced' : 'Edit' }}
     </button>
 
     <aside
@@ -213,6 +244,7 @@
     >
       <MapStylePanel
         v-if="map"
+        ref="stylePanelRef"
         v-model="styleConfig"
         :saving="saving"
         :has-route="!!map.geojson"
@@ -278,12 +310,17 @@
 
 <script setup lang="ts">
 import FixedPosterTemplateEditor from '~/components/map/FixedPosterTemplateEditor.vue'
+import MapSelectionOverlay from '~/components/map/MapSelectionOverlay.vue'
+import { useElementSelection } from '~/composables/useElementSelection'
+import { useMapElementSelection } from '~/composables/useMapElementSelection'
 import type {
   DeletedRange,
   MapAsset,
   MapAssetKind,
+  MapFrameBox,
   PartialPosterLayout,
   PosterIconId,
+  PosterStatBinding,
   PosterTextOverride,
   PosterTextSlot,
   StyleConfig,
@@ -295,6 +332,8 @@ import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import { FLAGS } from '~/utils/knownFlags'
 import {
   addPosterEditorIcon,
+  addPosterEditorIconCentered,
+  addPosterEditorStat,
   addPosterEditorText,
   duplicatePosterEditorElement,
   patchPosterEditorElement,
@@ -302,7 +341,10 @@ import {
   syncPosterOverlayAnchors,
   type PosterEditorElementPatch,
 } from '~/utils/posterEditorElements'
+import { buildThemeDataContext } from '~/utils/themeDataContract'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
+import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
+import { getThemeDefinition } from '~/utils/themes/refined'
 import {
   buildElevationProfile,
   detectDisconnectedRanges,
@@ -314,7 +356,10 @@ import {
   extendSegmentCoordinates,
   isGeometryBackedSegment,
   normalizeLineCoords,
+  patchTrailSegment,
+  removeTrailSegment,
   sanitizeSegmentBends,
+  splitTrailSegmentInList,
 } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
@@ -335,6 +380,8 @@ type MapPreviewHandle = {
   fitToRouteAndSegments: (segmentBboxes?: Array<[number, number, number, number]>) => void
   finishSegmentDraw: () => void
   undoSegmentDrawPoint: () => boolean
+  getMapInstance: () => import('maplibre-gl').Map | null
+  mapCenterPosterPercent: () => { x: number; y: number }
 }
 
 type TrackUploadResponse = {
@@ -384,6 +431,9 @@ const PANEL_WIDTH_KEY = 'radmaps:panelWidth'
 const PANEL_COLLAPSED_KEY = 'radmaps:panelCollapsed'
 const panelWidth = ref(PANEL_DEFAULT_W)
 const panelCollapsed = ref(false)
+const panelPreferencesHydrated = ref(false)
+// (Editor-v2 D4 default-collapse lives below editorV2Enabled's definition —
+// watch sources evaluate eagerly at setup.)
 const isResizing = ref(false)
 
 function clampPanelWidth(w: number) {
@@ -479,14 +529,316 @@ const chromeDirectEdit = computed(() => {
   return chromeDirectEditFlag.value || (import.meta.dev && chromeQueryEnabled)
 })
 
+// ── Map-element selection (editor-v2 E3, modeless since E6) ─────────────────────
+// Click = select, drag = pan — no freeze prerequisite. MapLibre suppresses
+// 'click' after a drag-pan natively, so selection coexists with camera moves
+// in any view state. Special gestures (plot/draw/edit/brush/split) still own
+// the map click while active. Everything gated behind FLAGS.EDITOR_V2.
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+
+// Editor-v2 D4: the StylePanel stops being the front door — flag-on it starts
+// collapsed on desktop (the poster is the interface; the panel is the
+// Advanced drawer, reached via empty map-space click or the Advanced button).
+// Mobile keeps the bottom sheet exactly as before. One-shot immediate watch
+// rather than onMounted: the flag state may resolve just after mount.
+const panelAutoCollapsed = ref(false)
+watch(() => editorV2Enabled.value, (on) => {
+  if (!on || panelAutoCollapsed.value) return
+  panelAutoCollapsed.value = true
+  if (!panelPreferencesHydrated.value || typeof window === 'undefined') return
+  // A stored preference (the user explicitly opened/closed the drawer
+  // before) always wins over the flag-on default.
+  try { if (localStorage.getItem(PANEL_COLLAPSED_KEY) != null) return } catch { /* ignore */ }
+  if (window.innerWidth >= 768) panelCollapsed.value = true
+}, { immediate: true })
+const mapSelectionEnabled = computed(() => editorV2Enabled.value && !fixedTemplateEditorActive.value)
+
+function getEditorMapInstance() {
+  return mapPreviewRef.value?.getMapInstance?.() ?? null
+}
+
+function mapSelectionModeActive() {
+  return !plotMode.value
+    && !segmentDrawMode.value
+    && !segmentEditMode.value
+    && !deleteBrushActive.value
+    // One-shot split mode owns the next map click (E4).
+    && !segmentSplitTarget.value
+}
+
+const {
+  selection: mapElementSelection,
+  clearSelection: clearMapElementSelection,
+  selectSegment: selectMapSegment,
+  attachToMap: attachMapSelection,
+  detachFromMap: detachMapSelection,
+} = useMapElementSelection({
+  getMap: getEditorMapInstance,
+  getStyleConfig: () => props.modelValue,
+  enabled: () => mapSelectionEnabled.value,
+  selectionModeActive: mapSelectionModeActive,
+  // D4 gesture 5: empty map space is the map-style entry point. Dismiss-first
+  // applies across domains — with a poster selection active the click only
+  // deselects; a truly idle click opens the Advanced drawer.
+  onEmptyClick: () => {
+    if (selectedPosterElementId.value || activeTextTarget.value) {
+      onPosterElementSelected(null)
+      return
+    }
+    openAdvancedDrawer()
+  },
+})
+
+function onEditorMapReady() {
+  attachMapSelection()
+}
+
+// ── Advanced drawer (editor-v2 D4) ───────────────────────────────────────────
+// The StylePanel stops being the front door: empty map-space clicks (and the
+// explicit Advanced affordance) open it scoped to the map-style tab.
+const stylePanelRef = ref<{ openTab: (tab: 'quick' | 'map' | 'style' | 'text') => void } | null>(null)
+
+function openAdvancedDrawer(tab: 'quick' | 'map' | 'style' | 'text' = 'map') {
+  panelCollapsed.value = false
+  if (typeof window !== 'undefined' && window.innerWidth < 768 && sheetState.value === 'closed') {
+    sheetState.value = 'half'
+  }
+  nextTick(() => stylePanelRef.value?.openTab(tab))
+}
+
+watch(mapSelectionEnabled, async (enabled) => {
+  if (!enabled) {
+    detachMapSelection()
+    return
+  }
+  await nextTick()
+  attachMapSelection()
+}, { immediate: true })
+
+// ── Segment toolbar (editor-v2 E4) ──────────────────────────────────────────────
+// The toolbar's controls persist exclusively through the same trail_segments
+// write path the StylePanel segments section uses (utils/trail.ts helpers).
+const selectedMapSegment = computed<TrailSegment | null>(() => {
+  const selection = mapElementSelection.value
+  if (!selection || selection.slot !== 'segments-handles' || !selection.featureKey) return null
+  return (props.modelValue.trail_segments ?? []).find(s => s.id === selection.featureKey) ?? null
+})
+
+function onSelectedSegmentPatch(patch: Partial<TrailSegment>) {
+  const segment = selectedMapSegment.value
+  if (!segment) return
+  styleConfig.value = {
+    ...styleConfig.value,
+    trail_segments: patchTrailSegment(styleConfig.value.trail_segments ?? [], segment.id, patch),
+  }
+}
+
+// Simple delete — segments have no tombstone system; the editor undo stack
+// (Cmd+Z) and the StylePanel segments section remain the recovery paths.
+function onSelectedSegmentDelete() {
+  const segment = selectedMapSegment.value
+  if (!segment) return
+  styleConfig.value = {
+    ...styleConfig.value,
+    trail_segments: removeTrailSegment(styleConfig.value.trail_segments ?? [], segment.id),
+  }
+  clearMapElementSelection()
+}
+
+// ── Route toolbar (editor-v2 D1) ────────────────────────────────────────────────
+// The route selection's contextual controls (docs/STYLE_SYSTEM_EVOLUTION.md
+// "Per-element toolbars"). Availability mirrors the StylePanel Route section's
+// theme gating (utils/stylePanelGating.ts) so the toolbar never offers a
+// control the panel would hide; writes share the panel's exact write path
+// (applyRouteLineControl) so E6a sticky-segment semantics hold. stickySegments
+// is unconditionally true here: this code path only exists flag-on.
+const routeToolbarControls = computed(() => {
+  const editableFields = getThemeDefinition(props.modelValue.color_theme ?? 'chalk')?.editable_fields
+  const hasAllowlist = Array.isArray(editableFields)
+  return {
+    color: !hasAllowlist || editableFields!.includes('route_color'),
+    width: !hasAllowlist,
+    opacity: !hasAllowlist,
+  }
+})
+
+function onSelectedRoutePatch(patch: { route_color?: string; route_width?: number; route_opacity?: number }) {
+  let next = styleConfig.value
+  for (const [key, value] of Object.entries(patch)) {
+    if (value == null) continue
+    next = applyRouteLineControl(next, key as RouteLineControlField, value as never, { stickySegments: true })
+  }
+  styleConfig.value = next
+}
+
+// A segment removed elsewhere (StylePanel, undo) invalidates its selection.
+watch(
+  () => (props.modelValue.trail_segments ?? []).map(s => s.id).join('|'),
+  () => {
+    const selection = mapElementSelection.value
+    if (!selection || selection.slot !== 'segments-handles' || !selection.featureKey) return
+    if (!(props.modelValue.trail_segments ?? []).some(s => s.id === selection.featureKey)) {
+      clearMapElementSelection()
+    }
+  },
+)
+
+// ── Split at point: one-shot mode (editor-v2 E4) ────────────────────────────────
+// Arm via the toolbar's Split button; the next map click ON the selected
+// segment splits it via the pure splitTrailSegmentInList (utils/trail.ts) and
+// flows through the same trail_segments write path. Esc or any selection
+// change disarms. While armed, selection hit-testing is suspended.
+const segmentSplitTarget = ref<string | null>(null)
+let splitClickMap: import('maplibre-gl').Map | null = null
+
+function onSegmentSplitToggle() {
+  segmentSplitTarget.value = segmentSplitTarget.value ? null : selectedMapSegment.value?.id ?? null
+}
+
+function onSplitMapClick(e: import('maplibre-gl').MapMouseEvent) {
+  const targetId = segmentSplitTarget.value
+  const map = getEditorMapInstance()
+  if (!targetId || !map) return
+
+  // One-shot fires only when the click lands on the selected segment's line.
+  const tolerance = 8
+  const bbox: [[number, number], [number, number]] = [
+    [e.point.x - tolerance, e.point.y - tolerance],
+    [e.point.x + tolerance, e.point.y + tolerance],
+  ]
+  const layerIds = (map.getStyle()?.layers ?? [])
+    .filter(layer => layer.type === 'line' && 'source' in layer && layer.source === `trail-seg-${targetId}`)
+    .map(layer => layer.id)
+  if (!layerIds.length) return
+  if (!map.queryRenderedFeatures(bbox, { layers: layerIds }).length) return
+
+  segmentSplitTarget.value = null
+  const primaryRoute = (props.map?.geojson ?? { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection
+  const result = splitTrailSegmentInList(
+    styleConfig.value.trail_segments ?? [],
+    targetId,
+    primaryRoute,
+    [e.lngLat.lng, e.lngLat.lat],
+  )
+  if (!result) return
+
+  styleConfig.value = { ...styleConfig.value, trail_segments: result.segments }
+  // Keep the user in context: the first child stays selected at the split
+  // point. nextTick so props.modelValue carries the new segment list first
+  // (the stale-id watcher clears the original's selection on the same flush).
+  const splitLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+  nextTick(() => selectMapSegment(result.first.id, splitLngLat))
+}
+
+watch(segmentSplitTarget, (target) => {
+  const map = getEditorMapInstance()
+  if (target && map) {
+    splitClickMap = map
+    map.on('click', onSplitMapClick)
+    map.getCanvas().style.cursor = 'crosshair'
+  } else if (splitClickMap) {
+    try {
+      splitClickMap.off('click', onSplitMapClick)
+      splitClickMap.getCanvas().style.cursor = ''
+    } catch {
+      // Map may already be destroyed.
+    }
+    splitClickMap = null
+  }
+})
+
+// Selection change/clear (incl. unfreeze, draw modes, preset switch) disarms split.
+watch(mapElementSelection, (selection) => {
+  if (!segmentSplitTarget.value) return
+  if (!selection || selection.slot !== 'segments-handles' || selection.featureKey !== segmentSplitTarget.value) {
+    segmentSplitTarget.value = null
+  }
+})
+
+onUnmounted(() => {
+  segmentSplitTarget.value = null
+})
+
+// ── Label double-click rename (editor-v2 E4) ────────────────────────────────────
+// Double-click/tap on a draggable segment label selects its segment (toolbar
+// opens anchored at the label) and focuses the toolbar's name input — the
+// SAME field/write path as toolbar rename, one source of truth.
+const segmentRenameFocusToken = ref(0)
+
+function onSegmentLabelRename({ id, lnglat }: { id: string; lnglat: [number, number] }) {
+  if (!mapSelectionEnabled.value) return
+  segmentSplitTarget.value = null
+  selectMapSegment(id, lnglat)
+  segmentRenameFocusToken.value++
+}
+
+// ── Unified selection arbiter — poster domain (editor-v2 D1) ────────────────────
+// MapEditorSurface co-holds the poster claim with MapPreview (idempotent claims,
+// shared key grammar: 'slot:<slot>' / 'text:<id>' / 'asset:<id>' / 'icon:<id>')
+// so Moveable state and toolbar state are evicted together when the map domain
+// claims the selection. Claims only happen flag-on; the manual cross-domain
+// watchers below remain as the direct event path.
+const elementSelectionArbiter = useElementSelection()
+
+function posterArbiterKey(target: ActiveTextTarget): string {
+  if (target.type === 'poster-text') return `slot:${target.field}`
+  if (target.type === 'text-overlay') return `text:${target.id}`
+  return `asset:${target.id}`
+}
+
+watch(activeTextTarget, (target, previous) => {
+  if (!editorV2Enabled.value) return
+  if (target) elementSelectionArbiter.claim('poster', posterArbiterKey(target))
+  else if (previous) elementSelectionArbiter.release('poster', posterArbiterKey(previous))
+})
+
+watch(selectedPosterElementId, (id, previous) => {
+  if (!editorV2Enabled.value) return
+  if (id) elementSelectionArbiter.claim('poster', id)
+  else if (previous) elementSelectionArbiter.release('poster', previous)
+})
+
+elementSelectionArbiter.onEvicted('poster', () => {
+  if (!editorV2Enabled.value) return
+  activeTextTarget.value = null
+  selectedPosterElementId.value = null
+})
+
+// Single-selection world: a map selection evicts any poster-element/text
+// selection, and vice versa (MapPreview's text-target-selected event plus the
+// watchers below cover the poster side).
+watch(mapElementSelection, (selection) => {
+  if (!selection) return
+  activeTextTarget.value = null
+  selectedPosterElementId.value = null
+})
+watch(activeTextTarget, (target) => {
+  if (target) clearMapElementSelection()
+})
+watch(selectedPosterElementId, (id) => {
+  if (id) clearMapElementSelection()
+})
+// Edit gestures or switching preset invalidate the selection. (Freeze state
+// no longer affects selection — it only locks the print framing.)
+watch(() => props.modelValue.preset, () => clearMapElementSelection())
+watch([plotMode, segmentDrawMode, segmentEditMode, deleteBrushActive], (modes) => {
+  if (modes.some(Boolean)) clearMapElementSelection()
+})
+
 onMounted(() => {
   if (window.innerWidth < 768) sheetState.value = 'closed'
   document.addEventListener('keydown', onKeyDown)
   seedHistory(props.modelValue)
+  panelPreferencesHydrated.value = true
   try {
     const savedWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY))
     if (Number.isFinite(savedWidth) && savedWidth > 0) panelWidth.value = clampPanelWidth(savedWidth)
-    panelCollapsed.value = localStorage.getItem(PANEL_COLLAPSED_KEY) === '1'
+    // Editor-v2 D4: with no saved preference the flag-on default is COLLAPSED
+    // (the poster is the interface; the panel is the Advanced drawer). An
+    // explicit user choice, once stored, is always respected.
+    const savedCollapsed = localStorage.getItem(PANEL_COLLAPSED_KEY)
+    if (savedCollapsed != null) panelCollapsed.value = savedCollapsed === '1'
+    else if (panelAutoCollapsed.value) panelCollapsed.value = window.innerWidth >= 768
   } catch { /* ignore */ }
 })
 
@@ -624,6 +976,29 @@ function redo() {
 
 function onKeyDown(e: KeyboardEvent) {
   const target = e.target as HTMLElement
+  // Escape clears the active selection in priority order — handled BEFORE the
+  // contenteditable guard below so it works while a slot/overlay holds focus
+  // (selected text slots are contenteditable, so the old guard swallowed Esc
+  // and left no keyboard way to deselect). A poster text/band selection
+  // commits any in-flight inline edit (blur) and then clears; the unified
+  // arbiter's eviction callbacks fan the clear out across domains.
+  if (e.key === 'Escape') {
+    if (segmentSplitTarget.value) {
+      segmentSplitTarget.value = null
+      return
+    }
+    if (selectedPosterElementId.value || activeTextTarget.value) {
+      const editing = target.isContentEditable && target.closest('[data-poster-element-id]')
+      if (editing && document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      onPosterElementSelected(null)
+      return
+    }
+    if (mapElementSelection.value) {
+      clearMapElementSelection()
+      return
+    }
+    return
+  }
   if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
   const mod = e.metaKey || e.ctrlKey
   if (!mod) return
@@ -971,6 +1346,65 @@ function onPosterIconAdd(icon: PosterIconId) {
   onPosterElementSelected(result.id)
 }
 
+// ── + Add menu handlers (editor-v2 D3, north-star gesture 4) ────────────────
+// New elements drop centered over the map area (MapPreview sends the center
+// as % of the poster canvas), get selected, and their toolbar opens through
+// the selection watchers. All writes ride the existing element add paths.
+
+function onPosterAddText(payload: { x: number; y: number }) {
+  const result = addPosterEditorText(styleConfig.value, { x: payload.x, y: payload.y })
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterAddStat(payload: { binding: PosterStatBinding; x: number; y: number }) {
+  const context = buildThemeDataContext({ ...props.map, styleConfig: styleConfig.value })
+  const result = addPosterEditorStat(styleConfig.value, payload.binding, context, { x: payload.x, y: payload.y })
+  // null = the contract has no real data for this binding (the menu should
+  // not have offered it); nothing is inserted.
+  if (!result) return
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+function onPosterAddIconCentered(payload: { icon: PosterIconId; x: number; y: number }) {
+  const result = addPosterEditorIconCentered(styleConfig.value, payload.icon, payload)
+  styleConfig.value = result.config
+  onPosterElementSelected(result.id)
+}
+
+// Image adds ride the existing upload pipeline (server-side validation +
+// quality classification). The drop center is stashed; when the uploaded
+// asset lands in styleConfig, it is centered over the map and selected.
+const pendingImageAdd = ref<{ x: number; y: number; knownIds: Set<string>; expires: number } | null>(null)
+
+function onPosterAddImage(payload: { file: File }) {
+  const center = mapPreviewRef.value?.mapCenterPosterPercent?.() ?? { x: 50, y: 50 }
+  pendingImageAdd.value = {
+    ...center,
+    knownIds: new Set((styleConfig.value.image_overlays ?? []).map(asset => asset.id)),
+    expires: Date.now() + 60_000,
+  }
+  emit('image-upload', { file: payload.file, kind: 'image' })
+}
+
+watch(() => styleConfig.value.image_overlays, (assets) => {
+  const pending = pendingImageAdd.value
+  if (!pending || !assets?.length) return
+  if (Date.now() > pending.expires) {
+    pendingImageAdd.value = null
+    return
+  }
+  const added = assets.find(asset => asset.kind === 'image' && !pending.knownIds.has(asset.id))
+  if (!added) return
+  pendingImageAdd.value = null
+  styleConfig.value = patchPosterEditorElement(styleConfig.value, `asset:${added.id}`, {
+    x: Math.max(0, pending.x - added.width / 2),
+    y: Math.max(0, pending.y - added.height / 2),
+  })
+  onPosterElementSelected(`asset:${added.id}`)
+})
+
 function onPosterTextOverride(payload: { slot: PosterTextSlot; patch: PosterTextOverride }) {
   const current = styleConfig.value.poster_text_overrides ?? {}
   const existing = current[payload.slot] ?? {}
@@ -994,6 +1428,20 @@ function onPosterTextReset(slot: PosterTextSlot) {
 
 function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
   setStyle({ poster_layout: value })
+}
+
+// Free-map frame (Phase 4). Merge into the existing poster_layout so bands and
+// anchors survive; a null box removes the frame (map returns to flex + dividers)
+// and drops poster_layout entirely if nothing else remains.
+function onPosterMapFrame(box: MapFrameBox | null) {
+  const current = styleConfig.value.poster_layout
+  if (box) {
+    setStyle({ poster_layout: { ...(current ?? {}), map_frame: box } })
+    return
+  }
+  if (!current?.map_frame) return
+  const { map_frame: _removed, ...rest } = current
+  setStyle({ poster_layout: Object.keys(rest).length ? rest : undefined })
 }
 
 function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }) {

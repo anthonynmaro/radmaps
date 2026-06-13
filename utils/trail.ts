@@ -739,6 +739,7 @@ export function isGeometryBackedSegment(segment: TrailSegment): boolean {
 export function trailSegmentEndpointFeatures(
   segmentGeojson: GeoJSON.FeatureCollection,
   color: string,
+  segId?: string,
 ): GeoJSON.Feature[] {
   const coords = segmentGeojson.features.flatMap(feature => {
     const geometry = feature.geometry
@@ -748,10 +749,233 @@ export function trailSegmentEndpointFeatures(
   })
 
   if (coords.length < 2) return []
+  // seg_id is editor metadata for map-element hit-testing (editor-v2 E4); the
+  // style's paint only reads `color`, so it never affects rendered output.
+  const properties = { color, ...(segId ? { seg_id: segId } : {}) }
   return [
-    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { color } },
-    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { color } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[0] }, properties: { ...properties } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: coords[coords.length - 1] }, properties: { ...properties } },
   ]
+}
+
+// ─── Trail segment list write path (editor-v2 E4) ─────────────────────────────
+// The StylePanel segments section and the map-selection segment toolbar BOTH
+// mutate `style_config.trail_segments` through these helpers — one write path,
+// no parallel segment system.
+
+export function patchTrailSegment(
+  segments: TrailSegment[],
+  id: string,
+  patch: Partial<TrailSegment>,
+): TrailSegment[] {
+  return segments.map(segment => segment.id === id ? { ...segment, ...patch } : segment)
+}
+
+export function removeTrailSegment(segments: TrailSegment[], id: string): TrailSegment[] {
+  return segments.filter(segment => segment.id !== id)
+}
+
+// ─── Split at point (editor-v2 E4) ─────────────────────────────────────────────
+// Pure split math for the map-selection toolbar's one-shot "Split" mode.
+// Percentage (route-slice) segments split into two percentage ranges over the
+// primary route; geometry-backed (uploaded/drawn track) segments split into two
+// self-contained geometry-backed segments, preserving line/gap boundaries so no
+// connector chords appear.
+
+/** Minimum child span, matching the 0.1% floor used by map-tap plotting. */
+const MIN_SPLIT_SPAN_PCT = 0.1
+
+function fallbackSegmentId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2, 10)
+}
+
+function splitChildName(name: string | undefined, index: 1 | 2): string {
+  const base = (name ?? '').trim() || 'Trail'
+  return `${base} ${index}`
+}
+
+/**
+ * Style fields both split children inherit from the original segment.
+ * Identity (id/name), geometry (geojson/bbox/stats/sections/bends), and the
+ * user-dragged label position are per-child and handled by the split functions;
+ * labels re-place automatically.
+ */
+function inheritedSegmentStyle(segment: TrailSegment) {
+  const {
+    id: _id,
+    name: _name,
+    geojson: _geojson,
+    bbox: _bbox,
+    stats: _stats,
+    section_start: _sectionStart,
+    section_end: _sectionEnd,
+    bends: _bends,
+    label_lnglat: _labelLngLat,
+    ...style
+  } = segment
+  return style
+}
+
+function nearestCoordIndex(
+  coords: number[][],
+  lngLat: [number, number],
+  startIndex: number,
+  endIndex: number,
+): number {
+  let bestIdx = startIndex
+  let bestDist = Infinity
+  for (let i = startIndex; i < endIndex; i++) {
+    const dx = coords[i][0] - lngLat[0]
+    const dy = coords[i][1] - lngLat[1]
+    const d = dx * dx + dy * dy
+    if (d < bestDist) {
+      bestDist = d
+      bestIdx = i
+    }
+  }
+  return bestIdx
+}
+
+/** Slice line groups across a flattened [start, end) index window, preserving line boundaries. */
+function sliceLineGroups(lines: number[][][], start: number, end: number): number[][][] {
+  const out: number[][][] = []
+  let offset = 0
+  for (const line of lines) {
+    const lineStart = offset
+    const lineEnd = offset + line.length
+    offset = lineEnd
+
+    const sliceStart = Math.max(start, lineStart)
+    const sliceEnd = Math.min(end, lineEnd)
+    if (sliceEnd - sliceStart < 2) continue
+    out.push(line.slice(sliceStart - lineStart, sliceEnd - lineStart))
+  }
+  return out
+}
+
+function splitRouteSliceSegment(
+  segment: TrailSegment,
+  primaryRoute: GeoJSON.FeatureCollection,
+  splitLngLat: [number, number],
+  idFactory: () => string,
+): [TrailSegment, TrailSegment] | null {
+  const coords = getAllRouteCoords(primaryRoute)
+  if (coords.length < 2) return null
+
+  const sectionStart = Math.max(0, Math.min(100, segment.section_start))
+  const sectionEnd = Math.max(sectionStart, Math.min(100, segment.section_end))
+  const [startIdx, endIdx] = pctToIndexRange(coords.length, sectionStart, sectionEnd)
+  if (endIdx - startIdx < 2) return null
+
+  const idx = nearestCoordIndex(coords, splitLngLat, startIdx, Math.min(endIdx, coords.length))
+  // Same percent convention as findRoutePercent (map-tap segment plotting).
+  const splitPct = (idx / Math.max(coords.length - 1, 1)) * 100
+  if (splitPct - sectionStart < MIN_SPLIT_SPAN_PCT || sectionEnd - splitPct < MIN_SPLIT_SPAN_PCT) return null
+
+  const style = inheritedSegmentStyle(segment)
+  return [
+    { ...style, id: idFactory(), name: splitChildName(segment.name, 1), section_start: sectionStart, section_end: splitPct },
+    { ...style, id: idFactory(), name: splitChildName(segment.name, 2), section_start: splitPct, section_end: sectionEnd },
+  ]
+}
+
+function splitGeometryBackedSegment(
+  segment: TrailSegment,
+  splitLngLat: [number, number],
+  idFactory: () => string,
+): [TrailSegment, TrailSegment] | null {
+  const lines = getRouteLineCoords(segment.geojson!).filter(line => line.length >= 2)
+  const flat = lines.flat()
+  const total = flat.length
+  if (total < 4) return null
+
+  // Same effective window math as sliceGeometryBackedSegmentGeojson.
+  const [rawStart, rawEnd] = pctToIndexRange(total, segment.section_start, segment.section_end)
+  const windowStart = Math.max(0, Math.min(total, rawStart))
+  const windowEnd = Math.min(total, Math.max(rawEnd, windowStart + 2))
+  if (windowEnd - windowStart < 4) return null
+
+  // Both children need >= 2 coords: split index stays in [start+1, end-2].
+  const idx = Math.min(
+    Math.max(nearestCoordIndex(flat, splitLngLat, windowStart + 1, windowEnd - 1), windowStart + 1),
+    windowEnd - 2,
+  )
+
+  const firstLines = sliceLineGroups(lines, windowStart, idx + 1)
+  const secondLines = sliceLineGroups(lines, idx, windowEnd)
+  if (!firstLines.length || !secondLines.length) return null
+
+  // Per-edge bends only have well-defined indexes on single-line tracks;
+  // children of multi-line tracks drop bends rather than guess.
+  const sourceBends = lines.length === 1 && segment.bends?.length ? segment.bends : null
+  const firstBends = sourceBends
+    ? sanitizeSegmentBends(sourceBends.slice(windowStart, idx), Math.max(0, firstLines.flat().length - 1))
+    : undefined
+  const secondBends = sourceBends
+    ? sanitizeSegmentBends(sourceBends.slice(idx, windowEnd - 1), Math.max(0, secondLines.flat().length - 1))
+    : undefined
+
+  const style = inheritedSegmentStyle(segment)
+  const buildChild = (childLines: number[][][], index: 1 | 2, bends: number[] | undefined): TrailSegment => {
+    const bbox = bboxForCoords(childLines.flat())
+    return {
+      ...style,
+      id: idFactory(),
+      name: splitChildName(segment.name, index),
+      geojson: featureCollectionFromLines(childLines),
+      ...(bbox ? { bbox } : {}),
+      stats: routeStatsForLineGroups(childLines),
+      section_start: 0,
+      section_end: 100,
+      ...(bends ? { bends } : {}),
+    }
+  }
+
+  return [buildChild(firstLines, 1, firstBends), buildChild(secondLines, 2, secondBends)]
+}
+
+/**
+ * Split a trail segment at the position nearest to `splitLngLat` into two
+ * segments that inherit the original's style. Names follow "Name" →
+ * "Name 1" / "Name 2". Returns null when the split would produce a degenerate
+ * child (too close to either end, or not enough coordinates).
+ */
+export function splitTrailSegmentAt(
+  segment: TrailSegment,
+  primaryRoute: GeoJSON.FeatureCollection,
+  splitLngLat: [number, number],
+  options: { idFactory?: () => string } = {},
+): [TrailSegment, TrailSegment] | null {
+  const idFactory = options.idFactory ?? fallbackSegmentId
+  return isGeometryBackedSegment(segment)
+    ? splitGeometryBackedSegment(segment, splitLngLat, idFactory)
+    : splitRouteSliceSegment(segment, primaryRoute, splitLngLat, idFactory)
+}
+
+/**
+ * Split a segment in place within a trail_segments list (children replace the
+ * original at its index). Returns null when the segment is missing or the
+ * split is degenerate — callers leave the list untouched in that case.
+ */
+export function splitTrailSegmentInList(
+  segments: TrailSegment[],
+  id: string,
+  primaryRoute: GeoJSON.FeatureCollection,
+  splitLngLat: [number, number],
+  options: { idFactory?: () => string } = {},
+): { segments: TrailSegment[]; first: TrailSegment; second: TrailSegment } | null {
+  const index = segments.findIndex(segment => segment.id === id)
+  if (index === -1) return null
+  const children = splitTrailSegmentAt(segments[index], primaryRoute, splitLngLat, options)
+  if (!children) return null
+  const [first, second] = children
+  return {
+    segments: [...segments.slice(0, index), first, second, ...segments.slice(index + 1)],
+    first,
+    second,
+  }
 }
 
 export function unionBboxes(

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "archetype-mountain-loop",
+    "label": "Mountain Loop",
+    "stresses": "alpine closed loop, high relief — dense contours, hillshade, big elevation stats"
+  },
+  {
+    "id": "archetype-flat-marathon",
+    "label": "Flat Marathon",
+    "stresses": "flat urban closed loop, low relief — sparse contours, distance/duration-driven footer"
+  },
+  {
+    "id": "archetype-thru-hike",
+    "label": "Thru-Hike",
+    "stresses": "long point-to-point linear route — elongated bbox, start far from finish, >80 km with sustained elevation"
+  },
+  {
+    "id": "archetype-place-only",
+    "label": "Place Only",
+    "stresses": "place with no route line and zeroed distance/elevation stats — exercises the data contract's place-only slot dropping"
+  }
+]

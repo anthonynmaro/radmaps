@@ -5,7 +5,7 @@
     :style="previewRootStyle"
   >
     <InlineTextToolbar
-      v-if="editable && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
+      v-if="editable && !unifiedPosterGrammar && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
       :label="activeToolbarState.label"
       :anchor-rect="activeTextAnchor"
       :font-family="activeToolbarState.fontFamily"
@@ -23,6 +23,116 @@
       @reset="resetActiveText"
       @done="finishActiveTextEdit"
     />
+
+    <!-- EDITOR-V2 D1 unified grammar (FLAGS.EDITOR_V2): the same selection state
+         and the same write paths as InlineTextToolbar above, presented through
+         the shared ElementToolbar family so poster text slots and free text
+         overlays speak the exact visual language map elements adopted in
+         MapSelectionOverlay. Editor-only chrome — never on /render pages. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && activeToolbarState && (!chromeGridRendering || activeTextTarget?.type === 'overlay' || (guidedPosterEditor && activeTextTarget?.type === 'slot'))"
+      :kind-label="activeToolbarState.label"
+      :anchor-rect="activeTextAnchor"
+      :estimated-height="190"
+      :allow-mobile-pin="true"
+      data-testid="poster-element-toolbar"
+      @close="finishActiveTextEdit"
+    >
+      <ElementTextControls
+        :text-value="activeToolbarState.textValue"
+        :text-readonly="activeToolbarState.textReadonly"
+        :font-family="activeToolbarState.fontFamily"
+        :color="activeToolbarState.color"
+        :background-color="activeToolbarState.backgroundColor"
+        :supports-highlight="activeToolbarState.supportsHighlight"
+        :font-size-pt="activeToolbarState.fontSizePt"
+        :align="activeToolbarState.align"
+        :opacity="activeToolbarState.opacity"
+        :bold="activeToolbarState.bold"
+        :italic="activeToolbarState.italic"
+        :can-reset="activeToolbarState.canReset"
+        :can-delete="activeTextTarget?.type === 'overlay'"
+        :letter-spacing="activeToolbarState.letterSpacing"
+        :line-height="activeToolbarState.lineHeight"
+        :auto-fit="activeToolbarState.autoFit"
+        :supports-typography="activeToolbarState.supportsTypography"
+        @patch="applyToolbarPatch"
+        @reset="resetActiveText"
+        @delete="deleteActiveText"
+        @done="finishActiveTextEdit"
+      />
+    </ElementToolbar>
+
+    <!-- EDITOR-V2 D3: icon + image elements join the unified grammar — the
+         same ElementToolbar shell with object-domain controls. Move/resize/
+         rotate stay with the existing Moveable; patches/removes ride the
+         existing poster-element write paths. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && selectedObjectElement"
+      :kind-label="selectedObjectElement.type === 'icon' ? 'Icon' : (selectedObjectElement.item.kind === 'logo' ? 'Logo' : 'Image')"
+      :anchor-rect="objectToolbarAnchor"
+      :estimated-height="150"
+      :allow-mobile-pin="true"
+      data-testid="poster-object-toolbar"
+      @close="closeObjectToolbar"
+    >
+      <ElementObjectControls
+        :kind="selectedObjectElement.type"
+        :opacity="selectedObjectElement.item.opacity ?? 1"
+        :color="selectedObjectElement.type === 'icon' ? selectedObjectElement.item.color : undefined"
+        :icon="selectedObjectElement.type === 'icon' ? selectedObjectElement.item.icon : undefined"
+        :allow-bleed="selectedObjectElement.type === 'asset' ? selectedObjectElement.item.allow_bleed === true : undefined"
+        @patch="applyObjectToolbarPatch"
+        @delete="deleteObjectElement"
+        @done="closeObjectToolbar"
+      />
+    </ElementToolbar>
+
+    <!-- EDITOR-V2 D4: click empty band space → band properties (gesture 5).
+         Same ElementToolbar shell; writes ride the existing poster_layout
+         band paths. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && selectedBandToolbar"
+      :kind-label="selectedBandToolbar.band === 'header' ? 'Header band' : 'Footer band'"
+      :anchor-rect="selectedBandToolbar.anchor"
+      :estimated-height="140"
+      :allow-mobile-pin="true"
+      data-testid="poster-band-toolbar"
+      @close="closeBandToolbar"
+    >
+      <ElementBandControls
+        :background="selectedBandToolbar.background"
+        :can-reset="selectedBandHasOverrides"
+        @patch="applyBandBackground"
+        @nudge-padding="nudgeBandPadding"
+        @reset="resetSelectedBand"
+        @done="closeBandToolbar"
+      />
+    </ElementToolbar>
+
+    <!-- EDITOR-V2 Phase 4: the map frame is a selectable element. Moveable
+         supplies the drag/resize handles; this toolbar just labels it and
+         offers reset-to-fit. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && isMapFrameSelected"
+      kind-label="Map"
+      :anchor-rect="mapToolbarAnchor"
+      :estimated-height="86"
+      :allow-mobile-pin="true"
+      data-testid="poster-map-toolbar"
+      @close="closeMapToolbar"
+    >
+      <div class="map-frame-controls">
+        <p class="map-frame-hint">Drag to move · pull a corner to resize</p>
+        <button
+          v-if="mapFrameBox"
+          type="button"
+          class="map-frame-reset"
+          data-testid="map-frame-reset"
+          @click="resetMapFrame"
+        >Reset map to fit poster</button>
+      </div>
+    </ElementToolbar>
 
     <div
       v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
@@ -335,7 +445,7 @@
 
     <ClientOnly>
       <Moveable
-        v-if="posterElementsEditing && posterMoveableTarget && selectedPosterElementCanTransform"
+        v-if="(posterElementsEditing || unifiedPosterGrammar) && posterMoveableTarget && selectedPosterElementCanTransform"
         class-name="poster-element-moveable"
         :target="posterMoveableTarget"
         :draggable="selectedPosterElementDraggable"
@@ -346,7 +456,10 @@
         :snap-container="posterCanvasEl"
         :vertical-guidelines="posterVerticalGuidelines"
         :horizontal-guidelines="posterHorizontalGuidelines"
-        :snap-threshold="6"
+        :element-guidelines="posterElementGuidelineEls"
+        :snap-directions="posterSnapDirections"
+        :element-snap-directions="posterSnapDirections"
+        :snap-threshold="posterSnapThreshold"
         :snap-grid-width="posterSnapGridPx.width"
         :snap-grid-height="posterSnapGridPx.height"
         :bounds="posterMoveableBounds"
@@ -439,6 +552,18 @@
         <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-1" />
         <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-2" />
       </div>
+
+      <!-- Print-quality frame (editor-only, never prints): trim/cut edge +
+           real safe-area line, from getPrintFraming. Editor-v2 only. -->
+      <div
+        v-if="showPrintFrame"
+        class="poster-print-frame"
+        data-testid="poster-print-frame"
+        aria-hidden="true"
+      >
+        <span class="poster-print-frame__trim" />
+        <span class="poster-print-frame__safe" :style="printFrameSafeStyle" />
+      </div>
       <div
         v-if="composition.showStarField"
         class="composition-star-field"
@@ -502,7 +627,7 @@
         <span class="composition-bib-pin-hole composition-bib-pin-hole--bl" data-testid="composition-bib-pin-hole" />
       </div>
       <div
-        v-if="composition.id === 'bib-numerals'"
+        v-if="composition.id === 'bib-numerals' && marathonBibTopline"
         class="composition-bib-topline"
         data-testid="composition-bib-topline"
         aria-hidden="true"
@@ -620,6 +745,7 @@
         data-testid="poster-header"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'header')"
         @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        @click="onBandSpaceClick($event, 'header')"
       >
         <div
           v-if="chromeAffordancesVisible"
@@ -727,6 +853,7 @@
                 :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
                 :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
                 :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-fit-mode="cell.block.slot ? chromeBlockFitMode(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('header', row.id, cell.id)"
@@ -832,6 +959,7 @@
           class="poster-trail-name"
           :style="trailNameStyle"
           :data-riso-title="trailName"
+          v-bind="trailNameFitAttrs"
         >{{ trailName }}</h1>
         <h1
           v-else-if="editable && chromeSlotVisible('trail_name')"
@@ -840,6 +968,7 @@
           :style="trailNameStyle"
           :data-poster-element-id="slotEditorElementId('trail_name')"
           :data-riso-title="trailName"
+          v-bind="trailNameFitAttrs"
           :contenteditable="slotEditable('trail_name') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -857,12 +986,14 @@
           v-if="locationLine && !editable && chromeSlotVisible('location_text')"
           class="poster-location-line"
           :style="locationLineStyle"
+          v-bind="locationLineFitAttrs"
         >{{ locationLine }}</p>
         <p
           v-else-if="locationLine && editable && chromeSlotVisible('location_text')"
           class="poster-location-line editable-text"
           :class="{ 'is-selected-text': isSlotActive('location_text'), 'editable-text': slotEditable('location_text') }"
           :style="locationLineStyle"
+          v-bind="locationLineFitAttrs"
           :data-poster-element-id="slotEditorElementId('location_text')"
           :contenteditable="slotEditable('location_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
@@ -924,9 +1055,37 @@
       </div>
 
       <!-- ── MAP (hero — takes all remaining height) ─────────────────────── -->
+      <!-- Free-map placeholder: when the map is promoted to an absolute frame,
+           this holds its original flex slot so the bands keep their positions
+           (the absolute map floats over it). Same data drives editor + print. -->
+      <div
+        v-if="mapFrameBox"
+        class="poster-map-placeholder flex-1"
+        :style="{ order: String(composition.mapOrder) }"
+        aria-hidden="true"
+      />
       <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle" data-testid="poster-map"
+        :data-poster-element-id="unifiedPosterGrammar ? 'system:map' : undefined"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+        <!-- Map-frame grip (Phase 4): always-present (flag-on) grab border. The
+             interior stays pan/select (pointer-events:none on the ring); the
+             edges/corners select the frame so Moveable's handles engage. -->
+        <div
+          v-if="showMapFrameGrip"
+          class="map-frame-grip"
+          :class="{ 'is-selected': isMapFrameSelected }"
+          data-testid="map-frame-grip"
+        >
+          <span class="map-grip-edge map-grip-edge--n" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--s" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--w" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--e" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--nw" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--ne" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--sw" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--se" @pointerdown="onMapFrameGripPointerDown" />
+        </div>
         <div
           v-if="sideRailInsideMap"
           class="composition-side-rail composition-side-rail--left"
@@ -1490,6 +1649,77 @@
           </filter>
           <rect width="100%" height="100%" filter="url(#grain-noise)" :opacity="grainOpacity"/>
         </svg>
+
+        <!-- ── Band dividers (editor-v2 D2, FLAGS.EDITOR_V2) ─────────────────
+             EDITOR-ONLY CHROME. Rule (same as MapSelectionOverlay.vue): drag
+             affordances NEVER print — they mount only under the unified editor
+             grammar (editable, not render-mode print, FLAGS.EDITOR_V2), never
+             on the /render pages the AWS renderer screenshots. The gesture's
+             OUTPUT persists through the existing poster_layout band-height
+             field, which editor and print render paths both already consume. -->
+        <div
+          v-if="bandDividersEnabled && mapTopDividerBand"
+          class="band-divider band-divider--top"
+          :class="{
+            'is-dragging': activeBandDividerDrag?.edge === 'top',
+            'is-strip-hover': hoveredBandDividerEdge === 'top',
+          }"
+          data-testid="band-divider-top"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="`Drag to resize the ${mapTopDividerBand} band`"
+          @pointerdown.prevent.stop="startBandDividerDrag($event, 'top')"
+        >
+          <span class="band-divider-pill" />
+        </div>
+        <div
+          v-if="bandDividersEnabled && mapBottomDividerBand"
+          class="band-divider band-divider--bottom"
+          :class="{
+            'is-dragging': activeBandDividerDrag?.edge === 'bottom',
+            'is-strip-hover': hoveredBandDividerEdge === 'bottom',
+          }"
+          data-testid="band-divider-bottom"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="`Drag to resize the ${mapBottomDividerBand} band`"
+          @pointerdown.prevent.stop="startBandDividerDrag($event, 'bottom')"
+        >
+          <span class="band-divider-pill" />
+        </div>
+
+        <!-- ── Viewpoint affordance (editor-v2 D4) ───────────────────────────
+             EDITOR-ONLY CHROME replacing the buried StylePanel "Viewpoint"
+             card flag-on (the E3 finding). Lock = print-framing lock only
+             (modeless selection ignores it); Re-center refits the route. -->
+        <div
+          v-if="unifiedPosterGrammar && !chromeGridRendering"
+          class="viewpoint-pill"
+          data-testid="viewpoint-pill"
+          @pointerdown.stop
+          @click.stop
+        >
+          <button
+            class="viewpoint-btn"
+            :class="{ 'is-locked': styleConfig.map_frozen }"
+            :title="styleConfig.map_frozen ? 'Framing locked for print — click to unlock' : 'Lock this framing for print'"
+            data-testid="viewpoint-lock"
+            @click="styleConfig.map_frozen ? unfreezeView() : freezeView()"
+          >
+            <svg v-if="styleConfig.map_frozen" viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+            <svg v-else viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5a3 3 0 116 0v2.75a.75.75 0 001.5 0V5.5A4.5 4.5 0 0010 1z"/></svg>
+            {{ styleConfig.map_frozen ? 'Locked' : 'Lock framing' }}
+          </button>
+          <button
+            class="viewpoint-btn"
+            title="Re-center the map on your route"
+            data-testid="viewpoint-recenter"
+            @click="resetViewToRoute()"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="11" height="11"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm0-3.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" clip-rule="evenodd"/></svg>
+            Re-center
+          </button>
+        </div>
       </div>
 
       <!-- ── Elevation profile band ─────────────────────────────────────── -->
@@ -1533,6 +1763,7 @@
         data-testid="poster-footer"
         @pointerenter="chromeDirectEditing && (hoveredChromeBand = 'footer')"
         @pointerleave="chromeDirectEditing && (hoveredChromeBand = null)"
+        @click="onBandSpaceClick($event, 'footer')"
       >
         <div
           v-if="chromeAffordancesVisible"
@@ -1634,6 +1865,7 @@
                 :data-poster-fit-target-cqh="cell.block.slot ? chromeBlockFitTargetCqh(cell.block) : undefined"
                 :data-poster-fit-min-scale="cell.block.slot ? chromeBlockFitMinScale(cell.block) : undefined"
                 :data-poster-fit-max-lines="cell.block.slot ? chromeBlockFitMaxLines(cell.block) : undefined"
+                :data-poster-fit-mode="cell.block.slot ? chromeBlockFitMode(cell.block) : undefined"
                 :data-poster-element-id="cell.block.slot ? slotEditorElementId(cell.block.slot) : undefined"
                 :data-riso-title="cell.block.kind === 'title' ? chromeBlockText(cell.block) : undefined"
                 @pointerdown.stop="selectChromeCellFromInteraction('footer', row.id, cell.id)"
@@ -1907,12 +2139,14 @@
           v-if="showOccasionSlot && occasionText && !editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion"
           :style="occasionStyle"
+          v-bind="occasionFitAttrs"
         >{{ occasionText }}</p>
         <p
           v-else-if="showOccasionSlot && editable && chromeSlotVisible('occasion_text')"
           class="poster-occasion editable-text"
           :class="{ 'is-selected-text': isSlotActive('occasion_text') }"
           :style="{ ...occasionStyle, minWidth: '4cqw', minHeight: '1.2cqh' }"
+          v-bind="occasionFitAttrs"
           :contenteditable="slotEditable('occasion_text') ? 'true' : 'false'"
           :suppressContentEditableWarning="true"
           role="textbox"
@@ -2066,10 +2300,10 @@
         >
           <span
             class="overlay-content editable-text"
-            :contenteditable="editable && !freeOverlayEditorBlocked ? 'true' : 'false'"
+            :contenteditable="editable && !freeOverlayEditorBlocked && !overlay.data_binding ? 'true' : 'false'"
             :suppressContentEditableWarning="true"
             role="textbox"
-            aria-label="Text overlay"
+            :aria-label="overlay.data_binding ? 'Stat overlay' : 'Text overlay'"
             enterkeyhint="done"
             spellcheck="true"
             @focus="onOverlayTextFocus($event, overlay.id)"
@@ -2077,8 +2311,10 @@
             @pointerdown.stop="onOverlayTextPointerDown($event, overlay.id)"
             @click.stop="onOverlayTextClick($event, overlay.id)"
             @keydown.enter.exact.prevent="finishActiveTextEdit"
-          >{{ overlay.content }}</span>
-          <template v-if="editable && !posterElementsEditing">
+          >{{ overlayDisplayContent(overlay) }}</span>
+          <!-- Unified grammar (FLAGS.EDITOR_V2): Moveable + ElementToolbar own
+               move/resize/delete, so the bespoke handles stay legacy-only. -->
+          <template v-if="editable && !posterElementsEditing && !unifiedPosterGrammar">
             <div
               class="overlay-move-handle"
               title="Drag to move"
@@ -2111,6 +2347,22 @@
         </div>
       </div>
 
+      <!-- ── + Add menu (editor-v2 D3, FLAGS.EDITOR_V2) ──────────────────────
+           EDITOR-ONLY CHROME, same rule as the band dividers: mounts only
+           under the unified grammar, never on /render pages, never prints.
+           New elements drop centered over the map area, selected, with their
+           contextual toolbar open. -->
+      <PosterAddMenu
+        v-if="unifiedPosterGrammar && !chromeGridRendering"
+        ref="posterAddMenuRef"
+        :stat-options="addMenuStatOptions"
+        @add-text="onAddMenuText"
+        @add-stat="onAddMenuStat"
+        @add-icon="onAddMenuIcon"
+        @add-image="onAddMenuImage"
+        @open="onPosterAddMenuOpen"
+      />
+
     </div>
   </div>
 </template>
@@ -2128,7 +2380,8 @@ import { buildMapStyle, contourMajorLineWidthExpression, contourMidLineWidthExpr
 import { excludeRangesFromRoute, trailSourceId, findRoutePercent, getAllRouteCoords, getRouteEndpoints, deletedRangesFromRouteIndexes, routeRangesToGeojson, distanceMeters, DEFAULT_COORD_GAP_THRESHOLD_METERS, resolveTrailSegmentGeojson, trailSegmentEndpointFeatures, segmentSourceGeojson, unionBboxes, lineStringFeatureCollection, routeStatsForCoords, coordsHaveElevation, normalizeLineCoords, bendSegmentGeojson, sanitizeSegmentBends } from '~/utils/trail'
 import { getPosterTypography, getPosterLayout, toFontStack } from '~/utils/posterData'
 import { getPosterCompositionProfile, posterCompositionClassName } from '~/utils/posterCompositions'
-import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout } from '~/utils/posterLayout'
+import { CHROME_BANDS, CHROME_BLOCK_KIND_LABELS, bandsToAnchorFrames, clampBandDividerHeight, clampChromeBandHeight, effectivePosterLayout, patchPosterLayout, resolveDividerAdjacency } from '~/utils/posterLayout'
+import type { DividerAdjacency, RenderedBandFlowInfo } from '~/utils/posterLayout'
 import { leaderAnchorCoord } from '~/utils/render/overlayLayout'
 import { resolveMapLibrePrintCanvasOptions } from '~/utils/render/maplibrePrintCanvas'
 import { applyViewportScaleToStyle, applyViewportZoomCompensationToStyle, getViewportVisualScale, VIEWPORT_SCALED_LAYOUT_PROPERTIES, VIEWPORT_SCALED_PAINT_PROPERTIES } from '~/utils/render/viewportScale'
@@ -2137,19 +2390,26 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, MapFrameBox, PartialPosterLayout, PosterIconId, PosterStatBinding, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
-import { formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion } from '~/utils/posterFormatters'
+import { firstPosterTextWithoutTitle, formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion, resolveOccasionLocationNote, resolveRisoCaptionText } from '~/utils/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
 import { getPosterIcon } from '~/utils/posterIcons'
 import { computePosterPrintGuardViolations } from '~/utils/posterPrintGuards'
-import { resolveFreeOverlayBox } from '~/utils/posterEditorElements'
+import { availablePosterStatBindings, formatPosterStatBinding, resolveFreeOverlayBox } from '~/utils/posterEditorElements'
 import { fitTextToBox } from '~/utils/textFit'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
-import FreezeControl from '~/components/map/FreezeControl.vue'
+import { getPrintFraming } from '~/utils/print/printFraming'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
+import ElementToolbar from '~/components/map/ElementToolbar.vue'
+import ElementTextControls from '~/components/map/ElementTextControls.vue'
+import ElementObjectControls from '~/components/map/ElementObjectControls.vue'
+import ElementBandControls from '~/components/map/ElementBandControls.vue'
+import PosterAddMenu from '~/components/map/PosterAddMenu.vue'
+import { useElementSelection } from '~/composables/useElementSelection'
+import { FLAGS } from '~/utils/knownFlags'
 import Moveable from 'vue3-moveable'
 
 interface PrintContext {
@@ -2192,6 +2452,8 @@ const props = defineProps<{
   segmentDrawMode?: SegmentDrawMode | null
   /** When set, drag existing points to reshape a geometry-backed segment */
   segmentEditMode?: SegmentEditMode | null
+  /** Editor-v2 E4: double-click/tap on a segment label requests an in-place rename (FLAGS.EDITOR_V2-gated by the parent). */
+  segmentLabelRenameEnabled?: boolean
   canUndo?: boolean
   canRedo?: boolean
 }>()
@@ -2214,6 +2476,9 @@ const emit = defineEmits<{
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
+  // Free-map frame (Phase 4): a box promotes the map out of band flow; null
+  // resets it back to flex + band dividers.
+  'poster-map-frame': [box: MapFrameBox | null]
   'poster-layout-updated': [value: PartialPosterLayout | undefined]
   'chrome-selection-changed': [payload:
     | { type: 'band'; band: ChromeBandId }
@@ -2246,10 +2511,23 @@ const emit = defineEmits<{
   'segment-label-moved': [payload: { id: string; lnglat: [number, number] }]
   /** Fired when a selected group of trail segment labels moves together */
   'segment-labels-moved': [payload: { labels: Array<{ id: string; lnglat: [number, number] }> }]
+  /** Fired on segment-label double-click/tap (editor-v2 E4); parent opens the in-place rename */
+  'segment-label-rename': [payload: { id: string; lnglat: [number, number] }]
   /** Fired (debounced) when map pan/zoom changes so the view can be persisted */
   'view-changed': [payload: { map_zoom: number; map_center: [number, number]; map_editor_width: number; map_pitch: number; map_bearing: number }]
+  /** Fired once the MapLibre instance has loaded — parents may then call getMapInstance() (editor-v2 selection mode) */
+  'map-ready': []
+  /** Fired whenever an inline poster text target (slot/overlay) becomes active — used to keep poster vs map selection mutually exclusive */
+  'text-target-selected': []
   'undo': []
   'redo': []
+  /** Editor-v2 D3 + Add menu (north-star gesture 4). x/y are % of the poster canvas at the map-area center. */
+  'poster-add-text': [payload: { x: number; y: number }]
+  'poster-add-stat': [payload: { binding: PosterStatBinding; x: number; y: number }]
+  'poster-add-icon': [payload: { icon: PosterIconId; x: number; y: number }]
+  'poster-add-image': [payload: { file: File }]
+  /** Unified-grammar delete for icon/image elements (D3) — same write path as the StylePanel remove. */
+  'poster-element-remove': [id: string]
 }>()
 
 const config = useRuntimeConfig()
@@ -2519,12 +2797,6 @@ const chromePaddingSides = [
   { key: 'bottom', name: 'bottom', label: 'Bottom', index: 2 },
   { key: 'left', name: 'left', label: 'Left', index: 3 },
 ] as const
-const activeChromeBandResize = ref<{
-  band: Extract<ChromeBandId, 'header' | 'footer'>
-  startY: number
-  startHeight: number
-  posterHeight: number
-} | null>(null)
 const activeChromeColumnResize = ref<{
   band: ChromeBandId
   rowId: string
@@ -2565,6 +2837,221 @@ const tier2PosterEditor = computed(() =>
 const freeOverlayEditorBlocked = computed(() =>
   guidedPosterEditor.value && !tier2PosterEditor.value,
 )
+
+// ── Unified element grammar — poster domain (editor-v2 D1, FLAGS.EDITOR_V2) ──
+// docs/EDITOR_UX_NORTH_STAR.md gesture 1: poster text slots and free text
+// overlays select the same way map elements do — Moveable handles plus the
+// ElementToolbar family — replacing the separate InlineTextToolbar path.
+// Under the hood nothing changes: slots stay data-bound and auto-fitting
+// (poster-text-override writes), overlays stay free anchors (overlay-updated /
+// poster-element-patched writes). Flag-off every gate below is false, so the
+// legacy paths render byte-identically.
+const editorV2FlagEnabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const unifiedPosterGrammar = computed(() =>
+  props.editable === true && !isPrintRender.value && editorV2FlagEnabled.value,
+)
+
+// Editor-v2 D2: once a user has divider-dragged (or row-resized) a band so
+// that poster_layout carries a band-height override, themes that pin the map
+// area to a fixed flex share (editorial-minimal's 64%) must yield to flex-1 so
+// the band actually trades height with the map instead of overflowing the
+// locked 2:3 poster. Gated on the flag only (NOT on `editable`) so the print
+// renderer resolves the exact same geometry as the editor.
+const editorV2BandHeightOverride = computed(() =>
+  editorV2FlagEnabled.value && (
+    props.styleConfig.poster_layout?.bands?.header?.height != null ||
+    props.styleConfig.poster_layout?.bands?.footer?.height != null
+  ),
+)
+
+// One selection across all editor domains: poster claims here evict map
+// selections (useMapElementSelection) and vice versa. Keys match the
+// poster-element id grammar so MapEditorSurface's Moveable-state claim for the
+// same element is idempotent, never an eviction.
+const elementSelectionArbiter = useElementSelection()
+
+function posterSelectionKey(target: ActiveTextTarget): string {
+  return target.type === 'slot' ? `slot:${target.slot}` : `text:${target.id}`
+}
+
+watch(activeTextTarget, (target, previous) => {
+  if (!unifiedPosterGrammar.value) return
+  if (target) elementSelectionArbiter.claim('poster', posterSelectionKey(target))
+  else if (previous) elementSelectionArbiter.release('poster', posterSelectionKey(previous))
+})
+
+elementSelectionArbiter.onEvicted('poster', () => {
+  if (!unifiedPosterGrammar.value || !activeTextTarget.value) return
+  // Commit any in-flight inline edit (blur fires the slot/overlay text write)
+  // before the selection visuals leave.
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  activeTextTarget.value = null
+  activeTextAnchor.value = null
+})
+
+// ── Phase 0 dismiss coordinator (one popover at a time) ─────────────────────
+// The + Add menu owns its own open state; these two hooks keep it mutually
+// exclusive with element selection. Opening the menu clears any selection;
+// claiming any selection (poster OR map domain) closes the menu. The chrome
+// add/padding panels close alongside so no two floating surfaces coexist.
+const posterAddMenuRef = ref<{ close: () => void } | null>(null)
+
+function onPosterAddMenuOpen() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  elementSelectionArbiter.releaseAll()
+  closeChromeAddPanel()
+  chromePaddingPanelOpen.value = false
+}
+
+watch(() => elementSelectionArbiter.current.value, (claim) => {
+  if (claim) posterAddMenuRef.value?.close()
+})
+
+// Click = select, click-again = inline text edit. Canceling pointerdown on a
+// not-yet-selected text element suppresses focus/caret (and therefore
+// contenteditable editing) while the click handlers still run and select it;
+// once the element holds the selection, the next press lands normally and
+// enters the existing contenteditable edit mechanics. Double-click therefore
+// reads as "select, then edit" — the Canva grammar — without touching any of
+// the slot/overlay markup.
+// D2 close-out: the 14px divider strip straddles the map/band boundary, but
+// the divider element lives inside the overflow-hidden map container, so its
+// band-side half is clipped out of hit testing — presses there land on band
+// slot hit boxes instead (on title-bottom compositions the trail_name slot
+// swallowed the pill drag entirely). The divider is the only structural
+// gesture and wins its strip outright: hit-test against the divider's
+// UNCLIPPED rect here at capture phase, before any slot handler or
+// contenteditable focus can claim the press.
+function bandDividerEdgeAtPoint(e: PointerEvent): 'top' | 'bottom' | null {
+  if (!bandDividersEnabled.value || e.button !== 0) return null
+  for (const edge of ['top', 'bottom'] as const) {
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-testid="band-divider-${edge}"]`)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (
+      e.clientX >= rect.left && e.clientX <= rect.right &&
+      e.clientY >= rect.top && e.clientY <= rect.bottom
+    ) return edge
+  }
+  return null
+}
+
+// Full-strip hover affordance: CSS :hover only reaches the divider's
+// unclipped half, so the pill is surfaced from pointer tracking instead.
+const hoveredBandDividerEdge = ref<'top' | 'bottom' | null>(null)
+
+function onPosterPointerMoveForDividers(e: PointerEvent) {
+  if (!bandDividersEnabled.value) {
+    if (hoveredBandDividerEdge.value) hoveredBandDividerEdge.value = null
+    return
+  }
+  for (const edge of ['top', 'bottom'] as const) {
+    const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-testid="band-divider-${edge}"]`)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (
+      e.clientX >= rect.left && e.clientX <= rect.right &&
+      e.clientY >= rect.top && e.clientY <= rect.bottom
+    ) {
+      if (hoveredBandDividerEdge.value !== edge) hoveredBandDividerEdge.value = edge
+      return
+    }
+  }
+  if (hoveredBandDividerEdge.value) hoveredBandDividerEdge.value = null
+}
+
+function onUnifiedPosterPointerDownCapture(e: PointerEvent) {
+  if (!unifiedPosterGrammar.value) return
+  const dividerEdge = bandDividerEdgeAtPoint(e)
+  if (dividerEdge) {
+    e.preventDefault()
+    e.stopPropagation()
+    startBandDividerDrag(e, dividerEdge)
+    return
+  }
+  if (!(e.target instanceof HTMLElement)) return
+  const editableText = e.target.closest<HTMLElement>('[contenteditable="true"]')
+  if (!editableText) return
+  // Chrome-grid blocks (guided/template editor surfaces) select through
+  // selectChromeCellFromInteraction, not activeTextTarget — suppressing their
+  // focus would lock them out of editing. The guard covers classic band slots
+  // and free text overlays only.
+  if (editableText.dataset.chromeBlockId) return
+  const host = editableText.closest<HTMLElement>('[data-poster-element-id]')
+  const elementId = host?.dataset.posterElementId
+  if (!elementId) return
+  const activeKey = activeTextTarget.value ? posterSelectionKey(activeTextTarget.value) : null
+  if (elementId === activeKey) return
+  e.preventDefault()
+}
+
+onMounted(() => {
+  posterCanvasEl.value?.addEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+  posterCanvasEl.value?.addEventListener('pointermove', onPosterPointerMoveForDividers)
+  posterCanvasEl.value?.addEventListener('pointerleave', clearBandDividerHover)
+})
+
+onUnmounted(() => {
+  posterCanvasEl.value?.removeEventListener('pointerdown', onUnifiedPosterPointerDownCapture, true)
+  posterCanvasEl.value?.removeEventListener('pointermove', onPosterPointerMoveForDividers)
+  posterCanvasEl.value?.removeEventListener('pointerleave', clearBandDividerHover)
+})
+
+function clearBandDividerHover() {
+  hoveredBandDividerEdge.value = null
+}
+
+// Editor-v2 D3: a newly added (or externally selected) text overlay opens its
+// contextual toolbar immediately — "drops centered, selected, toolbar open".
+// Idempotent with click-selection: both paths land in selectTextTarget.
+// Selecting an OBJECT element (icon/image) is an intra-poster transition the
+// arbiter deliberately doesn't referee — it ends any text editing here so the
+// object toolbar can take the v-else-if chain.
+watch(() => props.selectedPosterElementId, (id) => {
+  if (!unifiedPosterGrammar.value) return
+  // Band toolbar state follows the id grammar (D4 gesture 5).
+  if (id === 'band:header' || id === 'band:footer') {
+    nextTick(() => resolveBandToolbar(id.slice('band:'.length) as 'header' | 'footer'))
+  } else if (selectedBandToolbar.value) {
+    selectedBandToolbar.value = null
+  }
+  if (id?.startsWith('text:')) {
+    const rawId = id.slice('text:'.length)
+    if (activeTextTarget.value?.type === 'overlay' && activeTextTarget.value.id === rawId) return
+    nextTick(() => {
+      const selector = rawId.replace(/"/g, '\\"')
+      const el = posterCanvasEl.value?.querySelector<HTMLElement>(`[data-overlay-id="${selector}"] .overlay-content`)
+      if (el) selectTextTarget({ type: 'overlay', id: rawId }, el)
+    })
+    return
+  }
+  if ((id?.startsWith('icon:') || id?.startsWith('asset:') || id?.startsWith('band:')) && activeTextTarget.value) {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    activeTextTarget.value = null
+    activeTextAnchor.value = null
+  }
+  // Map-frame toolbar follows the same id grammar (Phase 4).
+  if (id === 'system:map') {
+    if (activeTextTarget.value) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      activeTextTarget.value = null
+      activeTextAnchor.value = null
+    }
+    nextTick(syncMapToolbarAnchor)
+  } else if (mapToolbarAnchor.value) {
+    mapToolbarAnchor.value = null
+  }
+})
+
+// Toolbar delete (text overlays only — slots are data-bound theme content;
+// their gesture is Reset, not Delete). Same write path as the legacy
+// overlay-delete-btn.
+function deleteActiveText() {
+  const target = activeTextTarget.value
+  if (!target || target.type !== 'overlay') return
+  onOverlayDelete(target.id)
+  finishActiveTextEdit()
+}
 const chromeStructureEditing = computed(() =>
   chromeDirectEditing.value && !guidedPosterEditor.value,
 )
@@ -2677,7 +3164,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onDocumentKeydown)
   cleanupChromeFloating()
   teardownChromeContextToolbarDrag()
-  teardownChromeBandResize()
+  teardownBandDividerDrag()
   teardownChromeColumnResize()
   teardownChromeRowResize()
   if (textFitTimer) clearTimeout(textFitTimer)
@@ -3018,6 +3505,16 @@ function chromeBlockFitMaxLines(block: ChromeBlock) {
   return 1
 }
 
+// Editor-v2 D2 word-break fix: title-kind slots never break mid-word —
+// fitTextToBox prefers shrinking toward the floor over wrapping, and the
+// matching [data-poster-fit-mode] CSS pins overflow-wrap: normal +
+// word-break: keep-all so Stage B wraps at word boundaries only. Gated on
+// FLAGS.EDITOR_V2 because it changes fitted output (flag-off renders must
+// stay byte-identical).
+function chromeBlockFitMode(block: ChromeBlock) {
+  return block.kind === 'title' && editorV2FlagEnabled.value ? 'shrink-before-wrap' : undefined
+}
+
 function chromeBlockLineHeight(block: ChromeBlock) {
   if (block.kind === 'title') {
     if (composition.value.id === 'travel-banner') return '1.08'
@@ -3292,49 +3789,190 @@ function resetChromeSection(band: ChromeBandId) {
   resetChromeBand(band)
 }
 
-function _startChromeBandResize(e: PointerEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
-  if (!chromeDirectEditing.value || typeof window === 'undefined') return
-  const posterBox = posterCanvasEl.value?.getBoundingClientRect()
-  if (!posterBox?.height) return
-  activeChromeBandResize.value = {
-    band,
-    startY: e.clientY,
-    startHeight: posterLayout.value.bands[band].height ?? (band === 'header' ? 22 : 14),
-    posterHeight: posterBox.height,
+
+// ── Band-divider drag (editor-v2 D2, FLAGS.EDITOR_V2) ────────────────────────
+// docs/EDITOR_UX_NORTH_STAR.md gesture 2: the header/map and map/footer
+// boundaries are draggable. Bands trade height with the map area inside the
+// locked poster aspect; clamps live in utils/posterLayout.ts
+// (clampBandDividerHeight: band floor = CHROME_BAND_HEIGHT_BOUNDS, map floor =
+// BAND_DIVIDER_MAP_MIN_PCT). Persistence reuses the EXISTING poster_layout
+// band-height write path (updateChromeBand → patchPosterLayout →
+// 'poster-layout-updated'), the same field the chrome row-resize gesture
+// already writes — no parallel system. Reset flows are therefore already
+// wired: per-band reset (resetChromeBand) deletes the band override and theme
+// reset clears poster_layout entirely, both restoring the theme's recipe
+// heights. MAP-GEOMETRY INVARIANT: this gesture and the existing chrome
+// row/band resize are the ONLY writers of poster_layout band heights
+// (asserted by tests/band-divider.test.ts).
+
+const activeBandDividerDrag = ref<{
+  band: Extract<ChromeBandId, 'header' | 'footer'>
+  edge: 'top' | 'bottom'
+  startY: number
+  startHeight: number
+  otherBandHeight: number
+  posterHeight: number
+} | null>(null)
+
+// Editor-only chrome — same rule as MapSelectionOverlay.vue: divider
+// affordances NEVER print. unifiedPosterGrammar is already false on the
+// /render pages the AWS renderer screenshots (render-mode print, editable
+// false). transit-diagram keeps hard-coded band geometry and is excluded.
+const bandDividersEnabled = computed(() =>
+  unifiedPosterGrammar.value && composition.value.id !== 'transit-diagram' && !mapFrameBox.value,
+)
+
+// Free-map frame (Phase 4). Data-driven (NOT flag-gated) so the print render —
+// which never sets the editor flag — places the map identically to the editor.
+// A missing/zero-area frame falls back to the flex/band layout (null).
+const mapFrameBox = computed<MapFrameBox | null>(() => {
+  const f = props.styleConfig.poster_layout?.map_frame
+  if (!f) return null
+  const width = Number(f.width)
+  const height = Number(f.height)
+  if (!(width > 0) || !(height > 0)) return null
+  return {
+    left: Number(f.left) || 0,
+    top: Number(f.top) || 0,
+    width,
+    height,
   }
-  window.addEventListener('pointermove', onChromeBandResizeMove)
-  window.addEventListener('pointerup', finishChromeBandResize, { once: true })
-  window.addEventListener('pointercancel', finishChromeBandResize, { once: true })
+})
+
+// The map-frame grip: an always-present (flag-on, editor-only, never-prints)
+// grab border so the map reads as a draggable element. The interior keeps
+// pan/route-select (the grip's edges/corners are the only pointer targets);
+// pressing one selects the map frame and Moveable's handles take over.
+const showMapFrameGrip = computed(() => unifiedPosterGrammar.value)
+const isMapFrameSelected = computed(() => props.selectedPosterElementId === 'system:map')
+
+// Compositions reorder header/map/footer via flex `order`, and several themes
+// flip or pin that order AGAIN with bespoke `!important` CSS the composition
+// constants cannot see (usgs-vintage/classic-trail/editorial-minimal/
+// relief-shaded render title-bottom on title-top compositions; dark-sky/
+// copper-night absolutize the header over a full-bleed map). Divider
+// adjacency therefore resolves from the RENDERED layout — the computed flex
+// order and flow status of the live band elements — re-read whenever the
+// theme or composition changes. Out-of-flow bands (absolute overlays,
+// display:contents shells) get no divider: their height is not band height.
+const renderedDividerBands = ref<DividerAdjacency>({ top: null, bottom: null })
+// Bands a user height-override may legitimately size: in-flow flex children.
+const renderedBandInFlow = ref<{ header: boolean; footer: boolean }>({ header: true, footer: true })
+
+const mapTopDividerBand = computed(() => renderedDividerBands.value.top)
+const mapBottomDividerBand = computed(() => renderedDividerBands.value.bottom)
+
+function bandFlowInfo(band: Extract<ChromeBandId, 'header' | 'footer'>, mapEl: HTMLElement): RenderedBandFlowInfo | null {
+  const el = posterCanvasEl.value?.querySelector<HTMLElement>(band === 'header' ? '.poster-header' : '.poster-footer')
+  if (!el) return null
+  const cs = window.getComputedStyle(el)
+  if (cs.display === 'none' || cs.display === 'contents' || cs.position === 'absolute' || cs.position === 'fixed') return null
+  return {
+    band,
+    order: Number.parseInt(cs.order, 10) || 0,
+    domBeforeMap: Boolean(el.compareDocumentPosition(mapEl) & Node.DOCUMENT_POSITION_FOLLOWING),
+  }
 }
 
-function onChromeBandResizeMove(e: PointerEvent) {
-  const resize = activeChromeBandResize.value
-  if (!resize) return
-  const deltaPct = ((e.clientY - resize.startY) / resize.posterHeight) * 100
-  const rawHeight = resize.band === 'header'
-    ? resize.startHeight + deltaPct
-    : resize.startHeight - deltaPct
-  const height = clampChromeBandHeight(rawHeight)
-  updatePosterLayout({
-    bands: {
-      [resize.band]: {
-        ...(props.styleConfig.poster_layout?.bands?.[resize.band] ?? {}),
-        height,
-      },
-    },
+function resolveRenderedDividerBands() {
+  const mapEl = mapContainer.value
+  if (typeof window === 'undefined' || !posterCanvasEl.value || !mapEl) {
+    renderedDividerBands.value = { top: null, bottom: null }
+    return
+  }
+  const header = bandFlowInfo('header', mapEl)
+  const footer = composition.value.footerVariant !== 'hidden' ? bandFlowInfo('footer', mapEl) : null
+  renderedBandInFlow.value = { header: Boolean(header), footer: Boolean(footer) }
+  const bands = [header, footer].filter((item): item is RenderedBandFlowInfo => item != null)
+  const mapOrder = Number.parseInt(window.getComputedStyle(mapEl).order, 10) || 0
+  renderedDividerBands.value = resolveDividerAdjacency(bands, mapOrder)
+}
+
+onMounted(() => { nextTick(resolveRenderedDividerBands) })
+// The re-resolve watch lives below `composition`'s definition (watch source
+// getters run eagerly at setup; `composition` is declared later in the file).
+
+function bandRenderedHeightPct(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  if (band === 'footer' && composition.value.footerVariant === 'hidden') return 0
+  return posterLayout.value.bands[band].height ?? 0
+}
+
+function startBandDividerDrag(e: PointerEvent, edge: 'top' | 'bottom') {
+  if (!bandDividersEnabled.value || typeof window === 'undefined') return
+  const band = edge === 'top' ? mapTopDividerBand.value : mapBottomDividerBand.value
+  const posterBox = posterCanvasEl.value?.getBoundingClientRect()
+  if (!band || !posterBox?.height) return
+  const other = band === 'header' ? 'footer' as const : 'header' as const
+  activeBandDividerDrag.value = {
+    band,
+    edge,
+    startY: e.clientY,
+    startHeight: posterLayout.value.bands[band].height ?? clampChromeBandHeight(band === 'header' ? 22 : 14),
+    otherBandHeight: bandRenderedHeightPct(other),
+    posterHeight: posterBox.height,
+  }
+  window.addEventListener('pointermove', onBandDividerDragMove)
+  window.addEventListener('pointerup', finishBandDividerDrag, { once: true })
+  window.addEventListener('pointercancel', finishBandDividerDrag, { once: true })
+}
+
+// Live refit while dragging (D2 piece 2): pointermove emissions are
+// rAF-coalesced (at most one poster_layout emit per frame) and the text-fit
+// watcher debounces harder while a drag is active, then settles immediately on
+// release. Band height is a CSS-level change — the MapLibre canvas re-fits
+// through its existing mapContainer ResizeObserver (syncCameraToFrame:
+// resize() + saved-camera restore or fitBounds), so no map plumbing here.
+const BAND_DIVIDER_REFIT_DEBOUNCE_MS = 80
+let bandDividerFrame = 0
+let pendingBandDividerHeight: number | null = null
+
+function onBandDividerDragMove(e: PointerEvent) {
+  const drag = activeBandDividerDrag.value
+  if (!drag || typeof window === 'undefined') return
+  // At the map's TOP edge the dragged band sits above it (pointer down grows
+  // the band); at the BOTTOM edge the band sits below (pointer down shrinks).
+  const sign = drag.edge === 'top' ? 1 : -1
+  const deltaPct = ((e.clientY - drag.startY) / drag.posterHeight) * 100 * sign
+  pendingBandDividerHeight = clampBandDividerHeight(drag.startHeight + deltaPct, drag.otherBandHeight)
+  if (bandDividerFrame) return
+  bandDividerFrame = window.requestAnimationFrame(() => {
+    bandDividerFrame = 0
+    flushBandDividerHeight()
   })
 }
 
-function finishChromeBandResize() {
-  teardownChromeBandResize()
+function flushBandDividerHeight() {
+  const drag = activeBandDividerDrag.value
+  const height = pendingBandDividerHeight
+  pendingBandDividerHeight = null
+  if (!drag || height == null) return
+  if (height === posterLayout.value.bands[drag.band].height) return
+  updateChromeBand(drag.band, { height })
 }
 
-function teardownChromeBandResize() {
+function finishBandDividerDrag() {
+  // Flush the last coalesced height before the drag state clears, then settle
+  // the text fit right away (the drag debounce no longer applies).
+  if (bandDividerFrame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(bandDividerFrame)
+    bandDividerFrame = 0
+  }
+  flushBandDividerHeight()
+  teardownBandDividerDrag()
+  schedulePosterTextFit()
+}
+
+function teardownBandDividerDrag() {
   if (typeof window === 'undefined') return
-  activeChromeBandResize.value = null
-  window.removeEventListener('pointermove', onChromeBandResizeMove)
-  window.removeEventListener('pointerup', finishChromeBandResize)
-  window.removeEventListener('pointercancel', finishChromeBandResize)
+  if (bandDividerFrame) {
+    window.cancelAnimationFrame(bandDividerFrame)
+    bandDividerFrame = 0
+  }
+  pendingBandDividerHeight = null
+  activeBandDividerDrag.value = null
+  window.removeEventListener('pointermove', onBandDividerDragMove)
+  window.removeEventListener('pointerup', finishBandDividerDrag)
+  window.removeEventListener('pointercancel', finishBandDividerDrag)
 }
 
 function startChromeColumnResize(e: PointerEvent, band: ChromeBandId, rowId: string, cellId: string) {
@@ -3890,6 +4528,8 @@ const SLOT_LABELS: Record<PosterTextSlot, string> = {
 function selectTextTarget(target: ActiveTextTarget, el: HTMLElement) {
   activeTextTarget.value = target
   activeTextAnchor.value = el.getBoundingClientRect()
+  // Single-selection world: parents clear any active map-element selection.
+  emit('text-target-selected')
 }
 
 function slotEditable(slot: PosterTextSlot) {
@@ -3898,7 +4538,7 @@ function slotEditable(slot: PosterTextSlot) {
 }
 
 function slotEditorElementId(slot: PosterTextSlot) {
-  return posterElementsEditing.value && slotEditable(slot) ? `slot:${slot}` : undefined
+  return (posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot) ? `slot:${slot}` : undefined
 }
 
 function isSlotActive(slot: PosterTextSlot) {
@@ -3953,7 +4593,7 @@ function defaultSlotText(slot: PosterTextSlot) {
 function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
   const el = e.currentTarget as HTMLElement
   selectTextTarget({ type: 'slot', slot }, el)
-  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
+  if ((posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -3965,7 +4605,7 @@ function onSlotFocus(e: FocusEvent, slot: PosterTextSlot) {
 
 function onSlotClick(e: MouseEvent, slot: PosterTextSlot) {
   selectTextTarget({ type: 'slot', slot }, e.currentTarget as HTMLElement)
-  if (posterElementsEditing.value && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
+  if ((posterElementsEditing.value || unifiedPosterGrammar.value) && slotEditable(slot)) emit('poster-element-selected', `slot:${slot}`)
   if (chromeDirectEditing.value) {
     const block = chromeBlockForSlot(slot)
     if (block) selectChromeBlock(block.id)
@@ -3987,7 +4627,7 @@ function onOverlayTextFocus(e: FocusEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextPointerDown(e: PointerEvent, id: string) {
@@ -3996,7 +4636,7 @@ function onOverlayTextPointerDown(e: PointerEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextClick(e: MouseEvent, id: string) {
@@ -4005,7 +4645,7 @@ function onOverlayTextClick(e: MouseEvent, id: string) {
   selectedOverlayId.value = id
   selectTextTarget({ type: 'overlay', id }, e.currentTarget as HTMLElement)
   emit('overlay-selected', id)
-  if (tier2PosterEditor.value) emit('poster-element-selected', `text:${id}`)
+  if (tier2PosterEditor.value || unifiedPosterGrammar.value) emit('poster-element-selected', `text:${id}`)
 }
 
 function onOverlayTextBlur(e: FocusEvent, id: string) {
@@ -4075,10 +4715,14 @@ type PosterSelectableElement =
   | { type: 'asset'; id: string; item: MapAsset }
   | { type: 'icon'; id: string; item: IconOverlay }
   | { type: 'slot'; id: string; slot: PosterTextSlot }
+  | { type: 'map'; id: string }
 
 function selectedPosterElement(): PosterSelectableElement | null {
   const id = props.selectedPosterElementId
   if (!id) return null
+  // The map frame is its own selectable element (Phase 4) — resolved before the
+  // guided-editor gate so it works on every unified-grammar surface.
+  if (id === 'system:map') return unifiedPosterGrammar.value ? { type: 'map', id } : null
   if (guidedPosterEditor.value && !id.startsWith('slot:')) {
     if (!tier2PosterEditor.value || (!id.startsWith('text:') && !id.startsWith('asset:'))) return null
   }
@@ -4108,18 +4752,58 @@ const selectedPosterElementCanTransform = computed(() => {
   const selected = selectedPosterElement()
   if (!selected) return false
   if (selected.type === 'slot') return true
+  if (selected.type === 'map') return true
   if (selected.type === 'text') return selected.item.locked !== true
   if (selected.type === 'asset') return selected.item.locked !== true
   return selected.item.locked !== true
 })
 const selectedPosterElementResizable = computed(() => selectedPosterElementCanTransform.value)
-const selectedPosterElementDraggable = computed(() => {
-  const selected = selectedPosterElement()
-  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
-})
+// Free canvas: theme slots ARE draggable now (the dead-handles bug). A slot in
+// template flow is promoted to a free-floating offset on first drag; resize
+// (font size) works for slots whether flowed or promoted.
+const selectedPosterElementDraggable = computed(() => selectedPosterElementCanTransform.value)
 const selectedPosterElementRotatable = computed(() => {
   const selected = selectedPosterElement()
-  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+  // Rotation stays overlay/asset-only for now (slots keep upright text; the
+  // map frame stays axis-aligned so the route never prints rotated).
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot' && selected?.type !== 'map'
+})
+
+// ── Free-placement for theme slots (free-canvas Phase 3) ────────────────────
+// A slot floats via a CSS transform offset (canvas %, cqw/cqh) stored in
+// poster_text_overrides.offset_x/offset_y. Present ⇒ "promoted" (the user has
+// dragged it); its band switches to overflow:visible so it can sit anywhere,
+// including over the map. The offset is editable-agnostic and uses container-%
+// units, so editor and print resolve the same float by construction.
+function slotOffset(slot: PosterTextSlot): { x: number; y: number } | null {
+  const o = slotOverride(slot)
+  if (o.offset_x == null && o.offset_y == null) return null
+  return { x: o.offset_x ?? 0, y: o.offset_y ?? 0 }
+}
+function isSlotPromoted(slot: PosterTextSlot): boolean {
+  return slotOffset(slot) != null
+}
+function freeSlotStyleOverride(slot: PosterTextSlot): Record<string, string> {
+  const off = slotOffset(slot)
+  if (!off) return {}
+  return {
+    transform: `translate(${off.x}cqw, ${off.y}cqh)`,
+    // Float above the map (z:2) and sibling chrome while promoted.
+    position: 'relative',
+    zIndex: '20',
+    willChange: 'transform',
+  }
+}
+// Bands must stop clipping once any slot is promoted, so a float can leave its
+// band (e.g. up over the map). Flag-off / no promotion keeps overflow:hidden,
+// byte-identical.
+// Data-driven (NOT flag-gated): a saved float must un-clip its band at print
+// too, so editor and final agree. Legacy maps carry no offsets ⇒ false ⇒
+// overflow:hidden unchanged ⇒ flag-off byte-identical.
+const anySlotPromoted = computed(() => {
+  const overrides = props.styleConfig.poster_text_overrides
+  if (!overrides) return false
+  return Object.values(overrides).some(o => o?.offset_x != null || o?.offset_y != null)
 })
 const selectedPosterElementKeepRatio = computed(() => {
   const selected = selectedPosterElement()
@@ -4129,17 +4813,57 @@ const selectedPosterElementAllowsBleed = computed(() => {
   const selected = selectedPosterElement()
   return selected?.type === 'asset' && selected.item.allow_bleed === true
 })
+// Real print geometry for the current product (editor + print share it).
+// The editor poster-canvas represents the TRIM area; the provider's safe
+// margin (e.g. 5 mm on 24x36) is the true "keep text inside" line, replacing
+// the old hardcoded 4% guess so snapping/guides match what actually prints.
+// Falls back to printContext.framing in print mode, else derives from
+// print_size; unknown sizes yield null (callers degrade gracefully).
+const editorPrintFraming = computed<PrintFraming | null>(() => {
+  if (props.printContext?.framing) return props.printContext.framing
+  try {
+    return getPrintFraming(props.styleConfig.print_size ?? '24x36', 'final')
+  } catch {
+    return null
+  }
+})
+
+// Design safe-area inset in canvas px. ONE consistent margin across snapping,
+// the visible safe frame, and the print guard (posterPrintGuards
+// SAFE_AREA_PERCENT) so a user never snaps content inside the visible safe
+// line only to be blocked at checkout. The provider's bare ~5mm minimum is
+// looser than this; we keep a comfortable 4% for print quality. The real cut
+// geometry is shown separately by the trim/bleed frame below.
+const DESIGN_SAFE_AREA_PCT = 0.04
+function printSafeInsetPx(_axis: 'x' | 'y', sizePx: number): number {
+  return sizePx * DESIGN_SAFE_AREA_PCT
+}
+
+// ── Print-quality frame (editor-only, never prints; FLAGS.EDITOR_V2) ─────────
+// A subtle, always-on overlay tying the editor to the real 24x36 print spec:
+// a faint trim/cut-edge ring at the poster boundary (where the bleed is
+// trimmed away) and a dashed safe-area line at the provider's true safe
+// margin. pointer-events:none; gated !isPrintRender so it cannot appear on the
+// /render pages the AWS renderer screenshots.
+const showPrintFrame = computed(() => unifiedPosterGrammar.value && !isPrintRender.value && editorPrintFraming.value != null)
+
+const printFrameSafeStyle = computed(() => {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  const w = rect?.width ?? 1, h = rect?.height ?? 1
+  const sx = (printSafeInsetPx('x', w) / w) * 100
+  const sy = (printSafeInsetPx('y', h) / h) * 100
+  return { inset: `${sy.toFixed(2)}% ${sx.toFixed(2)}%` }
+})
+
+// Free-canvas: elements may reach the trim edge (the poster edge); the safe
+// margin is advisory (guides + Phase 2 warnings), not a hard wall. allow_bleed
+// assets may extend beyond. This unblocks edge-to-edge placement that the old
+// 4% clamp prevented.
 const posterMoveableBounds = computed(() => {
   if (selectedPosterElementAllowsBleed.value) return undefined
   const rect = posterCanvasEl.value?.getBoundingClientRect()
   if (!rect) return undefined
-  const safe = Math.min(rect.width, rect.height) * 0.04
-  return {
-    left: safe,
-    top: safe,
-    right: rect.width - safe,
-    bottom: rect.height - safe,
-  }
+  return { left: 0, top: 0, right: rect.width, bottom: rect.height }
 })
 const posterSnapGridPx = computed(() => {
   const rect = posterCanvasEl.value?.getBoundingClientRect()
@@ -4161,14 +4885,15 @@ function posterGuidePixels(axis: 'x' | 'y') {
   const canvas = posterCanvasEl.value?.getBoundingClientRect()
   if (!canvas) return []
   const size = axis === 'x' ? canvas.width : canvas.height
-  const safe = size * 0.04
+  // Real provider safe inset (not a 4% guess), plus trim edges, thirds, center.
+  const safe = printSafeInsetPx(axis, size)
   const guides = [0, safe, size / 3, size / 2, (size * 2) / 3, size - safe, size]
   if (mapContainer.value) {
     const map = mapContainer.value.getBoundingClientRect()
     guides.push(axis === 'x' ? map.left - canvas.left : map.top - canvas.top)
     guides.push(axis === 'x' ? map.right - canvas.left : map.bottom - canvas.top)
   }
-  if (tier2PosterEditor.value && posterCanvasEl.value) {
+  if ((tier2PosterEditor.value || unifiedPosterGrammar.value) && posterCanvasEl.value) {
     posterCanvasEl.value.querySelectorAll<HTMLElement>('[data-poster-element-id]').forEach((element) => {
       if (element === posterMoveableTarget.value) return
       const rect = element.getBoundingClientRect()
@@ -4180,8 +4905,29 @@ function posterGuidePixels(axis: 'x' | 'y') {
   return guides.map(value => Math.round(value)).filter(value => Number.isFinite(value))
 }
 
+// Sibling element nodes for Moveable's live alignment guides (it draws the
+// distance/edge lines during a drag). Excludes the active target. The
+// elementGuidelines prop reads this; recomputed when selection changes.
+const posterElementGuidelineEls = computed<HTMLElement[]>(() => {
+  if (!unifiedPosterGrammar.value && !tier2PosterEditor.value) return []
+  const canvas = posterCanvasEl.value
+  const target = posterMoveableTarget.value
+  if (!canvas || !target) return []
+  return Array.from(canvas.querySelectorAll<HTMLElement>('[data-poster-element-id]'))
+    .filter(el => el !== target)
+})
+
+// Edge + center snapping in both axes (Moveable snapDirections).
+const posterSnapDirections = { top: true, left: true, bottom: true, right: true, center: true, middle: true } as const
+
+// Density-aware snap threshold so it feels consistent across canvas sizes.
+const posterSnapThreshold = computed(() => {
+  const width = posterCanvasEl.value?.getBoundingClientRect().width ?? 520
+  return Math.max(5, Math.round(width * 0.012))
+})
+
 function syncPosterMoveableTarget() {
-  if (!posterElementsEditing.value || !props.selectedPosterElementId || !posterCanvasEl.value) {
+  if ((!posterElementsEditing.value && !unifiedPosterGrammar.value) || !props.selectedPosterElementId || !posterCanvasEl.value) {
     posterMoveableTarget.value = null
     moveableResizePreview.value = null
     moveableTextResizePreview.value = null
@@ -4190,6 +4936,201 @@ function syncPosterMoveableTarget() {
   }
   const selectorId = props.selectedPosterElementId.replace(/"/g, '\\"')
   posterMoveableTarget.value = posterCanvasEl.value.querySelector<HTMLElement>(`[data-poster-element-id="${selectorId}"]`)
+}
+
+// ── + Add menu (editor-v2 D3, north-star gesture 4) ─────────────────────────
+// Editor-only chrome, mounted under the unified grammar like the band
+// dividers — never on /render pages. The Stat options derive from the SAME
+// ThemeDataContext the footer stats consume, so values without real data are
+// not offered (no fabricated stats by construction).
+const addMenuDistanceUnit = computed<'mi' | 'km'>(() =>
+  props.styleConfig.composition_footer_distance_unit === 'km' ? 'km' : 'mi')
+const addMenuStatOptions = computed(() => unifiedPosterGrammar.value
+  ? availablePosterStatBindings(themeDataContext.value, { distanceUnit: addMenuDistanceUnit.value })
+  : [])
+
+/** Map-area center as % of the poster canvas — the + menu's drop point. */
+function mapCenterPosterPercent(): { x: number; y: number } {
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  const map = mapContainer.value?.getBoundingClientRect()
+  if (!canvas || !map || !canvas.width || !canvas.height) return { x: 50, y: 50 }
+  return {
+    x: Math.round(((map.left + map.width / 2 - canvas.left) / canvas.width) * 1000) / 10,
+    y: Math.round(((map.top + map.height / 2 - canvas.top) / canvas.height) * 1000) / 10,
+  }
+}
+
+function onAddMenuText() { emit('poster-add-text', mapCenterPosterPercent()) }
+function onAddMenuStat(binding: PosterStatBinding) { emit('poster-add-stat', { binding, ...mapCenterPosterPercent() }) }
+function onAddMenuIcon(icon: PosterIconId) { emit('poster-add-icon', { icon, ...mapCenterPosterPercent() }) }
+function onAddMenuImage(file: File) { emit('poster-add-image', { file }) }
+
+// Data-bound stat overlays render their LIVE derived value (same formatters
+// as the footer band) with the stored content as fallback. Not flag-gated:
+// the binding field only exists on overlays created through the flag-gated
+// + menu, so legacy maps render byte-identically through the content path.
+function overlayDisplayContent(overlay: TextOverlay): string {
+  if (!overlay.data_binding) return overlay.content
+  return formatPosterStatBinding(overlay.data_binding, themeDataContext.value, { distanceUnit: addMenuDistanceUnit.value }) || overlay.content
+}
+
+// ── Object toolbar (editor-v2 D3): icon + image elements join the unified
+// grammar. Selection/Moveable plumbing is the pre-existing poster-element
+// path; this adds the missing ElementToolbar presentation for non-text kinds.
+const selectedObjectElement = computed(() => {
+  if (!unifiedPosterGrammar.value) return null
+  const selected = selectedPosterElement()
+  if (!selected || (selected.type !== 'icon' && selected.type !== 'asset')) return null
+  return selected
+})
+const objectToolbarAnchor = ref<DOMRect | null>(null)
+
+function syncObjectToolbarAnchor() {
+  objectToolbarAnchor.value = selectedObjectElement.value
+    ? posterMoveableTarget.value?.getBoundingClientRect() ?? null
+    : null
+  // The map-frame toolbar tracks the same gesture cadence (drag/resize end).
+  if (isMapFrameSelected.value) syncMapToolbarAnchor()
+}
+// The anchor-sync watch registers below `isPrintRender`'s definition — watch
+// sources evaluate eagerly at setup and selectedObjectElement reaches
+// isPrintRender through unifiedPosterGrammar (TDZ otherwise).
+
+function applyObjectToolbarPatch(patch: PosterEditorElementPatch) {
+  const selected = selectedObjectElement.value
+  if (!selected) return
+  emit('poster-element-patched', { id: selected.id, patch })
+}
+
+function deleteObjectElement() {
+  const selected = selectedObjectElement.value
+  if (!selected) return
+  emit('poster-element-remove', selected.id)
+}
+
+function closeObjectToolbar() {
+  emit('poster-element-selected', null)
+}
+
+// ── Band properties (editor-v2 D4, north-star gesture 5) ────────────────────
+// Click empty band space → background color, padding, per-band
+// reset-to-template. Band selection rides the SAME poster-element id grammar
+// (`band:header` / `band:footer`) so arbiter claims, mutual eviction with map
+// selections, and intra-poster transitions all reuse the existing plumbing.
+// Writes ride the existing poster_layout band paths (updateChromeBand /
+// resetChromeBand) — no parallel persistence.
+const selectedBandToolbar = ref<{
+  band: Extract<ChromeBandId, 'header' | 'footer'>
+  background: string
+  anchor: DOMRect
+} | null>(null)
+
+function bandElement(band: Extract<ChromeBandId, 'header' | 'footer'>): HTMLElement | null {
+  return posterCanvasEl.value?.querySelector<HTMLElement>(band === 'header' ? '.poster-header' : '.poster-footer') ?? null
+}
+
+// Parse a CSS color to #rrggbb, or null when it's fully transparent /
+// unparseable. Transparent must NOT collapse to #000000 (rgba(0,0,0,0) → black)
+// — themes commonly leave bands transparent and let the poster paper show
+// through, so a naive parse made the band-property swatch read solid black.
+function cssColorToHex(value: string): string | null {
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value
+  const match = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/)
+  if (!match) return null
+  if (match[4] != null && Number(match[4]) === 0) return null // fully transparent
+  return '#' + [match[1], match[2], match[3]]
+    .map(part => Number(part).toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// The visible background at a band: its own color if painted, otherwise the
+// first ancestor that actually paints one (the poster paper), falling back to
+// a light default. Drives the band-property swatch so it reflects what the
+// user sees rather than a transparent band's phantom black.
+function effectiveBandBackgroundHex(el: HTMLElement): string {
+  let node: HTMLElement | null = el
+  while (node) {
+    const hex = cssColorToHex(window.getComputedStyle(node).backgroundColor)
+    if (hex) return hex
+    node = node.parentElement
+  }
+  return '#f5f5f4'
+}
+
+function onBandSpaceClick(e: MouseEvent, band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  if (!unifiedPosterGrammar.value || chromeGridRendering.value) return
+  if (!(e.target instanceof HTMLElement)) return
+  // Only EMPTY space selects the band — clicks on slots, overlays, chrome
+  // controls, and the divider strip belong to their own elements.
+  if (e.target.closest('[data-poster-element-id], [contenteditable], button, input, .band-divider, .chrome-band-layer, .editable-text')) return
+  emit('poster-element-selected', `band:${band}`)
+}
+
+function resolveBandToolbar(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  const el = bandElement(band)
+  if (!el) {
+    selectedBandToolbar.value = null
+    return
+  }
+  selectedBandToolbar.value = {
+    band,
+    // Prefer the band's explicit override; else the effective visible color.
+    background: cssColorToHex(window.getComputedStyle(el).backgroundColor)
+      ?? effectiveBandBackgroundHex(el),
+    anchor: el.getBoundingClientRect(),
+  }
+}
+
+const selectedBandHasOverrides = computed(() =>
+  Boolean(selectedBandToolbar.value && props.styleConfig.poster_layout?.bands?.[selectedBandToolbar.value.band]))
+
+function applyBandBackground(patch: { background: string }) {
+  const state = selectedBandToolbar.value
+  if (!state) return
+  updateChromeBand(state.band, { background: patch.background })
+  selectedBandToolbar.value = { ...state, background: patch.background }
+}
+
+// Padding nudges write the existing [top(cqh), right(cqw), bottom(cqh),
+// left(cqw)] band override; the first nudge seeds it from the band's
+// RENDERED padding so the gesture starts from what the user sees.
+function nudgeBandPadding(payload: { axis: 'vertical' | 'horizontal'; delta: number }) {
+  const state = selectedBandToolbar.value
+  const canvas = posterCanvasEl.value?.getBoundingClientRect()
+  if (!state || !canvas?.height || !canvas.width) return
+  let padding = posterLayout.value.bands[state.band].padding
+  if (!padding) {
+    const el = bandElement(state.band)
+    if (!el) return
+    const cs = window.getComputedStyle(el)
+    padding = [
+      (Number.parseFloat(cs.paddingTop) / canvas.height) * 100,
+      (Number.parseFloat(cs.paddingRight) / canvas.width) * 100,
+      (Number.parseFloat(cs.paddingBottom) / canvas.height) * 100,
+      (Number.parseFloat(cs.paddingLeft) / canvas.width) * 100,
+    ]
+  }
+  const next = [...padding] as [number, number, number, number]
+  const clampPad = (value: number) => Math.round(Math.max(0, Math.min(18, value)) * 10) / 10
+  if (payload.axis === 'vertical') {
+    next[0] = clampPad(next[0] + payload.delta)
+    next[2] = clampPad(next[2] + payload.delta)
+  } else {
+    next[1] = clampPad(next[1] + payload.delta)
+    next[3] = clampPad(next[3] + payload.delta)
+  }
+  updateChromeBand(state.band, { padding: next })
+}
+
+function resetSelectedBand() {
+  const state = selectedBandToolbar.value
+  if (!state) return
+  resetChromeBand(state.band)
+  closeBandToolbar()
+}
+
+function closeBandToolbar() {
+  emit('poster-element-selected', null)
 }
 
 function scheduleDeselect() {
@@ -4295,6 +5236,14 @@ function selectedPosterPercentBounds(id: string) {
       maxY: Math.max(safe, 100 - safe - selected.item.height),
     }
   }
+  if (selected.type === 'map') {
+    // Keep the frame on-canvas during live drag (it may bleed to the edges —
+    // no 4% inset) so the final clamp never jumps it back.
+    const frame = mapFrameBox.value
+    const w = frame?.width ?? 100
+    const h = frame?.height ?? 100
+    return { minX: 0, maxX: Math.max(0, 100 - w), minY: 0, maxY: Math.max(0, 100 - h) }
+  }
   return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
 }
 
@@ -4345,21 +5294,128 @@ function moveableDelta(event: unknown): [number, number] {
   return [Number(delta[0]) || 0, Number(delta[1]) || 0]
 }
 
+// Slot free-placement drag (free-canvas Phase 3): theme slots float via a CSS
+// transform offset (canvas %), not absolute left/top like overlays. We
+// accumulate the live pixel delta into the element's transform during the
+// drag, then persist it as offset_x/offset_y (cqw/cqh) on drag-end. Promotion
+// is implicit: the first drag writes the offset; thereafter it's a free float.
+const moveableSlotDragPx = ref<{ slot: PosterTextSlot; dx: number; dy: number } | null>(null)
+
+function slotFromElementId(id: string): PosterTextSlot | null {
+  return id.startsWith('slot:') ? (id.slice('slot:'.length) as PosterTextSlot) : null
+}
+
 function onPosterMoveableDrag(event: unknown) {
   const payload = event as { target?: HTMLElement }
   if (!payload.target) return
+  const id = payload.target.dataset.posterElementId
+  const slot = id ? slotFromElementId(id) : null
   const [dx, dy] = moveableDelta(event)
+  if (slot) {
+    const prev = moveableSlotDragPx.value?.slot === slot ? moveableSlotDragPx.value : { slot, dx: 0, dy: 0 }
+    const base = slotOffsetBasePx(slot)
+    const next = { slot, dx: prev.dx + dx, dy: prev.dy + dy }
+    moveableSlotDragPx.value = next
+    // Live preview: combine the persisted offset with the in-flight delta.
+    payload.target.style.transform = `translate(${base.x + next.dx}px, ${base.y + next.dy}px)`
+    return
+  }
   positionTargetByDelta(payload.target, dx, dy)
+}
+
+// The slot's already-persisted offset, in px of the live canvas (the base the
+// in-flight delta adds to).
+function slotOffsetBasePx(slot: PosterTextSlot): { x: number; y: number } {
+  const off = slotOffset(slot)
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!off || !rect) return { x: 0, y: 0 }
+  return { x: (off.x / 100) * rect.width, y: (off.y / 100) * rect.height }
 }
 
 function onPosterMoveableDragEnd(event: unknown) {
   const payload = event as { target?: HTMLElement }
   const id = payload.target?.dataset.posterElementId
   if (!id || !payload.target) return
+  const slot = slotFromElementId(id)
+  if (slot) {
+    const drag = moveableSlotDragPx.value
+    const rect = posterCanvasEl.value?.getBoundingClientRect()
+    moveableSlotDragPx.value = null
+    payload.target.style.transform = ''
+    if (!drag || !rect?.width || !rect.height) return
+    const base = slotOffsetBasePx(slot)
+    const offsetX = Math.round(((base.x + drag.dx) / rect.width) * 1000) / 10
+    const offsetY = Math.round(((base.y + drag.dy) / rect.height) * 1000) / 10
+    emit('poster-text-override', { slot, patch: { offset_x: offsetX, offset_y: offsetY } })
+    return
+  }
+  if (id === 'system:map') {
+    emitMapFrameFromTarget(payload.target)
+    nextTick(syncObjectToolbarAnchor)
+    return
+  }
   patchPosterElement(id, {
     x: roundedPercent(parseFloat(payload.target.style.left) || 0),
     y: roundedPercent(parseFloat(payload.target.style.top) || 0),
   })
+  nextTick(syncObjectToolbarAnchor)
+}
+
+// The map frame must keep enough of the poster to print a legible route:
+// width/height floor at the band-divider map minimum, and the box stays inside
+// the canvas. Clamp before persisting so an off-canvas drag can't strand it.
+// Mirror posterLayout's BAND_DIVIDER_MAP_MIN_PCT (40) so the free-map floor
+// matches the band-divider floor — the route stays legible at print size.
+const MAP_FRAME_MIN_PCT = 40
+function clampMapFrame(box: MapFrameBox): MapFrameBox {
+  const width = clampPercent(box.width, MAP_FRAME_MIN_PCT, 100)
+  const height = clampPercent(box.height, MAP_FRAME_MIN_PCT, 100)
+  const left = clampPercent(box.left, 0, 100 - width)
+  const top = clampPercent(box.top, 0, 100 - height)
+  return {
+    left: roundedPercent(left),
+    top: roundedPercent(top),
+    width: roundedPercent(width),
+    height: roundedPercent(height),
+  }
+}
+
+function emitMapFrameFromTarget(target: HTMLElement) {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!rect?.width || !rect.height) return
+  const box = target.getBoundingClientRect()
+  emit('poster-map-frame', clampMapFrame({
+    left: ((box.left - rect.left) / rect.width) * 100,
+    top: ((box.top - rect.top) / rect.height) * 100,
+    width: (box.width / rect.width) * 100,
+    height: (box.height / rect.height) * 100,
+  }))
+}
+
+// Grabbing a grip edge/corner selects the map frame. On first grab (still in
+// band flow) we promote by seeding the frame from the map's rendered rect, so
+// selection is visually a no-op until the user drags/resizes. stopPropagation
+// keeps the press off the map (no pan) and off the canvas (no deselect).
+function onMapFrameGripPointerDown(event: PointerEvent) {
+  if (!unifiedPosterGrammar.value) return
+  event.stopPropagation()
+  if (!mapFrameBox.value && mapContainer.value) emitMapFrameFromTarget(mapContainer.value)
+  emit('poster-element-selected', 'system:map')
+}
+
+function resetMapFrame() {
+  emit('poster-map-frame', null)
+  if (props.selectedPosterElementId === 'system:map') emit('poster-element-selected', null)
+}
+
+const mapToolbarAnchor = ref<DOMRect | null>(null)
+function syncMapToolbarAnchor() {
+  mapToolbarAnchor.value = isMapFrameSelected.value
+    ? (mapContainer.value?.getBoundingClientRect() ?? null)
+    : null
+}
+function closeMapToolbar() {
+  emit('poster-element-selected', null)
 }
 
 function onPosterMoveableResizeStart() {
@@ -4427,6 +5483,13 @@ function onPosterMoveableResizeEnd(event: unknown) {
     return
   }
 
+  if (id === 'system:map') {
+    emitMapFrameFromTarget(payload.target)
+    moveableResizePreview.value = null
+    nextTick(syncObjectToolbarAnchor)
+    return
+  }
+
   const patch: PosterEditorElementPatch = {
     x: roundedPercent(parseFloat(payload.target.style.left) || 0),
     y: roundedPercent(parseFloat(payload.target.style.top) || 0),
@@ -4446,6 +5509,7 @@ function onPosterMoveableResizeEnd(event: unknown) {
   moveableResizePreview.value = null
   moveableTextResizePreview.value = null
   moveableSlotResizePreview.value = null
+  nextTick(syncObjectToolbarAnchor)
 }
 
 function moveableRotation(event: unknown): number {
@@ -4690,6 +5754,19 @@ const typography = computed(() => getPosterTypography(props.styleConfig))
 const layout = computed(() => getPosterLayout(props.styleConfig))
 
 const composition = computed(() => getPosterCompositionProfile(props.styleConfig))
+
+// Divider adjacency re-resolves whenever anything that can change band CSS
+// changes (theme flips band order with bespoke rules — see
+// resolveRenderedDividerBands above).
+watch(
+  () => [props.styleConfig.color_theme, composition.value.id, chromeGridRendering.value, editorV2FlagEnabled.value] as const,
+  () => { nextTick(resolveRenderedDividerBands) },
+  { flush: 'post' },
+)
+
+// D3 object-toolbar anchor sync (registered here, after isPrintRender — see
+// the note beside syncObjectToolbarAnchor).
+watch([selectedObjectElement, posterMoveableTarget], () => { nextTick(syncObjectToolbarAnchor) })
 const sideRailInsideMap = computed(() => composition.value.id === 'modernist-block' && composition.value.showSideRail)
 const showPlateFrameOverlay = computed(() => composition.value.id === 'place-frame')
 const showCartoucheHills = computed(() => composition.value.id === 'place-frame')
@@ -4724,11 +5801,9 @@ const locationLine = computed(() => {
 })
 
 const occasionText = computed(() => textWithOverride('occasion_text', props.styleConfig.occasion_text || ''))
-const genericOccasionText = new Set(['complete trail network'])
-const risoCaptionText = computed(() => {
-  const occasion = occasionText.value.trim()
-  return occasion && !genericOccasionText.has(occasion.toLowerCase()) ? occasion : trailName.value
-})
+// Never falls back to the trail name: riso-stack renders the title as the
+// composition-owned hero, so a derived caption equal to it is a duplicate.
+const risoCaptionText = computed(() => resolveRisoCaptionText(occasionText.value, trailName.value))
 const risoLocationText = computed(() => locationText.value.trim())
 const risoMetaLabel = computed(() => {
   const text = risoLocationText.value.trim()
@@ -4825,12 +5900,15 @@ const marathonBibYear = computed(() => {
   return String(date.getUTCFullYear())
 })
 const marathonBibTopline = computed(() => {
+  // No fake placeholder: when the map has no region/location, the bib topline
+  // showed a meaningless "ROUTE" that reads as junk text the user can't edit.
+  // Fall back to nothing (the row collapses) rather than inventing a word.
   const region = (formatPosterRegion(themeDataContext.value) || locationText.value)
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?.toUpperCase() || 'ROUTE'
+    ?.toUpperCase() || ''
   return [region, marathonBibYear.value ? `BIB ${marathonBibYear.value}` : '']
     .filter(Boolean)
     .join(' · ')
@@ -5024,12 +6102,12 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'editorial-tall':
       if (props.styleConfig.color_theme === 'relief-shaded') {
         return {
-          kicker: locationRegion || 'FIELD STUDY',
+          kicker: firstPosterTextWithoutTitle([locationRegion, 'FIELD STUDY'], trailName.value),
           meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
         }
       }
       return {
-        kicker: locationRegion || 'FIELD STUDY',
+        kicker: firstPosterTextWithoutTitle([locationRegion, 'FIELD STUDY'], trailName.value),
         meta: `${coords.value ? `${coords.value.lat} ${coords.value.lng}` : location}\n${distance} · ${formattedMonthYear.value || date}`,
       }
     case 'park-quad':
@@ -5077,7 +6155,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'modernist-block':
       return {
-        kicker: locationRegion,
+        kicker: firstPosterTextWithoutTitle([locationRegion], trailName.value),
         meta: `${distance}\n${coords.value?.lat ?? gain}`,
       }
     case 'splits-grid':
@@ -5087,7 +6165,10 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
     case 'darksky-stars':
       return {
         kicker: `${locationRegion || location} · ${coords.value?.lat ?? ''}`.trim(),
-        footerNote: `${location}\n${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
+        footerNote: [
+          firstPosterTextWithoutTitle([location], trailName.value),
+          `${compositionFooterDistance.value || distance} · ${formattedDateCompact.value || date}`,
+        ].filter(Boolean).join('\n'),
       }
     case 'botanical-plate':
       return {
@@ -5098,7 +6179,8 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       return {
         kicker: 'RADMAPS',
         meta: date,
-        footerNote: `${occasionText.value || trailName.value}\n${locationText.value}`,
+        // The hero title is never a footer-note fallback (it is already the slab).
+        footerNote: resolveOccasionLocationNote(occasionText.value, locationText.value, trailName.value),
       }
     case 'art-wash':
       if (props.styleConfig.color_theme === 'contour-wash') {
@@ -5111,7 +6193,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'place-frame':
       return {
-        kicker: occasionText.value || location || 'PLACE PORTRAIT',
+        kicker: firstPosterTextWithoutTitle([occasionText.value, location, 'PLACE PORTRAIT'], trailName.value),
         meta: [
           `${coords.value?.lat ?? ''} ${coords.value?.lng ?? ''}`.trim(),
           formattedGainM.value ? `${formattedGainM.value} m` : '',
@@ -5124,7 +6206,7 @@ const compositionDecorDefaults = computed<CompositionDecor>(() => {
       }
     case 'transit-diagram':
       return {
-        kicker: location || 'TOUR LINE',
+        kicker: firstPosterTextWithoutTitle([location, 'TOUR LINE'], trailName.value),
         meta: `STATION · ${date} · ${coords.value?.lat ?? ''}`.trim(),
       }
     default:
@@ -5188,6 +6270,22 @@ function effectiveSlotFont(slot: PosterTextSlot, fallbackStack: string): string 
 
 function effectiveSlotColor(slot: PosterTextSlot, fallback: string): string {
   return slotOverride(slot).color ?? fallback
+}
+
+// Phase 5 typography fine controls: per-slot letter-spacing (em) / line-height
+// override the theme/typography defaults; consumed in the slot render so they
+// print. Returned as a CSS string for letter-spacing, number for line-height.
+// An explicit user override must beat theme CSS that pins tracking/leading
+// with !important (editorial-minimal et al.), so we emit !important too — the
+// same pin-yield discipline as the band height. No override ⇒ plain fallback
+// ⇒ flag-off byte-identical.
+function effectiveSlotLetterSpacing(slot: PosterTextSlot, fallback: string): string {
+  const ls = slotOverride(slot).letter_spacing
+  return ls != null ? `${ls}em !important` : fallback
+}
+function effectiveSlotLineHeight(slot: PosterTextSlot, fallback: string | number): string | number {
+  const lh = slotOverride(slot).line_height
+  return lh != null ? `${lh} !important` : fallback
 }
 
 function effectiveSlotScale(slot: PosterTextSlot, fallback: number): number {
@@ -5274,9 +6372,36 @@ function getTextHalo(color = props.styleConfig.background_color ?? '#FFF') {
   ].join(', ')
 }
 
+// Editor-v2 D2 close-out: a USER band-height override (styleConfig
+// poster_layout, not the merged recipe default) must outrank the bespoke
+// theme CSS that pins band geometry with `!important` (editorial-minimal /
+// relief-shaded pin the map at 72%, usgs-vintage / classic-trail pin both
+// bands in cqh). Vue style bindings pass `!important` through to
+// style.setProperty — the only priority that beats stylesheet !important.
+// Flag-off (and flag-on without an override) emits the legacy non-important
+// values, byte-identical. Out-of-flow bands never get the treatment.
+function bandHeightImportant(band: Extract<ChromeBandId, 'header' | 'footer'>) {
+  return editorV2FlagEnabled.value &&
+    props.styleConfig.poster_layout?.bands?.[band]?.height != null &&
+    renderedBandInFlow.value[band]
+}
+
+// Same pin-yield for band BACKGROUND (D4 gesture 5): themes like
+// editorial-minimal pin band background with `!important` rules, which would
+// silently defeat the empty-space recolor gesture.
+function bandBackgroundValue(band: Extract<ChromeBandId, 'header' | 'footer'>, themeFallback: string) {
+  const override = posterLayout.value.bands[band].background
+  if (override == null) return themeFallback
+  const userOwned = editorV2FlagEnabled.value &&
+    props.styleConfig.poster_layout?.bands?.[band]?.background != null
+  return userOwned ? `${override} !important` : override
+}
+
 const headerBandStyle = computed(() => ({
-  backgroundColor: posterLayout.value.bands.header.background ?? headerBg.value,
+  backgroundColor: bandBackgroundValue('header', headerBg.value),
   color: fg.value,
+  // Free-canvas: stop clipping so a promoted (floated) slot can leave the band.
+  overflow: anySlotPromoted.value ? 'visible' : undefined,
   padding: chromeGridRendering.value
     ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
@@ -5297,44 +6422,95 @@ const headerBandStyle = computed(() => ({
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 17%'
     : posterLayout.value.bands.header.height != null
-      ? `0 0 ${posterLayout.value.bands.header.height}%`
+      ? `0 0 ${posterLayout.value.bands.header.height}%${bandHeightImportant('header') ? ' !important' : ''}`
       : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '17%'
     : posterLayout.value.bands.header.height != null
-    ? `${posterLayout.value.bands.header.height}%`
+    ? `${posterLayout.value.bands.header.height}%${bandHeightImportant('header') ? ' !important' : ''}`
     : undefined,
 }))
 
-const trailNameStyle = computed(() => ({
-  fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
-  fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
-  fontStyle: effectiveSlotItalic('trail_name'),
-  letterSpacing: typography.value.titleTracking,
-  textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
-  fontSize: `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
-  '--trail-title-size': `${effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)}cqh`,
-  lineHeight: typography.value.titleLineHeight,
-  color: effectiveSlotColor('trail_name', fg.value),
-  opacity: String(effectiveSlotOpacity('trail_name', 1)),
-  textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
-  width: '100%',
-  maxWidth: '100%',
-  margin: '0',
-  padding: '0',
-  outline: 'none',
-  overflowWrap: 'anywhere' as const,
-  textWrap: 'balance' as const,
-  hyphens: 'auto' as const,
-  textShadow: getTextHalo(headerBg.value),
-}))
+const trailNameStyle = computed(() => {
+  const baseSizeCqh = effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)
+  // Editor-v2 D2 word-break fix (FLAGS.EDITOR_V2): the legacy direct <h1> is
+  // the render truth for print and the non-grid editor view, so it carries the
+  // same title-kind fit policy as chrome-grid title blocks — consume the
+  // fitted size var and never break mid-word (shrink via fitTextToBox
+  // instead). Flag-off keeps the byte-identical anywhere-wrap legacy styling.
+  const keepWords = editorV2FlagEnabled.value
+  return {
+    fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
+    fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
+    fontStyle: effectiveSlotItalic('trail_name'),
+    letterSpacing: effectiveSlotLetterSpacing('trail_name', typography.value.titleTracking),
+    textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
+    fontSize: keepWords ? `var(--poster-fit-font-size, ${baseSizeCqh}cqh)` : `${baseSizeCqh}cqh`,
+    '--trail-title-size': `${baseSizeCqh}cqh`,
+    lineHeight: effectiveSlotLineHeight('trail_name', typography.value.titleLineHeight),
+    color: effectiveSlotColor('trail_name', fg.value),
+    opacity: String(effectiveSlotOpacity('trail_name', 1)),
+    textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
+    width: '100%',
+    maxWidth: '100%',
+    margin: '0',
+    padding: '0',
+    outline: 'none',
+    overflowWrap: keepWords ? 'normal' as const : 'anywhere' as const,
+    wordBreak: keepWords ? 'keep-all' as const : undefined,
+    textWrap: 'balance' as const,
+    hyphens: keepWords ? 'manual' as const : 'auto' as const,
+    textShadow: getTextHalo(headerBg.value),
+    ...freeSlotStyleOverride('trail_name'),
+  }
+})
+
+// Legacy trail-name <h1> joins the fit engine behind FLAGS.EDITOR_V2 with the
+// same title-kind fit policy as chrome-grid title blocks
+// (chromeBlockFitMinScale/MaxLines/Mode for kind 'title'), so editor, proof
+// and final print agree on the no-mid-word-break behavior. Flag-off the
+// attributes are absent and settlePosterTextFit never touches the node.
+const trailNameFitAttrs = computed(() => {
+  if (!editorV2FlagEnabled.value) return {}
+  return {
+    'data-poster-fit-slot': 'trail_name',
+    'data-poster-fit-target-cqh': String(effectiveSlotFontSizeCqh('trail_name', typography.value.titleSize)),
+    'data-poster-fit-min-scale': '0.42',
+    'data-poster-fit-max-lines': '3',
+    'data-poster-fit-mode': 'shrink-before-wrap',
+  }
+})
+
+// Print-fit completion (D2 follow-up): the legacy SUBTITLE-kind nodes —
+// location line and occasion text, the two free-text slots that previously
+// ellipsis-CLIPPED on the print path — join the fit engine with the same
+// policy as chrome-grid subtitle blocks (min scale 0.62, single line). Their
+// nowrap+ellipsis styling stays: the fit shrinks toward the floor first, the
+// ellipsis only ever covers the pathological residue. Numeric/fixed-format
+// slots (distance, gain, date, coords) are bounded by construction and keep
+// their legacy sizing. Flag-off the attributes are absent.
+function subtitleSlotFitAttrs(slot: 'location_text' | 'occasion_text', baseCqh: number) {
+  if (!editorV2FlagEnabled.value) return {}
+  return {
+    'data-poster-fit-slot': slot,
+    'data-poster-fit-target-cqh': String(effectiveSlotFontSizeCqh(slot, baseCqh)),
+    'data-poster-fit-min-scale': '0.62',
+    'data-poster-fit-max-lines': '1',
+  }
+}
+
+const locationLineFitAttrs = computed(() => subtitleSlotFitAttrs('location_text', typography.value.subSize))
+const occasionFitAttrs = computed(() => subtitleSlotFitAttrs('occasion_text', 0.95))
 
 const locationLineStyle = computed(() => ({
   fontFamily: effectiveSlotFont('location_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
-  letterSpacing: typography.value.subTracking,
-  fontSize: `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
+  letterSpacing: effectiveSlotLetterSpacing('location_text', typography.value.subTracking),
+  lineHeight: effectiveSlotLineHeight('location_text', 'normal'),
+  fontSize: editorV2FlagEnabled.value
+    ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh)`
+    : `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
   color: effectiveSlotColor('location_text', fg.value),
   opacity: String(effectiveSlotOpacity('location_text', 0.5)),
   textTransform: 'uppercase' as const,
@@ -5348,6 +6524,7 @@ const locationLineStyle = computed(() => ({
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap' as const,
   textShadow: getTextHalo(headerBg.value),
+  ...freeSlotStyleOverride('location_text'),
 }))
 
 const compositionKickerStyle = computed(() => ({
@@ -5448,8 +6625,9 @@ const footerRuleStyle = computed(() => ({
 }))
 
 const footerBandStyle = computed(() => ({
-  backgroundColor: posterLayout.value.bands.footer.background ?? bg.value,
+  backgroundColor: bandBackgroundValue('footer', bg.value),
   color: fg.value,
+  overflow: anySlotPromoted.value ? 'visible' : undefined,
   padding: composition.value.footerVariant === 'hidden'
     ? '0'
     : chromeGridRendering.value
@@ -5473,37 +6651,67 @@ const footerBandStyle = computed(() => ({
     : composition.value.id === 'transit-diagram'
       ? '0 0 8%'
       : posterLayout.value.bands.footer.height != null
-        ? `0 0 ${posterLayout.value.bands.footer.height}%`
+        ? `0 0 ${posterLayout.value.bands.footer.height}%${bandHeightImportant('footer') ? ' !important' : ''}`
       : undefined,
   height: composition.value.footerVariant === 'hidden'
     ? '0'
     : composition.value.id === 'transit-diagram'
       ? '8%'
       : posterLayout.value.bands.footer.height != null
-    ? `${posterLayout.value.bands.footer.height}%`
+    ? `${posterLayout.value.bands.footer.height}%${bandHeightImportant('footer') ? ' !important' : ''}`
     : undefined,
 }))
 
-const mapAreaStyle = computed(() => ({
+const mapAreaStyle = computed(() => {
+  // Free-map frame: absolute box against the poster canvas, out of band flow.
+  // A flex placeholder (rendered alongside) holds the original slot so the
+  // bands keep their positions. Same data drives the print render → parity.
+  const frame = mapFrameBox.value
+  if (frame) {
+    return {
+      position: 'absolute' as const,
+      left: `${frame.left}%`,
+      top: `${frame.top}%`,
+      width: `${frame.width}%`,
+      height: `${frame.height}%`,
+      margin: '0',
+      flex: 'none',
+      boxSizing: 'border-box' as const,
+      border: composition.value.mapBorder,
+      boxShadow: composition.value.mapShadow,
+      minHeight: '0',
+      zIndex: 2,
+      color: fg.value,
+    }
+  }
+  return {
   order: String(composition.value.mapOrder),
   margin: composition.value.mapMargin,
   border: composition.value.mapBorder,
   boxShadow: composition.value.mapShadow,
+  // With a user band-height override the map must genuinely become flex-1 —
+  // `!important` because themes that pin map geometry do so with !important
+  // stylesheet rules (editorial-minimal/relief-shaded 72%, usgs/classic auto).
   flex: composition.value.id === 'transit-diagram'
     ? '0 0 75%'
-    : props.styleConfig.color_theme === 'editorial-minimal'
-      ? '0 0 64%'
-      : undefined,
+    : editorV2BandHeightOverride.value
+      ? '1 1 0% !important'
+      : props.styleConfig.color_theme === 'editorial-minimal'
+        ? '0 0 64%'
+        : undefined,
   height: composition.value.id === 'transit-diagram'
     ? '75%'
-    : props.styleConfig.color_theme === 'editorial-minimal'
-      ? '64%'
-      : undefined,
+    : editorV2BandHeightOverride.value
+      ? 'auto !important'
+      : props.styleConfig.color_theme === 'editorial-minimal'
+        ? '64%'
+        : undefined,
   boxSizing: 'border-box' as const,
   minHeight: '0',
   zIndex: 2,
   color: fg.value,
-}))
+  }
+})
 
 const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
 const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
@@ -5688,8 +6896,11 @@ const occasionStyle = computed(() => ({
   fontFamily: effectiveSlotFont('occasion_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('occasion_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('occasion_text'),
-  fontSize: `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
-  letterSpacing: '0.22em',
+  fontSize: editorV2FlagEnabled.value
+    ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh)`
+    : `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
+  letterSpacing: effectiveSlotLetterSpacing('occasion_text', '0.22em'),
+  lineHeight: effectiveSlotLineHeight('occasion_text', 'normal'),
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
   opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
@@ -5704,6 +6915,7 @@ const occasionStyle = computed(() => ({
   whiteSpace: 'nowrap' as const,
   outline: 'none',
   textShadow: getTextHalo(bg.value),
+  ...freeSlotStyleOverride('occasion_text'),
 }))
 
 const markLabelStyle = computed(() => ({
@@ -5963,11 +7175,23 @@ function posterTextFitElements() {
 }
 
 function posterTextFitBox(el: HTMLElement) {
-  const container = el.closest<HTMLElement>('.chrome-grid-cell') ?? el.parentElement ?? el
-  const rect = container.getBoundingClientRect()
+  const cell = el.closest<HTMLElement>('.chrome-grid-cell')
+  if (cell) {
+    const rect = cell.getBoundingClientRect()
+    return {
+      width: Math.max(0, rect.width),
+      height: Math.max(0, rect.height),
+    }
+  }
+  // Legacy direct chrome nodes (the print render path + non-grid editor view,
+  // e.g. the trail-name <h1> behind FLAGS.EDITOR_V2) are width:100% of the
+  // band's CONTENT box, so the element's own rect is the true available width
+  // — the band rect would overstate it by the band padding. Height is capped
+  // by the band; maxLines governs in practice.
+  const band = el.closest<HTMLElement>('.poster-header, .poster-footer') ?? el.parentElement ?? el
   return {
-    width: Math.max(0, rect.width),
-    height: Math.max(0, rect.height),
+    width: Math.max(0, el.getBoundingClientRect().width),
+    height: Math.max(0, band.getBoundingClientRect().height),
   }
 }
 
@@ -5984,7 +7208,9 @@ async function settlePosterTextFit(): Promise<void> {
   await Promise.all(elements.map(async (el) => {
     const slot = el.dataset.posterFitSlot as PosterTextSlot | undefined
     if (!slot) return
-    if (slotOverride(slot).font_size_pt != null) {
+    // Manual size OR fit-to-area explicitly OFF ⇒ leave the text at its set
+    // size (no auto-shrink/wrap). Default (auto_fit undefined/true) keeps fit.
+    if (slotOverride(slot).font_size_pt != null || slotOverride(slot).auto_fit === false) {
       clearPosterFit(el)
       return
     }
@@ -5996,6 +7222,9 @@ async function settlePosterTextFit(): Promise<void> {
       targetSizeCqh,
       minScale,
       maxLines: Number.isFinite(rawMaxLines) && rawMaxLines > 0 ? rawMaxLines : undefined,
+      // Title-kind slots carry 'shrink-before-wrap' behind FLAGS.EDITOR_V2 so
+      // display titles shrink toward the floor instead of breaking mid-word.
+      fitMode: el.dataset.posterFitMode === 'shrink-before-wrap' ? 'shrink-before-wrap' : undefined,
     })
     el.toggleAttribute('data-poster-fit-clipped', result.clipped)
   }))
@@ -6003,13 +7232,35 @@ async function settlePosterTextFit(): Promise<void> {
   if (runId === textFitRunId) textFitSettled.value = true
 }
 
-function schedulePosterTextFit() {
+// Editor scheduling only (the print path awaits settlePosterTextFit directly
+// in waitForPrintableAssets). Runs are serialized so overlapping schedules —
+// e.g. every frame of a band-divider drag — never interleave two binary
+// searches writing the same --poster-fit-font-size vars; a schedule arriving
+// mid-run queues exactly one trailing re-run.
+let textFitInFlight: Promise<void> | null = null
+let textFitRerunQueued = false
+
+function requestPosterTextFit() {
+  if (textFitInFlight) {
+    textFitRerunQueued = true
+    return
+  }
+  textFitInFlight = settlePosterTextFit().finally(() => {
+    textFitInFlight = null
+    if (textFitRerunQueued) {
+      textFitRerunQueued = false
+      requestPosterTextFit()
+    }
+  })
+}
+
+function schedulePosterTextFit(delayMs = 0) {
   textFitSettled.value = false
   if (textFitTimer) clearTimeout(textFitTimer)
   textFitTimer = setTimeout(() => {
     textFitTimer = null
-    void settlePosterTextFit()
-  }, 0)
+    requestPosterTextFit()
+  }, delayMs)
 }
 
 async function waitForPrintableAssets() {
@@ -6279,9 +7530,13 @@ const activeToolbarState = computed(() => {
   if (target.type === 'overlay') {
     const overlay = props.styleConfig.text_overlays?.find(o => o.id === target.id)
     if (!overlay) return null
+    const isStat = Boolean(overlay.data_binding)
     return {
-      label: 'Text overlay',
-      textValue: overlay.content,
+      label: isStat ? 'Stat' : 'Text overlay',
+      textValue: isStat ? overlayDisplayContent(overlay) : overlay.content,
+      // Stat overlays are data-bound: their text derives from map data, so
+      // the toolbar shows the live value read-only (styling stays editable).
+      textReadonly: isStat,
       fontFamily: overlay.font_family,
       color: overlay.color,
       backgroundColor: overlay.bg_color || '',
@@ -6292,6 +7547,10 @@ const activeToolbarState = computed(() => {
       italic: overlay.italic ?? false,
       supportsHighlight: true,
       canReset: false,
+      letterSpacing: undefined as number | undefined,
+      lineHeight: undefined as number | undefined,
+      autoFit: undefined as boolean | undefined,
+      supportsTypography: false,
     }
   }
 
@@ -6320,6 +7579,7 @@ const activeToolbarState = computed(() => {
 
   return {
     label: SLOT_LABELS[slot],
+    textReadonly: false,
     textValue: textWithOverride(slot, defaultSlotText(slot)),
     fontFamily: override.font_family ?? defaultFont,
     color: override.color ?? fg.value,
@@ -6331,6 +7591,10 @@ const activeToolbarState = computed(() => {
     italic: override.italic ?? false,
     supportsHighlight: false,
     canReset: !!props.styleConfig.poster_text_overrides?.[slot],
+    letterSpacing: override.letter_spacing,
+    lineHeight: override.line_height,
+    autoFit: override.auto_fit,
+    supportsTypography: true,
   }
 })
 
@@ -7103,7 +8367,9 @@ watch(
     containerDims.value.w,
     containerDims.value.h,
   ],
-  () => schedulePosterTextFit(),
+  // While a band-divider drag streams poster_layout updates, debounce the
+  // refit (live but not per-frame); everything else refits immediately.
+  () => schedulePosterTextFit(activeBandDividerDrag.value ? BAND_DIVIDER_REFIT_DEBOUNCE_MS : 0),
   { flush: 'post' },
 )
 
@@ -7522,11 +8788,28 @@ function onLabelDragEnd(e: PointerEvent) {
 
 // ── Trail segment label drag ──────────────────────────────────────────────────
 
+// Manual double-tap detection (editor-v2 E4): startLeaderDrag preventDefaults
+// the pointerdown, so native dblclick cannot be relied on across browsers.
+// Only tracked when the parent enables rename, keeping flag-off pointer
+// behavior byte-identical.
+let lastLeaderLabelTap: { id: string; time: number } | null = null
+
 function startLeaderDrag(e: PointerEvent, segId: string) {
   if (e.shiftKey) {
     toggleLeaderSelection(segId)
     e.preventDefault()
     return
+  }
+
+  if (props.segmentLabelRenameEnabled) {
+    const now = Date.now()
+    if (lastLeaderLabelTap && lastLeaderLabelTap.id === segId && now - lastLeaderLabelTap.time < 400) {
+      lastLeaderLabelTap = null
+      requestLeaderLabelRename(segId)
+      e.preventDefault()
+      return
+    }
+    lastLeaderLabelTap = { id: segId, time: now }
   }
 
   if (!mapContainer.value) return
@@ -7558,6 +8841,14 @@ function toggleLeaderSelection(segId: string) {
   selectedLeaderIds.value = selectedLeaderIds.value.includes(segId)
     ? selectedLeaderIds.value.filter(id => id !== segId)
     : [...selectedLeaderIds.value, segId]
+}
+
+function requestLeaderLabelRename(segId: string) {
+  if (!mapInstance) return
+  const item = leaderLineItems.value.find(item => item.id === segId)
+  if (!item) return
+  const lngLat = mapInstance.unproject([item.labelX, item.labelY])
+  emit('segment-label-rename', { id: segId, lnglat: [lngLat.lng, lngLat.lat] })
 }
 
 function isLeaderDragActive(segId: string): boolean {
@@ -7862,6 +9153,7 @@ onMounted(async () => {
     setPaintBackground()
     apply3DTerrain()
     mapReady.value = true
+    emit('map-ready')
     liveZoom.value = mapInstance!.getZoom()
     if (props.editable && !posterElementsEditing.value) initOverlayDrag()
     recomputeOverlays()
@@ -8113,7 +9405,7 @@ function populateSegmentSources() {
     const src = mapInstance.getSource(trailSourceId(seg)) as maplibregl.GeoJSONSource | undefined
   if (src) src.setData(seg.color_mode === 'gradient' ? lineMetricsSafeGeojson(rendered) : rendered)
 
-    handleFeatures.push(...trailSegmentEndpointFeatures(rendered, seg.color))
+    handleFeatures.push(...trailSegmentEndpointFeatures(rendered, seg.color, seg.id))
   }
 
   const handleSrc = mapInstance.getSource('segment-handles') as maplibregl.GeoJSONSource | undefined
@@ -9671,7 +10963,7 @@ watch(
   },
 )
 
-// ── Freeze / unfreeze API (called by FreezeControl.vue) ───────────────────────
+// ── Freeze / unfreeze API (StylePanel viewpoint + on-canvas affordance) ───────
 
 function freezeView() {
   if (!mapInstance) return
@@ -9784,7 +11076,12 @@ function requestUndo() {
   emit('undo')
 }
 
-defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint })
+/** Editor-only escape hatch for selection-mode hit-testing (editor-v2). Returns null until 'map-ready'. */
+function getMapInstance(): maplibregl.Map | null {
+  return mapInstance
+}
+
+defineExpose({ freezeView, unfreezeView, resetViewToRoute, getVisibleBounds, fitToRouteAndSegments, finishSegmentDraw, undoSegmentDrawPoint, getMapInstance, mapCenterPosterPercent })
 
 // Re-init drag when text_overlays change (new overlays added)
 watch(
@@ -14121,6 +15418,98 @@ onUnmounted(() => {
   pointer-events: auto;
   user-select: text;
 }
+
+/* Band-divider drag affordances (editor-v2 D2) — editor-only chrome, never
+   mounted in print renders (see the template comment above the elements). */
+.band-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+.band-divider--top { top: -7px; }
+.band-divider--bottom { bottom: -7px; }
+.band-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: transparent;
+  transition: background 120ms ease;
+}
+.band-divider-pill {
+  width: 44px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), inset 0 0 0 1.5px rgba(45, 106, 79, 0.6);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+.band-divider:hover::before,
+.band-divider.is-strip-hover::before,
+.band-divider.is-dragging::before {
+  background: rgba(45, 106, 79, 0.45);
+}
+.band-divider:hover .band-divider-pill,
+.band-divider.is-strip-hover .band-divider-pill,
+.band-divider.is-dragging .band-divider-pill {
+  opacity: 1;
+}
+
+/* Viewpoint affordance (editor-v2 D4) — editor-only chrome, never printed. */
+.viewpoint-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 32;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: auto;
+}
+
+[data-testid="poster-map"]:hover .viewpoint-pill,
+.viewpoint-pill:focus-within,
+.viewpoint-pill:has(.is-locked) {
+  opacity: 1;
+}
+
+.viewpoint-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid rgba(28, 25, 23, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #44403c;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.16);
+}
+
+.viewpoint-btn:hover { background: #ffffff; }
+
+.viewpoint-btn.is-locked {
+  background: #2d6a4f;
+  border-color: #2d6a4f;
+  color: #ffffff;
+}
 .stat-custom-text {
   display: block;
 }
@@ -14275,6 +15664,17 @@ onUnmounted(() => {
   max-height: 100%;
   overflow: hidden;
   text-wrap: balance;
+}
+
+/* Editor-v2 D2 word-break fix — flag-gated through the data attribute (only
+   set when FLAGS.EDITOR_V2 is on): title-kind slots never break mid-word.
+   fitTextToBox 'shrink-before-wrap' shrinks toward the floor first; when it
+   must wrap, keep-all limits breaks to word boundaries; a single very-long
+   word shrinks to the floor and clips (cells already overflow: hidden). */
+.chrome-grid-block[data-poster-fit-mode="shrink-before-wrap"] {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: manual;
 }
 
 .chrome-grid-block--subtitle,
@@ -15786,6 +17186,99 @@ onUnmounted(() => {
 .icon-overlay.is-poster-v2 {
   outline-style: solid;
 }
+
+/* Print-quality frame: editor-only, never printed (gated !isPrintRender). */
+.poster-print-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12; /* above map (2), below toolbars/menus */
+}
+.poster-print-frame__trim,
+.poster-print-frame__safe {
+  position: absolute;
+  display: block;
+}
+/* Trim/cut edge: the poster boundary where the bleed is trimmed away. A
+   slight translucent ring over the whole poster, deliberately subtle. */
+.poster-print-frame__trim {
+  inset: 0;
+  border: 1px solid rgba(42, 91, 204, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+/* Safe area: the provider's true safe margin (real geometry). Keep important
+   content inside this dashed line. */
+.poster-print-frame__safe {
+  border: 1px dashed rgba(42, 91, 204, 0.28);
+}
+
+/* Free-map frame (Phase 4) — grab border + grips. Editor-only; the elements
+   are only mounted under the flag and never on /render pages. */
+.map-frame-grip {
+  position: absolute;
+  inset: 0;
+  z-index: 6; /* above map content, below overlays/toolbars; within chrome 1–60 */
+  pointer-events: none; /* interior keeps pan/route-select */
+  border: 1px dashed rgba(42, 91, 204, 0.35);
+  transition: border-color 120ms ease;
+}
+.map-frame-grip.is-selected { border-color: rgba(42, 91, 204, 0.85); }
+.map-frame-grip:hover { border-color: rgba(42, 91, 204, 0.6); }
+
+/* Grips sit just INSIDE the edges — the map container is overflow:hidden, so
+   negative offsets would be clipped and uninteractive. */
+.map-grip-edge {
+  position: absolute;
+  pointer-events: auto;
+}
+.map-grip-edge--n, .map-grip-edge--s { left: 16px; right: 16px; height: 12px; cursor: grab; }
+.map-grip-edge--w, .map-grip-edge--e { top: 16px; bottom: 16px; width: 12px; cursor: grab; }
+.map-grip-edge--n { top: 0; }
+.map-grip-edge--s { bottom: 0; }
+.map-grip-edge--w { left: 0; }
+.map-grip-edge--e { right: 0; }
+
+.map-grip-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: auto;
+  background: #fff;
+  border: 2px solid #2A5BCC;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.22);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.map-frame-grip:hover .map-grip-corner,
+.map-frame-grip.is-selected .map-grip-corner { opacity: 1; }
+.map-grip-corner--nw { top: 1px; left: 1px; cursor: nwse-resize; }
+.map-grip-corner--ne { top: 1px; right: 1px; cursor: nesw-resize; }
+.map-grip-corner--sw { bottom: 1px; left: 1px; cursor: nesw-resize; }
+.map-grip-corner--se { bottom: 1px; right: 1px; cursor: nwse-resize; }
+
+.map-frame-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+.map-frame-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #78716c;
+}
+.map-frame-reset {
+  padding: 6px 10px;
+  border: 1px solid #e7e5e4;
+  border-radius: 8px;
+  background: #fafaf9;
+  color: #1c1917;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-frame-reset:hover { background: #f5f5f4; border-color: #d6d3d1; }
 
 .poster-element-moveable {
   --moveable-color: #2A5BCC;

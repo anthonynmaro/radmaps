@@ -252,3 +252,45 @@ Unit / contract:
    the block fit config; verify the H&H Connector title repro first as the proof.
 3. Land the long-title geometry-stability test as the regression guard before any
    visual tuning.
+
+## Amendment — word-break policy for title-kind slots (editor-v2 D2, June 12, 2026)
+
+The Phase 1 fit measured wrapped text but left `overflow-wrap: anywhere` on
+title nodes, so a large display title could break MID-WORD ("KICKAPO/O" on
+modernist at 175pt): under anywhere-wrap the width never overflows scrollWidth,
+so the fitter saw nothing to shrink — and a manual `font_size_pt` bypasses the
+fitter entirely while the CSS still mid-word-breaks.
+
+Fix, behind `FLAGS.EDITOR_V2` (it changes fitted/print output, so it is
+flag-gated rather than fit-path-only):
+
+- Title-kind slots carry `data-poster-fit-mode="shrink-before-wrap"`. Matching
+  styling pins `overflow-wrap: normal` + `word-break: keep-all` + `hyphens:
+  manual` (chrome-grid blocks via an attribute CSS rule; the legacy direct
+  `<h1>` via `trailNameStyle`). Mid-word breaks become impossible at ANY size,
+  including manual `font_size_pt` takeover — oversized manual titles wrap at
+  word boundaries and clip instead of splitting words.
+- `fitTextToBox` gains `fitMode: 'shrink-before-wrap'`: Stage A pins
+  `white-space: nowrap` (restored after) and searches [floor, target] for the
+  largest single-line fit — shrinking is preferred over wrapping. Only when
+  even the floor cannot hold one line does Stage B run the legacy wrap search,
+  which under keep-all wraps at word boundaries only. A single very-long word
+  shrinks to the floor then clips (unchanged plan posture). Default 'wrap'
+  mode is byte-identical to the original algorithm.
+- The legacy direct trail-name `<h1>` (the print render path and the non-grid
+  editor view) now participates in the fit engine flag-on: it carries the
+  data-poster-fit attributes with the title-kind policy and consumes
+  `--poster-fit-font-size`, so editor, proof, and final print agree. Print
+  readiness already waits on text-fit-settled. Its fit box is self-measured
+  (the node is width:100% of the band content box; the band rect would
+  overstate width by the band padding). Flag-off the attributes are absent and
+  the anywhere-wrap styling is byte-identical.
+- Fixtures pinned in `tests/text-fit.test.ts` with a measured layout model:
+  "KICKAPOO" (single word: shrink, never split), "H&H Connector" (short
+  multi-word: single line preferred over wrap), "Yosemite Valley Loop Trail
+  via Mirror Lake" (long multi-word: may wrap at word boundaries within
+  maxLines), and a single very-long-word floor-then-clip case.
+- Compositions that force the title size via `!important` CSS (riso-stack,
+  place-frame, transit-diagram) self-cap; the fitter measures at the forced
+  size and is effectively a no-op there — they already declare their own
+  wrap policy.

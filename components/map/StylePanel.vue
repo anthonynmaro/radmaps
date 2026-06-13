@@ -340,7 +340,7 @@
           </div>
         </V4Card>
 
-        <V4Card title="Title & text" hint="The wording on your poster" :default-open="true">
+        <V4Card v-if="!editorV2Enabled" title="Title & text" hint="The wording on your poster" :default-open="true">
           <TextRow label="Title" :value="local.trail_name" placeholder="Defaults to map title" @change="set('trail_name', $event)" />
           <SliderRow label="Title size" :value="local.title_scale ?? 1.0" :min="0.5" :max="2.0" :step="0.05"
             :display="(v: number) => Math.round(v * 100) + '%'" @change="set('title_scale', $event)" />
@@ -360,7 +360,7 @@
             :display="(v: number) => v + 'px'" @change="setRouteLineStyle('route_width', $event)" />
         </V4Card>
 
-        <V4Card title="Poster colors" hint="Set by your theme · tap to override" :default-open="false">
+        <V4Card v-if="!editorV2Enabled" title="Poster colors" hint="Set by your theme · tap to override" :default-open="false">
           <ColorRow label="Background" :value="local.background_color" @change="set('background_color', $event)" />
           <ColorRow label="Label band" :value="local.label_bg_color" @change="set('label_bg_color', $event)" />
           <ColorRow label="Text" :value="local.label_text_color" @change="set('label_text_color', $event)" />
@@ -396,27 +396,14 @@
           >Upload logo</button>
         </V4Card>
 
+        <!-- Printed-grid controls live in ONE place: the Poster tab "Grid" card
+             (E6a dedup — this card's hint promises nothing here prints, and the
+             Poster tab is reachable without FLAGS.POSTER_ELEMENTS_EDITOR). -->
         <V4Card title="Guides" hint="Editing guides are never printed" :default-open="posterEditorMode === 'guides'">
           <ToggleRow label="Editing guides" :value="posterGuidesVisible ?? false" @change="emit('poster-guides-visible-change', $event)" />
-          <div v-if="sections.gridControls" class="pt-3 mt-3" style="border-top: 1px solid #F5F5F4;">
-            <ToggleRow label="Printed grid" :value="local.show_grid ?? false" @change="set('show_grid', $event)" />
-            <template v-if="local.show_grid">
-              <div class="grid grid-cols-2 gap-1.5 my-3">
-                <SegmentButton label="Poster" :active="(local.grid_scope ?? 'poster') === 'poster'" @click="set('grid_scope', 'poster')" />
-                <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
-              </div>
-              <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
-              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
-                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
-              <SliderRow label="Opacity" :value="local.grid_opacity ?? 0.2" :min="0.05" :max="1" :step="0.05"
-                :display="(v: number) => Math.round(v * 100) + '%'" @change="set('grid_opacity', $event)" />
-              <SliderRow label="Weight" :value="local.grid_weight ?? 1" :min="0.5" :max="3" :step="0.25"
-                :display="(v: number) => v.toFixed(v % 1 === 0 ? 0 : 2) + 'px'" @change="set('grid_weight', $event)" />
-            </template>
-          </div>
         </V4Card>
 
-        <V4Card v-if="!guidedPosterEditor" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
+        <V4Card v-if="!guidedPosterEditor && !editorV2Enabled" title="Icons" hint="Local SVG marks for trail posters" :default-open="posterEditorMode === 'icon'">
           <div class="grid grid-cols-3 gap-1.5">
             <button
               v-for="icon in POSTER_ICONS"
@@ -449,7 +436,7 @@
           </div>
         </V4Card>
 
-        <V4Card v-if="activePosterElement" title="Selection" :default-open="true">
+        <V4Card v-if="activePosterElement && !editorV2Enabled" title="Selection" :default-open="true">
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-2">
               <div class="min-w-0">
@@ -659,7 +646,9 @@
           </div>
         </V4Card>
 
-        <V4Card title="Viewpoint" :default-open="true">
+        <!-- Editor-v2 D4: replaced flag-on by the on-canvas viewpoint pill
+             (the buried "Set view" card was the E3 finding). -->
+        <V4Card v-if="!editorV2Enabled" title="Viewpoint" :default-open="true">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-semibold" :style="local.map_frozen ? 'color: #1F4D38;' : 'color: #78716C;'">
               {{ local.map_frozen ? `Locked at Z${local.map_zoom?.toFixed(1) ?? '—'}` : 'Editable view' }}
@@ -688,6 +677,12 @@
               @click="emit('request-view-reset')"
             >Reset route</button>
           </div>
+          <!-- Editor-v2: frozen view doubles as map selection mode -->
+          <p v-if="editorV2Enabled" class="text-[10px] leading-snug mt-2" style="color: #A8A29E;">
+            {{ local.map_frozen
+              ? 'View locked for print. Click map elements (route, segments, labels) to edit them.'
+              : 'Drag to pan, scroll to zoom. Click map elements (route, segments, labels) to edit them.' }}
+          </p>
         </V4Card>
 
         <V4Card
@@ -730,14 +725,14 @@
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs" style="color: #44403C;">Minor / index</span>
                 <div class="flex gap-2">
-                  <ColorSwatch :value="atlasContourMinorColor" title="Minor contour color" @change="setAtlasLayerSetting('contour', { minor_color: $event })" />
-                  <ColorSwatch :value="atlasContourMajorColor" title="Index contour color" @change="setAtlasLayerSetting('contour', { major_color: $event, index_color: $event })" />
+                  <ColorSwatch :value="atlasContourMinorColor" title="Minor contour color" @change="setAtlasContourSetting({ minor_color: $event })" />
+                  <ColorSwatch :value="atlasContourMajorColor" title="Index contour color" @change="setAtlasContourSetting({ major_color: $event, index_color: $event })" />
                 </div>
               </div>
               <SliderRow label="Opacity" :value="atlasContourOpacity" :min="0" :max="1" :step="0.05"
                 :display="(v: number) => Math.round(v * 100) + '%'"
-                @change="setAtlasLayerSetting('contour', { minor_opacity: $event, index_opacity: $event, major_opacity: $event })" />
-              <ToggleRow label="Elevation labels" :value="atlasContourLabels" @change="setAtlasLayerSetting('contour', { labels: $event })" />
+                @change="setAtlasContourSetting({ minor_opacity: $event, index_opacity: $event, major_opacity: $event })" />
+              <ToggleRow label="Elevation labels" :value="atlasContourLabels" @change="setAtlasContourSetting({ labels: $event })" />
             </template>
 
             <template v-else-if="activeAtlasLayerId === 'water' && atlasLayerVisible('water')">
@@ -1376,6 +1371,8 @@
                 <SegmentButton label="Map only" :active="local.grid_scope === 'map'" @click="set('grid_scope', 'map')" />
               </div>
               <ColorRow label="Grid color" :value="local.grid_color ?? local.label_text_color" @change="set('grid_color', $event)" />
+              <SliderRow label="Spacing" :value="local.grid_spacing ?? 8" :min="3" :max="16" :step="1"
+                :display="(v: number) => v + 'u'" @change="set('grid_spacing', $event)" />
               <SliderRow
                 label="Opacity"
                 :value="local.grid_opacity ?? 0.2"
@@ -1599,7 +1596,7 @@
           <input ref="replaceImageInputRef" type="file" :accept="IMAGE_UPLOAD_ACCEPT" class="sr-only" @change="handlePendingAssetReplace" />
         </V4Card>
 
-        <V4Card v-if="freeOverlayToolsAvailable" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
+        <V4Card v-if="freeOverlayToolsAvailable && !editorV2Enabled" title="Text overlays" :default-open="activeTextTarget?.type === 'text-overlay'" :key="textOverlayCardKey">
           <div class="space-y-2">
             <div
               v-for="overlay in (local.text_overlays ?? [])"
@@ -1751,11 +1748,12 @@ import type { AtlasLayerId, AtlasLayerSettings, StyleConfig, StyleLabels, FontFa
 import { DEFAULT_CONTOUR_MAJOR_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH, DEFAULT_TRAIL_SEGMENT_WIDTH } from '~/types'
 import ScoutChat from '~/components/map/ScoutChat.vue'
 import { useSavedThemes, type SavedTheme } from '~/composables/useSavedThemes'
+import { useThemeSwitchToast } from '~/composables/useThemeSwitchToast'
 import { computeSectionVisibility } from '~/utils/stylePanelGating'
 import { FLAGS } from '~/utils/knownFlags'
 import { IMAGE_UPLOAD_ACCEPT, classifyAssetQuality, computeEffectiveDpi, qualityLabel } from '~/utils/imageAssets'
 import { getThemeDefinition } from '~/utils/themes/refined'
-import { applyThemeToStyleConfig, pairedBodyFont } from '~/utils/themeApplication'
+import { applyThemeToStyleConfigWithMeta, pairedBodyFont, resetAllToTheme } from '~/utils/themeApplication'
 import { POSTER_ICONS } from '~/utils/posterIcons'
 import { getPosterEditorElements, type PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import { posterEditorAllowlistForStyle } from '~/utils/posterEditorAllowlist'
@@ -1770,8 +1768,16 @@ import {
 } from '~/utils/themeOptions'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { mapBackgroundColor } from '~/utils/mapStyle'
-import { applyRouteLineControl, type RouteLineControlField } from '~/utils/styleControlSync'
-import { defaultTrailSegmentColor } from '~/utils/trail'
+import {
+  applyAtlasContourSettings,
+  applyContourControl,
+  applyContourLabelsControl,
+  applyRouteLineControl,
+  type AtlasContourSettings,
+  type ContourControlField,
+  type RouteLineControlField,
+} from '~/utils/styleControlSync'
+import { defaultTrailSegmentColor, patchTrailSegment, removeTrailSegment } from '~/utils/trail'
 
 type PosterTextField = 'trail_name' | 'occasion_text' | 'location_text'
 type SegmentDrawMode =
@@ -1782,7 +1788,6 @@ type ActiveTextTarget =
   | { type: 'poster-text'; field: PosterTextField }
   | { type: 'text-overlay'; id: string }
   | { type: 'image-overlay'; id: string }
-type ContourControlField = 'contour_color' | 'contour_major_color' | 'contour_opacity' | 'contour_minor_width' | 'contour_major_width'
 type PosterEditorMode = 'layout' | 'select' | 'text' | 'image' | 'icon' | 'guides'
 
 const THEME_OPTIONS = QUICK_THEME_OPTION_GROUPS.flatMap(group => [group.theme, ...group.colorways])
@@ -2349,38 +2354,39 @@ function handleDesignUpload(e: Event, kind: MapAssetKind) {
   input.value = ''
 }
 
-function updateAtlasContourSettings(patch: Partial<NonNullable<AtlasLayerSettings['contour']>>) {
-  if (!isAtlasPresetActive.value) return
-  const currentContour = atlasLayerSettings('contour')
-  local.atlas_layer_settings = {
-    ...(local.atlas_layer_settings ?? {}),
-    contour: {
-      ...currentContour,
-      ...patch,
-    },
-  }
-}
-
+// Contour styling has two StyleConfig stores (legacy contour_* fields +
+// atlas_layer_settings.contour). Both the terrain card and the atlas layer
+// card write them through utils/styleControlSync.ts — one write path (E6a).
 function setContourControl<K extends ContourControlField>(key: K, value: StyleConfig[K]) {
-  (local as StyleConfig)[key] = value
-
-  if (key === 'contour_color') updateAtlasContourSettings({ minor_color: value as string })
-  if (key === 'contour_major_color') updateAtlasContourSettings({ major_color: value as string, index_color: value as string })
-  if (key === 'contour_opacity') updateAtlasContourSettings({ minor_opacity: value as number, major_opacity: value as number })
-  if (key === 'contour_minor_width') updateAtlasContourSettings({ minor_width: value as number })
-  if (key === 'contour_major_width') updateAtlasContourSettings({ major_width: value as number, index_width: value as number })
-
+  Object.assign(local, applyContourControl(local as StyleConfig, key, value, { atlasActive: isAtlasPresetActive.value }))
   emit('update:modelValue', { ...local })
 }
 
 function setContourLabels(enabled: boolean) {
-  local.show_elevation_labels = enabled
-  updateAtlasContourSettings({ labels: enabled })
+  Object.assign(local, applyContourLabelsControl(local as StyleConfig, enabled, { atlasActive: isAtlasPresetActive.value }))
+  emit('update:modelValue', { ...local })
+}
+
+// Atlas-card contour edits. FLAGS.EDITOR_V2: route through the unified write
+// path so the consumed legacy contour_* fields stay in sync (a stale explicit
+// legacy value otherwise overrides fresh atlas edits in buildMapStyle's atlas
+// resolution). Flag off: legacy atlas-only write, byte-identical.
+function setAtlasContourSetting(patch: Partial<AtlasContourSettings>) {
+  if (!editorV2Enabled.value) {
+    setAtlasLayerSetting('contour', patch)
+    return
+  }
+  Object.assign(local, applyAtlasContourSettings(local as StyleConfig, patch))
   emit('update:modelValue', { ...local })
 }
 
 function setRouteLineStyle<K extends RouteLineControlField>(key: K, value: StyleConfig[K]) {
-  Object.assign(local, applyRouteLineControl(local as StyleConfig, key, value))
+  // Editor-v2 (FLAGS.EDITOR_V2): segments are user-owned — route controls only
+  // propagate to segments still tracking the global value (sticky semantics,
+  // see utils/styleControlSync.ts). The segments section's "Apply to all"
+  // controls (applyToAll) remain the explicit force-through path. Flag off:
+  // legacy bulk overwrite, byte-identical.
+  Object.assign(local, applyRouteLineControl(local as StyleConfig, key, value, { stickySegments: editorV2Enabled.value }))
   emit('update:modelValue', { ...local })
 }
 
@@ -2623,8 +2629,10 @@ function isActiveSegmentEdit(segId: string): boolean {
   return props.activeSegmentEditMode?.segId === segId
 }
 
+// Shared write path with the map-selection segment toolbar (editor-v2 E4) —
+// both surfaces mutate trail_segments via utils/trail.ts patchTrailSegment/removeTrailSegment.
 function setSegment(id: string, patch: Partial<TrailSegment>) {
-  set('trail_segments', (local.trail_segments ?? []).map(s => s.id === id ? { ...s, ...patch } : s))
+  set('trail_segments', patchTrailSegment(local.trail_segments ?? [], id, patch))
 }
 
 function applyToAll(patch: Partial<TrailSegment>) {
@@ -2664,7 +2672,7 @@ function removeDeletedRange(index: number) {
 }
 
 function removeSegment(id: string) {
-  set('trail_segments', (local.trail_segments ?? []).filter(s => s.id !== id))
+  set('trail_segments', removeTrailSegment(local.trail_segments ?? [], id))
   if (expandedSegmentId.value === id) expandedSegmentId.value = null
 }
 
@@ -2691,21 +2699,47 @@ async function handleLogoUpload(e: Event) {
   }
 }
 
-function applyTheme(theme: ThemeDefinition) {
-  Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
+const editorV2Enabled = useFeatureFlag(FLAGS.EDITOR_V2)
+const { notifyThemeSwitchPreserved } = useThemeSwitchToast()
+
+function themeApplyOptions() {
+  return { preserveUserIntent: editorV2Enabled.value }
+}
+
+// Shared theme-application path. Flag off, this is byte-identical to the legacy
+// clobber (preservedFields is always empty, so the toast never fires). Flag on,
+// preserved customizations surface a toast whose action applies the full reset.
+function applyThemeWithToast(theme: ThemeDefinition, postApply?: () => void) {
+  const result = applyThemeToStyleConfigWithMeta({ ...local } as StyleConfig, theme, themeApplyOptions())
+  Object.assign(local, result.config)
+  postApply?.()
   emit('update:modelValue', { ...local })
+  if (!editorV2Enabled.value || !result.preservedFields.length) return
+  notifyThemeSwitchPreserved({
+    preservedCount: result.preservedFields.length,
+    onResetAll: () => {
+      // Reset from the live config at click time so it always lands on the pure theme.
+      Object.assign(local, resetAllToTheme({ ...local } as StyleConfig, theme))
+      postApply?.()
+      emit('update:modelValue', { ...local })
+    },
+  })
+}
+
+function applyTheme(theme: ThemeDefinition) {
+  applyThemeWithToast(theme)
 }
 
 function applyClassicTheme(theme: ThemeDefinition) {
   const target = theme.migration_target ? getThemeDefinition(theme.migration_target) : undefined
   if (target) {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, target))
+    applyThemeWithToast(target)
   } else {
-    Object.assign(local, applyThemeToStyleConfig({ ...local } as StyleConfig, theme))
-    local.composition = undefined
-    local.audience = undefined
+    applyThemeWithToast(theme, () => {
+      local.composition = undefined
+      local.audience = undefined
+    })
   }
-  emit('update:modelValue', { ...local })
 }
 
 function isRefinedThemeActive(theme: ThemeDefinition) {
@@ -3330,6 +3364,14 @@ function applyMapPreset(p: MapPresetOption) {
   Object.assign(local, { preset: p.id, ...atlasDefaults, ...(p.defaults ?? {}) })
   emit('update:modelValue', { ...local })
 }
+
+// Editor-v2 D4: the Advanced-drawer entry points (empty map-space click, the
+// on-canvas Advanced button) land on a specific tab from outside.
+function openTab(tab: TabId) {
+  activeTab.value = tab
+}
+
+defineExpose({ openTab })
 </script>
 
 <!-- ─── Sub-components ─────────────────────────────────────────────────────── -->

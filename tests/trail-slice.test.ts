@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bboxForCoords, bendLineCoords, buildElevationProfile, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, sliceRouteByPercent, trailSegmentEndpointFeatures } from '../utils/trail'
+import { bboxForCoords, bendLineCoords, buildElevationProfile, buildGeometryBackedSegmentPatch, defaultTrailSegmentColor, deletedRangesFromIndexes, deletedRangesFromRouteIndexes, excludeRangesFromRoute, extendSegmentCoordinates, extractNamedTrackSegments, isGeometryBackedSegment, lineStringFeatureCollection, mergeDeletedRangesForRoute, resolveTrailSegmentGeojson, routeRangesToGeojson, routeStatsForCoords, sanitizeSegmentBends, patchTrailSegment, removeTrailSegment, sliceRouteByPercent, splitTrailSegmentAt, splitTrailSegmentInList, trailSegmentEndpointFeatures } from '../utils/trail'
 import type { TrailSegment } from '../types'
 
 function lineRoute(coords: number[][]): GeoJSON.FeatureCollection {
@@ -416,6 +416,23 @@ describe('trail segment geometry', () => {
       { type: 'Point', coordinates: [-90.0002, 41] },
     ])
     expect(handles.map(feature => feature.properties?.color)).toEqual(['#3A7CA5', '#3A7CA5'])
+    // No seg_id requested → property absent (legacy callers unchanged).
+    expect(handles.every(feature => !('seg_id' in (feature.properties ?? {})))).toBe(true)
+  })
+
+  it('tags segment handle features with the owning segment id for editor hit-testing', () => {
+    const resolved = lineRoute([
+      [-90, 41],
+      [-90.0001, 41],
+      [-90.0002, 41],
+    ])
+
+    const handles = trailSegmentEndpointFeatures(resolved, '#3A7CA5', 'seg-a')
+
+    expect(handles.map(feature => feature.properties)).toEqual([
+      { color: '#3A7CA5', seg_id: 'seg-a' },
+      { color: '#3A7CA5', seg_id: 'seg-a' },
+    ])
   })
 
   it('curves point-to-point geometry and flips bend direction while keeping endpoints anchored', () => {
@@ -648,5 +665,231 @@ describe('route deletion helpers', () => {
     expect(routed.features.map(feature => feature.geometry.type)).toEqual(['LineString', 'LineString'])
     expect((routed.features[0].geometry as GeoJSON.LineString).coordinates.at(-1)).toEqual([-89.0001, 40.0])
     expect((routed.features[1].geometry as GeoJSON.LineString).coordinates[0]).toEqual([-89.0004, 40.0])
+  })
+})
+
+describe('trail segment write-path helpers', () => {
+  const segments: TrailSegment[] = [
+    { id: 'a', name: 'North Loop', color: '#2D6A4F', visible: true, section_start: 0, section_end: 40 },
+    { id: 'b', name: 'South Loop', color: '#3A7CA5', visible: true, section_start: 40, section_end: 100 },
+  ]
+
+  it('patches only the target segment and returns a new array', () => {
+    const next = patchTrailSegment(segments, 'a', { name: 'Renamed', dash: true })
+
+    expect(next).not.toBe(segments)
+    expect(next[0]).toEqual({ ...segments[0], name: 'Renamed', dash: true })
+    expect(next[1]).toBe(segments[1])
+    expect(segments[0].name).toBe('North Loop')
+  })
+
+  it('removes only the target segment', () => {
+    const next = removeTrailSegment(segments, 'a')
+
+    expect(next).toEqual([segments[1]])
+    expect(segments).toHaveLength(2)
+  })
+})
+
+describe('splitTrailSegmentAt', () => {
+  function sequentialIds() {
+    let n = 0
+    return () => `child-${++n}`
+  }
+
+  // 11 evenly spaced coords along a parallel: index i sits at i/10 → i*10%.
+  const primary = lineRoute(Array.from({ length: 11 }, (_, i) => [-89 + i * 0.0001, 40]))
+
+  const routeSlice: TrailSegment = {
+    id: 'orig',
+    name: 'Black Loop',
+    color: '#C1121F',
+    visible: true,
+    section_start: 0,
+    section_end: 100,
+    width: 4,
+    opacity: 0.8,
+    smooth: 2,
+    dash: true,
+    color_mode: 'solid',
+    label_lnglat: [-89.5, 40.5],
+  }
+
+  it('splits a percentage route-slice segment at the nearest route position', () => {
+    const result = splitTrailSegmentAt(routeSlice, primary, [-89 + 5 * 0.0001, 40.00001], { idFactory: sequentialIds() })
+
+    expect(result).not.toBeNull()
+    const [first, second] = result!
+    expect(first).toMatchObject({
+      id: 'child-1',
+      name: 'Black Loop 1',
+      section_start: 0,
+      section_end: 50,
+      color: '#C1121F',
+      width: 4,
+      opacity: 0.8,
+      smooth: 2,
+      dash: true,
+      color_mode: 'solid',
+      visible: true,
+    })
+    expect(second).toMatchObject({
+      id: 'child-2',
+      name: 'Black Loop 2',
+      section_start: 50,
+      section_end: 100,
+      color: '#C1121F',
+      dash: true,
+    })
+    // User-dragged label positions never carry over — labels re-place automatically.
+    expect('label_lnglat' in first).toBe(false)
+    expect('label_lnglat' in second).toBe(false)
+    // Original untouched (pure function).
+    expect(routeSlice.section_end).toBe(100)
+  })
+
+  it('clamps the split inside the segment section and rejects degenerate children', () => {
+    const windowed: TrailSegment = { ...routeSlice, section_start: 20, section_end: 80 }
+
+    // Click near the route start: nearest in-window position is the section start → degenerate.
+    expect(splitTrailSegmentAt(windowed, primary, [-89, 40], { idFactory: sequentialIds() })).toBeNull()
+
+    const result = splitTrailSegmentAt(windowed, primary, [-89 + 5 * 0.0001, 40], { idFactory: sequentialIds() })
+    expect(result![0]).toMatchObject({ section_start: 20, section_end: 50 })
+    expect(result![1]).toMatchObject({ section_start: 50, section_end: 80 })
+  })
+
+  it('falls back to a generic name for unnamed segments', () => {
+    const unnamed: TrailSegment = { ...routeSlice, name: '   ' }
+    const result = splitTrailSegmentAt(unnamed, primary, [-89 + 5 * 0.0001, 40], { idFactory: sequentialIds() })
+    expect(result!.map(s => s.name)).toEqual(['Trail 1', 'Trail 2'])
+  })
+
+  it('splits a single-line geometry-backed segment into two self-contained tracks', () => {
+    const coords = Array.from({ length: 10 }, (_, i) => [-90 + i * 0.0001, 41])
+    const bends = Array(9).fill(0)
+    bends[2] = 0.5
+    bends[7] = -0.5
+    const drawn: TrailSegment = {
+      id: 'drawn',
+      name: 'Ridge',
+      color: '#E87722',
+      visible: true,
+      source: 'drawn-track',
+      geojson: lineRoute(coords),
+      section_start: 0,
+      section_end: 100,
+      width: 3,
+      dash: false,
+      bends,
+      label_lnglat: [-90.5, 41.5],
+    }
+
+    const result = splitTrailSegmentAt(drawn, primary, [-90 + 5 * 0.0001, 41.00001], { idFactory: sequentialIds() })
+
+    expect(result).not.toBeNull()
+    const [first, second] = result!
+    expect(first.name).toBe('Ridge 1')
+    expect(second.name).toBe('Ridge 2')
+    expect(first.source).toBe('drawn-track')
+    expect(second.source).toBe('drawn-track')
+    expect(first).toMatchObject({ section_start: 0, section_end: 100 })
+    expect(second).toMatchObject({ section_start: 0, section_end: 100 })
+
+    const firstCoords = (first.geojson!.features[0].geometry as GeoJSON.LineString).coordinates
+    const secondCoords = (second.geojson!.features[0].geometry as GeoJSON.LineString).coordinates
+    // Children share the split coordinate so the track stays continuous.
+    expect(firstCoords.at(-1)).toEqual(secondCoords[0])
+    expect(firstCoords).toHaveLength(6)   // coords 0..5
+    expect(secondCoords).toHaveLength(5)  // coords 5..9
+    expect(first.bbox).toBeDefined()
+    expect(second.bbox).toBeDefined()
+    expect(first.stats?.distance_km).toBeGreaterThan(0)
+    // Per-edge bends slice with the geometry.
+    expect(first.bends).toHaveLength(5)
+    expect(first.bends?.[2]).toBe(0.5)
+    expect(second.bends).toHaveLength(4)
+    expect(second.bends?.[2]).toBe(-0.5)
+    expect('label_lnglat' in first).toBe(false)
+  })
+
+  it('preserves line boundaries when splitting multi-line uploaded tracks (no connector chords)', () => {
+    const lineA = Array.from({ length: 4 }, (_, i) => [-90 + i * 0.0001, 41])
+    const lineB = Array.from({ length: 3 }, (_, i) => [-90.5 + i * 0.0001, 41.5])
+    const uploaded: TrailSegment = {
+      id: 'uploaded',
+      name: 'Network',
+      color: '#3A7CA5',
+      visible: true,
+      source: 'uploaded-track',
+      source_filename: 'network.gpx',
+      geojson: {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: lineA } },
+          { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: lineB } },
+        ],
+      },
+      section_start: 0,
+      section_end: 100,
+    }
+
+    // Split near flat index 2 (inside line A).
+    const result = splitTrailSegmentAt(uploaded, primary, [-90 + 2 * 0.0001, 41.00001], { idFactory: sequentialIds() })
+
+    expect(result).not.toBeNull()
+    const [first, second] = result!
+    // First child: the head of line A only.
+    expect(first.geojson!.features).toHaveLength(1)
+    expect((first.geojson!.features[0].geometry as GeoJSON.LineString).coordinates).toEqual(lineA.slice(0, 3))
+    // Second child: the tail of line A plus line B as SEPARATE lines.
+    expect(second.geojson!.features).toHaveLength(2)
+    expect((second.geojson!.features[0].geometry as GeoJSON.LineString).coordinates).toEqual(lineA.slice(2))
+    expect((second.geojson!.features[1].geometry as GeoJSON.LineString).coordinates).toEqual(lineB)
+    expect(first.source_filename).toBe('network.gpx')
+    expect(second.source_filename).toBe('network.gpx')
+  })
+
+  it('rejects geometry-backed splits without enough coordinates', () => {
+    const tiny: TrailSegment = {
+      id: 'tiny',
+      name: 'Tiny',
+      color: '#2D6A4F',
+      visible: true,
+      source: 'drawn-track',
+      geojson: lineRoute([[-90, 41], [-90.0001, 41], [-90.0002, 41]]),
+      section_start: 0,
+      section_end: 100,
+    }
+    expect(splitTrailSegmentAt(tiny, primary, [-90.0001, 41], { idFactory: sequentialIds() })).toBeNull()
+  })
+})
+
+describe('splitTrailSegmentInList', () => {
+  it('replaces the original segment with both children at the same index', () => {
+    const primary = lineRoute(Array.from({ length: 11 }, (_, i) => [-89 + i * 0.0001, 40]))
+    let n = 0
+    const segments: TrailSegment[] = [
+      { id: 'a', name: 'Before', color: '#2D6A4F', visible: true, section_start: 0, section_end: 10 },
+      { id: 'b', name: 'Target', color: '#C1121F', visible: true, section_start: 0, section_end: 100 },
+      { id: 'c', name: 'After', color: '#3A7CA5', visible: true, section_start: 90, section_end: 100 },
+    ]
+
+    const result = splitTrailSegmentInList(segments, 'b', primary, [-89 + 5 * 0.0001, 40], { idFactory: () => `kid-${++n}` })
+
+    expect(result).not.toBeNull()
+    expect(result!.segments.map(s => s.id)).toEqual(['a', 'kid-1', 'kid-2', 'c'])
+    expect(result!.first.name).toBe('Target 1')
+    expect(result!.second.name).toBe('Target 2')
+    expect(segments).toHaveLength(3)
+  })
+
+  it('returns null for unknown segments and degenerate splits', () => {
+    const primary = lineRoute(Array.from({ length: 11 }, (_, i) => [-89 + i * 0.0001, 40]))
+    const segments: TrailSegment[] = [
+      { id: 'b', name: 'Target', color: '#C1121F', visible: true, section_start: 0, section_end: 100 },
+    ]
+    expect(splitTrailSegmentInList(segments, 'missing', primary, [-89, 40])).toBeNull()
+    expect(splitTrailSegmentInList(segments, 'b', primary, [-89, 40])).toBeNull()
   })
 })

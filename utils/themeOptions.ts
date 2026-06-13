@@ -1,7 +1,7 @@
 import type { ColorTheme, RouteStats, StyleConfig, ThemeBaseMapMode, ThemeDefinition } from '~/types'
 import { COLOR_THEMES } from '~/types'
 import { getPosterCompositionProfile, POSTER_COMPOSITIONS } from '~/utils/posterCompositions'
-import { applyThemeToStyleConfig } from '~/utils/themeApplication'
+import { applyThemeToStyleConfigWithMeta, type ApplyThemeOptions, type ThemeApplicationResult } from '~/utils/themeApplication'
 import { buildThemeDataContext, resolveThemeBaseMapMode, type ThemeDataContextInput, type ThemePurpose } from '~/utils/themeDataContract'
 import { REFINED_THEMES } from '~/utils/themes/refined'
 import { isManifestRefinedTheme } from '~/utils/themes/screenshotManifest'
@@ -300,12 +300,32 @@ type ThemeContext = ThemeDataContextInput & {
 
 const PLACE_THEME_PRIORITY: ColorTheme[] = ['cartouche-place', 'editorial-minimal', 'usgs-vintage']
 
-export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
+/**
+ * Theme application + per-theme base-map-mode resolution, with preserve/reset
+ * metadata (E1 follow-up toast). Default options keep the exact legacy clobber,
+ * so `deriveThemePreviewConfig` below stays byte-identical; pass
+ * `{ preserveUserIntent: true }` only on the FLAGS.EDITOR_V2 apply path.
+ * Note: preserved/reset field lists describe the theme application itself —
+ * base-map-mode fields applied on top are theme-owned either way.
+ */
+export function deriveThemePreviewConfigWithMeta(
+  baseConfig: StyleConfig,
+  theme: ThemeDefinition,
+  context: ThemeContext = {},
+  applyOptions: ApplyThemeOptions = {},
+): ThemeApplicationResult {
   const { baseMapMode = 'auto', ...dataInput } = context
   const base = JSON.parse(JSON.stringify(baseConfig)) as StyleConfig
-  const themed = applyThemeToStyleConfig(base, theme)
-  const dataContext = buildThemeDataContext({ ...dataInput, styleConfig: themed })
-  return applyThemeBaseMapMode(themed, resolveThemeBaseMapMode(dataContext, baseMapMode))
+  const result = applyThemeToStyleConfigWithMeta(base, theme, applyOptions)
+  const dataContext = buildThemeDataContext({ ...dataInput, styleConfig: result.config })
+  return {
+    ...result,
+    config: applyThemeBaseMapMode(result.config, resolveThemeBaseMapMode(dataContext, baseMapMode)),
+  }
+}
+
+export function deriveThemePreviewConfig(baseConfig: StyleConfig, theme: ThemeDefinition, context: ThemeContext = {}): StyleConfig {
+  return deriveThemePreviewConfigWithMeta(baseConfig, theme, context).config
 }
 
 export function resolveThemePreviewBaseMapMode(context: ThemeDataContextInput, requested: ThemeBaseMapSelection = 'auto'): ThemeBaseMapMode {

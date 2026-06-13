@@ -10,6 +10,7 @@ import {
   type MapAsset,
   type PartialPosterLayout,
   type PosterIconId,
+  type PosterStatBinding,
   type PosterTextSlot,
   type RouteStats,
   type StyleConfig,
@@ -17,6 +18,8 @@ import {
 } from '~/types'
 import { CHROME_BLOCK_KIND_LABELS, effectivePosterLayout } from '~/utils/posterLayout'
 import { getPosterIcon } from '~/utils/posterIcons'
+import type { ThemeDataContext } from '~/utils/themeDataContract'
+import { formatCoordsFromPoint, formatCoordsFromBbox, formatDistanceMiles, formatElevationGainFeet } from '~/utils/posterFormatters'
 
 export type PosterEditorElementKind =
   | 'theme-text'
@@ -532,6 +535,80 @@ export function addPosterEditorText(config: StyleConfig, patch: Partial<TextOver
   }
 }
 
+// ── Data-bound stat overlays (editor-v2 D3 + menu) ──────────────────────────
+// North-star gesture 4: the Stat picker offers ONLY values the theme data
+// contract has real data for — no fabricated values are insertable. Display
+// text derives from the same ThemeDataContext the footer stats consume, with
+// the same formatters, so editor and print agree by construction.
+
+export interface PosterStatOption {
+  binding: PosterStatBinding
+  label: string
+  value: string
+}
+
+export function formatPosterStatBinding(
+  binding: PosterStatBinding,
+  context: ThemeDataContext,
+  opts: { distanceUnit?: 'mi' | 'km' } = {},
+): string {
+  switch (binding) {
+    case 'distance': {
+      if (!context.hasDistance || context.distanceKm == null) return ''
+      if (opts.distanceUnit === 'km') return `${context.distanceKm.toFixed(1)} KM`
+      const miles = formatDistanceMiles({ distance_km: context.distanceKm })
+      return miles ? `${miles} MI` : ''
+    }
+    case 'elevation_gain': {
+      if (context.elevationGainM == null) return ''
+      const feet = formatElevationGainFeet({ elevation_gain_m: context.elevationGainM })
+      return feet ? `${feet} FT GAIN` : ''
+    }
+    case 'date':
+      return context.date ?? ''
+    case 'coordinates': {
+      const coords = formatCoordsFromPoint(context.coords) ?? formatCoordsFromBbox(context.bbox)
+      return coords ? `${coords.lat} ${coords.lng}` : ''
+    }
+  }
+}
+
+/** The stat picker's options: only bindings whose formatted value is real. */
+export function availablePosterStatBindings(
+  context: ThemeDataContext,
+  opts: { distanceUnit?: 'mi' | 'km' } = {},
+): PosterStatOption[] {
+  const LABELS: Record<PosterStatBinding, string> = {
+    distance: 'Distance',
+    elevation_gain: 'Elevation gain',
+    date: 'Date',
+    coordinates: 'Coordinates',
+  }
+  return (Object.keys(LABELS) as PosterStatBinding[])
+    .map(binding => ({ binding, label: LABELS[binding], value: formatPosterStatBinding(binding, context, opts) }))
+    .filter(option => option.value !== '')
+}
+
+export function addPosterEditorStat(
+  config: StyleConfig,
+  binding: PosterStatBinding,
+  context: ThemeDataContext,
+  patch: Partial<TextOverlay> = {},
+): { config: StyleConfig; id: string } | null {
+  const content = formatPosterStatBinding(binding, context, {
+    distanceUnit: config.composition_footer_distance_unit === 'km' ? 'km' : 'mi',
+  })
+  // Contract: no real data, no insert. Callers should already have hidden
+  // the option via availablePosterStatBindings.
+  if (!content) return null
+  return addPosterEditorText(config, {
+    content,
+    data_binding: binding,
+    bold: true,
+    ...patch,
+  })
+}
+
 export function addPosterEditorIcon(config: StyleConfig, icon: PosterIconId = 'mountain', patch: Partial<IconOverlay> = {}): { config: StyleConfig; id: string } {
   const overlay = createIconOverlay(config, icon, patch)
   return {
@@ -541,6 +618,18 @@ export function addPosterEditorIcon(config: StyleConfig, icon: PosterIconId = 'm
       icon_overlays: [...(config.icon_overlays ?? []), overlay],
     },
   }
+}
+
+/** D3 + menu: add an icon whose BOX CENTER lands on the given poster percent. */
+export function addPosterEditorIconCentered(
+  config: StyleConfig,
+  icon: PosterIconId,
+  center: { x: number; y: number },
+): { config: StyleConfig; id: string } {
+  return addPosterEditorIcon(config, icon, {
+    x: clampPercent(center.x - DEFAULT_ICON_SIZE / 2, 0, 100 - DEFAULT_ICON_SIZE),
+    y: clampPercent(center.y - DEFAULT_ICON_SIZE / 2, 0, 100 - DEFAULT_ICON_SIZE),
+  })
 }
 
 function cloneSparsePosterLayout(layout: PartialPosterLayout | undefined): PartialPosterLayout {

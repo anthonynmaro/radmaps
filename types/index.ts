@@ -246,6 +246,22 @@ export interface PosterTextOverride {
   opacity?: number
   bold?: boolean
   italic?: boolean
+  // Free-placement offset (editor-v2 free canvas): signed displacement of a
+  // theme slot from its template flow position, in CANVAS percent (cqw/cqh).
+  // Present once the user drags the slot; the slot "floats" via CSS transform
+  // (its band switches to overflow:visible so it can sit anywhere, incl. over
+  // the map). Container-% units round-trip editor↔print identically.
+  offset_x?: number
+  offset_y?: number
+  // Typography fine controls (free-canvas Phase 5): per-slot overrides that
+  // win over the theme/typography defaults and are consumed by both the
+  // chrome-grid and direct-slot render paths (so they print).
+  letter_spacing?: number // em (e.g. 0.04)
+  line_height?: number    // unitless multiplier (e.g. 1.2)
+  // Fit-to-area: when false, the text-fit engine leaves the slot at its set
+  // size (no auto-shrink/wrap); default (undefined/true) keeps auto-fit so
+  // templates stay print-safe.
+  auto_fit?: boolean
 }
 
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
@@ -390,23 +406,50 @@ export type PartialAnchorFrame = Partial<Omit<AnchorFrame, 'id' | 'rows'>> & {
   rows?: ChromeGridRow[]
 }
 
+/**
+ * Free-map frame (editor-v2 Phase 4). When present, the map area leaves band
+ * flow and renders as an absolutely-positioned frame at these canvas-percent
+ * coordinates — the user has dragged/resized the map as a free element. Absent
+ * ⇒ the map stays flex between the bands (band dividers govern its height).
+ * Canvas % so it resolves identically in the editor and the print render.
+ */
+export interface MapFrameBox {
+  left: number   // 0–100, % from left of the poster canvas
+  top: number    // 0–100, % from top of the poster canvas
+  width: number  // 0–100, % of canvas width
+  height: number // 0–100, % of canvas height
+}
+
 export interface PosterLayout {
   bands: Record<ChromeBandId, ChromeBand>
   anchors?: AnchorFrame[]
+  map_frame?: MapFrameBox
 }
 
 export interface PartialPosterLayout {
   bands?: Partial<Record<ChromeBandId, Partial<ChromeBand>>>
   anchors?: PartialAnchorFrame[]
+  map_frame?: MapFrameBox
 }
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────
 
 export type TextOverlayAlignment = 'left' | 'center' | 'right'
 
+/**
+ * Data-bound stat overlays (editor-v2 D3 + menu). A binding means the
+ * overlay's display text derives from the live theme data context (same
+ * source as footer stats) so editor and print agree by construction; the
+ * stored `content` is the last formatted value, kept as a render fallback.
+ * Per the theme data contract, only stats with REAL data are insertable —
+ * fabricated values never get a binding.
+ */
+export type PosterStatBinding = 'distance' | 'elevation_gain' | 'date' | 'coordinates'
+
 export interface TextOverlay {
   id: string
   content: string
+  data_binding?: PosterStatBinding // present = stat chip; content derives from map data
   x: number                       // 0–100, % from left of map container
   y: number                       // 0–100, % from top of map container
   font_size: number               // in cqh units (0.5–6)

@@ -11,6 +11,11 @@ import {
 } from '~/utils/styleLayerGraph'
 import { contrastRatio } from '~/utils/colorContrast'
 import {
+  HIGH_RELIEF_CONTOUR_RESPONSES,
+  LOW_RELIEF_CONTOUR_FLOORS,
+  resolveAdaptiveContourBehavior,
+} from '~/utils/themes/mapTreatments'
+import {
   WATERCOLOR_MAPLIBRE_TILE_SIZE,
   WATERCOLOR_RECIPE_ID,
   WATERCOLOR_RENDER_MAXZOOM,
@@ -261,60 +266,17 @@ export interface AdaptiveContourReliefProfile {
   elevationChangeM: number | null
 }
 
-const SMOOTH_CONTOUR_THEME_IDS = new Set([
-  'blueprint',
-  'blueprint-strava',
-  'bold-modern',
-  'classic-trail',
-  'contour-wash',
-  'daybreak-trace',
-  'editorial-minimal',
-  'electric-atlas',
-  'midcentury-travel',
-  'ranch-ochre',
-  'splits-stats',
-])
-
-const AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS = new Set([
-  'botanical',
-  'brutalist',
-  'moonstone',
-])
-
-const AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS = new Set<string>([
-])
-
-const THEME_MIN_CONTOUR_DETAIL = new Map<string, number>([
-  ['blueprint', 2],
-  ['bold-modern', 2],
-  ['classic-trail', 2],
-  ['contour-wash', 2],
-  ['editorial-minimal', 2],
-  ['usgs-vintage', 2],
-])
-
-const THEME_MAX_CONTOUR_DETAIL = new Map<string, number>([
-  ['blueprint-strava', 4],
-  ['daybreak-trace', 3],
-  ['electric-atlas', 3],
-  ['splits-stats', 4],
-])
-
-const THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL = new Map<string, number>([
-  ['night-ride', 0],
-])
-
-const SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS = new Set([
-  'blueprint-strava',
-  'electric-atlas',
-  'splits-stats',
-])
+// Per-theme adaptive contour handling lives in utils/themes/mapTreatments.ts:
+// each theme maps to a named treatment (even-concentric, two-tier-index, …)
+// whose behavior (smoothing, detail clamps, sea-level suppression, relief
+// response tables, low-relief floors) is resolved here via
+// resolveAdaptiveContourBehavior(config.color_theme).
 
 function contourFeatureFilter(
   config: Partial<Pick<StyleConfig, 'color_theme'>>,
   levelFilter: unknown[],
 ): unknown[] {
-  if (!SUPPRESS_SEA_LEVEL_CONTOUR_THEME_IDS.has(config.color_theme ?? '')) return levelFilter
+  if (!resolveAdaptiveContourBehavior(config.color_theme).suppressSeaLevelContours) return levelFilter
   return ['all', ['>', ['get', 'ele'], 0], levelFilter]
 }
 
@@ -397,29 +359,27 @@ export function resolveAdaptiveContourDetail(
   const profile = resolveAdaptiveContourReliefProfile(stats)
   let adaptiveDetail = profile.detail
   if (adaptiveDetail == null) return fallback
-  const themeMinimumDetail = THEME_MIN_CONTOUR_DETAIL.get(config.color_theme ?? '')
-  if (themeMinimumDetail != null) {
-    adaptiveDetail = Math.max(adaptiveDetail, themeMinimumDetail)
+  const behavior = resolveAdaptiveContourBehavior(config.color_theme)
+  if (behavior.minContourDetail != null) {
+    adaptiveDetail = Math.max(adaptiveDetail, behavior.minContourDetail)
   }
-  const themeMaximumDetail = THEME_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
-  if (themeMaximumDetail != null) {
-    adaptiveDetail = Math.min(adaptiveDetail, themeMaximumDetail)
+  if (behavior.maxContourDetail != null) {
+    adaptiveDetail = Math.min(adaptiveDetail, behavior.maxContourDetail)
   }
-  const nonLowReliefThemeMaximumDetail = THEME_NON_LOW_RELIEF_MAX_CONTOUR_DETAIL.get(config.color_theme ?? '')
-  if (nonLowReliefThemeMaximumDetail != null && profile.band !== 'low') {
-    adaptiveDetail = Math.min(adaptiveDetail, nonLowReliefThemeMaximumDetail)
+  if (behavior.nonLowReliefMaxContourDetail != null && profile.band !== 'low') {
+    adaptiveDetail = Math.min(adaptiveDetail, behavior.nonLowReliefMaxContourDetail)
   }
   if (
     adaptiveDetail === 5 &&
     fallback < adaptiveDetail &&
-    AUTHORED_SPARSE_LOW_RELIEF_CONTOUR_THEME_IDS.has(config.color_theme ?? '')
+    behavior.preserveAuthoredDetailInLowRelief
   ) {
     return fallback
   }
   if (
     adaptiveDetail !== 5 &&
     adaptiveDetail > fallback &&
-    AUTHORED_NON_LOW_RELIEF_CONTOUR_THEME_IDS.has(config.color_theme ?? '')
+    behavior.preserveAuthoredDetailOutsideLowRelief
   ) {
     return fallback
   }
@@ -429,7 +389,7 @@ export function resolveAdaptiveContourDetail(
 export function resolveAdaptiveContourOverzoom(
   config: Pick<StyleConfig, 'color_theme'>,
 ): number {
-  return SMOOTH_CONTOUR_THEME_IDS.has(config.color_theme ?? '') ? 2 : CONTOUR_DEM_OVERZOOM
+  return resolveAdaptiveContourBehavior(config.color_theme).smoothContours ? 2 : CONTOUR_DEM_OVERZOOM
 }
 
 export function resolveAdaptiveContourThresholds(
@@ -439,7 +399,9 @@ export function resolveAdaptiveContourThresholds(
   const detail = resolveAdaptiveContourDetail(config, stats)
   const profile = resolveAdaptiveContourReliefProfile(stats)
   if (detail !== 5 || profile.band !== 'low') return CONTOUR_THRESHOLDS[detail] ?? CONTOUR_THRESHOLDS[3]
-  if (config.color_theme === 'brutalist') return BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS
+  if (resolveAdaptiveContourBehavior(config.color_theme).lowReliefThresholds === 'dense-slab') {
+    return BRUTALIST_LOW_RELIEF_CONTOUR_THRESHOLDS
+  }
   return LOW_RELIEF_CONTOUR_THRESHOLDS
 }
 
@@ -466,57 +428,11 @@ export function resolveAdaptiveContourStyleConfig(
 
   const adaptiveDetail = resolveAdaptiveContourDetail(config, stats)
   const reliefProfile = resolveAdaptiveContourReliefProfile(stats)
+  const behavior = resolveAdaptiveContourBehavior(config.color_theme)
   const hasStats = reliefProfile.band !== 'unknown'
   const isLowRelief = adaptiveDetail === 5 && hasStats
   const highReliefProfile = adaptiveDetail <= 3 && reliefProfile.band !== 'low'
-    ? config.color_theme === 'bold-modern'
-      ? ({
-          0: { opacityFactor: 1, minorMax: 0.18, majorMax: 0.78, widthFactor: 1 },
-          1: { opacityFactor: 1, minorMax: 0.20, majorMax: 0.82, widthFactor: 1 },
-          2: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.86, widthFactor: 1 },
-          3: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.88, widthFactor: 1 },
-        } as const)[adaptiveDetail]
-      : config.color_theme === 'editorial-minimal'
-        ? ({
-            0: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.34, widthFactor: 0.9 },
-            1: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.36, widthFactor: 0.95 },
-            2: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.38, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.40, widthFactor: 1 },
-          } as const)[adaptiveDetail]
-      : config.color_theme === 'brutalist'
-        ? ({
-            0: { opacityFactor: 1, minorMax: 0.34, majorMax: 0.88, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.36, majorMax: 0.88, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.38, majorMax: 0.88, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.40, majorMax: 0.88, widthFactor: 1 },
-          } as const)[adaptiveDetail]
-      : config.color_theme === 'botanical'
-        ? ({
-            0: { opacityFactor: 1, minorMax: 0.16, majorMax: 0.72, widthFactor: 1 },
-            1: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.78, widthFactor: 1 },
-            2: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.80, widthFactor: 1 },
-            3: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.82, widthFactor: 1 },
-          } as const)[adaptiveDetail]
-        : config.color_theme === 'night-ride'
-          ? ({
-              0: { opacityFactor: 1, minorMax: 0.22, majorMax: 0.54, widthFactor: 0.86 },
-              1: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.56, widthFactor: 0.9 },
-              2: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.58, widthFactor: 0.94 },
-              3: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.60, widthFactor: 1 },
-            } as const)[adaptiveDetail]
-        : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
-          ? ({
-              0: { opacityFactor: 1, minorMax: 0.24, majorMax: 0.62, widthFactor: 1 },
-              1: { opacityFactor: 1, minorMax: 0.26, majorMax: 0.66, widthFactor: 1 },
-              2: { opacityFactor: 1, minorMax: 0.28, majorMax: 0.68, widthFactor: 1 },
-              3: { opacityFactor: 1, minorMax: 0.30, majorMax: 0.70, widthFactor: 1 },
-            } as const)[adaptiveDetail]
-      : ({
-          0: { opacityFactor: 0.34, minorMax: 0.10, majorMax: 0.38, widthFactor: 0.54 },
-          1: { opacityFactor: 0.48, minorMax: 0.16, majorMax: 0.46, widthFactor: 0.68 },
-          2: { opacityFactor: 0.68, minorMax: 0.24, majorMax: 0.56, widthFactor: 0.82 },
-          3: { opacityFactor: 0.82, minorMax: 0.30, majorMax: 0.62, widthFactor: 0.90 },
-        } as const)[adaptiveDetail]
+    ? HIGH_RELIEF_CONTOUR_RESPONSES[behavior.highReliefResponse][adaptiveDetail as 0 | 1 | 2 | 3]
     : null
 
   if (adaptiveDetail === config.contour_detail && !isLowRelief && !highReliefProfile) {
@@ -529,13 +445,7 @@ export function resolveAdaptiveContourStyleConfig(
   }
 
   if (isLowRelief) {
-    const lowReliefOpacityFloor = config.color_theme === 'brutalist'
-      ? { contour: 0.26, minor: 0.30, major: 0.72 }
-      : config.color_theme === 'daybreak-trace'
-        ? { contour: 0.12, minor: 0.06, major: 0.22 }
-      : ['daybreak-trace', 'midcentury-travel', 'ranch-ochre'].includes(config.color_theme ?? '')
-        ? { contour: 0.14, minor: 0.055, major: 0.28 }
-        : { contour: 0.34, minor: 0.24, major: 0.42 }
+    const lowReliefOpacityFloor = LOW_RELIEF_CONTOUR_FLOORS[behavior.lowReliefFloor]
     next.contour_opacity = Math.max(next.contour_opacity ?? 0, lowReliefOpacityFloor.contour)
 
     const contourSettings = next.atlas_layer_settings?.contour

@@ -1,4 +1,6 @@
 import { DEFAULT_STYLE_CONFIG, DEFAULT_TRAIL_SEGMENT_WIDTH, type FontFamily, type PosterTextOverride, type PosterTextOverrides, type StyleConfig, type ThemeDefinition } from '~/types'
+import { STICKY_STYLE_FIELDS, USER_OWNED_STYLE_FIELDS } from '~/utils/themeFieldOwnership'
+import { getThemeDefinition } from '~/utils/themes/refined'
 
 const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
   'Source Sans 3': 'Source Sans 3',
@@ -21,7 +23,10 @@ const FONT_PAIRINGS: Record<FontFamily, FontFamily> = {
   'DM Serif Display': 'DM Sans',
 }
 
-const THEME_RESET_FIELDS = {
+// Exported so the theme-ownership registry tests can prove every reset field is
+// classified (tests/theme-field-ownership.test.ts). Do not add a field here without
+// classifying it in utils/themeFieldOwnership.ts.
+export const THEME_RESET_FIELDS = {
   roads_color: undefined,
   place_labels_color: undefined,
   poi_labels_color: undefined,
@@ -109,7 +114,36 @@ function stripThemeOwnedTrailSegmentState(segments?: StyleConfig['trail_segments
   })
 }
 
-export function applyThemeToStyleConfig(current: StyleConfig, theme: ThemeDefinition): StyleConfig {
+export interface ApplyThemeOptions {
+  /**
+   * FLAGS.EDITOR_V2 behavior (docs/STYLE_SYSTEM_EVOLUTION.md "Theme switching must
+   * preserve user intent"): user-owned fields always survive, sticky fields survive
+   * when manually changed from the outgoing theme's default. Default false = exact
+   * legacy clobber behavior.
+   */
+  preserveUserIntent?: boolean
+  /**
+   * Explicit outgoing theme for sticky comparisons. Defaults to looking up
+   * `current.color_theme`; unknown/missing themes fall back to DEFAULT_STYLE_CONFIG
+   * as the baseline (which preserves any value that differs from stock defaults).
+   */
+  previousTheme?: ThemeDefinition
+}
+
+export interface ThemeApplicationResult {
+  config: StyleConfig
+  /** Fields the user had customized that survived the switch (flag-on only). */
+  preservedFields: string[]
+  /** Fields whose value changed as part of applying the new theme. */
+  resetFields: string[]
+}
+
+/**
+ * Legacy theme application: resets every THEME_RESET_FIELDS entry, strips per-slot
+ * visual text overrides and dragged segment labels, then applies the theme patch.
+ * This is the flag-off behavior and the basis of `resetAllToTheme()`.
+ */
+function buildLegacyThemedConfig(current: StyleConfig, theme: ThemeDefinition): StyleConfig {
   const trailSegments = stripThemeOwnedTrailSegmentState(current.trail_segments)
   const patch: Partial<StyleConfig> = {
     ...THEME_RESET_FIELDS,
@@ -152,6 +186,90 @@ export function applyThemeToStyleConfig(current: StyleConfig, theme: ThemeDefini
   }
 
   return { ...current, ...patch }
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a == null || b == null) return false
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function asRecord(config: StyleConfig): Record<string, unknown> {
+  return config as unknown as Record<string, unknown>
+}
+
+function changedFields(before: StyleConfig, after: StyleConfig): string[] {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)])
+  return [...keys].filter(key => !valuesEqual(asRecord(before)[key], asRecord(after)[key])).sort()
+}
+
+/**
+ * Apply a theme and report what survived vs reset.
+ *
+ * Flag off (`preserveUserIntent` falsy): byte-identical to the historical behavior.
+ * Flag on: consults utils/themeFieldOwnership.ts —
+ * - user-owned fields are restored from `current` verbatim (including segment label
+ *   drags and full poster text overrides);
+ * - sticky fields are restored only when their current value differs from the
+ *   OUTGOING theme's default (approximated as that theme legacy-applied to
+ *   DEFAULT_STYLE_CONFIG);
+ * - theme-owned fields take the new theme's values, exactly as legacy.
+ */
+export function applyThemeToStyleConfigWithMeta(
+  current: StyleConfig,
+  theme: ThemeDefinition,
+  options: ApplyThemeOptions = {},
+): ThemeApplicationResult {
+  const legacyNext = buildLegacyThemedConfig(current, theme)
+  if (!options.preserveUserIntent) {
+    return { config: legacyNext, preservedFields: [], resetFields: changedFields(current, legacyNext) }
+  }
+
+  const outgoingTheme = options.previousTheme
+    ?? (current.color_theme ? getThemeDefinition(current.color_theme) : undefined)
+  const outgoingBaseline = outgoingTheme
+    ? buildLegacyThemedConfig(DEFAULT_STYLE_CONFIG, outgoingTheme)
+    : DEFAULT_STYLE_CONFIG
+
+  const config = asRecord({ ...legacyNext })
+  const currentRecord = asRecord(current)
+  const baselineRecord = asRecord(outgoingBaseline)
+
+  for (const field of USER_OWNED_STYLE_FIELDS) {
+    // Guards fields that may not exist on StyleConfig yet (e.g. map_element_overrides).
+    if (!(field in currentRecord)) continue
+    config[field] = currentRecord[field]
+  }
+
+  for (const field of STICKY_STYLE_FIELDS) {
+    if (!(field in currentRecord) && !(field in config)) continue
+    if (!valuesEqual(currentRecord[field], baselineRecord[field])) {
+      config[field] = currentRecord[field]
+    }
+  }
+
+  const next = config as unknown as StyleConfig
+  const resetFields = changedFields(current, next)
+  const preservedFields = changedFields(current, legacyNext)
+    .filter(field => !resetFields.includes(field))
+
+  return { config: next, preservedFields, resetFields }
+}
+
+export function applyThemeToStyleConfig(
+  current: StyleConfig,
+  theme: ThemeDefinition,
+  options: ApplyThemeOptions = {},
+): StyleConfig {
+  return applyThemeToStyleConfigWithMeta(current, theme, options).config
+}
+
+/**
+ * Pure helper for the future "Reset all to theme" toast action: the full legacy
+ * clobber, discarding preserved user customizations in favor of the theme's values.
+ */
+export function resetAllToTheme(config: StyleConfig, theme: ThemeDefinition): StyleConfig {
+  return buildLegacyThemedConfig(config, theme)
 }
 
 export function pairedBodyFont(fontName: FontFamily): FontFamily {

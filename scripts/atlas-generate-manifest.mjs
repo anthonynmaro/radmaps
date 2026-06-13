@@ -81,10 +81,15 @@ async function artifactFromConfig(kind, config) {
   if (!existsSync(localPath)) throw new Error(`Missing artifact for manifest: ${localPath}`)
   const archive = new PMTiles(new NodeFileSource(localPath))
   const header = await archive.getHeader()
+  const metadata = await archive.getMetadata().catch(() => ({}))
   const objectPath = fillObjectPath(config.objectPath)
   return {
     id: config.id || `radmaps-${region.coverage}-${kind}`,
     kind,
+    // Present when the feature-ids pipeline stage stamped this artifact
+    // (docs/ATLAS_STABLE_FEATURE_IDS.md): per-feature override capability
+    // gates on this advertised scheme.
+    ...(typeof metadata?.feature_id_scheme === 'string' ? { feature_id_scheme: metadata.feature_id_scheme } : {}),
     url: `${publicBaseUrl.replace(/\/$/, '')}/${objectPath}`,
     objectPath,
     minzoom: config.minzoom ?? header.minZoom,

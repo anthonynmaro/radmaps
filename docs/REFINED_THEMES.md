@@ -4,6 +4,15 @@ The design update introduces refined themes as full poster recipes. The current
 implementation is additive: old maps keep rendering, defaults are unchanged, and
 new themes opt into composition-aware poster chrome.
 
+> **Building or polishing a theme?** Start with
+> [docs/THEME_BUILDING.md](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/docs/THEME_BUILDING.md):
+> themes are assembled from named map treatments
+> (`utils/themes/mapTreatments.ts`) and poster chrome tokens
+> (`utils/themes/posterTokens.ts`), with byte-exact resolution pinned by
+> `tests/theme-resolution-snapshot.test.ts`. Recipes reference a treatment and
+> override sparingly; a token/treatment change is a multi-theme polish pass
+> reviewed via golden diff + matrix.
+
 ## Types
 
 Source-of-truth type additions live in [types/index.ts](/Users/anthonymaro/Documents/apps/trailmaps/trailmaps-app/types/index.ts):

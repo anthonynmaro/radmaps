@@ -476,11 +476,32 @@ Stages:
 - `preflight`: verifies Docker and scratch disk.
 - `download`: downloads the configured OSM PBF.
 - `base`: runs Planetiler in Docker and writes base PMTiles.
+- `feature-ids`: rewrites the base PMTiles in place, stamping stable
+  content-derived `rm_id` ids onto label-layer features
+  (`place`, `poi`, `water_name`, `mountain_peak`, `transportation_name`,
+  `waterway`). Idempotent; non-label layers pass through byte-identical;
+  PMTiles metadata gains `feature_id_scheme: "rm_id@1"`. Design:
+  `docs/ATLAS_STABLE_FEATURE_IDS.md`. Local compute only — it is not part of
+  the coverage-cost heavyweight stage list.
 - `contours`: runs the contour builder when a region supports it.
 - `validate`: validates PMTiles headers, zoom range, tile type, and metadata.
 - `upload`: uploads immutable PMTiles artifacts to R2.
-- `manifest`: generates the mutable environment manifest.
+- `manifest`: generates the mutable environment manifest. Artifacts whose
+  PMTiles metadata advertises `feature_id_scheme` carry that field into the
+  manifest entry (and survive `atlas:merge-manifest-artifact`).
 - `publish`: uploads the manifest to R2.
+
+Standalone feature-id tooling:
+
+```bash
+npm run atlas:add-feature-ids -- --input atlas/build/us/output/radmaps-base-us.pmtiles --in-place
+npm run atlas:add-feature-ids -- --diff old-stamped.pmtiles new-stamped.pmtiles
+```
+
+The `--diff` mode reports per-layer rm_id overlap between two stamped builds.
+Run it across two consecutive real builds of the same region from
+different-date OSM extracts to verify id stability before per-feature map
+element overrides (E5) consume the scheme.
 
 Large PMTiles uploads use S3 multipart upload through
 `scripts/upload-atlas-object.mjs`; the first full-US upload used `36` parts.

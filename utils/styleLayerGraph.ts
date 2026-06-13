@@ -3,6 +3,15 @@ import type { StyleConfig, StylePreset } from '~/types'
 export type LayerFeatureSupport = 'editable-vector' | 'baked-raster' | 'required' | 'unsupported'
 export type StyleUpdateMode = 'full-reload' | 'paint' | 'source' | 'chrome' | 'ignored'
 
+/**
+ * Editor map-element selection support per canonical slot (editor-v2 E3,
+ * docs/STYLE_SYSTEM_EVOLUTION.md "Domain 2").
+ * - 'feature': individual rendered features are selectable (labels, segments).
+ * - 'layer': the slot selects as one element (the route).
+ * - false: not selectable — selection mode must show no affordance at all.
+ */
+export type SlotSelectability = 'feature' | 'layer' | false
+
 export type LayerSlot =
   | 'background'
   | 'base'
@@ -60,6 +69,8 @@ export interface LayerGraph {
   controls: Partial<Record<keyof StyleConfig, LayerGraphControl>>
   sources: string[]
   layers: LayerGraphLayer[]
+  /** Slots that support map-element selection. Absent slot = not selectable. */
+  selectableSlots: Partial<Record<LayerSlot, Exclude<SlotSelectability, false>>>
 }
 
 export const ALL_STYLE_PRESETS: readonly StylePreset[] = [
@@ -364,6 +375,26 @@ function editableRoadLayers(features: Pick<LayerGraphFeatureSet, 'roads' | 'plac
   return layers
 }
 
+// E3 map-element selection (docs/STYLE_SYSTEM_EVOLUTION.md "Domain 2"):
+// Selectability is per-SOURCE, not per-preset. The route and trail segments
+// are app-owned vector layers on EVERY preset (including baked-raster bases),
+// so they are always selectable. Label slots are selectable only when the
+// preset actually renders vector label layers — baked-raster labels are
+// pixels, and per the no-fake-controls rule they get no affordance. Pins are
+// DOM markers (maplibregl.Marker), not rendered map features, so they are
+// app-owned selection targets outside the graph.
+function computeSelectableSlots(features: LayerGraphFeatureSet): LayerGraph['selectableSlots'] {
+  const selectable: LayerGraph['selectableSlots'] = {
+    'route': 'layer',
+    'segments-handles': 'feature',
+  }
+  if (features.baseRaster !== 'baked-raster'
+    && (features.placeLabels === 'editable-vector' || features.pois === 'editable-vector')) {
+    selectable['labels-pois'] = 'feature'
+  }
+  return selectable
+}
+
 function makeGraph(opts: {
   preset: StylePreset
   features: LayerGraphFeatureSet
@@ -414,6 +445,7 @@ function makeGraph(opts: {
     controls,
     sources: opts.sources,
     layers,
+    selectableSlots: computeSelectableSlots(opts.features),
   }
 }
 
@@ -723,6 +755,22 @@ export function getGraphFullReloadFields(configOrPreset: Pick<StyleConfig, 'pres
   return (Object.entries(getPresetGraph(preset).controls) as Array<[keyof StyleConfig, LayerGraphControl]>)
     .filter(([, control]) => control.update === 'full-reload')
     .map(([field]) => field)
+}
+
+/** Slots supporting map-element selection for the active preset. {} = nothing selectable. */
+export function getSelectableLayerSlots(configOrPreset: Pick<StyleConfig, 'preset'> | StylePreset | string): LayerGraph['selectableSlots'] {
+  const preset = typeof configOrPreset === 'string' ? configOrPreset : configOrPreset.preset
+  return getPresetGraph(preset).selectableSlots
+}
+
+export function getSlotSelectability(configOrPreset: Pick<StyleConfig, 'preset'> | StylePreset | string, slot: LayerSlot): SlotSelectability {
+  return getSelectableLayerSlots(configOrPreset)[slot] ?? false
+}
+
+/** Canonical graph layer ids declared for a slot (used to scope selection hit-tests). */
+export function getGraphSlotLayerIds(configOrPreset: Pick<StyleConfig, 'preset'> | StylePreset | string, slot: LayerSlot): string[] {
+  const preset = typeof configOrPreset === 'string' ? configOrPreset : configOrPreset.preset
+  return getPresetGraph(preset).layers.filter(layer => layer.slot === slot).map(layer => layer.id)
 }
 
 export function styleGraphUsesContours(config: Pick<StyleConfig, 'preset' | 'show_contours'>): boolean {
