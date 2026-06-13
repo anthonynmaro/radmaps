@@ -4659,13 +4659,51 @@ const selectedPosterElementCanTransform = computed(() => {
   return selected.item.locked !== true
 })
 const selectedPosterElementResizable = computed(() => selectedPosterElementCanTransform.value)
-const selectedPosterElementDraggable = computed(() => {
-  const selected = selectedPosterElement()
-  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
-})
+// Free canvas: theme slots ARE draggable now (the dead-handles bug). A slot in
+// template flow is promoted to a free-floating offset on first drag; resize
+// (font size) works for slots whether flowed or promoted.
+const selectedPosterElementDraggable = computed(() => selectedPosterElementCanTransform.value)
 const selectedPosterElementRotatable = computed(() => {
   const selected = selectedPosterElement()
+  // Rotation stays overlay/asset-only for now (slots keep upright text).
   return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+})
+
+// ── Free-placement for theme slots (free-canvas Phase 3) ────────────────────
+// A slot floats via a CSS transform offset (canvas %, cqw/cqh) stored in
+// poster_text_overrides.offset_x/offset_y. Present ⇒ "promoted" (the user has
+// dragged it); its band switches to overflow:visible so it can sit anywhere,
+// including over the map. The offset is editable-agnostic and uses container-%
+// units, so editor and print resolve the same float by construction.
+function slotOffset(slot: PosterTextSlot): { x: number; y: number } | null {
+  const o = slotOverride(slot)
+  if (o.offset_x == null && o.offset_y == null) return null
+  return { x: o.offset_x ?? 0, y: o.offset_y ?? 0 }
+}
+function isSlotPromoted(slot: PosterTextSlot): boolean {
+  return slotOffset(slot) != null
+}
+function freeSlotStyleOverride(slot: PosterTextSlot): Record<string, string> {
+  const off = slotOffset(slot)
+  if (!off) return {}
+  return {
+    transform: `translate(${off.x}cqw, ${off.y}cqh)`,
+    // Float above the map (z:2) and sibling chrome while promoted.
+    position: 'relative',
+    zIndex: '20',
+    willChange: 'transform',
+  }
+}
+// Bands must stop clipping once any slot is promoted, so a float can leave its
+// band (e.g. up over the map). Flag-off / no promotion keeps overflow:hidden,
+// byte-identical.
+// Data-driven (NOT flag-gated): a saved float must un-clip its band at print
+// too, so editor and final agree. Legacy maps carry no offsets ⇒ false ⇒
+// overflow:hidden unchanged ⇒ flag-off byte-identical.
+const anySlotPromoted = computed(() => {
+  const overrides = props.styleConfig.poster_text_overrides
+  if (!overrides) return false
+  return Object.values(overrides).some(o => o?.offset_x != null || o?.offset_y != null)
 })
 const selectedPosterElementKeepRatio = computed(() => {
   const selected = selectedPosterElement()
@@ -5146,17 +5184,61 @@ function moveableDelta(event: unknown): [number, number] {
   return [Number(delta[0]) || 0, Number(delta[1]) || 0]
 }
 
+// Slot free-placement drag (free-canvas Phase 3): theme slots float via a CSS
+// transform offset (canvas %), not absolute left/top like overlays. We
+// accumulate the live pixel delta into the element's transform during the
+// drag, then persist it as offset_x/offset_y (cqw/cqh) on drag-end. Promotion
+// is implicit: the first drag writes the offset; thereafter it's a free float.
+const moveableSlotDragPx = ref<{ slot: PosterTextSlot; dx: number; dy: number } | null>(null)
+
+function slotFromElementId(id: string): PosterTextSlot | null {
+  return id.startsWith('slot:') ? (id.slice('slot:'.length) as PosterTextSlot) : null
+}
+
 function onPosterMoveableDrag(event: unknown) {
   const payload = event as { target?: HTMLElement }
   if (!payload.target) return
+  const id = payload.target.dataset.posterElementId
+  const slot = id ? slotFromElementId(id) : null
   const [dx, dy] = moveableDelta(event)
+  if (slot) {
+    const prev = moveableSlotDragPx.value?.slot === slot ? moveableSlotDragPx.value : { slot, dx: 0, dy: 0 }
+    const base = slotOffsetBasePx(slot)
+    const next = { slot, dx: prev.dx + dx, dy: prev.dy + dy }
+    moveableSlotDragPx.value = next
+    // Live preview: combine the persisted offset with the in-flight delta.
+    payload.target.style.transform = `translate(${base.x + next.dx}px, ${base.y + next.dy}px)`
+    return
+  }
   positionTargetByDelta(payload.target, dx, dy)
+}
+
+// The slot's already-persisted offset, in px of the live canvas (the base the
+// in-flight delta adds to).
+function slotOffsetBasePx(slot: PosterTextSlot): { x: number; y: number } {
+  const off = slotOffset(slot)
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!off || !rect) return { x: 0, y: 0 }
+  return { x: (off.x / 100) * rect.width, y: (off.y / 100) * rect.height }
 }
 
 function onPosterMoveableDragEnd(event: unknown) {
   const payload = event as { target?: HTMLElement }
   const id = payload.target?.dataset.posterElementId
   if (!id || !payload.target) return
+  const slot = slotFromElementId(id)
+  if (slot) {
+    const drag = moveableSlotDragPx.value
+    const rect = posterCanvasEl.value?.getBoundingClientRect()
+    moveableSlotDragPx.value = null
+    payload.target.style.transform = ''
+    if (!drag || !rect?.width || !rect.height) return
+    const base = slotOffsetBasePx(slot)
+    const offsetX = Math.round(((base.x + drag.dx) / rect.width) * 1000) / 10
+    const offsetY = Math.round(((base.y + drag.dy) / rect.height) * 1000) / 10
+    emit('poster-text-override', { slot, patch: { offset_x: offsetX, offset_y: offsetY } })
+    return
+  }
   patchPosterElement(id, {
     x: roundedPercent(parseFloat(payload.target.style.left) || 0),
     y: roundedPercent(parseFloat(payload.target.style.top) || 0),
@@ -6123,6 +6205,8 @@ function bandBackgroundValue(band: Extract<ChromeBandId, 'header' | 'footer'>, t
 const headerBandStyle = computed(() => ({
   backgroundColor: bandBackgroundValue('header', headerBg.value),
   color: fg.value,
+  // Free-canvas: stop clipping so a promoted (floated) slot can leave the band.
+  overflow: anySlotPromoted.value ? 'visible' : undefined,
   padding: chromeGridRendering.value
     ? chromeBandPaddingCss('header', chromeBandEditingPaddingCss())
     : chromeBandPaddingCss('header', composition.value.id === 'legacy-classic'
@@ -6182,6 +6266,7 @@ const trailNameStyle = computed(() => {
     textWrap: 'balance' as const,
     hyphens: keepWords ? 'manual' as const : 'auto' as const,
     textShadow: getTextHalo(headerBg.value),
+    ...freeSlotStyleOverride('trail_name'),
   }
 })
 
@@ -6243,6 +6328,7 @@ const locationLineStyle = computed(() => ({
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap' as const,
   textShadow: getTextHalo(headerBg.value),
+  ...freeSlotStyleOverride('location_text'),
 }))
 
 const compositionKickerStyle = computed(() => ({
@@ -6345,6 +6431,7 @@ const footerRuleStyle = computed(() => ({
 const footerBandStyle = computed(() => ({
   backgroundColor: bandBackgroundValue('footer', bg.value),
   color: fg.value,
+  overflow: anySlotPromoted.value ? 'visible' : undefined,
   padding: composition.value.footerVariant === 'hidden'
     ? '0'
     : chromeGridRendering.value
@@ -6608,6 +6695,7 @@ const occasionStyle = computed(() => ({
   whiteSpace: 'nowrap' as const,
   outline: 'none',
   textShadow: getTextHalo(bg.value),
+  ...freeSlotStyleOverride('occasion_text'),
 }))
 
 const markLabelStyle = computed(() => ({

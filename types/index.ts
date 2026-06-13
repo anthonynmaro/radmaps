@@ -246,6 +246,13 @@ export interface PosterTextOverride {
   opacity?: number
   bold?: boolean
   italic?: boolean
+  // Free-placement offset (editor-v2 free canvas): signed displacement of a
+  // theme slot from its template flow position, in CANVAS percent (cqw/cqh).
+  // Present once the user drags the slot; the slot "floats" via CSS transform
+  // (its band switches to overflow:visible so it can sit anywhere, incl. over
+  // the map). Container-% units round-trip editor↔print identically.
+  offset_x?: number
+  offset_y?: number
 }
 
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>
