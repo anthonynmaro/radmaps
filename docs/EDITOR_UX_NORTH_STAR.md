@@ -46,6 +46,58 @@ After Prompt B (text-fit + editability) and behind the goldens:
 
 Each step ships independently behind FLAGS.POSTER_TIER2_EDITOR (or a successor `editor_v2` flag) with golden + Playwright coverage.
 
+## STATUS — June 13, 2026 (editor-v2 → free canvas)
+
+The product owner reversed the original constrained-template direction: theme
+text and the map must be **freely draggable/resizable**, with snap + live
+guides, a print-quality safe/bleed frame, and richer text controls. Plan:
+`~/.claude/plans/silly-munching-pudding.md`. All work stays behind
+`FLAGS.EDITOR_V2`; flag-off remains byte-identical (the law,
+`tests/theme-resolution-snapshot.test.ts`, 42 pass).
+
+Shipped + verified (vue-tsc clean, 858 unit, 315 style-graph, snapshot
+byte-identical, acceptance 11/11 chromium, live-checked on a real map):
+
+- **Phase 0 — menu/UX hygiene:** one dismiss coordinator (opening any floating
+  surface closes the others, Escape deselects), documented z-index stacking
+  scale (chrome 1–60 · band dividers 30 · menus 9000 · element toolbars 10000 ·
+  map-selection 9999), suppressed the stray placeholder "ROUTE" kicker, and the
+  footer-band black-swatch fix (alpha-aware `effectiveBandBackgroundHex`).
+- **Phase 1 — snap + real-geometry guides:** Moveable now renders live
+  element-to-element alignment guides during a gesture and snaps to true print
+  geometry (bleed/trim/safe from `getPrintFraming`), poster center/thirds, and
+  sibling edges/centers. Density-aware threshold.
+- **Phase 2 — print-quality spine:** editor-only, never-prints bleed/trim/safe
+  frame overlay drawn from real `getPrintFraming` geometry; print guards
+  (min 6pt font, min 150 dpi, 4% safe area, contrast) surface as inline
+  warnings and hard-block the render before `__RENDER_READY`. ONE 4% design
+  safe margin unifies snap + frame + guard so users can't snap into a spot that
+  later fails checkout.
+- **Phase 3 — free theme slots (the keystone / loudest complaint):** theme
+  slots (title/location/occasion) now genuinely drag AND resize. A flowed slot
+  promotes on first drag to a CSS-transform offset (`offset_x/offset_y` in
+  `poster_text_overrides`, cqw/cqh — print-safe by construction, no reparenting)
+  with `overflow:visible` bands; resize works once the old `drag-area` overlay
+  no longer swallows handles. Per-slot reset clears the override → slot returns
+  to template flow.
+- **Phase 5 — text menu:** Tracking (letter-spacing), Leading (line-height), and
+  a Fit-to-area toggle added to the slot overflow menu; consumed in the render
+  with `!important` so a manual value beats theme CSS that pins
+  tracking/leading. `auto_fit:false` leaves a slot at its set size.
+
+**REMAINING — Phase 4: map as a draggable/resizable frame.** Scoped but not yet
+built. The map is already vertically resizable via band dividers (D2). The full
+free-map frame needs: a `free-map` box (highest-priority absolute branch in
+`mapAreaStyle`, dropping flex; supersedes band dividers while present;
+removable to restore flex + dividers), Moveable targeting the map container,
+clamp ≥40% + trim intersection, refit via the existing `mapContainer`
+ResizeObserver, and a print-parity golden. **Open design fork (needs owner
+input):** the map already consumes clicks for pan + route/segment/label
+selection + empty-click→Advanced-drawer, so selecting "the whole map frame" for
+transform needs a deliberate affordance (a toolbar "Move/resize map" mode, a
+frame handle, or a modifier) rather than plain map-click — guessing wrong wastes
+the build. Same opt-in-anchor containment as Phase 3: no anchor ⇒ byte-identical.
+
 ## STATUS — June 12, 2026 (editor-v2 D1)
 
 What of the five gestures is live, all behind `FLAGS.EDITOR_V2` (flag-off is
