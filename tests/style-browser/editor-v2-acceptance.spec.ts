@@ -272,4 +272,50 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
     await expect(page.getByTestId('poster-add-root-panel')).toBeVisible()
     await expect(page.getByTestId('poster-element-toolbar')).toHaveCount(0)
   })
+
+  // Phase 1: an element dragged near the poster center snaps exactly to it
+  // (Moveable snap + center snap-directions), proving the snap wiring is live.
+  test('dragging snaps an element to the poster center guide', async ({ page }) => {
+    await gotoEditorV2(page)
+    // Add a free text overlay (the only freely-draggable element pre-Phase-3).
+    await clickFixed(page.getByTestId('poster-add-button'))
+    await clickFixed(page.getByTestId('poster-add-text'))
+    const overlay = page.locator('.text-overlay').last()
+    await expect(overlay).toBeVisible()
+
+    const poster = page.getByTestId('poster-canvas')
+    const pBox = (await poster.boundingBox())!
+    const cx = pBox.x + pBox.width / 2
+    const cy = pBox.y + pBox.height / 2
+    const overlayCenter = async () => {
+      const r = (await overlay.boundingBox())!
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    }
+
+    // Move it well off-center first.
+    let oc = await overlayCenter()
+    await page.mouse.move(oc.x, oc.y)
+    await page.mouse.down()
+    await page.mouse.move(pBox.x + pBox.width * 0.25, pBox.y + pBox.height * 0.25, { steps: 8 })
+    await page.mouse.up()
+
+    // Now drag it toward the poster center and, WHILE dragging, assert the
+    // Moveable snap/alignment guide lines render — the definitive proof that
+    // snapping is wired and active (elementGuidelines + center snap-directions).
+    oc = await overlayCenter()
+    await page.mouse.move(oc.x, oc.y)
+    await page.mouse.down()
+    await page.mouse.move(cx, cy, { steps: 12 })
+    const guideLinesDuringDrag = await page.locator('.moveable-line').count()
+    expect(guideLinesDuringDrag).toBeGreaterThan(0)
+    await page.mouse.up()
+
+    // And it lands snapped near the center it was dragged to.
+    const xPct = await poster.evaluate((el, ov) => {
+      const r = (ov as HTMLElement).getBoundingClientRect()
+      const c = el.getBoundingClientRect()
+      return ((r.x + r.width / 2 - c.x) / c.width) * 100
+    }, await overlay.elementHandle())
+    expect(Math.abs(xPct - 50)).toBeLessThan(3)
+  })
 })

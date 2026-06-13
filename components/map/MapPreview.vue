@@ -428,7 +428,10 @@
         :snap-container="posterCanvasEl"
         :vertical-guidelines="posterVerticalGuidelines"
         :horizontal-guidelines="posterHorizontalGuidelines"
-        :snap-threshold="6"
+        :element-guidelines="posterElementGuidelineEls"
+        :snap-directions="posterSnapDirections"
+        :element-snap-directions="posterSnapDirections"
+        :snap-threshold="posterSnapThreshold"
         :snap-grid-width="posterSnapGridPx.width"
         :snap-grid-height="posterSnapGridPx.height"
         :bounds="posterMoveableBounds"
@@ -2329,6 +2332,7 @@ import { availablePosterStatBindings, formatPosterStatBinding, resolveFreeOverla
 import { fitTextToBox } from '~/utils/textFit'
 import type { PosterEditorElementPatch } from '~/utils/posterEditorElements'
 import type { PrintFraming } from '~/utils/print/printFraming'
+import { getPrintFraming } from '~/utils/print/printFraming'
 import ElevationProfile from '~/components/map/ElevationProfile.vue'
 import InlineTextToolbar from '~/components/map/InlineTextToolbar.vue'
 import ElementToolbar from '~/components/map/ElementToolbar.vue'
@@ -4659,17 +4663,49 @@ const selectedPosterElementAllowsBleed = computed(() => {
   const selected = selectedPosterElement()
   return selected?.type === 'asset' && selected.item.allow_bleed === true
 })
+// Real print geometry for the current product (editor + print share it).
+// The editor poster-canvas represents the TRIM area; the provider's safe
+// margin (e.g. 5 mm on 24x36) is the true "keep text inside" line, replacing
+// the old hardcoded 4% guess so snapping/guides match what actually prints.
+// Falls back to printContext.framing in print mode, else derives from
+// print_size; unknown sizes yield null (callers degrade gracefully).
+const editorPrintFraming = computed<PrintFraming | null>(() => {
+  if (props.printContext?.framing) return props.printContext.framing
+  try {
+    return getPrintFraming(props.styleConfig.print_size ?? '24x36', 'final')
+  } catch {
+    return null
+  }
+})
+
+// Safe-margin inset in canvas px for one axis: trim → safe as a fraction of
+// the trim dimension, scaled to the live canvas. Defaults to a small comfort
+// inset if framing is unavailable.
+function printSafeInsetPx(axis: 'x' | 'y', sizePx: number): number {
+  const framing = editorPrintFraming.value
+  if (!framing) return sizePx * 0.04
+  const trimIn = axis === 'x' ? framing.trimWidthIn : framing.trimHeightIn
+  if (!trimIn) return sizePx * 0.04
+  return sizePx * (framing.safeMarginIn / trimIn)
+}
+
+// Bleed extends OUTSIDE trim; as a fraction of trim for one axis (editor frame).
+function printBleedFraction(axis: 'x' | 'y'): number {
+  const framing = editorPrintFraming.value
+  if (!framing) return 0
+  const trimIn = axis === 'x' ? framing.trimWidthIn : framing.trimHeightIn
+  return trimIn ? framing.bleedIn / trimIn : 0
+}
+
+// Free-canvas: elements may reach the trim edge (the poster edge); the safe
+// margin is advisory (guides + Phase 2 warnings), not a hard wall. allow_bleed
+// assets may extend beyond. This unblocks edge-to-edge placement that the old
+// 4% clamp prevented.
 const posterMoveableBounds = computed(() => {
   if (selectedPosterElementAllowsBleed.value) return undefined
   const rect = posterCanvasEl.value?.getBoundingClientRect()
   if (!rect) return undefined
-  const safe = Math.min(rect.width, rect.height) * 0.04
-  return {
-    left: safe,
-    top: safe,
-    right: rect.width - safe,
-    bottom: rect.height - safe,
-  }
+  return { left: 0, top: 0, right: rect.width, bottom: rect.height }
 })
 const posterSnapGridPx = computed(() => {
   const rect = posterCanvasEl.value?.getBoundingClientRect()
@@ -4691,14 +4727,15 @@ function posterGuidePixels(axis: 'x' | 'y') {
   const canvas = posterCanvasEl.value?.getBoundingClientRect()
   if (!canvas) return []
   const size = axis === 'x' ? canvas.width : canvas.height
-  const safe = size * 0.04
+  // Real provider safe inset (not a 4% guess), plus trim edges, thirds, center.
+  const safe = printSafeInsetPx(axis, size)
   const guides = [0, safe, size / 3, size / 2, (size * 2) / 3, size - safe, size]
   if (mapContainer.value) {
     const map = mapContainer.value.getBoundingClientRect()
     guides.push(axis === 'x' ? map.left - canvas.left : map.top - canvas.top)
     guides.push(axis === 'x' ? map.right - canvas.left : map.bottom - canvas.top)
   }
-  if (tier2PosterEditor.value && posterCanvasEl.value) {
+  if ((tier2PosterEditor.value || unifiedPosterGrammar.value) && posterCanvasEl.value) {
     posterCanvasEl.value.querySelectorAll<HTMLElement>('[data-poster-element-id]').forEach((element) => {
       if (element === posterMoveableTarget.value) return
       const rect = element.getBoundingClientRect()
@@ -4709,6 +4746,27 @@ function posterGuidePixels(axis: 'x' | 'y') {
   }
   return guides.map(value => Math.round(value)).filter(value => Number.isFinite(value))
 }
+
+// Sibling element nodes for Moveable's live alignment guides (it draws the
+// distance/edge lines during a drag). Excludes the active target. The
+// elementGuidelines prop reads this; recomputed when selection changes.
+const posterElementGuidelineEls = computed<HTMLElement[]>(() => {
+  if (!unifiedPosterGrammar.value && !tier2PosterEditor.value) return []
+  const canvas = posterCanvasEl.value
+  const target = posterMoveableTarget.value
+  if (!canvas || !target) return []
+  return Array.from(canvas.querySelectorAll<HTMLElement>('[data-poster-element-id]'))
+    .filter(el => el !== target)
+})
+
+// Edge + center snapping in both axes (Moveable snapDirections).
+const posterSnapDirections = { top: true, left: true, bottom: true, right: true, center: true, middle: true } as const
+
+// Density-aware snap threshold so it feels consistent across canvas sizes.
+const posterSnapThreshold = computed(() => {
+  const width = posterCanvasEl.value?.getBoundingClientRect().width ?? 520
+  return Math.max(5, Math.round(width * 0.012))
+})
 
 function syncPosterMoveableTarget() {
   if ((!posterElementsEditing.value && !unifiedPosterGrammar.value) || !props.selectedPosterElementId || !posterCanvasEl.value) {
