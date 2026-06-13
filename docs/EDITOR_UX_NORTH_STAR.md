@@ -85,18 +85,24 @@ byte-identical, acceptance 11/11 chromium, live-checked on a real map):
   with `!important` so a manual value beats theme CSS that pins
   tracking/leading. `auto_fit:false` leaves a slot at its set size.
 
-**REMAINING — Phase 4: map as a draggable/resizable frame.** Scoped but not yet
-built. The map is already vertically resizable via band dividers (D2). The full
-free-map frame needs: a `free-map` box (highest-priority absolute branch in
-`mapAreaStyle`, dropping flex; supersedes band dividers while present;
-removable to restore flex + dividers), Moveable targeting the map container,
-clamp ≥40% + trim intersection, refit via the existing `mapContainer`
-ResizeObserver, and a print-parity golden. **Open design fork (needs owner
-input):** the map already consumes clicks for pan + route/segment/label
-selection + empty-click→Advanced-drawer, so selecting "the whole map frame" for
-transform needs a deliberate affordance (a toolbar "Move/resize map" mode, a
-frame handle, or a modifier) rather than plain map-click — guessing wrong wastes
-the build. Same opt-in-anchor containment as Phase 3: no anchor ⇒ byte-identical.
+- **Phase 4 — map as a draggable/resizable frame:** the map is now a selectable
+  element. A `poster_layout.map_frame` box (canvas %) promotes the map out of
+  band flow into an absolute frame (`mapAreaStyle` highest-priority branch); a
+  flex placeholder holds the original slot so the bands keep their positions,
+  and band dividers disable while a frame exists. **Affordance (owner's pick —
+  dedicated frame handles):** an always-present (flag-on) grab border with
+  edge/corner grips sits over the map; the interior keeps pan + route/label
+  select (grips are the only pointer targets). Grabbing a grip selects the
+  frame and seeds it from the map's rendered rect (selection is a visual no-op
+  until you move/resize), then Moveable's handles drive drag + resize. Clamped
+  to ≥40% and on-canvas; the map re-fits via the existing `mapContainer`
+  ResizeObserver (same path as band-divider resize). A "Reset map to fit poster"
+  control removes the frame → map returns to flex + dividers. Data-driven (not
+  flag-gated) so the print render places the map identically — parity by
+  construction; no frame ⇒ byte-identical.
+
+All six phases (0–5) of the free-canvas plan are shipped, behind
+`FLAGS.EDITOR_V2`, flag-off byte-identical.
 
 ## STATUS — June 12, 2026 (editor-v2 D1)
 

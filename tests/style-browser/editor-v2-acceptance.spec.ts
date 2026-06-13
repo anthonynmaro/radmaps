@@ -404,4 +404,42 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
     // Fit-to-area toggle is present for slots.
     await expect(page.getByTestId('text-fit-to-area')).toBeVisible()
   })
+
+  // Phase 4: the map is a draggable/resizable frame. Grabbing the grip promotes
+  // the map out of band flow (absolute + placeholder); reset returns it to flow.
+  test('the map frame promotes on grab, drags, and resets', async ({ page }) => {
+    await gotoEditorV2(page)
+    const map = page.getByTestId('poster-map')
+    await expect(page.getByTestId('map-frame-grip')).toBeVisible()
+
+    // Grab the top grip edge → selects + promotes the map frame. dispatchEvent
+    // (not a synthesized mouse press) so the thin strip's hit-test can't flake
+    // against the maplibre canvas underneath; the handler reads no coordinates.
+    await page.locator('.map-grip-edge--n').dispatchEvent('pointerdown', { button: 0 })
+    await expect(page.getByTestId('poster-map-toolbar')).toBeVisible()
+    await expect.poll(() => map.evaluate(el => getComputedStyle(el).position)).toBe('absolute')
+    // The placeholder holds the original flex slot so bands keep their place.
+    await expect(page.locator('.poster-map-placeholder')).toHaveCount(1)
+
+    // DRAG the frame (Moveable's drag-area is live once selected). The seed is
+    // the full map rect (title-bottom theme ⇒ map fills the top, left/top 0),
+    // so move DOWN — the axis with room (up/left are clamped at the edge).
+    const before = (await map.boundingBox())!
+    const cx = before.x + before.width / 2
+    const cy = before.y + before.height / 2
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    await page.mouse.move(cx, cy + 40, { steps: 8 })
+    await page.mouse.move(cx, cy + 90, { steps: 8 })
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    const after = (await map.boundingBox())!
+    expect(after.y - before.y, 'map frame should move down when dragged').toBeGreaterThan(20)
+
+    // RESET returns the map to flex flow (frame + placeholder gone).
+    await page.getByTestId('map-frame-reset').click()
+    await page.waitForTimeout(300)
+    await expect(page.locator('.poster-map-placeholder')).toHaveCount(0)
+    await expect.poll(() => map.evaluate(el => getComputedStyle(el).position)).not.toBe('absolute')
+  })
 })

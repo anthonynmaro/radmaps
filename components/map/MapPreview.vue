@@ -110,6 +110,30 @@
       />
     </ElementToolbar>
 
+    <!-- EDITOR-V2 Phase 4: the map frame is a selectable element. Moveable
+         supplies the drag/resize handles; this toolbar just labels it and
+         offers reset-to-fit. Editor-only chrome. -->
+    <ElementToolbar
+      v-else-if="editable && unifiedPosterGrammar && isMapFrameSelected"
+      kind-label="Map"
+      :anchor-rect="mapToolbarAnchor"
+      :estimated-height="86"
+      :allow-mobile-pin="true"
+      data-testid="poster-map-toolbar"
+      @close="closeMapToolbar"
+    >
+      <div class="map-frame-controls">
+        <p class="map-frame-hint">Drag to move · pull a corner to resize</p>
+        <button
+          v-if="mapFrameBox"
+          type="button"
+          class="map-frame-reset"
+          data-testid="map-frame-reset"
+          @click="resetMapFrame"
+        >Reset map to fit poster</button>
+      </div>
+    </ElementToolbar>
+
     <div
       v-if="chromeToolbarVisible && activeChromeBlock && !chromeMobile"
       ref="chromeToolbarEl"
@@ -1031,9 +1055,37 @@
       </div>
 
       <!-- ── MAP (hero — takes all remaining height) ─────────────────────── -->
+      <!-- Free-map placeholder: when the map is promoted to an absolute frame,
+           this holds its original flex slot so the bands keep their positions
+           (the absolute map floats over it). Same data drives editor + print. -->
+      <div
+        v-if="mapFrameBox"
+        class="poster-map-placeholder flex-1"
+        :style="{ order: String(composition.mapOrder) }"
+        aria-hidden="true"
+      />
       <div ref="mapContainer" class="relative flex-1 overflow-hidden" :style="mapAreaStyle" data-testid="poster-map"
+        :data-poster-element-id="unifiedPosterGrammar ? 'system:map' : undefined"
         @mouseenter="mapHovered = true" @mouseleave="mapHovered = false"
       >
+        <!-- Map-frame grip (Phase 4): always-present (flag-on) grab border. The
+             interior stays pan/select (pointer-events:none on the ring); the
+             edges/corners select the frame so Moveable's handles engage. -->
+        <div
+          v-if="showMapFrameGrip"
+          class="map-frame-grip"
+          :class="{ 'is-selected': isMapFrameSelected }"
+          data-testid="map-frame-grip"
+        >
+          <span class="map-grip-edge map-grip-edge--n" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--s" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--w" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-edge map-grip-edge--e" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--nw" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--ne" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--sw" @pointerdown="onMapFrameGripPointerDown" />
+          <span class="map-grip-corner map-grip-corner--se" @pointerdown="onMapFrameGripPointerDown" />
+        </div>
         <div
           v-if="sideRailInsideMap"
           class="composition-side-rail composition-side-rail--left"
@@ -2338,7 +2390,7 @@ import { buildTransitDiagramGeojson, buildTransitStationGeojson } from '~/utils/
 import { getGraphFullReloadFields } from '~/utils/styleLayerGraph'
 import { pickContrastSafeColor } from '~/utils/colorContrast'
 import { DEFAULT_ROUTE_CASING_WIDTH, DEFAULT_ROUTE_WIDTH, DEFAULT_SEGMENT_CASING_WIDTH } from '~/types'
-import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, PartialPosterLayout, PosterIconId, PosterStatBinding, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
+import type { AnchorFrame, ChromeBand, ChromeBandId, ChromeBlock, ChromeGridCell, ChromeGridRow, DeletedRange, IconOverlay, MapAsset, MapFrameBox, PartialPosterLayout, PosterIconId, PosterStatBinding, PosterTextOverride, PosterTextSlot, RouteStats, StyleConfig, TrailMap, TrailSegment, TextOverlay } from '~/types'
 import { approvedPlaceholderSlotsFromOverrides, buildThemeDataContext, resolveThemeDataContract, type ThemeRenderMode } from '~/utils/themeDataContract'
 import { firstPosterTextWithoutTitle, formatCoordsFromPoint, formatDistanceMiles, formatElevationGainFeet, formatPosterLocationLine, formatPosterRegion, resolveOccasionLocationNote, resolveRisoCaptionText } from '~/utils/posterFormatters'
 import { classifyAssetQuality, computeEffectiveDpi } from '~/utils/imageAssets'
@@ -2424,6 +2476,9 @@ const emit = defineEmits<{
   'edit-requested': [payload: { field: 'trail_name' | 'occasion_text' | 'location_text'; value: string }]
   'poster-text-override': [payload: { slot: PosterTextSlot; patch: PosterTextOverride }]
   'poster-text-reset': [slot: PosterTextSlot]
+  // Free-map frame (Phase 4): a box promotes the map out of band flow; null
+  // resets it back to flex + band dividers.
+  'poster-map-frame': [box: MapFrameBox | null]
   'poster-layout-updated': [value: PartialPosterLayout | undefined]
   'chrome-selection-changed': [payload:
     | { type: 'band'; band: ChromeBandId }
@@ -2974,6 +3029,17 @@ watch(() => props.selectedPosterElementId, (id) => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     activeTextTarget.value = null
     activeTextAnchor.value = null
+  }
+  // Map-frame toolbar follows the same id grammar (Phase 4).
+  if (id === 'system:map') {
+    if (activeTextTarget.value) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      activeTextTarget.value = null
+      activeTextAnchor.value = null
+    }
+    nextTick(syncMapToolbarAnchor)
+  } else if (mapToolbarAnchor.value) {
+    mapToolbarAnchor.value = null
   }
 })
 
@@ -3753,8 +3819,32 @@ const activeBandDividerDrag = ref<{
 // /render pages the AWS renderer screenshots (render-mode print, editable
 // false). transit-diagram keeps hard-coded band geometry and is excluded.
 const bandDividersEnabled = computed(() =>
-  unifiedPosterGrammar.value && composition.value.id !== 'transit-diagram',
+  unifiedPosterGrammar.value && composition.value.id !== 'transit-diagram' && !mapFrameBox.value,
 )
+
+// Free-map frame (Phase 4). Data-driven (NOT flag-gated) so the print render —
+// which never sets the editor flag — places the map identically to the editor.
+// A missing/zero-area frame falls back to the flex/band layout (null).
+const mapFrameBox = computed<MapFrameBox | null>(() => {
+  const f = props.styleConfig.poster_layout?.map_frame
+  if (!f) return null
+  const width = Number(f.width)
+  const height = Number(f.height)
+  if (!(width > 0) || !(height > 0)) return null
+  return {
+    left: Number(f.left) || 0,
+    top: Number(f.top) || 0,
+    width,
+    height,
+  }
+})
+
+// The map-frame grip: an always-present (flag-on, editor-only, never-prints)
+// grab border so the map reads as a draggable element. The interior keeps
+// pan/route-select (the grip's edges/corners are the only pointer targets);
+// pressing one selects the map frame and Moveable's handles take over.
+const showMapFrameGrip = computed(() => unifiedPosterGrammar.value)
+const isMapFrameSelected = computed(() => props.selectedPosterElementId === 'system:map')
 
 // Compositions reorder header/map/footer via flex `order`, and several themes
 // flip or pin that order AGAIN with bespoke `!important` CSS the composition
@@ -4625,10 +4715,14 @@ type PosterSelectableElement =
   | { type: 'asset'; id: string; item: MapAsset }
   | { type: 'icon'; id: string; item: IconOverlay }
   | { type: 'slot'; id: string; slot: PosterTextSlot }
+  | { type: 'map'; id: string }
 
 function selectedPosterElement(): PosterSelectableElement | null {
   const id = props.selectedPosterElementId
   if (!id) return null
+  // The map frame is its own selectable element (Phase 4) — resolved before the
+  // guided-editor gate so it works on every unified-grammar surface.
+  if (id === 'system:map') return unifiedPosterGrammar.value ? { type: 'map', id } : null
   if (guidedPosterEditor.value && !id.startsWith('slot:')) {
     if (!tier2PosterEditor.value || (!id.startsWith('text:') && !id.startsWith('asset:'))) return null
   }
@@ -4658,6 +4752,7 @@ const selectedPosterElementCanTransform = computed(() => {
   const selected = selectedPosterElement()
   if (!selected) return false
   if (selected.type === 'slot') return true
+  if (selected.type === 'map') return true
   if (selected.type === 'text') return selected.item.locked !== true
   if (selected.type === 'asset') return selected.item.locked !== true
   return selected.item.locked !== true
@@ -4669,8 +4764,9 @@ const selectedPosterElementResizable = computed(() => selectedPosterElementCanTr
 const selectedPosterElementDraggable = computed(() => selectedPosterElementCanTransform.value)
 const selectedPosterElementRotatable = computed(() => {
   const selected = selectedPosterElement()
-  // Rotation stays overlay/asset-only for now (slots keep upright text).
-  return selectedPosterElementCanTransform.value && selected?.type !== 'slot'
+  // Rotation stays overlay/asset-only for now (slots keep upright text; the
+  // map frame stays axis-aligned so the route never prints rotated).
+  return selectedPosterElementCanTransform.value && selected?.type !== 'slot' && selected?.type !== 'map'
 })
 
 // ── Free-placement for theme slots (free-canvas Phase 3) ────────────────────
@@ -4893,6 +4989,8 @@ function syncObjectToolbarAnchor() {
   objectToolbarAnchor.value = selectedObjectElement.value
     ? posterMoveableTarget.value?.getBoundingClientRect() ?? null
     : null
+  // The map-frame toolbar tracks the same gesture cadence (drag/resize end).
+  if (isMapFrameSelected.value) syncMapToolbarAnchor()
 }
 // The anchor-sync watch registers below `isPrintRender`'s definition — watch
 // sources evaluate eagerly at setup and selectedObjectElement reaches
@@ -5138,6 +5236,14 @@ function selectedPosterPercentBounds(id: string) {
       maxY: Math.max(safe, 100 - safe - selected.item.height),
     }
   }
+  if (selected.type === 'map') {
+    // Keep the frame on-canvas during live drag (it may bleed to the edges —
+    // no 4% inset) so the final clamp never jumps it back.
+    const frame = mapFrameBox.value
+    const w = frame?.width ?? 100
+    const h = frame?.height ?? 100
+    return { minX: 0, maxX: Math.max(0, 100 - w), minY: 0, maxY: Math.max(0, 100 - h) }
+  }
   return { minX: safe, maxX: 100 - safe, minY: safe, maxY: 100 - safe }
 }
 
@@ -5243,11 +5349,73 @@ function onPosterMoveableDragEnd(event: unknown) {
     emit('poster-text-override', { slot, patch: { offset_x: offsetX, offset_y: offsetY } })
     return
   }
+  if (id === 'system:map') {
+    emitMapFrameFromTarget(payload.target)
+    nextTick(syncObjectToolbarAnchor)
+    return
+  }
   patchPosterElement(id, {
     x: roundedPercent(parseFloat(payload.target.style.left) || 0),
     y: roundedPercent(parseFloat(payload.target.style.top) || 0),
   })
   nextTick(syncObjectToolbarAnchor)
+}
+
+// The map frame must keep enough of the poster to print a legible route:
+// width/height floor at the band-divider map minimum, and the box stays inside
+// the canvas. Clamp before persisting so an off-canvas drag can't strand it.
+// Mirror posterLayout's BAND_DIVIDER_MAP_MIN_PCT (40) so the free-map floor
+// matches the band-divider floor — the route stays legible at print size.
+const MAP_FRAME_MIN_PCT = 40
+function clampMapFrame(box: MapFrameBox): MapFrameBox {
+  const width = clampPercent(box.width, MAP_FRAME_MIN_PCT, 100)
+  const height = clampPercent(box.height, MAP_FRAME_MIN_PCT, 100)
+  const left = clampPercent(box.left, 0, 100 - width)
+  const top = clampPercent(box.top, 0, 100 - height)
+  return {
+    left: roundedPercent(left),
+    top: roundedPercent(top),
+    width: roundedPercent(width),
+    height: roundedPercent(height),
+  }
+}
+
+function emitMapFrameFromTarget(target: HTMLElement) {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  if (!rect?.width || !rect.height) return
+  const box = target.getBoundingClientRect()
+  emit('poster-map-frame', clampMapFrame({
+    left: ((box.left - rect.left) / rect.width) * 100,
+    top: ((box.top - rect.top) / rect.height) * 100,
+    width: (box.width / rect.width) * 100,
+    height: (box.height / rect.height) * 100,
+  }))
+}
+
+// Grabbing a grip edge/corner selects the map frame. On first grab (still in
+// band flow) we promote by seeding the frame from the map's rendered rect, so
+// selection is visually a no-op until the user drags/resizes. stopPropagation
+// keeps the press off the map (no pan) and off the canvas (no deselect).
+function onMapFrameGripPointerDown(event: PointerEvent) {
+  if (!unifiedPosterGrammar.value) return
+  event.stopPropagation()
+  if (!mapFrameBox.value && mapContainer.value) emitMapFrameFromTarget(mapContainer.value)
+  emit('poster-element-selected', 'system:map')
+}
+
+function resetMapFrame() {
+  emit('poster-map-frame', null)
+  if (props.selectedPosterElementId === 'system:map') emit('poster-element-selected', null)
+}
+
+const mapToolbarAnchor = ref<DOMRect | null>(null)
+function syncMapToolbarAnchor() {
+  mapToolbarAnchor.value = isMapFrameSelected.value
+    ? (mapContainer.value?.getBoundingClientRect() ?? null)
+    : null
+}
+function closeMapToolbar() {
+  emit('poster-element-selected', null)
 }
 
 function onPosterMoveableResizeStart() {
@@ -5312,6 +5480,13 @@ function onPosterMoveableResizeEnd(event: unknown) {
     const preview = moveableSlotResizePreview.value
     if (preview?.slot === slot) emit('poster-text-override', { slot, patch: { font_size_pt: preview.font_size_pt } })
     moveableSlotResizePreview.value = null
+    return
+  }
+
+  if (id === 'system:map') {
+    emitMapFrameFromTarget(payload.target)
+    moveableResizePreview.value = null
+    nextTick(syncObjectToolbarAnchor)
     return
   }
 
@@ -6487,7 +6662,29 @@ const footerBandStyle = computed(() => ({
     : undefined,
 }))
 
-const mapAreaStyle = computed(() => ({
+const mapAreaStyle = computed(() => {
+  // Free-map frame: absolute box against the poster canvas, out of band flow.
+  // A flex placeholder (rendered alongside) holds the original slot so the
+  // bands keep their positions. Same data drives the print render → parity.
+  const frame = mapFrameBox.value
+  if (frame) {
+    return {
+      position: 'absolute' as const,
+      left: `${frame.left}%`,
+      top: `${frame.top}%`,
+      width: `${frame.width}%`,
+      height: `${frame.height}%`,
+      margin: '0',
+      flex: 'none',
+      boxSizing: 'border-box' as const,
+      border: composition.value.mapBorder,
+      boxShadow: composition.value.mapShadow,
+      minHeight: '0',
+      zIndex: 2,
+      color: fg.value,
+    }
+  }
+  return {
   order: String(composition.value.mapOrder),
   margin: composition.value.mapMargin,
   border: composition.value.mapBorder,
@@ -6513,7 +6710,8 @@ const mapAreaStyle = computed(() => ({
   minHeight: '0',
   zIndex: 2,
   color: fg.value,
-}))
+  }
+})
 
 const gridScope = computed(() => props.styleConfig.grid_scope ?? 'poster')
 const showPosterGrid = computed(() => props.styleConfig.show_grid === true && gridScope.value === 'poster')
@@ -17013,6 +17211,74 @@ onUnmounted(() => {
 .poster-print-frame__safe {
   border: 1px dashed rgba(42, 91, 204, 0.28);
 }
+
+/* Free-map frame (Phase 4) — grab border + grips. Editor-only; the elements
+   are only mounted under the flag and never on /render pages. */
+.map-frame-grip {
+  position: absolute;
+  inset: 0;
+  z-index: 6; /* above map content, below overlays/toolbars; within chrome 1–60 */
+  pointer-events: none; /* interior keeps pan/route-select */
+  border: 1px dashed rgba(42, 91, 204, 0.35);
+  transition: border-color 120ms ease;
+}
+.map-frame-grip.is-selected { border-color: rgba(42, 91, 204, 0.85); }
+.map-frame-grip:hover { border-color: rgba(42, 91, 204, 0.6); }
+
+/* Grips sit just INSIDE the edges — the map container is overflow:hidden, so
+   negative offsets would be clipped and uninteractive. */
+.map-grip-edge {
+  position: absolute;
+  pointer-events: auto;
+}
+.map-grip-edge--n, .map-grip-edge--s { left: 16px; right: 16px; height: 12px; cursor: grab; }
+.map-grip-edge--w, .map-grip-edge--e { top: 16px; bottom: 16px; width: 12px; cursor: grab; }
+.map-grip-edge--n { top: 0; }
+.map-grip-edge--s { bottom: 0; }
+.map-grip-edge--w { left: 0; }
+.map-grip-edge--e { right: 0; }
+
+.map-grip-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: auto;
+  background: #fff;
+  border: 2px solid #2A5BCC;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.22);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.map-frame-grip:hover .map-grip-corner,
+.map-frame-grip.is-selected .map-grip-corner { opacity: 1; }
+.map-grip-corner--nw { top: 1px; left: 1px; cursor: nwse-resize; }
+.map-grip-corner--ne { top: 1px; right: 1px; cursor: nesw-resize; }
+.map-grip-corner--sw { bottom: 1px; left: 1px; cursor: nesw-resize; }
+.map-grip-corner--se { bottom: 1px; right: 1px; cursor: nwse-resize; }
+
+.map-frame-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+.map-frame-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #78716c;
+}
+.map-frame-reset {
+  padding: 6px 10px;
+  border: 1px solid #e7e5e4;
+  border-radius: 8px;
+  background: #fafaf9;
+  color: #1c1917;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-frame-reset:hover { background: #f5f5f4; border-color: #d6d3d1; }
 
 .poster-element-moveable {
   --moveable-color: #2A5BCC;

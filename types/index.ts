@@ -406,14 +406,30 @@ export type PartialAnchorFrame = Partial<Omit<AnchorFrame, 'id' | 'rows'>> & {
   rows?: ChromeGridRow[]
 }
 
+/**
+ * Free-map frame (editor-v2 Phase 4). When present, the map area leaves band
+ * flow and renders as an absolutely-positioned frame at these canvas-percent
+ * coordinates — the user has dragged/resized the map as a free element. Absent
+ * ⇒ the map stays flex between the bands (band dividers govern its height).
+ * Canvas % so it resolves identically in the editor and the print render.
+ */
+export interface MapFrameBox {
+  left: number   // 0–100, % from left of the poster canvas
+  top: number    // 0–100, % from top of the poster canvas
+  width: number  // 0–100, % of canvas width
+  height: number // 0–100, % of canvas height
+}
+
 export interface PosterLayout {
   bands: Record<ChromeBandId, ChromeBand>
   anchors?: AnchorFrame[]
+  map_frame?: MapFrameBox
 }
 
 export interface PartialPosterLayout {
   bands?: Partial<Record<ChromeBandId, Partial<ChromeBand>>>
   anchors?: PartialAnchorFrame[]
+  map_frame?: MapFrameBox
 }
 
 // ─── Text Overlays ────────────────────────────────────────────────────────────

@@ -146,6 +146,7 @@
             @edit-requested="onEditRequested"
             @poster-text-override="onPosterTextOverride"
             @poster-text-reset="onPosterTextReset"
+            @poster-map-frame="onPosterMapFrame"
             @poster-layout-updated="onPosterLayoutUpdated"
             @freeze-changed="onFreezeChanged"
             @segment-plotted="onSegmentPlotted"
@@ -316,6 +317,7 @@ import type {
   DeletedRange,
   MapAsset,
   MapAssetKind,
+  MapFrameBox,
   PartialPosterLayout,
   PosterIconId,
   PosterStatBinding,
@@ -1426,6 +1428,20 @@ function onPosterTextReset(slot: PosterTextSlot) {
 
 function onPosterLayoutUpdated(value: PartialPosterLayout | undefined) {
   setStyle({ poster_layout: value })
+}
+
+// Free-map frame (Phase 4). Merge into the existing poster_layout so bands and
+// anchors survive; a null box removes the frame (map returns to flex + dividers)
+// and drops poster_layout entirely if nothing else remains.
+function onPosterMapFrame(box: MapFrameBox | null) {
+  const current = styleConfig.value.poster_layout
+  if (box) {
+    setStyle({ poster_layout: { ...(current ?? {}), map_frame: box } })
+    return
+  }
+  if (!current?.map_frame) return
+  const { map_frame: _removed, ...rest } = current
+  setStyle({ poster_layout: Object.keys(rest).length ? rest : undefined })
 }
 
 function onFreezeChanged(payload: { map_frozen: boolean; map_zoom?: number; map_center?: [number, number]; map_editor_width?: number; map_pitch?: number; map_bearing?: number }) {
