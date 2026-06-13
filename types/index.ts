@@ -253,6 +253,15 @@ export interface PosterTextOverride {
   // the map). Container-% units round-trip editor↔print identically.
   offset_x?: number
   offset_y?: number
+  // Typography fine controls (free-canvas Phase 5): per-slot overrides that
+  // win over the theme/typography defaults and are consumed by both the
+  // chrome-grid and direct-slot render paths (so they print).
+  letter_spacing?: number // em (e.g. 0.04)
+  line_height?: number    // unitless multiplier (e.g. 1.2)
+  // Fit-to-area: when false, the text-fit engine leaves the slot at its set
+  // size (no auto-shrink/wrap); default (undefined/true) keeps auto-fit so
+  // templates stay print-safe.
+  auto_fit?: boolean
 }
 
 export type PosterTextOverrides = Partial<Record<PosterTextSlot, PosterTextOverride>>

@@ -374,4 +374,34 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
       expect(fontAfter).not.toBe(fontBefore)
     }
   })
+
+  // Phase 5: the text menu gains letter-spacing, line-height, and fit-to-area
+  // for theme slots, consumed in the render so they print.
+  test('text menu applies letter-spacing and line-height to a slot', async ({ page }) => {
+    await gotoEditorV2(page)
+    const title = page.locator('.poster-trail-name')
+    await title.click()
+    await expect(page.getByTestId('poster-element-toolbar')).toBeVisible()
+    await clickFixed(page.getByTestId('element-toolbar-overflow'))
+
+    const tracking = page.getByTestId('text-letter-spacing')
+    await expect(tracking).toBeVisible()
+    await tracking.evaluate((el: HTMLInputElement) => {
+      el.value = '0.2'
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await expect.poll(() => title.evaluate(el => getComputedStyle(el).letterSpacing))
+      .not.toBe('normal')
+
+    const leading = page.getByTestId('text-line-height')
+    await leading.evaluate((el: HTMLInputElement) => {
+      el.value = '1.8'
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await expect.poll(() => title.evaluate(el => parseFloat(getComputedStyle(el).lineHeight) / parseFloat(getComputedStyle(el).fontSize)))
+      .toBeGreaterThan(1.5)
+
+    // Fit-to-area toggle is present for slots.
+    await expect(page.getByTestId('text-fit-to-area')).toBeVisible()
+  })
 })

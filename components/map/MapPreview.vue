@@ -52,6 +52,10 @@
         :italic="activeToolbarState.italic"
         :can-reset="activeToolbarState.canReset"
         :can-delete="activeTextTarget?.type === 'overlay'"
+        :letter-spacing="activeToolbarState.letterSpacing"
+        :line-height="activeToolbarState.lineHeight"
+        :auto-fit="activeToolbarState.autoFit"
+        :supports-typography="activeToolbarState.supportsTypography"
         @patch="applyToolbarPatch"
         @reset="resetActiveText"
         @delete="deleteActiveText"
@@ -6093,6 +6097,22 @@ function effectiveSlotColor(slot: PosterTextSlot, fallback: string): string {
   return slotOverride(slot).color ?? fallback
 }
 
+// Phase 5 typography fine controls: per-slot letter-spacing (em) / line-height
+// override the theme/typography defaults; consumed in the slot render so they
+// print. Returned as a CSS string for letter-spacing, number for line-height.
+// An explicit user override must beat theme CSS that pins tracking/leading
+// with !important (editorial-minimal et al.), so we emit !important too — the
+// same pin-yield discipline as the band height. No override ⇒ plain fallback
+// ⇒ flag-off byte-identical.
+function effectiveSlotLetterSpacing(slot: PosterTextSlot, fallback: string): string {
+  const ls = slotOverride(slot).letter_spacing
+  return ls != null ? `${ls}em !important` : fallback
+}
+function effectiveSlotLineHeight(slot: PosterTextSlot, fallback: string | number): string | number {
+  const lh = slotOverride(slot).line_height
+  return lh != null ? `${lh} !important` : fallback
+}
+
 function effectiveSlotScale(slot: PosterTextSlot, fallback: number): number {
   return slotOverride(slot).scale ?? fallback
 }
@@ -6248,11 +6268,11 @@ const trailNameStyle = computed(() => {
     fontFamily: effectiveSlotFont('trail_name', typography.value.titleFont),
     fontWeight: effectiveSlotWeight('trail_name', typography.value.titleWeight),
     fontStyle: effectiveSlotItalic('trail_name'),
-    letterSpacing: typography.value.titleTracking,
+    letterSpacing: effectiveSlotLetterSpacing('trail_name', typography.value.titleTracking),
     textTransform: typography.value.titleCase === 'uppercase' ? 'uppercase' as const : 'none' as const,
     fontSize: keepWords ? `var(--poster-fit-font-size, ${baseSizeCqh}cqh)` : `${baseSizeCqh}cqh`,
     '--trail-title-size': `${baseSizeCqh}cqh`,
-    lineHeight: typography.value.titleLineHeight,
+    lineHeight: effectiveSlotLineHeight('trail_name', typography.value.titleLineHeight),
     color: effectiveSlotColor('trail_name', fg.value),
     opacity: String(effectiveSlotOpacity('trail_name', 1)),
     textAlign: effectiveSlotAlign('trail_name', composition.value.titleAlign === 'left' ? 'left' : 'center'),
@@ -6311,7 +6331,8 @@ const locationLineStyle = computed(() => ({
   fontFamily: effectiveSlotFont('location_text', typography.value.subFont),
   fontWeight: effectiveSlotWeight('location_text', typography.value.subWeight),
   fontStyle: effectiveSlotItalic('location_text'),
-  letterSpacing: typography.value.subTracking,
+  letterSpacing: effectiveSlotLetterSpacing('location_text', typography.value.subTracking),
+  lineHeight: effectiveSlotLineHeight('location_text', 'normal'),
   fontSize: editorV2FlagEnabled.value
     ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh)`
     : `${effectiveSlotFontSizeCqh('location_text', typography.value.subSize)}cqh`,
@@ -6680,7 +6701,8 @@ const occasionStyle = computed(() => ({
   fontSize: editorV2FlagEnabled.value
     ? `var(--poster-fit-font-size, ${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh)`
     : `${effectiveSlotFontSizeCqh('occasion_text', 0.95)}cqh`,
-  letterSpacing: '0.22em',
+  letterSpacing: effectiveSlotLetterSpacing('occasion_text', '0.22em'),
+  lineHeight: effectiveSlotLineHeight('occasion_text', 'normal'),
   textTransform: 'uppercase' as const,
   color: effectiveSlotColor('occasion_text', fg.value),
   opacity: String(effectiveSlotOpacity('occasion_text', 0.5)),
@@ -6988,7 +7010,9 @@ async function settlePosterTextFit(): Promise<void> {
   await Promise.all(elements.map(async (el) => {
     const slot = el.dataset.posterFitSlot as PosterTextSlot | undefined
     if (!slot) return
-    if (slotOverride(slot).font_size_pt != null) {
+    // Manual size OR fit-to-area explicitly OFF ⇒ leave the text at its set
+    // size (no auto-shrink/wrap). Default (auto_fit undefined/true) keeps fit.
+    if (slotOverride(slot).font_size_pt != null || slotOverride(slot).auto_fit === false) {
       clearPosterFit(el)
       return
     }
@@ -7325,6 +7349,10 @@ const activeToolbarState = computed(() => {
       italic: overlay.italic ?? false,
       supportsHighlight: true,
       canReset: false,
+      letterSpacing: undefined as number | undefined,
+      lineHeight: undefined as number | undefined,
+      autoFit: undefined as boolean | undefined,
+      supportsTypography: false,
     }
   }
 
@@ -7365,6 +7393,10 @@ const activeToolbarState = computed(() => {
     italic: override.italic ?? false,
     supportsHighlight: false,
     canReset: !!props.styleConfig.poster_text_overrides?.[slot],
+    letterSpacing: override.letter_spacing,
+    lineHeight: override.line_height,
+    autoFit: override.auto_fit,
+    supportsTypography: true,
   }
 })
 

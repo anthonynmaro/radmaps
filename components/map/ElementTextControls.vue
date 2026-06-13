@@ -139,11 +139,48 @@
       </button>
     </div>
 
-    <!-- "…" overflow — the rare properties. Letter-spacing / line-height are
-         intentionally absent: PosterTextOverride has no such fields yet and
-         adding renderer consumption would change print output (out of scope
-         for editor-chrome work). They join here when the data model grows. -->
+    <!-- "…" overflow — the rare/fine properties: letter-spacing, line-height,
+         fit-to-area, highlight, reset. -->
     <div v-if="hasOverflow && overflowOpen" class="toolbar-overflow-panel" data-testid="element-toolbar-overflow-panel">
+      <template v-if="supportsTypography">
+      <div class="toolbar-row size-row">
+        <span class="size-label">Tracking</span>
+        <input
+          class="opacity-slider"
+          type="range"
+          min="-0.05" max="0.4" step="0.005"
+          :value="letterSpacing ?? 0"
+          aria-label="Letter spacing"
+          data-testid="text-letter-spacing"
+          @input="emitPatch({ letter_spacing: Number(($event.target as HTMLInputElement).value) })"
+        />
+        <span class="size-value">{{ ((letterSpacing ?? 0)).toFixed(2) }}em</span>
+      </div>
+      <div class="toolbar-row size-row">
+        <span class="size-label">Leading</span>
+        <input
+          class="opacity-slider"
+          type="range"
+          min="0.8" max="2.4" step="0.05"
+          :value="lineHeight ?? 1.1"
+          aria-label="Line height"
+          data-testid="text-line-height"
+          @input="emitPatch({ line_height: Number(($event.target as HTMLInputElement).value) })"
+        />
+        <span class="size-value">{{ (lineHeight ?? 1.1).toFixed(2) }}</span>
+      </div>
+      <div class="toolbar-row">
+        <label class="toolbar-fit-toggle" title="Auto-fit text to its area (keeps it print-safe)">
+          <input
+            type="checkbox"
+            :checked="autoFit !== false"
+            data-testid="text-fit-to-area"
+            @change="emitPatch({ auto_fit: ($event.target as HTMLInputElement).checked })"
+          />
+          <span>Fit to area</span>
+        </label>
+      </div>
+      </template>
       <div v-if="supportsHighlight" class="toolbar-row">
         <button
           class="toolbar-highlight-toggle"
@@ -211,6 +248,12 @@ const props = defineProps<{
   italic: boolean
   canReset: boolean
   canDelete?: boolean
+  /** Phase 5 typography fine controls (em / unitless / fit toggle). */
+  letterSpacing?: number
+  lineHeight?: number
+  autoFit?: boolean
+  /** Theme slots expose tracking/leading/fit; free overlays keep the simpler set. */
+  supportsTypography?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -221,7 +264,7 @@ const emit = defineEmits<{
 }>()
 
 const overflowOpen = ref(false)
-const hasOverflow = computed(() => props.supportsHighlight === true || props.canReset)
+const hasOverflow = computed(() => props.supportsTypography === true || props.supportsHighlight === true || props.canReset)
 
 function emitPatch(patch: PosterTextOverride) {
   emit('patch', patch)
@@ -574,4 +617,15 @@ function toggleHighlight() {
   font-weight: 600;
   cursor: pointer;
 }
+
+.toolbar-fit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #44403c;
+  cursor: pointer;
+}
+.toolbar-fit-toggle input { accent-color: #2d6a4f; }
 </style>
