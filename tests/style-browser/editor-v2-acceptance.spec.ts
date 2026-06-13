@@ -251,4 +251,25 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
     const value = await swatch.inputValue()
     expect(value.toLowerCase()).not.toBe('#000000')
   })
+
+  // Phase 0 dismiss coordinator: one floating surface at a time. Opening the
+  // + menu clears any element selection; selecting an element closes the menu.
+  test('+ menu and element selection are mutually exclusive', async ({ page }) => {
+    await gotoEditorV2(page)
+
+    // Open the + menu → select the title → the menu dismisses, toolbar opens.
+    await clickFixed(page.getByTestId('poster-add-button'))
+    await expect(page.getByTestId('poster-add-root-panel')).toBeVisible()
+    // Click the title's LEFT edge — the open menu card is centered and would
+    // otherwise sit over the title's middle (which is the coordinator working).
+    const titleBox = (await page.locator('.poster-trail-name').boundingBox())!
+    await page.mouse.click(titleBox.x + 12, titleBox.y + titleBox.height / 2)
+    await expect(page.getByTestId('poster-element-toolbar')).toBeVisible()
+    await expect(page.getByTestId('poster-add-root-panel')).toHaveCount(0)
+
+    // Reverse: with the title selected, open the + menu → the toolbar closes.
+    await clickFixed(page.getByTestId('poster-add-button'))
+    await expect(page.getByTestId('poster-add-root-panel')).toBeVisible()
+    await expect(page.getByTestId('poster-element-toolbar')).toHaveCount(0)
+  })
 })

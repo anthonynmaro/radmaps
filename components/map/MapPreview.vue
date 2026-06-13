@@ -584,7 +584,7 @@
         <span class="composition-bib-pin-hole composition-bib-pin-hole--bl" data-testid="composition-bib-pin-hole" />
       </div>
       <div
-        v-if="composition.id === 'bib-numerals'"
+        v-if="composition.id === 'bib-numerals' && marathonBibTopline"
         class="composition-bib-topline"
         data-testid="composition-bib-topline"
         aria-hidden="true"
@@ -2283,11 +2283,13 @@
            contextual toolbar open. -->
       <PosterAddMenu
         v-if="unifiedPosterGrammar && !chromeGridRendering"
+        ref="posterAddMenuRef"
         :stat-options="addMenuStatOptions"
         @add-text="onAddMenuText"
         @add-stat="onAddMenuStat"
         @add-icon="onAddMenuIcon"
         @add-image="onAddMenuImage"
+        @open="onPosterAddMenuOpen"
       />
 
     </div>
@@ -2810,6 +2812,24 @@ elementSelectionArbiter.onEvicted('poster', () => {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
   activeTextTarget.value = null
   activeTextAnchor.value = null
+})
+
+// ── Phase 0 dismiss coordinator (one popover at a time) ─────────────────────
+// The + Add menu owns its own open state; these two hooks keep it mutually
+// exclusive with element selection. Opening the menu clears any selection;
+// claiming any selection (poster OR map domain) closes the menu. The chrome
+// add/padding panels close alongside so no two floating surfaces coexist.
+const posterAddMenuRef = ref<{ close: () => void } | null>(null)
+
+function onPosterAddMenuOpen() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  elementSelectionArbiter.releaseAll()
+  closeChromeAddPanel()
+  chromePaddingPanelOpen.value = false
+}
+
+watch(() => elementSelectionArbiter.current.value, (claim) => {
+  if (claim) posterAddMenuRef.value?.close()
 })
 
 // Click = select, click-again = inline text edit. Canceling pointerdown on a
@@ -5541,12 +5561,15 @@ const marathonBibYear = computed(() => {
   return String(date.getUTCFullYear())
 })
 const marathonBibTopline = computed(() => {
+  // No fake placeholder: when the map has no region/location, the bib topline
+  // showed a meaningless "ROUTE" that reads as junk text the user can't edit.
+  // Fall back to nothing (the row collapses) rather than inventing a word.
   const region = (formatPosterRegion(themeDataContext.value) || locationText.value)
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
     .pop()
-    ?.toUpperCase() || 'ROUTE'
+    ?.toUpperCase() || ''
   return [region, marathonBibYear.value ? `BIB ${marathonBibYear.value}` : '']
     .filter(Boolean)
     .join(' · ')

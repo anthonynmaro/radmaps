@@ -130,6 +130,9 @@ const emit = defineEmits<{
   'add-stat': [binding: PosterStatBinding]
   'add-icon': [icon: PosterIconId]
   'add-image': [file: File]
+  // Fired when the menu opens so the parent can dismiss any other open
+  // floating surface (one popover at a time — Phase 0 dismiss coordinator).
+  'open': []
 }>()
 
 const open = ref(false)
@@ -139,14 +142,19 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const iconOptions = computed(() => POSTER_ICONS)
 
 function toggle() {
-  open.value = !open.value
+  const next = !open.value
+  open.value = next
   panel.value = 'root'
+  if (next) emit('open')
 }
 
 function close() {
   open.value = false
   panel.value = 'root'
 }
+
+// Parent-driven close: selecting any element elsewhere dismisses this menu.
+defineExpose({ close })
 
 function onAddText() {
   emit('add-text')
@@ -192,7 +200,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
-  z-index: 40; /* above band dividers (30) and poster chrome */
+  /* Editor stacking scale: poster chrome 1–60, band dividers 30, viewpoint
+     pill 32, transient menus 9000, element toolbars 10000 (floating, body),
+     map-selection overlay 9999. The menu must clear elevated chrome bands
+     (up to 60) so its card is never occluded. */
+  z-index: 9000;
   display: flex;
   flex-direction: column;
   align-items: center;
