@@ -193,6 +193,22 @@ test.describe('editor-v2 acceptance — the north-star demo', () => {
     await expect(page.getByTestId('band-divider-bottom')).toHaveCount(0)
     await expect(page.getByTestId('viewpoint-pill')).toHaveCount(0)
     await expect(page.getByTestId('poster-band-toolbar')).toHaveCount(0)
+    await expect(page.getByTestId('poster-print-frame')).toHaveCount(0)
+  })
+
+  // Phase 2: the print-quality frame is editor-only chrome. It shows a subtle
+  // trim/cut edge + safe-area line, and must NEVER appear at print render.
+  test('print-quality frame shows in the editor, not at print', async ({ page }) => {
+    await gotoEditorV2(page)
+    await expect(page.getByTestId('poster-print-frame')).toBeVisible()
+    await expect(page.locator('.poster-print-frame__safe')).toBeVisible()
+    await expect(page.locator('.poster-print-frame__trim')).toBeVisible()
+
+    // Print render mode (editable=false): the frame is gated out entirely.
+    await page.goto('/style-browser-fixture?theme=editorial-minimal&composition=editorial-tall&print=final&flags=editor_v2')
+    await expect(page.getByTestId('poster-canvas')).toBeVisible({ timeout: 30_000 })
+    await page.waitForTimeout(1000)
+    await expect(page.getByTestId('poster-print-frame')).toHaveCount(0)
   })
 
   // Live-testing refinements (2026-06-12). Found driving the real editor:

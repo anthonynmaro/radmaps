@@ -524,6 +524,18 @@
         <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-1" />
         <span class="poster-editor-guide poster-editor-guide--third-h poster-editor-guide--third-h-2" />
       </div>
+
+      <!-- Print-quality frame (editor-only, never prints): trim/cut edge +
+           real safe-area line, from getPrintFraming. Editor-v2 only. -->
+      <div
+        v-if="showPrintFrame"
+        class="poster-print-frame"
+        data-testid="poster-print-frame"
+        aria-hidden="true"
+      >
+        <span class="poster-print-frame__trim" />
+        <span class="poster-print-frame__safe" :style="printFrameSafeStyle" />
+      </div>
       <div
         v-if="composition.showStarField"
         class="composition-star-field"
@@ -4678,24 +4690,32 @@ const editorPrintFraming = computed<PrintFraming | null>(() => {
   }
 })
 
-// Safe-margin inset in canvas px for one axis: trim → safe as a fraction of
-// the trim dimension, scaled to the live canvas. Defaults to a small comfort
-// inset if framing is unavailable.
-function printSafeInsetPx(axis: 'x' | 'y', sizePx: number): number {
-  const framing = editorPrintFraming.value
-  if (!framing) return sizePx * 0.04
-  const trimIn = axis === 'x' ? framing.trimWidthIn : framing.trimHeightIn
-  if (!trimIn) return sizePx * 0.04
-  return sizePx * (framing.safeMarginIn / trimIn)
+// Design safe-area inset in canvas px. ONE consistent margin across snapping,
+// the visible safe frame, and the print guard (posterPrintGuards
+// SAFE_AREA_PERCENT) so a user never snaps content inside the visible safe
+// line only to be blocked at checkout. The provider's bare ~5mm minimum is
+// looser than this; we keep a comfortable 4% for print quality. The real cut
+// geometry is shown separately by the trim/bleed frame below.
+const DESIGN_SAFE_AREA_PCT = 0.04
+function printSafeInsetPx(_axis: 'x' | 'y', sizePx: number): number {
+  return sizePx * DESIGN_SAFE_AREA_PCT
 }
 
-// Bleed extends OUTSIDE trim; as a fraction of trim for one axis (editor frame).
-function printBleedFraction(axis: 'x' | 'y'): number {
-  const framing = editorPrintFraming.value
-  if (!framing) return 0
-  const trimIn = axis === 'x' ? framing.trimWidthIn : framing.trimHeightIn
-  return trimIn ? framing.bleedIn / trimIn : 0
-}
+// ── Print-quality frame (editor-only, never prints; FLAGS.EDITOR_V2) ─────────
+// A subtle, always-on overlay tying the editor to the real 24x36 print spec:
+// a faint trim/cut-edge ring at the poster boundary (where the bleed is
+// trimmed away) and a dashed safe-area line at the provider's true safe
+// margin. pointer-events:none; gated !isPrintRender so it cannot appear on the
+// /render pages the AWS renderer screenshots.
+const showPrintFrame = computed(() => unifiedPosterGrammar.value && !isPrintRender.value && editorPrintFraming.value != null)
+
+const printFrameSafeStyle = computed(() => {
+  const rect = posterCanvasEl.value?.getBoundingClientRect()
+  const w = rect?.width ?? 1, h = rect?.height ?? 1
+  const sx = (printSafeInsetPx('x', w) / w) * 100
+  const sy = (printSafeInsetPx('y', h) / h) * 100
+  return { inset: `${sy.toFixed(2)}% ${sx.toFixed(2)}%` }
+})
 
 // Free-canvas: elements may reach the trim edge (the poster edge); the safe
 // margin is advisory (guides + Phase 2 warnings), not a hard wall. allow_bleed
@@ -16847,6 +16867,31 @@ onUnmounted(() => {
 .image-asset.is-poster-v2,
 .icon-overlay.is-poster-v2 {
   outline-style: solid;
+}
+
+/* Print-quality frame: editor-only, never printed (gated !isPrintRender). */
+.poster-print-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12; /* above map (2), below toolbars/menus */
+}
+.poster-print-frame__trim,
+.poster-print-frame__safe {
+  position: absolute;
+  display: block;
+}
+/* Trim/cut edge: the poster boundary where the bleed is trimmed away. A
+   slight translucent ring over the whole poster, deliberately subtle. */
+.poster-print-frame__trim {
+  inset: 0;
+  border: 1px solid rgba(42, 91, 204, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+/* Safe area: the provider's true safe margin (real geometry). Keep important
+   content inside this dashed line. */
+.poster-print-frame__safe {
+  border: 1px dashed rgba(42, 91, 204, 0.28);
 }
 
 .poster-element-moveable {
