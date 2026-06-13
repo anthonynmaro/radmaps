@@ -69,15 +69,15 @@ if (!import.meta.dev) {
 
 const route = useRoute()
 
-// Playwright determinism: `?flags=editor_v2,foo` (or `?flags=` for none)
-// overrides the feature-flag state on BOTH server and client render so specs
-// don't depend on the dev environment's Supabase flag rows. Dev-only page.
-if (typeof route.query.flags === 'string') {
-  const flagState = useState<Record<string, true>>('feature-flags', () => ({}))
-  flagState.value = Object.fromEntries(
-    route.query.flags.split(',').map(key => key.trim()).filter(Boolean).map(key => [key, true as const]),
-  )
-}
+// Playwright determinism: `?flags=editor_v2,foo` enables only those flags;
+// omitted `flags` and explicit `?flags=` both mean no flags. This keeps the
+// dev-only fixture independent from local/Supabase flag rows on both SSR and
+// client render.
+const fixtureFlags = typeof route.query.flags === 'string' ? route.query.flags : ''
+const flagState = useState<Record<string, true>>('feature-flags', () => ({}))
+flagState.value = Object.fromEntries(
+  fixtureFlags.split(',').map(key => key.trim()).filter(Boolean).map(key => [key, true as const]),
+)
 const templateEditorFixture = route.query.templateEditor === 'true'
   || route.query.templateEditor === '1'
 const composition = typeof route.query.composition === 'string'
